@@ -1,24 +1,52 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { CRMProvider, useCRM } from "@/context/CRMContext";
+import LoginPage from "./pages/LoginPage";
+import AppLayout from "./components/AppLayout";
+import PipelinePage from "./pages/PipelinePage";
+import ContactsPage from "./pages/ContactsPage";
+import TasksPage from "./pages/TasksPage";
+import DashboardPage from "./pages/DashboardPage";
+import SettingsPage from "./pages/SettingsPage";
+import NotFound from "./pages/NotFound";
+import { LeadDrawer } from "./components/LeadDrawer";
 
 const queryClient = new QueryClient();
+
+function AppRoutes() {
+  const { isLoggedIn, selectedLeadId, setSelectedLeadId } = useCRM();
+
+  if (!isLoggedIn) return <LoginPage />;
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to="/pipeline" replace />} />
+        <Route element={<AppLayout />}>
+          <Route path="/pipeline" element={<PipelinePage />} />
+          <Route path="/contatos" element={<ContactsPage />} />
+          <Route path="/tarefas" element={<TasksPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      {/* Global drawer for contacts page */}
+      <LeadDrawer leadId={selectedLeadId} open={!!selectedLeadId} onClose={() => setSelectedLeadId(null)} />
+    </>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <CRMProvider>
+          <AppRoutes />
+        </CRMProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
