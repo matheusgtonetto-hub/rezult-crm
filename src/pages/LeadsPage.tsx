@@ -85,7 +85,7 @@ export default function ContactsPage() {
                   <TableCell>
                     <div className="flex gap-1">
                       <button onClick={() => setSelectedLeadId(lead.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil size={14} /></button>
-                      <button onClick={() => { deleteLead(lead.id); toast.success("Contato removido."); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
+                      <button onClick={() => { deleteLead(lead.id); toast.success("Lead removido."); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
                     </div>
                   </TableCell>
                 </TableRow>
