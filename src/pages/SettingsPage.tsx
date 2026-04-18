@@ -12,7 +12,7 @@ export default function SettingsPage() {
 
   const addColumn = () => {
     if (!newColName.trim()) return;
-    setColumns([...columns, { id: `col-${Date.now()}`, title: newColName.trim(), leadIds: [] }]);
+    setColumns([...columns, { id: `col-${Date.now()}`, title: newColName.trim(), color: "#AAAAAA", leadIds: [] }]);
     setNewColName("");
     toast.success("Etapa adicionada!");
   };

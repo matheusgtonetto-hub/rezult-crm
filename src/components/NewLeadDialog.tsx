@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
-  const { addLead, columns, teamMembers } = useCRM();
+  const { addLead, columns, teamMembers, activePipelineId, nextDealNumber } = useCRM();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -31,11 +31,13 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
     if (!name || !whatsapp) { toast.error("Nome e WhatsApp são obrigatórios."); return; }
     addLead({
       id: `lead-${Date.now()}`,
+      dealNumber: nextDealNumber(),
+      pipelineId: activePipelineId,
       name, company, whatsapp, value: Number(value) || 0,
       responsible, stage, priority, origin,
       email: "", entryDate: new Date().toISOString().split("T")[0],
       notes: "", activities: [
-        { id: `a-${Date.now()}`, date: new Date().toISOString().split("T")[0], type: "note", description: "Lead criado." },
+        { id: `a-${Date.now()}`, date: new Date().toISOString().split("T")[0], type: "created", description: "Lead criado." },
       ],
     });
     toast.success("Lead adicionado!");
