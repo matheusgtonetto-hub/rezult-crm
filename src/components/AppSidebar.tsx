@@ -1,8 +1,6 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
-import { Logo } from "@/components/Logo";
 import { useCRM } from "@/context/CRMContext";
 import {
-  LayoutDashboard,
   Users,
   CheckSquare,
   BarChart3,
@@ -10,111 +8,211 @@ import {
   LogOut,
   MessageSquare,
   Zap,
+  KanbanSquare,
+  Bell,
+  HelpCircle,
+  Building2,
+  Plus,
+  RefreshCw,
+  UserCircle,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
   to: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof BarChart3;
   locked?: boolean;
 };
 
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { to: "/pipeline", label: "Pipelines", icon: LayoutDashboard },
+  { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare, locked: true },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
 ];
 
+// Deterministic color from a string (for company avatar)
+function colorFromString(str: string) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue} 55% 45%)`;
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map(w => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+const COMPANY = { name: "Rezult Demo", plan: "Plano Professional" };
+const USER = { name: "Carlos Admin", email: "carlos@rezult.com" };
+
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { logout } = useCRM();
 
-  const renderItem = (item: NavItem) => {
+  const itemBase =
+    "w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200";
+
+  const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
-    const baseClasses =
-      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors";
+    const Icon = item.icon;
 
     if (item.locked) {
       return (
-        <TooltipProvider key={item.to} delayDuration={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={`${baseClasses} text-sidebar-foreground opacity-40 cursor-not-allowed select-none`}
-              >
-                <item.icon size={18} />
-                <span className="flex-1">{item.label}</span>
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Em breve
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">Em breve</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip key={item.to}>
+          <TooltipTrigger asChild>
+            <div className={`${itemBase} text-muted-foreground opacity-35 cursor-not-allowed`}>
+              <Icon size={18} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{item.label} · Em breve</TooltipContent>
+        </Tooltip>
       );
     }
 
     return (
-      <RouterNavLink
-        key={item.to}
-        to={item.to}
-        className={`${baseClasses} ${
-          active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-        }`}
-      >
-        <item.icon size={18} />
-        {item.label}
-      </RouterNavLink>
+      <Tooltip key={item.to}>
+        <TooltipTrigger asChild>
+          <RouterNavLink
+            to={item.to}
+            className={`${itemBase} ${
+              active
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
+            }`}
+          >
+            <Icon size={18} />
+          </RouterNavLink>
+        </TooltipTrigger>
+        <TooltipContent side="right">{item.label}</TooltipContent>
+      </Tooltip>
     );
   };
 
+  const settingsActive = pathname.startsWith("/configuracoes");
+
   return (
-    <aside className="w-60 min-h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
-      <div className="p-5 border-b border-sidebar-border">
-        <Logo size="md" showIcon />
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <aside className="w-[52px] min-h-screen bg-sidebar flex flex-col items-center border-r border-sidebar-border shrink-0 py-3 gap-1">
+        {/* Company icon */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-8 h-8 rounded-lg border-[0.5px] border-card-border flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity"
+              style={{ background: colorFromString(COMPANY.name) }}
+              aria-label="Empresa"
+            >
+              {initials(COMPANY.name)}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-56">
+            <DropdownMenuLabel className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold"
+                style={{ background: colorFromString(COMPANY.name) }}
+              >
+                {initials(COMPANY.name)}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">{COMPANY.name}</span>
+                <span className="text-xs text-muted-foreground font-normal">{COMPANY.plan}</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <RefreshCw size={14} className="mr-2" /> Trocar empresa
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Plus size={14} className="mr-2" /> Adicionar empresa
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      <nav className="flex-1 py-4 px-3 space-y-1">
-        {navItems.map(renderItem)}
-      </nav>
+        <div className="h-px w-7 bg-sidebar-border my-2" />
 
-      <div className="px-3 pb-2">
-        <RouterNavLink
-          to="/configuracoes"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            pathname.startsWith("/configuracoes")
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-          }`}
-        >
-          <Settings size={18} />
-          Configurações
-        </RouterNavLink>
-      </div>
+        {/* Main navigation */}
+        <nav className="flex-1 flex flex-col items-center gap-1">
+          {navItems.map(renderNav)}
+        </nav>
 
-      <div className="p-4 border-t border-sidebar-border flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-          CA
+        {/* Footer */}
+        <div className="flex flex-col items-center gap-1 pt-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
+                <Bell size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Notificações</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
+                <HelpCircle size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Ajuda</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <RouterNavLink
+                to="/configuracoes"
+                className={`${itemBase} ${
+                  settingsActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
+                }`}
+              >
+                <Settings size={18} />
+              </RouterNavLink>
+            </TooltipTrigger>
+            <TooltipContent side="right">Configurações</TooltipContent>
+          </Tooltip>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[11px] font-bold mt-1 hover:opacity-90 transition-opacity"
+                aria-label="Usuário"
+              >
+                {initials(USER.name)}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="end" className="w-56">
+              <DropdownMenuLabel className="flex flex-col">
+                <span className="text-sm font-semibold">{USER.name}</span>
+                <span className="text-xs text-muted-foreground font-normal">{USER.email}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <UserCircle size={14} className="mr-2" /> Meu perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                <LogOut size={14} className="mr-2" /> Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">Carlos Admin</p>
-          <p className="text-xs text-muted-foreground truncate">carlos@rezult.com</p>
-        </div>
-        <button
-          onClick={logout}
-          className="text-muted-foreground hover:text-destructive transition-colors"
-          aria-label="Sair"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </TooltipProvider>
   );
 }
