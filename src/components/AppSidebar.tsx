@@ -113,13 +113,13 @@ export function AppSidebar() {
       <aside className="w-[60px] min-h-screen bg-sidebar flex flex-col items-center border-r border-sidebar-border shrink-0 py-3 gap-1">
         {/* Rezult logo (RZ) */}
         <div
-          className="w-9 h-9 rounded-[10px] border-[1.5px] border-primary text-primary flex items-center justify-center text-[12px] font-bold tracking-tight"
+          className="w-9 h-9 rounded-[10px] border-[1.5px] border-primary text-primary flex items-center justify-center text-[13px] font-bold tracking-tight"
           aria-label="Rezult"
         >
           RZ
         </div>
 
-        <div className="h-px w-8 bg-sidebar-border my-2" />
+        <div className="h-px w-8 bg-sidebar-border my-2" style={{ marginTop: 8, marginBottom: 8 }} />
 
         {/* Company icon */}
         <DropdownMenu>

@@ -114,7 +114,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             className="flex-1 rounded-lg font-semibold bg-success text-success-foreground hover:bg-success/90"
           >
             <Trophy size={14} className="mr-1.5" />
-            Marcar como ganho
+            Ganho
           </Button>
           <Button
             onClick={handleLost}
@@ -122,7 +122,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             className="flex-1 rounded-lg font-semibold"
           >
             <XCircle size={14} className="mr-1.5" />
-            Marcar como perdido
+            Perdido
           </Button>
         </div>
 

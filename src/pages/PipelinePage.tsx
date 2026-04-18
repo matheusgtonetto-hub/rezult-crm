@@ -36,7 +36,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 const priorityColors: Record<string, string> = {
@@ -149,7 +150,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Filters bar */}
-        <div className="px-6 pb-4 flex flex-wrap items-center gap-2 border-b border-card-border">
+        <div className="px-6 pb-4 flex flex-nowrap items-center gap-2 border-b border-card-border overflow-x-auto">
           <div className="relative">
             <Search
               size={14}
@@ -229,10 +230,10 @@ export default function PipelinePage() {
                       {/* Header */}
                       <div className="flex items-start justify-between px-3 py-3">
                         <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-foreground truncate">
+                          <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
                             {col.title}
                           </h3>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className="mt-0.5" style={{ fontSize: 12, color: "#AAAAAA" }}>
                             {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
                             {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                           </p>
@@ -285,21 +286,40 @@ export default function PipelinePage() {
                                       : ""
                                   }`}
                                 >
-                                  {/* Top: deal number + WhatsApp */}
+                                  {/* Top: deal number + WhatsApp + Note */}
                                   <div className="flex items-center justify-between mb-1.5">
                                     <span className="text-[10px] font-mono text-muted-foreground">
                                       #{lead.dealNumber}
                                     </span>
-                                    <a
-                                      href={`https://wa.me/${lead.whatsapp}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={e => e.stopPropagation()}
-                                      className="text-success hover:scale-110 transition-transform"
-                                      aria-label="Abrir WhatsApp"
-                                    >
-                                      <MessageCircle size={14} />
-                                    </a>
+                                    <div className="flex items-center gap-1.5">
+                                      <a
+                                        href={`https://wa.me/${lead.whatsapp}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
+                                        className="text-success hover:scale-110 transition-transform"
+                                        aria-label="Abrir WhatsApp"
+                                      >
+                                        <MessageCircle size={14} />
+                                      </a>
+                                      <TooltipProvider delayDuration={300}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              onClick={e => {
+                                                e.stopPropagation();
+                                                setSelectedLeadId(leadId);
+                                              }}
+                                              className="text-muted-foreground hover:text-primary transition-colors"
+                                              aria-label="Adicionar nota"
+                                            >
+                                              <MessageSquarePlus size={14} />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top">Adicionar nota</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
                                   </div>
 
                                   {/* Name + company */}
@@ -330,6 +350,14 @@ export default function PipelinePage() {
                                       {lead.priority}
                                     </span>
                                   </div>
+
+                                  {/* Follow-up date */}
+                                  {lead.nextFollowUp && (
+                                    <div className="flex items-center gap-1 mt-1" style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                      <Calendar size={11} />
+                                      {new Date(lead.nextFollowUp).toLocaleDateString("pt-BR")}
+                                    </div>
+                                  )}
 
                                   {/* Footer: responsible tag + activities + quick add */}
                                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-card-border">
