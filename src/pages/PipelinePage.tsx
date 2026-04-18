@@ -286,21 +286,40 @@ export default function PipelinePage() {
                                       : ""
                                   }`}
                                 >
-                                  {/* Top: deal number + WhatsApp */}
+                                  {/* Top: deal number + WhatsApp + Note */}
                                   <div className="flex items-center justify-between mb-1.5">
                                     <span className="text-[10px] font-mono text-muted-foreground">
                                       #{lead.dealNumber}
                                     </span>
-                                    <a
-                                      href={`https://wa.me/${lead.whatsapp}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={e => e.stopPropagation()}
-                                      className="text-success hover:scale-110 transition-transform"
-                                      aria-label="Abrir WhatsApp"
-                                    >
-                                      <MessageCircle size={14} />
-                                    </a>
+                                    <div className="flex items-center gap-1.5">
+                                      <a
+                                        href={`https://wa.me/${lead.whatsapp}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
+                                        className="text-success hover:scale-110 transition-transform"
+                                        aria-label="Abrir WhatsApp"
+                                      >
+                                        <MessageCircle size={14} />
+                                      </a>
+                                      <TooltipProvider delayDuration={300}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              onClick={e => {
+                                                e.stopPropagation();
+                                                setSelectedLeadId(leadId);
+                                              }}
+                                              className="text-muted-foreground hover:text-primary transition-colors"
+                                              aria-label="Adicionar nota"
+                                            >
+                                              <MessageSquarePlus size={14} />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top">Adicionar nota</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
                                   </div>
 
                                   {/* Name + company */}
@@ -331,6 +350,14 @@ export default function PipelinePage() {
                                       {lead.priority}
                                     </span>
                                   </div>
+
+                                  {/* Follow-up date */}
+                                  {lead.nextFollowUp && (
+                                    <div className="flex items-center gap-1 mt-1" style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                      <Calendar size={11} />
+                                      {new Date(lead.nextFollowUp).toLocaleDateString("pt-BR")}
+                                    </div>
+                                  )}
 
                                   {/* Footer: responsible tag + activities + quick add */}
                                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-card-border">
