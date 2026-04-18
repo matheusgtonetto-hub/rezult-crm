@@ -1,29 +1,34 @@
 export type Priority = "Alta" | "Média" | "Baixa";
 export type LeadOrigin = "Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro";
 export type TaskStatus = "Pendente" | "Concluída";
+export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created";
+export type PipelineCategory = "Venda" | "Follow-up" | "Operações";
+
+export interface Activity {
+  id: string;
+  date: string;
+  type: ActivityType;
+  description: string;
+}
 
 export interface Lead {
   id: string;
+  dealNumber: number;
   name: string;
   company?: string;
   whatsapp: string;
   email?: string;
   value: number;
   responsible: string;
+  pipelineId: string;
   stage: string;
   priority: Priority;
   origin: LeadOrigin;
+  productId?: string;
   entryDate: string;
   nextFollowUp?: string;
   notes: string;
   activities: Activity[];
-}
-
-export interface Activity {
-  id: string;
-  date: string;
-  type: "stage_change" | "note";
-  description: string;
 }
 
 export interface Task {
@@ -39,36 +44,92 @@ export interface Task {
 export interface PipelineColumn {
   id: string;
   title: string;
+  color: string; // hex/hsl for top line
   leadIds: string[];
 }
 
-export const defaultColumns: PipelineColumn[] = [
-  { id: "novo-lead", title: "Novo Lead", leadIds: ["1", "2"] },
-  { id: "contato-feito", title: "Contato Feito", leadIds: ["3"] },
-  { id: "proposta-enviada", title: "Proposta Enviada", leadIds: ["4", "5"] },
-  { id: "negociacao", title: "Negociação", leadIds: ["6"] },
-  { id: "fechado", title: "Fechado", leadIds: ["7"] },
-  { id: "perdido", title: "Perdido", leadIds: ["8"] },
+export interface Pipeline {
+  id: string;
+  name: string;
+  category: PipelineCategory;
+  columns: PipelineColumn[];
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  defaultValue: number;
+}
+
+// Default column colors per stage type
+export const stageColors = {
+  "novo-lead": "#AAAAAA",
+  "contato-feito": "#378ADD",
+  "proposta-enviada": "#F59E0B",
+  "negociacao": "#8B5CF6",
+  "fechado": "#0F6E56",
+  "perdido": "#E24B4A",
+} as const;
+
+const buildSalesColumns = (): PipelineColumn[] => [
+  { id: "novo-lead", title: "Novo Lead", color: stageColors["novo-lead"], leadIds: ["1", "2"] },
+  { id: "contato-feito", title: "Contato Feito", color: stageColors["contato-feito"], leadIds: ["3"] },
+  { id: "proposta-enviada", title: "Proposta Enviada", color: stageColors["proposta-enviada"], leadIds: ["4", "5"] },
+  { id: "negociacao", title: "Negociação", color: stageColors["negociacao"], leadIds: ["6"] },
+  { id: "fechado", title: "Fechado", color: stageColors["fechado"], leadIds: ["7"] },
+  { id: "perdido", title: "Perdido", color: stageColors["perdido"], leadIds: ["8"] },
 ];
+
+const buildFollowUpColumns = (): PipelineColumn[] => [
+  { id: "fu-pendente", title: "Pendente", color: "#AAAAAA", leadIds: [] },
+  { id: "fu-em-andamento", title: "Em andamento", color: "#378ADD", leadIds: [] },
+  { id: "fu-concluido", title: "Concluído", color: "#0F6E56", leadIds: [] },
+];
+
+const buildRecoveryColumns = (): PipelineColumn[] => [
+  { id: "rec-novo", title: "Reabrir contato", color: "#AAAAAA", leadIds: [] },
+  { id: "rec-tentativa", title: "Tentativa", color: "#F59E0B", leadIds: [] },
+  { id: "rec-recuperado", title: "Recuperado", color: "#0F6E56", leadIds: [] },
+  { id: "rec-perdido", title: "Definitivamente perdido", color: "#E24B4A", leadIds: [] },
+];
+
+export const defaultPipelines: Pipeline[] = [
+  { id: "pipe-comercial", name: "Pipeline Comercial", category: "Venda", columns: buildSalesColumns() },
+  { id: "pipe-followup", name: "Follow-up", category: "Follow-up", columns: buildFollowUpColumns() },
+  { id: "pipe-recuperacao", name: "Recuperação de Leads", category: "Follow-up", columns: buildRecoveryColumns() },
+];
+
+export const mockProducts: Product[] = [
+  { id: "prod-1", name: "Plano Mensal", sku: "PM-001", defaultValue: 2500 },
+  { id: "prod-2", name: "Plano Anual", sku: "PA-001", defaultValue: 24000 },
+  { id: "prod-3", name: "Consultoria avulsa", sku: "CONS-01", defaultValue: 3500 },
+];
+
+const PIPE = "pipe-comercial";
 
 export const mockLeads: Record<string, Lead> = {
   "1": {
-    id: "1", name: "Ana Souza", company: "Bela Moda", whatsapp: "5511999887766",
-    email: "ana@belamoda.com", value: 3500, responsible: "Carlos", stage: "novo-lead",
-    priority: "Alta", origin: "Instagram", entryDate: "2026-04-01", nextFollowUp: "2026-04-13",
+    id: "1", dealNumber: 1001, name: "Ana Souza", company: "Bela Moda", whatsapp: "5511999887766",
+    email: "ana@belamoda.com", value: 3500, responsible: "Carlos", pipelineId: PIPE, stage: "novo-lead",
+    priority: "Alta", origin: "Instagram", productId: "prod-1",
+    entryDate: "2026-04-01", nextFollowUp: "2026-04-13",
     notes: "Interessada em pacote mensal.", activities: [
-      { id: "a1", date: "2026-04-01", type: "note", description: "Lead captado via Instagram." },
+      { id: "a1", date: "2026-04-01", type: "created", description: "Lead criado." },
+      { id: "a1b", date: "2026-04-01", type: "note", description: "Lead captado via Instagram." },
     ],
   },
   "2": {
-    id: "2", name: "Bruno Lima", company: "Tech Solutions", whatsapp: "5511988776655",
-    value: 8000, responsible: "Mariana", stage: "novo-lead",
+    id: "2", dealNumber: 1002, name: "Bruno Lima", company: "Tech Solutions", whatsapp: "5511988776655",
+    value: 8000, responsible: "Mariana", pipelineId: PIPE, stage: "novo-lead",
     priority: "Média", origin: "Site", entryDate: "2026-04-03",
-    notes: "", activities: [],
+    notes: "", activities: [
+      { id: "a2a", date: "2026-04-03", type: "created", description: "Lead criado." },
+    ],
   },
   "3": {
-    id: "3", name: "Carla Mendes", whatsapp: "5511977665544",
-    email: "carla@email.com", value: 1200, responsible: "Carlos", stage: "contato-feito",
+    id: "3", dealNumber: 1003, name: "Carla Mendes", whatsapp: "5511977665544",
+    email: "carla@email.com", value: 1200, responsible: "Carlos", pipelineId: PIPE, stage: "contato-feito",
     priority: "Baixa", origin: "Indicação", entryDate: "2026-03-28", nextFollowUp: "2026-04-14",
     notes: "Aguardando retorno.", activities: [
       { id: "a2", date: "2026-03-28", type: "note", description: "Primeiro contato por WhatsApp." },
@@ -76,43 +137,49 @@ export const mockLeads: Record<string, Lead> = {
     ],
   },
   "4": {
-    id: "4", name: "Diego Ferreira", company: "DF Consulting", whatsapp: "5511966554433",
-    value: 5000, responsible: "Mariana", stage: "proposta-enviada",
-    priority: "Alta", origin: "Facebook Ads", entryDate: "2026-03-20", nextFollowUp: "2026-04-12",
+    id: "4", dealNumber: 1004, name: "Diego Ferreira", company: "DF Consulting", whatsapp: "5511966554433",
+    value: 5000, responsible: "Mariana", pipelineId: PIPE, stage: "proposta-enviada",
+    priority: "Alta", origin: "Facebook Ads", productId: "prod-3",
+    entryDate: "2026-03-20", nextFollowUp: "2026-04-12",
     notes: "Proposta enviada dia 05/04.", activities: [
       { id: "a4", date: "2026-03-20", type: "note", description: "Lead de Facebook Ads." },
       { id: "a5", date: "2026-04-05", type: "stage_change", description: "Proposta enviada." },
     ],
   },
   "5": {
-    id: "5", name: "Elisa Rocha", company: "Rocha & Filhos", whatsapp: "5511955443322",
-    value: 2500, responsible: "Carlos", stage: "proposta-enviada",
+    id: "5", dealNumber: 1005, name: "Elisa Rocha", company: "Rocha & Filhos", whatsapp: "5511955443322",
+    value: 2500, responsible: "Carlos", pipelineId: PIPE, stage: "proposta-enviada",
     priority: "Média", origin: "Instagram", entryDate: "2026-03-25",
-    notes: "", activities: [],
+    notes: "", activities: [
+      { id: "a5b", date: "2026-03-25", type: "created", description: "Lead criado." },
+    ],
   },
   "6": {
-    id: "6", name: "Fábio Costa", whatsapp: "5511944332211",
-    email: "fabio@email.com", value: 12000, responsible: "Carlos", stage: "negociacao",
-    priority: "Alta", origin: "Indicação", entryDate: "2026-03-15", nextFollowUp: "2026-04-15",
+    id: "6", dealNumber: 1006, name: "Fábio Costa", whatsapp: "5511944332211",
+    email: "fabio@email.com", value: 12000, responsible: "Carlos", pipelineId: PIPE, stage: "negociacao",
+    priority: "Alta", origin: "Indicação", productId: "prod-2",
+    entryDate: "2026-03-15", nextFollowUp: "2026-04-15",
     notes: "Negociando desconto para fechamento.", activities: [
       { id: "a6", date: "2026-03-15", type: "note", description: "Indicação do cliente João." },
+      { id: "a6b", date: "2026-03-22", type: "whatsapp", description: "Conversa por WhatsApp." },
       { id: "a7", date: "2026-04-01", type: "stage_change", description: "Em negociação." },
     ],
   },
   "7": {
-    id: "7", name: "Gisele Alves", company: "GA Design", whatsapp: "5511933221100",
-    value: 4000, responsible: "Mariana", stage: "fechado",
-    priority: "Média", origin: "Site", entryDate: "2026-03-10",
+    id: "7", dealNumber: 1007, name: "Gisele Alves", company: "GA Design", whatsapp: "5511933221100",
+    value: 4000, responsible: "Mariana", pipelineId: PIPE, stage: "fechado",
+    priority: "Média", origin: "Site", productId: "prod-1",
+    entryDate: "2026-03-10",
     notes: "Contrato assinado.", activities: [
-      { id: "a8", date: "2026-04-08", type: "stage_change", description: "Negócio fechado!" },
+      { id: "a8", date: "2026-04-08", type: "won", description: "Negócio fechado!" },
     ],
   },
   "8": {
-    id: "8", name: "Hugo Santos", whatsapp: "5511922110099",
-    value: 1500, responsible: "Carlos", stage: "perdido",
+    id: "8", dealNumber: 1008, name: "Hugo Santos", whatsapp: "5511922110099",
+    value: 1500, responsible: "Carlos", pipelineId: PIPE, stage: "perdido",
     priority: "Baixa", origin: "Outro", entryDate: "2026-03-05",
     notes: "Sem orçamento no momento.", activities: [
-      { id: "a9", date: "2026-04-06", type: "stage_change", description: "Lead perdido - sem budget." },
+      { id: "a9", date: "2026-04-06", type: "lost", description: "Lead perdido — sem budget." },
     ],
   },
 };
@@ -125,4 +192,14 @@ export const mockTasks: Task[] = [
   { id: "t5", title: "Agendar demonstração", leadId: "2", leadName: "Bruno Lima", responsible: "Mariana", dueDate: "2026-04-10T11:00", status: "Concluída" },
 ];
 
-export const teamMembers = ["Carlos", "Mariana"];
+export const teamMembers = ["Carlos", "Mariana", "Rafael"];
+
+// Deterministic color per team member (for tags/avatars)
+export const memberColors: Record<string, string> = {
+  Carlos: "#0F6E56",
+  Mariana: "#8B5CF6",
+  Rafael: "#F59E0B",
+};
+
+// Backward-compat export (some code may still reference it)
+export const defaultColumns: PipelineColumn[] = defaultPipelines[0].columns;
