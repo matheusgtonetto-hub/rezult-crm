@@ -31,6 +31,9 @@ interface CRMContextType {
   // Columns of the ACTIVE pipeline (kept for backward compat)
   columns: PipelineColumn[];
   setColumns: (cols: PipelineColumn[]) => void;
+  updateColumn: (pipelineId: string, columnId: string, data: Partial<PipelineColumn>) => void;
+  deleteColumn: (pipelineId: string, columnId: string) => void;
+  addColumn: (pipelineId: string, column: PipelineColumn) => void;
 
   // Leads
   leads: Record<string, Lead>;
@@ -101,6 +104,33 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, []);
   const deletePipeline = useCallback((id: string) => {
     setPipelines(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const updateColumn = useCallback(
+    (pipelineId: string, columnId: string, data: Partial<PipelineColumn>) => {
+      setPipelines(prev =>
+        prev.map(p =>
+          p.id === pipelineId
+            ? { ...p, columns: p.columns.map(c => (c.id === columnId ? { ...c, ...data } : c)) }
+            : p
+        )
+      );
+    },
+    []
+  );
+
+  const deleteColumn = useCallback((pipelineId: string, columnId: string) => {
+    setPipelines(prev =>
+      prev.map(p =>
+        p.id === pipelineId ? { ...p, columns: p.columns.filter(c => c.id !== columnId) } : p
+      )
+    );
+  }, []);
+
+  const addColumn = useCallback((pipelineId: string, column: PipelineColumn) => {
+    setPipelines(prev =>
+      prev.map(p => (p.id === pipelineId ? { ...p, columns: [...p.columns, column] } : p))
+    );
   }, []);
 
   const updateLead = useCallback((id: string, data: Partial<Lead>) => {
@@ -231,7 +261,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         isLoggedIn, login, logout,
         pipelines, activePipelineId, setActivePipelineId, activePipeline,
         addPipeline, updatePipeline, deletePipeline,
-        columns, setColumns,
+        columns, setColumns, updateColumn, deleteColumn, addColumn,
         leads, updateLead, addLead, deleteLead, moveLead, markLeadWon, markLeadLost, nextDealNumber,
         tasks, addTask, updateTask, deleteTask,
         teamMembers, memberColors, products,

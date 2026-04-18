@@ -68,7 +68,7 @@ export function AppSidebar() {
   const { logout } = useCRM();
 
   const itemBase =
-    "w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200";
+    "w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors duration-200";
 
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
@@ -79,7 +79,7 @@ export function AppSidebar() {
         <Tooltip key={item.to}>
           <TooltipTrigger asChild>
             <div className={`${itemBase} text-muted-foreground opacity-35 cursor-not-allowed`}>
-              <Icon size={18} />
+              <Icon size={22} strokeWidth={1.75} />
             </div>
           </TooltipTrigger>
           <TooltipContent side="right">{item.label} · Em breve</TooltipContent>
@@ -98,7 +98,7 @@ export function AppSidebar() {
                 : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
             }`}
           >
-            <Icon size={18} />
+            <Icon size={22} strokeWidth={1.75} />
           </RouterNavLink>
         </TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
@@ -110,7 +110,17 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <aside className="w-[52px] min-h-screen bg-sidebar flex flex-col items-center border-r border-sidebar-border shrink-0 py-3 gap-1">
+      <aside className="w-[60px] min-h-screen bg-sidebar flex flex-col items-center border-r border-sidebar-border shrink-0 py-3 gap-1">
+        {/* Rezult logo (RZ) */}
+        <div
+          className="w-9 h-9 rounded-[10px] border-[1.5px] border-primary text-primary flex items-center justify-center text-[12px] font-bold tracking-tight"
+          aria-label="Rezult"
+        >
+          RZ
+        </div>
+
+        <div className="h-px w-8 bg-sidebar-border my-2" />
+
         {/* Company icon */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -145,7 +155,7 @@ export function AppSidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-px w-7 bg-sidebar-border my-2" />
+        <div className="h-px w-8 bg-sidebar-border my-2" />
 
         {/* Main navigation */}
         <nav className="flex-1 flex flex-col items-center gap-1">
@@ -157,7 +167,7 @@ export function AppSidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
-                <Bell size={18} />
+                <Bell size={22} strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Notificações</TooltipContent>
@@ -166,7 +176,7 @@ export function AppSidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
-                <HelpCircle size={18} />
+                <HelpCircle size={22} strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Ajuda</TooltipContent>
@@ -182,7 +192,7 @@ export function AppSidebar() {
                     : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
                 }`}
               >
-                <Settings size={18} />
+                <Settings size={22} strokeWidth={1.75} />
               </RouterNavLink>
             </TooltipTrigger>
             <TooltipContent side="right">Configurações</TooltipContent>

@@ -13,7 +13,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, MessageCircle, Search, Activity as ActivityIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -32,9 +56,18 @@ export default function PipelinePage() {
     selectedLeadId,
     setSelectedLeadId,
     memberColors,
+    updateColumn,
+    deleteColumn,
+    addColumn,
   } = useCRM();
   const [newLeadCol, setNewLeadCol] = useState<string | null>(null);
   const [globalNewLead, setGlobalNewLead] = useState(false);
+
+  // Column edit/delete dialogs
+  const [renamingCol, setRenamingCol] = useState<{ id: string; title: string } | null>(null);
+  const [deletingCol, setDeletingCol] = useState<{ id: string; title: string; count: number } | null>(null);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [showNewColumn, setShowNewColumn] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -204,13 +237,27 @@ export default function PipelinePage() {
                             {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setNewLeadCol(col.id)}
-                          className="text-muted-foreground hover:text-primary transition-colors p-1 -m-1"
-                          aria-label="Adicionar negócio"
-                        >
-                          <Plus size={16} />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors w-7 h-7 flex items-center justify-center"
+                              aria-label="Opções da etapa"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setRenamingCol({ id: col.id, title: col.title })}>
+                              <Pencil size={14} className="mr-2" /> Renomear etapa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeletingCol({ id: col.id, title: col.title, count: col.leadIds.length })}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 size={14} className="mr-2" /> Excluir etapa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
 
                       <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[calc(100vh-260px)]">
@@ -323,11 +370,36 @@ export default function PipelinePage() {
                           </div>
                         )}
                       </div>
+
+                      {/* Footer: + Novo negócio */}
+                      <button
+                        onClick={() => setNewLeadCol(col.id)}
+                        className="w-full text-xs text-muted-foreground hover:text-primary transition-colors py-2.5 border-t border-card-border flex items-center justify-center gap-1.5"
+                        style={{ borderTopWidth: "0.5px" }}
+                      >
+                        <Plus size={13} /> Novo negócio
+                      </button>
                     </div>
                   )}
                 </Droppable>
               );
             })}
+
+            {/* Add column tile */}
+            <button
+              onClick={() => {
+                setNewColumnName("");
+                setShowNewColumn(true);
+              }}
+              className="min-w-[280px] w-[280px] rounded-xl flex items-center justify-center text-sm transition-colors"
+              style={{
+                backgroundColor: "#F5F5F5",
+                border: "1px dashed #CCCCCC",
+                color: "#AAAAAA",
+              }}
+            >
+              <Plus size={16} className="mr-1.5" /> Nova coluna
+            </button>
           </div>
         </DragDropContext>
 
@@ -345,6 +417,104 @@ export default function PipelinePage() {
           }}
           defaultStage={newLeadCol || activePipeline.columns[0]?.id}
         />
+
+        {/* Rename column */}
+        <Dialog open={!!renamingCol} onOpenChange={(o) => !o && setRenamingCol(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Renomear etapa</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renamingCol?.title || ""}
+              onChange={(e) => setRenamingCol(prev => prev ? { ...prev, title: e.target.value } : prev)}
+              placeholder="Nome da etapa"
+              className="rounded-lg"
+            />
+            <DialogFooter>
+              <Button variant="outline" className="rounded-lg" onClick={() => setRenamingCol(null)}>
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-lg"
+                onClick={() => {
+                  if (!renamingCol || !renamingCol.title.trim()) {
+                    toast.error("Informe um nome.");
+                    return;
+                  }
+                  updateColumn(activePipeline.id, renamingCol.id, { title: renamingCol.title.trim() });
+                  toast.success("Etapa renomeada.");
+                  setRenamingCol(null);
+                }}
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete column */}
+        <AlertDialog open={!!deletingCol} onOpenChange={(o) => !o && setDeletingCol(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir etapa "{deletingCol?.title}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingCol && deletingCol.count > 0
+                  ? `Esta etapa contém ${deletingCol.count} negócio(s). Eles serão removidos da pipeline.`
+                  : "Esta ação não pode ser desfeita."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (!deletingCol) return;
+                  deleteColumn(activePipeline.id, deletingCol.id);
+                  toast.success("Etapa excluída.");
+                  setDeletingCol(null);
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* New column */}
+        <Dialog open={showNewColumn} onOpenChange={setShowNewColumn}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nova coluna</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={newColumnName}
+              onChange={(e) => setNewColumnName(e.target.value)}
+              placeholder="Ex: Aguardando assinatura"
+              className="rounded-lg"
+            />
+            <DialogFooter>
+              <Button variant="outline" className="rounded-lg" onClick={() => setShowNewColumn(false)}>
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-lg"
+                onClick={() => {
+                  const name = newColumnName.trim();
+                  if (!name) {
+                    toast.error("Informe um nome.");
+                    return;
+                  }
+                  const id = `col-${Date.now()}`;
+                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA", leadIds: [] });
+                  toast.success("Coluna criada.");
+                  setShowNewColumn(false);
+                }}
+              >
+                Criar coluna
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

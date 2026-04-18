@@ -73,12 +73,12 @@ export const stageColors = {
 } as const;
 
 const buildSalesColumns = (): PipelineColumn[] => [
-  { id: "novo-lead", title: "Novo Lead", color: stageColors["novo-lead"], leadIds: ["1", "2"] },
-  { id: "contato-feito", title: "Contato Feito", color: stageColors["contato-feito"], leadIds: ["3"] },
+  { id: "novo-lead", title: "Novo Lead", color: stageColors["novo-lead"], leadIds: ["1", "2", "9"] },
+  { id: "contato-feito", title: "Contato Feito", color: stageColors["contato-feito"], leadIds: ["3", "10"] },
   { id: "proposta-enviada", title: "Proposta Enviada", color: stageColors["proposta-enviada"], leadIds: ["4", "5"] },
-  { id: "negociacao", title: "Negociação", color: stageColors["negociacao"], leadIds: ["6"] },
-  { id: "fechado", title: "Fechado", color: stageColors["fechado"], leadIds: ["7"] },
-  { id: "perdido", title: "Perdido", color: stageColors["perdido"], leadIds: ["8"] },
+  { id: "negociacao", title: "Negociação", color: stageColors["negociacao"], leadIds: ["6", "11"] },
+  { id: "fechado", title: "Fechado", color: stageColors["fechado"], leadIds: ["7", "12"] },
+  { id: "perdido", title: "Perdido", color: stageColors["perdido"], leadIds: ["8", "13"] },
 ];
 
 const buildFollowUpColumns = (): PipelineColumn[] => [
@@ -180,6 +180,46 @@ export const mockLeads: Record<string, Lead> = {
     priority: "Baixa", origin: "Outro", entryDate: "2026-03-05",
     notes: "Sem orçamento no momento.", activities: [
       { id: "a9", date: "2026-04-06", type: "lost", description: "Lead perdido — sem budget." },
+    ],
+  },
+  "9": {
+    id: "9", dealNumber: 1009, name: "Isabela Martins", company: "Estúdio Aurora", whatsapp: "5511911223344",
+    email: "isabela@aurora.com.br", value: 6200, responsible: "Rafael", pipelineId: PIPE, stage: "novo-lead",
+    priority: "Média", origin: "Site", entryDate: "2026-04-04", nextFollowUp: "2026-04-15",
+    notes: "Pediu material institucional.", activities: [
+      { id: "a9a", date: "2026-04-04", type: "created", description: "Lead criado pelo formulário do site." },
+    ],
+  },
+  "10": {
+    id: "10", dealNumber: 1010, name: "João Pereira", company: "Pereira Advocacia", whatsapp: "5511900112233",
+    email: "joao@pereiraadv.com.br", value: 9800, responsible: "Mariana", pipelineId: PIPE, stage: "contato-feito",
+    priority: "Alta", origin: "Indicação", productId: "prod-2", entryDate: "2026-03-30", nextFollowUp: "2026-04-13",
+    notes: "Vai apresentar para os sócios.", activities: [
+      { id: "a10a", date: "2026-03-30", type: "whatsapp", description: "Primeiro contato por WhatsApp." },
+    ],
+  },
+  "11": {
+    id: "11", dealNumber: 1011, name: "Larissa Andrade", company: "LA Cosméticos", whatsapp: "5511899223344",
+    email: "larissa@lacosmeticos.com.br", value: 15400, responsible: "Carlos", pipelineId: PIPE, stage: "negociacao",
+    priority: "Alta", origin: "Facebook Ads", productId: "prod-2", entryDate: "2026-03-18", nextFollowUp: "2026-04-14",
+    notes: "Discutindo prazo de pagamento.", activities: [
+      { id: "a11a", date: "2026-04-02", type: "stage_change", description: "Avançou para Negociação." },
+    ],
+  },
+  "12": {
+    id: "12", dealNumber: 1012, name: "Marcos Oliveira", company: "MO Engenharia", whatsapp: "5511877334455",
+    value: 22000, responsible: "Mariana", pipelineId: PIPE, stage: "fechado",
+    priority: "Alta", origin: "Indicação", productId: "prod-2", entryDate: "2026-03-08",
+    notes: "Cliente recorrente.", activities: [
+      { id: "a12a", date: "2026-04-07", type: "won", description: "Renovação de contrato fechada." },
+    ],
+  },
+  "13": {
+    id: "13", dealNumber: 1013, name: "Natália Ribeiro", whatsapp: "5511866445566",
+    email: "natalia@email.com", value: 2800, responsible: "Rafael", pipelineId: PIPE, stage: "perdido",
+    priority: "Média", origin: "Instagram", entryDate: "2026-03-12",
+    notes: "Optou por concorrente.", activities: [
+      { id: "a13a", date: "2026-04-05", type: "lost", description: "Escolheu outra solução." },
     ],
   },
 };
