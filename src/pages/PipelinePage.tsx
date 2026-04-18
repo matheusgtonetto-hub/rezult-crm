@@ -417,6 +417,104 @@ export default function PipelinePage() {
           }}
           defaultStage={newLeadCol || activePipeline.columns[0]?.id}
         />
+
+        {/* Rename column */}
+        <Dialog open={!!renamingCol} onOpenChange={(o) => !o && setRenamingCol(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Renomear etapa</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renamingCol?.title || ""}
+              onChange={(e) => setRenamingCol(prev => prev ? { ...prev, title: e.target.value } : prev)}
+              placeholder="Nome da etapa"
+              className="rounded-lg"
+            />
+            <DialogFooter>
+              <Button variant="outline" className="rounded-lg" onClick={() => setRenamingCol(null)}>
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-lg"
+                onClick={() => {
+                  if (!renamingCol || !renamingCol.title.trim()) {
+                    toast.error("Informe um nome.");
+                    return;
+                  }
+                  updateColumn(activePipeline.id, renamingCol.id, { title: renamingCol.title.trim() });
+                  toast.success("Etapa renomeada.");
+                  setRenamingCol(null);
+                }}
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete column */}
+        <AlertDialog open={!!deletingCol} onOpenChange={(o) => !o && setDeletingCol(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir etapa "{deletingCol?.title}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingCol && deletingCol.count > 0
+                  ? `Esta etapa contém ${deletingCol.count} negócio(s). Eles serão removidos da pipeline.`
+                  : "Esta ação não pode ser desfeita."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (!deletingCol) return;
+                  deleteColumn(activePipeline.id, deletingCol.id);
+                  toast.success("Etapa excluída.");
+                  setDeletingCol(null);
+                }}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* New column */}
+        <Dialog open={showNewColumn} onOpenChange={setShowNewColumn}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nova coluna</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={newColumnName}
+              onChange={(e) => setNewColumnName(e.target.value)}
+              placeholder="Ex: Aguardando assinatura"
+              className="rounded-lg"
+            />
+            <DialogFooter>
+              <Button variant="outline" className="rounded-lg" onClick={() => setShowNewColumn(false)}>
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-lg"
+                onClick={() => {
+                  const name = newColumnName.trim();
+                  if (!name) {
+                    toast.error("Informe um nome.");
+                    return;
+                  }
+                  const id = `col-${Date.now()}`;
+                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA", leadIds: [] });
+                  toast.success("Coluna criada.");
+                  setShowNewColumn(false);
+                }}
+              >
+                Criar coluna
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
