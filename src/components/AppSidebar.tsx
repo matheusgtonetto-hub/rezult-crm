@@ -68,7 +68,7 @@ export function AppSidebar() {
   const { logout } = useCRM();
 
   const itemBase =
-    "w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-200";
+    "w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors duration-200";
 
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
@@ -79,7 +79,7 @@ export function AppSidebar() {
         <Tooltip key={item.to}>
           <TooltipTrigger asChild>
             <div className={`${itemBase} text-muted-foreground opacity-35 cursor-not-allowed`}>
-              <Icon size={18} />
+              <Icon size={22} strokeWidth={1.75} />
             </div>
           </TooltipTrigger>
           <TooltipContent side="right">{item.label} · Em breve</TooltipContent>
@@ -98,7 +98,7 @@ export function AppSidebar() {
                 : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
             }`}
           >
-            <Icon size={18} />
+            <Icon size={22} strokeWidth={1.75} />
           </RouterNavLink>
         </TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
