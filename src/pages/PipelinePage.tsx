@@ -56,9 +56,18 @@ export default function PipelinePage() {
     selectedLeadId,
     setSelectedLeadId,
     memberColors,
+    updateColumn,
+    deleteColumn,
+    addColumn,
   } = useCRM();
   const [newLeadCol, setNewLeadCol] = useState<string | null>(null);
   const [globalNewLead, setGlobalNewLead] = useState(false);
+
+  // Column edit/delete dialogs
+  const [renamingCol, setRenamingCol] = useState<{ id: string; title: string } | null>(null);
+  const [deletingCol, setDeletingCol] = useState<{ id: string; title: string; count: number } | null>(null);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [showNewColumn, setShowNewColumn] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
