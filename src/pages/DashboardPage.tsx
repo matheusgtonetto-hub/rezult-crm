@@ -52,8 +52,26 @@ export default function DashboardPage() {
     { label: "Receita Prevista", value: formatCurrency(openValue), icon: DollarSign },
   ];
 
-  // Bar: leads by stage in active pipeline
-  const barData = columns.map(c => ({ name: c.title, leads: c.leadIds.length, fill: c.color }));
+  // Bar: leads by stage with semantic colors per stage name
+  const STAGE_COLORS: Record<string, string> = {
+    "MQL": "#AAAAAA",
+    "SAL": "#378ADD",
+    "SQL": "#8B5CF6",
+    "Reunião Agendada": "#F59E0B",
+    "Reuniao Agendada": "#F59E0B",
+    "Negociação": "#0F6E56",
+    "Negociacao": "#0F6E56",
+    "Clientes": "#E24B4A",
+    "Cliente": "#E24B4A",
+  };
+  const barData = columns.map(c => ({
+    name: c.title,
+    leads: c.leadIds.length,
+    fill: STAGE_COLORS[c.title] ?? c.color,
+  }));
+
+  // Avg ticket per agent
+  const agentTicket = (count: number, value: number) => count > 0 ? value / count : 0;
 
   // Line: closed over time (mock by month)
   const lineData = useMemo(() => {
@@ -154,13 +172,19 @@ export default function DashboardPage() {
           {/* 4 main cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {cards.map(c => (
-              <div key={c.label} className="bg-card border border-card-border rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <c.icon size={18} className={c.color} />
-                  <span className="text-xs text-muted-foreground">{c.label}</span>
+              <div
+                key={c.label}
+                className="bg-card rounded-xl p-4"
+                style={{ border: "0.5px solid hsl(var(--card-border))" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium">
+                    {c.label}
+                  </span>
+                  <c.icon size={16} className={c.color} />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{c.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{c.sub}</p>
+                <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
+                <p className="text-[13px] text-success font-medium mt-2">{c.sub}</p>
               </div>
             ))}
           </div>
@@ -259,22 +283,30 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
               <h3 className="text-sm font-semibold text-foreground mb-4">Atendentes com mais negócios</h3>
               <div className="space-y-3">
-                {topAgents.map((a, i) => (
-                  <div key={a.name} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-white" style={{ backgroundColor: a.color }}>
-                      {a.name[0]}
+                {topAgents.map((a, i) => {
+                  const ticket = agentTicket(a.count, a.value);
+                  return (
+                    <div key={a.name} className="flex items-center gap-3 py-1">
+                      <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold text-white shrink-0"
+                        style={{ backgroundColor: a.color }}
+                      >
+                        {a.name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{a.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {a.count} negócio{a.count === 1 ? "" : "s"} · ticket {formatCurrency(ticket)}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-success">{formatCurrency(a.value)}</span>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{a.name}</p>
-                      <p className="text-xs text-muted-foreground">{a.count} negócios · {a.won} ganhos</p>
-                    </div>
-                    <span className="text-sm font-semibold text-primary">{formatCurrency(a.value)}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
