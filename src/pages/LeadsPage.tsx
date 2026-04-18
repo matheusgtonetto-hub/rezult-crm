@@ -26,8 +26,13 @@ export default function ContactsPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Contatos</h1>
-        <Button className="rounded-lg font-semibold"><Plus size={16} className="mr-1" /> Novo Contato</Button>
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Leads</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Consulte, crie, modifique ou remova seus leads
+          </p>
+        </div>
+        <Button className="rounded-lg font-semibold"><Plus size={16} className="mr-1" /> Novo Lead</Button>
       </div>
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="Buscar por nome ou empresa..." value={search} onChange={e => setSearch(e.target.value)} className="bg-card border-card-border rounded-lg max-w-xs" />
@@ -50,7 +55,7 @@ export default function ContactsPage() {
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <Users size={48} className="mx-auto mb-3 opacity-30" />
-          <p>Nenhum contato encontrado.</p>
+          <p>Nenhum lead encontrado.</p>
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
@@ -80,7 +85,7 @@ export default function ContactsPage() {
                   <TableCell>
                     <div className="flex gap-1">
                       <button onClick={() => setSelectedLeadId(lead.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil size={14} /></button>
-                      <button onClick={() => { deleteLead(lead.id); toast.success("Contato removido."); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
+                      <button onClick={() => { deleteLead(lead.id); toast.success("Lead removido."); }} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
                     </div>
                   </TableCell>
                 </TableRow>
