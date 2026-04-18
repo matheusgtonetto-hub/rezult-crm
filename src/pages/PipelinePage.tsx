@@ -237,13 +237,27 @@ export default function PipelinePage() {
                             {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setNewLeadCol(col.id)}
-                          className="text-muted-foreground hover:text-primary transition-colors p-1 -m-1"
-                          aria-label="Adicionar negócio"
-                        >
-                          <Plus size={16} />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors w-7 h-7 flex items-center justify-center"
+                              aria-label="Opções da etapa"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setRenamingCol({ id: col.id, title: col.title })}>
+                              <Pencil size={14} className="mr-2" /> Renomear etapa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeletingCol({ id: col.id, title: col.title, count: col.leadIds.length })}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 size={14} className="mr-2" /> Excluir etapa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
 
                       <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[calc(100vh-260px)]">
@@ -356,11 +370,36 @@ export default function PipelinePage() {
                           </div>
                         )}
                       </div>
+
+                      {/* Footer: + Novo negócio */}
+                      <button
+                        onClick={() => setNewLeadCol(col.id)}
+                        className="w-full text-xs text-muted-foreground hover:text-primary transition-colors py-2.5 border-t border-card-border flex items-center justify-center gap-1.5"
+                        style={{ borderTopWidth: "0.5px" }}
+                      >
+                        <Plus size={13} /> Novo negócio
+                      </button>
                     </div>
                   )}
                 </Droppable>
               );
             })}
+
+            {/* Add column tile */}
+            <button
+              onClick={() => {
+                setNewColumnName("");
+                setShowNewColumn(true);
+              }}
+              className="min-w-[280px] w-[280px] rounded-xl flex items-center justify-center text-sm transition-colors"
+              style={{
+                backgroundColor: "#F5F5F5",
+                border: "1px dashed #CCCCCC",
+                color: "#AAAAAA",
+              }}
+            >
+              <Plus size={16} className="mr-1.5" /> Nova coluna
+            </button>
           </div>
         </DragDropContext>
 
