@@ -67,25 +67,42 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(task => (
-            <div key={task.id} className={`flex items-center gap-4 bg-card border rounded-lg p-4 transition-colors ${isOverdue(task) ? "border-destructive/50" : "border-card-border"}`}>
-              <Checkbox
-                checked={task.status === "Concluída"}
-                onCheckedChange={checked => {
-                  updateTask(task.id, { status: checked ? "Concluída" : "Pendente" });
-                  toast.success(checked ? "Tarefa concluída!" : "Tarefa reaberta.");
-                }}
-                className="border-muted-foreground data-[state=checked]:bg-success data-[state=checked]:border-success"
-              />
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${task.status === "Concluída" ? "line-through text-muted-foreground" : "text-foreground"}`}>{task.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {task.leadName} · {task.responsible} · {new Date(task.dueDate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                </p>
+          {filtered.map(task => {
+            const overdue = isOverdue(task);
+            const dueToday = task.status === "Pendente" && task.dueDate.split("T")[0] === today;
+            const initials = task.responsible.slice(0, 2).toUpperCase();
+            const rowBg = overdue
+              ? "bg-[hsl(var(--destructive-soft))] border-destructive/30"
+              : dueToday
+                ? "bg-[hsl(var(--success-soft))] border-success/30"
+                : "bg-card border-card-border";
+            return (
+              <div key={task.id} className={`flex items-center gap-4 border rounded-lg p-4 transition-colors ${rowBg}`}>
+                <Checkbox
+                  checked={task.status === "Concluída"}
+                  onCheckedChange={checked => {
+                    updateTask(task.id, { status: checked ? "Concluída" : "Pendente" });
+                    toast.success(checked ? "Tarefa concluída!" : "Tarefa reaberta.");
+                  }}
+                  className="border-muted-foreground data-[state=checked]:bg-success data-[state=checked]:border-success"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${task.status === "Concluída" ? "line-through text-muted-foreground" : overdue ? "text-destructive" : "text-foreground"}`}>
+                    {task.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {task.leadName} · {new Date(task.dueDate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {overdue && <AlertCircle size={16} className="text-destructive" />}
+                  <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center" title={task.responsible}>
+                    {initials}
+                  </div>
+                </div>
               </div>
-              {isOverdue(task) && <AlertCircle size={16} className="text-destructive shrink-0" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

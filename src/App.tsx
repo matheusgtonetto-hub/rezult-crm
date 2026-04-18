@@ -6,7 +6,7 @@ import { CRMProvider, useCRM } from "@/context/CRMContext";
 import LoginPage from "./pages/LoginPage";
 import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
-import ContactsPage from "./pages/ContactsPage";
+import LeadsPage from "./pages/LeadsPage";
 import TasksPage from "./pages/TasksPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -23,10 +23,11 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Navigate to="/pipeline" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route element={<AppLayout />}>
           <Route path="/pipeline" element={<PipelinePage />} />
-          <Route path="/contatos" element={<ContactsPage />} />
+          <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/contatos" element={<Navigate to="/leads" replace />} />
           <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
