@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Zap,
   KanbanSquare,
+  Sparkles,
   Bell,
   HelpCircle,
   Building2,
@@ -31,9 +32,11 @@ type NavItem = {
   label: string;
   icon: typeof BarChart3;
   locked?: boolean;
+  badge?: string;
 };
 
 const navItems: NavItem[] = [
+  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA" },
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
