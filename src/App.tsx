@@ -10,6 +10,7 @@ import LeadsPage from "./pages/LeadsPage";
 import TasksPage from "./pages/TasksPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import PilotPage from "./pages/PilotPage";
 import NotFound from "./pages/NotFound";
 import { LeadDrawer } from "./components/LeadDrawer";
 
@@ -25,6 +26,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route element={<AppLayout />}>
+          <Route path="/pilot" element={<PilotPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/contatos" element={<Navigate to="/leads" replace />} />
