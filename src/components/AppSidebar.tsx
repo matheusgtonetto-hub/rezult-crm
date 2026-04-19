@@ -95,13 +95,18 @@ export function AppSidebar() {
         <TooltipTrigger asChild>
           <RouterNavLink
             to={item.to}
-            className={`${itemBase} ${
+            className={`${itemBase} relative ${
               active
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
             }`}
           >
             <Icon size={22} strokeWidth={1.75} />
+            {item.badge && (
+              <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[8px] font-bold leading-none px-1 py-0.5 rounded-sm">
+                {item.badge}
+              </span>
+            )}
           </RouterNavLink>
         </TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
