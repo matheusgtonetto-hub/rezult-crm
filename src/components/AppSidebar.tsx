@@ -12,7 +12,6 @@ import {
   Sparkles,
   Bell,
   HelpCircle,
-  Building2,
   Plus,
   RefreshCw,
   UserCircle,
@@ -34,7 +33,7 @@ type NavItem = {
   label: string;
   icon: typeof BarChart3;
   locked?: boolean;
-  badge?: string;
+  badge?: "IA" | "Em breve";
 };
 
 const navItems: NavItem[] = [
@@ -49,7 +48,6 @@ const navItems: NavItem[] = [
   { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
 ];
 
-// Deterministic color from a string (for company avatar)
 function colorFromString(str: string) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -70,12 +68,19 @@ function initials(name: string) {
 const COMPANY = { name: "Rezult Demo", plan: "Plano Professional" };
 const USER = { name: "Carlos Admin", email: "carlos@rezult.com" };
 
+const SIDEBAR_BG = "#0F6E56";
+const ICON_INACTIVE = "rgba(255,255,255,0.5)";
+const ICON_ACTIVE = "#FFFFFF";
+const HOVER_BG = "rgba(255,255,255,0.1)";
+const ACTIVE_BG = "rgba(255,255,255,0.15)";
+
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { logout } = useCRM();
 
+  // 40x40 clickable area, 10px radius, centered
   const itemBase =
-    "w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors duration-200";
+    "w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors duration-200 relative";
 
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
@@ -85,11 +90,27 @@ export function AppSidebar() {
       return (
         <Tooltip key={item.to}>
           <TooltipTrigger asChild>
-            <div className={`${itemBase} text-muted-foreground opacity-35 cursor-not-allowed`}>
-              <Icon size={22} strokeWidth={1.75} />
+            <div
+              className={`${itemBase} cursor-not-allowed`}
+              style={{ color: ICON_INACTIVE, opacity: 0.3 }}
+            >
+              <Icon size={18} strokeWidth={1.75} />
+              <span
+                className="absolute -top-0.5 -right-0.5 rounded-[3px] flex items-center justify-center font-semibold leading-none px-1"
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 7,
+                  height: 10,
+                }}
+              >
+                EM BREVE
+              </span>
             </div>
           </TooltipTrigger>
-          <TooltipContent side="right">{item.label} · Em breve</TooltipContent>
+          <TooltipContent side="right" className="bg-[#111111] text-white border-0">
+            {item.label} · Em breve
+          </TooltipContent>
         </Tooltip>
       );
     }
@@ -99,24 +120,44 @@ export function AppSidebar() {
         <TooltipTrigger asChild>
           <RouterNavLink
             to={item.to}
-            className={`${itemBase} relative ${
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
-            }`}
+            className={itemBase}
+            style={{
+              background: active ? ACTIVE_BG : "transparent",
+              color: active ? ICON_ACTIVE : ICON_INACTIVE,
+            }}
+            onMouseEnter={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = HOVER_BG;
+                e.currentTarget.style.color = "rgba(255,255,255,0.9)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!active) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = ICON_INACTIVE;
+              }
+            }}
           >
-            <Icon size={22} strokeWidth={1.75} />
-            {item.badge && (
+            <Icon size={18} strokeWidth={1.75} />
+            {item.badge === "IA" && (
               <span
-                className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold leading-none"
-                style={{ width: 14, height: 14, fontSize: 7 }}
+                className="absolute -top-0.5 -right-0.5 rounded-full flex items-center justify-center font-bold leading-none"
+                style={{
+                  width: 14,
+                  height: 14,
+                  fontSize: 7,
+                  background: "#FFFFFF",
+                  color: "#0F6E56",
+                }}
               >
-                {item.badge}
+                IA
               </span>
             )}
           </RouterNavLink>
         </TooltipTrigger>
-        <TooltipContent side="right">{item.label}</TooltipContent>
+        <TooltipContent side="right" className="bg-[#111111] text-white border-0">
+          {item.label}
+        </TooltipContent>
       </Tooltip>
     );
   };
@@ -125,23 +166,47 @@ export function AppSidebar() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <aside className="w-[60px] min-h-screen bg-sidebar flex flex-col items-center border-r border-sidebar-border shrink-0 py-3 gap-1">
-        {/* Rezult logo (RZ) */}
+      <aside
+        className="flex flex-col items-center shrink-0"
+        style={{
+          width: 52,
+          minWidth: 52,
+          maxWidth: 52,
+          minHeight: "100vh",
+          background: SIDEBAR_BG,
+          paddingTop: 12,
+          paddingBottom: 12,
+        }}
+      >
+        {/* Logo RZ */}
         <div
-          className="w-9 h-9 rounded-[10px] border-[1.5px] border-primary text-primary flex items-center justify-center text-[13px] font-bold tracking-tight"
+          className="flex items-center justify-center text-[13px] font-bold tracking-tight"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: "1.5px solid rgba(255,255,255,0.5)",
+            color: "#FFFFFF",
+            marginBottom: 8,
+          }}
           aria-label="Rezult"
         >
           RZ
         </div>
 
-        <div className="h-px w-8 bg-sidebar-border my-2" style={{ marginTop: 8, marginBottom: 8 }} />
-
         {/* Company icon */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="w-8 h-8 rounded-lg border-[0.5px] border-card-border flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity"
-              style={{ background: colorFromString(COMPANY.name) }}
+              className="flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: colorFromString(COMPANY.name),
+                border: "1.5px solid rgba(255,255,255,0.3)",
+                marginBottom: 16,
+              }}
               aria-label="Empresa"
             >
               {initials(COMPANY.name)}
@@ -170,53 +235,93 @@ export function AppSidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-px w-8 bg-sidebar-border my-2" />
+        <div
+          style={{
+            width: 28,
+            height: 1,
+            background: "rgba(255,255,255,0.15)",
+            marginBottom: 8,
+          }}
+        />
 
         {/* Main navigation */}
-        <nav className="flex-1 flex flex-col items-center gap-1">
+        <nav
+          className="flex flex-col items-center"
+          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", width: "100%", alignItems: "center" }}
+        >
           {navItems.map(renderNav)}
         </nav>
 
         {/* Footer */}
-        <div className="flex flex-col items-center gap-1 pt-2">
+        <div className="flex flex-col items-center" style={{ gap: 4, paddingTop: 8 }}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
-                <Bell size={22} strokeWidth={1.75} />
+              <button
+                className={itemBase}
+                style={{ color: ICON_INACTIVE }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
+              >
+                <Bell size={18} strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Notificações</TooltipContent>
+            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Notificações</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className={`${itemBase} text-muted-foreground hover:bg-[hsl(0_0%_94%)]`}>
-                <HelpCircle size={22} strokeWidth={1.75} />
+              <button
+                className={itemBase}
+                style={{ color: ICON_INACTIVE }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
+              >
+                <HelpCircle size={18} strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Ajuda</TooltipContent>
+            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Ajuda</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
               <RouterNavLink
                 to="/configuracoes"
-                className={`${itemBase} ${
-                  settingsActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-[hsl(0_0%_94%)]"
-                }`}
+                className={itemBase}
+                style={{
+                  background: settingsActive ? ACTIVE_BG : "transparent",
+                  color: settingsActive ? ICON_ACTIVE : ICON_INACTIVE,
+                }}
+                onMouseEnter={(e) => {
+                  if (!settingsActive) {
+                    e.currentTarget.style.background = HOVER_BG;
+                    e.currentTarget.style.color = "rgba(255,255,255,0.9)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!settingsActive) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = ICON_INACTIVE;
+                  }
+                }}
               >
-                <Settings size={22} strokeWidth={1.75} />
+                <Settings size={18} strokeWidth={1.75} />
               </RouterNavLink>
             </TooltipTrigger>
-            <TooltipContent side="right">Configurações</TooltipContent>
+            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Configurações</TooltipContent>
           </Tooltip>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[11px] font-bold mt-1 hover:opacity-90 transition-opacity"
+                className="flex items-center justify-center text-[10px] font-bold hover:opacity-90 transition-opacity"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "#FFFFFF",
+                  color: "#0F6E56",
+                  marginTop: 4,
+                }}
                 aria-label="Usuário"
               >
                 {initials(USER.name)}
