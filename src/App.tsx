@@ -33,6 +33,7 @@ function AppRoutes() {
           <Route path="/contatos" element={<Navigate to="/leads" replace />} />
           <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/agentes" element={<AgentesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
