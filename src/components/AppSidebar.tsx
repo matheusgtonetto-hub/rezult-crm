@@ -105,7 +105,10 @@ export function AppSidebar() {
           >
             <Icon size={22} strokeWidth={1.75} />
             {item.badge && (
-              <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[8px] font-bold leading-none px-1 py-0.5 rounded-sm">
+              <span
+                className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold leading-none"
+                style={{ width: 14, height: 14, fontSize: 7 }}
+              >
                 {item.badge}
               </span>
             )}
