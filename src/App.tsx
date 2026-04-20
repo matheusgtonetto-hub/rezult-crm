@@ -15,36 +15,31 @@ import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
 import AutomacoesPage from "./pages/AutomacoesPage";
 import NotFound from "./pages/NotFound";
-import { LeadDrawer } from "./components/LeadDrawer";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { isLoggedIn, selectedLeadId, setSelectedLeadId } = useCRM();
+  const { isLoggedIn } = useCRM();
 
   if (!isLoggedIn) return <LoginPage />;
 
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route element={<AppLayout />}>
-          <Route path="/pilot" element={<PilotPage />} />
-          <Route path="/pipeline" element={<PipelinePage />} />
-          <Route path="/leads" element={<LeadsPage />} />
-          <Route path="/contatos" element={<Navigate to="/leads" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/agentes" element={<AgentesPage />} />
-          <Route path="/rezult-pay" element={<RezultPayPage />} />
-          <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
-          <Route path="/automacoes" element={<AutomacoesPage />} />
-          <Route path="/configuracoes" element={<SettingsPage />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      {/* Global drawer for contacts page */}
-      <LeadDrawer leadId={selectedLeadId} open={!!selectedLeadId} onClose={() => setSelectedLeadId(null)} />
-    </>
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route element={<AppLayout />}>
+        <Route path="/pilot" element={<PilotPage />} />
+        <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/leads" element={<LeadsPage />} />
+        <Route path="/contatos" element={<Navigate to="/leads" replace />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/agentes" element={<AgentesPage />} />
+        <Route path="/rezult-pay" element={<RezultPayPage />} />
+        <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
+        <Route path="/automacoes" element={<AutomacoesPage />} />
+        <Route path="/configuracoes" element={<SettingsPage />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
