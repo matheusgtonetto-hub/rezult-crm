@@ -44,6 +44,7 @@ const navItems: NavItem[] = [
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare, locked: true },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
+  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
 ];
 
 // Deterministic color from a string (for company avatar)
