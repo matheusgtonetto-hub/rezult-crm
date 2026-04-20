@@ -392,18 +392,26 @@ export default function AgentesPage() {
                   <h3 className="text-[13px] font-semibold text-[#111111] mb-3">Acesso a Dados</h3>
                   <div className="space-y-2.5">
                     {[
-                      "Conversas WhatsApp do usuário",
-                      "Calls e transcrições",
-                      "Pipeline e leads do usuário",
-                      "Performance dos agentes abaixo",
-                      "Dados financeiros (Rezult Pay)",
-                      "Relatórios da equipe completa",
-                    ].map((label, i) => (
-                      <label key={label} className="flex items-center gap-2.5 text-[13px] text-[#111111] cursor-pointer">
-                        <Checkbox defaultChecked={i < 3} />
-                        {label}
-                      </label>
-                    ))}
+                      { label: "Conversas WhatsApp do usuário", tip: "Lê as conversas de WhatsApp do profissional vinculado para análises e sugestões" },
+                      { label: "Calls e transcrições", tip: "Acessa gravações e transcrições de ligações para avaliar abordagens" },
+                      { label: "Pipeline e leads do usuário", tip: "Visualiza os negócios e leads atribuídos ao profissional vinculado" },
+                      { label: "Performance dos agentes abaixo", tip: "Visualiza métricas e score de todos os agentes da hierarquia inferior" },
+                      { label: "Dados financeiros (Rezult Pay)", tip: "Acessa receitas, comissões e dados financeiros vinculados aos negócios" },
+                      { label: "Relatórios da equipe completa", tip: "Consulta relatórios consolidados de toda a operação comercial" },
+                    ].map(({ label, tip }) => {
+                      const checked = selected.type === "Master" ? true : ["Conversas WhatsApp do usuário", "Calls e transcrições", "Pipeline e leads do usuário"].includes(label);
+                      return (
+                        <Tooltip key={label}>
+                          <TooltipTrigger asChild>
+                            <label className="flex items-center gap-2.5 text-[13px] text-[#111111] cursor-pointer">
+                              <Checkbox defaultChecked={checked} />
+                              {label}
+                            </label>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[260px] text-[12px]">{tip}</TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
                 </section>
 
