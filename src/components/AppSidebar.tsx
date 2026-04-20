@@ -17,6 +17,7 @@ import {
   RefreshCw,
   UserCircle,
   Bot,
+  CreditCard,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare, locked: true },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
   { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
+  { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
 ];
 
 // Deterministic color from a string (for company avatar)

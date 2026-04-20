@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import PilotPage from "./pages/PilotPage";
 import AgentesPage from "./pages/AgentesPage";
+import RezultPayPage from "./pages/RezultPayPage";
 import NotFound from "./pages/NotFound";
 import { LeadDrawer } from "./components/LeadDrawer";
 
@@ -34,6 +35,7 @@ function AppRoutes() {
           <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/agentes" element={<AgentesPage />} />
+          <Route path="/rezult-pay" element={<RezultPayPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
