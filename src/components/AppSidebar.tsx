@@ -38,14 +38,12 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA" },
+  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
-  { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
-  { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
-  { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
   { to: "/automacoes", label: "Automações", icon: Zap },
-  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
+  { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
 ];
 
 function colorFromString(str: string) {
@@ -261,7 +259,44 @@ export function AppSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="flex flex-col items-center" style={{ gap: 4, paddingTop: 8 }}>
+        <div
+          style={{
+            width: 32,
+            height: 1,
+            background: "rgba(255,255,255,0.15)",
+            margin: "8px 0",
+          }}
+        />
+        <div className="flex flex-col items-center" style={{ gap: 4 }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <RouterNavLink
+                to="/rezult-pay"
+                className={itemBase}
+                style={{
+                  ...itemSize,
+                  background: pathname.startsWith("/rezult-pay") ? ACTIVE_BG : "transparent",
+                  color: pathname.startsWith("/rezult-pay") ? ICON_ACTIVE : ICON_INACTIVE,
+                }}
+                onMouseEnter={(e) => {
+                  if (!pathname.startsWith("/rezult-pay")) {
+                    e.currentTarget.style.background = HOVER_BG;
+                    e.currentTarget.style.color = "rgba(255,255,255,0.9)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!pathname.startsWith("/rezult-pay")) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = ICON_INACTIVE;
+                  }
+                }}
+              >
+                <CreditCard size={18} strokeWidth={1.75} />
+              </RouterNavLink>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Rezult Pay</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button

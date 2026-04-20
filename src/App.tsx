@@ -7,7 +7,6 @@ import LoginPage from "./pages/LoginPage";
 import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
 import LeadsPage from "./pages/LeadsPage";
-import TasksPage from "./pages/TasksPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import PilotPage from "./pages/PilotPage";
@@ -34,7 +33,6 @@ function AppRoutes() {
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/contatos" element={<Navigate to="/leads" replace />} />
-          <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/agentes" element={<AgentesPage />} />
           <Route path="/rezult-pay" element={<RezultPayPage />} />
