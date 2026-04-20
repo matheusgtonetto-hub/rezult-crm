@@ -35,6 +35,7 @@ function AppRoutes() {
           <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/agentes" element={<AgentesPage />} />
+          <Route path="/rezult-pay" element={<RezultPayPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
