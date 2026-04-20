@@ -151,7 +151,112 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
           </Button>
         </div>
 
-        <div className="space-y-4 mt-4">
+        <Tabs defaultValue="details" className="mt-4">
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="details">Detalhes</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex items-center gap-1.5">
+              <CheckSquare size={12} /> Tarefas
+              {tasks.filter(t => !t.done).length > 0 && (
+                <span className="ml-1 text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                  {tasks.filter(t => !t.done).length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tasks" className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                {(["pending", "done", "all"] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setTaskFilter(f)}
+                    className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                      taskFilter === f
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {f === "pending" ? "Pendentes" : f === "done" ? "Concluídas" : "Todas"}
+                  </button>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setShowNewTask(v => !v)}
+                className="bg-primary text-primary-foreground rounded-lg h-8"
+              >
+                <Plus size={14} className="mr-1" /> Nova tarefa
+              </Button>
+            </div>
+
+            {showNewTask && (
+              <div className="flex gap-2 p-2 border border-card-border rounded-lg bg-background">
+                <Input
+                  autoFocus
+                  placeholder="Título da tarefa..."
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addTask()}
+                  className="bg-card border-card-border rounded-md h-8 text-sm"
+                />
+                <Button size="sm" onClick={addTask} className="rounded-md h-8">Salvar</Button>
+              </div>
+            )}
+
+            {filteredTasks.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-card-border rounded-lg">
+                <CheckSquare size={28} className="mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">Nenhuma tarefa para este lead</p>
+                <Button size="sm" variant="outline" onClick={() => setShowNewTask(true)} className="rounded-lg">
+                  <Plus size={14} className="mr-1" /> Criar primeira tarefa
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredTasks.map(t => (
+                  <div
+                    key={t.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-card-border bg-background hover:bg-secondary/40 transition-colors"
+                  >
+                    <Checkbox
+                      checked={t.done}
+                      onCheckedChange={() => toggleTask(t.id)}
+                      className="mt-0.5 rounded-full"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-medium ${t.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                          {t.title}
+                        </p>
+                        {t.done && (
+                          <Badge className="bg-success/15 text-success border-0 text-[10px] h-4">
+                            Concluída
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span>{t.date}</span>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center">
+                            {t.responsible[0]}
+                          </span>
+                          {t.responsible}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge className={`${priorityTone(t.priority)} border-0 text-[10px]`}>
+                      {t.priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nome completo</label>
