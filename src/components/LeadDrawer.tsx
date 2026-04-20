@@ -3,6 +3,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,6 +21,8 @@ import {
   ArrowRightLeft,
   PlusCircle,
   Sparkles,
+  Plus,
+  CheckSquare,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -53,9 +58,29 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     markLeadLost,
   } = useCRM();
   const [newNote, setNewNote] = useState("");
+  const [tasks, setTasks] = useState([
+    { id: "t1", title: "Enviar proposta atualizada", date: "Amanhã 14h", responsible: "Rafael", priority: "Alta" as Priority, done: false },
+    { id: "t2", title: "Agendar call de fechamento", date: "25/05 10h", responsible: "Carlos", priority: "Alta" as Priority, done: false },
+    { id: "t3", title: "Apresentação inicial realizada", date: "10/05", responsible: "Mariana", priority: "Média" as Priority, done: true },
+  ]);
+  const [taskFilter, setTaskFilter] = useState<"pending" | "done" | "all">("pending");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [showNewTask, setShowNewTask] = useState(false);
 
   if (!leadId || !leads[leadId]) return null;
   const lead = leads[leadId];
+
+  const toggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  const filteredTasks = tasks.filter(t => taskFilter === "all" ? true : taskFilter === "done" ? t.done : !t.done);
+  const addTask = () => {
+    if (!newTaskTitle.trim()) return;
+    setTasks(prev => [...prev, { id: `t${Date.now()}`, title: newTaskTitle, date: "Hoje", responsible: lead.responsible, priority: "Média" as Priority, done: false }]);
+    setNewTaskTitle("");
+    setShowNewTask(false);
+    toast.success("Tarefa criada!");
+  };
+  const priorityTone = (p: Priority) => p === "Alta" ? "bg-destructive/10 text-destructive" : p === "Média" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground";
+
 
   const handleSaveNote = () => {
     if (!newNote.trim()) return;
@@ -126,7 +151,112 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
           </Button>
         </div>
 
-        <div className="space-y-4 mt-4">
+        <Tabs defaultValue="details" className="mt-4">
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="details">Detalhes</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex items-center gap-1.5">
+              <CheckSquare size={12} /> Tarefas
+              {tasks.filter(t => !t.done).length > 0 && (
+                <span className="ml-1 text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                  {tasks.filter(t => !t.done).length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tasks" className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                {(["pending", "done", "all"] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setTaskFilter(f)}
+                    className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                      taskFilter === f
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {f === "pending" ? "Pendentes" : f === "done" ? "Concluídas" : "Todas"}
+                  </button>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setShowNewTask(v => !v)}
+                className="bg-primary text-primary-foreground rounded-lg h-8"
+              >
+                <Plus size={14} className="mr-1" /> Nova tarefa
+              </Button>
+            </div>
+
+            {showNewTask && (
+              <div className="flex gap-2 p-2 border border-card-border rounded-lg bg-background">
+                <Input
+                  autoFocus
+                  placeholder="Título da tarefa..."
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addTask()}
+                  className="bg-card border-card-border rounded-md h-8 text-sm"
+                />
+                <Button size="sm" onClick={addTask} className="rounded-md h-8">Salvar</Button>
+              </div>
+            )}
+
+            {filteredTasks.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-card-border rounded-lg">
+                <CheckSquare size={28} className="mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">Nenhuma tarefa para este lead</p>
+                <Button size="sm" variant="outline" onClick={() => setShowNewTask(true)} className="rounded-lg">
+                  <Plus size={14} className="mr-1" /> Criar primeira tarefa
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredTasks.map(t => (
+                  <div
+                    key={t.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-card-border bg-background hover:bg-secondary/40 transition-colors"
+                  >
+                    <Checkbox
+                      checked={t.done}
+                      onCheckedChange={() => toggleTask(t.id)}
+                      className="mt-0.5 rounded-full"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-medium ${t.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                          {t.title}
+                        </p>
+                        {t.done && (
+                          <Badge className="bg-success/15 text-success border-0 text-[10px] h-4">
+                            Concluída
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span>{t.date}</span>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center">
+                            {t.responsible[0]}
+                          </span>
+                          {t.responsible}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge className={`${priorityTone(t.priority)} border-0 text-[10px]`}>
+                      {t.priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nome completo</label>
@@ -351,6 +481,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             </div>
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
