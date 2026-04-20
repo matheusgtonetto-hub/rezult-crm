@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
-  { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare, locked: true },
+  { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
   { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
 ];
