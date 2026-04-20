@@ -266,7 +266,7 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <button
                 className={itemBase}
-                style={{ color: ICON_INACTIVE }}
+                style={{ ...itemSize, color: ICON_INACTIVE }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
               >
@@ -280,7 +280,7 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <button
                 className={itemBase}
-                style={{ color: ICON_INACTIVE }}
+                style={{ ...itemSize, color: ICON_INACTIVE }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
               >
@@ -296,6 +296,7 @@ export function AppSidebar() {
                 to="/configuracoes"
                 className={itemBase}
                 style={{
+                  ...itemSize,
                   background: settingsActive ? ACTIVE_BG : "transparent",
                   color: settingsActive ? ICON_ACTIVE : ICON_INACTIVE,
                 }}
