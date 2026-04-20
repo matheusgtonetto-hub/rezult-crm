@@ -85,13 +85,13 @@ function TreeNode({
   agents,
   selectedId,
   onSelect,
-  depth = 0,
+  isRoot = true,
 }: {
   agent: Agent;
   agents: Agent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  depth?: number;
+  isRoot?: boolean;
 }) {
   const children = agents.filter(a => a.parentId === agent.id);
   const isSelected = selectedId === agent.id;
@@ -99,45 +99,52 @@ function TreeNode({
 
   return (
     <div className="relative">
-      <button
-        onClick={() => onSelect(agent.id)}
-        className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left ${
-          isSelected
-            ? "border-[#0F6E56] bg-[#E1F5EE]"
-            : "border-[#E5E5E5] bg-white hover:bg-[#F5F5F5]"
-        }`}
-        style={{ marginLeft: depth * 20 }}
-      >
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-          style={{ background: colorFromString(agent.role) }}
+      <div className="relative">
+        {!isRoot && (
+          <span
+            className="absolute left-[-14px] top-1/2 w-3"
+            style={{ background: "#E5E5E5", height: "1.5px" }}
+          />
+        )}
+        <button
+          onClick={() => onSelect(agent.id)}
+          className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${
+            isSelected
+              ? "border-[#0F6E56] bg-[#E1F5EE]"
+              : "border-[#E5E5E5] bg-white hover:bg-[#F5F5F5]"
+          }`}
         >
-          {initials(agent.role)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-semibold text-[#111111] truncate">{agent.role}</span>
-            <Circle
-              size={8}
-              fill={agent.active ? "#0F6E56" : "#CCCCCC"}
-              color={agent.active ? "#0F6E56" : "#CCCCCC"}
-            />
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+            style={{ background: colorFromString(agent.role) }}
+          >
+            {initials(agent.role)}
           </div>
-          <div className="text-[11px] text-[#AAAAAA] truncate">{agent.user}</div>
-        </div>
-        <span
-          className="text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-          style={{ background: typeColor.bg, color: typeColor.fg }}
-        >
-          {agent.type}
-        </span>
-      </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-semibold text-[#111111] truncate">{agent.role}</span>
+              <Circle
+                size={8}
+                fill={agent.active ? "#0F6E56" : "#CCCCCC"}
+                color={agent.active ? "#0F6E56" : "#CCCCCC"}
+              />
+            </div>
+            <div className="text-[11px] text-[#AAAAAA] truncate">{agent.user}</div>
+          </div>
+          <span
+            className="text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+            style={{ background: typeColor.bg, color: typeColor.fg }}
+          >
+            {agent.type}
+          </span>
+        </button>
+      </div>
 
       {children.length > 0 && (
-        <div className="mt-1.5 space-y-1.5 relative">
-          <div
-            className="absolute left-[18px] top-0 bottom-0 w-px"
-            style={{ background: "#E5E5E5", marginLeft: depth * 20 }}
+        <div className="relative pl-5 mt-1.5 space-y-1.5">
+          <span
+            className="absolute left-[18px] top-0 bottom-5 pointer-events-none"
+            style={{ background: "#E5E5E5", width: "1.5px" }}
           />
           {children.map(child => (
             <TreeNode
@@ -146,7 +153,7 @@ function TreeNode({
               agents={agents}
               selectedId={selectedId}
               onSelect={onSelect}
-              depth={depth + 1}
+              isRoot={false}
             />
           ))}
         </div>
