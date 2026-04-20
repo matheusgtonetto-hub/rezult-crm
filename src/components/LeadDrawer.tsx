@@ -3,6 +3,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,6 +21,8 @@ import {
   ArrowRightLeft,
   PlusCircle,
   Sparkles,
+  Plus,
+  CheckSquare,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
