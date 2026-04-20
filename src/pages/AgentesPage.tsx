@@ -388,7 +388,7 @@ export default function AgentesPage() {
                   </div>
                 </section>
 
-                <section>
+                <section key={selected.id}>
                   <h3 className="text-[13px] font-semibold text-[#111111] mb-3">Acesso a Dados</h3>
                   <div className="space-y-2.5">
                     {[
