@@ -704,5 +704,6 @@ export default function AgentesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
