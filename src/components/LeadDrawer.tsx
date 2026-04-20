@@ -481,6 +481,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             </div>
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
