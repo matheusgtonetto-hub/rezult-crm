@@ -42,10 +42,10 @@ const navItems: NavItem[] = [
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/tarefas", label: "Tarefas", icon: CheckSquare },
+  { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare, locked: true },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
   { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
-  { to: "/rezult-pay", label: "Rezult Pay", icon: CreditCard },
 ];
 
 function colorFromString(str: string) {
@@ -78,9 +78,10 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { logout } = useCRM();
 
-  // 40x40 clickable area, 10px radius, centered
+  // 36x36 clickable area, 9px radius, centered, never shrinks
   const itemBase =
-    "w-10 h-10 flex items-center justify-center rounded-[10px] transition-colors duration-200 relative";
+    "flex items-center justify-center rounded-[9px] transition-colors duration-200 relative shrink-0";
+  const itemSize = { width: 36, height: 36 };
 
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
@@ -92,7 +93,7 @@ export function AppSidebar() {
           <TooltipTrigger asChild>
             <div
               className={`${itemBase} cursor-not-allowed`}
-              style={{ color: ICON_INACTIVE, opacity: 0.3 }}
+              style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
             >
               <Icon size={18} strokeWidth={1.75} />
               <span
@@ -122,6 +123,7 @@ export function AppSidebar() {
             to={item.to}
             className={itemBase}
             style={{
+              ...itemSize,
               background: active ? ACTIVE_BG : "transparent",
               color: active ? ICON_ACTIVE : ICON_INACTIVE,
             }}
@@ -167,12 +169,18 @@ export function AppSidebar() {
   return (
     <TooltipProvider delayDuration={300}>
       <aside
-        className="flex flex-col items-center shrink-0"
+        className="flex flex-col items-center"
         style={{
           width: 52,
           minWidth: 52,
           maxWidth: 52,
-          minHeight: "100vh",
+          height: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          zIndex: 100,
+          overflow: "hidden",
           background: SIDEBAR_BG,
           paddingTop: 12,
           paddingBottom: 12,
@@ -258,7 +266,7 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <button
                 className={itemBase}
-                style={{ color: ICON_INACTIVE }}
+                style={{ ...itemSize, color: ICON_INACTIVE }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
               >
@@ -272,7 +280,7 @@ export function AppSidebar() {
             <TooltipTrigger asChild>
               <button
                 className={itemBase}
-                style={{ color: ICON_INACTIVE }}
+                style={{ ...itemSize, color: ICON_INACTIVE }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
               >
@@ -288,6 +296,7 @@ export function AppSidebar() {
                 to="/configuracoes"
                 className={itemBase}
                 style={{
+                  ...itemSize,
                   background: settingsActive ? ACTIVE_BG : "transparent",
                   color: settingsActive ? ICON_ACTIVE : ICON_INACTIVE,
                 }}
