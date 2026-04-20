@@ -244,7 +244,30 @@ export default function AgentesPage() {
     toast.success("Agente criado");
   }
 
+  if (agents.length === 0) {
+    return (
+      <div className="p-6 max-w-[1400px] mx-auto">
+        <div className="flex flex-col items-center justify-center py-32 text-center">
+          <Network size={64} color="#E5E5E5" />
+          <h2 className="text-[20px] font-bold text-[#111111] mt-4">
+            Crie a estrutura de inteligência da sua equipe
+          </h2>
+          <p className="text-[13px] text-[#AAAAAA] mt-2 max-w-[420px]">
+            Adicione os cargos da sua empresa e vincule um agente de IA a cada profissional
+          </p>
+          <Button
+            onClick={() => setOpenDialog(true)}
+            className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white mt-6"
+          >
+            <Plus size={16} /> Criar primeiro agente
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="p-6 max-w-[1400px] mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
