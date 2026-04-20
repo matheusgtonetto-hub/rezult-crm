@@ -93,7 +93,7 @@ export function AppSidebar() {
           <TooltipTrigger asChild>
             <div
               className={`${itemBase} cursor-not-allowed`}
-              style={{ color: ICON_INACTIVE, opacity: 0.3 }}
+              style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
             >
               <Icon size={18} strokeWidth={1.75} />
               <span
@@ -123,6 +123,7 @@ export function AppSidebar() {
             to={item.to}
             className={itemBase}
             style={{
+              ...itemSize,
               background: active ? ACTIVE_BG : "transparent",
               color: active ? ICON_ACTIVE : ICON_INACTIVE,
             }}
