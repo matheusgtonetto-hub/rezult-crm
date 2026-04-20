@@ -5,8 +5,10 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <Outlet />
+      <main className="flex-1 min-w-0 overflow-auto">
+        <div className="w-full mx-auto" style={{ maxWidth: 1400 }}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );
