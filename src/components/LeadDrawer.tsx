@@ -58,9 +58,29 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     markLeadLost,
   } = useCRM();
   const [newNote, setNewNote] = useState("");
+  const [tasks, setTasks] = useState([
+    { id: "t1", title: "Enviar proposta atualizada", date: "Amanhã 14h", responsible: "Rafael", priority: "Alta" as Priority, done: false },
+    { id: "t2", title: "Agendar call de fechamento", date: "25/05 10h", responsible: "Carlos", priority: "Alta" as Priority, done: false },
+    { id: "t3", title: "Apresentação inicial realizada", date: "10/05", responsible: "Mariana", priority: "Média" as Priority, done: true },
+  ]);
+  const [taskFilter, setTaskFilter] = useState<"pending" | "done" | "all">("pending");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [showNewTask, setShowNewTask] = useState(false);
 
   if (!leadId || !leads[leadId]) return null;
   const lead = leads[leadId];
+
+  const toggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  const filteredTasks = tasks.filter(t => taskFilter === "all" ? true : taskFilter === "done" ? t.done : !t.done);
+  const addTask = () => {
+    if (!newTaskTitle.trim()) return;
+    setTasks(prev => [...prev, { id: `t${Date.now()}`, title: newTaskTitle, date: "Hoje", responsible: lead.responsible, priority: "Média" as Priority, done: false }]);
+    setNewTaskTitle("");
+    setShowNewTask(false);
+    toast.success("Tarefa criada!");
+  };
+  const priorityTone = (p: Priority) => p === "Alta" ? "bg-destructive/10 text-destructive" : p === "Média" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground";
+
 
   const handleSaveNote = () => {
     if (!newNote.trim()) return;
