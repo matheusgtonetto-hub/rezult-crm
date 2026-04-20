@@ -11,6 +11,7 @@ import TasksPage from "./pages/TasksPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import PilotPage from "./pages/PilotPage";
+import AgentesPage from "./pages/AgentesPage";
 import NotFound from "./pages/NotFound";
 import { LeadDrawer } from "./components/LeadDrawer";
 
@@ -32,6 +33,7 @@ function AppRoutes() {
           <Route path="/contatos" element={<Navigate to="/leads" replace />} />
           <Route path="/tarefas" element={<TasksPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/agentes" element={<AgentesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
