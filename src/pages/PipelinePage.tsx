@@ -284,7 +284,7 @@ export default function PipelinePage() {
                                     snap.isDragging
                                       ? "shadow-elev-2 rotate-1"
                                       : ""
-                                  }`}
+                                  } ${isWonStage(col.id) ? "glow-closed" : ""}`}
                                 >
                                   {/* Top: deal number + WhatsApp + Note */}
                                   <div className="flex items-center justify-between mb-1.5">

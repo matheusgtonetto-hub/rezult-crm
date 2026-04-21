@@ -196,7 +196,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
 
             <div className="mt-4 bg-white rounded-lg p-3 text-center">
               <div className="flex items-baseline justify-center gap-0.5">
-                <span className="text-[32px] font-bold text-[#128A68] leading-none">8.2</span>
+                <span className={`text-[32px] font-bold text-[#128A68] leading-none ${8.2 >= 9 ? "glow-score" : ""}`}>8.2</span>
                 <span className="text-[14px] text-[#AAAAAA]">/10</span>
               </div>
               <div className="text-[11px] text-[#666] mt-1">Score do agente hoje</div>

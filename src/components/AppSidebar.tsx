@@ -138,7 +138,7 @@ export function AppSidebar() {
               }
             }}
           >
-            <Icon size={18} strokeWidth={1.75} />
+            <Icon size={18} strokeWidth={1.75} className={item.to === "/pilot" ? "glow-pilot" : item.to === "/agentes" ? "glow-agentes" : ""} />
             {item.badge === "IA" && (
               <span
                 className="absolute -top-0.5 -right-0.5 rounded-full flex items-center justify-center font-bold leading-none"
@@ -186,12 +186,12 @@ export function AppSidebar() {
       >
         {/* Logo RZ */}
         <div
-          className="flex items-center justify-center text-[13px] font-bold tracking-tight"
+          className="flex items-center justify-center text-[13px] font-bold tracking-tight glow-rz"
           style={{
             width: 32,
             height: 32,
             borderRadius: 8,
-            border: "1.5px solid rgba(255,255,255,0.5)",
+            border: "1.5px solid rgba(18,138,104,0.6)",
             color: "#FFFFFF",
             marginBottom: 8,
           }}
