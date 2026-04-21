@@ -206,7 +206,7 @@ export default function PipelinePage() {
 
         {/* Kanban */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto flex-1 p-4">
+          <div className="flex gap-3 overflow-x-auto flex-1 p-4 bg-background">
             {filteredColumns.map(col => {
               const totalValue = col.filteredIds.reduce(
                 (s, id) => s + (leads[id]?.value || 0),
@@ -218,8 +218,8 @@ export default function PipelinePage() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`min-w-[280px] w-[280px] flex flex-col rounded-lg border border-card-border bg-secondary/40 transition-colors ${
-                        snapshot.isDraggingOver ? "bg-secondary" : ""
+                      className={`min-w-[280px] w-[280px] flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 transition-colors ${
+                        snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
                       }`}
                     >
                       {/* Top color line */}
@@ -280,9 +280,9 @@ export default function PipelinePage() {
                                   {...prov.draggableProps}
                                   {...prov.dragHandleProps}
                                   onClick={() => setSelectedLeadId(leadId)}
-                                  className={`bg-card border border-card-border rounded-lg p-3 cursor-pointer hover:border-primary/40 transition-all ${
+                                  className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-[#DDDDDD] transition-all ${
                                     snap.isDragging
-                                      ? "shadow-lg shadow-primary/10 rotate-1"
+                                      ? "shadow-elev-2 rotate-1"
                                       : ""
                                   }`}
                                 >

@@ -64,7 +64,7 @@ export function PipelineSidebar() {
   };
 
   return (
-    <aside className="w-60 shrink-0 border-r border-card-border bg-secondary/30 flex flex-col">
+    <aside className="w-60 shrink-0 bg-card flex flex-col shadow-rail relative z-10">
       <div className="p-3 border-b border-card-border">
         <Button
           onClick={() => setShowNew(true)}
@@ -108,8 +108,8 @@ export function PipelineSidebar() {
                       onClick={() => setActivePipelineId(p.id)}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-foreground hover:bg-secondary"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-primary"
+                          : "text-foreground hover:bg-[#F8F9FA]"
                       }`}
                     >
                       <Filter

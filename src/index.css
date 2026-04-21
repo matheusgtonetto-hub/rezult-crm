@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    /* Light palette — Rezult */
-    --background: 0 0% 100%;          /* #FFFFFF */
+    /* Light palette — Rezult "Elevated Cards" */
+    --background: 210 20% 97%;        /* #F4F6F8 — canvas */
     --foreground: 0 0% 6.7%;          /* #111111 */
 
     --card: 0 0% 100%;                /* #FFFFFF */
     --card-foreground: 0 0% 6.7%;
-    --card-border: 0 0% 89.8%;        /* #E5E5E5 */
+    --card-border: 0 0% 93.3%;        /* #EEEEEE */
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 6.7%;
@@ -19,10 +19,10 @@
     --primary: 165 76% 24%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96.1%;          /* #F5F5F5 */
+    --secondary: 0 0% 100%;           /* #FFFFFF — painéis brancos elevados */
     --secondary-foreground: 0 0% 6.7%;
 
-    --muted: 0 0% 96.1%;
+    --muted: 210 20% 97%;             /* #F4F6F8 */
     --muted-foreground: 0 0% 66.7%;   /* #AAAAAA */
 
     --accent: 165 76% 24%;
@@ -38,21 +38,34 @@
     --success-soft: 158 60% 92%;      /* #E1F5EE */
     --destructive-soft: 0 86% 97%;    /* #FEF2F2 */
 
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
+    --border: 0 0% 93.3%;             /* #EEEEEE */
+    --input: 0 0% 87.8%;              /* #E0E0E0 */
     --ring: 165 76% 24%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 96.1%; /* #F5F5F5 */
+    /* Elevated Cards shadow tokens */
+    --shadow-elevated-1: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-elevated-2: 0 2px 8px rgba(0,0,0,0.10);
+    --shadow-elevated-3: 0 8px 32px rgba(0,0,0,0.12);
+    --shadow-rail: 1px 0 4px rgba(0,0,0,0.04);
+
+    --sidebar-background: 0 0% 100%;  /* #FFFFFF — painéis internos */
     --sidebar-foreground: 0 0% 30%;
     --sidebar-primary: 165 76% 24%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 158 60% 92%;    /* #E1F5EE */
     --sidebar-accent-foreground: 165 76% 24%;
-    --sidebar-border: 0 0% 89.8%;
+    --sidebar-border: 0 0% 93.3%;
     --sidebar-ring: 165 76% 24%;
   }
+}
+
+@layer utilities {
+  .shadow-elev-1 { box-shadow: var(--shadow-elevated-1); }
+  .shadow-elev-2 { box-shadow: var(--shadow-elevated-2); }
+  .shadow-elev-3 { box-shadow: var(--shadow-elevated-3); }
+  .shadow-rail   { box-shadow: var(--shadow-rail); }
 }
 
 @layer base {

@@ -212,9 +212,9 @@ export default function MultiatendimentoPage() {
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#FFFFFF" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }}>
       {/* COLUNA 1 — LISTA */}
-      <aside style={{ width: 300, minWidth: 300, height: "100vh", borderRight: "0.5px solid #E5E5E5", display: "flex", flexDirection: "column", background: "#FFFFFF" }}>
+      <aside style={{ width: 300, minWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFFFFF", position: "relative", zIndex: 2 }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "0.5px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px" }}>
@@ -303,7 +303,7 @@ export default function MultiatendimentoPage() {
       </aside>
 
       {/* COLUNA 2 — CHAT */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#FAFAFA", minWidth: 0 }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#F4F6F8", minWidth: 0 }}>
         {active ? (
           <>
             {/* header */}
@@ -372,7 +372,8 @@ export default function MultiatendimentoPage() {
                               borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
                               background: isAgent ? "#0F6E56" : "#FFFFFF",
                               color: isAgent ? "#FFFFFF" : "#111",
-                              border: isAgent ? "none" : "0.5px solid #E5E5E5",
+                              border: isAgent ? "none" : "0.5px solid #EEEEEE",
+                              boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
                               fontSize: 14, lineHeight: 1.4,
                               display: "flex", alignItems: "center", gap: 8,
                             }}>

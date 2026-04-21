@@ -137,10 +137,10 @@ export default function AutomacoesPage() {
   })).filter(g => !search || g.items.length > 0);
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F8F9FA", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
       {/* PAINEL 1 — LISTA */}
       {!leftCollapsed && (
-        <aside style={{ width: 240, minWidth: 240, background: "#F5F5F5", borderRight: "0.5px solid #E5E5E5", display: "flex", flexDirection: "column", position: "relative" }}>
+        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
           <div style={{ padding: 12, borderBottom: "0.5px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#AAAAAA" }} />
@@ -224,7 +224,7 @@ export default function AutomacoesPage() {
       )}
 
       {/* PAINEL 2 — BLOCOS */}
-      <aside style={{ width: 200, minWidth: 200, background: "#FFFFFF", borderRight: "0.5px solid #E5E5E5", padding: "16px 12px", overflowY: "auto" }}>
+      <aside style={{ width: 200, minWidth: 200, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", padding: "16px 12px", overflowY: "auto", position: "relative", zIndex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#111111", marginBottom: 12 }}>Blocos básicos</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {BLOCKS.map(b => {
@@ -247,7 +247,7 @@ export default function AutomacoesPage() {
       </aside>
 
       {/* PAINEL 3 — CANVAS */}
-      <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "#F8F9FA", backgroundImage: "radial-gradient(circle, #D0D0D0 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+      <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "#F4F6F8", backgroundImage: "radial-gradient(circle, rgba(221,221,221,0.6) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
         {!selectedAutomation && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, zIndex: 5 }}>
             <Zap size={64} color="#E5E5E5" />
