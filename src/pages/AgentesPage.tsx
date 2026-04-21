@@ -310,19 +310,22 @@ export default function AgentesPage() {
     <TooltipProvider delayDuration={200}>
     <div className="p-6 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-[20px] font-bold text-[#111111] leading-tight">Agentes</h1>
           <p className="text-[13px] text-[#AAAAAA] mt-1">
             Configure a estrutura de inteligência comercial da sua empresa
           </p>
         </div>
-        <Button
-          onClick={() => setOpenDialog(true)}
-          className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white"
-        >
-          <Plus size={16} /> Novo agente
-        </Button>
+        <div className="flex items-center gap-3">
+          <RoleSwitcher />
+          <Button
+            onClick={() => setOpenDialog(true)}
+            className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white"
+          >
+            <Plus size={16} /> Novo agente
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-[380px_1fr] gap-6">
