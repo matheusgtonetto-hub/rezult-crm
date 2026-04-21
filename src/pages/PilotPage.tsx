@@ -282,13 +282,15 @@ export default function PilotPage() {
       {/* COLUNA 2 — CHAT */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "#E5E5E5" }}>
-          <div className="flex items-center gap-2 w-[200px]">
+        <div className="flex items-start justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "#E5E5E5" }}>
+          <div className="flex items-start gap-2 w-[200px]">
             {!historyOpen && (
               <button
                 onClick={() => setHistoryOpen(true)}
-                className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-secondary"
+                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
                 style={{ color: "#666666" }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Histórico"
               >
                 <History size={18} />
@@ -296,7 +298,7 @@ export default function PilotPage() {
             )}
           </div>
 
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-1">
             <div className="flex items-center gap-2">
               <Sparkles size={18} style={{ color: accent }} />
               <h1 className="text-[18px] font-bold" style={{ color: "#111111" }}>Pilot</h1>
@@ -304,39 +306,46 @@ export default function PilotPage() {
             <p className="text-[12px]" style={{ color: "#AAAAAA" }}>
               Seu agente de inteligência comercial
             </p>
+            {/* Mode selector - centralizado abaixo do subtítulo */}
+            <div className="flex items-center justify-center mt-3">
+              <div
+                className="flex items-center rounded-full p-1 border"
+                style={{ backgroundColor: "#F5F5F5", borderColor: "#E5E5E5" }}
+              >
+                <button
+                  onClick={() => setMode("agent")}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
+                  style={{
+                    backgroundColor: isAgent ? "#0F6E56" : "transparent",
+                    color: isAgent ? "#FFFFFF" : "#666666",
+                  }}
+                >
+                  <Sparkles size={14} />
+                  Agent Master
+                </button>
+                <button
+                  onClick={() => setMode("claude")}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
+                  style={{
+                    backgroundColor: !isAgent ? "#111111" : "transparent",
+                    color: !isAgent ? "#FFFFFF" : "#666666",
+                  }}
+                >
+                  <Diamond size={14} />
+                  Claude
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 w-[200px] justify-end">
-            {/* Mode selector */}
-            <div className="flex items-center rounded-full p-0.5" style={{ backgroundColor: "#F5F5F5" }}>
-              <button
-                onClick={() => setMode("agent")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
-                style={{
-                  backgroundColor: isAgent ? "#0F6E56" : "transparent",
-                  color: isAgent ? "#FFFFFF" : "#666666",
-                }}
-              >
-                <Sparkles size={12} />
-                Agent Master
-              </button>
-              <button
-                onClick={() => setMode("claude")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors"
-                style={{
-                  backgroundColor: !isAgent ? "#111111" : "transparent",
-                  color: !isAgent ? "#FFFFFF" : "#666666",
-                }}
-              >
-                <Diamond size={12} />
-                Claude
-              </button>
-            </div>
+          <div className="flex items-start gap-2 w-[200px] justify-end">
             {!reportsOpen && (
               <button
                 onClick={() => setReportsOpen(true)}
-                className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-secondary"
+                className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
                 style={{ color: "#666666" }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Relatórios"
               >
                 <BarChart3 size={18} />
