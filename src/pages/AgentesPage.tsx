@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import AgentUserView from "@/components/AgentUserView";
 
 type AgentType = "Master" | "Coordenador" | "Closer" | "SDR";
 
