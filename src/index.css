@@ -25,7 +25,7 @@
     --muted: 210 20% 97%;             /* #F4F6F8 */
     --muted-foreground: 0 0% 66.7%;   /* #AAAAAA */
 
-    --accent: 165 76% 24%;
+    --accent: 165 77% 30%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 73% 59%;         /* #E24B4A */
@@ -40,7 +40,7 @@
 
     --border: 0 0% 93.3%;             /* #EEEEEE */
     --input: 0 0% 87.8%;              /* #E0E0E0 */
-    --ring: 165 76% 24%;
+    --ring: 165 77% 30%;
 
     --radius: 0.75rem;
 
@@ -52,12 +52,12 @@
 
     --sidebar-background: 0 0% 100%;  /* #FFFFFF — painéis internos */
     --sidebar-foreground: 0 0% 30%;
-    --sidebar-primary: 165 76% 24%;
+    --sidebar-primary: 165 77% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 158 60% 92%;    /* #E1F5EE */
-    --sidebar-accent-foreground: 165 76% 24%;
+    --sidebar-accent-foreground: 165 77% 30%;
     --sidebar-border: 0 0% 93.3%;
-    --sidebar-ring: 165 76% 24%;
+    --sidebar-ring: 165 77% 30%;
   }
 }
 
@@ -66,6 +66,49 @@
   .shadow-elev-2 { box-shadow: var(--shadow-elevated-2); }
   .shadow-elev-3 { box-shadow: var(--shadow-elevated-3); }
   .shadow-rail   { box-shadow: var(--shadow-rail); }
+
+  /* Subtle green glow effects */
+  .glow-pilot {
+    animation: pilotGlow 3s ease-in-out infinite;
+  }
+  .glow-agentes {
+    animation: pilotGlow 3s ease-in-out infinite;
+    animation-delay: 1.5s;
+  }
+  .glow-primary-hover {
+    transition: all 0.3s ease;
+  }
+  .glow-primary-hover:hover {
+    box-shadow: 0 0 16px rgba(18, 138, 104, 0.4);
+  }
+  .glow-closed {
+    animation: closedGlow 1.5s ease-out 1;
+  }
+  .glow-score {
+    animation: scorePulse 2s ease-in-out infinite;
+  }
+  .glow-rz {
+    animation: rzShine 4s ease-in-out infinite;
+  }
+}
+
+@keyframes pilotGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(18, 138, 104, 0.4)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(18, 138, 104, 0.8)); }
+}
+@keyframes closedGlow {
+  0%   { box-shadow: none; }
+  50%  { box-shadow: 0 0 20px rgba(18, 138, 104, 0.5); }
+  100% { box-shadow: none; }
+}
+@keyframes scorePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+@keyframes rzShine {
+  0%   { border-color: rgba(18, 138, 104, 0.6); }
+  50%  { border-color: rgba(18, 138, 104, 1); }
+  100% { border-color: rgba(18, 138, 104, 0.6); }
 }
 
 @layer base {
