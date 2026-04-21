@@ -126,8 +126,8 @@ export default function PilotPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [reportsOpen, setReportsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [reportsOpen, setReportsOpen] = useState(true);
   const [period, setPeriod] = useState<"hoje" | "semana" | "mes">("hoje");
   const [actions, setActions] = useState([
     { id: 1, text: "Ligar para Carlos Andrade", priority: "Alta", done: false },
