@@ -372,7 +372,8 @@ export default function MultiatendimentoPage() {
                               borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
                               background: isAgent ? "#0F6E56" : "#FFFFFF",
                               color: isAgent ? "#FFFFFF" : "#111",
-                              border: isAgent ? "none" : "0.5px solid #E5E5E5",
+                              border: isAgent ? "none" : "0.5px solid #EEEEEE",
+                              boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
                               fontSize: 14, lineHeight: 1.4,
                               display: "flex", alignItems: "center", gap: 8,
                             }}>
