@@ -201,7 +201,10 @@ function FileIcon({ type }: { type: string }) {
   return <FileText size={18} color={color} />;
 }
 
+type ViewMode = "admin" | "user-sdr" | "user-closer";
+
 export default function AgentesPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>("admin");
   const [agents, setAgents] = useState<Agent[]>(INITIAL_AGENTS);
   const [selectedId, setSelectedId] = useState<string | null>("1");
   const [tone, setTone] = useState("consultative");
@@ -217,6 +220,42 @@ export default function AgentesPage() {
     parentId: "1",
     active: true,
   });
+
+  const RoleSwitcher = () => (
+    <div className="inline-flex items-center bg-white border border-[#EEEEEE] rounded-full p-1 shadow-elev-1">
+      {[
+        { v: "admin" as const, l: "Admin/Gestor" },
+        { v: "user-sdr" as const, l: "SDR" },
+        { v: "user-closer" as const, l: "Closer" },
+      ].map(opt => (
+        <button
+          key={opt.v}
+          onClick={() => setViewMode(opt.v)}
+          className={`text-[12px] px-3 py-1.5 rounded-full transition-colors ${
+            viewMode === opt.v
+              ? "bg-[#0F6E56] text-white font-semibold"
+              : "text-[#666] hover:text-[#111]"
+          }`}
+        >
+          {opt.l}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (viewMode === "user-sdr" || viewMode === "user-closer") {
+    return (
+      <div>
+        <div className="px-6 pt-6 flex justify-end max-w-[1400px] mx-auto">
+          <RoleSwitcher />
+        </div>
+        <AgentUserView
+          role={viewMode === "user-sdr" ? "SDR" : "Closer"}
+          userName={viewMode === "user-sdr" ? "Carlos Andrade" : "Fernanda Lima"}
+        />
+      </div>
+    );
+  }
 
   const selected = agents.find(a => a.id === selectedId) || null;
   const roots = agents.filter(a => a.parentId === null);
