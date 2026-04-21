@@ -142,7 +142,7 @@ export default function PilotPage() {
   const active = conversations.find((c) => c.id === activeId) || null;
   const messages = active?.messages || [];
   const isAgent = mode === "agent";
-  const accent = isAgent ? "#0F6E56" : "#111111";
+  const accent = isAgent ? "#128A68" : "#111111";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -233,7 +233,7 @@ export default function PilotPage() {
             <button
               onClick={newConversation}
               className="flex items-center gap-2 text-[13px] font-medium hover:opacity-80"
-              style={{ color: "#0F6E56" }}
+              style={{ color: "#128A68" }}
             >
               <Plus size={14} /> Nova conversa
             </button>
@@ -251,8 +251,8 @@ export default function PilotPage() {
                 key={c.id}
                 conv={c}
                 active={activeId === c.id}
-                accent="#0F6E56"
-                icon={<Sparkles size={10} style={{ color: "#0F6E56" }} />}
+                accent="#128A68"
+                icon={<Sparkles size={10} style={{ color: "#128A68" }} />}
                 onSelect={() => selectConversation(c)}
                 onDelete={() => deleteConversation(c.id)}
               />
@@ -316,7 +316,7 @@ export default function PilotPage() {
                   onClick={() => setMode("agent")}
                   className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
                   style={{
-                    backgroundColor: isAgent ? "#0F6E56" : "transparent",
+                    backgroundColor: isAgent ? "#128A68" : "transparent",
                     color: isAgent ? "#FFFFFF" : "#666666",
                   }}
                 >
@@ -535,8 +535,8 @@ export default function PilotPage() {
                   className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors capitalize"
                   style={{
                     backgroundColor: period === p ? "#E1F5EE" : "#F5F5F5",
-                    color: period === p ? "#0F6E56" : "#666666",
-                    border: period === p ? "1px solid #0F6E56" : "1px solid transparent",
+                    color: period === p ? "#128A68" : "#666666",
+                    border: period === p ? "1px solid #128A68" : "1px solid transparent",
                   }}
                 >
                   {p === "mes" ? "Mês" : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -550,8 +550,8 @@ export default function PilotPage() {
             {/* Performance */}
             <div className="rounded-xl p-3.5 mb-3" style={{ backgroundColor: "#E1F5EE" }}>
               <div className="flex items-center gap-1.5 mb-3">
-                <Trophy size={14} style={{ color: "#0F6E56" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "#0F6E56" }}>
+                <Trophy size={14} style={{ color: "#128A68" }} />
+                <span className="text-[12px] font-semibold" style={{ color: "#128A68" }}>
                   Performance do dia
                 </span>
               </div>
@@ -562,12 +562,12 @@ export default function PilotPage() {
                 <Metric label="Score" value="8.2/10" />
               </div>
               <div>
-                <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "#0F6E56" }}>
+                <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "#128A68" }}>
                   <span>Score geral</span>
                   <span className="font-semibold">8.2 / 10</span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#FFFFFF" }}>
-                  <div className="h-full rounded-full" style={{ width: "82%", backgroundColor: "#0F6E56" }} />
+                  <div className="h-full rounded-full" style={{ width: "82%", backgroundColor: "#128A68" }} />
                 </div>
               </div>
             </div>
@@ -579,7 +579,7 @@ export default function PilotPage() {
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Insights</span>
               </div>
               <div className="space-y-2.5">
-                <Insight icon={<Check size={11} style={{ color: "#0F6E56" }} />} text="Meta diária atingida: 8 abordagens realizadas" time="hoje 18h00" />
+                <Insight icon={<Check size={11} style={{ color: "#128A68" }} />} text="Meta diária atingida: 8 abordagens realizadas" time="hoje 18h00" />
                 <Insight icon={<Zap size={11} style={{ color: "#F59E0B" }} />} text="2 leads parados há mais de 3 dias na etapa Proposta Enviada" time="hoje 14h32" />
                 <Insight icon={<TrendingUp size={11} style={{ color: "#378ADD" }} />} text="Sua taxa de qualificação subiu 12% essa semana" time="hoje 12h15" />
                 <Insight icon={<AlertTriangle size={11} style={{ color: "#E24B4A" }} />} text="Carlos Andrade não respondeu em 4 dias — follow-up urgente" time="hoje 09h48" />
@@ -600,7 +600,7 @@ export default function PilotPage() {
             {/* Próximas ações */}
             <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "#E5E5E5", backgroundColor: "#FFFFFF" }}>
               <div className="flex items-center gap-1.5 mb-3">
-                <CheckCircle2 size={14} style={{ color: "#0F6E56" }} />
+                <CheckCircle2 size={14} style={{ color: "#128A68" }} />
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Próximas ações</span>
               </div>
               <div className="space-y-2">
@@ -612,8 +612,8 @@ export default function PilotPage() {
                       }
                       className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
                       style={{
-                        borderColor: a.done ? "#0F6E56" : "#CCCCCC",
-                        backgroundColor: a.done ? "#0F6E56" : "transparent",
+                        borderColor: a.done ? "#128A68" : "#CCCCCC",
+                        backgroundColor: a.done ? "#128A68" : "transparent",
                       }}
                     >
                       {a.done && <Check size={10} color="#FFFFFF" />}
@@ -649,7 +649,7 @@ export default function PilotPage() {
             </p>
             <button
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-medium hover:bg-[#E1F5EE]"
-              style={{ borderColor: "#0F6E56", color: "#0F6E56" }}
+              style={{ borderColor: "#128A68", color: "#128A68" }}
             >
               <RefreshCw size={12} /> Atualizar
             </button>
@@ -713,7 +713,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg p-2" style={{ backgroundColor: "#FFFFFF" }}>
       <p className="text-[10px]" style={{ color: "#666666" }}>{label}</p>
-      <p className="text-[15px] font-bold" style={{ color: "#0F6E56" }}>{value}</p>
+      <p className="text-[15px] font-bold" style={{ color: "#128A68" }}>{value}</p>
     </div>
   );
 }

@@ -68,7 +68,7 @@ export const stageColors = {
   "contato-feito": "#378ADD",
   "proposta-enviada": "#F59E0B",
   "negociacao": "#8B5CF6",
-  "fechado": "#0F6E56",
+  "fechado": "#128A68",
   "perdido": "#E24B4A",
 } as const;
 
@@ -84,13 +84,13 @@ const buildSalesColumns = (): PipelineColumn[] => [
 const buildFollowUpColumns = (): PipelineColumn[] => [
   { id: "fu-pendente", title: "Pendente", color: "#AAAAAA", leadIds: [] },
   { id: "fu-em-andamento", title: "Em andamento", color: "#378ADD", leadIds: [] },
-  { id: "fu-concluido", title: "Concluído", color: "#0F6E56", leadIds: [] },
+  { id: "fu-concluido", title: "Concluído", color: "#128A68", leadIds: [] },
 ];
 
 const buildRecoveryColumns = (): PipelineColumn[] => [
   { id: "rec-novo", title: "Reabrir contato", color: "#AAAAAA", leadIds: [] },
   { id: "rec-tentativa", title: "Tentativa", color: "#F59E0B", leadIds: [] },
-  { id: "rec-recuperado", title: "Recuperado", color: "#0F6E56", leadIds: [] },
+  { id: "rec-recuperado", title: "Recuperado", color: "#128A68", leadIds: [] },
   { id: "rec-perdido", title: "Definitivamente perdido", color: "#E24B4A", leadIds: [] },
 ];
 
@@ -236,7 +236,7 @@ export const teamMembers = ["Carlos", "Mariana", "Rafael"];
 
 // Deterministic color per team member (for tags/avatars)
 export const memberColors: Record<string, string> = {
-  Carlos: "#0F6E56",
+  Carlos: "#128A68",
   Mariana: "#8B5CF6",
   Rafael: "#F59E0B",
 };

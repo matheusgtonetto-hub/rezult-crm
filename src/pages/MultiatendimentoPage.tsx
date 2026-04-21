@@ -20,7 +20,7 @@ function initials(name: string) {
 
 /* tag color presets (Rezult palette) */
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
-  Rafael:     { bg: "#E1F5EE", fg: "#0F6E56" },
+  Rafael:     { bg: "#E1F5EE", fg: "#128A68" },
   Mariana:    { bg: "#EDE9FE", fg: "#534AB7" },
   Carlos:     { bg: "#FEF3C7", fg: "#854F0B" },
   SDR:        { bg: "#F5F5F5", fg: "#666666" },
@@ -28,7 +28,7 @@ const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Proposta:   { bg: "#DBEAFE", fg: "#185FA5" },
   Negociação: { bg: "#F3E8FF", fg: "#6D28D9" },
   Reunião:    { bg: "#FEF3C7", fg: "#854F0B" },
-  Fechado:    { bg: "#E1F5EE", fg: "#0F6E56" },
+  Fechado:    { bg: "#E1F5EE", fg: "#128A68" },
 };
 function tagStyle(label: string) {
   return TAG_STYLES[label] || { bg: "#F5F5F5", fg: "#666666" };
@@ -93,7 +93,7 @@ function Waveform({ light }: { light: boolean }) {
       {heights.map((h, i) => (
         <div key={i} style={{
           width: 2, height: h,
-          background: light ? "rgba(255,255,255,0.5)" : "#0F6E56",
+          background: light ? "rgba(255,255,255,0.5)" : "#128A68",
           opacity: light ? 1 : 0.4,
           borderRadius: 1,
         }} />
@@ -103,8 +103,8 @@ function Waveform({ light }: { light: boolean }) {
 }
 
 function AudioBubble({ duration, light }: { duration: string; light: boolean }) {
-  const fg = light ? "#FFFFFF" : "#0F6E56";
-  const btnBg = light ? "rgba(255,255,255,0.3)" : "#0F6E56";
+  const fg = light ? "#FFFFFF" : "#128A68";
+  const btnBg = light ? "rgba(255,255,255,0.3)" : "#128A68";
   const btnFg = "#FFFFFF";
   const wrapBg = light ? "transparent" : "#F5F5F5";
   return (
@@ -150,8 +150,8 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
 /* ---------- filter chip ---------- */
 function FilterChip({ Icon, count, isActive, isHighlight, onClick }: { Icon: any; count: number | null; isActive: boolean; isHighlight: boolean; onClick: () => void }) {
   let bg = "#F5F5F5", fg = "#666666", border = "1px solid transparent";
-  if (isHighlight && !isActive) { bg = "#0F6E56"; fg = "#FFFFFF"; }
-  if (isActive) { bg = "#E1F5EE"; fg = "#0F6E56"; border = "1px solid #0F6E56"; }
+  if (isHighlight && !isActive) { bg = "#128A68"; fg = "#FFFFFF"; }
+  if (isActive) { bg = "#E1F5EE"; fg = "#128A68"; border = "1px solid #128A68"; }
   return (
     <button onClick={onClick} style={{
       display: "flex", alignItems: "center", gap: 4,
@@ -253,7 +253,7 @@ export default function MultiatendimentoPage() {
                   padding: "12px 16px",
                   borderBottom: "0.5px solid #F0F0F0",
                   background: isActive ? "#E1F5EE" : "transparent",
-                  borderLeft: isActive ? "3px solid #0F6E56" : "3px solid transparent",
+                  borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent",
                   cursor: "pointer",
                   display: "flex", gap: 10,
                 }}
@@ -276,7 +276,7 @@ export default function MultiatendimentoPage() {
                     <span style={{
                       fontSize: 13,
                       fontWeight: isActive ? 700 : 600,
-                      color: isActive ? "#0F6E56" : "#111",
+                      color: isActive ? "#128A68" : "#111",
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
                     }}>{c.name}</span>
                     <span style={{ fontSize: 11, color: "#AAA", flexShrink: 0 }}>{c.time}</span>
@@ -327,7 +327,7 @@ export default function MultiatendimentoPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{
-                  fontSize: 12, color: "#0F6E56", border: "1px solid #0F6E56",
+                  fontSize: 12, color: "#128A68", border: "1px solid #128A68",
                   borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer",
                 }}>{active.dealNumber || "#1085"}</span>
                 <ChatHeaderBtn icon={Eye} label="Marcar como lida" />
@@ -370,7 +370,7 @@ export default function MultiatendimentoPage() {
                             <div style={{
                               padding: "10px 14px",
                               borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-                              background: isAgent ? "#0F6E56" : "#FFFFFF",
+                              background: isAgent ? "#128A68" : "#FFFFFF",
                               color: isAgent ? "#FFFFFF" : "#111",
                               border: isAgent ? "none" : "0.5px solid #EEEEEE",
                               boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
@@ -405,7 +405,7 @@ export default function MultiatendimentoPage() {
                   background: "#E1F5EE", borderRadius: 6, padding: 4,
                   display: "inline-flex", cursor: "pointer",
                 }}>
-                  <Sparkles size={16} color="#0F6E56" />
+                  <Sparkles size={16} color="#128A68" />
                 </span>
                 <Smile size={18} color="#AAA" style={{ cursor: "pointer" }} />
               </div>
@@ -455,7 +455,7 @@ export default function MultiatendimentoPage() {
                 ].map(({ icon: Icon, label }) => (
                   <button key={label} style={{
                     flex: 1, background: "#F5F5F5", border: "none",
-                    borderRadius: 8, padding: "6px 10px", color: "#0F6E56",
+                    borderRadius: 8, padding: "6px 10px", color: "#128A68",
                     fontSize: 12, fontWeight: 600, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                   }}>
@@ -477,12 +477,12 @@ export default function MultiatendimentoPage() {
                 <div style={{
                   position: "absolute", top: "50%", left: 5,
                   width: `calc(${(stageIdx / (PIPELINE_STAGES.length - 1)) * 100}% - 10px)`,
-                  height: 2, background: "#0F6E56", transform: "translateY(-50%)",
+                  height: 2, background: "#128A68", transform: "translateY(-50%)",
                 }} />
                 {PIPELINE_STAGES.map((_, i) => {
                   let bg = "#E5E5E5";
-                  if (i < stageIdx) bg = "rgba(15,110,86,0.3)";
-                  if (i === stageIdx) bg = "#0F6E56";
+                  if (i < stageIdx) bg = "rgba(18,138,104,0.3)";
+                  if (i === stageIdx) bg = "#128A68";
                   return <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: bg, position: "relative", zIndex: 1 }} />;
                 })}
               </div>
@@ -504,7 +504,7 @@ export default function MultiatendimentoPage() {
                   onClick={advance}
                   disabled={stageIdx === PIPELINE_STAGES.length - 1}
                   style={{
-                    flex: 1, background: "#0F6E56", border: "none", borderRadius: 8,
+                    flex: 1, background: "#128A68", border: "none", borderRadius: 8,
                     padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600,
                     cursor: stageIdx === PIPELINE_STAGES.length - 1 ? "not-allowed" : "pointer",
                     opacity: stageIdx === PIPELINE_STAGES.length - 1 ? 0.4 : 1,
@@ -534,12 +534,12 @@ export default function MultiatendimentoPage() {
               {meeting ? (
                 <div style={{ background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <CalendarIcon size={16} color="#0F6E56" />
+                    <CalendarIcon size={16} color="#128A68" />
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{meeting.date} às {meeting.time}</span>
                   </div>
                   <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>Responsável: {meeting.owner}</div>
                   <span style={{
-                    display: "inline-block", background: "#E1F5EE", color: "#0F6E56",
+                    display: "inline-block", background: "#E1F5EE", color: "#128A68",
                     fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 8,
                   }}>Reunião agendada</span>
                   {meeting.note && <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{meeting.note}</div>}
@@ -554,7 +554,7 @@ export default function MultiatendimentoPage() {
                   <button
                     onClick={() => setMeetingForm(true)}
                     style={{
-                      background: "#E1F5EE", border: "none", color: "#0F6E56",
+                      background: "#E1F5EE", border: "none", color: "#128A68",
                       borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600,
                       cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
                     }}
@@ -585,7 +585,7 @@ export default function MultiatendimentoPage() {
                         setMeetingForm(false);
                         toast.success("Reunião agendada ✓");
                       }}
-                      style={{ background: "#0F6E56", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                      style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                     >Agendar</button>
                   </div>
                 </div>
@@ -628,7 +628,7 @@ export default function MultiatendimentoPage() {
 
             <Section
               title="Qualificação do Lead"
-              action={<span style={{ fontSize: 11, color: "#0F6E56", fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}><Plus size={12} /> Adicionar</span>}
+              action={<span style={{ fontSize: 11, color: "#128A68", fontWeight: 600, display: "flex", alignItems: "center", gap: 2 }}><Plus size={12} /> Adicionar</span>}
             >
               {["O que o lead está buscando?", "Qual o ramo da empresa?", "O lead é o decisor?"].map(q => (
                 <div key={q} style={{ marginBottom: 8 }}>
@@ -653,13 +653,13 @@ export default function MultiatendimentoPage() {
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Atendente: Rafael Silva</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0F6E56", marginBottom: 4 }}>R$ 3.500,00</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#128A68", marginBottom: 4 }}>R$ 3.500,00</div>
                 <div style={{ fontSize: 11, color: "#AAA", marginBottom: 8 }}>14/04/2026 • Sem atividades</div>
                 <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>Pipeline Comercial</div>
                 <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: `${((stageIdx + 1) / PIPELINE_STAGES.length) * 100}%`, height: "100%", background: "#0F6E56" }} />
+                  <div style={{ width: `${((stageIdx + 1) / PIPELINE_STAGES.length) * 100}%`, height: "100%", background: "#128A68" }} />
                 </div>
-                <div style={{ fontSize: 11, color: "#0F6E56", fontWeight: 600 }}>{active.dealNumber || "#1085"}</div>
+                <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{active.dealNumber || "#1085"}</div>
               </div>
             </Section>
           </>
@@ -690,9 +690,9 @@ function ChatHeaderBtn({ icon: Icon, label }: { icon: any; label: string }) {
       style={{
         display: "flex", alignItems: "center", gap: 4,
         padding: "4px 10px", borderRadius: 100,
-        border: `1px solid ${hover ? "#0F6E56" : "#E5E5E5"}`,
+        border: `1px solid ${hover ? "#128A68" : "#E5E5E5"}`,
         background: "transparent",
-        color: hover ? "#0F6E56" : "#111",
+        color: hover ? "#128A68" : "#111",
         fontSize: 12, fontWeight: 600, cursor: "pointer",
         transition: "all 0.15s",
       }}

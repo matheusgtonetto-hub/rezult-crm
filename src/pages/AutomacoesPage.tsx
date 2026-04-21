@@ -35,12 +35,12 @@ const INITIAL_GROUPS: Group[] = [
 const BLOCKS = [
   { id: "msg", label: "Mensagem", icon: MessageCircle, color: "#378ADD" },
   { id: "act", label: "Ações", icon: Zap, color: "#F59E0B" },
-  { id: "cond", label: "Condições", icon: Filter, color: "#0F6E56" },
+  { id: "cond", label: "Condições", icon: Filter, color: "#128A68" },
   { id: "wait", label: "Espera", icon: Clock, color: "#8B5CF6" },
   { id: "rand", label: "Randomizador", icon: Shuffle, color: "#E24B4A" },
   { id: "api", label: "API", icon: Braces, color: "#6B7280" },
-  { id: "fields", label: "Operações de campos", icon: ListChecks, color: "#0F6E56" },
-  { id: "ai", label: "IA", icon: Sparkles, color: "#0F6E56" },
+  { id: "fields", label: "Operações de campos", icon: ListChecks, color: "#128A68" },
+  { id: "ai", label: "IA", icon: Sparkles, color: "#128A68" },
   { id: "js", label: "JavaScript", icon: Code2, color: "#F59E0B" },
 ];
 
@@ -154,7 +154,7 @@ export default function AutomacoesPage() {
             </div>
             <button
               onClick={() => setCreateOpen(true)}
-              style={{ width: "100%", marginTop: 8, background: "#0F6E56", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
+              style={{ width: "100%", marginTop: 8, background: "#128A68", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
             >
               <Plus size={14} /> Adicionar automação
             </button>
@@ -184,11 +184,11 @@ export default function AutomacoesPage() {
                         style={{
                           display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
                           background: sel ? "#FFFFFF" : "transparent",
-                          borderLeft: sel ? "3px solid #0F6E56" : "3px solid transparent",
+                          borderLeft: sel ? "3px solid #128A68" : "3px solid transparent",
                           cursor: "pointer",
                         }}
                       >
-                        <Filter size={14} color="#0F6E56" />
+                        <Filter size={14} color="#128A68" />
                         <span style={{ flex: 1, fontSize: 13, color: "#111111", fontWeight: sel ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.name}
                         </span>
@@ -235,7 +235,7 @@ export default function AutomacoesPage() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, b.id)}
                 style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "10px 12px", cursor: "grab", display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#111111", transition: "all 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#0F6E56"; e.currentTarget.style.background = "#E1F5EE"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#128A68"; e.currentTarget.style.background = "#E1F5EE"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
               >
                 <Icon size={14} color={b.color} />
@@ -253,7 +253,7 @@ export default function AutomacoesPage() {
             <Zap size={64} color="#E5E5E5" />
             <div style={{ fontSize: 16, color: "#AAAAAA" }}>Selecione uma automação</div>
             <div style={{ fontSize: 13, color: "#CCCCCC" }}>ou crie uma nova para começar</div>
-            <button onClick={() => setCreateOpen(true)} style={{ marginTop: 8, background: "#0F6E56", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setCreateOpen(true)} style={{ marginTop: 8, background: "#128A68", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
               <Plus size={14} /> Criar automação
             </button>
           </div>
@@ -362,7 +362,7 @@ export default function AutomacoesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} style={{ background: "#0F6E56" }}>Criar</Button>
+            <Button onClick={handleCreate} style={{ background: "#128A68" }}>Criar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -376,7 +376,7 @@ const zoomBtn: React.CSSProperties = {
 
 function CanvasBlock({ node, selected, onSelect }: { node: CanvasNode; selected: boolean; onSelect: () => void }) {
   const width = node.type === "start" ? 240 : 260;
-  const borderColor = selected ? "#0F6E56" : node.type === "start" ? "#CCCCCC" : node.type === "condition" ? "rgba(15,110,86,0.3)" : "#E5E5E5";
+  const borderColor = selected ? "#128A68" : node.type === "start" ? "#CCCCCC" : node.type === "condition" ? "rgba(18,138,104,0.3)" : "#E5E5E5";
   const borderStyle = node.type === "start" ? "dashed" : "solid";
 
   return (
@@ -386,7 +386,7 @@ function CanvasBlock({ node, selected, onSelect }: { node: CanvasNode; selected:
       style={{
         position: "absolute", left: node.x, top: node.y, width,
         background: "#FFFFFF", border: `${selected ? 2 : 1.5}px ${borderStyle} ${borderColor}`,
-        borderRadius: 12, padding: 14, cursor: "pointer", boxShadow: selected ? "0 4px 12px rgba(15,110,86,0.15)" : "none",
+        borderRadius: 12, padding: 14, cursor: "pointer", boxShadow: selected ? "0 4px 12px rgba(18,138,104,0.15)" : "none",
       }}
     >
       {node.type === "start" && <StartBody />}
@@ -406,7 +406,7 @@ function StartBody() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #F0F0F0" }}>
-        <Play size={14} fill="#0F6E56" color="#0F6E56" />
+        <Play size={14} fill="#128A68" color="#128A68" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
       <div style={{ paddingTop: 10 }}>
@@ -438,7 +438,7 @@ function ConditionBody() {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #F0F0F0" }}>
-        <Filter size={14} color="#0F6E56" />
+        <Filter size={14} color="#128A68" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condição</span>
       </div>
       <div style={{ paddingTop: 10 }}>
@@ -451,7 +451,7 @@ function ConditionBody() {
           </div>
           <div style={{ fontSize: 11, color: "#AAAAAA", marginLeft: 18 }}>Verifica se o negócio possui atendentes</div>
         </div>
-        <button style={{ width: "100%", border: "1px dashed rgba(15,110,86,0.3)", background: "transparent", color: "rgba(15,110,86,0.6)", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
+        <button style={{ width: "100%", border: "1px dashed rgba(18,138,104,0.3)", background: "transparent", color: "rgba(18,138,104,0.6)", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
           + Adicionar condição
         </button>
         <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -480,7 +480,7 @@ function RandomizerBody() {
         </div>
         {[
           { l: "A", color: "#378ADD" },
-          { l: "B", color: "#0F6E56" },
+          { l: "B", color: "#128A68" },
         ].map(b => (
           <div key={b.l} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: "#111111", width: 16 }}>{b.l}</span>
@@ -499,7 +499,7 @@ function RandomizerBody() {
 function Metrics() {
   return (
     <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #F0F0F0", fontSize: 11 }}>
-      <span style={{ color: "#0F6E56", fontWeight: 600 }}>0 Sucessos</span>
+      <span style={{ color: "#128A68", fontWeight: 600 }}>0 Sucessos</span>
       <span style={{ color: "#F59E0B", fontWeight: 600 }}>0 Alertas</span>
       <span style={{ color: "#E24B4A", fontWeight: 600 }}>0 Erros</span>
     </div>

@@ -66,7 +66,7 @@ function initials(name: string) {
 const COMPANY = { name: "Rezult Demo", plan: "Plano Professional" };
 const USER = { name: "Carlos Admin", email: "carlos@rezult.com" };
 
-const SIDEBAR_BG = "#0F6E56";
+const SIDEBAR_BG = "#128A68";
 const ICON_INACTIVE = "rgba(255,255,255,0.5)";
 const ICON_ACTIVE = "#FFFFFF";
 const HOVER_BG = "rgba(255,255,255,0.1)";
@@ -138,7 +138,7 @@ export function AppSidebar() {
               }
             }}
           >
-            <Icon size={18} strokeWidth={1.75} />
+            <Icon size={18} strokeWidth={1.75} className={item.to === "/pilot" ? "glow-pilot" : item.to === "/agentes" ? "glow-agentes" : ""} />
             {item.badge === "IA" && (
               <span
                 className="absolute -top-0.5 -right-0.5 rounded-full flex items-center justify-center font-bold leading-none"
@@ -147,7 +147,7 @@ export function AppSidebar() {
                   height: 14,
                   fontSize: 7,
                   background: "#FFFFFF",
-                  color: "#0F6E56",
+                  color: "#128A68",
                 }}
               >
                 IA
@@ -186,12 +186,12 @@ export function AppSidebar() {
       >
         {/* Logo RZ */}
         <div
-          className="flex items-center justify-center text-[13px] font-bold tracking-tight"
+          className="flex items-center justify-center text-[13px] font-bold tracking-tight glow-rz"
           style={{
             width: 32,
             height: 32,
             borderRadius: 8,
-            border: "1.5px solid rgba(255,255,255,0.5)",
+            border: "1.5px solid rgba(18,138,104,0.6)",
             color: "#FFFFFF",
             marginBottom: 8,
           }}
@@ -363,7 +363,7 @@ export function AppSidebar() {
                   height: 28,
                   borderRadius: "50%",
                   background: "#FFFFFF",
-                  color: "#0F6E56",
+                  color: "#128A68",
                   marginTop: 4,
                 }}
                 aria-label="Usuário"

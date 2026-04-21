@@ -59,8 +59,8 @@ export default function DashboardPage() {
     "SQL": "#8B5CF6",
     "Reunião Agendada": "#F59E0B",
     "Reuniao Agendada": "#F59E0B",
-    "Negociação": "#0F6E56",
-    "Negociacao": "#0F6E56",
+    "Negociação": "#128A68",
+    "Negociacao": "#128A68",
     "Clientes": "#E24B4A",
     "Cliente": "#E24B4A",
   };

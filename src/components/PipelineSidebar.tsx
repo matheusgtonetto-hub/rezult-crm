@@ -54,7 +54,7 @@ export function PipelineSidebar() {
       columns: [
         { id: `${id}-novo`, title: "Novo", color: "#AAAAAA", leadIds: [] },
         { id: `${id}-andamento`, title: "Em andamento", color: "#378ADD", leadIds: [] },
-        { id: `${id}-fechado`, title: "Fechado", color: "#0F6E56", leadIds: [] },
+        { id: `${id}-fechado`, title: "Fechado", color: "#128A68", leadIds: [] },
       ],
     });
     setActivePipelineId(id);
