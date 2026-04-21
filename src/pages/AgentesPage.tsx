@@ -111,7 +111,7 @@ function TreeNode({
           className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${
             isSelected
               ? "border-[#0F6E56] bg-[#E1F5EE]"
-              : "border-[#E5E5E5] bg-white hover:bg-[#F5F5F5]"
+              : "border-[#EEEEEE] bg-white hover:bg-[#F5F5F5]"
           }`}
         >
           <div
@@ -287,7 +287,7 @@ export default function AgentesPage() {
 
       <div className="grid grid-cols-[380px_1fr] gap-6">
         {/* Left: Org tree */}
-        <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+        <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
           <h2 className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold mb-3">
             Estrutura da equipe
           </h2>
@@ -311,7 +311,7 @@ export default function AgentesPage() {
         </div>
 
         {/* Right: Config panel */}
-        <div className="bg-white border border-[#E5E5E5] rounded-xl">
+        <div className="bg-white border border-[#EEEEEE] rounded-xl">
           {!selected ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <Bot size={64} color="#E5E5E5" />
@@ -321,7 +321,7 @@ export default function AgentesPage() {
             </div>
           ) : (
             <Tabs defaultValue="perfil" className="w-full">
-              <div className="px-6 pt-5 pb-0 border-b border-[#E5E5E5]">
+              <div className="px-6 pt-5 pb-0 border-b border-[#EEEEEE]">
                 <div className="mb-4">
                   <h2 className="text-[16px] font-bold text-[#111111]">{selected.role}</h2>
                   <p className="text-[12px] text-[#AAAAAA]">{selected.user}</p>
@@ -443,7 +443,7 @@ export default function AgentesPage() {
 
                 <div className="space-y-2">
                   {MOCK_FILES.map(f => (
-                    <div key={f.name} className="group flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                    <div key={f.name} className="group flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg hover:bg-[#F5F5F5] transition-colors">
                       <FileIcon type={f.type} />
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] text-[#111111] truncate">{f.name}</div>
@@ -517,7 +517,7 @@ export default function AgentesPage() {
                   <h3 className="text-[13px] font-semibold text-[#111111] mb-2">Regras de comportamento</h3>
                   <div className="space-y-2">
                     {rules.map(r => (
-                      <div key={r.id} className="flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-lg">
+                      <div key={r.id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <Switch
                           checked={r.on}
                           onCheckedChange={v => setRules(prev => prev.map(x => x.id === r.id ? { ...x, on: v } : x))}
@@ -556,7 +556,7 @@ export default function AgentesPage() {
                           className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
                             sel
                               ? "border-[#0F6E56] bg-[#E1F5EE] text-[#0F6E56]"
-                              : "border-[#E5E5E5] bg-white text-[#666] hover:bg-[#F5F5F5]"
+                              : "border-[#EEEEEE] bg-white text-[#666] hover:bg-[#F5F5F5]"
                           }`}
                         >
                           <Icon size={20} />
@@ -598,14 +598,14 @@ export default function AgentesPage() {
                         { label: "Score do agente", value: "8.4/10" },
                       ]
                   ).map(m => (
-                    <div key={m.label} className="bg-white border border-[#E5E5E5] rounded-lg p-3">
+                    <div key={m.label} className="bg-white border border-[#EEEEEE] rounded-lg p-3">
                       <div className="text-[10px] uppercase text-[#AAAAAA] tracking-wide">{m.label}</div>
                       <div className="text-[24px] font-bold text-[#111111] mt-1">{m.value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-white border border-[#E5E5E5] rounded-lg p-4">
+                <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
                   <h4 className="text-[13px] font-semibold text-[#111111] mb-3">
                     Evolução do score nos últimos 30 dias
                   </h4>
@@ -627,7 +627,7 @@ export default function AgentesPage() {
                     {MOCK_ANALYSES.map(a => {
                       const badge = ANALYSIS_BADGE[a.level];
                       return (
-                        <div key={a.id} className="flex items-start gap-3 p-3 bg-white border border-[#E5E5E5] rounded-lg">
+                        <div key={a.id} className="flex items-start gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                           <FileType size={16} className="text-[#AAAAAA] mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="text-[13px] text-[#111111]">{a.text}</div>

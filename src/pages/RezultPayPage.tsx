@@ -139,7 +139,7 @@ function StatusBadge({ status }: { status: Status }) {
 
 function MetricCard({ label, value, hint, icon, accent }: { label: string; value: string; hint: string; icon: React.ReactNode; accent: string }) {
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+    <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
       <div className="flex items-start justify-between">
         <span className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">{label}</span>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${accent}1A` }}>
@@ -238,7 +238,7 @@ export default function RezultPayPage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-transparent p-0 h-auto gap-1 border-b border-[#E5E5E5] w-full justify-start rounded-none mb-5">
+        <TabsList className="bg-transparent p-0 h-auto gap-1 border-b border-[#EEEEEE] w-full justify-start rounded-none mb-5">
           {[
             { v: "overview", l: "Visão Geral" },
             { v: "charges", l: "Cobranças" },
@@ -278,13 +278,13 @@ export default function RezultPayPage() {
             <MetricCard label="Previsão do mês" value={BRL(58120)} hint="Recebido + em aberto" icon={<BarChart3 size={14} color="#0F6E56" />} accent="#0F6E56" />
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl p-5">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl p-5">
             <h3 className="text-[14px] font-semibold text-[#111111] mb-4">Recebimentos mensais</h3>
             <StackedBarChart />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white border border-[#E5E5E5] rounded-xl p-5">
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-5">
               <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Cobranças recentes</h3>
               <div className="space-y-2">
                 {CHARGES.slice(0, 5).map(c => (
@@ -307,7 +307,7 @@ export default function RezultPayPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-[#E5E5E5] rounded-xl p-5">
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-5">
               <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Próximos vencimentos</h3>
               <div className="space-y-2">
                 {UPCOMING.map(u => {
@@ -336,7 +336,7 @@ export default function RezultPayPage() {
 
         {/* CHARGES */}
         <TabsContent value="charges" className="space-y-4 mt-0">
-          <div className="bg-white border border-[#E5E5E5] rounded-xl p-4 flex flex-wrap items-center gap-2">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl p-4 flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAAAAA]" />
               <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou valor" className="pl-9" />
@@ -365,7 +365,7 @@ export default function RezultPayPage() {
             </Button>
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
@@ -443,7 +443,7 @@ export default function RezultPayPage() {
             <MetricCard label="LTV médio" value={BRL(18600)} hint="Valor por cliente" icon={<BarChart3 size={14} color="#0F6E56" />} accent="#0F6E56" />
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
@@ -509,21 +509,21 @@ export default function RezultPayPage() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
               <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Total a pagar</div>
               <div className="text-[24px] font-bold text-[#111111] mt-2">{BRL(4836)}</div>
             </div>
-            <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
               <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Total pago</div>
               <div className="text-[24px] font-bold text-[#0F6E56] mt-2">{BRL(2100)}</div>
             </div>
-            <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
               <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Vendedores com comissão</div>
               <div className="text-[24px] font-bold text-[#111111] mt-2">3</div>
             </div>
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
@@ -579,7 +579,7 @@ export default function RezultPayPage() {
             </table>
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl p-5">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="text-[14px] font-semibold text-[#111111]">Regras de comissão</h3>
@@ -617,7 +617,7 @@ export default function RezultPayPage() {
             <div className="text-[12px] opacity-80 mt-1">Atualizado agora</div>
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="bg-white border border-[#EEEEEE] rounded-xl overflow-hidden">
             {TRANSACTIONS.map(t => (
               <div key={t.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA]">
                 <div className="text-[11px] text-[#AAAAAA] w-[100px] shrink-0">{t.date}</div>

@@ -43,7 +43,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
 ];
 
 const Card = ({ children, className = "" }: any) => (
-  <div className={`bg-white border-[0.5px] border-[#E5E5E5] rounded-xl p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -65,10 +65,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-[#FAFAFA]">
       {/* Sidebar */}
-      <aside className="w-[200px] bg-white border-r-[0.5px] border-[#E5E5E5] flex flex-col shrink-0">
+      <aside className="w-[200px] bg-white border-r-[0.5px] border-[#EEEEEE] flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-[#666666] hover:bg-[#F5F5F5] px-4 py-3 border-b-[0.5px] border-[#E5E5E5]"
+          className="flex items-center gap-2 text-[13px] text-[#666666] hover:bg-[#F5F5F5] px-4 py-3 border-b-[0.5px] border-[#EEEEEE]"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -138,7 +138,7 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
             <p className="text-[13px] text-[#AAAAAA] mt-1">rodrigo@rezult.com</p>
             <p className="text-xs text-[#AAAAAA] mt-1">Criado em 09 de março de 2026</p>
           </div>
-          <Button variant="outline" size="sm" onClick={logout} className="border-[#E5E5E5] text-[#666666]">
+          <Button variant="outline" size="sm" onClick={logout} className="border-[#EEEEEE] text-[#666666]">
             Sair
           </Button>
         </div>
@@ -149,22 +149,22 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Nome</label>
-            <Input defaultValue="Rodrigo Pessoal" className="border-[#E5E5E5]" />
+            <Input defaultValue="Rodrigo Pessoal" className="border-[#EEEEEE]" />
           </div>
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
             <div className="flex gap-2">
-              <div className="flex items-center gap-1 px-3 border-[0.5px] border-[#E5E5E5] rounded-md bg-[#F5F5F5] text-[13px]">🇧🇷 +55</div>
-              <Input defaultValue="(11) 99999-0000" className="border-[#E5E5E5] flex-1" />
+              <div className="flex items-center gap-1 px-3 border-[0.5px] border-[#EEEEEE] rounded-md bg-[#F5F5F5] text-[13px]">🇧🇷 +55</div>
+              <Input defaultValue="(11) 99999-0000" className="border-[#EEEEEE] flex-1" />
             </div>
           </div>
           <div>
             <label className="text-xs text-[#666666] mb-1 block">E-mail</label>
-            <Input type="email" defaultValue="rodrigo@rezult.com" className="border-[#E5E5E5]" />
+            <Input type="email" defaultValue="rodrigo@rezult.com" className="border-[#EEEEEE]" />
           </div>
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Senha</label>
-            <Button variant="outline" onClick={() => setPwOpen(true)} className="w-full border-[#E5E5E5] text-[#666666] justify-start">
+            <Button variant="outline" onClick={() => setPwOpen(true)} className="w-full border-[#EEEEEE] text-[#666666] justify-start">
               Alterar senha
             </Button>
           </div>
@@ -178,7 +178,7 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-[#0F6E56] flex items-center justify-center text-white font-semibold shrink-0">RP</div>
-          <div className="flex-1 border-[1.5px] border-dashed border-[#E5E5E5] rounded-lg p-6 text-center hover:border-[#0F6E56] cursor-pointer transition-colors">
+          <div className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#0F6E56] cursor-pointer transition-colors">
             <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
             <p className="text-[13px] text-[#666666]">Escolher arquivo</p>
             <p className="text-xs text-[#AAAAAA] mt-1">JPG, PNG, GIF · max 2MB</p>
@@ -198,7 +198,7 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
               <Badge className="bg-[#FEF3C7] text-[#92400E] hover:bg-[#FEF3C7] text-[10px] h-4">Beta</Badge>
             </div>
             <Select value={theme} onValueChange={setTheme}>
-              <SelectTrigger className="border-[#E5E5E5] max-w-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="border-[#EEEEEE] max-w-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="claro">Claro</SelectItem>
                 <SelectItem value="escuro">Escuro</SelectItem>
@@ -206,7 +206,7 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-start justify-between pt-3 border-t border-[#E5E5E5]">
+          <div className="flex items-start justify-between pt-3 border-t border-[#EEEEEE]">
             <div className="flex-1 pr-4">
               <p className="text-[13px] text-[#111111] font-medium">Verificação em duas etapas</p>
               <p className="text-xs text-[#AAAAAA] mt-0.5">Adicione uma camada extra de segurança à sua conta. Um código será enviado ao seu e-mail a cada login.</p>
@@ -218,8 +218,8 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
 
       <Card>
         <SectionTitle title="Empresas" subtitle="Empresas que você possui ou participa" />
-        <Input placeholder="Buscar empresa..." className="border-[#E5E5E5] mb-3" />
-        <div className="border-[0.5px] border-[#E5E5E5] rounded-lg overflow-hidden">
+        <Input placeholder="Buscar empresa..." className="border-[#EEEEEE] mb-3" />
+        <div className="border-[0.5px] border-[#EEEEEE] rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 hover:bg-[#F9F9F9]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md bg-[#0F6E56] text-white flex items-center justify-center text-sm font-semibold">R</div>
@@ -259,8 +259,8 @@ function TagsSection() {
       <Card>
         <div className="space-y-2">
           {tags.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
-              <button className="w-5 h-5 rounded-full border border-[#E5E5E5]" style={{ backgroundColor: t.color }} />
+            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
+              <button className="w-5 h-5 rounded-full border border-[#EEEEEE]" style={{ backgroundColor: t.color }} />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{t.name}</p>
               <span className="text-xs text-[#AAAAAA]">{t.count} leads</span>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
@@ -281,7 +281,7 @@ function ProdutosSection({ products }: any) {
       <Card>
         <div className="space-y-2">
           {products.map((p: any) => (
-            <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center">
                 <Package size={16} className="text-[#0F6E56]" />
               </div>
@@ -311,7 +311,7 @@ function MotivosSection() {
       <Card>
         <div className="space-y-2">
           {motivos.map(m => (
-            <div key={m} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={m} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <p className="flex-1 text-[13px] text-[#111111]">{m}</p>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
               <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
@@ -336,7 +336,7 @@ function ListasSection() {
       <Card>
         <div className="space-y-2">
           {listas.map(l => (
-            <div key={l.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={l.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <List size={16} className="text-[#0F6E56]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{l.name}</p>
               <span className="text-xs text-[#AAAAAA]">{l.count} leads</span>
@@ -364,7 +364,7 @@ function CamposSection() {
       <Card>
         <div className="space-y-2">
           {campos.map(c => (
-            <div key={c.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={c.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{c.name}</p>
               <Badge variant="secondary" className="text-xs">{c.type}</Badge>
               <Switch defaultChecked={c.required} />
@@ -391,7 +391,7 @@ function DepartamentosSection() {
       <Card>
         <div className="space-y-2">
           {deps.map(d => (
-            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <Building2 size={16} className="text-[#0F6E56]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{d.name}</p>
               <span className="text-xs text-[#AAAAAA]">{d.count} membros</span>
@@ -426,13 +426,13 @@ function HorariosSection() {
               <Input
                 type="time" value={s.start} disabled={!s.active}
                 onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, start: e.target.value } : p))}
-                className="border-[#E5E5E5] w-32"
+                className="border-[#EEEEEE] w-32"
               />
               <span className="text-xs text-[#AAAAAA]">às</span>
               <Input
                 type="time" value={s.end} disabled={!s.active}
                 onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, end: e.target.value } : p))}
-                className="border-[#E5E5E5] w-32"
+                className="border-[#EEEEEE] w-32"
               />
             </div>
           ))}
@@ -460,7 +460,7 @@ function AtividadesSection() {
       <Card>
         <div className="space-y-2">
           {tipos.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#E5E5E5] rounded-lg">
+            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <div className="w-8 h-8 rounded-lg bg-[#E1F5EE] flex items-center justify-center">
                 <t.icon size={14} className="text-[#0F6E56]" />
               </div>
@@ -487,7 +487,7 @@ function IntegracoesSection() {
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Integrações</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {items.map(i => (
-          <div key={i.name} className="bg-white border-[0.5px] border-[#E5E5E5] rounded-xl p-4 flex items-start gap-3">
+          <div key={i.name} className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
               <i.icon size={18} className="text-[#0F6E56]" />
             </div>
@@ -497,7 +497,7 @@ function IntegracoesSection() {
                 <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
               </div>
               <p className="text-xs text-[#AAAAAA]">{i.description}</p>
-              <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#E5E5E5]" disabled>
+              <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>
                 Conectar
               </Button>
             </div>
@@ -518,15 +518,15 @@ function ApiSection({ showApi, setShowApi }: any) {
       <Card>
         <SectionTitle title="Sua chave de API" subtitle="Use esta chave para integrar o Rezult com sistemas externos" />
         <div className="flex gap-2">
-          <Input value={showApi ? key : masked} readOnly className="border-[#E5E5E5] font-mono text-[13px]" />
-          <Button variant="outline" size="icon" onClick={() => setShowApi((v: boolean) => !v)} className="border-[#E5E5E5]">
+          <Input value={showApi ? key : masked} readOnly className="border-[#EEEEEE] font-mono text-[13px]" />
+          <Button variant="outline" size="icon" onClick={() => setShowApi((v: boolean) => !v)} className="border-[#EEEEEE]">
             {showApi ? <EyeOff size={14} /> : <Eye size={14} />}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(key); toast.success("Copiado!"); }} className="border-[#E5E5E5]">
+          <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(key); toast.success("Copiado!"); }} className="border-[#EEEEEE]">
             <Copy size={14} />
           </Button>
         </div>
-        <div className="mt-5 pt-5 border-t border-[#E5E5E5]">
+        <div className="mt-5 pt-5 border-t border-[#EEEEEE]">
           <Button variant="outline" className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white">
             Gerar nova chave
           </Button>
@@ -544,7 +544,7 @@ function McpSection() {
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Servidor MCP</h1>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-[#F5F5F5] border-[0.5px] border-[#E5E5E5] rounded-lg p-4 font-mono text-xs text-[#666666]">
+        <div className="bg-[#F5F5F5] border-[0.5px] border-[#EEEEEE] rounded-lg p-4 font-mono text-xs text-[#666666]">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-[#0F6E56] hover:bg-[#0F6E56]/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -583,7 +583,7 @@ function ArmazenamentoSection() {
             </div>
           ))}
         </div>
-        <Button variant="outline" className="mt-5 border-[#E5E5E5]">Liberar espaço</Button>
+        <Button variant="outline" className="mt-5 border-[#EEEEEE]">Liberar espaço</Button>
       </Card>
     </>
   );
