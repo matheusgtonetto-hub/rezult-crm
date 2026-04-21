@@ -62,7 +62,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 }
