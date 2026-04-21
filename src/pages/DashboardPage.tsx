@@ -192,7 +192,7 @@ export default function DashboardPage() {
           {/* Summary row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {summaryCards.map(s => (
-              <div key={s.label} className="bg-card border border-card-border rounded-xl p-4 flex items-center gap-3">
+              <div key={s.label} className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4 flex items-center gap-3">
                 <s.icon size={18} className="text-primary" />
                 <div>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -204,7 +204,7 @@ export default function DashboardPage() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Leads por etapa</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={barData}>
@@ -219,7 +219,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Negócios por atendente</h3>
                 <div className="flex gap-1 bg-muted rounded-lg p-0.5">
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-card-border rounded-xl p-4">
+          <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">Negócios fechados ao longo do ano</h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={lineData}>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
 
           {/* Top products + top agents */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Produtos com mais negócios</h3>
               {topProducts.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhum produto vinculado a negócios ainda.</p>
@@ -314,28 +314,28 @@ export default function DashboardPage() {
 
         <TabsContent value="atividades" className="space-y-6 mt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare size={18} className="text-primary" />
                 <span className="text-xs text-muted-foreground">Total de atividades</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{activitiesData.total}</p>
             </div>
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle size={18} className="text-success" />
                 <span className="text-xs text-muted-foreground">Tarefas concluídas</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{tasks.filter(t => t.status === "Concluída").length}</p>
             </div>
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Clock size={18} className="text-primary" />
                 <span className="text-xs text-muted-foreground">Tarefas pendentes</span>
               </div>
               <p className="text-2xl font-bold text-foreground">{tasks.filter(t => t.status === "Pendente").length}</p>
             </div>
-            <div className="bg-card border border-card-border rounded-xl p-4">
+            <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Trophy size={18} className="text-success" />
                 <span className="text-xs text-muted-foreground">Negócios fechados</span>
@@ -344,7 +344,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-card-border rounded-xl p-4">
+          <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">Atividades por tipo</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={activitiesData.byType}>
@@ -357,7 +357,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
 
-          <div className="bg-card border border-card-border rounded-xl p-4">
+          <div className="bg-card border border-card-border rounded-xl shadow-elev-1 p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">Atividades recentes</h3>
             <div className="space-y-3">
               {activitiesData.recent.map(a => (
