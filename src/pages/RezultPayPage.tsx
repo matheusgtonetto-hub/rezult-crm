@@ -53,7 +53,7 @@ const STATUS_BADGE: Record<Status, { bg: string; fg: string; label: string }> = 
 };
 
 function MethodIcon({ method, size = 14 }: { method: Method; size?: number }) {
-  if (method === "cartao") return <CreditCard size={size} color="#0F6E56" />;
+  if (method === "cartao") return <CreditCard size={size} color="#128A68" />;
   if (method === "pix") return <QrCode size={size} color="#378ADD" />;
   return <Banknote size={size} color="#F59E0B" />;
 }
@@ -164,7 +164,7 @@ function StackedBarChart() {
             <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
               <div className="text-[10px] text-[#AAAAAA]">{BRL(total).replace("R$", "").trim()}</div>
               <div className="w-full flex flex-col-reverse rounded-t-md overflow-hidden" style={{ height: h }}>
-                <div style={{ background: "#0F6E56", height: `${(m.cartao / total) * 100}%` }} />
+                <div style={{ background: "#128A68", height: `${(m.cartao / total) * 100}%` }} />
                 <div style={{ background: "#378ADD", height: `${(m.pix / total) * 100}%` }} />
                 <div style={{ background: "#F59E0B", height: `${(m.boleto / total) * 100}%` }} />
               </div>
@@ -174,7 +174,7 @@ function StackedBarChart() {
         })}
       </div>
       <div className="flex items-center gap-4 mt-3 text-[11px] text-[#666] justify-center">
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#0F6E56" }} /> Cartão</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#128A68" }} /> Cartão</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#378ADD" }} /> Pix</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F59E0B" }} /> Boleto</span>
       </div>
@@ -232,7 +232,7 @@ export default function RezultPayPage() {
             Gestão financeira completa da sua operação comercial
           </p>
         </div>
-        <Button onClick={() => setOpenNew(true)} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">
+        <Button onClick={() => setOpenNew(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
           <Plus size={16} /> Nova cobrança
         </Button>
       </div>
@@ -249,7 +249,7 @@ export default function RezultPayPage() {
             <TabsTrigger
               key={t.v}
               value={t.v}
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#0F6E56] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#0F6E56] rounded-none text-[13px] px-3 py-2 -mb-px"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[#128A68] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#128A68] rounded-none text-[13px] px-3 py-2 -mb-px"
             >
               {t.l}
             </TabsTrigger>
@@ -272,10 +272,10 @@ export default function RezultPayPage() {
           </div>
 
           <div className="grid grid-cols-4 gap-4">
-            <MetricCard label="Total recebido" value={BRL(26920)} hint="+12% vs mês anterior" icon={<ArrowUpRight size={14} color="#0F6E56" />} accent="#0F6E56" />
+            <MetricCard label="Total recebido" value={BRL(26920)} hint="+12% vs mês anterior" icon={<ArrowUpRight size={14} color="#128A68" />} accent="#128A68" />
             <MetricCard label="Total em aberto" value={BRL(32200)} hint="6 cobranças pendentes" icon={<Clock size={14} color="#F59E0B" />} accent="#F59E0B" />
             <MetricCard label="Total vencido" value={BRL(4500)} hint="2 cobranças vencidas" icon={<AlertCircle size={14} color="#E24B4A" />} accent="#E24B4A" />
-            <MetricCard label="Previsão do mês" value={BRL(58120)} hint="Recebido + em aberto" icon={<BarChart3 size={14} color="#0F6E56" />} accent="#0F6E56" />
+            <MetricCard label="Previsão do mês" value={BRL(58120)} hint="Recebido + em aberto" icon={<BarChart3 size={14} color="#128A68" />} accent="#128A68" />
           </div>
 
           <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-5">
@@ -299,7 +299,7 @@ export default function RezultPayPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[13px] font-semibold text-[#0F6E56]">{BRL(c.amount)}</div>
+                      <div className="text-[13px] font-semibold text-[#128A68]">{BRL(c.amount)}</div>
                       <div className="mt-0.5"><StatusBadge status={c.status} /></div>
                     </div>
                   </div>
@@ -360,7 +360,7 @@ export default function RezultPayPage() {
                 <SelectItem value="boleto">Boleto</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-[#0F6E56] text-[#0F6E56] hover:bg-[#E1F5EE]">
+            <Button variant="outline" className="border-[#128A68] text-[#128A68] hover:bg-[#E1F5EE]">
               <Download size={14} /> Exportar
             </Button>
           </div>
@@ -395,7 +395,7 @@ export default function RezultPayPage() {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <a href="/pipeline" className="text-[#0F6E56] hover:underline font-medium">{c.deal}</a>
+                      <a href="/pipeline" className="text-[#128A68] hover:underline font-medium">{c.deal}</a>
                     </td>
                     <td className="px-3 py-3 font-semibold text-[#111111]">{BRL(c.amount)}</td>
                     <td className="px-3 py-3">
@@ -434,13 +434,13 @@ export default function RezultPayPage() {
         <TabsContent value="subs" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
             <h2 className="text-[16px] font-semibold text-[#111111]">Assinaturas recorrentes</h2>
-            <Button className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white"><Plus size={16} /> Nova assinatura</Button>
+            <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"><Plus size={16} /> Nova assinatura</Button>
           </div>
           <div className="grid grid-cols-4 gap-4">
-            <MetricCard label="MRR" value={BRL(12400)} hint="Receita recorrente mensal" icon={<TrendingUp size={14} color="#0F6E56" />} accent="#0F6E56" />
-            <MetricCard label="Assinantes ativos" value="8" hint="Clientes recorrentes" icon={<Check size={14} color="#0F6E56" />} accent="#0F6E56" />
+            <MetricCard label="MRR" value={BRL(12400)} hint="Receita recorrente mensal" icon={<TrendingUp size={14} color="#128A68" />} accent="#128A68" />
+            <MetricCard label="Assinantes ativos" value="8" hint="Clientes recorrentes" icon={<Check size={14} color="#128A68" />} accent="#128A68" />
             <MetricCard label="Churn do mês" value="1" hint="Cancelamento" icon={<ArrowDownRight size={14} color="#E24B4A" />} accent="#E24B4A" />
-            <MetricCard label="LTV médio" value={BRL(18600)} hint="Valor por cliente" icon={<BarChart3 size={14} color="#0F6E56" />} accent="#0F6E56" />
+            <MetricCard label="LTV médio" value={BRL(18600)} hint="Valor por cliente" icon={<BarChart3 size={14} color="#128A68" />} accent="#128A68" />
           </div>
 
           <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 overflow-hidden">
@@ -504,7 +504,7 @@ export default function RezultPayPage() {
                   <SelectItem value="fev">Fevereiro 2026</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">Processar comissões</Button>
+              <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Processar comissões</Button>
             </div>
           </div>
 
@@ -515,7 +515,7 @@ export default function RezultPayPage() {
             </div>
             <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
               <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Total pago</div>
-              <div className="text-[24px] font-bold text-[#0F6E56] mt-2">{BRL(2100)}</div>
+              <div className="text-[24px] font-bold text-[#128A68] mt-2">{BRL(2100)}</div>
             </div>
             <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
               <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Vendedores com comissão</div>
@@ -553,7 +553,7 @@ export default function RezultPayPage() {
                     <td className="px-3 py-3 text-[#666]">{k.deals}</td>
                     <td className="px-3 py-3 text-[#111111] font-medium">{BRL(k.sold)}</td>
                     <td className="px-3 py-3 text-[#666]">{k.pct}%</td>
-                    <td className="px-3 py-3 font-semibold text-[#0F6E56]">{BRL(k.value)}</td>
+                    <td className="px-3 py-3 font-semibold text-[#128A68]">{BRL(k.value)}</td>
                     <td className="px-3 py-3">
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{
                         background: k.status === "Pago" ? "#E1F5EE" : "#FAEEDA",
@@ -585,7 +585,7 @@ export default function RezultPayPage() {
                 <h3 className="text-[14px] font-semibold text-[#111111]">Regras de comissão</h3>
                 <p className="text-[12px] text-[#AAAAAA]">Configurações atuais aplicadas ao time</p>
               </div>
-              <Button variant="outline" className="border-[#0F6E56] text-[#0F6E56] hover:bg-[#E1F5EE]">Editar regras</Button>
+              <Button variant="outline" className="border-[#128A68] text-[#128A68] hover:bg-[#E1F5EE]">Editar regras</Button>
             </div>
             <div className="space-y-2 text-[13px] text-[#111111]">
               <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#185FA5]" /> <strong>Closer:</strong> 10% sobre valor fechado</div>
@@ -611,7 +611,7 @@ export default function RezultPayPage() {
             </div>
           </div>
 
-          <div className="rounded-xl p-5 text-white" style={{ background: "linear-gradient(135deg, #0F6E56, #0a5544)" }}>
+          <div className="rounded-xl p-5 text-white" style={{ background: "linear-gradient(135deg, #128A68, #0a5544)" }}>
             <div className="text-[12px] uppercase tracking-wide opacity-80 font-semibold">Saldo disponível</div>
             <div className="text-[32px] font-bold mt-1">{BRL(22420)}</div>
             <div className="text-[12px] opacity-80 mt-1">Atualizado agora</div>
@@ -627,7 +627,7 @@ export default function RezultPayPage() {
                 <div className="w-[80px] flex items-center gap-1.5 text-[12px] text-[#666]">
                   {t.method ? <><MethodIcon method={t.method} size={12} /> {METHOD_LABEL[t.method]}</> : <span className="text-[#CCCCCC]">—</span>}
                 </div>
-                <div className={`w-[110px] text-right text-[13px] font-semibold ${t.amount >= 0 ? "text-[#0F6E56]" : "text-[#E24B4A]"}`}>
+                <div className={`w-[110px] text-right text-[13px] font-semibold ${t.amount >= 0 ? "text-[#128A68]" : "text-[#E24B4A]"}`}>
                   {t.amount >= 0 ? "+" : ""}{BRL(t.amount)}
                 </div>
                 <div className="w-[110px] text-right text-[12px] text-[#AAAAAA]">{BRL(t.balance)}</div>
@@ -743,7 +743,7 @@ export default function RezultPayPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNew(false)}>Cancelar</Button>
-            <Button onClick={createCharge} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">Criar cobrança</Button>
+            <Button onClick={createCharge} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Criar cobrança</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

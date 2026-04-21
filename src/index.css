@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 6.7%;
 
-    /* Primary = green #0F6E56 */
+    /* Primary = green #128A68 */
     --primary: 165 76% 24%;
     --primary-foreground: 0 0% 100%;
 
@@ -31,7 +31,7 @@
     --destructive: 0 73% 59%;         /* #E24B4A */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 165 76% 24%;           /* #0F6E56 */
+    --success: 165 76% 24%;           /* #128A68 */
     --success-foreground: 0 0% 100%;
 
     /* Soft tints for highlights */

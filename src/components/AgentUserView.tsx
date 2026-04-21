@@ -64,7 +64,7 @@ const WEEK = [
 
 function scoreColor(score: number | null) {
   if (score === null) return "#E5E5E5";
-  if (score >= 9) return "#0F6E56";
+  if (score >= 9) return "#128A68";
   if (score >= 7) return "#34C77B";
   if (score >= 5) return "#F59E0B";
   return "#E24B4A";
@@ -129,7 +129,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                 className="w-12 h-12 rounded-full flex items-center justify-center"
                 style={{ background: "#E1F5EE" }}
               >
-                <UserIcon size={22} color="#0F6E56" />
+                <UserIcon size={22} color="#128A68" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-bold text-[#111111] truncate">
@@ -145,8 +145,8 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                   >
                     {role}
                   </span>
-                  <span className="flex items-center gap-1 text-[11px] text-[#0F6E56]">
-                    <span className="w-2 h-2 rounded-full bg-[#0F6E56]" /> Ativo
+                  <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
+                    <span className="w-2 h-2 rounded-full bg-[#128A68]" /> Ativo
                   </span>
                 </div>
               </div>
@@ -159,25 +159,25 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
           {/* Produtividade */}
           <div
             className="rounded-xl p-5"
-            style={{ background: "#E1F5EE", border: "1px solid #0F6E56" }}
+            style={{ background: "#E1F5EE", border: "1px solid #128A68" }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <Clock size={16} color="#0F6E56" />
+              <Clock size={16} color="#128A68" />
               <div className="flex-1">
-                <div className="text-[13px] font-semibold text-[#0F6E56]">
+                <div className="text-[13px] font-semibold text-[#128A68]">
                   Produtividade de Hoje
                 </div>
-                <div className="text-[11px] text-[#0F6E56]/70">
+                <div className="text-[11px] text-[#128A68]/70">
                   {new Date().toLocaleDateString("pt-BR")}
                 </div>
               </div>
             </div>
 
-            <div className="text-[28px] font-bold text-[#0F6E56] leading-none">6h 12min</div>
-            <div className="text-[12px] text-[#0F6E56]/80 mt-1">Tempo ativo no Rezult</div>
+            <div className="text-[28px] font-bold text-[#128A68] leading-none">6h 12min</div>
+            <div className="text-[12px] text-[#128A68]/80 mt-1">Tempo ativo no Rezult</div>
             <div className="mt-2">
               <Progress value={77} className="h-1.5 bg-white/60" />
-              <div className="text-[10px] text-[#0F6E56]/70 mt-1">Meta diária 8h — 77%</div>
+              <div className="text-[10px] text-[#128A68]/70 mt-1">Meta diária 8h — 77%</div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-4">
@@ -196,7 +196,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
 
             <div className="mt-4 bg-white rounded-lg p-3 text-center">
               <div className="flex items-baseline justify-center gap-0.5">
-                <span className="text-[32px] font-bold text-[#0F6E56] leading-none">8.2</span>
+                <span className="text-[32px] font-bold text-[#128A68] leading-none">8.2</span>
                 <span className="text-[14px] text-[#AAAAAA]">/10</span>
               </div>
               <div className="text-[11px] text-[#666] mt-1">Score do agente hoje</div>
@@ -211,19 +211,19 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
             <TabsList className="bg-white border border-[#EEEEEE] p-1">
               <TabsTrigger
                 value="hoje"
-                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#0F6E56] data-[state=active]:shadow-none text-[13px]"
+                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none text-[13px]"
               >
                 Relatório de Hoje
               </TabsTrigger>
               <TabsTrigger
                 value="semana"
-                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#0F6E56] data-[state=active]:shadow-none text-[13px]"
+                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none text-[13px]"
               >
                 Esta Semana
               </TabsTrigger>
               <TabsTrigger
                 value="historico"
-                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#0F6E56] data-[state=active]:shadow-none text-[13px]"
+                className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none text-[13px]"
               >
                 Histórico
               </TabsTrigger>
@@ -236,7 +236,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                 style={{ background: "#FAFAFA", border: "1px solid #E5E5E5" }}
               >
                 <div className="flex items-start gap-2 mb-4">
-                  <Sparkles size={16} color="#0F6E56" className="mt-0.5" />
+                  <Sparkles size={16} color="#128A68" className="mt-0.5" />
                   <div className="flex-1">
                     <div className="text-[14px] font-semibold text-[#111111]">
                       Relatório do Agent {role}
@@ -246,7 +246,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                     </div>
                   </div>
                   <Badge
-                    style={{ background: "#E1F5EE", color: "#0F6E56" }}
+                    style={{ background: "#E1F5EE", color: "#128A68" }}
                     className="border-0"
                   >
                     Relatório diário
@@ -262,7 +262,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                   },
                   {
                     label: "Destaques",
-                    color: "#0F6E56",
+                    color: "#128A68",
                     text:
                       "Carlos Andrade avançou para Proposta Enviada após qualificação completa. Mariana Costa tem reunião confirmada para amanhã às 10h.",
                   },
@@ -308,14 +308,14 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                           className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                           style={{ background: "#F5F5F5" }}
                         >
-                          <Ico size={13} color="#0F6E56" />
+                          <Ico size={13} color="#128A68" />
                         </div>
                         <div className="flex-1 text-[13px] text-[#111111] pt-0.5">
                           {a.text}
                           {a.lead && (
                             <>
                               :{" "}
-                              <button className="text-[#0F6E56] hover:underline">
+                              <button className="text-[#128A68] hover:underline">
                                 {a.lead}
                               </button>
                             </>
@@ -347,7 +347,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                           className="w-full rounded-t-md transition-all"
                           style={{
                             height: `${h}%`,
-                            background: isToday ? "#0F6E56" : "#E1F5EE",
+                            background: isToday ? "#128A68" : "#E1F5EE",
                           }}
                         />
                         <div className="text-[11px] text-[#666]">{d.day}</div>
@@ -433,7 +433,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                 </div>
                 <div className="flex items-center gap-3 mt-4 text-[10px] text-[#666]">
                   {[
-                    { c: "#0F6E56", l: "9+" },
+                    { c: "#128A68", l: "9+" },
                     { c: "#34C77B", l: "7-8.9" },
                     { c: "#F59E0B", l: "5-6.9" },
                     { c: "#E24B4A", l: "<5" },
@@ -474,7 +474,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                           {score}
                         </div>
                         {score >= 9 && (
-                          <Badge style={{ background: "#E1F5EE", color: "#0F6E56" }} className="border-0">
+                          <Badge style={{ background: "#E1F5EE", color: "#128A68" }} className="border-0">
                             Destaque
                           </Badge>
                         )}

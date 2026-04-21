@@ -66,7 +66,7 @@ function initials(name: string) {
 const COMPANY = { name: "Rezult Demo", plan: "Plano Professional" };
 const USER = { name: "Carlos Admin", email: "carlos@rezult.com" };
 
-const SIDEBAR_BG = "#0F6E56";
+const SIDEBAR_BG = "#128A68";
 const ICON_INACTIVE = "rgba(255,255,255,0.5)";
 const ICON_ACTIVE = "#FFFFFF";
 const HOVER_BG = "rgba(255,255,255,0.1)";
@@ -147,7 +147,7 @@ export function AppSidebar() {
                   height: 14,
                   fontSize: 7,
                   background: "#FFFFFF",
-                  color: "#0F6E56",
+                  color: "#128A68",
                 }}
               >
                 IA
@@ -363,7 +363,7 @@ export function AppSidebar() {
                   height: 28,
                   borderRadius: "50%",
                   background: "#FFFFFF",
-                  color: "#0F6E56",
+                  color: "#128A68",
                   marginTop: 4,
                 }}
                 aria-label="Usuário"

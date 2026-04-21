@@ -111,7 +111,7 @@ function TreeNode({
           onClick={() => onSelect(agent.id)}
           className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${
             isSelected
-              ? "border-[#0F6E56] bg-[#E1F5EE]"
+              ? "border-[#128A68] bg-[#E1F5EE]"
               : "border-[#EEEEEE] bg-white hover:bg-[#F5F5F5]"
           }`}
         >
@@ -126,8 +126,8 @@ function TreeNode({
               <span className="text-[13px] font-semibold text-[#111111] truncate">{agent.role}</span>
               <Circle
                 size={8}
-                fill={agent.active ? "#0F6E56" : "#CCCCCC"}
-                color={agent.active ? "#0F6E56" : "#CCCCCC"}
+                fill={agent.active ? "#128A68" : "#CCCCCC"}
+                color={agent.active ? "#128A68" : "#CCCCCC"}
               />
             </div>
             <div className="text-[11px] text-[#AAAAAA] truncate">{agent.user}</div>
@@ -191,7 +191,7 @@ const MOCK_ANALYSES = [
 ];
 
 const ANALYSIS_BADGE: Record<string, { bg: string; fg: string; label: string }> = {
-  good: { bg: "#E1F5EE", fg: "#0F6E56", label: "Positivo" },
+  good: { bg: "#E1F5EE", fg: "#128A68", label: "Positivo" },
   warning: { bg: "#FEF3C7", fg: "#92400E", label: "Atenção" },
   critical: { bg: "#FEE2E2", fg: "#991B1B", label: "Crítico" },
 };
@@ -233,7 +233,7 @@ export default function AgentesPage() {
           onClick={() => setViewMode(opt.v)}
           className={`text-[12px] px-3 py-1.5 rounded-full transition-colors ${
             viewMode === opt.v
-              ? "bg-[#0F6E56] text-white font-semibold"
+              ? "bg-[#128A68] text-white font-semibold"
               : "text-[#666] hover:text-[#111]"
           }`}
         >
@@ -297,7 +297,7 @@ export default function AgentesPage() {
           </p>
           <Button
             onClick={() => setOpenDialog(true)}
-            className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white mt-6"
+            className="bg-[#128A68] hover:bg-[#128A68]/90 text-white mt-6"
           >
             <Plus size={16} /> Criar primeiro agente
           </Button>
@@ -321,7 +321,7 @@ export default function AgentesPage() {
           <RoleSwitcher />
           <Button
             onClick={() => setOpenDialog(true)}
-            className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white"
+            className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"
           >
             <Plus size={16} /> Novo agente
           </Button>
@@ -347,7 +347,7 @@ export default function AgentesPage() {
           </div>
           <button
             onClick={() => setOpenDialog(true)}
-            className="w-full mt-4 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#0F6E56] hover:border-[#0F6E56] transition-colors"
+            className="w-full mt-4 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#128A68] hover:border-[#128A68] transition-colors"
           >
             + Adicionar cargo
           </button>
@@ -379,7 +379,7 @@ export default function AgentesPage() {
                     <TabsTrigger
                       key={t.v}
                       value={t.v}
-                      className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#0F6E56] data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
+                      className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
                     >
                       {t.l}
                     </TabsTrigger>
@@ -459,7 +459,7 @@ export default function AgentesPage() {
                 </section>
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => toast.success("Perfil salvo")} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">
+                  <Button onClick={() => toast.success("Perfil salvo")} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
                     Salvar perfil
                   </Button>
                 </div>
@@ -474,7 +474,7 @@ export default function AgentesPage() {
                   </p>
                 </div>
 
-                <div className="border-2 border-dashed border-[#CCCCCC] rounded-xl p-8 text-center hover:border-[#0F6E56] hover:bg-[#E1F5EE]/30 transition-colors cursor-pointer">
+                <div className="border-2 border-dashed border-[#CCCCCC] rounded-xl p-8 text-center hover:border-[#128A68] hover:bg-[#E1F5EE]/30 transition-colors cursor-pointer">
                   <Upload size={32} className="mx-auto text-[#AAAAAA]" />
                   <p className="text-[13px] text-[#111111] font-medium mt-2">
                     Arraste arquivos ou clique para selecionar
@@ -568,7 +568,7 @@ export default function AgentesPage() {
                         <span className={`flex-1 text-[13px] ${r.on ? "text-[#111111]" : "text-[#AAAAAA]"}`}>
                           {r.text}
                         </span>
-                        <button className="text-[#AAAAAA] hover:text-[#0F6E56]"><Pencil size={14} /></button>
+                        <button className="text-[#AAAAAA] hover:text-[#128A68]"><Pencil size={14} /></button>
                         <button
                           onClick={() => setRules(prev => prev.filter(x => x.id !== r.id))}
                           className="text-[#AAAAAA] hover:text-[#E24B4A]"
@@ -580,7 +580,7 @@ export default function AgentesPage() {
                   </div>
                   <button
                     onClick={() => setRules(prev => [...prev, { id: String(Date.now()), on: true, text: "Nova regra" }])}
-                    className="w-full mt-3 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#0F6E56] hover:border-[#0F6E56] transition-colors"
+                    className="w-full mt-3 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#128A68] hover:border-[#128A68] transition-colors"
                   >
                     + Adicionar regra
                   </button>
@@ -598,7 +598,7 @@ export default function AgentesPage() {
                           onClick={() => setTone(opt.id)}
                           className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
                             sel
-                              ? "border-[#0F6E56] bg-[#E1F5EE] text-[#0F6E56]"
+                              ? "border-[#128A68] bg-[#E1F5EE] text-[#128A68]"
                               : "border-[#EEEEEE] bg-white text-[#666] hover:bg-[#F5F5F5]"
                           }`}
                         >
@@ -611,7 +611,7 @@ export default function AgentesPage() {
                 </section>
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => toast.success("Comportamento salvo")} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">
+                  <Button onClick={() => toast.success("Comportamento salvo")} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
                     Salvar comportamento
                   </Button>
                 </div>
@@ -655,7 +655,7 @@ export default function AgentesPage() {
                   <svg viewBox="0 0 400 100" className="w-full h-24">
                     <polyline
                       fill="none"
-                      stroke="#0F6E56"
+                      stroke="#128A68"
                       strokeWidth="2"
                       points="0,70 40,65 80,55 120,60 160,45 200,40 240,50 280,30 320,35 360,20 400,25"
                     />
@@ -748,7 +748,7 @@ export default function AgentesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={createAgent} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90 text-white">
+            <Button onClick={createAgent} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
               Criar agente
             </Button>
           </DialogFooter>

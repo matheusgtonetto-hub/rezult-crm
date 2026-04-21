@@ -81,7 +81,7 @@ export default function SettingsPage() {
                 onClick={() => setActive(s.id)}
                 className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2.5 transition-colors ${
                   isActive
-                    ? "bg-[#E1F5EE] text-[#0F6E56] border-l-[3px] border-[#0F6E56] font-medium pl-[13px]"
+                    ? "bg-[#E1F5EE] text-[#128A68] border-l-[3px] border-[#128A68] font-medium pl-[13px]"
                     : "text-[#666666] hover:bg-[#F5F5F5]"
                 }`}
               >
@@ -126,13 +126,13 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
 
       <Card>
         <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-full bg-[#0F6E56] flex items-center justify-center text-white text-2xl font-semibold shrink-0">
+          <div className="w-20 h-20 rounded-full bg-[#128A68] flex items-center justify-center text-white text-2xl font-semibold shrink-0">
             RP
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-[#111111]">Rodrigo Pessoal</h2>
-              <CheckCircle2 size={16} className="text-[#0F6E56]" />
+              <CheckCircle2 size={16} className="text-[#128A68]" />
               <span className="text-base">🇧🇷</span>
             </div>
             <p className="text-[13px] text-[#AAAAAA] mt-1">rodrigo@rezult.com</p>
@@ -170,22 +170,22 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
           </div>
         </div>
         <div className="flex justify-end mt-4">
-          <Button onClick={() => toast.success("Informações salvas!")} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90">Salvar</Button>
+          <Button onClick={() => toast.success("Informações salvas!")} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar</Button>
         </div>
       </Card>
 
       <Card>
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#0F6E56] flex items-center justify-center text-white font-semibold shrink-0">RP</div>
-          <div className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#0F6E56] cursor-pointer transition-colors">
+          <div className="w-16 h-16 rounded-full bg-[#128A68] flex items-center justify-center text-white font-semibold shrink-0">RP</div>
+          <div className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#128A68] cursor-pointer transition-colors">
             <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
             <p className="text-[13px] text-[#666666]">Escolher arquivo</p>
             <p className="text-xs text-[#AAAAAA] mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
         </div>
         <div className="flex justify-end mt-4">
-          <Button onClick={() => toast.success("Imagem salva!")} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90">Salvar</Button>
+          <Button onClick={() => toast.success("Imagem salva!")} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar</Button>
         </div>
       </Card>
 
@@ -222,13 +222,13 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
         <div className="border-[0.5px] border-[#EEEEEE] rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 hover:bg-[#F9F9F9]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md bg-[#0F6E56] text-white flex items-center justify-center text-sm font-semibold">R</div>
+              <div className="w-8 h-8 rounded-md bg-[#128A68] text-white flex items-center justify-center text-sm font-semibold">R</div>
               <div>
                 <p className="text-[13px] font-medium text-[#111111]">Rezult Demo</p>
                 <p className="text-xs text-[#AAAAAA]">Plano Professional</p>
               </div>
             </div>
-            <button className="text-[#0F6E56] text-sm">→</button>
+            <button className="text-[#128A68] text-sm">→</button>
           </div>
         </div>
         <p className="text-xs text-[#AAAAAA] mt-3 text-right">1 de 1</p>
@@ -283,13 +283,13 @@ function ProdutosSection({ products }: any) {
           {products.map((p: any) => (
             <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center">
-                <Package size={16} className="text-[#0F6E56]" />
+                <Package size={16} className="text-[#128A68]" />
               </div>
               <div className="flex-1">
                 <p className="text-[13px] font-medium text-[#111111]">{p.name}</p>
                 <p className="text-xs text-[#AAAAAA]">SKU: {p.sku}</p>
               </div>
-              <span className="text-sm font-semibold text-[#0F6E56]">
+              <span className="text-sm font-semibold text-[#128A68]">
                 {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.defaultValue)}
               </span>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
@@ -337,7 +337,7 @@ function ListasSection() {
         <div className="space-y-2">
           {listas.map(l => (
             <div key={l.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <List size={16} className="text-[#0F6E56]" />
+              <List size={16} className="text-[#128A68]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{l.name}</p>
               <span className="text-xs text-[#AAAAAA]">{l.count} leads</span>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
@@ -392,7 +392,7 @@ function DepartamentosSection() {
         <div className="space-y-2">
           {deps.map(d => (
             <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <Building2 size={16} className="text-[#0F6E56]" />
+              <Building2 size={16} className="text-[#128A68]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{d.name}</p>
               <span className="text-xs text-[#AAAAAA]">{d.count} membros</span>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
@@ -438,7 +438,7 @@ function HorariosSection() {
           ))}
         </div>
         <div className="flex justify-end mt-5">
-          <Button onClick={() => toast.success("Horários salvos!")} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90">Salvar horários</Button>
+          <Button onClick={() => toast.success("Horários salvos!")} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar horários</Button>
         </div>
       </Card>
     </>
@@ -462,7 +462,7 @@ function AtividadesSection() {
           {tipos.map(t => (
             <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <div className="w-8 h-8 rounded-lg bg-[#E1F5EE] flex items-center justify-center">
-                <t.icon size={14} className="text-[#0F6E56]" />
+                <t.icon size={14} className="text-[#128A68]" />
               </div>
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{t.name}</p>
               <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
@@ -489,7 +489,7 @@ function IntegracoesSection() {
         {items.map(i => (
           <div key={i.name} className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
-              <i.icon size={18} className="text-[#0F6E56]" />
+              <i.icon size={18} className="text-[#128A68]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -547,7 +547,7 @@ function McpSection() {
         <div className="bg-[#F5F5F5] border-[0.5px] border-[#EEEEEE] rounded-lg p-4 font-mono text-xs text-[#666666]">
           mcp://rezult.app/your-workspace
         </div>
-        <Button className="mt-4 bg-[#0F6E56] hover:bg-[#0F6E56]/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
+        <Button className="mt-4 bg-[#128A68] hover:bg-[#128A68]/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
       </Card>
     </>
   );
@@ -567,9 +567,9 @@ function ArmazenamentoSection() {
         <SectionTitle title="Uso de armazenamento" subtitle="Acompanhe o consumo do seu plano" />
         <div className="flex items-baseline justify-between mb-2">
           <p className="text-2xl font-semibold text-[#111111]">2.4 GB <span className="text-sm text-[#AAAAAA] font-normal">de 10 GB</span></p>
-          <p className="text-sm text-[#0F6E56] font-medium">24%</p>
+          <p className="text-sm text-[#128A68] font-medium">24%</p>
         </div>
-        <Progress value={24} className="h-2 [&>div]:bg-[#0F6E56]" />
+        <Progress value={24} className="h-2 [&>div]:bg-[#128A68]" />
         <div className="mt-6 space-y-3">
           {breakdown.map(b => (
             <div key={b.label}>
@@ -578,7 +578,7 @@ function ArmazenamentoSection() {
                 <span className="text-[#666666]">{b.size}</span>
               </div>
               <div className="h-1 bg-[#F5F5F5] rounded-full overflow-hidden">
-                <div className="h-full bg-[#0F6E56]" style={{ width: `${b.pct * 4}%` }} />
+                <div className="h-full bg-[#128A68]" style={{ width: `${b.pct * 4}%` }} />
               </div>
             </div>
           ))}
@@ -594,7 +594,7 @@ function SectionHeader({ title, onAdd, onClick }: { title: string; onAdd: string
   return (
     <div className="flex items-center justify-between mb-6">
       <h1 className="text-xl font-semibold text-[#111111]">{title}</h1>
-      <Button onClick={onClick} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
+      <Button onClick={onClick} className="bg-[#128A68] hover:bg-[#128A68]/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
     </div>
   );
 }
@@ -603,7 +603,7 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
   const [pw, setPw] = useState("");
   const strength = pw.length === 0 ? 0 : pw.length < 6 ? 1 : pw.length < 10 ? 2 : 3;
   const strengthLabel = ["", "Fraca", "Média", "Forte"][strength];
-  const strengthColor = ["", "#E24B4A", "#F59E0B", "#0F6E56"][strength];
+  const strengthColor = ["", "#E24B4A", "#F59E0B", "#128A68"][strength];
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-[420px]">
@@ -625,7 +625,7 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={() => { toast.success("Senha alterada!"); setOpen(false); setPw(""); }} className="bg-[#0F6E56] hover:bg-[#0F6E56]/90">Salvar</Button>
+          <Button onClick={() => { toast.success("Senha alterada!"); setOpen(false); setPw(""); }} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
