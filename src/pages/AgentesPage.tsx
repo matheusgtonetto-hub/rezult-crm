@@ -287,7 +287,7 @@ export default function AgentesPage() {
 
       <div className="grid grid-cols-[380px_1fr] gap-6">
         {/* Left: Org tree */}
-        <div className="bg-white border border-[#EEEEEE] rounded-xl p-4">
+        <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
           <h2 className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold mb-3">
             Estrutura da equipe
           </h2>
@@ -311,7 +311,7 @@ export default function AgentesPage() {
         </div>
 
         {/* Right: Config panel */}
-        <div className="bg-white border border-[#EEEEEE] rounded-xl">
+        <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1">
           {!selected ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <Bot size={64} color="#E5E5E5" />
