@@ -16,7 +16,7 @@
     --popover-foreground: 0 0% 6.7%;
 
     /* Primary = green #128A68 */
-    --primary: 165 76% 24%;
+    --primary: 165 77% 30%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 100%;           /* #FFFFFF — painéis brancos elevados */
@@ -31,7 +31,7 @@
     --destructive: 0 73% 59%;         /* #E24B4A */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 165 76% 24%;           /* #128A68 */
+    --success: 165 77% 30%;           /* #128A68 */
     --success-foreground: 0 0% 100%;
 
     /* Soft tints for highlights */
