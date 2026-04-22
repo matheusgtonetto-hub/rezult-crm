@@ -29,7 +29,17 @@ export interface Lead {
   nextFollowUp?: string;
   notes: string;
   activities: Activity[];
+  tags?: string[];
 }
+
+export const availableTags = [
+  { name: "SDR", color: "#378ADD" },
+  { name: "Follow-up", color: "#F59E0B" },
+  { name: "Proposta", color: "#8B5CF6" },
+  { name: "Reunião", color: "#128A68" },
+  { name: "WhatsApp", color: "#25D366" },
+  { name: "Urgente", color: "#E24B4A" },
+] as const;
 
 export interface Task {
   id: string;
