@@ -36,9 +36,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar } from "lucide-react";
+import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar, Tag as TagIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { useFloatingChat } from "@/context/FloatingChatContext";
+import { availableTags } from "@/data/mockData";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -60,7 +62,9 @@ export default function PipelinePage() {
     updateColumn,
     deleteColumn,
     addColumn,
+    updateLead,
   } = useCRM();
+  const { openChat } = useFloatingChat();
   const [newLeadCol, setNewLeadCol] = useState<string | null>(null);
   const [globalNewLead, setGlobalNewLead] = useState(false);
 
@@ -286,39 +290,70 @@ export default function PipelinePage() {
                                       : ""
                                   } ${isWonStage(col.id) ? "glow-closed" : ""}`}
                                 >
-                                  {/* Top: deal number + WhatsApp + Note */}
+                                  {/* Top: deal number + actions */}
                                   <div className="flex items-center justify-between mb-1.5">
                                     <span className="text-[10px] font-mono text-muted-foreground">
                                       #{lead.dealNumber}
                                     </span>
-                                    <div className="flex items-center gap-1.5">
-                                      <a
-                                        href={`https://wa.me/${lead.whatsapp}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={e => e.stopPropagation()}
-                                        className="text-success hover:scale-110 transition-transform"
-                                        aria-label="Abrir WhatsApp"
+                                    <div className="flex items-center" style={{ gap: 8 }}>
+                                      <button
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          openChat(leadId);
+                                        }}
+                                        className="flex items-center justify-center transition-colors hover:bg-[#F0F0F0]"
+                                        style={{
+                                          width: 24,
+                                          height: 24,
+                                          borderRadius: 6,
+                                          color: "#25D366",
+                                        }}
+                                        aria-label="Abrir chat WhatsApp"
                                       >
                                         <MessageCircle size={14} />
-                                      </a>
-                                      <TooltipProvider delayDuration={300}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <button
-                                              onClick={e => {
-                                                e.stopPropagation();
-                                                setSelectedLeadId(leadId);
-                                              }}
-                                              className="text-muted-foreground hover:text-primary transition-colors"
-                                              aria-label="Adicionar nota"
-                                            >
-                                              <MessageSquarePlus size={14} />
-                                            </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top">Adicionar nota</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
+                                      </button>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <button
+                                            onClick={e => e.stopPropagation()}
+                                            className="flex items-center justify-center transition-colors hover:bg-[#F0F0F0]"
+                                            style={{
+                                              width: 24,
+                                              height: 24,
+                                              borderRadius: 6,
+                                              color: "#AAAAAA",
+                                            }}
+                                            aria-label="Adicionar tag"
+                                          >
+                                            <TagIcon size={14} />
+                                          </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44">
+                                          {availableTags.map(t => {
+                                            const has = (lead.tags || []).includes(t.name);
+                                            return (
+                                              <DropdownMenuItem
+                                                key={t.name}
+                                                onClick={e => {
+                                                  e.stopPropagation();
+                                                  const current = lead.tags || [];
+                                                  const next = has
+                                                    ? current.filter(x => x !== t.name)
+                                                    : [...current, t.name];
+                                                  updateLead(leadId, { tags: next });
+                                                }}
+                                              >
+                                                <span
+                                                  className="inline-block w-2 h-2 rounded-full mr-2"
+                                                  style={{ background: t.color }}
+                                                />
+                                                <span className="flex-1">{t.name}</span>
+                                                {has && <span className="text-xs text-primary">✓</span>}
+                                              </DropdownMenuItem>
+                                            );
+                                          })}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     </div>
                                   </div>
 
@@ -330,6 +365,25 @@ export default function PipelinePage() {
                                     <p className="text-xs text-muted-foreground">
                                       {lead.company}
                                     </p>
+                                  )}
+
+                                  {/* Tags */}
+                                  {lead.tags && lead.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {lead.tags.map(tagName => {
+                                        const t = availableTags.find(x => x.name === tagName);
+                                        const color = t?.color || "#888";
+                                        return (
+                                          <span
+                                            key={tagName}
+                                            className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
+                                            style={{ background: color }}
+                                          >
+                                            {tagName}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
                                   )}
 
                                   {/* "Sem produto" tag */}
