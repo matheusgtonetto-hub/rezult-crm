@@ -12,7 +12,6 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { availableTags } from "@/data/mockData";
 
 interface ChatMsg {
   from: "lead" | "agent";
@@ -49,15 +48,16 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-}
-
 interface Props {
   leadId: string;
   index: number;
   total: number;
 }
+
+const WIDTH = 360;
+const HEIGHT = 520;
+const RAIL_WIDTH = 32;
+const RAIL_GAP = 8;
 
 export function FloatingChatWindow({ leadId, index }: Props) {
   const { leads, setSelectedLeadId } = useCRM();
@@ -74,7 +74,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const otherLeads = windows
     .filter(w => w.leadId !== leadId)
     .map(w => leads[w.leadId])
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 4);
 
   const messages = mockConversations[leadId] || defaultMsgs;
 
@@ -84,16 +85,19 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
   }, [leadId]);
 
+  // Default position: bottom-right with rail to the left of the window
   const defaultRight = 16 + index * 20;
   const defaultBottom = 24 + index * 20;
 
   const onMouseDown = (e: React.MouseEvent) => {
-    const rect = (e.currentTarget.parentElement?.parentElement as HTMLDivElement).getBoundingClientRect();
+    const containerRect = (e.currentTarget.closest("[data-floating-chat-root]") as HTMLDivElement)
+      ?.getBoundingClientRect();
+    if (!containerRect) return;
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      baseX: rect.left,
-      baseY: rect.top,
+      baseX: containerRect.left,
+      baseY: containerRect.top,
     };
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
@@ -121,89 +125,105 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     setDraft("");
   };
 
-  const sectionDivider: React.CSSProperties = {
-    height: 0.5,
-    background: "#E5E5E5",
-    margin: "12px 0",
-  };
-
   return (
     <div
-      className="fixed flex bg-card overflow-hidden animate-scale-in"
+      data-floating-chat-root
+      className="fixed flex items-end animate-scale-in"
       style={{
-        width: 460,
-        height: 580,
-        borderRadius: 16,
-        boxShadow: "0 8px 40px rgba(0,0,0,0.16)",
+        gap: RAIL_GAP,
         zIndex: 1000 + index,
         ...positionStyle,
       }}
     >
-      {/* Left rail — other conversations */}
-      <div
-        className="flex flex-col items-center gap-2 py-3 border-r"
-        style={{ width: 60, background: "#FFFFFF", borderColor: "#E5E5E5" }}
-      >
-        <button
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white"
-          style={{
-            background: "#128A68",
-            border: "2px solid #128A68",
-          }}
-          title={lead.name}
+      {/* External avatar rail */}
+      {otherLeads.length > 0 && (
+        <div
+          className="flex flex-col gap-2"
+          style={{ width: RAIL_WIDTH, paddingBottom: 8 }}
         >
-          {getInitials(lead.name)}
-        </button>
-        {otherLeads.map(l => (
-          <button
-            key={l.id}
-            onClick={() => openChat(l.id)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold hover:opacity-80"
-            style={{ background: "#F0F0F0", color: "#666" }}
-            title={l.name}
+          {otherLeads.map(l => (
+            <button
+              key={l.id}
+              onClick={() => openChat(l.id)}
+              className="rounded-full flex items-center justify-center text-[11px] font-semibold text-white transition-opacity hover:opacity-100"
+              style={{
+                width: 32,
+                height: 32,
+                background: "#128A68",
+                opacity: 0.6,
+              }}
+              title={l.name}
+            >
+              {getInitials(l.name)}
+            </button>
+          ))}
+          {/* Active indicator */}
+          <div
+            className="rounded-full flex items-center justify-center text-[11px] font-semibold text-white"
+            style={{
+              width: 32,
+              height: 32,
+              background: "#128A68",
+              border: "2px solid #128A68",
+              boxShadow: "0 0 0 2px #FFFFFF inset",
+            }}
+            title={lead.name}
           >
-            {getInitials(l.name)}
-          </button>
-        ))}
-      </div>
+            {getInitials(lead.name)}
+          </div>
+        </div>
+      )}
 
-      {/* Center — chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Chat window */}
+      <div
+        className="flex flex-col bg-card overflow-hidden"
+        style={{
+          width: WIDTH,
+          height: HEIGHT,
+          borderRadius: 16,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.16)",
+        }}
+      >
         {/* Header */}
         <div
           onMouseDown={onMouseDown}
-          className="flex items-center gap-2 border-b cursor-move select-none"
+          className="flex items-center gap-2 border-b cursor-move select-none shrink-0"
           style={{
-            minHeight: 52,
+            height: 52,
             padding: "0 12px",
             background: "#FFFFFF",
             borderColor: "#E5E5E5",
           }}
         >
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
+            style={{ background: "#128A68" }}
+          >
+            {getInitials(lead.name)}
+          </div>
+          <div className="min-w-0 flex-1">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
-              style={{ background: "#128A68" }}
+              className="truncate"
+              style={{ fontSize: 14, fontWeight: 600, color: "#111", lineHeight: 1.2 }}
+              title={lead.name}
             >
-              {getInitials(lead.name)}
+              {lead.name}
             </div>
-            <div className="min-w-0 flex-1">
-              <div
-                className="truncate"
-                style={{ fontSize: 14, fontWeight: 600, color: "#111", lineHeight: 1.2 }}
-                title={lead.name}
+            <div
+              className="flex items-center gap-2 truncate"
+              style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
+            >
+              <span>WhatsApp</span>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  setSelectedLeadId(leadId);
+                }}
+                className="hover:underline"
+                style={{ color: "#128A68", fontWeight: 500 }}
               >
-                {lead.name}
-              </div>
-              <div
-                className="flex items-center gap-1 truncate"
-                style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
-              >
-                <WhatsAppIcon size={14} />
-                <span className="truncate">
-                  {lead.company ? `${lead.company} · WhatsApp` : "WhatsApp · Comercial"}
-                </span>
-              </div>
+                Ver no pipeline →
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -263,11 +283,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                   </div>
                   <div
                     style={{
-                      maxWidth: "78%",
+                      maxWidth: "80%",
                       padding: "8px 12px",
                       fontSize: 13,
                       lineHeight: 1.4,
-                      background: isLead ? "#FFFFFF" : "#128A68",
+                      background: isLead ? "#FFFFFF" : "#0F6E56",
                       color: isLead ? "#111111" : "#FFFFFF",
                       border: isLead ? "0.5px solid #E5E5E5" : "none",
                       borderRadius: isLead
@@ -283,9 +303,9 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           </div>
         </div>
 
-        {/* Footer — only inputs */}
+        {/* Footer */}
         <div
-          className="flex items-center gap-2 border-t"
+          className="flex items-center gap-2 border-t shrink-0"
           style={{
             height: 52,
             padding: "8px 12px",
@@ -329,7 +349,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: draft.trim() ? "#128A68" : "#E5E5E5",
+              background: draft.trim() ? "#0F6E56" : "#E5E5E5",
               color: draft.trim() ? "#FFFFFF" : "#AAAAAA",
             }}
             aria-label="Enviar"
@@ -339,96 +359,10 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         </div>
       </div>
 
-      {/* Right panel — lead info */}
-      <div
-        className="border-l flex flex-col overflow-y-auto"
-        style={{
-          width: 200,
-          background: "#FAFAFA",
-          borderColor: "#E5E5E5",
-          padding: 14,
-        }}
-      >
-        {/* Identity */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{lead.name}</div>
-          {lead.company && (
-            <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2 }}>{lead.company}</div>
-          )}
-          <div
-            className="mt-2 cursor-pointer hover:underline"
-            style={{ fontSize: 12, color: "#128A68", fontWeight: 500 }}
-            onClick={() => setSelectedLeadId(leadId)}
-          >
-            Negócio #{lead.dealNumber}
-          </div>
-        </div>
-
-        <div style={sectionDivider} />
-
-        {/* Stage + value */}
-        <div>
-          <span
-            className="inline-block px-2 py-0.5 rounded-full"
-            style={{
-              background: "#E1F5EE",
-              color: "#128A68",
-              fontSize: 11,
-              fontWeight: 600,
-            }}
-          >
-            {lead.stage.replace(/-/g, " ")}
-          </span>
-          <div className="mt-2" style={{ fontSize: 14, fontWeight: 600, color: "#128A68" }}>
-            {formatCurrency(lead.value)}
-          </div>
-        </div>
-
-        <div style={sectionDivider} />
-
-        {/* Tags */}
-        <div>
-          <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>Tags</div>
-          <div className="flex flex-wrap gap-1">
-            {(lead.tags || []).map(tagName => {
-              const t = availableTags.find(x => x.name === tagName);
-              const color = t?.color || "#128A68";
-              return (
-                <span
-                  key={tagName}
-                  className="px-2 py-0.5 rounded-full text-white"
-                  style={{ fontSize: 10, background: color }}
-                >
-                  {tagName}
-                </span>
-              );
-            })}
-            <button
-              className="px-2 py-0.5 rounded-full"
-              style={{
-                fontSize: 10,
-                border: "1px solid #128A68",
-                color: "#128A68",
-                background: "transparent",
-              }}
-            >
-              + Tag
-            </button>
-          </div>
-        </div>
-
-        <div style={sectionDivider} />
-
-        {/* CTA */}
-        <Button
-          variant="outline"
-          className="w-full text-xs h-8 rounded-md mt-auto"
-          style={{ borderColor: "#128A68", color: "#128A68" }}
-          onClick={() => setSelectedLeadId(leadId)}
-        >
-          Ver no pipeline
-        </Button>
-      </div>
+      {/* Hidden but kept for hover hint of WhatsApp brand */}
+      <span style={{ display: "none" }}>
+        <WhatsAppIcon size={1} />
+      </span>
     </div>
   );
 }
