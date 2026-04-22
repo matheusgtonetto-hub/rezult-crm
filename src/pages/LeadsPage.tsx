@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MessageCircle, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
 
 export default function ContactsPage() {
@@ -76,8 +77,8 @@ export default function ContactsPage() {
                   <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
                   <TableCell>
-                    <a href={`https://wa.me/${lead.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-success hover:underline flex items-center gap-1">
-                      <MessageCircle size={14} /> {lead.whatsapp}
+                    <a href={`https://wa.me/${lead.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-success hover:underline flex items-center gap-1.5">
+                      <WhatsAppIcon size={16} /> {lead.whatsapp}
                     </a>
                   </TableCell>
                   <TableCell><span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{colName(lead.stage)}</span></TableCell>
