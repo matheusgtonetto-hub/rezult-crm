@@ -36,9 +36,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar } from "lucide-react";
+import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar, Tag as TagIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { useFloatingChat } from "@/context/FloatingChatContext";
+import { availableTags } from "@/data/mockData";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -60,7 +62,9 @@ export default function PipelinePage() {
     updateColumn,
     deleteColumn,
     addColumn,
+    updateLead,
   } = useCRM();
+  const { openChat } = useFloatingChat();
   const [newLeadCol, setNewLeadCol] = useState<string | null>(null);
   const [globalNewLead, setGlobalNewLead] = useState(false);
 
