@@ -3,6 +3,8 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CRMProvider, useCRM } from "@/context/CRMContext";
+import { FloatingChatProvider } from "@/context/FloatingChatContext";
+import { FloatingChatManager } from "@/components/FloatingChatManager";
 import LoginPage from "./pages/LoginPage";
 import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
@@ -49,7 +51,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <CRMProvider>
-          <AppRoutes />
+          <FloatingChatProvider>
+            <AppRoutes />
+            <FloatingChatManager />
+          </FloatingChatProvider>
         </CRMProvider>
       </BrowserRouter>
     </TooltipProvider>
