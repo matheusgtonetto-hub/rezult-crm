@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import {
   Check,
   Minus,
@@ -10,8 +11,8 @@ import {
   Smile,
   Sparkles,
   ArrowRight,
-  MessageCircle,
 } from "lucide-react";
+import { availableTags } from "@/data/mockData";
 
 interface ChatMsg {
   from: "lead" | "agent";
@@ -58,7 +59,7 @@ interface Props {
   total: number;
 }
 
-export function FloatingChatWindow({ leadId, index, total }: Props) {
+export function FloatingChatWindow({ leadId, index }: Props) {
   const { leads, setSelectedLeadId } = useCRM();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const lead = leads[leadId];
@@ -83,11 +84,11 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
     }
   }, [leadId]);
 
-  const defaultRight = 24 + index * 20;
+  const defaultRight = 16 + index * 20;
   const defaultBottom = 24 + index * 20;
 
   const onMouseDown = (e: React.MouseEvent) => {
-    const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
+    const rect = (e.currentTarget.parentElement?.parentElement as HTMLDivElement).getBoundingClientRect();
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -120,6 +121,12 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
     setDraft("");
   };
 
+  const sectionDivider: React.CSSProperties = {
+    height: 0.5,
+    background: "#E5E5E5",
+    margin: "12px 0",
+  };
+
   return (
     <div
       className="fixed flex bg-card overflow-hidden animate-scale-in"
@@ -132,6 +139,7 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
         ...positionStyle,
       }}
     >
+      {/* Left rail — other conversations */}
       <div
         className="flex flex-col items-center gap-2 py-3 border-r"
         style={{ width: 60, background: "#FFFFFF", borderColor: "#E5E5E5" }}
@@ -159,35 +167,42 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
         ))}
       </div>
 
+      {/* Center — chat */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
         <div
           onMouseDown={onMouseDown}
-          className="flex items-center justify-between border-b cursor-move select-none"
+          className="flex items-center gap-2 border-b cursor-move select-none"
           style={{
-            height: 52,
-            padding: "0 16px",
+            minHeight: 52,
+            padding: "0 12px",
             background: "#FFFFFF",
             borderColor: "#E5E5E5",
-            borderTopLeftRadius: 0,
           }}
         >
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
               style={{ background: "#128A68" }}
             >
               {getInitials(lead.name)}
             </div>
-            <div className="min-w-0">
-              <div className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>
+            <div className="min-w-0 flex-1">
+              <div
+                className="truncate"
+                style={{ fontSize: 14, fontWeight: 600, color: "#111", lineHeight: 1.2 }}
+                title={lead.name}
+              >
                 {lead.name}
               </div>
               <div
-                className="flex items-center gap-1"
-                style={{ fontSize: 11, color: "#AAAAAA" }}
+                className="flex items-center gap-1 truncate"
+                style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
               >
-                <MessageCircle size={10} style={{ color: "#25D366" }} />
-                WhatsApp · Comercial
+                <WhatsAppIcon size={14} />
+                <span className="truncate">
+                  {lead.company ? `${lead.company} · WhatsApp` : "WhatsApp · Comercial"}
+                </span>
               </div>
             </div>
           </div>
@@ -199,7 +214,7 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
               onClick={e => e.stopPropagation()}
             >
               <Check size={12} className="mr-1" />
-              Marcar como lida
+              Lida
             </Button>
             <button
               onClick={() => minimizeChat(leadId)}
@@ -218,6 +233,7 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
           </div>
         </div>
 
+        {/* Messages */}
         <div
           ref={msgsRef}
           className="flex-1 overflow-y-auto"
@@ -267,6 +283,7 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
           </div>
         </div>
 
+        {/* Footer — only inputs */}
         <div
           className="flex items-center gap-2 border-t"
           style={{
@@ -301,13 +318,13 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
               if (e.key === "Enter") handleSend();
             }}
             placeholder="Mensagem..."
-            className="flex-1 bg-transparent outline-none border-none"
+            className="flex-1 bg-transparent outline-none border-none min-w-0"
             style={{ fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111" }}
           />
           <button
             onClick={handleSend}
             disabled={!draft.trim()}
-            className="flex items-center justify-center transition-colors"
+            className="flex items-center justify-center transition-colors shrink-0"
             style={{
               width: 32,
               height: 32,
@@ -322,8 +339,9 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
         </div>
       </div>
 
+      {/* Right panel — lead info */}
       <div
-        className="border-l flex flex-col"
+        className="border-l flex flex-col overflow-y-auto"
         style={{
           width: 200,
           background: "#FAFAFA",
@@ -331,18 +349,25 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
           padding: 14,
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{lead.name}</div>
-        {lead.company && (
-          <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2 }}>{lead.company}</div>
-        )}
-        <div
-          className="mt-2 cursor-pointer hover:underline"
-          style={{ fontSize: 12, color: "#128A68", fontWeight: 500 }}
-          onClick={() => setSelectedLeadId(leadId)}
-        >
-          Negócio #{lead.dealNumber}
+        {/* Identity */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{lead.name}</div>
+          {lead.company && (
+            <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 2 }}>{lead.company}</div>
+          )}
+          <div
+            className="mt-2 cursor-pointer hover:underline"
+            style={{ fontSize: 12, color: "#128A68", fontWeight: 500 }}
+            onClick={() => setSelectedLeadId(leadId)}
+          >
+            Negócio #{lead.dealNumber}
+          </div>
         </div>
-        <div className="mt-3">
+
+        <div style={sectionDivider} />
+
+        {/* Stage + value */}
+        <div>
           <span
             className="inline-block px-2 py-0.5 rounded-full"
             style={{
@@ -354,23 +379,30 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
           >
             {lead.stage.replace(/-/g, " ")}
           </span>
-        </div>
-        <div className="mt-2" style={{ fontSize: 14, fontWeight: 600, color: "#128A68" }}>
-          {formatCurrency(lead.value)}
+          <div className="mt-2" style={{ fontSize: 14, fontWeight: 600, color: "#128A68" }}>
+            {formatCurrency(lead.value)}
+          </div>
         </div>
 
-        <div className="mt-3">
-          <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>Tags</div>
+        <div style={sectionDivider} />
+
+        {/* Tags */}
+        <div>
+          <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>Tags</div>
           <div className="flex flex-wrap gap-1">
-            {(lead.tags || []).map(t => (
-              <span
-                key={t}
-                className="px-2 py-0.5 rounded-full text-white"
-                style={{ fontSize: 10, background: "#128A68" }}
-              >
-                {t}
-              </span>
-            ))}
+            {(lead.tags || []).map(tagName => {
+              const t = availableTags.find(x => x.name === tagName);
+              const color = t?.color || "#128A68";
+              return (
+                <span
+                  key={tagName}
+                  className="px-2 py-0.5 rounded-full text-white"
+                  style={{ fontSize: 10, background: color }}
+                >
+                  {tagName}
+                </span>
+              );
+            })}
             <button
               className="px-2 py-0.5 rounded-full"
               style={{
@@ -385,14 +417,14 @@ export function FloatingChatWindow({ leadId, index, total }: Props) {
           </div>
         </div>
 
-        <div className="flex-1" />
+        <div style={sectionDivider} />
+
+        {/* CTA */}
         <Button
           variant="outline"
-          className="w-full text-xs h-8 rounded-md"
+          className="w-full text-xs h-8 rounded-md mt-auto"
           style={{ borderColor: "#128A68", color: "#128A68" }}
-          onClick={() => {
-            setSelectedLeadId(leadId);
-          }}
+          onClick={() => setSelectedLeadId(leadId)}
         >
           Ver no pipeline
         </Button>

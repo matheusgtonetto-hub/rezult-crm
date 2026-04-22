@@ -36,7 +36,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MessageCircle, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar, Tag as TagIcon } from "lucide-react";
+import { Plus, Search, Activity as ActivityIcon, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar, Tag as TagIcon } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useFloatingChat } from "@/context/FloatingChatContext";
@@ -306,11 +307,10 @@ export default function PipelinePage() {
                                           width: 24,
                                           height: 24,
                                           borderRadius: 6,
-                                          color: "#25D366",
                                         }}
                                         aria-label="Abrir chat WhatsApp"
                                       >
-                                        <MessageCircle size={14} />
+                                        <WhatsAppIcon size={18} />
                                       </button>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

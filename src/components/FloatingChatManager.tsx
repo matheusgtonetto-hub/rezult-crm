@@ -1,7 +1,7 @@
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCRM } from "@/context/CRMContext";
 import { FloatingChatWindow } from "./FloatingChatWindow";
-import { MessageCircle } from "lucide-react";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 
 function getInitials(name: string) {
   return name
@@ -63,7 +63,7 @@ export function FloatingChatManager() {
                 >
                   {lead.name}
                 </span>
-                <MessageCircle size={12} style={{ color: "#25D366" }} />
+                <WhatsAppIcon size={12} />
                 <button
                   onClick={e => {
                     e.stopPropagation();
