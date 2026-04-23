@@ -408,16 +408,20 @@ export default function LeadDetailPage() {
             >
               <button
                 onClick={() => toggleSection(key)}
-                className="w-full flex items-center justify-between px-3 py-2.5"
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
+                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#111111", letterSpacing: 0.3 }}>
-                  {SECTION_TITLES[key].toUpperCase()}
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                  {SECTION_TITLES[key]}
                 </span>
-                {openSections[key] ? (
-                  <ChevronDown size={14} color="#AAAAAA" />
-                ) : (
-                  <ChevronRight size={14} color="#AAAAAA" />
-                )}
+                <ChevronDown
+                  size={14}
+                  color="#128A68"
+                  style={{
+                    transform: openSections[key] ? "rotate(0deg)" : "rotate(-90deg)",
+                    transition: "transform 0.2s",
+                  }}
+                />
               </button>
 
               {openSections[key] && (
