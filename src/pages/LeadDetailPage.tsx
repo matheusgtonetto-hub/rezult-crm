@@ -427,23 +427,21 @@ export default function LeadDetailPage() {
               {openSections[key] && (
                 <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
                   {key === "negocio" && (
-                    <>
-                      <div className="pt-2">
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Valor</label>
-                        <Input
-                          type="number"
-                          value={lead.value}
-                          onChange={e => updateField("value", Number(e.target.value))}
-                          className="h-9 rounded-md text-sm font-bold"
-                          style={{ color: "#128A68", fontSize: 16 }}
-                        />
+                    <div className="pt-2 space-y-2">
+                      <EditableField
+                        label="Valor"
+                        value={lead.value}
+                        type="number"
+                        onSave={v => updateField("value", Number(v))}
+                        valueStyle={{ color: "#128A68", fontWeight: 700, fontSize: 16 }}
+                        display={v => formatBRL(Number(v))}
+                      />
+                      <div>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Pipeline</label>
+                        <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
                       </div>
                       <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Pipeline</label>
-                        <p className="text-sm" style={{ color: "#111111" }}>{pipeline.name}</p>
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Produto</label>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Produto</label>
                         <Select
                           value={lead.productId || "none"}
                           onValueChange={v => updateField("productId", v === "none" ? undefined : v)}
@@ -460,7 +458,7 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Responsável</label>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Responsável</label>
                         <Select value={lead.responsible} onValueChange={v => updateField("responsible", v)}>
                           <SelectTrigger className="h-9 rounded-md text-sm">
                             <SelectValue />
@@ -473,83 +471,89 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Data de entrada</label>
-                        <p className="text-sm" style={{ color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
+                        <p style={{ fontSize: 13, color: "#111111" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Próximo follow-up</label>
-                        <Input
-                          type="date"
-                          value={lead.nextFollowUp || ""}
-                          onChange={e => updateField("nextFollowUp", e.target.value)}
-                          className="h-9 rounded-md text-sm"
-                        />
-                      </div>
-                    </>
+                      <EditableField
+                        label="Próximo follow-up"
+                        value={lead.nextFollowUp}
+                        type="date"
+                        onSave={v => updateField("nextFollowUp", v)}
+                        display={v => new Date(v).toLocaleDateString("pt-BR")}
+                      />
+                    </div>
                   )}
 
                   {key === "contato" && (
-                    <>
-                      <div className="pt-2">
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Nome completo</label>
-                        <Input value={lead.name} onChange={e => updateField("name", e.target.value)} className="h-9 rounded-md text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Empresa</label>
-                        <Input value={lead.company || ""} onChange={e => updateField("company", e.target.value)} className="h-9 rounded-md text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">WhatsApp</label>
-                        <div className="flex gap-2 items-center">
-                          <Input value={lead.whatsapp} onChange={e => updateField("whatsapp", e.target.value)} className="h-9 rounded-md text-sm flex-1" />
+                    <div className="pt-2 space-y-2">
+                      <EditableField label="Nome completo" value={lead.name} onSave={v => updateField("name", v)} />
+                      <EditableField label="Empresa" value={lead.company} onSave={v => updateField("company", v)} />
+                      <EditableField
+                        label="WhatsApp"
+                        value={lead.whatsapp}
+                        type="tel"
+                        onSave={v => updateField("whatsapp", v)}
+                        rightAdornment={
                           <button
-                            onClick={() => openChat(lead.id)}
+                            onClick={(e) => { e.stopPropagation(); openChat(lead.id); }}
                             className="hover:opacity-80 transition-opacity"
                             aria-label="Abrir chat"
                           >
-                            <WhatsAppIcon size={20} />
+                            <WhatsAppIcon size={16} />
                           </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">E-mail</label>
-                        <Input value={lead.email || ""} onChange={e => updateField("email", e.target.value)} className="h-9 rounded-md text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">CPF/CNPJ</label>
-                        <Input placeholder="—" className="h-9 rounded-md text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Cidade/Estado</label>
-                        <Input placeholder="—" className="h-9 rounded-md text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">LinkedIn</label>
-                        <Input placeholder="linkedin.com/in/..." className="h-9 rounded-md text-sm" />
-                      </div>
-                    </>
+                        }
+                      />
+                      <EditableField label="E-mail" value={lead.email} type="email" onSave={v => updateField("email", v)} />
+                      <EditableField label="CPF/CNPJ" value={(lead as any).document} onSave={v => updateField("document" as any, v)} />
+                      <EditableField label="Cidade/Estado" value={(lead as any).location} onSave={v => updateField("location" as any, v)} />
+                      <EditableField label="LinkedIn" value={(lead as any).linkedin} onSave={v => updateField("linkedin" as any, v)} />
+                    </div>
                   )}
 
                   {key === "qualificacao" && (
                     <>
                       <div className="pt-2 space-y-2">
-                        {qualFields.map(f => (
-                          <div key={f.key}>
-                            <label className="text-[11px] text-muted-foreground block mb-0.5">{f.label}</label>
-                            <Input
+                        {qualFields.map(f => {
+                          if (f.key === "decisor") {
+                            const isYes = f.value === "Sim";
+                            return (
+                              <div key={f.key} className="flex items-center justify-between gap-2">
+                                <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                                <div className="flex items-center gap-2">
+                                  <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                    {isYes ? "Sim" : "Não"}
+                                  </span>
+                                  <Switch
+                                    checked={isYes}
+                                    onCheckedChange={(v) =>
+                                      setQualFields(prev => prev.map(p => p.key === f.key ? { ...p, value: v ? "Sim" : "Não" } : p))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            );
+                          }
+                          const fieldType: "date" | "text" = f.key === "previsao" ? "date" : "text";
+                          return (
+                            <EditableField
+                              key={f.key}
+                              label={f.label}
                               value={f.value}
-                              onChange={e => setQualFields(prev => prev.map(p => p.key === f.key ? { ...p, value: e.target.value } : p))}
-                              className="h-9 rounded-md text-sm"
+                              type={fieldType}
+                              onSave={v =>
+                                setQualFields(prev => prev.map(p => p.key === f.key ? { ...p, value: v } : p))
+                              }
+                              display={fieldType === "date" ? (v => new Date(v).toLocaleDateString("pt-BR")) : undefined}
                             />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full rounded-md h-8 text-xs"
+                        className="w-full rounded-md h-8 text-xs mt-2"
                         style={{ borderColor: "#128A68", color: "#128A68" }}
                         onClick={() => {
                           const k = `custom-${Date.now()}`;
