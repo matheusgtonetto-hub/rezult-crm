@@ -57,15 +57,14 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "historico", label: "Histórico" },
 ];
 
-const SECTION_ORDER = ["negocio", "contato", "qualificacao", "origem", "tags"] as const;
+const SECTION_ORDER = ["contato", "qualificacao", "origemTags", "negocio"] as const;
 type SectionKey = typeof SECTION_ORDER[number];
 
 const SECTION_TITLES: Record<SectionKey, string> = {
-  negocio: "Negócio",
   contato: "Contato",
   qualificacao: "Qualificação",
-  origem: "Origem",
-  tags: "Tags",
+  origemTags: "Origem e Tags",
+  negocio: "Negócio",
 };
 
 function daysBetween(a: string, b: string) {
