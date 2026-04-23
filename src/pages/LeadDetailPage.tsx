@@ -581,15 +581,16 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Data de entrada</label>
-                        <p className="text-sm" style={{ color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
+                        <p style={{ fontSize: 13, color: "#111111" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <div>
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">UTM source</label>
-                        <p className="text-sm text-muted-foreground italic">não disponível</p>
-                      </div>
+                      <EditableField
+                        label="UTM source"
+                        value={(lead as any).utmSource}
+                        onSave={v => updateField("utmSource" as any, v)}
+                      />
 
                       <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
 
