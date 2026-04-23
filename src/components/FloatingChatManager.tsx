@@ -38,15 +38,19 @@ export function FloatingChatManager() {
             return (
               <div
                 key={w.leadId}
-                className="flex items-center gap-2 bg-card border rounded-full pl-1 pr-3 py-1 cursor-pointer hover:shadow-elev-2 transition-shadow"
+                className="flex items-center cursor-pointer transition-shadow hover:shadow-md"
                 style={{
-                  borderColor: "#E5E5E5",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                  background: "#FFFFFF",
+                  border: "0.5px solid #E5E5E5",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  borderRadius: 100,
+                  padding: "6px 12px 6px 6px",
+                  gap: 8,
                 }}
                 onClick={() => restoreChat(w.leadId)}
               >
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white relative"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white relative shrink-0"
                   style={{ background: "#128A68" }}
                 >
                   {getInitials(lead.name)}
@@ -58,18 +62,18 @@ export function FloatingChatManager() {
                   )}
                 </div>
                 <span
-                  className="truncate max-w-[100px]"
-                  style={{ fontSize: 12, color: "#111", fontWeight: 500 }}
+                  className="truncate max-w-[120px]"
+                  style={{ fontSize: 12, color: "#111", fontWeight: 600 }}
                 >
                   {lead.name}
                 </span>
-                <WhatsAppIcon size={12} />
+                <WhatsAppIcon size={14} />
                 <button
                   onClick={e => {
                     e.stopPropagation();
                     closeChat(w.leadId);
                   }}
-                  className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
+                  className="text-[11px] text-muted-foreground hover:text-foreground ml-1 leading-none"
                   aria-label="Fechar"
                 >
                   ✕
