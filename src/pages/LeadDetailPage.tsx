@@ -43,6 +43,7 @@ import {
   Video,
   Trash2,
   Tag as TagIcon,
+  Pencil,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
