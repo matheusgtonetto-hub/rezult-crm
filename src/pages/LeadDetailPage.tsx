@@ -98,11 +98,10 @@ export default function LeadDetailPage() {
   );
 
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    negocio: true,
     contato: true,
-    qualificacao: false,
-    origem: false,
-    tags: true,
+    qualificacao: true,
+    origemTags: true,
+    negocio: true,
   });
   const [tab, setTab] = useState<TabKey>("anotacoes");
   const [newNote, setNewNote] = useState("");
