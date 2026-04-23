@@ -75,6 +75,91 @@ function daysBetween(a: string, b: string) {
   return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
 }
 
+type EditableFieldProps = {
+  label: string;
+  value: string | number | undefined | null;
+  onSave: (v: string) => void;
+  type?: "text" | "number" | "email" | "date" | "tel";
+  placeholder?: string;
+  display?: (v: string) => React.ReactNode;
+  rightAdornment?: React.ReactNode;
+  valueClassName?: string;
+  valueStyle?: React.CSSProperties;
+};
+
+function EditableField({
+  label,
+  value,
+  onSave,
+  type = "text",
+  display,
+  rightAdornment,
+  valueClassName,
+  valueStyle,
+}: EditableFieldProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraft(value == null ? "" : String(value));
+  }, [value]);
+
+  useEffect(() => {
+    if (editing) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [editing]);
+
+  const hasValue = value !== undefined && value !== null && String(value).trim() !== "";
+
+  const commit = () => {
+    setEditing(false);
+    if (draft !== (value == null ? "" : String(value))) onSave(draft);
+  };
+
+  return (
+    <div className="group">
+      <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>{label}</label>
+      {editing ? (
+        <Input
+          ref={inputRef}
+          type={type}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") { setDraft(value == null ? "" : String(value)); setEditing(false); }
+          }}
+          className="h-9 rounded-md text-sm"
+        />
+      ) : hasValue ? (
+        <div
+          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+          onClick={() => setEditing(true)}
+        >
+          <span className={valueClassName} style={{ fontSize: 13, color: "#111111", ...valueStyle }}>
+            {display ? display(String(value)) : String(value)}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {rightAdornment}
+            <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
+          style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+        >
+          + Adicionar
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
