@@ -8,6 +8,7 @@ import { FloatingChatManager } from "@/components/FloatingChatManager";
 import LoginPage from "./pages/LoginPage";
 import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
+import LeadDetailPage from "./pages/LeadDetailPage";
 import LeadsPage from "./pages/LeadsPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/pilot" element={<PilotPage />} />
         <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/pipeline/lead/:id" element={<LeadDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/contatos" element={<Navigate to="/leads" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />

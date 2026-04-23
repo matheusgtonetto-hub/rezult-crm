@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useCRM } from "@/context/CRMContext";
 import { LeadDrawer } from "@/components/LeadDrawer";
@@ -66,6 +67,7 @@ export default function PipelinePage() {
     updateLead,
   } = useCRM();
   const { openChat } = useFloatingChat();
+  const navigate = useNavigate();
   const [newLeadCol, setNewLeadCol] = useState<string | null>(null);
   const [globalNewLead, setGlobalNewLead] = useState(false);
 
@@ -284,7 +286,7 @@ export default function PipelinePage() {
                                   ref={prov.innerRef}
                                   {...prov.draggableProps}
                                   {...prov.dragHandleProps}
-                                  onClick={() => setSelectedLeadId(leadId)}
+                                  onClick={() => navigate(`/pipeline/lead/${leadId}`)}
                                   className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-[#DDDDDD] transition-all ${
                                     snap.isDragging
                                       ? "shadow-elev-2 rotate-1"
