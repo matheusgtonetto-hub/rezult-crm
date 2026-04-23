@@ -354,42 +354,43 @@ export default function LeadDetailPage() {
           background: "#FFFFFF",
           borderBottom: "0.5px solid #E5E5E5",
         }}
-        className="flex items-center px-4 gap-1 overflow-x-auto"
+        className="flex items-center justify-center px-4 overflow-x-auto"
       >
-        {stages.map((s, idx) => {
-          const isActive = idx === activeIdx;
-          const isPast = idx < activeIdx;
-          const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
-          const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
-          const days = idx === activeIdx ? daysBetween(lead.entryDate, today) : isPast ? 2 : 0;
-          return (
-            <button
-              key={s.id}
-              onClick={() => handleStageClick(s.id)}
-              className="flex flex-col items-center justify-center transition-all hover:opacity-80 shrink-0"
-              style={{ minWidth: 130 }}
-            >
-              <div
-                style={{
-                  background: bg,
-                  color,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "6px 14px",
-                  clipPath:
-                    "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)",
-                  width: "100%",
-                  textAlign: "center",
-                }}
+        <div className="flex items-center justify-center" style={{ gap: 4 }}>
+          {stages.map((s, idx) => {
+            const isActive = idx === activeIdx;
+            const isPast = idx < activeIdx;
+            const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
+            const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
+            const days = idx === activeIdx ? daysBetween(lead.entryDate, today) : isPast ? 2 : 0;
+            return (
+              <button
+                key={s.id}
+                onClick={() => handleStageClick(s.id)}
+                className="flex flex-col items-center justify-center transition-all hover:opacity-80 shrink-0"
               >
-                {s.title}
-              </div>
-              <span style={{ fontSize: 10, color: "#AAAAAA", marginTop: 4 }}>
-                {days} {days === 1 ? "dia" : "dias"}
-              </span>
-            </button>
-          );
-        })}
+                <div
+                  style={{
+                    background: bg,
+                    color,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "6px 22px",
+                    clipPath:
+                      "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)",
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {s.title}
+                </div>
+                <span style={{ fontSize: 10, color: "#AAAAAA", marginTop: 4 }}>
+                  {days} {days === 1 ? "dia" : "dias"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* CONTENT */}
