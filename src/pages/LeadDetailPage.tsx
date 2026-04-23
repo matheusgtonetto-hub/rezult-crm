@@ -281,7 +281,9 @@ export default function LeadDetailPage() {
       {/* TOPBAR */}
       <div
         style={{
-          height: 52,
+          height: 60,
+          paddingTop: 16,
+          paddingBottom: 16,
           background: "#FFFFFF",
           borderBottom: "0.5px solid #EEEEEE",
           position: "sticky",
@@ -299,9 +301,9 @@ export default function LeadDetailPage() {
           <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
         </button>
 
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <span style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>{lead.name}</span>
-          <span className="text-xs font-mono text-muted-foreground">#{lead.dealNumber}</span>
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline">
+          <span style={{ fontSize: 22, fontWeight: 700, color: "#111111" }}>{lead.name}</span>
+          <span style={{ fontSize: 13, color: "#AAAAAA", marginLeft: 8 }}>#{lead.dealNumber}</span>
         </div>
 
         <div className="flex items-center gap-2">
