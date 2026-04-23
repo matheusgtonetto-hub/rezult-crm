@@ -57,15 +57,14 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "historico", label: "Histórico" },
 ];
 
-const SECTION_ORDER = ["negocio", "contato", "qualificacao", "origem", "tags"] as const;
+const SECTION_ORDER = ["contato", "qualificacao", "origemTags", "negocio"] as const;
 type SectionKey = typeof SECTION_ORDER[number];
 
 const SECTION_TITLES: Record<SectionKey, string> = {
-  negocio: "Negócio",
   contato: "Contato",
   qualificacao: "Qualificação",
-  origem: "Origem",
-  tags: "Tags",
+  origemTags: "Origem e Tags",
+  negocio: "Negócio",
 };
 
 function daysBetween(a: string, b: string) {
@@ -99,11 +98,10 @@ export default function LeadDetailPage() {
   );
 
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    negocio: true,
     contato: true,
-    qualificacao: false,
-    origem: false,
-    tags: true,
+    qualificacao: true,
+    origemTags: true,
+    negocio: true,
   });
   const [tab, setTab] = useState<TabKey>("anotacoes");
   const [newNote, setNewNote] = useState("");
@@ -469,7 +467,7 @@ export default function LeadDetailPage() {
                     </>
                   )}
 
-                  {key === "origem" && (
+                  {key === "origemTags" && (
                     <>
                       <div className="pt-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Canal</label>
@@ -494,60 +492,61 @@ export default function LeadDetailPage() {
                         <label className="text-[11px] text-muted-foreground block mb-0.5">UTM source</label>
                         <p className="text-sm text-muted-foreground italic">não disponível</p>
                       </div>
-                    </>
-                  )}
 
-                  {key === "tags" && (
-                    <div className="pt-2 space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {(lead.tags || []).map(tagName => {
-                          const t = availableTags.find(x => x.name === tagName);
-                          return (
-                            <span
-                              key={tagName}
-                              className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
-                              style={{ background: t?.color || "#888" }}
-                            >
-                              {tagName}
-                            </span>
-                          );
-                        })}
-                        {(!lead.tags || lead.tags.length === 0) && (
-                          <span className="text-xs text-muted-foreground italic">Nenhuma tag</span>
-                        )}
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="rounded-md h-8 text-xs"
-                            style={{ borderColor: "#128A68", color: "#128A68" }}
-                          >
-                            <Plus size={12} className="mr-1" /> Tag
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-44">
-                          {availableTags.map(t => {
-                            const has = (lead.tags || []).includes(t.name);
+                      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+
+                      <div className="space-y-2">
+                        <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(lead.tags || []).map(tagName => {
+                            const t = availableTags.find(x => x.name === tagName);
                             return (
-                              <DropdownMenuItem
-                                key={t.name}
-                                onClick={() => {
-                                  const cur = lead.tags || [];
-                                  const next = has ? cur.filter(x => x !== t.name) : [...cur, t.name];
-                                  updateField("tags" as any, next as any);
-                                }}
+                              <span
+                                key={tagName}
+                                className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
+                                style={{ background: t?.color || "#888" }}
                               >
-                                <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ background: t.color }} />
-                                <span className="flex-1">{t.name}</span>
-                                {has && <span className="text-xs text-primary">✓</span>}
-                              </DropdownMenuItem>
+                                {tagName}
+                              </span>
                             );
                           })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                          {(!lead.tags || lead.tags.length === 0) && (
+                            <span className="text-xs text-muted-foreground italic">Nenhuma tag</span>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-md h-8 text-xs"
+                              style={{ borderColor: "#128A68", color: "#128A68" }}
+                            >
+                              <Plus size={12} className="mr-1" /> Tag
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-44">
+                            {availableTags.map(t => {
+                              const has = (lead.tags || []).includes(t.name);
+                              return (
+                                <DropdownMenuItem
+                                  key={t.name}
+                                  onClick={() => {
+                                    const cur = lead.tags || [];
+                                    const next = has ? cur.filter(x => x !== t.name) : [...cur, t.name];
+                                    updateField("tags" as any, next as any);
+                                  }}
+                                >
+                                  <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ background: t.color }} />
+                                  <span className="flex-1">{t.name}</span>
+                                  {has && <span className="text-xs text-primary">✓</span>}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
