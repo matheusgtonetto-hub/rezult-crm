@@ -133,7 +133,7 @@ export default function PipelinePage() {
   }, [activePipeline.columns, leads, search, status, dateFrom, dateTo, sortKey]);
 
   return (
-    <div className="flex h-[100vh-0] min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       <PipelineSidebar />
 
       <div className="flex-1 flex flex-col min-w-0">

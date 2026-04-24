@@ -30,9 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Pin,
   MessageSquare,
-  Phone,
   Calendar,
   Mail,
   StickyNote,
@@ -44,6 +42,7 @@ import {
   Trash2,
   Tag as TagIcon,
   Pencil,
+  CheckSquare,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
@@ -160,6 +159,38 @@ function EditableField({
   );
 }
 
+function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  if (!open) {
+    return (
+      <Button size="sm" className="rounded-md h-8" style={{ background: "#128A68", color: "#FFFFFF" }} onClick={() => setOpen(true)}>
+        <Plus size={14} className="mr-1" /> Nova tarefa
+      </Button>
+    );
+  }
+  return (
+    <div className="flex gap-2">
+      <Input
+        autoFocus
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === "Enter") { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }
+          if (e.key === "Escape") { setOpen(false); setTitle(""); }
+        }}
+        placeholder="Título da tarefa..."
+        className="h-8 text-sm rounded-md"
+      />
+      <Button size="sm" className="h-8 rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}
+        onClick={() => { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }}
+      >
+        Salvar
+      </Button>
+    </div>
+  );
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -175,6 +206,9 @@ export default function LeadDetailPage() {
     products,
     markLeadWon,
     markLeadLost,
+    tasks: allTasks,
+    addTask: addTaskToContext,
+    updateTask,
   } = useCRM();
   const { openChat } = useFloatingChat();
 
@@ -199,11 +233,6 @@ export default function LeadDetailPage() {
     { key: "orcamento", label: "Orçamento disponível?", value: "" },
     { key: "previsao", label: "Previsão de fechamento?", value: "" },
   ]);
-  const [tasks, setTasks] = useState([
-    { id: "t1", icon: "phone", title: "Ligação de follow-up", date: "Amanhã 10h", responsible: "Rafael", done: false },
-    { id: "t2", icon: "mail", title: "Envio de proposta inicial", date: "14/04 14h", responsible: "Rafael", done: true },
-    { id: "t3", icon: "calendar", title: "Reunião de apresentação", date: "22/04 15h", responsible: "Carlos", done: false },
-  ]);
 
   if (!lead) {
     return (
@@ -215,6 +244,28 @@ export default function LeadDetailPage() {
       </div>
     );
   }
+
+  // Bug 4: tarefas reais deste lead, não dados hardcoded de outros usuários
+  const leadTasks = allTasks.filter(t => t.leadId === id);
+
+  const toggleLeadTask = (taskId: string) => {
+    const t = allTasks.find(x => x.id === taskId);
+    if (!t) return;
+    updateTask(taskId, { status: t.status === "Concluída" ? "Pendente" : "Concluída" });
+  };
+
+  const addLeadTask = (title: string) => {
+    if (!title.trim() || !id) return;
+    addTaskToContext({
+      id: `t-${Date.now()}`,
+      title: title.trim(),
+      leadId: id,
+      leadName: lead.name,
+      responsible: lead.responsible,
+      dueDate: new Date().toISOString().split("T")[0] + "T12:00",
+      status: "Pendente",
+    });
+  };
 
   const respColor = memberColors[lead.responsible] || "#888888";
   const initials = lead.name
@@ -715,39 +766,6 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
 
-                {/* Mock highlight note */}
-                <div
-                  style={{
-                    background: "#FFFBEB",
-                    border: "1px solid #F59E0B",
-                    borderRadius: 10,
-                    padding: 12,
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                        style={{ background: memberColors["Rafael"] || "#F59E0B" }}
-                      >
-                        R
-                      </div>
-                      <span className="text-xs font-semibold" style={{ color: "#111111" }}>Rafael</span>
-                      <span className="text-[11px] text-muted-foreground">hoje 15:49</span>
-                    </div>
-                    <button className="text-muted-foreground hover:text-foreground">
-                      <MoreHorizontal size={14} />
-                    </button>
-                  </div>
-                  <p className="text-sm" style={{ color: "#111111", lineHeight: 1.5 }}>
-                    Verificar proposta antes de enviar. Cliente pediu desconto de 10%. Aguardar aprovação do coordenador.
-                  </p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <button className="hover:text-foreground">Adicionar comentário</button>
-                    <button className="hover:text-foreground flex items-center gap-1"><Pin size={11} /> Fixar</button>
-                  </div>
-                </div>
-
                 {/* User notes */}
                 {noteActivities.map(n => (
                   <div
@@ -777,49 +795,57 @@ export default function LeadDetailPage() {
 
             {tab === "atividades" && (
               <div className="space-y-3">
-                <div className="flex justify-end">
-                  <Button size="sm" className="rounded-md h-8" style={{ background: "#128A68", color: "#FFFFFF" }}>
-                    <Plus size={14} className="mr-1" /> Nova atividade
-                  </Button>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {leadTasks.filter(t => t.status === "Pendente").length} pendente(s)
+                  </span>
+                  <NewLeadTaskButton onAdd={addLeadTask} />
                 </div>
-                {tasks.map(t => {
-                  const Icon = t.icon === "phone" ? Phone : t.icon === "calendar" ? Calendar : t.icon === "mail" ? Mail : MessageSquare;
-                  return (
-                    <div
-                      key={t.id}
-                      className="flex items-center gap-3 p-3 rounded-lg"
-                      style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}
-                    >
-                      <Checkbox
-                        checked={t.done}
-                        onCheckedChange={() =>
-                          setTasks(prev => prev.map(x => x.id === t.id ? { ...x, done: !x.done } : x))
-                        }
-                      />
+                {leadTasks.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
+                    <p className="text-sm text-muted-foreground">Nenhuma tarefa para este lead</p>
+                  </div>
+                ) : (
+                  leadTasks.map(t => {
+                    const done = t.status === "Concluída";
+                    const dueLabel = t.dueDate
+                      ? new Date(t.dueDate).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                      : "";
+                    return (
                       <div
-                        className="w-8 h-8 rounded-md flex items-center justify-center"
-                        style={{ background: "#E1F5EE", color: "#128A68" }}
+                        key={t.id}
+                        className="flex items-center gap-3 p-3 rounded-lg"
+                        style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}
                       >
-                        <Icon size={14} />
+                        <Checkbox
+                          checked={done}
+                          onCheckedChange={() => toggleLeadTask(t.id)}
+                        />
+                        <div
+                          className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                          style={{ background: "#E1F5EE", color: "#128A68" }}
+                        >
+                          <CheckSquare size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`} style={{ color: done ? undefined : "#111111" }}>
+                            {t.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{dueLabel}{dueLabel && " · "}{t.responsible}</p>
+                        </div>
+                        <Badge
+                          className="border-0 text-[10px]"
+                          style={{
+                            background: done ? "#E1F5EE" : "#FEF3C7",
+                            color: done ? "#085041" : "#92400E",
+                          }}
+                        >
+                          {done ? "Concluída" : "Pendente"}
+                        </Badge>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${t.done ? "line-through text-muted-foreground" : ""}`} style={{ color: t.done ? undefined : "#111111" }}>
-                          {t.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t.date} · {t.responsible}</p>
-                      </div>
-                      <Badge
-                        className="border-0 text-[10px]"
-                        style={{
-                          background: t.done ? "#E1F5EE" : "#FEF3C7",
-                          color: t.done ? "#085041" : "#92400E",
-                        }}
-                      >
-                        {t.done ? "Concluída" : "Pendente"}
-                      </Badge>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             )}
 

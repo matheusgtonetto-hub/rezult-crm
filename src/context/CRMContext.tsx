@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo, useEffect } from "react";
 import {
   Lead,
   Task,
@@ -72,24 +72,44 @@ export function useCRM() {
   return ctx;
 }
 
+// Bug 2: deep-clone so the module-level constant is never mutated or shared
+function clonePipelines(source: Pipeline[]): Pipeline[] {
+  return source.map(p => ({
+    ...p,
+    columns: p.columns.map(c => ({ ...c, leadIds: [...c.leadIds] })),
+  }));
+}
+
 export function CRMProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [pipelines, setPipelines] = useState<Pipeline[]>(defaultPipelines);
+  // Bug 2: lazy initializer runs once per mount, producing fresh arrays every time
+  const [pipelines, setPipelines] = useState<Pipeline[]>(() => clonePipelines(defaultPipelines));
   const [activePipelineId, setActivePipelineId] = useState<string>(defaultPipelines[0].id);
-  const [leads, setLeads] = useState<Record<string, Lead>>(mockLeads);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [leads, setLeads] = useState<Record<string, Lead>>(() => ({ ...mockLeads }));
+  const [tasks, setTasks] = useState<Task[]>(() => [...mockTasks]);
   const [products] = useState<Product[]>(mockProducts);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   const login = () => setIsLoggedIn(true);
   const logout = () => setIsLoggedIn(false);
 
+  // Bug 3: keep activePipelineId valid when pipelines change (e.g. delete active pipeline)
+  useEffect(() => {
+    if (pipelines.length > 0 && !pipelines.find(p => p.id === activePipelineId)) {
+      setActivePipelineId(pipelines[0].id);
+    }
+  }, [pipelines, activePipelineId]);
+
   const activePipeline = useMemo(
-    () => pipelines.find(p => p.id === activePipelineId) || pipelines[0],
+    () => pipelines.find(p => p.id === activePipelineId) ?? pipelines[0],
     [pipelines, activePipelineId]
   );
 
-  const columns = activePipeline.columns;
+  // Bug 3: memoize columns so it doesn't become a new reference every render
+  const columns = useMemo(
+    () => activePipeline?.columns ?? [],
+    [activePipeline]
+  );
 
   const setColumns = useCallback(
     (cols: PipelineColumn[]) => {
@@ -98,7 +118,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     [activePipelineId]
   );
 
-  const addPipeline = useCallback((p: Pipeline) => setPipelines(prev => [...prev, p]), []);
+  // Bug 2: guard against duplicate IDs (double-seed protection)
+  const addPipeline = useCallback((p: Pipeline) => {
+    setPipelines(prev => prev.some(x => x.id === p.id) ? prev : [...prev, p]);
+  }, []);
   const updatePipeline = useCallback((id: string, data: Partial<Pipeline>) => {
     setPipelines(prev => prev.map(p => (p.id === id ? { ...p, ...data } : p)));
   }, []);

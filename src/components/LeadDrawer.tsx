@@ -56,13 +56,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     products,
     markLeadWon,
     markLeadLost,
+    tasks: allTasks,
+    addTask: addTaskToContext,
+    updateTask,
   } = useCRM();
   const [newNote, setNewNote] = useState("");
-  const [tasks, setTasks] = useState([
-    { id: "t1", title: "Enviar proposta atualizada", date: "Amanhã 14h", responsible: "Rafael", priority: "Alta" as Priority, done: false },
-    { id: "t2", title: "Agendar call de fechamento", date: "25/05 10h", responsible: "Carlos", priority: "Alta" as Priority, done: false },
-    { id: "t3", title: "Apresentação inicial realizada", date: "10/05", responsible: "Mariana", priority: "Média" as Priority, done: true },
-  ]);
   const [taskFilter, setTaskFilter] = useState<"pending" | "done" | "all">("pending");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [showNewTask, setShowNewTask] = useState(false);
@@ -70,18 +68,34 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   if (!leadId || !leads[leadId]) return null;
   const lead = leads[leadId];
 
-  const toggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  const filteredTasks = tasks.filter(t => taskFilter === "all" ? true : taskFilter === "done" ? t.done : !t.done);
+  // Bug 4: use real tasks from context filtered by this lead, not hardcoded data
+  const tasks = allTasks.filter(t => t.leadId === leadId);
+
+  const toggleTask = (id: string) => {
+    const t = allTasks.find(x => x.id === id);
+    if (!t) return;
+    updateTask(id, { status: t.status === "Concluída" ? "Pendente" : "Concluída" });
+  };
+  const filteredTasks = tasks.filter(t =>
+    taskFilter === "all" ? true :
+    taskFilter === "done" ? t.status === "Concluída" :
+    t.status === "Pendente"
+  );
   const addTask = () => {
     if (!newTaskTitle.trim()) return;
-    setTasks(prev => [...prev, { id: `t${Date.now()}`, title: newTaskTitle, date: "Hoje", responsible: lead.responsible, priority: "Média" as Priority, done: false }]);
+    addTaskToContext({
+      id: `t-${Date.now()}`,
+      title: newTaskTitle.trim(),
+      leadId: leadId,
+      leadName: lead.name,
+      responsible: lead.responsible,
+      dueDate: new Date().toISOString().split("T")[0] + "T12:00",
+      status: "Pendente",
+    });
     setNewTaskTitle("");
     setShowNewTask(false);
     toast.success("Tarefa criada!");
   };
-  const priorityTone = (p: Priority) => p === "Alta" ? "bg-destructive/10 text-destructive" : p === "Média" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground";
-
-
   const handleSaveNote = () => {
     if (!newNote.trim()) return;
     addActivity(leadId, {
@@ -156,9 +170,9 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             <TabsTrigger value="details">Detalhes</TabsTrigger>
             <TabsTrigger value="tasks" className="flex items-center gap-1.5">
               <CheckSquare size={12} /> Tarefas
-              {tasks.filter(t => !t.done).length > 0 && (
+              {tasks.filter(t => t.status === "Pendente").length > 0 && (
                 <span className="ml-1 text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                  {tasks.filter(t => !t.done).length}
+                  {tasks.filter(t => t.status === "Pendente").length}
                 </span>
               )}
             </TabsTrigger>
@@ -214,43 +228,46 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredTasks.map(t => (
-                  <div
-                    key={t.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-card-border bg-background hover:bg-secondary/40 transition-colors"
-                  >
-                    <Checkbox
-                      checked={t.done}
-                      onCheckedChange={() => toggleTask(t.id)}
-                      className="mt-0.5 rounded-full"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm font-medium ${t.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                          {t.title}
-                        </p>
-                        {t.done && (
-                          <Badge className="bg-success/15 text-success border-0 text-[10px] h-4">
-                            Concluída
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{t.date}</span>
-                        <span>·</span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center">
-                            {t.responsible[0]}
+                {filteredTasks.map(t => {
+                  const done = t.status === "Concluída";
+                  const dueLabel = t.dueDate
+                    ? new Date(t.dueDate).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                    : "";
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-card-border bg-background hover:bg-secondary/40 transition-colors"
+                    >
+                      <Checkbox
+                        checked={done}
+                        onCheckedChange={() => toggleTask(t.id)}
+                        className="mt-0.5 rounded-full"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                            {t.title}
+                          </p>
+                          {done && (
+                            <Badge className="bg-success/15 text-success border-0 text-[10px] h-4">
+                              Concluída
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          {dueLabel && <span>{dueLabel}</span>}
+                          {dueLabel && <span>·</span>}
+                          <span className="inline-flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center">
+                              {t.responsible[0]}
+                            </span>
+                            {t.responsible}
                           </span>
-                          {t.responsible}
-                        </span>
+                        </div>
                       </div>
                     </div>
-                    <Badge className={`${priorityTone(t.priority)} border-0 text-[10px]`}>
-                      {t.priority}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>

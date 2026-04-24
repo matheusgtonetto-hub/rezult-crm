@@ -15,7 +15,8 @@ export default function AppLayout() {
           background: "hsl(var(--background))",
         }}
       >
-        <div style={{ width: "100%", boxSizing: "border-box" }}>
+        {/* Bug 1: height: 100% allows PipelinePage's flex layout to resolve its height correctly */}
+        <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>
           <Outlet />
         </div>
       </main>
