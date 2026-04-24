@@ -55,7 +55,7 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { logout, products, teamMembers, memberColors } = useCRM();
+  const { logout, products } = useCRM();
   const [active, setActive] = useState<SectionId>("perfil");
   const [pwOpen, setPwOpen] = useState(false);
   const [showApi, setShowApi] = useState(false);

@@ -1,5 +1,5 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
-import { useCRM } from "@/context/CRMContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   Users,
   CheckSquare,
@@ -63,8 +63,7 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-const COMPANY = { name: "Rezult Demo", plan: "Plano Professional" };
-const USER = { name: "Carlos Admin", email: "carlos@rezult.com" };
+const COMPANY = { name: "Rezult CRM", plan: "Plano Professional" };
 
 const SIDEBAR_BG = "#128A68";
 const ICON_INACTIVE = "rgba(255,255,255,0.5)";
@@ -74,7 +73,9 @@ const ACTIVE_BG = "rgba(255,255,255,0.15)";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
-  const { logout } = useCRM();
+  const { signOut, user } = useAuth();
+  const userEmail = user?.email ?? "";
+  const userName = userEmail.split("@")[0];
 
   // 36x36 clickable area, 9px radius, centered, never shrinks
   const itemBase =
@@ -368,19 +369,19 @@ export function AppSidebar() {
                 }}
                 aria-label="Usuário"
               >
-                {initials(USER.name)}
+                {initials(userName || userEmail)}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="end" className="w-56">
               <DropdownMenuLabel className="flex flex-col">
-                <span className="text-sm font-semibold">{USER.name}</span>
-                <span className="text-xs text-muted-foreground font-normal">{USER.email}</span>
+                <span className="text-sm font-semibold">{userName}</span>
+                <span className="text-xs text-muted-foreground font-normal">{userEmail}</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <UserCircle size={14} className="mr-2" /> Meu perfil
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                 <LogOut size={14} className="mr-2" /> Sair
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -22,6 +22,12 @@ import type { PipelineCategory } from "@/data/mockData";
 
 const ALL_CATEGORIES: PipelineCategory[] = ["Venda", "Follow-up", "Operações"];
 
+const DEFAULT_COLUMNS = [
+  { id: "col-novo", title: "Novo", color: "#AAAAAA" },
+  { id: "col-andamento", title: "Em andamento", color: "#378ADD" },
+  { id: "col-fechado", title: "Fechado", color: "#128A68" },
+];
+
 export function PipelineSidebar() {
   const { pipelines, activePipelineId, setActivePipelineId, addPipeline } = useCRM();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -32,6 +38,7 @@ export function PipelineSidebar() {
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState<PipelineCategory>("Venda");
+  const [creating, setCreating] = useState(false);
 
   const toggleGroup = (cat: string) =>
     setOpenGroups(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -41,23 +48,11 @@ export function PipelineSidebar() {
     items: pipelines.filter(p => p.category === cat),
   }));
 
-  const handleCreate = () => {
-    if (!newName.trim()) {
-      toast.error("Informe o nome da pipeline.");
-      return;
-    }
-    const id = `pipe-${Date.now()}`;
-    addPipeline({
-      id,
-      name: newName.trim(),
-      category: newCategory,
-      columns: [
-        { id: `${id}-novo`, title: "Novo", color: "#AAAAAA", leadIds: [] },
-        { id: `${id}-andamento`, title: "Em andamento", color: "#378ADD", leadIds: [] },
-        { id: `${id}-fechado`, title: "Fechado", color: "#128A68", leadIds: [] },
-      ],
-    });
-    setActivePipelineId(id);
+  const handleCreate = async () => {
+    if (!newName.trim()) { toast.error("Informe o nome da pipeline."); return; }
+    setCreating(true);
+    await addPipeline(newName.trim(), newCategory, DEFAULT_COLUMNS);
+    setCreating(false);
     setNewName("");
     setShowNew(false);
     toast.success("Pipeline criada!");
@@ -78,17 +73,19 @@ export function PipelineSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+        {pipelines.length === 0 && (
+          <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">
+            Nenhuma pipeline ainda.
+            <br />Clique em "Nova pipeline" para começar.
+          </p>
+        )}
         {grouped.map(group => (
           <div key={group.cat}>
             <button
               onClick={() => toggleGroup(group.cat)}
               className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
-              {openGroups[group.cat] ? (
-                <ChevronDown size={12} />
-              ) : (
-                <ChevronRight size={12} />
-              )}
+              {openGroups[group.cat] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               {group.cat}
               <span className="ml-auto text-muted-foreground/70">{group.items.length}</span>
             </button>
@@ -112,10 +109,7 @@ export function PipelineSidebar() {
                           : "text-foreground hover:bg-[#F8F9FA]"
                       }`}
                     >
-                      <Filter
-                        size={14}
-                        className={active ? "text-primary" : "text-muted-foreground"}
-                      />
+                      <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
                       <span className="truncate text-left flex-1">{p.name}</span>
                     </button>
                   );
@@ -143,18 +137,13 @@ export function PipelineSidebar() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Categoria</label>
-              <Select
-                value={newCategory}
-                onValueChange={v => setNewCategory(v as PipelineCategory)}
-              >
+              <Select value={newCategory} onValueChange={v => setNewCategory(v as PipelineCategory)}>
                 <SelectTrigger className="bg-background border-card-border rounded-lg">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-card-border">
                   {ALL_CATEGORIES.map(c => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -164,8 +153,8 @@ export function PipelineSidebar() {
             <Button variant="outline" onClick={() => setShowNew(false)} className="rounded-lg">
               Cancelar
             </Button>
-            <Button onClick={handleCreate} className="rounded-lg font-semibold">
-              Criar pipeline
+            <Button onClick={handleCreate} className="rounded-lg font-semibold" disabled={creating}>
+              {creating ? "Criando..." : "Criar pipeline"}
             </Button>
           </DialogFooter>
         </DialogContent>
