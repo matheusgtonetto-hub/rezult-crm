@@ -221,20 +221,21 @@ export default function AgentesPage() {
     active: true,
   });
 
+  // Switcher de visualização (simulação de perfil de acesso — substituir por auth real)
   const RoleSwitcher = () => (
-    <div className="inline-flex items-center bg-white border border-[#EEEEEE] rounded-full p-1 shadow-elev-1">
+    <div className="inline-flex items-center bg-[#F5F5F5] border border-[#E5E5E5] rounded-full p-1">
       {[
-        { v: "admin" as const, l: "Admin/Gestor" },
-        { v: "user-sdr" as const, l: "SDR" },
+        { v: "admin" as const,       l: "Admin / Gestor" },
+        { v: "user-sdr" as const,    l: "SDR" },
         { v: "user-closer" as const, l: "Closer" },
       ].map(opt => (
         <button
           key={opt.v}
           onClick={() => setViewMode(opt.v)}
-          className={`text-[12px] px-3 py-1.5 rounded-full transition-colors ${
+          className={`text-[11px] px-3 py-1 rounded-full transition-all font-medium ${
             viewMode === opt.v
-              ? "bg-[#128A68] text-white font-semibold"
-              : "text-[#666] hover:text-[#111]"
+              ? "bg-white text-[#128A68] shadow-sm border border-[#E0E0E0]"
+              : "text-[#999] hover:text-[#444]"
           }`}
         >
           {opt.l}
@@ -246,7 +247,12 @@ export default function AgentesPage() {
   if (viewMode === "user-sdr" || viewMode === "user-closer") {
     return (
       <div>
-        <div className="px-6 pt-6 flex justify-end max-w-[1400px] mx-auto">
+        <div className="px-6 pt-5 flex items-center justify-between max-w-[1400px] mx-auto">
+          <div>
+            <p className="text-[11px] text-[#AAAAAA] uppercase tracking-wide font-medium">
+              Simulando perfil de acesso
+            </p>
+          </div>
           <RoleSwitcher />
         </div>
         <AgentUserView

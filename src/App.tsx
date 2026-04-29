@@ -1,12 +1,17 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CRMProvider } from "@/context/CRMContext";
+import { ProfileProvider } from "@/context/ProfileContext";
+import { CompanyProvider } from "@/context/CompanyContext";
 import { FloatingChatProvider } from "@/context/FloatingChatContext";
 import { FloatingChatManager } from "@/components/FloatingChatManager";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import Verify2FAPage from "./pages/Verify2FAPage";
 import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
 import LeadDetailPage from "./pages/LeadDetailPage";
@@ -18,12 +23,23 @@ import AgentesPage from "./pages/AgentesPage";
 import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
 import AutomacoesPage from "./pages/AutomacoesPage";
+import CompanyRegisterPage from "./pages/CompanyRegisterPage";
+import SetupPage from "./pages/SetupPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { session, loading } = useAuth();
+  const { session, loading, pendingPasswordReset, clearPendingPasswordReset } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (pendingPasswordReset) {
+      clearPendingPasswordReset();
+      navigate("/reset-password", { replace: true });
+    }
+  }, [pendingPasswordReset]);
 
   if (loading) {
     return (
@@ -33,13 +49,29 @@ function AppRoutes() {
     );
   }
 
-  if (!session) return <LoginPage />;
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-2fa" element={<Verify2FAPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+  }
 
   return (
+    <CompanyProvider>
+    <ProfileProvider>
     <CRMProvider>
       <FloatingChatProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/company-register" element={<CompanyRegisterPage />} />
+          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route element={<AppLayout />}>
             <Route path="/pilot" element={<PilotPage />} />
             <Route path="/pipeline" element={<PipelinePage />} />
@@ -58,6 +90,8 @@ function AppRoutes() {
         <FloatingChatManager />
       </FloatingChatProvider>
     </CRMProvider>
+    </ProfileProvider>
+    </CompanyProvider>
   );
 }
 

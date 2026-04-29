@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
+import { useProfile } from "@/context/ProfileContext";
+import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +19,10 @@ import {
   ArrowLeft, User, Tag, Package, XCircle, List, FormInput, Building2,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
-  Phone, Mail, Calendar, MessageSquare, MapPin,
+  Phone, Mail, Calendar, MessageSquare, MapPin, Lock,
 } from "lucide-react";
+import { useCompany } from "@/context/CompanyContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SectionId =
   | "perfil" | "tags" | "produtos" | "motivos" | "listas" | "campos"
@@ -96,7 +100,7 @@ export default function SettingsPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[720px] mx-auto p-8">
-          {active === "perfil" && <PerfilSection logout={logout} setPwOpen={setPwOpen} twoFA={twoFA} setTwoFA={setTwoFA} theme={theme} setTheme={setTheme} />}
+          {active === "perfil" && <PerfilSection setPwOpen={setPwOpen} twoFA={twoFA} setTwoFA={setTwoFA} theme={theme} setTheme={setTheme} />}
           {active === "tags" && <TagsSection />}
           {active === "produtos" && <ProdutosSection products={products} />}
           {active === "motivos" && <MotivosSection />}
@@ -119,73 +123,196 @@ export default function SettingsPage() {
 }
 
 /* ---------------- PERFIL ---------------- */
-function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
+function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
+  const { profile, updateProfile, uploadAvatar } = useProfile();
+  const { user, signOut } = useAuth();
+  const { company, updateCompany } = useCompany();
+  const [name, setName]       = useState(profile?.full_name ?? "");
+  const [phone, setPhone]     = useState(company?.phone ?? "");
+  const [saving, setSaving]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Sync name when profile loads asynchronously
+  useEffect(() => {
+    if (profile) setName(profile.full_name ?? "");
+  }, [profile]);
+
+  // Sync phone when company loads asynchronously
+  useEffect(() => {
+    if (company) setPhone(company.phone ?? "");
+  }, [company?.id]);
+
+  const initials = (n: string) =>
+    n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
+  const authEmail = user?.email ?? profile?.email ?? "";
+
+  const createdDate = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    : "";
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await Promise.all([
+        updateProfile({ full_name: name }),
+        company ? updateCompany({ phone }) : Promise.resolve(),
+      ]);
+      toast.success("Perfil atualizado com sucesso");
+    } catch {
+      toast.error("Erro ao salvar perfil. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Arquivo maior que 2MB."); return; }
+    setUploading(true);
+    try {
+      await uploadAvatar(file);
+      toast.success("Foto atualizada!");
+    } catch {
+      toast.error("Erro ao fazer upload.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
-    <>
+    <TooltipProvider delayDuration={200}>
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Meu perfil</h1>
 
+      {/* Cabeçalho do perfil */}
       <Card>
         <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-full bg-[#128A68] flex items-center justify-center text-white text-2xl font-semibold shrink-0">
-            RP
+          <div className="w-20 h-20 rounded-full bg-[#128A68] flex items-center justify-center text-white text-2xl font-semibold shrink-0 overflow-hidden">
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
+              : initials(name || "?")}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-[#111111]">Rodrigo Pessoal</h2>
+              {/* Nome reativo — sempre reflete o full_name salvo em profiles */}
+              <h2 className="text-lg font-bold text-[#111111]">
+                {profile?.full_name || "—"}
+              </h2>
               <CheckCircle2 size={16} className="text-[#128A68]" />
-              <span className="text-base">🇧🇷</span>
             </div>
-            <p className="text-[13px] text-[#AAAAAA] mt-1">rodrigo@rezult.com</p>
-            <p className="text-xs text-[#AAAAAA] mt-1">Criado em 09 de março de 2026</p>
+            <p className="text-[13px] text-[#AAAAAA] mt-1">{authEmail}</p>
+            {createdDate && (
+              <p className="text-xs text-[#AAAAAA] mt-1">Conta criada em {createdDate}</p>
+            )}
           </div>
-          <Button variant="outline" size="sm" onClick={logout} className="border-[#EEEEEE] text-[#666666]">
+          <Button variant="outline" size="sm" onClick={signOut} className="border-[#EEEEEE] text-[#666666]">
             Sair
           </Button>
         </div>
       </Card>
 
+      {/* Seção Informações */}
       <Card>
         <SectionTitle title="Informações" subtitle="Suas informações de cadastro e login" />
         <div className="grid grid-cols-2 gap-4">
+
+          {/* Nome — salva em profiles */}
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Nome</label>
-            <Input defaultValue="Rodrigo Pessoal" className="border-[#EEEEEE]" />
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Seu nome completo"
+              className="border-[#EEEEEE]"
+            />
           </div>
+
+          {/* Telefone — salva em companies */}
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
-            <div className="flex gap-2">
-              <div className="flex items-center gap-1 px-3 border-[0.5px] border-[#EEEEEE] rounded-md bg-[#F5F5F5] text-[13px]">🇧🇷 +55</div>
-              <Input defaultValue="(11) 99999-0000" className="border-[#EEEEEE] flex-1" />
+            <Input
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="(11) 99999-0000"
+              className="border-[#EEEEEE]"
+            />
+          </div>
+
+          {/* E-mail — somente leitura, vem do auth */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-xs text-[#666666]">E-mail</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Lock size={11} className="text-[#AAAAAA] cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className="max-w-[220px] text-[12px] leading-relaxed"
+                >
+                  O e-mail não pode ser alterado pois está vinculado ao seu plano e acesso
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="relative">
+              <Input
+                type="email"
+                value={authEmail}
+                readOnly
+                disabled
+                className="border-[#EEEEEE] bg-[#FAFAFA] text-[#AAAAAA] cursor-not-allowed pr-9"
+              />
+              <Lock
+                size={13}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCCCCC] pointer-events-none"
+              />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-[#666666] mb-1 block">E-mail</label>
-            <Input type="email" defaultValue="rodrigo@rezult.com" className="border-[#EEEEEE]" />
-          </div>
+
+          {/* Senha */}
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Senha</label>
-            <Button variant="outline" onClick={() => setPwOpen(true)} className="w-full border-[#EEEEEE] text-[#666666] justify-start">
+            <Button
+              variant="outline"
+              onClick={() => setPwOpen(true)}
+              className="w-full border-[#EEEEEE] text-[#666666] justify-start"
+            >
               Alterar senha
             </Button>
           </div>
         </div>
-        <div className="flex justify-end mt-4">
-          <Button onClick={() => toast.success("Informações salvas!")} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar</Button>
+
+        <div className="flex justify-end mt-5 pt-4 border-t border-[#F5F5F5]">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-[#128A68] hover:bg-[#128A68]/90 min-w-[100px]"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
         </div>
       </Card>
 
+      {/* Imagem de perfil */}
       <Card>
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#128A68] flex items-center justify-center text-white font-semibold shrink-0">RP</div>
-          <div className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#128A68] cursor-pointer transition-colors">
+          <div className="w-16 h-16 rounded-full bg-[#128A68] flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
+              : initials(name || "?")}
+          </div>
+          <div
+            className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#128A68] cursor-pointer transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
-            <p className="text-[13px] text-[#666666]">Escolher arquivo</p>
+            <p className="text-[13px] text-[#666666]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-[#AAAAAA] mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <Button onClick={() => toast.success("Imagem salva!")} className="bg-[#128A68] hover:bg-[#128A68]/90">Salvar</Button>
         </div>
       </Card>
 
@@ -240,35 +367,141 @@ function PerfilSection({ logout, setPwOpen, twoFA, setTwoFA, theme, setTheme }: 
           <Trash2 size={14} className="mr-2" /> Excluir conta
         </Button>
       </Card>
-    </>
+    </TooltipProvider>
   );
 }
 
 /* ---------------- TAGS ---------------- */
+const TAG_COLORS = [
+  "#E24B4A", "#F97316", "#F59E0B", "#EAB308", "#84CC16",
+  "#22C55E", "#10B981", "#128A68", "#14B8A6", "#06B6D4",
+  "#0EA5E9", "#3B82F6", "#6366F1", "#8B5CF6", "#A855F7",
+  "#D946EF", "#EC4899", "#F43F5E", "#64748B", "#374151",
+];
+
 function TagsSection() {
-  const tags = [
-    { name: "Follow-up", color: "#E24B4A", count: 12 },
-    { name: "SDR", color: "#888888", count: 8 },
-    { name: "Proposta", color: "#378ADD", count: 6 },
-    { name: "Negociação", color: "#8B5CF6", count: 4 },
-    { name: "Reunião", color: "#F59E0B", count: 3 },
-  ];
+  const { crmTags, addTag, updateTag, deleteTag, leads } = useCRM();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string; description: string; color: string } | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState(TAG_COLORS[0]);
+  const [saving, setSaving] = useState(false);
+
+  const tagLeadCounts = Object.values(leads).reduce<Record<string, number>>((acc, l) => {
+    (l.tags ?? []).forEach(t => { acc[t] = (acc[t] ?? 0) + 1; });
+    return acc;
+  }, {});
+
+  const openNew = () => {
+    setEditing(null);
+    setName(""); setDescription(""); setColor(TAG_COLORS[0]);
+    setModalOpen(true);
+  };
+
+  const openEdit = (t: { id: string; name: string; description: string; color: string }) => {
+    setEditing(t);
+    setName(t.name); setDescription(t.description); setColor(t.color);
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error("Nome é obrigatório."); return; }
+    setSaving(true);
+    if (editing) {
+      await updateTag(editing.id, { name: name.trim(), description, color });
+      toast.success("Tag atualizada!");
+      setModalOpen(false);
+    } else {
+      const ok = await addTag(name.trim(), description, color);
+      if (ok) {
+        toast.success("Tag criada!");
+        setModalOpen(false);
+      }
+    }
+    setSaving(false);
+  };
+
   return (
     <>
-      <SectionHeader title="Tags" onAdd="+ Nova tag" onClick={() => toast.success("Em breve")} />
+      <SectionHeader title="Tags" onAdd="+ Nova tag" onClick={openNew} />
       <Card>
-        <div className="space-y-2">
-          {tags.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <button className="w-5 h-5 rounded-full border border-[#EEEEEE]" style={{ backgroundColor: t.color }} />
-              <p className="flex-1 text-[13px] text-[#111111] font-medium">{t.name}</p>
-              <span className="text-xs text-[#AAAAAA]">{t.count} leads</span>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
+        {crmTags.length === 0 ? (
+          <p className="text-sm text-[#AAAAAA] text-center py-6">Nenhuma tag criada ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {crmTags.map(t => (
+              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
+                <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] text-[#111111] font-medium leading-tight">{t.name}</p>
+                  {t.description && <p className="text-[11px] text-[#AAAAAA] truncate">{t.description}</p>}
+                </div>
+                <span className="text-xs text-[#AAAAAA] shrink-0">{tagLeadCounts[t.name] ?? 0} leads</span>
+                <button onClick={() => openEdit(t)} className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+                <button onClick={() => deleteTag(t.id)} className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar tag" : "Nova tag"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Nome *</label>
+              <input
+                className="w-full border border-[#EEEEEE] rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#128A68]"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Ex: Urgente"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Descrição</label>
+              <input
+                className="w-full border border-[#EEEEEE] rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#128A68]"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Descrição opcional"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-2 block">Cor</label>
+              <div className="grid grid-cols-10 gap-1.5">
+                {TAG_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className="w-6 h-6 rounded-full transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: c,
+                      outline: color === c ? `2px solid ${c}` : "none",
+                      outlineOffset: "2px",
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-xs text-[#666666]">Cor selecionada: <strong>{color}</strong></span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)} className="border-[#EEEEEE]">Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar tag"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/context/ProfileContext";
 import {
   Users,
   CheckSquare,
@@ -74,8 +75,9 @@ const ACTIVE_BG = "rgba(255,255,255,0.15)";
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { signOut, user } = useAuth();
-  const userEmail = user?.email ?? "";
-  const userName = userEmail.split("@")[0];
+  const { profile } = useProfile();
+  const userEmail = profile?.email ?? user?.email ?? "";
+  const userName = profile?.full_name || userEmail.split("@")[0];
 
   // 36x36 clickable area, 9px radius, centered, never shrinks
   const itemBase =
@@ -358,18 +360,21 @@ export function AppSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center justify-center text-[10px] font-bold hover:opacity-90 transition-opacity"
+                className="flex items-center justify-center text-[10px] font-bold hover:opacity-90 transition-opacity overflow-hidden shrink-0"
                 style={{
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: "#FFFFFF",
+                  background: profile?.avatar_url ? "transparent" : "#FFFFFF",
                   color: "#128A68",
                   marginTop: 4,
                 }}
                 aria-label="Usuário"
               >
-                {initials(userName || userEmail)}
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt={userName} className="w-full h-full object-cover rounded-full" />
+                  : initials(userName || userEmail)
+                }
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="end" className="w-56">

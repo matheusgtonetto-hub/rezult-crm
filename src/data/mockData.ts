@@ -4,7 +4,13 @@ export type Priority = "Alta" | "Média" | "Baixa";
 export type LeadOrigin = "Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro";
 export type TaskStatus = "Pendente" | "Concluída";
 export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created";
-export type PipelineCategory = "Venda" | "Follow-up" | "Operações";
+export type PipelineCategory = string;
+
+export interface PipelineGroup {
+  id: string;
+  name: string;
+  createdBy: string;
+}
 
 export interface Activity {
   id: string;
@@ -19,6 +25,8 @@ export interface Lead {
   name: string;
   company?: string;
   whatsapp: string;
+  phoneDdi?: string;
+  site?: string;
   email?: string;
   value: number;
   responsible: string;
@@ -32,16 +40,26 @@ export interface Lead {
   notes: string;
   activities: Activity[];
   tags?: string[];
+  // Dados pessoais
+  document?: string;
+  birthDate?: string;
+  // Endereço
+  country?: string;
+  zipCode?: string;
+  address?: string;
+  addrNumber?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
 }
 
-export const availableTags = [
-  { name: "SDR", color: "#378ADD" },
-  { name: "Follow-up", color: "#F59E0B" },
-  { name: "Proposta", color: "#8B5CF6" },
-  { name: "Reunião", color: "#128A68" },
-  { name: "WhatsApp", color: "#25D366" },
-  { name: "Urgente", color: "#E24B4A" },
-] as const;
+export interface Tag {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+}
 
 export interface Task {
   id: string;
@@ -64,6 +82,7 @@ export interface Pipeline {
   id: string;
   name: string;
   category: PipelineCategory;
+  description?: string;
   columns: PipelineColumn[];
 }
 

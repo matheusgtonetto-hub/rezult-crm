@@ -2,7 +2,6 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
-import { availableTags } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -209,6 +208,7 @@ export default function LeadDetailPage() {
     tasks: allTasks,
     addTask: addTaskToContext,
     updateTask,
+    crmTags,
   } = useCRM();
   const { openChat } = useFloatingChat();
 
@@ -649,7 +649,7 @@ export default function LeadDetailPage() {
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
                         <div className="flex flex-wrap gap-1.5">
                           {(lead.tags || []).map(tagName => {
-                            const t = availableTags.find(x => x.name === tagName);
+                            const t = crmTags.find(x => x.name === tagName);
                             return (
                               <span
                                 key={tagName}
@@ -676,11 +676,16 @@ export default function LeadDetailPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-44">
-                            {availableTags.map(t => {
+                            {crmTags.length === 0 && (
+                              <div className="px-3 py-2 text-xs text-muted-foreground">
+                                Crie tags em Configurações.
+                              </div>
+                            )}
+                            {crmTags.map(t => {
                               const has = (lead.tags || []).includes(t.name);
                               return (
                                 <DropdownMenuItem
-                                  key={t.name}
+                                  key={t.id}
                                   onClick={() => {
                                     const cur = lead.tags || [];
                                     const next = has ? cur.filter(x => x !== t.name) : [...cur, t.name];
