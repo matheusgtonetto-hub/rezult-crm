@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+// Select mantido para uso em outras seções
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -19,18 +21,21 @@ import {
   ArrowLeft, User, Tag, Package, XCircle, List, FormInput, Building2,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
-  Phone, Mail, Calendar, MessageSquare, MapPin, Lock,
+  Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
+  UserPlus, UserMinus, FileText,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SectionId =
-  | "perfil" | "tags" | "produtos" | "motivos" | "listas" | "campos"
+  | "perfil" | "empresa" | "equipe" | "tags" | "produtos" | "motivos" | "listas" | "campos"
   | "departamentos" | "horarios" | "atividades" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
-  { id: "perfil", label: "Meu perfil", icon: User },
+  { id: "perfil",   label: "Meu perfil", icon: User },
+  { id: "empresa",  label: "Empresa",    icon: Building2 },
+  { id: "equipe",   label: "Equipe",     icon: Users },
   { id: "tags", label: "Tags", icon: Tag },
   { id: "produtos", label: "Produtos", icon: Package },
   { id: "motivos", label: "Motivos de perda", icon: XCircle },
@@ -64,7 +69,6 @@ export default function SettingsPage() {
   const [pwOpen, setPwOpen] = useState(false);
   const [showApi, setShowApi] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
-  const [theme, setTheme] = useState("claro");
 
   return (
     <div className="flex h-screen bg-[#FAFAFA]">
@@ -100,9 +104,11 @@ export default function SettingsPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[720px] mx-auto p-8">
-          {active === "perfil" && <PerfilSection setPwOpen={setPwOpen} twoFA={twoFA} setTwoFA={setTwoFA} theme={theme} setTheme={setTheme} />}
+          {active === "perfil"  && <PerfilSection setPwOpen={setPwOpen} />}
+          {active === "empresa" && <EmpresaSection />}
+          {active === "equipe"  && <EquipeSection />}
           {active === "tags" && <TagsSection />}
-          {active === "produtos" && <ProdutosSection products={products} />}
+          {active === "produtos" && <ProdutosSection />}
           {active === "motivos" && <MotivosSection />}
           {active === "listas" && <ListasSection />}
           {active === "campos" && <CamposSection />}
@@ -123,25 +129,23 @@ export default function SettingsPage() {
 }
 
 /* ---------------- PERFIL ---------------- */
-function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
+function PerfilSection({ setPwOpen }: any) {
   const { profile, updateProfile, uploadAvatar } = useProfile();
   const { user, signOut } = useAuth();
-  const { company, updateCompany } = useCompany();
+  const { company } = useCompany();
   const [name, setName]       = useState(profile?.full_name ?? "");
-  const [phone, setPhone]     = useState(company?.phone ?? "");
+  const [phone, setPhone]     = useState(maskPhone(profile?.phone ?? ""));
   const [saving, setSaving]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Sync name when profile loads asynchronously
+  // Sync name and phone when profile loads asynchronously
   useEffect(() => {
-    if (profile) setName(profile.full_name ?? "");
-  }, [profile]);
-
-  // Sync phone when company loads asynchronously
-  useEffect(() => {
-    if (company) setPhone(company.phone ?? "");
-  }, [company?.id]);
+    if (profile) {
+      setName(profile.full_name ?? "");
+      setPhone(maskPhone(profile.phone ?? ""));
+    }
+  }, [profile?.id]);
 
   const initials = (n: string) =>
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -155,10 +159,7 @@ function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await Promise.all([
-        updateProfile({ full_name: name }),
-        company ? updateCompany({ phone }) : Promise.resolve(),
-      ]);
+      await updateProfile({ full_name: name, phone });
       toast.success("Perfil atualizado com sucesso");
     } catch {
       toast.error("Erro ao salvar perfil. Tente novamente.");
@@ -232,12 +233,7 @@ function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
           {/* Telefone — salva em companies */}
           <div>
             <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
-            <Input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="(11) 99999-0000"
-              className="border-[#EEEEEE]"
-            />
+            <PhoneInput value={phone} onChange={setPhone} />
           </div>
 
           {/* E-mail — somente leitura, vem do auth */}
@@ -316,50 +312,26 @@ function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
         </div>
       </Card>
 
-      <Card>
-        <SectionTitle title="Preferências" subtitle="Personalize a aparência do app selecionando o tema" />
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <label className="text-[13px] text-[#111111]">Tema</label>
-              <Badge className="bg-[#FEF3C7] text-[#92400E] hover:bg-[#FEF3C7] text-[10px] h-4">Beta</Badge>
-            </div>
-            <Select value={theme} onValueChange={setTheme}>
-              <SelectTrigger className="border-[#EEEEEE] max-w-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="claro">Claro</SelectItem>
-                <SelectItem value="escuro">Escuro</SelectItem>
-                <SelectItem value="sistema">Sistema</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-start justify-between pt-3 border-t border-[#EEEEEE]">
-            <div className="flex-1 pr-4">
-              <p className="text-[13px] text-[#111111] font-medium">Verificação em duas etapas</p>
-              <p className="text-xs text-[#AAAAAA] mt-0.5">Adicione uma camada extra de segurança à sua conta. Um código será enviado ao seu e-mail a cada login.</p>
-            </div>
-            <Switch checked={twoFA} onCheckedChange={setTwoFA} />
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <SectionTitle title="Empresas" subtitle="Empresas que você possui ou participa" />
-        <Input placeholder="Buscar empresa..." className="border-[#EEEEEE] mb-3" />
-        <div className="border-[0.5px] border-[#EEEEEE] rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 hover:bg-[#F9F9F9]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md bg-[#128A68] text-white flex items-center justify-center text-sm font-semibold">R</div>
-              <div>
-                <p className="text-[13px] font-medium text-[#111111]">Rezult Demo</p>
-                <p className="text-xs text-[#AAAAAA]">Plano Professional</p>
+      {company && (
+        <Card>
+          <SectionTitle title="Empresa" subtitle="Empresa vinculada à sua conta" />
+          <div className="border-[0.5px] border-[#EEEEEE] rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-[#F9F9F9]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-md bg-[#128A68] text-white flex items-center justify-center text-sm font-semibold">
+                  {company.name?.[0]?.toUpperCase() ?? "E"}
+                </div>
+                <div>
+                  <p className="text-[13px] font-medium text-[#111111]">{company.name}</p>
+                  <p className="text-xs text-[#AAAAAA]">
+                    {{"free":"Trial gratuito","pro":"Plano Pro","enterprise":"Plano Enterprise","starter":"Plano Starter"}[company.plan] ?? company.plan}
+                  </p>
+                </div>
               </div>
             </div>
-            <button className="text-[#128A68] text-sm">→</button>
           </div>
-        </div>
-        <p className="text-xs text-[#AAAAAA] mt-3 text-right">1 de 1</p>
-      </Card>
+        </Card>
+      )}
 
       <Card className="border-[#FECACA] bg-[#FEF2F2]">
         <SectionTitle title="Excluir conta" subtitle="Você tem um prazo de 30 dias para poder restaurar sua conta." />
@@ -368,6 +340,608 @@ function PerfilSection({ setPwOpen, twoFA, setTwoFA, theme, setTheme }: any) {
         </Button>
       </Card>
     </TooltipProvider>
+  );
+}
+
+/* ---------------- EMPRESA ---------------- */
+function maskCPF(v: string) {
+  return v.replace(/\D/g, "").slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function maskCNPJ(v: string) {
+  return v.replace(/\D/g, "").slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function maskCEP(v: string) {
+  return v.replace(/\D/g, "").slice(0, 8)
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return d.length ? `(${d}` : "";
+  if (d.length <= 7)  return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center h-10 border border-[#EEEEEE] rounded-md overflow-hidden bg-white focus-within:ring-1 focus-within:ring-[#128A68] focus-within:border-[#128A68]">
+      <div className="flex items-center gap-1.5 px-3 h-full bg-[#FAFAFA] border-r border-[#EEEEEE] shrink-0 select-none">
+        <span className="text-base leading-none">🇧🇷</span>
+        <span className="text-sm text-[#666666] font-medium">+55</span>
+      </div>
+      <input
+        type="tel"
+        value={value}
+        onChange={e => onChange(maskPhone(e.target.value))}
+        placeholder="(11) 99999-0000"
+        maxLength={15}
+        className="flex-1 px-3 h-full text-sm outline-none bg-white text-[#111111] placeholder:text-[#CCCCCC]"
+      />
+    </div>
+  );
+}
+
+function EmpresaSection() {
+  const { company, updateCompany, uploadLogo } = useCompany();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [name,         setName]         = useState("");
+  const [email,        setEmail]        = useState("");
+  const [niche,        setNiche]        = useState("");
+  const [phone,        setPhone]        = useState("");
+  const [docType,      setDocType]      = useState<"pj" | "pf">("pj");
+  const [document,     setDocument]     = useState("");
+  const [zipCode,      setZipCode]      = useState("");
+  const [address,      setAddress]      = useState("");
+  const [number,       setNumber]       = useState("");
+  const [complement,   setComplement]   = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city,         setCity]         = useState("");
+  const [state,        setState]        = useState("");
+  const [saving,       setSaving]       = useState(false);
+  const [uploading,    setUploading]    = useState(false);
+  const [loadingCep,   setLoadingCep]   = useState(false);
+
+  useEffect(() => {
+    if (!company) return;
+    setName(company.name ?? "");
+    setEmail(company.email ?? "");
+    setNiche(company.niche ?? "");
+    setPhone(maskPhone(company.phone ?? ""));
+    setDocType((company.document_type as "pj" | "pf") ?? "pj");
+    setDocument(company.document ?? "");
+    setZipCode(company.zip_code ?? "");
+    setAddress(company.address ?? "");
+    setNumber(company.number ?? "");
+    setComplement(company.complement ?? "");
+    setNeighborhood(company.neighborhood ?? "");
+    setCity(company.city ?? "");
+    setState(company.state ?? "");
+  }, [company?.id]);
+
+  const handleDocChange = (v: string) => {
+    setDocument(docType === "pf" ? maskCPF(v) : maskCNPJ(v));
+  };
+
+  const handleCepChange = async (raw: string) => {
+    const formatted = maskCEP(raw);
+    setZipCode(formatted);
+    const clean = raw.replace(/\D/g, "");
+    if (clean.length === 8) {
+      setLoadingCep(true);
+      try {
+        const res  = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setAddress(data.logradouro ?? "");
+          setNeighborhood(data.bairro ?? "");
+          setCity(data.localidade ?? "");
+          setState(data.uf ?? "");
+        }
+      } catch { /* manual fill */ }
+      setLoadingCep(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast.error("Nome da empresa é obrigatório."); return; }
+    setSaving(true);
+    try {
+      await updateCompany({
+        name: name.trim(),
+        email: email.trim(),
+        niche: niche.trim(),
+        phone: phone.trim(),
+        document_type: docType,
+        document: document.replace(/\D/g, ""),
+        zip_code: zipCode.replace(/\D/g, ""),
+        address, number, complement, neighborhood, city, state,
+      });
+      toast.success("Dados da empresa atualizados!");
+    } catch {
+      toast.error("Erro ao salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Arquivo maior que 2MB."); return; }
+    setUploading(true);
+    try {
+      await uploadLogo(file);
+      toast.success("Logo atualizado!");
+    } catch {
+      toast.error("Erro ao fazer upload do logo.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
+
+  const createdDate = company?.created_at
+    ? new Date(company.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    : null;
+
+  return (
+    <>
+      <h1 className="text-xl font-semibold text-[#111111] mb-6">Empresa</h1>
+
+      {/* Cabeçalho da empresa */}
+      <Card>
+        <div className="flex items-start gap-4">
+          <div className="w-20 h-20 rounded-full bg-[#128A68] flex items-center justify-center text-white text-2xl font-semibold shrink-0 overflow-hidden">
+            {company?.logo_url
+              ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+              : logoInitial}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#111111]">{company?.name || "—"}</h2>
+              <CheckCircle2 size={16} className="text-[#128A68]" />
+            </div>
+            {company?.email && (
+              <p className="text-[13px] text-[#AAAAAA] mt-1">{company.email}</p>
+            )}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {company?.niche && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-[#111111] bg-white text-[11px] font-medium text-[#111111]">
+                  {company.niche}
+                </span>
+              )}
+              {createdDate && (
+                <span className="inline-flex items-center gap-1.5 text-[12px] text-[#AAAAAA]">
+                  <Calendar size={12} className="text-[#AAAAAA] shrink-0" />
+                  {createdDate}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Informações principais */}
+      <Card>
+        <SectionTitle title="Informações" subtitle="Principais informações sobre sua empresa" />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">Nome da empresa *</label>
+            <Input value={name} onChange={e => setName(e.target.value)}
+              placeholder="Preencha com o nome da sua empresa" className="border-[#EEEEEE]" />
+          </div>
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">E-mail da empresa</label>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="Preencha com o e-mail da sua empresa" className="border-[#EEEEEE]" />
+          </div>
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">Nicho</label>
+            <Input value={niche} onChange={e => setNiche(e.target.value)}
+              placeholder="Exemplo: Vendas" className="border-[#EEEEEE]" />
+          </div>
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
+            <PhoneInput value={phone} onChange={setPhone} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Logo */}
+      <Card>
+        <SectionTitle title="Logo da empresa" subtitle="Faça o upload do logotipo da sua empresa aqui" />
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-xl bg-[#128A68] flex items-center justify-center text-white text-2xl font-bold shrink-0 overflow-hidden border border-[#EEEEEE]">
+            {company?.logo_url
+              ? <img src={company.logo_url} alt="Logo" className="w-full h-full object-contain" />
+              : logoInitial}
+          </div>
+          <div
+            className="flex-1 border-[1.5px] border-dashed border-[#EEEEEE] rounded-lg p-6 text-center hover:border-[#128A68] cursor-pointer transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+            <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
+            <p className="text-[13px] text-[#666666]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-xs text-[#AAAAAA] mt-1">PNG, JPG, SVG · max 2MB</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Documentos */}
+      <Card>
+        <SectionTitle title="Documentos" subtitle="Cadastre os dados da sua empresa" />
+        <div className="space-y-4">
+          {/* Tipo de pessoa */}
+          <div>
+            <label className="text-xs text-[#666666] mb-1.5 block">Tipo de Pessoa</label>
+            <div className="flex gap-2">
+              {(["pj", "pf"] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setDocType(t); setDocument(""); }}
+                  className={`flex-1 py-2 text-sm rounded-lg border transition-colors font-medium ${
+                    docType === t
+                      ? "bg-[#128A68] text-white border-[#128A68]"
+                      : "bg-white text-[#666666] border-[#EEEEEE] hover:border-[#128A68]"
+                  }`}
+                >
+                  {t === "pj" ? "Pessoa Jurídica" : "Pessoa Física"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Documento */}
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">
+              {docType === "pj" ? "CNPJ" : "CPF"}
+            </label>
+            <Input
+              value={document}
+              onChange={e => handleDocChange(e.target.value)}
+              placeholder={docType === "pj" ? "00.000.000/0000-00" : "000.000.000-00"}
+              className="border-[#EEEEEE]"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Endereço */}
+      <Card>
+        <SectionTitle title="Endereço" subtitle="Endereço completo da sua empresa" />
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">CEP</label>
+            <div className="relative">
+              <Input value={zipCode} onChange={e => handleCepChange(e.target.value)}
+                placeholder="00000-000" className="border-[#EEEEEE]" maxLength={9} />
+              {loadingCep && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 rounded-full border-2 border-[#128A68] border-t-transparent animate-spin" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">Endereço</label>
+            <Input value={address} onChange={e => setAddress(e.target.value)}
+              placeholder="Rua, Avenida..." className="border-[#EEEEEE]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-[#666666] mb-1 block">Número</label>
+              <Input value={number} onChange={e => setNumber(e.target.value)}
+                placeholder="123" className="border-[#EEEEEE]" />
+            </div>
+            <div>
+              <label className="text-xs text-[#666666] mb-1 block">Complemento</label>
+              <Input value={complement} onChange={e => setComplement(e.target.value)}
+                placeholder="Apto, Sala..." className="border-[#EEEEEE]" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-[#666666] mb-1 block">Bairro</label>
+            <Input value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
+              placeholder="Bairro" className="border-[#EEEEEE]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-[#666666] mb-1 block">Cidade</label>
+              <Input value={city} onChange={e => setCity(e.target.value)}
+                placeholder="São Paulo" className="border-[#EEEEEE]" />
+            </div>
+            <div>
+              <label className="text-xs text-[#666666] mb-1 block">UF</label>
+              <Input value={state} onChange={e => setState(e.target.value.toUpperCase())}
+                placeholder="SP" className="border-[#EEEEEE]" maxLength={2} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end mt-5 pt-4 border-t border-[#F5F5F5]">
+          <Button onClick={handleSave} disabled={saving}
+            className="bg-[#128A68] hover:bg-[#128A68]/90 min-w-[100px]">
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+/* ---------------- EQUIPE ---------------- */
+interface Member {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string | null;
+}
+
+interface PendingInvite {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+function EquipeSection() {
+  const { user } = useAuth();
+  const { company } = useCompany();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState<string | null>(null);
+
+  const isAdmin = company?.owner_id === user?.id;
+
+  const initials = (n: string) =>
+    n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
+  const loadMembers = useCallback(async () => {
+    if (!company?.name) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, avatar_url")
+      .eq("company_name", company.name)
+      .order("full_name");
+    setMembers((data ?? []) as Member[]);
+    setLoading(false);
+  }, [company?.name]);
+
+  const loadPendingInvites = useCallback(async () => {
+    if (!isAdmin || !company?.id) return;
+    const { data } = await supabase
+      .from("company_invites")
+      .select("id, email, created_at")
+      .eq("company_id", company.id)
+      .is("accepted_at", null)
+      .order("created_at", { ascending: false });
+    setPendingInvites((data ?? []) as PendingInvite[]);
+  }, [isAdmin, company?.id]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+  useEffect(() => { loadPendingInvites(); }, [loadPendingInvites]);
+
+  const handleAddMember = async () => {
+    if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
+    setInviting(true);
+    const { data, error } = await supabase.rpc("add_member_to_company", {
+      member_email: inviteEmail.trim().toLowerCase(),
+    });
+    setInviting(false);
+    if (error) { toast.error("Erro ao processar convite."); return; }
+
+    if (data === "ok") {
+      toast.success("Membro adicionado com sucesso!");
+      loadMembers();
+    } else if (data === "invited") {
+      toast.success("Convite registrado! Quando esse e-mail criar uma conta, o acesso será liberado automaticamente.");
+      loadPendingInvites();
+    } else if (data === "no_company") {
+      toast.error("Sua conta ainda não está vinculada a uma empresa.");
+      return;
+    }
+    setInviteEmail("");
+    setAddOpen(false);
+  };
+
+  const handleRemove = async (memberId: string) => {
+    if (memberId === user?.id) { toast.error("Você não pode remover a si mesmo."); return; }
+    setRemoving(memberId);
+    const { error } = await supabase.rpc("remove_member_from_company", { member_id: memberId });
+    setRemoving(null);
+    if (error) { toast.error("Erro ao remover membro."); return; }
+    toast.success("Membro removido da equipe.");
+    setMembers(prev => prev.filter(m => m.id !== memberId));
+  };
+
+  const handleCancelInvite = async (email: string) => {
+    setCanceling(email);
+    const { error } = await supabase.rpc("cancel_company_invite", { invite_email: email });
+    setCanceling(null);
+    if (error) { toast.error("Erro ao cancelar convite."); return; }
+    toast.success("Convite cancelado.");
+    setPendingInvites(prev => prev.filter(i => i.email !== email));
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-[#111111]">Equipe</h1>
+          <p className="text-xs text-[#AAAAAA] mt-0.5">Gerencie os membros vinculados à sua empresa</p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => setAddOpen(true)} className="bg-[#128A68] hover:bg-[#128A68]/90">
+            <UserPlus size={14} className="mr-1.5" /> Adicionar membro
+          </Button>
+        )}
+      </div>
+
+      {/* Membros ativos */}
+      <Card>
+        <SectionTitle title="Membros ativos" />
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="w-5 h-5 rounded-full border-2 border-[#128A68] border-t-transparent animate-spin" />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="text-center py-8">
+            <Users size={28} className="text-[#CCCCCC] mx-auto mb-2" />
+            <p className="text-sm text-[#AAAAAA]">Nenhum membro na equipe ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {members.map(m => {
+              const isOwner = m.id === company?.owner_id;
+              const isSelf  = m.id === user?.id;
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg hover:bg-[#FAFAFA] transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#128A68] flex items-center justify-center text-white text-sm font-semibold shrink-0 overflow-hidden">
+                    {m.avatar_url
+                      ? <img src={m.avatar_url} alt={m.full_name} className="w-full h-full object-cover" />
+                      : initials(m.full_name || m.email)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[13px] font-medium text-[#111111] truncate">
+                        {m.full_name || "—"}
+                        {isSelf && <span className="text-[#AAAAAA] font-normal ml-1">(você)</span>}
+                      </p>
+                      {isOwner && (
+                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                          <Crown size={9} /> Admin
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#AAAAAA] truncate">{m.email}</p>
+                  </div>
+                  {isAdmin && !isOwner && (
+                    <button
+                      onClick={() => handleRemove(m.id)}
+                      disabled={removing === m.id}
+                      className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors disabled:opacity-50"
+                      title="Remover da equipe"
+                    >
+                      {removing === m.id
+                        ? <div className="w-4 h-4 rounded-full border-2 border-[#E24B4A] border-t-transparent animate-spin" />
+                        : <UserMinus size={15} />}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {!loading && members.length > 0 && (
+          <p className="text-xs text-[#AAAAAA] mt-3 text-right">
+            {members.length} {members.length === 1 ? "membro" : "membros"}
+          </p>
+        )}
+      </Card>
+
+      {/* Convites pendentes — visível apenas para admin */}
+      {isAdmin && (
+        <Card>
+          <SectionTitle
+            title="Convites pendentes"
+            subtitle="Aguardando o usuário criar uma conta com o e-mail convidado"
+          />
+          {pendingInvites.length === 0 ? (
+            <p className="text-sm text-[#AAAAAA] text-center py-4">Nenhum convite pendente.</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingInvites.map(inv => (
+                <div
+                  key={inv.id}
+                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg bg-[#FAFAFA]"
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#F0F0F0] flex items-center justify-center shrink-0">
+                    <Mail size={14} className="text-[#AAAAAA]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-[#666666] truncate">{inv.email}</p>
+                    <p className="text-[11px] text-[#AAAAAA]">
+                      Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[10px] font-semibold shrink-0">
+                    Aguardando
+                  </span>
+                  <button
+                    onClick={() => handleCancelInvite(inv.email)}
+                    disabled={canceling === inv.email}
+                    className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors disabled:opacity-50"
+                    title="Cancelar convite"
+                  >
+                    {canceling === inv.email
+                      ? <div className="w-4 h-4 rounded-full border-2 border-[#E24B4A] border-t-transparent animate-spin" />
+                      : <XCircle size={15} />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Adicionar membro à equipe</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-1.5">
+            <label className="text-xs font-medium text-[#666666]">E-mail do usuário *</label>
+            <Input
+              type="email"
+              placeholder="joao@empresa.com"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAddMember()}
+              className="border-[#EEEEEE]"
+              autoFocus
+            />
+            <div className="bg-[#F0F9F5] border border-[#C6E9DC] rounded-lg px-3 py-2.5 mt-2">
+              <p className="text-[11px] text-[#128A68] leading-relaxed">
+                <strong>Já tem conta:</strong> o acesso é liberado imediatamente.<br />
+                <strong>Sem conta ainda:</strong> o convite fica registrado e o acesso é liberado automaticamente ao criar a conta com este e-mail.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)} className="border-[#EEEEEE]">Cancelar</Button>
+            <Button onClick={handleAddMember} disabled={inviting} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {inviting ? "Processando..." : "Convidar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -507,30 +1081,147 @@ function TagsSection() {
 }
 
 /* ---------------- PRODUTOS ---------------- */
-function ProdutosSection({ products }: any) {
+function ProdutosSection() {
+  const { products, addProduct, updateProduct, deleteProduct } = useCRM();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string; sku: string; defaultValue: number } | null>(null);
+  const [name, setName]   = useState("");
+  const [sku, setSku]     = useState("");
+  const [price, setPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fmt = (v: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+  function openNew() {
+    setEditing(null);
+    setName(""); setSku(""); setPrice("");
+    setModalOpen(true);
+  }
+
+  function openEdit(p: { id: string; name: string; sku: string; defaultValue: number }) {
+    setEditing(p);
+    setName(p.name);
+    setSku(p.sku);
+    setPrice(p.defaultValue > 0 ? formatCurrency(p.defaultValue) : "");
+    setModalOpen(true);
+  }
+
+  // Formata centavos inteiros → "R$ 1.500,00"
+  function formatCurrency(value: number) {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  }
+
+  // Mantém apenas dígitos e converte para valor numérico enquanto digita
+  function handlePriceChange(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) { setPrice(""); return; }
+    const cents = parseInt(digits, 10);
+    const reals = cents / 100;
+    setPrice(formatCurrency(reals));
+  }
+
+  function parsePriceToNumber(formatted: string) {
+    const digits = formatted.replace(/\D/g, "");
+    if (!digits) return 0;
+    return parseInt(digits, 10) / 100;
+  }
+
+  async function handleSave() {
+    if (!name.trim())  { toast.error("Nome é obrigatório."); return; }
+    if (!sku.trim())   { toast.error("Identificador (SKU) é obrigatório."); return; }
+    if (!price)        { toast.error("Preço é obrigatório."); return; }
+    const defaultValue = parsePriceToNumber(price);
+    if (defaultValue <= 0) { toast.error("Informe um preço válido."); return; }
+    setSaving(true);
+    if (editing) {
+      await updateProduct(editing.id, { name: name.trim(), sku: sku.trim(), defaultValue });
+      toast.success("Produto atualizado!");
+    } else {
+      await addProduct({ name: name.trim(), sku: sku.trim(), defaultValue });
+      toast.success("Produto criado!");
+    }
+    setSaving(false);
+    setModalOpen(false);
+  }
+
   return (
     <>
-      <SectionHeader title="Produtos" onAdd="+ Novo produto" onClick={() => toast.info("Em breve: cadastro de produtos")} />
+      <SectionHeader title="Produtos" onAdd="+ Novo produto" onClick={openNew} />
+
       <Card>
-        <div className="space-y-2">
-          {products.map((p: any) => (
-            <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center">
-                <Package size={16} className="text-[#128A68]" />
+        {products.length === 0 ? (
+          <p className="text-sm text-[#AAAAAA] text-center py-6">Nenhum produto cadastrado ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {products.map(p => (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
+                <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                  <Package size={16} className="text-[#128A68]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-[#111111] truncate">{p.name}</p>
+                  {p.sku && <p className="text-xs text-[#AAAAAA]">SKU: {p.sku}</p>}
+                </div>
+                <span className="text-sm font-semibold text-[#128A68] shrink-0">{fmt(p.defaultValue)}</span>
+                <button onClick={() => openEdit(p)} className="text-[#666666] hover:text-[#111111] p-1">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => deleteProduct(p.id)} className="text-[#666666] hover:text-[#E24B4A] p-1">
+                  <Trash2 size={14} />
+                </button>
               </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-medium text-[#111111]">{p.name}</p>
-                <p className="text-xs text-[#AAAAAA]">SKU: {p.sku}</p>
-              </div>
-              <span className="text-sm font-semibold text-[#128A68]">
-                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.defaultValue)}
-              </span>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar produto" : "Novo produto"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Nome *</label>
+              <Input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Ex: Consultoria mensal"
+                autoFocus
+                className="border-[#EEEEEE]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Identificador (SKU) *</label>
+              <Input
+                value={sku}
+                onChange={e => setSku(e.target.value)}
+                placeholder="Ex: produto1"
+                className="border-[#EEEEEE]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Preço *</label>
+              <Input
+                value={price}
+                onChange={e => handlePriceChange(e.target.value)}
+                placeholder="R$ 0,00"
+                inputMode="numeric"
+                className="border-[#EEEEEE]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)} className="border-[#EEEEEE]">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar produto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

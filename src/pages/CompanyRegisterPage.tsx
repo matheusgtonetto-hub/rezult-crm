@@ -178,11 +178,15 @@ export default function CompanyRegisterPage() {
       return;
     }
 
-    supabase
+    // Vincula o nome da empresa ao perfil do usuário
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({ company_name: companyName.trim() })
-      .eq("id", user.id)
-      .then(() => {});
+      .eq("id", user.id);
+
+    if (profileError) {
+      console.error("profile company_name update error:", profileError);
+    }
 
     // Refresh CompanyContext so AppLayout sees the new company immediately
     refetchCompany();

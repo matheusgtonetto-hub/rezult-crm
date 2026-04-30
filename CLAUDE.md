@@ -1,11 +1,18 @@
 # Rezult CRM — Guia do Projeto
 
-CRM de vendas em português com pipelines Kanban, gestão de leads, tarefas e equipes. Stack: React + Supabase.
+CRM de vendas B2B brasileiro. SaaS com multi-tenancy por empresa. Stack: React + TypeScript + Vite + Supabase + Tailwind + shadcn/ui. Deploy: Vercel. Domínio: app.rezultcrm.com.
+
+## Contexto do Produto
+
+- Planos: Starter (R$297/mês), Essential (R$460/mês), Pro (R$807/mês)
+- Mercado: PMEs brasileiras com times de vendas
+- UI 100% em português brasileiro
+- Cada empresa é isolada por RLS no Supabase (multi-tenant)
 
 ## Comandos
 
 ```bash
-npm run dev        # Dev server (http://localhost:8080)
+npm run dev        # Dev server (http://localhost:8083)
 npm run build      # Build de produção
 npm run lint       # Lint
 npm run preview    # Preview do build
@@ -20,7 +27,8 @@ npm run preview    # Preview do build
 | Roteamento | React Router v6 |
 | Estilo | Tailwind CSS + shadcn/ui (Radix) |
 | Ícones | Lucide React |
-| Backend | Supabase (PostgreSQL + Auth) |
+| Backend | Supabase (PostgreSQL + Auth + Storage) |
+| Email | Resend.io (domínio rezultcrm.com) |
 | Notificações | Sonner (toast) |
 | Drag-and-drop | @hello-pangea/dnd |
 | Gráficos | Recharts |
@@ -34,8 +42,6 @@ VITE_SUPABASE_ANON_KEY=
 ```
 
 ## Estrutura
-
-```
 src/
 ├── components/
 │   ├── ui/                     # Componentes shadcn/ui
@@ -55,9 +61,8 @@ src/
 │   ├── mockData.ts             # Interfaces TypeScript (Lead, Pipeline, Task…)
 │   └── plans.ts                # Definição de planos/preços
 └── lib/
-    ├── supabase.ts             # Cliente Supabase (singleton)
-    └── utils.ts                # cn() e utilitários
-```
+├── supabase.ts             # Cliente Supabase (singleton)
+└── utils.ts                # cn() e utilitários
 
 ## Roteamento
 
@@ -69,7 +74,6 @@ src/
 
 **Com sessão** — rotas protegidas:
 - `/` → redirect `/dashboard`
-- `/login` → redirect `/dashboard`
 - `/company-register` — cadastro inicial da empresa
 - `/setup` — seleção de plano
 - `/dashboard`, `/pipeline`, `/leads`, `/configuracoes`, etc. (dentro do `AppLayout`)
@@ -101,7 +105,7 @@ Atualizações: optimistic state + upsert no Supabase.
 
 | Tabela | Uso |
 |--------|-----|
-| `profiles` | Perfil do usuário (`id`, `full_name`, `email`, `avatar_url`) |
+| `profiles` | Perfil do usuário (`id`, `full_name`, `email`, `avatar_url`, `theme`) |
 | `companies` | Empresa (`owner_id`, `name`, `plan`, `plan_expires_at`) |
 | `pipelines` | Pipelines de venda |
 | `pipeline_columns` | Etapas de um pipeline |
@@ -118,16 +122,28 @@ Todas as tabelas têm RLS habilitado. Políticas padrão: `auth.uid() = owner_id
 ## Convenções
 
 - Português em toda a UI e mensagens de erro
-- `toast.error()` / `toast.success()` para feedback ao usuário (Sonner)
+- `toast.error()` / `toast.success()` para feedback (Sonner)
 - Sem Redux — Context API para estado global, `useState` para estado local
-- Sem React Query nas páginas — fetch direto com async/await nos contexts
+- Sem React Query — fetch direto com async/await nos contexts
 - Tipos centralizados em `src/data/mockData.ts`
 - Prioridades: `"Alta" | "Média" | "Baixa"`
 - Status de task: `"Pendente" | "Concluída"`
 - Origens de lead: `"Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro"`
+- Tema: salvo em `profiles.theme` (`"light" | "dark" | "system"`), aplicado via classe no `<html>`
+
+## Regras de Desenvolvimento
+
+- NUNCA hardcodar textos em inglês na UI
+- SEMPRE usar `toast` para feedback de ações do usuário
+- SEMPRE verificar RLS antes de criar nova tabela ou query
+- NUNCA duplicar lógica que já existe em um Context
+- Ao criar nova página, registrar a rota em `App.tsx`
+- Ao criar nova tabela no Supabase, documentar aqui na seção Banco de Dados
+- Commits em português, descritivos
 
 ## Skills disponíveis
 
 ### UI/UX Pro Max
 Localização: .claude/skills/ui-ux-pro-max/SKILL.md
-Use esta skill sempre que criar ou modificar interfaces, componentes visuais, páginas ou qualquer elemento de UI.
+Use sempre que criar ou modificar interfaces, componentes visuais, páginas ou qualquer elemento de UI.
+

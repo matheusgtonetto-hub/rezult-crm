@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,13 @@ export default function RegisterPage() {
 
     // Supabase "Confirm email" disabled — user auto-confirmed, go straight to onboarding.
     if (!needsConfirmation) {
-      navigate("/company-register");
+      // Check if this user was invited to an existing company
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_name")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+      navigate(profile?.company_name ? "/dashboard" : "/company-register");
       return;
     }
 

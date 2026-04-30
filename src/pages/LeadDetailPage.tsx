@@ -479,14 +479,12 @@ export default function LeadDetailPage() {
                 <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
                   {key === "negocio" && (
                     <div className="pt-2 space-y-2">
-                      <EditableField
-                        label="Valor"
-                        value={lead.value}
-                        type="number"
-                        onSave={v => updateField("value", Number(v))}
-                        valueStyle={{ color: "#128A68", fontWeight: 700, fontSize: 16 }}
-                        display={v => formatBRL(Number(v))}
-                      />
+                      <div>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Valor</label>
+                        <p style={{ color: "#128A68", fontWeight: 700, fontSize: 16 }}>
+                          {formatBRL(products.find(p => p.id === lead.productId)?.defaultValue ?? 0)}
+                        </p>
+                      </div>
                       <div>
                         <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Pipeline</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
@@ -495,7 +493,12 @@ export default function LeadDetailPage() {
                         <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Produto</label>
                         <Select
                           value={lead.productId || "none"}
-                          onValueChange={v => updateField("productId", v === "none" ? undefined : v)}
+                          onValueChange={v => {
+                            const pid = v === "none" ? undefined : v;
+                            const prod = products.find(p => p.id === pid);
+                            updateField("productId", pid);
+                            updateField("value", prod?.defaultValue ?? 0);
+                          }}
                         >
                           <SelectTrigger className="h-9 rounded-md text-sm">
                             <SelectValue placeholder="Sem produto" />

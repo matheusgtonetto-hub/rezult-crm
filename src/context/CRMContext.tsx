@@ -55,6 +55,9 @@ interface CRMContextType {
   teamMembers: string[];
   memberColors: Record<string, string>;
   products: Product[];
+  addProduct: (data: Omit<Product, "id">) => Promise<void>;
+  updateProduct: (id: string, data: Partial<Omit<Product, "id">>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   logout: () => void;
 
   selectedLeadId: string | null;
@@ -158,6 +161,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [crmTags, setCrmTags] = useState<Tag[]>([]);
   const [pipelineGroups, setPipelineGroups] = useState<PipelineGroup[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   function colorFromString(str: string) {
@@ -166,19 +171,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     return `hsl(${Math.abs(hash) % 360} 55% 45%)`;
   }
 
-  const teamMembers = useMemo(() => {
-    const names = new Set<string>();
-    Object.values(leads).forEach(l => { if (l.responsible) names.add(l.responsible); });
-    return Array.from(names);
-  }, [leads]);
-
   const memberColors = useMemo(() => {
     const map: Record<string, string> = {};
     teamMembers.forEach(m => { map[m] = colorFromString(m); });
     return map;
   }, [teamMembers]);
-
-  const products: Product[] = [];
 
   // ── Load all data when user changes ───────────────────────────────────────
   useEffect(() => {
@@ -188,6 +185,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setTasks([]);
       setCrmTags([]);
       setPipelineGroups([]);
+      setProducts([]);
+      setTeamMembers([]);
       setActivePipelineId("");
       setCrmLoading(false);
       return;
@@ -196,7 +195,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     async function loadAll() {
       setCrmLoading(true);
 
-      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes] = await Promise.all([
+      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, myProfileRes] = await Promise.all([
         supabase.from("pipelines").select("*").order("position"),
         supabase.from("pipeline_columns").select("*").order("position"),
         supabase.from("leads").select("*").order("position"),
@@ -204,7 +203,23 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         supabase.from("tasks").select("*").order("created_at"),
         supabase.from("tags").select("*").order("created_at"),
         supabase.from("pipeline_groups").select("*").order("created_at"),
+        supabase.from("products").select("*").order("created_at"),
+        supabase.from("profiles").select("company_name").eq("id", user.id).single(),
       ]);
+
+      const companyName = (myProfileRes.data as { company_name?: string } | null)?.company_name;
+      if (companyName) {
+        const { data: membersData } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("company_name", companyName)
+          .order("full_name");
+        setTeamMembers(
+          (membersData ?? []).map(p => (p as { full_name: string }).full_name).filter(Boolean)
+        );
+      } else {
+        setTeamMembers([]);
+      }
 
       const dbPipelines = (pipelineRes.data ?? []) as Record<string, unknown>[];
       const dbColumns = (columnRes.data ?? []) as Record<string, unknown>[];
@@ -213,6 +228,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const dbTasks = (taskRes.data ?? []) as Record<string, unknown>[];
       const dbTagsList = (tagRes.data ?? []) as Record<string, unknown>[];
       const dbGroupsList = (groupRes.data ?? []) as Record<string, unknown>[];
+      const dbProducts = (productRes.data ?? []) as Record<string, unknown>[];
 
       // Map activities by lead_id
       const actsByLead: Record<string, Activity[]> = {};
@@ -265,6 +281,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setTasks(tasksList);
       setCrmTags(tagsList);
       setPipelineGroups(groupsList);
+      setProducts(dbProducts.map(p => ({
+        id: p.id as string,
+        name: p.name as string,
+        sku: (p.sku as string) ?? "",
+        defaultValue: Number(p.default_value ?? 0),
+      })));
       if (pipelinesArr.length > 0) setActivePipelineId(pipelinesArr[0].id);
       setCrmLoading(false);
     }
@@ -633,6 +655,40 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // ── Products ───────────────────────────────────────────────────────────────
+
+  const addProduct = useCallback(async (data: Omit<Product, "id">) => {
+    if (!user) return;
+    const { data: row, error } = await supabase
+      .from("products")
+      .insert({ owner_id: user.id, name: data.name, sku: data.sku, default_value: data.defaultValue })
+      .select()
+      .single();
+    if (error) { toast.error("Erro ao criar produto."); return; }
+    setProducts(prev => [...prev, {
+      id: (row as Record<string, unknown>).id as string,
+      name: data.name,
+      sku: data.sku,
+      defaultValue: data.defaultValue,
+    }]);
+  }, [user]);
+
+  const updateProduct = useCallback(async (id: string, data: Partial<Omit<Product, "id">>) => {
+    const dbData: Record<string, unknown> = {};
+    if (data.name !== undefined) dbData.name = data.name;
+    if (data.sku !== undefined) dbData.sku = data.sku;
+    if (data.defaultValue !== undefined) dbData.default_value = data.defaultValue;
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+    const { error } = await supabase.from("products").update(dbData).eq("id", id);
+    if (error) console.error("updateProduct error:", error.message);
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) console.error("deleteProduct error:", error.message);
+  }, []);
+
   // ── Tasks ──────────────────────────────────────────────────────────────────
 
   const addTask = useCallback(async (task: Omit<Task, "id">) => {
@@ -716,7 +772,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         addActivity,
         crmTags, addTag, updateTag, deleteTag,
         pipelineGroups, addPipelineGroup, deletePipelineGroup,
-        teamMembers, memberColors, products,
+        teamMembers, memberColors,
+        products, addProduct, updateProduct, deleteProduct,
         logout: signOut,
         selectedLeadId, setSelectedLeadId,
       }}

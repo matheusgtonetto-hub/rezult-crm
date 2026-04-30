@@ -1,6 +1,7 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useCompany } from "@/context/CompanyContext";
 import {
   Users,
   CheckSquare,
@@ -64,7 +65,12 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-const COMPANY = { name: "Rezult CRM", plan: "Plano Professional" };
+const PLAN_LABELS: Record<string, string> = {
+  free:       "Trial gratuito",
+  pro:        "Plano Pro",
+  enterprise: "Plano Enterprise",
+  starter:    "Plano Starter",
+};
 
 const SIDEBAR_BG = "#128A68";
 const ICON_INACTIVE = "rgba(255,255,255,0.5)";
@@ -76,6 +82,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
+  const { company } = useCompany();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
 
@@ -212,26 +219,28 @@ export function AppSidebar() {
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: colorFromString(COMPANY.name),
+                background: colorFromString(company?.name ?? "R"),
                 border: "1.5px solid rgba(255,255,255,0.3)",
                 marginBottom: 16,
               }}
               aria-label="Empresa"
             >
-              {initials(COMPANY.name)}
+              {initials(company?.name ?? "R")}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="w-56">
             <DropdownMenuLabel className="flex items-center gap-2">
               <div
                 className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold"
-                style={{ background: colorFromString(COMPANY.name) }}
+                style={{ background: colorFromString(company?.name ?? "R") }}
               >
-                {initials(COMPANY.name)}
+                {initials(company?.name ?? "R")}
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-semibold">{COMPANY.name}</span>
-                <span className="text-xs text-muted-foreground font-normal">{COMPANY.plan}</span>
+                <span className="text-sm font-semibold">{company?.name ?? "—"}</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  {PLAN_LABELS[company?.plan ?? ""] ?? company?.plan ?? "—"}
+                </span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

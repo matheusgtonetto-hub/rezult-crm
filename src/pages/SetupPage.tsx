@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useCompany } from "@/context/CompanyContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { PLANS, type PlanDefinition } from "@/data/plans";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
@@ -61,6 +64,16 @@ export default function SetupPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const initStep  = (location.state as { step?: number } | null)?.step ?? 1;
+  const { company, companyLoading, isFreePlan, planExpired, refetchCompany } = useCompany();
+  const { user } = useAuth();
+
+  // Redireciona apenas usuários com plano pago — free trial passa pelo wizard normalmente
+  useEffect(() => {
+    if (companyLoading) return;
+    if (company && !isFreePlan) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [companyLoading, company, isFreePlan, navigate]);
 
   const [step, setStep] = useState<Step>(initStep as Step);
 
@@ -73,6 +86,7 @@ export default function SetupPage() {
 
   // Plan step state
   const [billingTab, setBillingTab] = useState<BillingTab>("mensal");
+  const [savingPlan, setSavingPlan] = useState<string | null>(null);
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -85,6 +99,33 @@ export default function SetupPage() {
   };
 
   const handleFinish = () => {
+    navigate("/dashboard");
+  };
+
+  // ── Plan selection ────────────────────────────────────────────────────────
+
+  const handleSelectPlan = async (planKey: string) => {
+    if (!user || !company) return;
+    setSavingPlan(planKey);
+
+    const daysMap: Record<BillingTab, number> = { mensal: 30, semestral: 180, anual: 365 };
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + daysMap[billingTab]);
+
+    const { error } = await supabase
+      .from("companies")
+      .update({ plan: planKey, plan_expires_at: expiresAt.toISOString() })
+      .eq("owner_id", user.id);
+
+    setSavingPlan(null);
+
+    if (error) {
+      toast.error("Erro ao salvar plano. Tente novamente.");
+      return;
+    }
+
+    await refetchCompany();
+    toast.success("Plano atualizado com sucesso!");
     navigate("/dashboard");
   };
 
@@ -296,11 +337,10 @@ export default function SetupPage() {
                           type="button"
                           variant={plan.badge ? "default" : "outline"}
                           className="w-full h-10 rounded-lg text-sm font-semibold"
-                          onClick={() =>
-                            toast.info("Em breve: contratação de planos.")
-                          }
+                          disabled={savingPlan !== null}
+                          onClick={() => handleSelectPlan(plan.key)}
                         >
-                          Atualizar plano
+                          {savingPlan === plan.key ? "Salvando..." : "Selecionar plano"}
                         </Button>
                       </div>
                     );
@@ -326,31 +366,25 @@ export default function SetupPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={step < 3 ? handleNext : handleFinish}
+                  className="h-10 px-4 rounded-lg text-muted-foreground font-medium"
+                >
+                  {step === 3 ? "Pular e ir ao painel" : "Pular por enquanto"}
+                </Button>
+
                 {step < 3 && (
                   <Button
                     type="button"
-                    variant="ghost"
                     onClick={handleNext}
-                    className="h-10 px-4 rounded-lg text-muted-foreground font-medium"
+                    className="h-10 px-5 rounded-lg font-semibold"
                   >
-                    Pular por enquanto
+                    Próximo
+                    <ChevronRight size={16} className="ml-1" />
                   </Button>
                 )}
-
-                <Button
-                  type="button"
-                  onClick={step === 3 ? handleFinish : handleNext}
-                  className="h-10 px-5 rounded-lg font-semibold"
-                >
-                  {step === 3 ? (
-                    "Concluir"
-                  ) : (
-                    <>
-                      Próximo
-                      <ChevronRight size={16} className="ml-1" />
-                    </>
-                  )}
-                </Button>
               </div>
             </div>
           </div>

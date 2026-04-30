@@ -5,7 +5,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
-interface Company {
+export interface Company {
   id: string;
   owner_id: string;
   name: string;
@@ -15,7 +15,24 @@ interface Company {
   country: string;
   plan: string;
   plan_expires_at: string;
+  // Address
+  zip_code?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  // Documents
+  document_type?: string;
+  document?: string;
+  // Logo
+  logo_url?: string;
+  // Meta
+  created_at?: string;
 }
+
+type CompanyUpdateData = Partial<Omit<Company, "id" | "owner_id" | "plan" | "plan_expires_at">>;
 
 interface CompanyContextType {
   company: Company | null;
@@ -24,8 +41,11 @@ interface CompanyContextType {
   planExpired: boolean;
   planDaysLeft: number | null;
   refetchCompany: () => void;
-  updateCompany: (data: Partial<Pick<Company, "phone" | "name" | "email">>) => Promise<void>;
+  updateCompany: (data: CompanyUpdateData) => Promise<void>;
+  uploadLogo: (file: File) => Promise<void>;
 }
+
+const COMPANY_FIELDS = "*";
 
 const CompanyContext = createContext<CompanyContextType | null>(null);
 
@@ -37,18 +57,47 @@ export function useCompany() {
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [company, setCompany]           = useState<Company | null>(null);
-  const [companyLoading, setLoading]    = useState(true);
+  const [company, setCompany]        = useState<Company | null>(null);
+  const [companyLoading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
+
+    // Try owned company first — fetch all rows to handle duplicates gracefully
+    let { data: ownerRows, error } = await supabase
       .from("companies")
-      .select("id, owner_id, name, email, phone, niche, country, plan, plan_expires_at")
+      .select(COMPANY_FIELDS)
       .eq("owner_id", user.id)
-      .maybeSingle();
-    if (error) console.error("[CompanyContext] fetch error:", error);
+      .order("plan_expires_at", { ascending: false });
+
+    if (error) console.error("[CompanyContext] owner query error:", error);
+
+    // If multiple rows exist (duplicate companies), prefer any non-free plan
+    let data: Company | null = null;
+    if (ownerRows && ownerRows.length > 0) {
+      data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
+    }
+
+    // If not an owner, try to find company via profile's company_name (invited member)
+    if (!data) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("company_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profileData?.company_name) {
+        const { data: memberCompany, error: memberError } = await supabase
+          .from("companies")
+          .select(COMPANY_FIELDS)
+          .eq("name", profileData.company_name)
+          .maybeSingle();
+        if (memberError) console.error("[CompanyContext] member query error:", memberError);
+        data = memberCompany;
+      }
+    }
+
     setCompany(data ?? null);
     setLoading(false);
   }, [user?.id]);
@@ -68,20 +117,41 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }, [company, planExpired]);
 
-  const updateCompany = useCallback(async (data: Partial<Pick<Company, "phone" | "name" | "email">>) => {
+  const updateCompany = useCallback(async (data: CompanyUpdateData) => {
     if (!user || !company) return;
-    const { data: updated } = await supabase
+    const { data: updated, error } = await supabase
       .from("companies")
       .update(data)
       .eq("id", company.id)
-      .select()
+      .select(COMPANY_FIELDS)
       .single();
+    if (error) throw error;
+    if (updated) setCompany(updated as Company);
+  }, [user, company]);
+
+  const uploadLogo = useCallback(async (file: File) => {
+    if (!user || !company) return;
+    const ext  = file.name.split(".").pop();
+    const path = `${company.id}/logo.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("company-logos")
+      .upload(path, file, { upsert: true });
+    if (uploadError) throw uploadError;
+    const { data: { publicUrl } } = supabase.storage.from("company-logos").getPublicUrl(path);
+    const logo_url = `${publicUrl}?t=${Date.now()}`;
+    const { data: updated, error: updateError } = await supabase
+      .from("companies")
+      .update({ logo_url })
+      .eq("id", company.id)
+      .select(COMPANY_FIELDS)
+      .single();
+    if (updateError) throw updateError;
     if (updated) setCompany(updated as Company);
   }, [user, company]);
 
   return (
     <CompanyContext.Provider
-      value={{ company, companyLoading, isFreePlan, planExpired, planDaysLeft, refetchCompany: load, updateCompany }}
+      value={{ company, companyLoading, isFreePlan, planExpired, planDaysLeft, refetchCompany: load, updateCompany, uploadLogo }}
     >
       {children}
     </CompanyContext.Provider>
