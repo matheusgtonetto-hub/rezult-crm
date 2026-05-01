@@ -286,6 +286,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         name: p.name as string,
         sku: (p.sku as string) ?? "",
         defaultValue: Number(p.default_value ?? 0),
+        created_at: p.created_at as string | undefined,
       })));
       if (pipelinesArr.length > 0) setActivePipelineId(pipelinesArr[0].id);
       setCrmLoading(false);

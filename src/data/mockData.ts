@@ -91,6 +91,7 @@ export interface Product {
   name: string;
   sku: string;
   defaultValue: number;
+  created_at?: string;
 }
 
 export const stageColors = {

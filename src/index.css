@@ -42,7 +42,7 @@
     --input: 0 0% 87.8%;              /* #E0E0E0 */
     --ring: 165 77% 30%;
 
-    --radius: 0.75rem;
+    --radius: 0.9375rem;
 
     /* Elevated Cards shadow tokens */
     --shadow-elevated-1: 0 1px 3px rgba(0,0,0,0.06);

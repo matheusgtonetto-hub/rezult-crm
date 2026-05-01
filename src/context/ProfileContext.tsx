@@ -9,6 +9,7 @@ export interface Profile {
   phone: string;
   avatar_url: string | null;
   created_at: string;
+  theme?: "light" | "dark";
 }
 
 interface ProfileContextType {
@@ -16,6 +17,11 @@ interface ProfileContextType {
   profileLoading: boolean;
   updateProfile: (data: Partial<Pick<Profile, "full_name" | "phone" | "email">>) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
+  updateTheme: (theme: "light" | "dark") => Promise<void>;
+}
+
+function applyTheme(theme?: "light" | "dark") {
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
@@ -63,6 +69,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(data as Profile);
         }
+        applyTheme(data.theme);
       } else {
         // No profile row yet — create it using auth metadata
         const name = metaName || authEmail.split("@")[0];
@@ -78,6 +85,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     load();
   }, [user?.id]);
+
+  const updateTheme = useCallback(async (theme: "light" | "dark") => {
+    if (!user) return;
+    const { data: updated } = await supabase
+      .from("profiles")
+      .update({ theme })
+      .eq("id", user.id)
+      .select()
+      .single();
+    if (updated) setProfile(updated as Profile);
+    applyTheme(theme);
+  }, [user]);
 
   const updateProfile = useCallback(async (data: Partial<Pick<Profile, "full_name" | "phone" | "email">>) => {
     if (!user) return;
@@ -107,7 +126,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   return (
-    <ProfileContext.Provider value={{ profile, profileLoading, updateProfile, uploadAvatar }}>
+    <ProfileContext.Provider value={{ profile, profileLoading, updateProfile, uploadAvatar, updateTheme }}>
       {children}
     </ProfileContext.Provider>
   );

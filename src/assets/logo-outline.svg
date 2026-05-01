@@ -1,0 +1,5 @@
+<svg width="112" height="32" viewBox="0 0 112 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="7.25" stroke="#00E599" stroke-width="1.5"></rect>
+  <path d="M9 9h7.4c2.7 0 4.7 1.7 4.7 4.3 0 1.9-1 3.3-2.6 4l3.4 5.7H18l-2.9-5h-3v5H9V9zm6.9 5.6c1.2 0 2-0.6 2-1.6s-0.8-1.6-2-1.6h-3.8v3.2h3.8z" fill="#00E599"></path>
+  <text x="40" y="22" font-family="Geist, sans-serif" font-size="16" font-weight="600" letter-spacing="-0.025em" fill="#F4F2EC">Rezult</text>
+</svg>

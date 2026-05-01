@@ -143,7 +143,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <div className="flex items-center gap-2">

@@ -1,0 +1,194 @@
+/* ===========================================================
+ * Rezult CRM — Design Tokens
+ * Direção: moderno · neon · geist · outline
+ * Light + Dark themes via [data-theme] OR .dark class
+ * Drop into globals.css or import as a module.
+ * =========================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+
+:root {
+  /* ---------- Brand greens ---------- */
+  --rz-green-50:  #E6FFF5;
+  --rz-green-100: #B8FFE0;
+  --rz-green-200: #7AFFCB;
+  --rz-green-300: #33F5AE;
+  --rz-green-400: #00E599;   /* Neon — primary in dark */
+  --rz-green-500: #00C77F;   /* Esmeralda — primary in light */
+  --rz-green-600: #00A368;
+  --rz-green-700: #007D4F;
+  --rz-green-800: #005536;
+  --rz-green-900: #002E1D;
+
+  /* ---------- Semantic ---------- */
+  --rz-success: #00C77F;
+  --rz-warning: #F59E0B;
+  --rz-danger:  #EF4444;
+  --rz-info:    #3B82F6;
+  --rz-purple:  #A855F7;
+
+  /* ---------- Type ---------- */
+  --rz-font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --rz-font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', monospace;
+
+  /* ---------- Radius ---------- */
+  --rz-radius-xs: 4px;
+  --rz-radius-sm: 6px;
+  --rz-radius-md: 10px;
+  --rz-radius-lg: 16px;
+  --rz-radius-xl: 24px;
+  --rz-radius:    var(--rz-radius-md); /* default */
+
+  /* ---------- Spacing scale (4px base) ---------- */
+  --rz-space-1: 4px;
+  --rz-space-2: 8px;
+  --rz-space-3: 12px;
+  --rz-space-4: 16px;
+  --rz-space-5: 20px;
+  --rz-space-6: 24px;
+  --rz-space-8: 32px;
+  --rz-space-10: 40px;
+  --rz-space-12: 48px;
+  --rz-space-16: 64px;
+
+  /* ---------- Shadows ---------- */
+  --rz-shadow-sm:  0 1px 2px rgba(0,0,0,0.05);
+  --rz-shadow-md:  0 4px 12px rgba(0,0,0,0.08);
+  --rz-shadow-lg:  0 12px 32px rgba(0,0,0,0.12);
+  --rz-shadow-glow: 0 0 24px var(--rz-glow);
+
+  /* ---------- Motion ---------- */
+  --rz-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rz-duration-fast: 120ms;
+  --rz-duration-base: 200ms;
+  --rz-duration-slow: 400ms;
+}
+
+/* ============================================================
+ * DARK THEME (default — most product surfaces)
+ * Apply via <html data-theme="dark"> or <html class="dark">
+ * ============================================================ */
+:root,
+[data-theme="dark"],
+.dark {
+  --rz-bg:           #070A09;
+  --rz-surface:      #0E1310;
+  --rz-surface-2:    #161C18;
+  --rz-surface-3:    #1F2722;
+  --rz-border:       rgba(255, 255, 255, 0.08);
+  --rz-border-active:rgba(0, 229, 153, 0.4);
+
+  --rz-text:         #F4F2EC;
+  --rz-text-muted:   rgba(244, 242, 236, 0.62);
+  --rz-text-subtle:  rgba(244, 242, 236, 0.36);
+
+  --rz-primary:        var(--rz-green-400);  /* #00E599 */
+  --rz-primary-hover:  var(--rz-green-300);
+  --rz-primary-active: var(--rz-green-500);
+  --rz-text-on-primary:#001A0F;
+  --rz-glow:           rgba(0, 229, 153, 0.5);
+
+  --rz-success-bg: rgba(0, 199, 127, 0.12);
+  --rz-warning-bg: rgba(245, 158, 11, 0.12);
+  --rz-danger-bg:  rgba(239, 68, 68, 0.12);
+  --rz-info-bg:    rgba(59, 130, 246, 0.12);
+
+  /* shadcn-style aliases (so shadcn components work zero-config) */
+  --background:        var(--rz-bg);
+  --foreground:        var(--rz-text);
+  --card:              var(--rz-surface);
+  --card-foreground:   var(--rz-text);
+  --popover:           var(--rz-surface);
+  --popover-foreground:var(--rz-text);
+  --primary:           var(--rz-primary);
+  --primary-foreground:var(--rz-text-on-primary);
+  --secondary:         var(--rz-surface-2);
+  --secondary-foreground: var(--rz-text);
+  --muted:             var(--rz-surface-2);
+  --muted-foreground:  var(--rz-text-muted);
+  --accent:            var(--rz-surface-2);
+  --accent-foreground: var(--rz-text);
+  --destructive:       var(--rz-danger);
+  --destructive-foreground: #FFFFFF;
+  --border:            var(--rz-border);
+  --input:             var(--rz-border);
+  --ring:              var(--rz-primary);
+  --radius:            var(--rz-radius);
+}
+
+/* ============================================================
+ * LIGHT THEME
+ * Apply via <html data-theme="light">
+ * ============================================================ */
+[data-theme="light"] {
+  --rz-bg:           #FAFAF7;
+  --rz-surface:      #FFFFFF;
+  --rz-surface-2:    #F4F2EC;
+  --rz-surface-3:    #E8E5DC;
+  --rz-border:       rgba(0, 0, 0, 0.08);
+  --rz-border-active:rgba(0, 199, 127, 0.5);
+
+  --rz-text:         #0E1310;
+  --rz-text-muted:   rgba(14, 19, 16, 0.64);
+  --rz-text-subtle:  rgba(14, 19, 16, 0.40);
+
+  --rz-primary:        var(--rz-green-500);  /* #00C77F — esmeralda for AA */
+  --rz-primary-hover:  var(--rz-green-600);
+  --rz-primary-active: var(--rz-green-700);
+  --rz-text-on-primary:#FFFFFF;
+  --rz-glow:           rgba(0, 199, 127, 0.25);
+
+  --rz-success-bg: rgba(0, 199, 127, 0.10);
+  --rz-warning-bg: rgba(245, 158, 11, 0.12);
+  --rz-danger-bg:  rgba(239, 68, 68, 0.10);
+  --rz-info-bg:    rgba(59, 130, 246, 0.10);
+
+  --background:        var(--rz-bg);
+  --foreground:        var(--rz-text);
+  --card:              var(--rz-surface);
+  --card-foreground:   var(--rz-text);
+  --popover:           var(--rz-surface);
+  --popover-foreground:var(--rz-text);
+  --primary:           var(--rz-primary);
+  --primary-foreground:var(--rz-text-on-primary);
+  --secondary:         var(--rz-surface-2);
+  --secondary-foreground: var(--rz-text);
+  --muted:             var(--rz-surface-2);
+  --muted-foreground:  var(--rz-text-muted);
+  --accent:            var(--rz-surface-2);
+  --accent-foreground: var(--rz-text);
+  --destructive:       var(--rz-danger);
+  --destructive-foreground: #FFFFFF;
+  --border:            var(--rz-border);
+  --input:             var(--rz-border);
+  --ring:              var(--rz-primary);
+}
+
+/* ============================================================
+ * Base reset
+ * ============================================================ */
+html, body {
+  background: var(--rz-bg);
+  color: var(--rz-text);
+  font-family: var(--rz-font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background: rgba(0, 229, 153, 0.3); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rz-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--rz-border-active); }
+
+/* Mono everywhere we want data-feel */
+.rz-mono { font-family: var(--rz-font-mono); letter-spacing: 0.02em; }
+.rz-eyebrow {
+  font-family: var(--rz-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rz-text-subtle);
+}
+.rz-glow { box-shadow: 0 0 24px var(--rz-glow); }

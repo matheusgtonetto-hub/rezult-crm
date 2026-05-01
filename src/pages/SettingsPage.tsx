@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -22,21 +23,22 @@ import {
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
-  UserPlus, UserMinus, FileText,
+  UserPlus, UserMinus, FileText, CreditCard, Check, Zap,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
+import { PLANS } from "@/data/plans";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SectionId =
-  | "perfil" | "empresa" | "equipe" | "tags" | "produtos" | "motivos" | "listas" | "campos"
+  | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
   | "departamentos" | "horarios" | "atividades" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
 const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
-  { id: "perfil",   label: "Meu perfil", icon: User },
-  { id: "empresa",  label: "Empresa",    icon: Building2 },
-  { id: "equipe",   label: "Equipe",     icon: Users },
-  { id: "tags", label: "Tags", icon: Tag },
+  { id: "perfil",  label: "Meu perfil",          icon: User },
+  { id: "planos",  label: "Planos e pagamentos", icon: CreditCard },
+  { id: "empresa", label: "Empresa",             icon: Building2 },
+  { id: "tags",    label: "Tags",                icon: Tag },
   { id: "produtos", label: "Produtos", icon: Package },
   { id: "motivos", label: "Motivos de perda", icon: XCircle },
   { id: "listas", label: "Listas", icon: List },
@@ -103,10 +105,10 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[720px] mx-auto p-8">
+        <div className="max-w-4xl mx-auto p-8">
           {active === "perfil"  && <PerfilSection setPwOpen={setPwOpen} />}
           {active === "empresa" && <EmpresaSection />}
-          {active === "equipe"  && <EquipeSection />}
+          {active === "planos"  && <PlanosSection />}
           {active === "tags" && <TagsSection />}
           {active === "produtos" && <ProdutosSection />}
           {active === "motivos" && <MotivosSection />}
@@ -130,22 +132,33 @@ export default function SettingsPage() {
 
 /* ---------------- PERFIL ---------------- */
 function PerfilSection({ setPwOpen }: any) {
-  const { profile, updateProfile, uploadAvatar } = useProfile();
+  const { profile, updateProfile, uploadAvatar, updateTheme } = useProfile();
   const { user, signOut } = useAuth();
   const { company } = useCompany();
   const [name, setName]       = useState(profile?.full_name ?? "");
   const [phone, setPhone]     = useState(maskPhone(profile?.phone ?? ""));
+  const [theme, setTheme]     = useState<"light" | "dark">(profile?.theme ?? "light");
   const [saving, setSaving]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Sync name and phone when profile loads asynchronously
+  // Sync fields when profile loads asynchronously
   useEffect(() => {
     if (profile) {
       setName(profile.full_name ?? "");
       setPhone(maskPhone(profile.phone ?? ""));
+      setTheme(profile.theme ?? "light");
     }
   }, [profile?.id]);
+
+  const handleTheme = async (t: "light" | "dark") => {
+    setTheme(t);
+    try {
+      await updateTheme(t);
+    } catch {
+      toast.error("Erro ao salvar tema.");
+    }
+  };
 
   const initials = (n: string) =>
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -291,6 +304,28 @@ function PerfilSection({ setPwOpen }: any) {
         </div>
       </Card>
 
+      {/* Preferências */}
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-[#111111]">Preferências</p>
+            <p className="text-xs text-[#AAAAAA] mt-0.5">Personalize a aparência do app selecionando o tema</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <label className="text-xs text-[#666666] whitespace-nowrap">Tema</label>
+            <Select value={theme} onValueChange={(v) => handleTheme(v as "light" | "dark")}>
+              <SelectTrigger className="border-[#EEEEEE] w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">Claro</SelectItem>
+                <SelectItem value="dark">Escuro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Card>
+
       {/* Imagem de perfil */}
       <Card>
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
@@ -393,6 +428,7 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
 function EmpresaSection() {
   const { company, updateCompany, uploadLogo } = useCompany();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [empresaTab, setEmpresaTab] = useState<"informacoes" | "equipe">("informacoes");
 
   const [name,         setName]         = useState("");
   const [email,        setEmail]        = useState("");
@@ -501,37 +537,58 @@ function EmpresaSection() {
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Empresa</h1>
 
       {/* Cabeçalho da empresa */}
-      <Card>
-        <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-full bg-[#128A68] flex items-center justify-center text-white text-2xl font-semibold shrink-0 overflow-hidden">
+      <Card className="!p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-16 h-16 rounded-full bg-[#128A68] flex items-center justify-center text-white text-xl font-semibold shrink-0 overflow-hidden">
             {company?.logo_url
               ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
               : logoInitial}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-[#111111]">{company?.name || "—"}</h2>
               <CheckCircle2 size={16} className="text-[#128A68]" />
             </div>
             {company?.email && (
-              <p className="text-[13px] text-[#AAAAAA] mt-1">{company.email}</p>
+              <p className="text-[13px] text-[#AAAAAA] mt-0.5">{company.email}</p>
             )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {company?.niche && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-[#111111] bg-white text-[11px] font-medium text-[#111111]">
-                  {company.niche}
-                </span>
-              )}
-              {createdDate && (
-                <span className="inline-flex items-center gap-1.5 text-[12px] text-[#AAAAAA]">
-                  <Calendar size={12} className="text-[#AAAAAA] shrink-0" />
-                  {createdDate}
-                </span>
-              )}
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {company?.niche && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-[#111111] bg-white text-[11px] font-medium text-[#111111]">
+                    {company.niche}
+                  </span>
+                )}
+                {createdDate && (
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-[#AAAAAA]">
+                    <Calendar size={12} className="text-[#AAAAAA] shrink-0" />
+                    {createdDate}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-1 shrink-0">
+                {(["informacoes", "equipe"] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setEmpresaTab(tab)}
+                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
+                      empresaTab === tab
+                        ? "bg-[#E1F5EE] text-[#128A68]"
+                        : "text-[#666666] hover:bg-[#F5F5F5]"
+                    }`}
+                  >
+                    {tab === "informacoes" ? "Informações" : "Equipe"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </Card>
+
+      {empresaTab === "equipe" && <EquipeSection />}
+
+      {empresaTab === "informacoes" && <>
 
       {/* Informações principais */}
       <Card>
@@ -683,6 +740,8 @@ function EmpresaSection() {
           </Button>
         </div>
       </Card>
+
+      </>}
     </>
   );
 }
@@ -945,6 +1004,175 @@ function EquipeSection() {
   );
 }
 
+/* ---------------- PLANOS E PAGAMENTOS ---------------- */
+const PLAN_LABELS: Record<string, string> = {
+  free:       "Trial gratuito",
+  starter:    "Starter",
+  essential:  "Essential",
+  pro:        "Pro",
+};
+
+const PLAN_LIMITS: Record<string, { leads: number | null; members: number | null; connections: number | null; automations: number | null; pipelines: number | null }> = {
+  free:      { leads: 500,    members: 1,    connections: 1,  automations: 3,  pipelines: 2  },
+  starter:   { leads: 5000,   members: 4,    connections: 3,  automations: 8,  pipelines: 5  },
+  essential: { leads: 100000, members: 15,   connections: 10, automations: 20, pipelines: 20 },
+  pro:       { leads: null,   members: null, connections: null, automations: null, pipelines: null },
+};
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function UsageCard({ label, current, limit, icon }: { label: string; current: number; limit: number | null; icon: React.ReactNode }) {
+  const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
+  const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
+  return (
+    <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <p className="text-[13px] font-medium text-[#111111]">{label}</p>
+      </div>
+      <p className="text-xl font-bold text-[#111111]">
+        {current.toLocaleString("pt-BR")}
+        <span className="text-sm font-normal text-[#AAAAAA] ml-1">/ {displayLimit}</span>
+      </p>
+      {limit !== null && (
+        <Progress value={pct} className="h-1.5 mt-2 [&>div]:bg-[#128A68]" />
+      )}
+    </div>
+  );
+}
+
+function PlanosSection() {
+  const { company } = useCompany();
+  const { leads, pipelines, teamMembers } = useCRM();
+
+  const planKey = company?.plan ?? "free";
+  const planDef = PLANS.find(p => p.key === planKey);
+  const limits  = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.free;
+
+  const leadsCount    = Object.keys(leads).length;
+  const pipelinesCount = pipelines.length;
+  const membersCount  = teamMembers.length;
+
+  const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
+
+  return (
+    <>
+      <h1 className="text-xl font-semibold text-[#111111] mb-6">Planos e pagamentos</h1>
+
+      {/* Cabeçalho */}
+      <Card className="!p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#E1F5EE] flex items-center justify-center shrink-0">
+              <CreditCard size={20} className="text-[#128A68]" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-[#111111]">Planos e pagamentos</p>
+              <p className="text-xs text-[#AAAAAA] mt-0.5">Controle seus planos, pagamentos e uso do Rezult CRM</p>
+            </div>
+          </div>
+          {company && (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#128A68] flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+                {company.logo_url
+                  ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+                  : logoInitial}
+              </div>
+              <p className="text-[13px] font-medium text-[#111111]">{company.name}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Plano atual */}
+      <Card>
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <p className="text-xs text-[#AAAAAA] mb-1">Plano atual</p>
+            <p className="text-2xl font-bold text-[#128A68]">{PLAN_LABELS[planKey] ?? planKey}</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="border-[#EEEEEE] text-[#666666]">
+              Gerenciar plano
+            </Button>
+            <Button size="sm" className="bg-[#128A68] hover:bg-[#128A68]/90">
+              Upgrade
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-stretch gap-0 border border-[#EEEEEE] rounded-xl overflow-hidden">
+          {/* Renova em */}
+          <div className="flex-1 px-4 py-3">
+            <p className="text-[11px] text-[#AAAAAA] mb-1">Renova em</p>
+            <p className="text-[13px] font-semibold text-[#111111]">
+              {company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
+            </p>
+          </div>
+          <div className="w-px bg-[#EEEEEE] self-stretch" />
+          {/* Valor */}
+          <div className="flex-1 px-4 py-3">
+            <p className="text-[11px] text-[#AAAAAA] mb-1">Valor</p>
+            <p className="text-[13px] font-semibold text-[#111111]">
+              {planDef?.pricing.mensal ?? (planKey === "free" ? "Grátis" : "—")}
+            </p>
+          </div>
+          <div className="w-px bg-[#EEEEEE] self-stretch" />
+          {/* Frequência */}
+          <div className="flex-1 px-4 py-3">
+            <p className="text-[11px] text-[#AAAAAA] mb-1">Frequência</p>
+            <p className="text-[13px] font-semibold text-[#111111]">Mensal</p>
+          </div>
+          <div className="w-px bg-[#EEEEEE] self-stretch" />
+          {/* Método de pagamento */}
+          <div className="flex-1 px-4 py-3">
+            <p className="text-[11px] text-[#AAAAAA] mb-1">Método de pagamento</p>
+            <div className="flex items-center gap-1.5">
+              <CreditCard size={13} className="text-[#666666] shrink-0" />
+              <div>
+                <p className="text-[13px] font-semibold text-[#111111] leading-none">Cartão de crédito</p>
+                <p className="text-[11px] text-[#AAAAAA] mt-0.5">**** **** **** 5432</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Benefícios do plano */}
+      {planDef && (
+        <Card>
+          <SectionTitle title="Benefícios do plano" subtitle={`Recursos incluídos no plano ${planDef.name}`} />
+          <div className="grid grid-cols-2 gap-2">
+            {planDef.features.map(f => (
+              <div key={f} className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                  <Check size={10} className="text-[#128A68]" strokeWidth={2.5} />
+                </div>
+                <p className="text-[13px] text-[#111111]">{f}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Cards de uso */}
+      <p className="text-base font-semibold text-[#111111] mb-3">Uso do plano</p>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <UsageCard label="Leads" current={leadsCount} limit={limits.leads} icon={<Users size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Membros" current={membersCount} limit={limits.members} icon={<Users size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Pipelines" current={pipelinesCount} limit={limits.pipelines} icon={<Zap size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Conexões" current={0} limit={limits.connections} icon={<Link2 size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Automações" current={0} limit={limits.automations} icon={<Zap size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Integrações" current={0} limit={3} icon={<Plug size={14} className="text-[#128A68]" />} />
+      </div>
+    </>
+  );
+}
+
 /* ---------------- TAGS ---------------- */
 const TAG_COLORS = [
   "#E24B4A", "#F97316", "#F59E0B", "#EAB308", "#84CC16",
@@ -1147,34 +1375,58 @@ function ProdutosSection() {
 
   return (
     <>
-      <SectionHeader title="Produtos" onAdd="+ Novo produto" onClick={openNew} />
+      <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <Card>
+      <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl overflow-hidden mb-5">
         {products.length === 0 ? (
-          <p className="text-sm text-[#AAAAAA] text-center py-6">Nenhum produto cadastrado ainda.</p>
+          <p className="text-sm text-[#AAAAAA] text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
-          <div className="space-y-2">
-            {products.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-                <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
-                  <Package size={16} className="text-[#128A68]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-[#111111] truncate">{p.name}</p>
-                  {p.sku && <p className="text-xs text-[#AAAAAA]">SKU: {p.sku}</p>}
-                </div>
-                <span className="text-sm font-semibold text-[#128A68] shrink-0">{fmt(p.defaultValue)}</span>
-                <button onClick={() => openEdit(p)} className="text-[#666666] hover:text-[#111111] p-1">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => deleteProduct(p.id)} className="text-[#666666] hover:text-[#E24B4A] p-1">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-[#EEEEEE] hover:bg-transparent">
+                <TableHead className="text-[#AAAAAA] text-xs font-medium">Produto</TableHead>
+                <TableHead className="text-[#AAAAAA] text-xs font-medium">Identificador (SKU)</TableHead>
+                <TableHead className="text-[#AAAAAA] text-xs font-medium">Preço</TableHead>
+                <TableHead className="text-[#AAAAAA] text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map(p => (
+                <TableRow key={p.id} className="border-[#EEEEEE] hover:bg-[#FAFAFA]">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                        <Package size={14} className="text-[#128A68]" />
+                      </div>
+                      <span className="text-[13px] font-medium text-[#111111]">{p.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-[#666666]">{p.sku || "—"}</TableCell>
+                  <TableCell>
+                    <span className="text-[13px] font-semibold text-[#128A68]">{fmt(p.defaultValue)}</span>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-[#666666]">
+                    {p.created_at
+                      ? new Date(p.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(p)} className="text-[#CCCCCC] hover:text-[#666666] p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deleteProduct(p.id)} className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
         <DialogContent className="max-w-sm">
@@ -1514,10 +1766,13 @@ function ArmazenamentoSection() {
 }
 
 /* ---------------- helpers ---------------- */
-function SectionHeader({ title, onAdd, onClick }: { title: string; onAdd: string; onClick: () => void }) {
+function SectionHeader({ title, subtitle, onAdd, onClick }: { title: string; subtitle?: string; onAdd: string; onClick: () => void }) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <h1 className="text-xl font-semibold text-[#111111]">{title}</h1>
+    <div className="flex items-start justify-between mb-6">
+      <div>
+        <h1 className="text-xl font-semibold text-[#111111]">{title}</h1>
+        {subtitle && <p className="text-xs text-[#AAAAAA] mt-0.5">{subtitle}</p>}
+      </div>
       <Button onClick={onClick} className="bg-[#128A68] hover:bg-[#128A68]/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
     </div>
   );
