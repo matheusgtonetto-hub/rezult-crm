@@ -121,7 +121,7 @@ export function PipelineSidebar() {
           <div key={group.groupId}>
             <button
               onClick={() => toggleGroup(group.cat)}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-sidebar-foreground transition-colors"
             >
               {openGroups[group.cat] !== false ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               {group.cat}
@@ -141,14 +141,14 @@ export function PipelineSidebar() {
                     <button
                       key={p.id}
                       onClick={() => setActivePipelineId(p.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
                         active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-primary"
+                          ? "bg-sidebar-accent border-l-[3px] border-primary"
                           : "text-foreground hover:bg-[#F8F9FA]"
                       }`}
                     >
                       <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
-                      <span className="truncate text-left flex-1">{p.name}</span>
+                      <span className={`truncate text-left flex-1 ${active ? "text-foreground" : ""}`}>{p.name}</span>
                     </button>
                   );
                 })}
@@ -159,7 +159,7 @@ export function PipelineSidebar() {
 
         {orphanPipelines.length > 0 && (
           <div>
-            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-sidebar-foreground">
               Outros
             </p>
             <div className="space-y-0.5 mb-1">
@@ -169,14 +169,14 @@ export function PipelineSidebar() {
                   <button
                     key={p.id}
                     onClick={() => setActivePipelineId(p.id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-primary"
+                        ? "bg-sidebar-accent border-l-[3px] border-primary"
                         : "text-foreground hover:bg-[#F8F9FA]"
                     }`}
                   >
                     <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
-                    <span className="truncate text-left flex-1">{p.name}</span>
+                    <span className={`truncate text-left flex-1 ${active ? "text-foreground" : ""}`}>{p.name}</span>
                   </button>
                 );
               })}

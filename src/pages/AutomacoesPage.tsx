@@ -166,7 +166,7 @@ export default function AutomacoesPage() {
                 <div key={g.id}>
                   <button
                     onClick={() => setOpenGroups(s => ({ ...s, [g.id]: !open }))}
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#666666", letterSpacing: 0.3 }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#535353", letterSpacing: 0.3 }}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -213,13 +213,13 @@ export default function AutomacoesPage() {
             onClick={() => setLeftCollapsed(true)}
             style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
           >
-            <ChevronLeft size={14} color="#666666" />
+            <ChevronLeft size={14} color="#535353" />
           </button>
         </aside>
       )}
       {leftCollapsed && (
         <button onClick={() => setLeftCollapsed(false)} style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <ChevronRight size={14} color="#666666" />
+          <ChevronRight size={14} color="#535353" />
         </button>
       )}
 
@@ -273,7 +273,7 @@ export default function AutomacoesPage() {
               ].map((t, i) => {
                 const Icon = t.icon;
                 return (
-                  <button key={i} title={t.label} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "#666666", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  <button key={i} title={t.label} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "#535353", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                     onMouseEnter={(e) => e.currentTarget.style.background = "#F5F5F5"}
                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                     <Icon size={16} />
@@ -371,7 +371,7 @@ export default function AutomacoesPage() {
 }
 
 const zoomBtn: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", color: "#666666", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+  width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", color: "#535353", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
 function CanvasBlock({ node, selected, onSelect }: { node: CanvasNode; selected: boolean; onSelect: () => void }) {
@@ -410,14 +410,14 @@ function StartBody() {
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#666666", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
           O gatilho é responsável por acionar a automação. Clique para adicionar um gatilho:
         </div>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#DBEAFE", color: "#185FA5", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
           <Braces size={10} /> Api-request-1
         </div>
         <div style={{ padding: "6px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#666666" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#535353" }}>
             <User size={12} /> Iniciado por outra automação
           </div>
           <div style={{ fontSize: 11, color: "#AAAAAA", marginLeft: 18 }}>Quando a automação é iniciada por ou...</div>
@@ -442,7 +442,7 @@ function ConditionBody() {
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condição</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#666666", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
           Faça filtros para seguir caminhos diferentes. Clique para adicionar uma condição:
         </div>
         <div style={{ padding: "6px 0" }}>
@@ -475,7 +475,7 @@ function RandomizerBody() {
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#666666", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
           Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:
         </div>
         {[

@@ -49,7 +49,7 @@ const STATUS_BADGE: Record<Status, { bg: string; fg: string; label: string }> = 
   pago: { bg: "#E1F5EE", fg: "#085041", label: "Pago" },
   pendente: { bg: "#FAEEDA", fg: "#633806", label: "Pendente" },
   vencido: { bg: "#FCEBEB", fg: "#A32D2D", label: "Vencido" },
-  cancelado: { bg: "#F5F5F5", fg: "#666666", label: "Cancelado" },
+  cancelado: { bg: "#F5F5F5", fg: "#535353", label: "Cancelado" },
 };
 
 function MethodIcon({ method, size = 14 }: { method: Method; size?: number }) {

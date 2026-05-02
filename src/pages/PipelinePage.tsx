@@ -511,33 +511,15 @@ export default function PipelinePage() {
                                       : ""
                                   } ${isWonStage(col.id) ? "glow-closed" : ""}`}
                                 >
-                                  {/* Top: deal number + whatsapp */}
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-[10px] font-mono text-muted-foreground">
-                                      #{lead.dealNumber}
-                                    </span>
-                                    <button
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        openChat(leadId);
-                                      }}
-                                      className="flex items-center justify-center transition-colors hover:bg-[#F0F0F0]"
-                                      style={{ width: 24, height: 24, borderRadius: 6 }}
-                                      aria-label="Abrir chat WhatsApp"
-                                    >
-                                      <WhatsAppIcon size={18} />
-                                    </button>
-                                  </div>
-
-                                  {/* Avatar + Name + Company */}
-                                  <div className="flex items-center gap-2">
+                                  {/* Avatar + Name + Company + deal number */}
+                                  <div className="flex items-center gap-2 mb-1.5">
                                     <div
                                       className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-semibold text-xs"
                                       style={{ backgroundColor: col.color }}
                                     >
                                       {lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <p className="text-sm font-medium text-foreground leading-tight truncate">
                                         {lead.name}
                                       </p>
@@ -547,6 +529,9 @@ export default function PipelinePage() {
                                         </p>
                                       )}
                                     </div>
+                                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                                      #{lead.dealNumber}
+                                    </span>
                                   </div>
 
                                   {/* Responsible */}
@@ -576,13 +561,26 @@ export default function PipelinePage() {
                                     </div>
                                   )}
 
-                                  {/* Follow-up date */}
-                                  {lead.nextFollowUp && (
-                                    <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "#AAAAAA" }}>
-                                      <Calendar size={11} />
-                                      Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
-                                    </div>
-                                  )}
+                                  {/* Follow-up + WhatsApp */}
+                                  <div className="flex items-center justify-between mt-0.5">
+                                    {lead.nextFollowUp ? (
+                                      <div className="flex items-center gap-1" style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                        <Calendar size={11} />
+                                        Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
+                                      </div>
+                                    ) : <div />}
+                                    <button
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        openChat(leadId);
+                                      }}
+                                      className="flex items-center justify-center transition-colors hover:bg-[#F0F0F0]"
+                                      style={{ width: 24, height: 24, borderRadius: 6 }}
+                                      aria-label="Abrir chat WhatsApp"
+                                    >
+                                      <WhatsAppIcon size={18} />
+                                    </button>
+                                  </div>
 
                                   {/* Footer: tags + tag button */}
                                   <div className="flex items-center mt-3 pt-2 border-t border-card-border gap-1">

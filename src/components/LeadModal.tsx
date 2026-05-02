@@ -199,7 +199,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         {/* ── Campos fixos: Nome + Tags ── */}
         <div className="px-6 pt-5 pb-4 space-y-4 border-b border-[#EEEEEE]">
           <div>
-            <label className="text-xs font-medium text-[#666666] mb-1.5 block">Nome *</label>
+            <label className="text-xs font-medium text-[#535353] mb-1.5 block">Nome *</label>
             <Input
               value={form.name}
               onChange={e => set("name", e.target.value)}
@@ -210,7 +210,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-[#666666] mb-1.5 block">Tags</label>
+            <label className="text-xs font-medium text-[#535353] mb-1.5 block">Tags</label>
             <div className="flex flex-wrap gap-2">
               {crmTags.length === 0 && (
                 <p className="text-xs text-[#AAAAAA] italic">Crie tags em Configurações → Tags.</p>
@@ -424,7 +424,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-medium text-[#666666] mb-1.5 block">{label}</label>
+      <label className="text-xs font-medium text-[#535353] mb-1.5 block">{label}</label>
       {children}
     </div>
   );

@@ -23,7 +23,7 @@ const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Rafael:     { bg: "#E1F5EE", fg: "#128A68" },
   Mariana:    { bg: "#EDE9FE", fg: "#534AB7" },
   Carlos:     { bg: "#FEF3C7", fg: "#854F0B" },
-  SDR:        { bg: "#F5F5F5", fg: "#666666" },
+  SDR:        { bg: "#F5F5F5", fg: "#535353" },
   "Follow-up":{ bg: "#FEE2E2", fg: "#A32D2D" },
   Proposta:   { bg: "#DBEAFE", fg: "#185FA5" },
   Negociação: { bg: "#F3E8FF", fg: "#6D28D9" },
@@ -31,7 +31,7 @@ const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Fechado:    { bg: "#E1F5EE", fg: "#128A68" },
 };
 function tagStyle(label: string) {
-  return TAG_STYLES[label] || { bg: "#F5F5F5", fg: "#666666" };
+  return TAG_STYLES[label] || { bg: "#F5F5F5", fg: "#535353" };
 }
 
 /* ---------- types ---------- */
@@ -162,7 +162,7 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
 
 /* ---------- filter chip ---------- */
 function FilterChip({ Icon, count, isActive, isHighlight, onClick }: { Icon: any; count: number | null; isActive: boolean; isHighlight: boolean; onClick: () => void }) {
-  let bg = "#F5F5F5", fg = "#666666", border = "1px solid transparent";
+  let bg = "#F5F5F5", fg = "#535353", border = "1px solid transparent";
   if (isHighlight && !isActive) { bg = "#128A68"; fg = "#FFFFFF"; }
   if (isActive) { bg = "#E1F5EE"; fg = "#128A68"; border = "1px solid #128A68"; }
   return (

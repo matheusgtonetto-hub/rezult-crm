@@ -64,7 +64,7 @@ const WEEK = [
 const REPORT_SECTIONS = [
   {
     label: "Resumo do dia",
-    color: "#666666",
+    color: "#535353",
     text: "Hoje você ficou ativo por 6h12min no Rezult. Qualificou 8 leads, agendou 3 reuniões e respondeu 47 mensagens no WhatsApp. Sua taxa de qualificação hoje foi de 67% — dentro da meta.",
   },
   {

@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <aside className="w-[200px] bg-white border-r-[0.5px] border-[#EEEEEE] flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-[#666666] hover:bg-[#F5F5F5] px-4 py-3 border-b-[0.5px] border-[#EEEEEE]"
+          className="flex items-center gap-2 text-[13px] text-[#535353] hover:bg-[#F5F5F5] px-4 py-3 border-b-[0.5px] border-[#EEEEEE]"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -92,7 +92,7 @@ export default function SettingsPage() {
                 className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2.5 transition-colors ${
                   isActive
                     ? "bg-[#E1F5EE] text-[#128A68] border-l-[3px] border-[#128A68] font-medium pl-[13px]"
-                    : "text-[#666666] hover:bg-[#F5F5F5]"
+                    : "text-[#535353] hover:bg-[#F5F5F5]"
                 }`}
               >
                 <s.icon size={14} />
@@ -221,7 +221,7 @@ function PerfilSection({ setPwOpen }: any) {
               <p className="text-xs text-[#AAAAAA] mt-1">Conta criada em {createdDate}</p>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={signOut} className="border-[#EEEEEE] text-[#666666]">
+          <Button variant="outline" size="sm" onClick={signOut} className="border-[#EEEEEE] text-[#535353]">
             Sair
           </Button>
         </div>
@@ -234,7 +234,7 @@ function PerfilSection({ setPwOpen }: any) {
 
           {/* Nome — salva em profiles */}
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Nome</label>
+            <label className="text-xs text-[#535353] mb-1 block">Nome</label>
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -245,14 +245,14 @@ function PerfilSection({ setPwOpen }: any) {
 
           {/* Telefone — salva em companies */}
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
+            <label className="text-xs text-[#535353] mb-1 block">Telefone</label>
             <PhoneInput value={phone} onChange={setPhone} />
           </div>
 
           {/* E-mail — somente leitura, vem do auth */}
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <label className="text-xs text-[#666666]">E-mail</label>
+              <label className="text-xs text-[#535353]">E-mail</label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Lock size={11} className="text-[#AAAAAA] cursor-help" />
@@ -282,11 +282,11 @@ function PerfilSection({ setPwOpen }: any) {
 
           {/* Senha */}
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Senha</label>
+            <label className="text-xs text-[#535353] mb-1 block">Senha</label>
             <Button
               variant="outline"
               onClick={() => setPwOpen(true)}
-              className="w-full border-[#EEEEEE] text-[#666666] justify-start"
+              className="w-full border-[#EEEEEE] text-[#535353] justify-start"
             >
               Alterar senha
             </Button>
@@ -312,7 +312,7 @@ function PerfilSection({ setPwOpen }: any) {
             <p className="text-xs text-[#AAAAAA] mt-0.5">Personalize a aparência do app selecionando o tema</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <label className="text-xs text-[#666666] whitespace-nowrap">Tema</label>
+            <label className="text-xs text-[#535353] whitespace-nowrap">Tema</label>
             <Select value={theme} onValueChange={(v) => handleTheme(v as "light" | "dark")}>
               <SelectTrigger className="border-[#EEEEEE] w-32">
                 <SelectValue />
@@ -341,7 +341,7 @@ function PerfilSection({ setPwOpen }: any) {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
-            <p className="text-[13px] text-[#666666]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[13px] text-[#535353]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-[#AAAAAA] mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
         </div>
@@ -411,7 +411,7 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
     <div className="flex items-center h-10 border border-[#EEEEEE] rounded-md overflow-hidden bg-white focus-within:ring-1 focus-within:ring-[#128A68] focus-within:border-[#128A68]">
       <div className="flex items-center gap-1.5 px-3 h-full bg-[#FAFAFA] border-r border-[#EEEEEE] shrink-0 select-none">
         <span className="text-base leading-none">🇧🇷</span>
-        <span className="text-sm text-[#666666] font-medium">+55</span>
+        <span className="text-sm text-[#535353] font-medium">+55</span>
       </div>
       <input
         type="tel"
@@ -574,7 +574,7 @@ function EmpresaSection() {
                     className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
                       empresaTab === tab
                         ? "bg-[#E1F5EE] text-[#128A68]"
-                        : "text-[#666666] hover:bg-[#F5F5F5]"
+                        : "text-[#535353] hover:bg-[#F5F5F5]"
                     }`}
                   >
                     {tab === "informacoes" ? "Informações" : "Equipe"}
@@ -595,22 +595,22 @@ function EmpresaSection() {
         <SectionTitle title="Informações" subtitle="Principais informações sobre sua empresa" />
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Nome da empresa *</label>
+            <label className="text-xs text-[#535353] mb-1 block">Nome da empresa *</label>
             <Input value={name} onChange={e => setName(e.target.value)}
               placeholder="Preencha com o nome da sua empresa" className="border-[#EEEEEE]" />
           </div>
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">E-mail da empresa</label>
+            <label className="text-xs text-[#535353] mb-1 block">E-mail da empresa</label>
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="Preencha com o e-mail da sua empresa" className="border-[#EEEEEE]" />
           </div>
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Nicho</label>
+            <label className="text-xs text-[#535353] mb-1 block">Nicho</label>
             <Input value={niche} onChange={e => setNiche(e.target.value)}
               placeholder="Exemplo: Vendas" className="border-[#EEEEEE]" />
           </div>
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Telefone</label>
+            <label className="text-xs text-[#535353] mb-1 block">Telefone</label>
             <PhoneInput value={phone} onChange={setPhone} />
           </div>
         </div>
@@ -631,7 +631,7 @@ function EmpresaSection() {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
             <Upload size={20} className="text-[#AAAAAA] mx-auto mb-1" />
-            <p className="text-[13px] text-[#666666]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[13px] text-[#535353]">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-[#AAAAAA] mt-1">PNG, JPG, SVG · max 2MB</p>
           </div>
         </div>
@@ -643,7 +643,7 @@ function EmpresaSection() {
         <div className="space-y-4">
           {/* Tipo de pessoa */}
           <div>
-            <label className="text-xs text-[#666666] mb-1.5 block">Tipo de Pessoa</label>
+            <label className="text-xs text-[#535353] mb-1.5 block">Tipo de Pessoa</label>
             <div className="flex gap-2">
               {(["pj", "pf"] as const).map(t => (
                 <button
@@ -653,7 +653,7 @@ function EmpresaSection() {
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors font-medium ${
                     docType === t
                       ? "bg-[#128A68] text-white border-[#128A68]"
-                      : "bg-white text-[#666666] border-[#EEEEEE] hover:border-[#128A68]"
+                      : "bg-white text-[#535353] border-[#EEEEEE] hover:border-[#128A68]"
                   }`}
                 >
                   {t === "pj" ? "Pessoa Jurídica" : "Pessoa Física"}
@@ -664,7 +664,7 @@ function EmpresaSection() {
 
           {/* Documento */}
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">
+            <label className="text-xs text-[#535353] mb-1 block">
               {docType === "pj" ? "CNPJ" : "CPF"}
             </label>
             <Input
@@ -682,7 +682,7 @@ function EmpresaSection() {
         <SectionTitle title="Endereço" subtitle="Endereço completo da sua empresa" />
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">CEP</label>
+            <label className="text-xs text-[#535353] mb-1 block">CEP</label>
             <div className="relative">
               <Input value={zipCode} onChange={e => handleCepChange(e.target.value)}
                 placeholder="00000-000" className="border-[#EEEEEE]" maxLength={9} />
@@ -695,38 +695,38 @@ function EmpresaSection() {
           </div>
 
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Endereço</label>
+            <label className="text-xs text-[#535353] mb-1 block">Endereço</label>
             <Input value={address} onChange={e => setAddress(e.target.value)}
               placeholder="Rua, Avenida..." className="border-[#EEEEEE]" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[#666666] mb-1 block">Número</label>
+              <label className="text-xs text-[#535353] mb-1 block">Número</label>
               <Input value={number} onChange={e => setNumber(e.target.value)}
                 placeholder="123" className="border-[#EEEEEE]" />
             </div>
             <div>
-              <label className="text-xs text-[#666666] mb-1 block">Complemento</label>
+              <label className="text-xs text-[#535353] mb-1 block">Complemento</label>
               <Input value={complement} onChange={e => setComplement(e.target.value)}
                 placeholder="Apto, Sala..." className="border-[#EEEEEE]" />
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-[#666666] mb-1 block">Bairro</label>
+            <label className="text-xs text-[#535353] mb-1 block">Bairro</label>
             <Input value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
               placeholder="Bairro" className="border-[#EEEEEE]" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[#666666] mb-1 block">Cidade</label>
+              <label className="text-xs text-[#535353] mb-1 block">Cidade</label>
               <Input value={city} onChange={e => setCity(e.target.value)}
                 placeholder="São Paulo" className="border-[#EEEEEE]" />
             </div>
             <div>
-              <label className="text-xs text-[#666666] mb-1 block">UF</label>
+              <label className="text-xs text-[#535353] mb-1 block">UF</label>
               <Input value={state} onChange={e => setState(e.target.value.toUpperCase())}
                 placeholder="SP" className="border-[#EEEEEE]" maxLength={2} />
             </div>
@@ -944,7 +944,7 @@ function EquipeSection() {
                     <Mail size={14} className="text-[#AAAAAA]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-[#666666] truncate">{inv.email}</p>
+                    <p className="text-[13px] text-[#535353] truncate">{inv.email}</p>
                     <p className="text-[11px] text-[#AAAAAA]">
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
@@ -975,7 +975,7 @@ function EquipeSection() {
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-1.5">
-            <label className="text-xs font-medium text-[#666666]">E-mail do usuário *</label>
+            <label className="text-xs font-medium text-[#535353]">E-mail do usuário *</label>
             <Input
               type="email"
               placeholder="joao@empresa.com"
@@ -1096,7 +1096,7 @@ function PlanosSection() {
             <p className="text-2xl font-bold text-[#128A68]">{PLAN_LABELS[planKey] ?? planKey}</p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="border-[#EEEEEE] text-[#666666]">
+            <Button variant="outline" size="sm" className="border-[#EEEEEE] text-[#535353]">
               Gerenciar plano
             </Button>
             <Button size="sm" className="bg-[#128A68] hover:bg-[#128A68]/90">
@@ -1132,7 +1132,7 @@ function PlanosSection() {
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-[#AAAAAA] mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
-              <CreditCard size={13} className="text-[#666666] shrink-0" />
+              <CreditCard size={13} className="text-[#535353] shrink-0" />
               <div>
                 <p className="text-[13px] font-semibold text-[#111111] leading-none">Cartão de crédito</p>
                 <p className="text-[11px] text-[#AAAAAA] mt-0.5">**** **** **** 5432</p>
@@ -1240,8 +1240,8 @@ function TagsSection() {
                   {t.description && <p className="text-[11px] text-[#AAAAAA] truncate">{t.description}</p>}
                 </div>
                 <span className="text-xs text-[#AAAAAA] shrink-0">{tagLeadCounts[t.name] ?? 0} leads</span>
-                <button onClick={() => openEdit(t)} className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-                <button onClick={() => deleteTag(t.id)} className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+                <button onClick={() => openEdit(t)} className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+                <button onClick={() => deleteTag(t.id)} className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
@@ -1255,7 +1255,7 @@ function TagsSection() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Nome *</label>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Nome *</label>
               <input
                 className="w-full border border-[#EEEEEE] rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#128A68]"
                 value={name}
@@ -1265,7 +1265,7 @@ function TagsSection() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Descrição</label>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Descrição</label>
               <input
                 className="w-full border border-[#EEEEEE] rounded-md px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#128A68]"
                 value={description}
@@ -1274,7 +1274,7 @@ function TagsSection() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-2 block">Cor</label>
+              <label className="text-xs font-medium text-[#535353] mb-2 block">Cor</label>
               <div className="grid grid-cols-10 gap-1.5">
                 {TAG_COLORS.map(c => (
                   <button
@@ -1292,7 +1292,7 @@ function TagsSection() {
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-xs text-[#666666]">Cor selecionada: <strong>{color}</strong></span>
+                <span className="text-xs text-[#535353]">Cor selecionada: <strong>{color}</strong></span>
               </div>
             </div>
           </div>
@@ -1402,18 +1402,18 @@ function ProdutosSection() {
                       <span className="text-[13px] font-medium text-[#111111]">{p.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-[#666666]">{p.sku || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-[#535353]">{p.sku || "—"}</TableCell>
                   <TableCell>
                     <span className="text-[13px] font-semibold text-[#128A68]">{fmt(p.defaultValue)}</span>
                   </TableCell>
-                  <TableCell className="text-[13px] text-[#666666]">
+                  <TableCell className="text-[13px] text-[#535353]">
                     {p.created_at
                       ? new Date(p.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(p)} className="text-[#CCCCCC] hover:text-[#666666] p-1 transition-colors">
+                      <button onClick={() => openEdit(p)} className="text-[#CCCCCC] hover:text-[#535353] p-1 transition-colors">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => deleteProduct(p.id)} className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors">
@@ -1435,7 +1435,7 @@ function ProdutosSection() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Nome *</label>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Nome *</label>
               <Input
                 value={name}
                 onChange={e => setName(e.target.value)}
@@ -1445,7 +1445,7 @@ function ProdutosSection() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Identificador (SKU) *</label>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Identificador (SKU) *</label>
               <Input
                 value={sku}
                 onChange={e => setSku(e.target.value)}
@@ -1454,7 +1454,7 @@ function ProdutosSection() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[#666666] mb-1.5 block">Preço *</label>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Preço *</label>
               <Input
                 value={price}
                 onChange={e => handlePriceChange(e.target.value)}
@@ -1489,8 +1489,8 @@ function MotivosSection() {
           {motivos.map(m => (
             <div key={m} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
               <p className="flex-1 text-[13px] text-[#111111]">{m}</p>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -1516,8 +1516,8 @@ function ListasSection() {
               <List size={16} className="text-[#128A68]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{l.name}</p>
               <span className="text-xs text-[#AAAAAA]">{l.count} leads</span>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -1544,8 +1544,8 @@ function CamposSection() {
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{c.name}</p>
               <Badge variant="secondary" className="text-xs">{c.type}</Badge>
               <Switch defaultChecked={c.required} />
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -1571,8 +1571,8 @@ function DepartamentosSection() {
               <Building2 size={16} className="text-[#128A68]" />
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{d.name}</p>
               <span className="text-xs text-[#AAAAAA]">{d.count} membros</span>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -1641,8 +1641,8 @@ function AtividadesSection() {
                 <t.icon size={14} className="text-[#128A68]" />
               </div>
               <p className="flex-1 text-[13px] text-[#111111] font-medium">{t.name}</p>
-              <button className="text-[#666666] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#666666] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
@@ -1720,7 +1720,7 @@ function McpSection() {
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Servidor MCP</h1>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-[#F5F5F5] border-[0.5px] border-[#EEEEEE] rounded-lg p-4 font-mono text-xs text-[#666666]">
+        <div className="bg-[#F5F5F5] border-[0.5px] border-[#EEEEEE] rounded-lg p-4 font-mono text-xs text-[#535353]">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-[#128A68] hover:bg-[#128A68]/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -1751,7 +1751,7 @@ function ArmazenamentoSection() {
             <div key={b.label}>
               <div className="flex justify-between text-[13px] mb-1">
                 <span className="text-[#111111]">{b.label}</span>
-                <span className="text-[#666666]">{b.size}</span>
+                <span className="text-[#535353]">{b.size}</span>
               </div>
               <div className="h-1 bg-[#F5F5F5] rounded-full overflow-hidden">
                 <div className="h-full bg-[#128A68]" style={{ width: `${b.pct * 4}%` }} />

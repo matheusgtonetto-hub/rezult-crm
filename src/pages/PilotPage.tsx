@@ -288,7 +288,7 @@ export default function PilotPage() {
               <button
                 onClick={() => setHistoryOpen(true)}
                 className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
-                style={{ color: "#666666" }}
+                style={{ color: "#535353" }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Histórico"
@@ -317,7 +317,7 @@ export default function PilotPage() {
                   className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
                   style={{
                     backgroundColor: isAgent ? "#128A68" : "transparent",
-                    color: isAgent ? "#FFFFFF" : "#666666",
+                    color: isAgent ? "#FFFFFF" : "#535353",
                   }}
                 >
                   <Sparkles size={14} />
@@ -328,7 +328,7 @@ export default function PilotPage() {
                   className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
                   style={{
                     backgroundColor: !isAgent ? "#111111" : "transparent",
-                    color: !isAgent ? "#FFFFFF" : "#666666",
+                    color: !isAgent ? "#FFFFFF" : "#535353",
                   }}
                 >
                   <Diamond size={14} />
@@ -343,7 +343,7 @@ export default function PilotPage() {
               <button
                 onClick={() => setReportsOpen(true)}
                 className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
-                style={{ color: "#666666" }}
+                style={{ color: "#535353" }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Relatórios"
@@ -381,7 +381,7 @@ export default function PilotPage() {
                       style={{
                         backgroundColor: "#F5F5F5",
                         borderColor: "#E5E5E5",
-                        color: "#666666",
+                        color: "#535353",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = accent;
@@ -390,7 +390,7 @@ export default function PilotPage() {
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = "#E5E5E5";
-                        e.currentTarget.style.color = "#666666";
+                        e.currentTarget.style.color = "#535353";
                         e.currentTarget.style.backgroundColor = "#F5F5F5";
                       }}
                     >
@@ -535,7 +535,7 @@ export default function PilotPage() {
                   className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors capitalize"
                   style={{
                     backgroundColor: period === p ? "#E1F5EE" : "#F5F5F5",
-                    color: period === p ? "#128A68" : "#666666",
+                    color: period === p ? "#128A68" : "#535353",
                     border: period === p ? "1px solid #128A68" : "1px solid transparent",
                   }}
                 >
@@ -592,7 +592,7 @@ export default function PilotPage() {
                 <Star size={14} style={{ color: "#8B5CF6" }} />
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Dica do dia</span>
               </div>
-              <p className="text-[13px] leading-relaxed" style={{ color: "#666666" }}>
+              <p className="text-[13px] leading-relaxed" style={{ color: "#535353" }}>
                 Baseado no seu histórico, leads que respondem em menos de 2 horas têm 3x mais chance de fechar. Tente responder o Carlos ainda hoje.
               </p>
             </div>
@@ -712,7 +712,7 @@ function ConvItem({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg p-2" style={{ backgroundColor: "#FFFFFF" }}>
-      <p className="text-[10px]" style={{ color: "#666666" }}>{label}</p>
+      <p className="text-[10px]" style={{ color: "#535353" }}>{label}</p>
       <p className="text-[15px] font-bold" style={{ color: "#128A68" }}>{value}</p>
     </div>
   );
