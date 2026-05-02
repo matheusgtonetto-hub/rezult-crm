@@ -529,15 +529,25 @@ export default function PipelinePage() {
                                     </button>
                                   </div>
 
-                                  {/* Name + company */}
-                                  <p className="text-sm font-medium text-foreground leading-tight">
-                                    {lead.name}
-                                  </p>
-                                  {lead.company && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {lead.company}
-                                    </p>
-                                  )}
+                                  {/* Avatar + Name + Company */}
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-semibold text-xs"
+                                      style={{ backgroundColor: col.color }}
+                                    >
+                                      {lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground leading-tight truncate">
+                                        {lead.name}
+                                      </p>
+                                      {lead.company && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {lead.company}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
 
                                   {/* Responsible */}
                                   {lead.responsible && (

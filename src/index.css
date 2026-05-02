@@ -1,63 +1,98 @@
+@font-face {
+  font-family: 'Geist';
+  src: url('../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../node_modules/geist/dist/fonts/geist-sans/Geist-Italic[wght].woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Light palette — Rezult "Elevated Cards" */
-    --background: 210 20% 97%;        /* #F4F6F8 — canvas */
+    /* ── Rezult CRM — Nova identidade visual ── */
+
+    /* PRIMARY */
+    --primary: 158 84% 37%;           /* #10B981 */
+    --primary-foreground: 0 0% 100%;  /* #FFFFFF */
+    --primary-hover: 168 90% 20%;     /* #059669 */
+    --ring: 158 84% 37%;              /* #10B981 */
+
+    /* ACCENT */
+    --accent: 151 100% 80%;           /* #6EE7B7 */
+    --accent-foreground: 0 0% 6.7%;   /* #111111 */
+
+    /* BACKGROUNDS / SURFACES */
+    --background: 60 14% 97%;           /* #FAFAF7 */
     --foreground: 0 0% 6.7%;          /* #111111 */
 
     --card: 0 0% 100%;                /* #FFFFFF */
-    --card-foreground: 0 0% 6.7%;
-    --card-border: 0 0% 93.3%;        /* #EEEEEE */
+    --card-foreground: 0 0% 6.7%;     /* #111111 */
+    --card-border: 40 10% 91%;        /* #E8E7E0 */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6.7%;
-
-    /* Primary = green #128A68 */
-    --primary: 165 77% 30%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 100%;           /* #FFFFFF — painéis brancos elevados */
+    --secondary: 45 11% 94%;            /* #F2F1EC */
     --secondary-foreground: 0 0% 6.7%;
 
-    --muted: 210 20% 97%;             /* #F4F6F8 */
+    --muted: 40 10% 91%;               /* #E8E7E0 */
     --muted-foreground: 0 0% 66.7%;   /* #AAAAAA */
 
-    --accent: 165 77% 30%;
-    --accent-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;             /* #FFFFFF */
+    --popover-foreground: 0 0% 6.7%;  /* #111111 */
 
-    --destructive: 0 73% 59%;         /* #E24B4A */
+    /* SEMANTIC */
+    --success: 158 84% 37%;           /* #10B981 */
+    --success-foreground: 0 0% 100%;  /* #FFFFFF */
+    --warning: 38 93% 51%;            /* #F59E0B */
+    --warning-foreground: 0 0% 100%;  /* #FFFFFF */
+    --destructive: 0 81% 60%;         /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
+    --info: 217 91% 60%;              /* #3B82F6 */
+    --info-foreground: 0 0% 100%;     /* #FFFFFF */
 
-    --success: 165 77% 30%;           /* #128A68 */
-    --success-foreground: 0 0% 100%;
-
-    /* Soft tints for highlights */
-    --success-soft: 158 60% 92%;      /* #E1F5EE */
+    /* Soft tints */
+    --success-soft: 151 100% 93%;     /* #D1FAE5 */
     --destructive-soft: 0 86% 97%;    /* #FEF2F2 */
+    --warning-soft: 48 100% 94%;      /* #FEF3C7 */
 
-    --border: 0 0% 93.3%;             /* #EEEEEE */
-    --input: 0 0% 87.8%;              /* #E0E0E0 */
-    --ring: 165 77% 30%;
+    /* BORDERS / INPUTS */
+    --border: 40 10% 91%;             /* #E8E7E0 */
+    --input: 40 10% 91%;              /* #E8E7E0 */
 
     --radius: 0.9375rem;
 
-    /* Elevated Cards shadow tokens */
+    /* Shadows */
     --shadow-elevated-1: 0 1px 3px rgba(0,0,0,0.06);
     --shadow-elevated-2: 0 2px 8px rgba(0,0,0,0.10);
     --shadow-elevated-3: 0 8px 32px rgba(0,0,0,0.12);
     --shadow-rail: 1px 0 4px rgba(0,0,0,0.04);
 
-    --sidebar-background: 0 0% 100%;  /* #FFFFFF — painéis internos */
-    --sidebar-foreground: 0 0% 30%;
-    --sidebar-primary: 165 77% 30%;
+    /* SIDEBAR */
+    --sidebar-background: 0 0% 100%;          /* #FFFFFF */
+    --sidebar-foreground: 0 0% 30%;           /* #4D4D4D */
+    --sidebar-primary: 158 84% 37%;           /* #10B981 */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 158 60% 92%;    /* #E1F5EE */
-    --sidebar-accent-foreground: 165 77% 30%;
-    --sidebar-border: 0 0% 93.3%;
-    --sidebar-ring: 165 77% 30%;
+    --sidebar-accent: 151 100% 80%;           /* #6EE7B7 */
+    --sidebar-accent-foreground: 158 84% 37%; /* #10B981 */
+    --sidebar-border: 40 10% 91%;             /* #E8E7E0 */
+    --sidebar-ring: 158 84% 37%;              /* #10B981 */
   }
 
 }
@@ -80,7 +115,7 @@
     transition: all 0.3s ease;
   }
   .glow-primary-hover:hover {
-    box-shadow: 0 0 16px rgba(18, 138, 104, 0.4);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
   }
   .glow-closed {
     animation: closedGlow 1.5s ease-out 1;
@@ -94,12 +129,12 @@
 }
 
 @keyframes pilotGlow {
-  0%, 100% { filter: drop-shadow(0 0 4px rgba(18, 138, 104, 0.4)); }
-  50%      { filter: drop-shadow(0 0 8px rgba(18, 138, 104, 0.8)); }
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.4)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8)); }
 }
 @keyframes closedGlow {
   0%   { box-shadow: none; }
-  50%  { box-shadow: 0 0 20px rgba(18, 138, 104, 0.5); }
+  50%  { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
   100% { box-shadow: none; }
 }
 @keyframes scorePulse {
@@ -107,9 +142,9 @@
   50%      { opacity: 0.7; }
 }
 @keyframes rzShine {
-  0%   { border-color: rgba(18, 138, 104, 0.6); }
-  50%  { border-color: rgba(18, 138, 104, 1); }
-  100% { border-color: rgba(18, 138, 104, 0.6); }
+  0%   { border-color: rgba(16, 185, 129, 0.6); }
+  50%  { border-color: rgba(16, 185, 129, 1); }
+  100% { border-color: rgba(16, 185, 129, 0.6); }
 }
 
 @layer base {
@@ -119,7 +154,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Geist', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 }
