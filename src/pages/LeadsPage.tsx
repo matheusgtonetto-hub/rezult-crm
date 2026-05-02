@@ -13,7 +13,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users } from "lucide-react";
-import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { LeadModal } from "@/components/LeadModal";
 import { toast } from "sonner";
 
@@ -151,9 +150,9 @@ export default function LeadsPage() {
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nome</TableHead>
                 <TableHead className="text-muted-foreground">Empresa</TableHead>
-                <TableHead className="text-muted-foreground">WhatsApp</TableHead>
-                <TableHead className="text-muted-foreground">Etapa</TableHead>
-                <TableHead className="text-muted-foreground">Responsável</TableHead>
+                <TableHead className="text-muted-foreground">Contato</TableHead>
+                <TableHead className="text-muted-foreground">Pipeline</TableHead>
+                <TableHead className="text-muted-foreground">Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -163,21 +162,35 @@ export default function LeadsPage() {
                   <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
                   <TableCell>
-                    <button
-                      onClick={() => openWhatsApp(lead)}
-                      className="text-success hover:underline flex items-center gap-1.5 text-sm"
-                    >
-                      <WhatsAppIcon size={16} />
-                      {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
-                      {lead.whatsapp || "—"}
-                    </button>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm text-foreground">
+                        {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
+                        {lead.whatsapp || "—"}
+                      </span>
+                      {lead.email && (
+                        <span className="text-xs text-muted-foreground">{lead.email}</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                      {colName(lead.stage)}
+                      {pipelines.find(p => p.id === lead.pipelineId)?.name || "—"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{lead.responsible || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {(() => {
+                      const d = lead.created_at ? new Date(lead.created_at) : null;
+                      if (!d || isNaN(d.getTime())) return "—";
+                      const fmt = new Intl.DateTimeFormat("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        day: "2-digit", month: "2-digit", year: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: false,
+                      });
+                      const parts = fmt.formatToParts(d);
+                      const get = (t: string) => parts.find(p => p.type === t)?.value ?? "";
+                      return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

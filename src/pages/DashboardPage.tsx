@@ -20,12 +20,9 @@ export default function DashboardPage() {
 
   const allLeads = Object.values(leads);
 
-  const isWon = (stage: string) => /fechado|ganho|recuperado/i.test(stage);
-  const isLost = (stage: string) => /perdido/i.test(stage);
-
-  const wonLeads = allLeads.filter(l => isWon(l.stage));
-  const lostLeads = allLeads.filter(l => isLost(l.stage));
-  const openLeads = allLeads.filter(l => !isWon(l.stage) && !isLost(l.stage));
+  const wonLeads = allLeads.filter(l => l.dealStatus === "won");
+  const lostLeads = allLeads.filter(l => l.dealStatus === "lost");
+  const openLeads = allLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
 
   const totalValue = allLeads.reduce((s, l) => s + l.value, 0);
   const wonValue = wonLeads.reduce((s, l) => s + l.value, 0);
@@ -115,7 +112,7 @@ export default function DashboardPage() {
       return {
         name: m,
         count: mLeads.length,
-        won: mLeads.filter(l => isWon(l.stage)).length,
+        won: mLeads.filter(l => l.dealStatus === "won").length,
         value: mLeads.reduce((s, l) => s + l.value, 0),
         color: memberColors[m] || "#888",
       };

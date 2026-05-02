@@ -36,7 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, MessageSquarePlus, Calendar, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,6 +70,8 @@ export default function PipelinePage() {
     selectedLeadId,
     setSelectedLeadId,
     memberColors,
+    memberAvatars,
+    reorderColumns,
     updateColumn,
     deleteColumn,
     addColumn,
@@ -139,28 +141,35 @@ export default function PipelinePage() {
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    const { draggableId, source, destination } = result;
+    const { draggableId, source, destination, type } = result;
+    if (type === "COLUMN") {
+      if (source.index === destination.index) return;
+      const cols = activePipeline?.columns ?? [];
+      const ordered = [...cols].sort((a, b) => a.position - b.position);
+      const [moved] = ordered.splice(source.index, 1);
+      ordered.splice(destination.index, 0, moved);
+      reorderColumns(activePipeline!.id, ordered.map(c => c.id));
+      return;
+    }
     moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
   };
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-  const isWonStage = (id: string) =>
-    /fechado|ganho|recuperado/i.test(id);
-  const isLostStage = (id: string) => /perdido/i.test(id);
-
   const filteredColumns = useMemo(() => {
     if (!activePipeline) return [];
-    return activePipeline.columns
-      .filter(col => {
-        if (status === "open") return !isWonStage(col.id) && !isLostStage(col.id);
-        if (status === "won") return isWonStage(col.id);
-        if (status === "lost") return isLostStage(col.id);
-        return true;
-      })
+    return [...activePipeline.columns]
+      .sort((a, b) => a.position - b.position)
       .map(col => {
-        let ids = col.leadIds.filter(id => leads[id]);
+        let ids = col.leadIds.filter(id => {
+          const l = leads[id];
+          if (!l) return false;
+          if (status === "open") return !l.dealStatus || l.dealStatus === "open";
+          if (status === "won") return l.dealStatus === "won";
+          if (status === "lost") return l.dealStatus === "lost";
+          return true;
+        });
         if (search) {
           const q = search.toLowerCase();
           ids = ids.filter(id => {
@@ -396,288 +405,341 @@ export default function PipelinePage() {
 
         {/* Kanban */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto flex-1 p-4 bg-background">
-            {filteredColumns.map(col => {
-              const totalValue = col.filteredIds.reduce(
-                (s, id) => s + (leads[id]?.value || 0),
-                0
-              );
-              return (
-                <Droppable droppableId={col.id} key={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`min-w-[280px] w-[280px] flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 transition-colors ${
-                        snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
-                      }`}
-                    >
-                      {/* Top color line */}
-                      <div
-                        className="h-1 w-full rounded-t-lg"
-                        style={{ backgroundColor: col.color }}
-                      />
-                      {/* Header */}
-                      <div className="flex items-start justify-between px-3 py-3">
-                        <div className="flex items-start gap-2 min-w-0 flex-1">
-                          <Popover
-                            open={colorPickerColId === col.id}
-                            onOpenChange={o => setColorPickerColId(o ? col.id : null)}
-                          >
-                            <PopoverTrigger asChild>
-                              <button
-                                onClick={e => e.stopPropagation()}
-                                className="mt-[3px] shrink-0 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-offset-1 hover:ring-border"
-                                style={{ width: 13, height: 13, background: col.color }}
-                                aria-label="Cor da etapa"
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent align="start" side="bottom" className="w-auto p-2.5">
-                              <div className="grid grid-cols-5 gap-1.5">
-                                {COLUMN_COLORS.map(c => (
-                                  <button
-                                    key={c}
-                                    onClick={() => {
-                                      updateColumn(activePipeline.id, col.id, { color: c });
-                                      setColorPickerColId(null);
-                                    }}
-                                    className="rounded-full transition-transform hover:scale-110 focus:outline-none"
-                                    style={{
-                                      width: 22,
-                                      height: 22,
-                                      background: c,
-                                      boxShadow: col.color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : undefined,
-                                    }}
-                                    aria-label={c}
-                                  />
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                          <div className="min-w-0">
-                            <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
-                              {col.title}
-                            </h3>
-                            <p className="mt-0.5" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                              {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
-                              {col.filteredIds.length === 1 ? "negócio" : "negócios"}
-                            </p>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors w-7 h-7 flex items-center justify-center"
-                              aria-label="Opções da etapa"
-                            >
-                              <MoreHorizontal size={16} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onClick={() => setRenamingCol({ id: col.id, title: col.title })}>
-                              <Pencil size={14} className="mr-2" /> Renomear etapa
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletingCol({ id: col.id, title: col.title, count: col.leadIds.length })}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 size={14} className="mr-2" /> Excluir etapa
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[calc(100vh-260px)]">
-                        {col.filteredIds.map((leadId, index) => {
-                          const lead = leads[leadId];
-                          if (!lead) return null;
-                          const respColor =
-                            memberColors[lead.responsible] || "#888888";
-                          return (
-                            <Draggable
-                              key={leadId}
-                              draggableId={leadId}
-                              index={index}
-                            >
-                              {(prov, snap) => (
+          <Droppable droppableId="kanban-columns" direction="horizontal" type="COLUMN">
+            {(colsProvided) => (
+              <div
+                ref={colsProvided.innerRef}
+                {...colsProvided.droppableProps}
+                className="flex gap-3 overflow-x-auto flex-1 p-4 bg-background"
+              >
+                {filteredColumns.map((col, colIndex) => {
+                  const totalValue = col.filteredIds.reduce(
+                    (s, id) => s + (leads[id]?.value || 0),
+                    0
+                  );
+                  return (
+                    <Draggable draggableId={`col-${col.id}`} index={colIndex} key={col.id}>
+                      {(colDrag) => (
+                        <div
+                          ref={colDrag.innerRef}
+                          {...colDrag.draggableProps}
+                          className="h-full"
+                        >
+                          <Droppable droppableId={col.id} key={col.id}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 transition-colors ${
+                                  snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
+                                }`}
+                              >
+                                {/* Top color line */}
                                 <div
-                                  ref={prov.innerRef}
-                                  {...prov.draggableProps}
-                                  {...prov.dragHandleProps}
-                                  onClick={() => navigate(`/pipeline/lead/${leadId}`)}
-                                  className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
-                                    snap.isDragging
-                                      ? "shadow-elev-2 rotate-1"
-                                      : ""
-                                  } ${isWonStage(col.id) ? "glow-closed" : ""}`}
-                                >
-                                  {/* Avatar + Name + Company + deal number */}
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <div
-                                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-semibold text-xs"
-                                      style={{ backgroundColor: col.color }}
+                                  className="h-1 w-full rounded-t-lg"
+                                  style={{ backgroundColor: col.color }}
+                                />
+                                {/* Header */}
+                                <div className="flex items-start justify-between px-3 py-3">
+                                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                                    <Popover
+                                      open={colorPickerColId === col.id}
+                                      onOpenChange={o => setColorPickerColId(o ? col.id : null)}
                                     >
-                                      {lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-medium text-foreground leading-tight truncate">
-                                        {lead.name}
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          onClick={e => e.stopPropagation()}
+                                          className="mt-[3px] shrink-0 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-offset-1 hover:ring-border"
+                                          style={{ width: 13, height: 13, background: col.color }}
+                                          aria-label="Cor da etapa"
+                                        />
+                                      </PopoverTrigger>
+                                      <PopoverContent align="start" side="bottom" className="w-auto p-2.5">
+                                        <div className="grid grid-cols-5 gap-1.5">
+                                          {COLUMN_COLORS.map(c => (
+                                            <button
+                                              key={c}
+                                              onClick={() => {
+                                                updateColumn(activePipeline.id, col.id, { color: c });
+                                                setColorPickerColId(null);
+                                              }}
+                                              className="rounded-full transition-transform hover:scale-110 focus:outline-none"
+                                              style={{
+                                                width: 22,
+                                                height: 22,
+                                                background: c,
+                                                boxShadow: col.color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : undefined,
+                                              }}
+                                              aria-label={c}
+                                            />
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                    <div className="min-w-0">
+                                      <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
+                                        {col.title}
+                                      </h3>
+                                      <p className="mt-0.5" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+                                        {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
+                                        {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                                       </p>
-                                      {lead.company && (
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {lead.company}
-                                        </p>
-                                      )}
                                     </div>
-                                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-                                      #{lead.dealNumber}
-                                    </span>
                                   </div>
-
-                                  {/* Responsible */}
-                                  {lead.responsible && (
-                                    <div className="mt-2">
-                                      <span
-                                        className="text-[10px] px-2 py-0.5 rounded-full font-medium text-white"
-                                        style={{ backgroundColor: respColor }}
-                                      >
-                                        {lead.responsible}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* Value */}
-                                  <div className="mt-2">
-                                    <span className="text-sm font-semibold text-primary">
-                                      {formatCurrency(lead.value)}
-                                    </span>
-                                  </div>
-
-                                  {/* Entry date */}
-                                  {lead.entryDate && (
-                                    <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                                      <Calendar size={11} />
-                                      {new Date(lead.entryDate + "T00:00:00").toLocaleDateString("pt-BR")}
-                                    </div>
-                                  )}
-
-                                  {/* Follow-up + WhatsApp */}
-                                  <div className="flex items-center justify-between mt-0.5">
-                                    {lead.nextFollowUp ? (
-                                      <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                                        <Calendar size={11} />
-                                        Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
-                                      </div>
-                                    ) : <div />}
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors w-7 h-7 flex items-center justify-center"
+                                          aria-label="Opções da etapa"
+                                        >
+                                          <MoreHorizontal size={16} />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-44">
+                                        <DropdownMenuItem onClick={() => setRenamingCol({ id: col.id, title: col.title })}>
+                                          <Pencil size={14} className="mr-2" /> Renomear etapa
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => setDeletingCol({ id: col.id, title: col.title, count: col.leadIds.length })}
+                                          className="text-destructive focus:text-destructive"
+                                        >
+                                          <Trash2 size={14} className="mr-2" /> Excluir etapa
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <button
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        openChat(leadId);
-                                      }}
-                                      className="flex items-center justify-center transition-colors hover:bg-muted"
-                                      style={{ width: 24, height: 24, borderRadius: 6 }}
-                                      aria-label="Abrir chat WhatsApp"
+                                      {...colDrag.dragHandleProps}
+                                      className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors w-7 h-7 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                                      aria-label="Arrastar coluna"
                                     >
-                                      <WhatsAppIcon size={18} />
+                                      <GripVertical size={15} />
                                     </button>
                                   </div>
+                                </div>
 
-                                  {/* Footer: tags + tag button */}
-                                  <div className="flex items-center mt-3 pt-2 border-t border-card-border gap-1">
-                                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                                      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                                        {(lead.tags || []).map(tagName => {
-                                          const t = crmTags.find(x => x.name === tagName);
-                                          return (
-                                            <span
-                                              key={tagName}
-                                              className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
-                                              style={{ background: t?.color || "#888" }}
-                                            >
-                                              {tagName}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <button
-                                            onClick={e => e.stopPropagation()}
-                                            className="shrink-0 flex items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
-                                            style={{ width: 22, height: 22 }}
-                                            aria-label="Gerenciar tags"
+                                <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto min-h-0">
+                                  {col.filteredIds.map((leadId, index) => {
+                                    const lead = leads[leadId];
+                                    if (!lead) return null;
+                                    const respColor = memberColors[lead.responsible] || "#888888";
+                                    return (
+                                      <Draggable
+                                        key={leadId}
+                                        draggableId={leadId}
+                                        index={index}
+                                      >
+                                        {(prov, snap) => (
+                                          <div
+                                            ref={prov.innerRef}
+                                            {...prov.draggableProps}
+                                            {...prov.dragHandleProps}
+                                            onClick={() => navigate(`/pipeline/lead/${leadId}`)}
+                                            className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
+                                              snap.isDragging ? "shadow-elev-2 rotate-1" : ""
+                                            } ${lead.dealStatus === "won" ? "glow-closed" : ""}`}
                                           >
-                                            <TagIcon size={13} />
-                                          </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-44">
-                                          {crmTags.length === 0 && (
-                                            <div className="px-3 py-2 text-xs text-muted-foreground">
-                                              Crie tags em Configurações.
+                                            {/* Avatar + Name + Company + deal number */}
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                              <div
+                                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-semibold text-xs"
+                                                style={{ backgroundColor: col.color }}
+                                              >
+                                                {lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-medium text-foreground leading-tight truncate">
+                                                  {lead.name}
+                                                </p>
+                                                {lead.company && (
+                                                  <p className="text-xs text-muted-foreground truncate">
+                                                    {lead.company}
+                                                  </p>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                {lead.dealStatus === "won" && (
+                                                  <Trophy size={12} style={{ color: "#128A68" }} />
+                                                )}
+                                                {lead.dealStatus === "lost" && (
+                                                  <XCircle size={12} style={{ color: "#E24B4A" }} />
+                                                )}
+                                                <span className="text-[10px] font-mono text-muted-foreground">
+                                                  #{lead.dealNumber}
+                                                </span>
+                                              </div>
                                             </div>
-                                          )}
-                                          {crmTags.map(t => {
-                                            const has = (lead.tags || []).includes(t.name);
-                                            return (
-                                              <DropdownMenuItem
-                                                key={t.id}
+
+                                            {/* Responsible */}
+                                            <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                              {lead.responsible && memberAvatars[lead.responsible] ? (
+                                                <img
+                                                  src={memberAvatars[lead.responsible]}
+                                                  alt={lead.responsible}
+                                                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                                                />
+                                              ) : (
+                                                <div
+                                                  className="w-4 h-4 rounded-full flex items-center justify-center text-white shrink-0"
+                                                  style={{ fontSize: 8, fontWeight: 700, backgroundColor: lead.responsible ? respColor : "#AAAAAA" }}
+                                                >
+                                                  {lead.responsible ? lead.responsible[0] : "S"}
+                                                </div>
+                                              )}
+                                              <span className="truncate">{lead.responsible || "Sem responsável"}</span>
+                                            </div>
+
+                                            {/* Value */}
+                                            <div className="mt-2">
+                                              <span className="text-sm font-semibold text-primary">
+                                                {formatCurrency(lead.value)}
+                                              </span>
+                                            </div>
+
+                                            {/* Entry date */}
+                                            {lead.entryDate && (
+                                              <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                                <Calendar size={11} />
+                                                {new Date(lead.entryDate + "T00:00:00").toLocaleDateString("pt-BR")}
+                                              </div>
+                                            )}
+
+                                            {/* Follow-up + WhatsApp */}
+                                            <div className="flex items-center justify-between mt-0.5">
+                                              {lead.nextFollowUp ? (
+                                                <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                                  <Calendar size={11} />
+                                                  Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
+                                                </div>
+                                              ) : <div />}
+                                              <button
                                                 onClick={e => {
                                                   e.stopPropagation();
-                                                  const current = lead.tags || [];
-                                                  const next = has
-                                                    ? current.filter(x => x !== t.name)
-                                                    : [...current, t.name];
-                                                  updateLead(leadId, { tags: next });
+                                                  openChat(leadId);
                                                 }}
+                                                className="flex items-center justify-center transition-colors hover:bg-muted"
+                                                style={{ width: 24, height: 24, borderRadius: 6 }}
+                                                aria-label="Abrir chat WhatsApp"
                                               >
-                                                <span
-                                                  className="inline-block w-2 h-2 rounded-full mr-2 shrink-0"
-                                                  style={{ background: t.color }}
-                                                />
-                                                <span className="flex-1">{t.name}</span>
-                                                {has && <span className="text-xs text-primary">✓</span>}
-                                              </DropdownMenuItem>
-                                            );
-                                          })}
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
+                                                <WhatsAppIcon size={18} />
+                                              </button>
+                                            </div>
+
+                                            {/* Footer: tags + tag button */}
+                                            <div className="flex items-center mt-3 pt-2 border-t border-card-border gap-1">
+                                              <div className="flex items-center gap-1 flex-1 min-w-0">
+                                                <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                                                  {(lead.tags || []).map(tagName => {
+                                                    const t = crmTags.find(x => x.name === tagName);
+                                                    return (
+                                                      <span
+                                                        key={tagName}
+                                                        className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
+                                                        style={{ background: t?.color || "#888" }}
+                                                      >
+                                                        {tagName}
+                                                      </span>
+                                                    );
+                                                  })}
+                                                </div>
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <button
+                                                      onClick={e => e.stopPropagation()}
+                                                      className="shrink-0 flex items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                                                      style={{ width: 22, height: 22 }}
+                                                      aria-label="Gerenciar tags"
+                                                    >
+                                                      <TagIcon size={13} />
+                                                    </button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end" className="w-44">
+                                                    {crmTags.length === 0 && (
+                                                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                                                        Crie tags em Configurações.
+                                                      </div>
+                                                    )}
+                                                    {crmTags.map(t => {
+                                                      const has = (lead.tags || []).includes(t.name);
+                                                      return (
+                                                        <DropdownMenuItem
+                                                          key={t.id}
+                                                          onClick={e => {
+                                                            e.stopPropagation();
+                                                            const current = lead.tags || [];
+                                                            const next = has
+                                                              ? current.filter(x => x !== t.name)
+                                                              : [...current, t.name];
+                                                            updateLead(leadId, { tags: next });
+                                                          }}
+                                                        >
+                                                          <span
+                                                            className="inline-block w-2 h-2 rounded-full mr-2 shrink-0"
+                                                            style={{ background: t.color }}
+                                                          />
+                                                          <span className="flex-1">{t.name}</span>
+                                                          {has && <span className="text-xs text-primary">✓</span>}
+                                                        </DropdownMenuItem>
+                                                      );
+                                                    })}
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              </div>
+                                            </div>
+                                            {(lead.dealStatus === "won" || lead.dealStatus === "lost") && (
+                                              <div
+                                                className="flex items-center justify-center gap-1.5 -mx-3 -mb-3 mt-3 py-1.5 rounded-b-xl text-xs font-semibold"
+                                                style={
+                                                  lead.dealStatus === "won"
+                                                    ? { background: "#DCFCE7", color: "#128A68" }
+                                                    : { background: "#FEE2E2", color: "#E24B4A" }
+                                                }
+                                              >
+                                                {lead.dealStatus === "won"
+                                                  ? <><Trophy size={11} /><span>Ganho</span></>
+                                                  : <><XCircle size={11} /><span>Perdido</span></>}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    );
+                                  })}
+                                  {provided.placeholder}
+                                  {col.filteredIds.length === 0 && (
+                                    <div className="text-center py-8 text-muted-foreground text-xs">
+                                      Nenhum negócio nesta etapa
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-                            </Draggable>
-                          );
-                        })}
-                        {provided.placeholder}
-                        {col.filteredIds.length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground text-xs">
-                            Nenhum negócio nesta etapa
-                          </div>
-                        )}
-                      </div>
+                              </div>
+                            )}
+                          </Droppable>
+                        </div>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {colsProvided.placeholder}
 
-                    </div>
-                  )}
-                </Droppable>
-              );
-            })}
-
-            {/* Add column tile */}
-            <button
-              onClick={() => {
-                setNewColumnName("");
-                setShowNewColumn(true);
-              }}
-              className="min-w-[280px] w-[280px] rounded-xl flex items-center justify-center text-sm transition-colors"
-              style={{
-                backgroundColor: "hsl(var(--muted))",
-                border: "1px dashed hsl(var(--border))",
-                color: "hsl(var(--muted-foreground))",
-              }}
-            >
-              <Plus size={16} className="mr-1.5" /> Nova coluna
-            </button>
-          </div>
+                {/* Add column tile */}
+                <button
+                  onClick={() => {
+                    setNewColumnName("");
+                    setShowNewColumn(true);
+                  }}
+                  className="min-w-[280px] w-[280px] rounded-xl flex items-center justify-center text-sm transition-colors"
+                  style={{
+                    backgroundColor: "hsl(var(--muted))",
+                    border: "1px dashed hsl(var(--border))",
+                    color: "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  <Plus size={16} className="mr-1.5" /> Nova coluna
+                </button>
+              </div>
+            )}
+          </Droppable>
         </DragDropContext>
 
         <LeadDrawer
@@ -774,7 +836,7 @@ export default function PipelinePage() {
                     return;
                   }
                   const id = `col-${Date.now()}`;
-                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA", leadIds: [] });
+                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA" });
                   toast.success("Coluna criada.");
                   setShowNewColumn(false);
                 }}

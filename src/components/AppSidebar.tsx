@@ -214,27 +214,31 @@ export function AppSidebar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity overflow-hidden"
               style={{
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: colorFromString(company?.name ?? "R"),
+                background: company?.logo_url ? "transparent" : colorFromString(company?.name ?? "R"),
                 border: "1.5px solid rgba(255,255,255,0.3)",
                 marginBottom: 16,
               }}
               aria-label="Empresa"
             >
-              {initials(company?.name ?? "R")}
+              {company?.logo_url
+                ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
+                : initials(company?.name ?? "R")}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="w-56">
             <DropdownMenuLabel className="flex items-center gap-2">
               <div
-                className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold"
-                style={{ background: colorFromString(company?.name ?? "R") }}
+                className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold overflow-hidden"
+                style={{ background: company?.logo_url ? "transparent" : colorFromString(company?.name ?? "R") }}
               >
-                {initials(company?.name ?? "R")}
+                {company?.logo_url
+                  ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
+                  : initials(company?.name ?? "R")}
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold">{company?.name ?? "—"}</span>

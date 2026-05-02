@@ -41,7 +41,7 @@
     --accent-foreground: 0 0% 6.7%;   /* #111111 */
 
     /* BACKGROUNDS / SURFACES */
-    --background: 60 14% 97%;           /* #FAFAF7 */
+    --background: 210 14% 97%;           /* #F4F6F8 */
     --foreground: 0 0% 6.7%;          /* #111111 */
 
     --card: 0 0% 100%;                /* #FFFFFF */
@@ -174,6 +174,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(0 0% 70%);
 }
+
+/* Note rich text view and editor */
+.note-content { line-height: 1.6; }
+.note-content div { min-height: 1.4em; }
+.note-content ul { list-style: disc; padding-left: 1.5em; }
+.note-content ol { list-style: decimal; padding-left: 1.5em; }
+.note-content li { display: list-item; }
 
 /* Logo typography */
 .logo-re {

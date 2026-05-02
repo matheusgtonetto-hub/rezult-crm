@@ -783,11 +783,11 @@ function EquipeSection() {
     const { data } = await supabase
       .from("profiles")
       .select("id, full_name, email, avatar_url")
-      .eq("company_name", company.name)
+      .or(`company_name.eq.${company.name},id.eq.${company.owner_id}`)
       .order("full_name");
     setMembers((data ?? []) as Member[]);
     setLoading(false);
-  }, [company?.name]);
+  }, [company?.name, company?.owner_id]);
 
   const loadPendingInvites = useCallback(async () => {
     if (!isAdmin || !company?.id) return;
@@ -1480,21 +1480,94 @@ function ProdutosSection() {
 
 /* ---------------- MOTIVOS ---------------- */
 function MotivosSection() {
-  const motivos = ["Preço alto", "Sem orçamento no momento", "Escolheu concorrente", "Sem resposta", "Projeto cancelado"];
+  const { lossReasons, addLossReason, updateLossReason, deleteLossReason } = useCRM();
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const openNew = () => { setEditingId(null); setMotivo(""); setShowDialog(true); };
+  const openEdit = (id: string, name: string) => { setEditingId(id); setMotivo(name); setShowDialog(true); };
+
+  const handleSave = async () => {
+    if (!motivo.trim()) { toast.error("Informe o motivo."); return; }
+    if (editingId) {
+      await updateLossReason(editingId, motivo.trim());
+      toast.success("Motivo atualizado.");
+    } else {
+      const ok = await addLossReason(motivo.trim());
+      if (!ok) { toast.error("Erro ao salvar. Verifique se a migração do banco foi executada."); return; }
+      toast.success("Motivo criado.");
+    }
+    setShowDialog(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    await deleteLossReason(deletingId);
+    toast.success("Motivo removido.");
+    setDeletingId(null);
+  };
+
   return (
     <>
-      <SectionHeader title="Motivos de perda" onAdd="+ Novo motivo" onClick={() => toast.success("Em breve")} />
+      <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
       <Card>
-        <div className="space-y-2">
-          {motivos.map(m => (
-            <div key={m} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <p className="flex-1 text-[13px] text-[#111111]">{m}</p>
-              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
+        {lossReasons.length === 0 ? (
+          <p className="text-sm text-[#AAAAAA] text-center py-6">Nenhum motivo cadastrado.</p>
+        ) : (
+          <div className="space-y-2">
+            {lossReasons.map(r => (
+              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
+                <p className="flex-1 text-[13px] text-[#111111]">{r.name}</p>
+                <button onClick={() => openEdit(r.id, r.name)} className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
+                <button onClick={() => setDeletingId(r.id)} className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Editar motivo" : "Novo motivo"}</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">
+              Crie motivos de perda dos seus negócios.
+            </p>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#111111]">Motivo</label>
+            <Input
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              placeholder="Ex: Preço alto"
+              className="rounded-lg"
+              onKeyDown={e => e.key === "Enter" && handleSave()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg" onClick={() => setShowDialog(false)}>Cancelar</Button>
+            <Button className="rounded-lg bg-[#128A68] hover:bg-[#128A68]/90" onClick={handleSave}>
+              {editingId ? "Salvar" : "Criar motivo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingId} onOpenChange={o => !o && setDeletingId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover motivo?</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">Esta ação não pode ser desfeita.</p>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg" onClick={() => setDeletingId(null)}>Cancelar</Button>
+            <Button variant="destructive" className="rounded-lg" onClick={handleDelete}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

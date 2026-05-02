@@ -17,6 +17,8 @@ export interface Activity {
   date: string;
   type: ActivityType;
   description: string;
+  userName?: string;
+  pinned?: boolean;
 }
 
 export interface Lead {
@@ -40,6 +42,8 @@ export interface Lead {
   notes: string;
   activities: Activity[];
   tags?: string[];
+  dealStatus?: "open" | "won" | "lost";
+  lossReasonId?: string;
   // Dados pessoais
   document?: string;
   birthDate?: string;
@@ -76,6 +80,7 @@ export interface PipelineColumn {
   title: string;
   color: string;
   leadIds: string[];
+  position: number;
 }
 
 export interface Pipeline {
@@ -92,6 +97,11 @@ export interface Product {
   sku: string;
   defaultValue: number;
   created_at?: string;
+}
+
+export interface LossReason {
+  id: string;
+  name: string;
 }
 
 export const stageColors = {

@@ -67,10 +67,12 @@ export function LeadModal({ open, onClose, editLead }: Props) {
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const [selectedPipelineId, setSelectedPipelineId] = useState("none");
 
   useEffect(() => {
     if (open) {
       setTab("contato");
+      setSelectedPipelineId(editLead?.pipelineId ?? "none");
       setForm(editLead ? {
         name:         editLead.name         ?? "",
         tags:         editLead.tags         ?? [],
@@ -158,15 +160,17 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         toast.success("Lead atualizado!");
         onClose();
       } else {
-        const firstPipeline = pipelines[0];
-        const firstCol      = firstPipeline?.columns[0];
+        const chosenPipeline = selectedPipelineId !== "none"
+          ? pipelines.find(p => p.id === selectedPipelineId)
+          : undefined;
+        const chosenCol = chosenPipeline?.columns[0];
         const ok = await addLead({
           ...patch,
           dealNumber:  nextDealNumber(),
           value:       0,
           responsible: "",
-          pipelineId:  firstPipeline?.id ?? "",
-          stage:       firstCol?.id      ?? "",
+          pipelineId:  chosenPipeline?.id ?? "",
+          stage:       chosenCol?.id      ?? "",
           priority:    "Média",
           entryDate:   new Date().toISOString().split("T")[0],
           activities:  [{
@@ -235,6 +239,21 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
+            <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
+              <SelectTrigger className="border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {pipelines.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
