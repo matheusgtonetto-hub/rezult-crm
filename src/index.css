@@ -31,10 +31,10 @@
     /* ── Rezult CRM — Nova identidade visual ── */
 
     /* PRIMARY */
-    --primary: 158 84% 37%;           /* #10B981 */
+    --primary: 163 77% 31%;           /* #128A68 */
     --primary-foreground: 0 0% 100%;  /* #FFFFFF */
     --primary-hover: 168 90% 20%;     /* #059669 */
-    --ring: 158 84% 37%;              /* #10B981 */
+    --ring: 163 77% 31%;              /* #128A68 */
 
     /* ACCENT */
     --accent: 151 100% 80%;           /* #6EE7B7 */
@@ -58,7 +58,7 @@
     --popover-foreground: 0 0% 6.7%;  /* #111111 */
 
     /* SEMANTIC */
-    --success: 158 84% 37%;           /* #10B981 */
+    --success: 163 77% 31%;           /* #128A68 */
     --success-foreground: 0 0% 100%;  /* #FFFFFF */
     --warning: 38 93% 51%;            /* #F59E0B */
     --warning-foreground: 0 0% 100%;  /* #FFFFFF */
@@ -87,12 +87,12 @@
     /* SIDEBAR */
     --sidebar-background: 0 0% 100%;          /* #FFFFFF */
     --sidebar-foreground: 0 0% 30%;            /* #4D4D4D */
-    --sidebar-primary: 158 84% 37%;           /* #10B981 */
+    --sidebar-primary: 163 77% 31%;           /* #128A68 */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 165 77% 30% / 0.15;     /* #128A68 @ 15% */
     --sidebar-accent-foreground: 0 0% 6.7%;   /* #111111 */
     --sidebar-border: 40 10% 91%;             /* #E8E7E0 */
-    --sidebar-ring: 158 84% 37%;              /* #10B981 */
+    --sidebar-ring: 163 77% 31%;              /* #128A68 */
   }
 
 }

@@ -190,30 +190,30 @@ export function LeadModal({ open, onClose, editLead }: Props) {
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-[560px] p-0 gap-0 overflow-hidden">
 
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-[#EEEEEE]">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
           <DialogTitle className="text-base font-semibold">
             {editLead ? "Editar Lead" : "Novo Lead"}
           </DialogTitle>
         </DialogHeader>
 
         {/* ── Campos fixos: Nome + Tags ── */}
-        <div className="px-6 pt-5 pb-4 space-y-4 border-b border-[#EEEEEE]">
+        <div className="px-6 pt-5 pb-4 space-y-4 border-b border-border">
           <div>
-            <label className="text-xs font-medium text-[#535353] mb-1.5 block">Nome *</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Nome *</label>
             <Input
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Nome completo"
-              className="border-[#EEEEEE]"
+              className="border-border"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-[#535353] mb-1.5 block">Tags</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tags</label>
             <div className="flex flex-wrap gap-2">
               {crmTags.length === 0 && (
-                <p className="text-xs text-[#AAAAAA] italic">Crie tags em Configurações → Tags.</p>
+                <p className="text-xs text-muted-foreground italic">Crie tags em Configurações → Tags.</p>
               )}
               {crmTags.map(t => {
                 const active = form.tags.includes(t.name);
@@ -224,7 +224,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                     onClick={() => toggleTag(t.name)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                     style={{
-                      borderColor: active ? t.color : "#EEEEEE",
+                      borderColor: active ? t.color : "hsl(var(--border))",
                       background:  active ? `${t.color}18` : "transparent",
                       color:       active ? t.color : "#888",
                     }}
@@ -240,7 +240,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
 
         {/* ── Sub-abas ── */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-4 mx-6 mt-4 h-9 bg-[#F5F5F5] rounded-lg p-1 shrink-0">
+          <TabsList className="grid grid-cols-4 mx-6 mt-4 h-9 bg-muted rounded-lg p-1 shrink-0">
             <TabsTrigger value="contato"  className="text-xs rounded-md">Contato</TabsTrigger>
             <TabsTrigger value="pessoal"  className="text-xs rounded-md">Dados Pessoais</TabsTrigger>
             <TabsTrigger value="endereco" className="text-xs rounded-md">Endereço</TabsTrigger>
@@ -252,7 +252,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <Field label="Telefone">
               <div className="flex gap-2">
                 <Select value={form.phoneDdi} onValueChange={v => set("phoneDdi", v)}>
-                  <SelectTrigger className="w-[90px] border-[#EEEEEE] text-xs shrink-0">
+                  <SelectTrigger className="w-[90px] border-border text-xs shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -267,7 +267,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   value={form.whatsapp}
                   onChange={e => set("whatsapp", e.target.value)}
                   placeholder="(11) 99999-0000"
-                  className="border-[#EEEEEE] flex-1"
+                  className="border-border flex-1"
                 />
               </div>
             </Field>
@@ -278,7 +278,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.email}
                 onChange={e => set("email", e.target.value)}
                 placeholder="email@exemplo.com"
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
 
@@ -287,7 +287,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.site}
                 onChange={e => set("site", e.target.value)}
                 placeholder="https://exemplo.com"
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
           </TabsContent>
@@ -299,7 +299,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.document}
                 onChange={e => set("document", e.target.value)}
                 placeholder="000.000.000-00"
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
 
@@ -308,13 +308,13 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.company}
                 onChange={e => set("company", e.target.value)}
                 placeholder="Nome da empresa"
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
 
             <Field label="Origem">
               <Select value={form.origin} onValueChange={v => set("origin", v)}>
-                <SelectTrigger className="border-[#EEEEEE]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGINS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
@@ -326,7 +326,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 type="date"
                 value={form.birthDate}
                 onChange={e => set("birthDate", e.target.value)}
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
           </TabsContent>
@@ -338,7 +338,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.country}
                 onChange={e => set("country", e.target.value)}
                 placeholder="Brasil"
-                className="border-[#EEEEEE]"
+                className="border-border"
               />
             </Field>
 
@@ -349,7 +349,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   onChange={e => { set("zipCode", e.target.value); fetchCep(e.target.value); }}
                   placeholder="00000-000"
                   maxLength={9}
-                  className="border-[#EEEEEE] pr-8"
+                  className="border-border pr-8"
                 />
                 {cepLoading && (
                   <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -360,31 +360,31 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Endereço">
-                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="border-[#EEEEEE]" />
+                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="border-border" />
                 </Field>
               </div>
               <Field label="Número">
-                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="border-[#EEEEEE]" />
+                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="border-border" />
               </Field>
             </div>
 
             <Field label="Complemento">
-              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="border-[#EEEEEE]" />
+              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="border-border" />
             </Field>
 
             <Field label="Bairro">
-              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="border-[#EEEEEE]" />
+              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="border-border" />
             </Field>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Cidade">
-                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="border-[#EEEEEE]" />
+                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="border-border" />
                 </Field>
               </div>
               <Field label="UF">
                 <Select value={form.state} onValueChange={v => set("state", v)}>
-                  <SelectTrigger className="border-[#EEEEEE]"><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger className="border-border"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     {BRASIL_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -399,19 +399,19 @@ export function LeadModal({ open, onClose, editLead }: Props) {
               value={form.notes}
               onChange={e => set("notes", e.target.value)}
               placeholder="Adicione informações relevantes sobre este lead..."
-              className="border-[#EEEEEE] min-h-[200px] resize-none"
+              className="border-border min-h-[200px] resize-none"
             />
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="px-6 py-4 mt-2 border-t border-[#EEEEEE] gap-2">
-          <Button variant="outline" onClick={onClose} className="border-[#EEEEEE]">
+        <DialogFooter className="px-6 py-4 mt-2 border-t border-border gap-2">
+          <Button variant="outline" onClick={onClose} className="border-border">
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-[#128A68] hover:bg-[#128A68]/90"
+            className="bg-primary hover:bg-primary/90"
           >
             {saving ? "Salvando..." : editLead ? "Salvar alterações" : "Criar Lead"}
           </Button>
@@ -424,7 +424,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-medium text-[#535353] mb-1.5 block">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{label}</label>
       {children}
     </div>
   );

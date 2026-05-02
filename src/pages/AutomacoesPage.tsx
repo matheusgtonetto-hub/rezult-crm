@@ -35,12 +35,12 @@ const INITIAL_GROUPS: Group[] = [
 const BLOCKS = [
   { id: "msg", label: "Mensagem", icon: MessageCircle, color: "#378ADD" },
   { id: "act", label: "Ações", icon: Zap, color: "#F59E0B" },
-  { id: "cond", label: "Condições", icon: Filter, color: "#128A68" },
+  { id: "cond", label: "Condições", icon: Filter, color: "hsl(var(--primary))" },
   { id: "wait", label: "Espera", icon: Clock, color: "#8B5CF6" },
   { id: "rand", label: "Randomizador", icon: Shuffle, color: "#E24B4A" },
   { id: "api", label: "API", icon: Braces, color: "#6B7280" },
-  { id: "fields", label: "Operações de campos", icon: ListChecks, color: "#128A68" },
-  { id: "ai", label: "IA", icon: Sparkles, color: "#128A68" },
+  { id: "fields", label: "Operações de campos", icon: ListChecks, color: "hsl(var(--primary))" },
+  { id: "ai", label: "IA", icon: Sparkles, color: "hsl(var(--primary))" },
   { id: "js", label: "JavaScript", icon: Code2, color: "#F59E0B" },
 ];
 
@@ -143,18 +143,18 @@ export default function AutomacoesPage() {
         <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
           <div style={{ padding: 12, borderBottom: "0.5px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#AAAAAA" }} />
+              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "hsl(var(--muted-foreground))" }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar automação..."
                 style={{ width: "100%", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none" }}
               />
-              <Power size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#AAAAAA", cursor: "pointer" }} />
+              <Power size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "hsl(var(--muted-foreground))", cursor: "pointer" }} />
             </div>
             <button
               onClick={() => setCreateOpen(true)}
-              style={{ width: "100%", marginTop: 8, background: "#128A68", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
+              style={{ width: "100%", marginTop: 8, background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
             >
               <Plus size={14} /> Adicionar automação
             </button>
@@ -166,13 +166,13 @@ export default function AutomacoesPage() {
                 <div key={g.id}>
                   <button
                     onClick={() => setOpenGroups(s => ({ ...s, [g.id]: !open }))}
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#535353", letterSpacing: 0.3 }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "hsl(var(--muted-foreground))", letterSpacing: 0.3 }}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                       {g.name}
                     </span>
-                    <span style={{ fontSize: 10, color: "#AAAAAA" }}>{g.items.length}</span>
+                    <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{g.items.length}</span>
                   </button>
                   {open && g.items.map(item => {
                     const sel = selectedId === item.id;
@@ -184,11 +184,11 @@ export default function AutomacoesPage() {
                         style={{
                           display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
                           background: sel ? "#FFFFFF" : "transparent",
-                          borderLeft: sel ? "3px solid #128A68" : "3px solid transparent",
+                          borderLeft: sel ? "3px solid hsl(var(--primary))" : "3px solid transparent",
                           cursor: "pointer",
                         }}
                       >
-                        <Filter size={14} color="#128A68" />
+                        <Filter size={14} color="hsl(var(--primary))" />
                         <span style={{ flex: 1, fontSize: 13, color: "#111111", fontWeight: sel ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.name}
                         </span>
@@ -213,13 +213,13 @@ export default function AutomacoesPage() {
             onClick={() => setLeftCollapsed(true)}
             style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
           >
-            <ChevronLeft size={14} color="#535353" />
+            <ChevronLeft size={14} color="hsl(var(--muted-foreground))" />
           </button>
         </aside>
       )}
       {leftCollapsed && (
         <button onClick={() => setLeftCollapsed(false)} style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <ChevronRight size={14} color="#535353" />
+          <ChevronRight size={14} color="hsl(var(--muted-foreground))" />
         </button>
       )}
 
@@ -235,7 +235,7 @@ export default function AutomacoesPage() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, b.id)}
                 style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "10px 12px", cursor: "grab", display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#111111", transition: "all 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#128A68"; e.currentTarget.style.background = "#E1F5EE"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "hsl(var(--accent))"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
               >
                 <Icon size={14} color={b.color} />
@@ -251,9 +251,9 @@ export default function AutomacoesPage() {
         {!selectedAutomation && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, zIndex: 5 }}>
             <Zap size={64} color="#E5E5E5" />
-            <div style={{ fontSize: 16, color: "#AAAAAA" }}>Selecione uma automação</div>
+            <div style={{ fontSize: 16, color: "hsl(var(--muted-foreground))" }}>Selecione uma automação</div>
             <div style={{ fontSize: 13, color: "#CCCCCC" }}>ou crie uma nova para começar</div>
-            <button onClick={() => setCreateOpen(true)} style={{ marginTop: 8, background: "#128A68", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setCreateOpen(true)} style={{ marginTop: 8, background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
               <Plus size={14} /> Criar automação
             </button>
           </div>
@@ -273,8 +273,8 @@ export default function AutomacoesPage() {
               ].map((t, i) => {
                 const Icon = t.icon;
                 return (
-                  <button key={i} title={t.label} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "#535353", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#F5F5F5"}
+                  <button key={i} title={t.label} style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "hsl(var(--muted-foreground))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "hsl(var(--muted))"}
                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                     <Icon size={16} />
                   </button>
@@ -362,7 +362,7 @@ export default function AutomacoesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} style={{ background: "#128A68" }}>Criar</Button>
+            <Button onClick={handleCreate} style={{ background: "hsl(var(--primary))" }}>Criar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -371,12 +371,12 @@ export default function AutomacoesPage() {
 }
 
 const zoomBtn: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", color: "#535353", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+  width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", color: "hsl(var(--muted-foreground))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
 function CanvasBlock({ node, selected, onSelect }: { node: CanvasNode; selected: boolean; onSelect: () => void }) {
   const width = node.type === "start" ? 240 : 260;
-  const borderColor = selected ? "#128A68" : node.type === "start" ? "#CCCCCC" : node.type === "condition" ? "rgba(18,138,104,0.3)" : "#E5E5E5";
+  const borderColor = selected ? "hsl(var(--primary))" : node.type === "start" ? "#CCCCCC" : node.type === "condition" ? "rgba(18,138,104,0.3)" : "#E5E5E5";
   const borderStyle = node.type === "start" ? "dashed" : "solid";
 
   return (
@@ -405,27 +405,27 @@ function CanvasBlock({ node, selected, onSelect }: { node: CanvasNode; selected:
 function StartBody() {
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #F0F0F0" }}>
-        <Play size={14} fill="#128A68" color="#128A68" />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid hsl(var(--border))" }}>
+        <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 8, lineHeight: 1.4 }}>
           O gatilho é responsável por acionar a automação. Clique para adicionar um gatilho:
         </div>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#DBEAFE", color: "#185FA5", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
           <Braces size={10} /> Api-request-1
         </div>
         <div style={{ padding: "6px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#535353" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
             <User size={12} /> Iniciado por outra automação
           </div>
-          <div style={{ fontSize: 11, color: "#AAAAAA", marginLeft: 18 }}>Quando a automação é iniciada por ou...</div>
+          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginLeft: 18 }}>Quando a automação é iniciada por ou...</div>
         </div>
-        <button style={{ width: "100%", border: "1px dashed #CCCCCC", background: "transparent", color: "#AAAAAA", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
+        <button style={{ width: "100%", border: "1px dashed #CCCCCC", background: "transparent", color: "hsl(var(--muted-foreground))", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
           + Adicionar gatilho
         </button>
-        <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Quando o evento ocorrer, então →</span>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#378ADD" }} />
         </div>
@@ -437,28 +437,28 @@ function StartBody() {
 function ConditionBody() {
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #F0F0F0" }}>
-        <Filter size={14} color="#128A68" />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid hsl(var(--border))" }}>
+        <Filter size={14} color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condição</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 8, lineHeight: 1.4 }}>
           Faça filtros para seguir caminhos diferentes. Clique para adicionar uma condição:
         </div>
         <div style={{ padding: "6px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#111111" }}>
             <User size={12} /> Negócio possui atendentes
           </div>
-          <div style={{ fontSize: 11, color: "#AAAAAA", marginLeft: 18 }}>Verifica se o negócio possui atendentes</div>
+          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginLeft: 18 }}>Verifica se o negócio possui atendentes</div>
         </div>
         <button style={{ width: "100%", border: "1px dashed rgba(18,138,104,0.3)", background: "transparent", color: "rgba(18,138,104,0.6)", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
           + Adicionar condição
         </button>
-        <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Se esta condição for verdadeira</span>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#378ADD" }} />
         </div>
-        <div style={{ fontSize: 11, color: "#AAAAAA", marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Quando não atender a nenhuma condição</span>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#E24B4A" }} />
         </div>
@@ -470,17 +470,17 @@ function ConditionBody() {
 function RandomizerBody() {
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #F0F0F0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid hsl(var(--border))" }}>
         <Shuffle size={14} color="#E24B4A" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
       </div>
       <div style={{ paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: "#535353", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 8, lineHeight: 1.4 }}>
           Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:
         </div>
         {[
           { l: "A", color: "#378ADD" },
-          { l: "B", color: "#128A68" },
+          { l: "B", color: "hsl(var(--primary))" },
         ].map(b => (
           <div key={b.l} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: "#111111", width: 16 }}>{b.l}</span>
@@ -488,7 +488,7 @@ function RandomizerBody() {
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: b.color }} />
           </div>
         ))}
-        <button style={{ width: "100%", border: "1px dashed #CCCCCC", background: "transparent", color: "#AAAAAA", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
+        <button style={{ width: "100%", border: "1px dashed #CCCCCC", background: "transparent", color: "hsl(var(--muted-foreground))", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 6 }}>
           + Adicionar ramificação
         </button>
       </div>
@@ -498,8 +498,8 @@ function RandomizerBody() {
 
 function Metrics() {
   return (
-    <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #F0F0F0", fontSize: 11 }}>
-      <span style={{ color: "#128A68", fontWeight: 600 }}>0 Sucessos</span>
+    <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid hsl(var(--border))", fontSize: 11 }}>
+      <span style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>0 Sucessos</span>
       <span style={{ color: "#F59E0B", fontWeight: 600 }}>0 Alertas</span>
       <span style={{ color: "#E24B4A", fontWeight: 600 }}>0 Erros</span>
     </div>

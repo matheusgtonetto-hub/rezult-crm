@@ -142,7 +142,7 @@ export default function PilotPage() {
   const active = conversations.find((c) => c.id === activeId) || null;
   const messages = active?.messages || [];
   const isAgent = mode === "agent";
-  const accent = isAgent ? "#128A68" : "#111111";
+  const accent = isAgent ? "hsl(var(--primary))" : "#111111";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -226,24 +226,24 @@ export default function PilotPage() {
       {/* COLUNA 1 — HISTÓRICO */}
       <div
         className={`${historyOpen ? "w-[240px]" : "w-0"} transition-[width] duration-250 overflow-hidden shrink-0 border-r`}
-        style={{ borderColor: "#E5E5E5", backgroundColor: "#F5F5F5" }}
+        style={{ borderColor: "#E5E5E5", backgroundColor: "hsl(var(--muted))" }}
       >
         <div className="w-[240px] h-full flex flex-col">
           <div className="p-3 flex items-center justify-between border-b" style={{ borderColor: "#E5E5E5" }}>
             <button
               onClick={newConversation}
               className="flex items-center gap-2 text-[13px] font-medium hover:opacity-80"
-              style={{ color: "#128A68" }}
+              style={{ color: "hsl(var(--primary))" }}
             >
               <Plus size={14} /> Nova conversa
             </button>
-            <button onClick={() => setHistoryOpen(false)} style={{ color: "#AAAAAA" }} className="hover:text-foreground">
+            <button onClick={() => setHistoryOpen(false)} style={{ color: "hsl(var(--muted-foreground))" }} className="hover:text-foreground">
               <X size={16} />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {/* Meu Agente */}
-            <p className="text-[10px] uppercase font-semibold px-2 py-2" style={{ color: "#AAAAAA" }}>
+            <p className="text-[10px] uppercase font-semibold px-2 py-2" style={{ color: "hsl(var(--muted-foreground))" }}>
               Meu Agente
             </p>
             {agentConvs.map((c) => (
@@ -251,8 +251,8 @@ export default function PilotPage() {
                 key={c.id}
                 conv={c}
                 active={activeId === c.id}
-                accent="#128A68"
-                icon={<Sparkles size={10} style={{ color: "#128A68" }} />}
+                accent="hsl(var(--primary))"
+                icon={<Sparkles size={10} style={{ color: "hsl(var(--primary))" }} />}
                 onSelect={() => selectConversation(c)}
                 onDelete={() => deleteConversation(c.id)}
               />
@@ -261,7 +261,7 @@ export default function PilotPage() {
             <div className="my-3 border-t" style={{ borderColor: "#E5E5E5" }} />
 
             {/* Claude */}
-            <p className="text-[10px] uppercase font-semibold px-2 py-2" style={{ color: "#AAAAAA" }}>
+            <p className="text-[10px] uppercase font-semibold px-2 py-2" style={{ color: "hsl(var(--muted-foreground))" }}>
               Claude — Uso Geral
             </p>
             {claudeConvs.map((c) => (
@@ -288,8 +288,8 @@ export default function PilotPage() {
               <button
                 onClick={() => setHistoryOpen(true)}
                 className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
-                style={{ color: "#535353" }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                style={{ color: "hsl(var(--muted-foreground))" }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(var(--muted))")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Histórico"
               >
@@ -303,21 +303,21 @@ export default function PilotPage() {
               <Sparkles size={18} style={{ color: accent }} />
               <h1 className="text-[18px] font-bold" style={{ color: "#111111" }}>Pilot</h1>
             </div>
-            <p className="text-[12px]" style={{ color: "#AAAAAA" }}>
+            <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>
               Seu agente de inteligência comercial
             </p>
             {/* Mode selector - centralizado abaixo do subtítulo */}
             <div className="flex items-center justify-center mt-3">
               <div
                 className="flex items-center rounded-full p-1 border"
-                style={{ backgroundColor: "#F5F5F5", borderColor: "#E5E5E5" }}
+                style={{ backgroundColor: "hsl(var(--muted))", borderColor: "#E5E5E5" }}
               >
                 <button
                   onClick={() => setMode("agent")}
                   className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
                   style={{
-                    backgroundColor: isAgent ? "#128A68" : "transparent",
-                    color: isAgent ? "#FFFFFF" : "#535353",
+                    backgroundColor: isAgent ? "hsl(var(--primary))" : "transparent",
+                    color: isAgent ? "#FFFFFF" : "hsl(var(--muted-foreground))",
                   }}
                 >
                   <Sparkles size={14} />
@@ -328,7 +328,7 @@ export default function PilotPage() {
                   className="flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition-colors"
                   style={{
                     backgroundColor: !isAgent ? "#111111" : "transparent",
-                    color: !isAgent ? "#FFFFFF" : "#535353",
+                    color: !isAgent ? "#FFFFFF" : "hsl(var(--muted-foreground))",
                   }}
                 >
                   <Diamond size={14} />
@@ -343,8 +343,8 @@ export default function PilotPage() {
               <button
                 onClick={() => setReportsOpen(true)}
                 className="w-9 h-9 flex items-center justify-center rounded-md transition-colors"
-                style={{ color: "#535353" }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                style={{ color: "hsl(var(--muted-foreground))" }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(var(--muted))")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 aria-label="Relatórios"
               >
@@ -368,7 +368,7 @@ export default function PilotPage() {
                 <h2 className="text-[24px] font-bold" style={{ color: "#111111" }}>
                   Como posso ajudar hoje?
                 </h2>
-                <p className="text-[13px] mt-1" style={{ color: "#AAAAAA" }}>
+                <p className="text-[13px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                   {isAgent ? "Agent Master ativo" : "Claude — uso geral"}
                 </p>
 
@@ -379,19 +379,19 @@ export default function PilotPage() {
                       onClick={() => send(s)}
                       className="text-left px-4 py-3.5 rounded-xl border text-[13px] transition-colors"
                       style={{
-                        backgroundColor: "#F5F5F5",
+                        backgroundColor: "hsl(var(--muted))",
                         borderColor: "#E5E5E5",
-                        color: "#535353",
+                        color: "hsl(var(--muted-foreground))",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = accent;
                         e.currentTarget.style.color = accent;
-                        e.currentTarget.style.backgroundColor = isAgent ? "#E1F5EE" : "#F5F5F5";
+                        e.currentTarget.style.backgroundColor = isAgent ? "#E1F5EE" : "hsl(var(--muted))";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = "#E5E5E5";
-                        e.currentTarget.style.color = "#535353";
-                        e.currentTarget.style.backgroundColor = "#F5F5F5";
+                        e.currentTarget.style.color = "hsl(var(--muted-foreground))";
+                        e.currentTarget.style.backgroundColor = "hsl(var(--muted))";
                       }}
                     >
                       {s}
@@ -420,7 +420,7 @@ export default function PilotPage() {
                               ? accent
                               : isAgent
                               ? "hsl(var(--secondary))"
-                              : "#F5F5F5",
+                              : "hsl(var(--muted))",
                           color: m.role === "user" ? "#FFFFFF" : "#111111",
                           borderRadius:
                             m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
@@ -452,11 +452,11 @@ export default function PilotPage() {
                     </div>
                     <div
                       className="px-4 py-3 flex gap-1"
-                      style={{ backgroundColor: "#F5F5F5", borderRadius: "16px 16px 16px 4px" }}
+                      style={{ backgroundColor: "hsl(var(--muted))", borderRadius: "16px 16px 16px 4px" }}
                     >
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "#AAAAAA", animationDelay: "0ms" }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "#AAAAAA", animationDelay: "150ms" }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "#AAAAAA", animationDelay: "300ms" }} />
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "hsl(var(--muted-foreground))", animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "hsl(var(--muted-foreground))", animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "hsl(var(--muted-foreground))", animationDelay: "300ms" }} />
                     </div>
                   </div>
                 )}
@@ -471,7 +471,7 @@ export default function PilotPage() {
             <div
               className="flex-1 border rounded-xl px-4 py-3 transition-colors focus-within:border-2"
               style={{
-                backgroundColor: "#F5F5F5",
+                backgroundColor: "hsl(var(--muted))",
                 borderColor: "#E5E5E5",
               }}
               onFocus={(e) => (e.currentTarget.style.borderColor = accent)}
@@ -500,7 +500,7 @@ export default function PilotPage() {
               className="w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors disabled:cursor-not-allowed"
               style={{
                 backgroundColor: input.trim() ? accent : "#E5E5E5",
-                color: input.trim() ? "#FFFFFF" : "#AAAAAA",
+                color: input.trim() ? "#FFFFFF" : "hsl(var(--muted-foreground))",
               }}
               aria-label="Enviar"
             >
@@ -521,9 +521,9 @@ export default function PilotPage() {
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="text-[14px] font-semibold" style={{ color: "#111111" }}>Relatórios</h3>
-                <p className="text-[11px]" style={{ color: "#AAAAAA" }}>Gerado pelo seu agente</p>
+                <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>Gerado pelo seu agente</p>
               </div>
-              <button onClick={() => setReportsOpen(false)} style={{ color: "#AAAAAA" }} className="hover:text-foreground">
+              <button onClick={() => setReportsOpen(false)} style={{ color: "hsl(var(--muted-foreground))" }} className="hover:text-foreground">
                 <X size={16} />
               </button>
             </div>
@@ -534,9 +534,9 @@ export default function PilotPage() {
                   onClick={() => setPeriod(p)}
                   className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors capitalize"
                   style={{
-                    backgroundColor: period === p ? "#E1F5EE" : "#F5F5F5",
-                    color: period === p ? "#128A68" : "#535353",
-                    border: period === p ? "1px solid #128A68" : "1px solid transparent",
+                    backgroundColor: period === p ? "hsl(var(--accent))" : "hsl(var(--muted))",
+                    color: period === p ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                    border: period === p ? "1px solid hsl(var(--primary))" : "1px solid transparent",
                   }}
                 >
                   {p === "mes" ? "Mês" : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -548,10 +548,10 @@ export default function PilotPage() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-3">
             {/* Performance */}
-            <div className="rounded-xl p-3.5 mb-3" style={{ backgroundColor: "#E1F5EE" }}>
+            <div className="rounded-xl p-3.5 mb-3" style={{ backgroundColor: "hsl(var(--accent))" }}>
               <div className="flex items-center gap-1.5 mb-3">
-                <Trophy size={14} style={{ color: "#128A68" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "#128A68" }}>
+                <Trophy size={14} style={{ color: "hsl(var(--primary))" }} />
+                <span className="text-[12px] font-semibold" style={{ color: "hsl(var(--primary))" }}>
                   Performance do dia
                 </span>
               </div>
@@ -562,12 +562,12 @@ export default function PilotPage() {
                 <Metric label="Score" value="8.2/10" />
               </div>
               <div>
-                <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "#128A68" }}>
+                <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "hsl(var(--primary))" }}>
                   <span>Score geral</span>
                   <span className="font-semibold">8.2 / 10</span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#FFFFFF" }}>
-                  <div className="h-full rounded-full" style={{ width: "82%", backgroundColor: "#128A68" }} />
+                  <div className="h-full rounded-full" style={{ width: "82%", backgroundColor: "hsl(var(--primary))" }} />
                 </div>
               </div>
             </div>
@@ -579,7 +579,7 @@ export default function PilotPage() {
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Insights</span>
               </div>
               <div className="space-y-2.5">
-                <Insight icon={<Check size={11} style={{ color: "#128A68" }} />} text="Meta diária atingida: 8 abordagens realizadas" time="hoje 18h00" />
+                <Insight icon={<Check size={11} style={{ color: "hsl(var(--primary))" }} />} text="Meta diária atingida: 8 abordagens realizadas" time="hoje 18h00" />
                 <Insight icon={<Zap size={11} style={{ color: "#F59E0B" }} />} text="2 leads parados há mais de 3 dias na etapa Proposta Enviada" time="hoje 14h32" />
                 <Insight icon={<TrendingUp size={11} style={{ color: "#378ADD" }} />} text="Sua taxa de qualificação subiu 12% essa semana" time="hoje 12h15" />
                 <Insight icon={<AlertTriangle size={11} style={{ color: "#E24B4A" }} />} text="Carlos Andrade não respondeu em 4 dias — follow-up urgente" time="hoje 09h48" />
@@ -592,7 +592,7 @@ export default function PilotPage() {
                 <Star size={14} style={{ color: "#8B5CF6" }} />
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Dica do dia</span>
               </div>
-              <p className="text-[13px] leading-relaxed" style={{ color: "#535353" }}>
+              <p className="text-[13px] leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
                 Baseado no seu histórico, leads que respondem em menos de 2 horas têm 3x mais chance de fechar. Tente responder o Carlos ainda hoje.
               </p>
             </div>
@@ -600,7 +600,7 @@ export default function PilotPage() {
             {/* Próximas ações */}
             <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "#E5E5E5", backgroundColor: "#FFFFFF" }}>
               <div className="flex items-center gap-1.5 mb-3">
-                <CheckCircle2 size={14} style={{ color: "#128A68" }} />
+                <CheckCircle2 size={14} style={{ color: "hsl(var(--primary))" }} />
                 <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Próximas ações</span>
               </div>
               <div className="space-y-2">
@@ -612,8 +612,8 @@ export default function PilotPage() {
                       }
                       className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
                       style={{
-                        borderColor: a.done ? "#128A68" : "#CCCCCC",
-                        backgroundColor: a.done ? "#128A68" : "transparent",
+                        borderColor: a.done ? "hsl(var(--primary))" : "#CCCCCC",
+                        backgroundColor: a.done ? "hsl(var(--primary))" : "transparent",
                       }}
                     >
                       {a.done && <Check size={10} color="#FFFFFF" />}
@@ -621,7 +621,7 @@ export default function PilotPage() {
                     <span
                       className="flex-1 text-[12px]"
                       style={{
-                        color: a.done ? "#AAAAAA" : "#111111",
+                        color: a.done ? "hsl(var(--muted-foreground))" : "#111111",
                         textDecoration: a.done ? "line-through" : "none",
                       }}
                     >
@@ -644,12 +644,12 @@ export default function PilotPage() {
 
           {/* Footer */}
           <div className="p-3 border-t" style={{ borderColor: "#E5E5E5" }}>
-            <p className="text-[11px] mb-2" style={{ color: "#AAAAAA" }}>
+            <p className="text-[11px] mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
               Última atualização: hoje às 18h32
             </p>
             <button
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-medium hover:bg-[#E1F5EE]"
-              style={{ borderColor: "#128A68", color: "#128A68" }}
+              style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}
             >
               <RefreshCw size={12} /> Atualizar
             </button>
@@ -693,7 +693,7 @@ function ConvItem({
       <span className="shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
         <p className="truncate text-[13px]">{conv.title}</p>
-        <p className="text-[10px]" style={{ color: "#AAAAAA" }}>{relativeLabel(conv.createdAt)}</p>
+        <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>{relativeLabel(conv.createdAt)}</p>
       </div>
       <button
         onClick={(e) => {
@@ -701,7 +701,7 @@ function ConvItem({
           onDelete();
         }}
         className="opacity-0 group-hover:opacity-100"
-        style={{ color: "#AAAAAA" }}
+        style={{ color: "hsl(var(--muted-foreground))" }}
       >
         <Trash2 size={12} />
       </button>
@@ -712,8 +712,8 @@ function ConvItem({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg p-2" style={{ backgroundColor: "#FFFFFF" }}>
-      <p className="text-[10px]" style={{ color: "#535353" }}>{label}</p>
-      <p className="text-[15px] font-bold" style={{ color: "#128A68" }}>{value}</p>
+      <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
+      <p className="text-[15px] font-bold" style={{ color: "hsl(var(--primary))" }}>{value}</p>
     </div>
   );
 }
@@ -724,7 +724,7 @@ function Insight({ icon, text, time }: { icon: React.ReactNode; text: string; ti
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] leading-snug" style={{ color: "#111111" }}>{text}</p>
-        <p className="text-[10px] mt-0.5" style={{ color: "#AAAAAA" }}>{time}</p>
+        <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{time}</p>
       </div>
     </div>
   );

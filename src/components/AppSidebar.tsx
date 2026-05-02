@@ -72,7 +72,7 @@ const PLAN_LABELS: Record<string, string> = {
   starter:    "Plano Starter",
 };
 
-const SIDEBAR_BG = "#128A68";
+const SIDEBAR_BG = "hsl(var(--primary))";
 const ICON_INACTIVE = "rgba(255,255,255,0.5)";
 const ICON_ACTIVE = "#FFFFFF";
 const HOVER_BG = "rgba(255,255,255,0.1)";
@@ -157,7 +157,7 @@ export function AppSidebar() {
                   height: 14,
                   fontSize: 7,
                   background: "#FFFFFF",
-                  color: "#128A68",
+                  color: "hsl(var(--primary))",
                 }}
               >
                 IA
@@ -375,7 +375,7 @@ export function AppSidebar() {
                   height: 28,
                   borderRadius: "50%",
                   background: profile?.avatar_url ? "transparent" : "#FFFFFF",
-                  color: "#128A68",
+                  color: "hsl(var(--primary))",
                   marginTop: 4,
                 }}
                 aria-label="Usuário"

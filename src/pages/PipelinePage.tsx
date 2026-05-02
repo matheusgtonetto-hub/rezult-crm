@@ -458,7 +458,7 @@ export default function PipelinePage() {
                             <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
                               {col.title}
                             </h3>
-                            <p className="mt-0.5" style={{ fontSize: 12, color: "#AAAAAA" }}>
+                            <p className="mt-0.5" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
                               {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
                               {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                             </p>
@@ -505,7 +505,7 @@ export default function PipelinePage() {
                                   {...prov.draggableProps}
                                   {...prov.dragHandleProps}
                                   onClick={() => navigate(`/pipeline/lead/${leadId}`)}
-                                  className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-[#DDDDDD] transition-all ${
+                                  className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
                                     snap.isDragging
                                       ? "shadow-elev-2 rotate-1"
                                       : ""
@@ -555,7 +555,7 @@ export default function PipelinePage() {
 
                                   {/* Entry date */}
                                   {lead.entryDate && (
-                                    <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                    <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                                       <Calendar size={11} />
                                       {new Date(lead.entryDate + "T00:00:00").toLocaleDateString("pt-BR")}
                                     </div>
@@ -564,7 +564,7 @@ export default function PipelinePage() {
                                   {/* Follow-up + WhatsApp */}
                                   <div className="flex items-center justify-between mt-0.5">
                                     {lead.nextFollowUp ? (
-                                      <div className="flex items-center gap-1" style={{ fontSize: 11, color: "#AAAAAA" }}>
+                                      <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
                                         <Calendar size={11} />
                                         Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
                                       </div>
@@ -574,7 +574,7 @@ export default function PipelinePage() {
                                         e.stopPropagation();
                                         openChat(leadId);
                                       }}
-                                      className="flex items-center justify-center transition-colors hover:bg-[#F0F0F0]"
+                                      className="flex items-center justify-center transition-colors hover:bg-muted"
                                       style={{ width: 24, height: 24, borderRadius: 6 }}
                                       aria-label="Abrir chat WhatsApp"
                                     >
@@ -603,7 +603,7 @@ export default function PipelinePage() {
                                         <DropdownMenuTrigger asChild>
                                           <button
                                             onClick={e => e.stopPropagation()}
-                                            className="shrink-0 flex items-center justify-center rounded-md transition-colors hover:bg-[#F0F0F0] text-muted-foreground hover:text-foreground"
+                                            className="shrink-0 flex items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
                                             style={{ width: 22, height: 22 }}
                                             aria-label="Gerenciar tags"
                                           >
@@ -670,9 +670,9 @@ export default function PipelinePage() {
               }}
               className="min-w-[280px] w-[280px] rounded-xl flex items-center justify-center text-sm transition-colors"
               style={{
-                backgroundColor: "#F5F5F5",
-                border: "1px dashed #CCCCCC",
-                color: "#AAAAAA",
+                backgroundColor: "hsl(var(--muted))",
+                border: "1px dashed hsl(var(--border))",
+                color: "hsl(var(--muted-foreground))",
               }}
             >
               <Plus size={16} className="mr-1.5" /> Nova coluna
