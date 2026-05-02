@@ -352,10 +352,6 @@ export default function LeadDetailPage() {
           <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
         </button>
 
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline">
-          <span style={{ fontSize: 22, fontWeight: 700, color: "#111111" }}>{lead.name}</span>
-          <span style={{ fontSize: 13, color: "#AAAAAA", marginLeft: 8 }}>#{lead.dealNumber}</span>
-        </div>
 
         <div className="flex items-center gap-2">
           <Button
@@ -404,10 +400,21 @@ export default function LeadDetailPage() {
           height: 64,
           background: "#FFFFFF",
           borderBottom: "0.5px solid #E5E5E5",
+          paddingLeft: 25,
+          paddingRight: 16,
         }}
-        className="flex items-center justify-center px-4 overflow-x-auto"
+        className="flex items-center overflow-x-auto gap-4"
       >
-        <div className="flex items-center justify-center" style={{ gap: 4 }}>
+        <div className="flex flex-col shrink-0">
+          <div className="flex items-baseline gap-1.5">
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>{lead.name}</span>
+            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>#{lead.dealNumber}</span>
+          </div>
+          <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+            {pipeline.name} → {stages[activeIdx]?.title ?? "—"}
+          </span>
+        </div>
+        <div className="flex items-center flex-1 justify-center" style={{ gap: 4 }}>
           {stages.map((s, idx) => {
             const isActive = idx === activeIdx;
             const isPast = idx < activeIdx;
