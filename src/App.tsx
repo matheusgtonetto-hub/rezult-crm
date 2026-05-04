@@ -18,6 +18,7 @@ import LeadDetailPage from "./pages/LeadDetailPage";
 import LeadsPage from "./pages/LeadsPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import CalendarPage from "./pages/CalendarPage";
 import PilotPage from "./pages/PilotPage";
 import AgentesPage from "./pages/AgentesPage";
 import RezultPayPage from "./pages/RezultPayPage";
@@ -83,6 +84,7 @@ function AppRoutes() {
             <Route path="/rezult-pay" element={<RezultPayPage />} />
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />
+            <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />

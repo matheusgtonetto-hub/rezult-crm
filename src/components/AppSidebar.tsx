@@ -19,6 +19,7 @@ import {
   UserCircle,
   Bot,
   CreditCard,
+  CalendarDays,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -44,6 +45,7 @@ const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
+  { to: "/calendario", label: "Calendário", icon: CalendarDays },
   { to: "/automacoes", label: "Automações", icon: Zap },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
 ];

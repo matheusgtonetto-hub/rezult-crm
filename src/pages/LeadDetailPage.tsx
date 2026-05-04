@@ -71,6 +71,7 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
+import type { ActivityType } from "@/data/mockData";
 
 type TabKey = "anotacoes" | "atividades" | "reunioes" | "email" | "arquivos";
 
@@ -441,6 +442,14 @@ export default function LeadDetailPage() {
   const [wonProductId, setWonProductId] = useState<string>("none");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
+
+  const [showMeetingForm, setShowMeetingForm] = useState(false);
+  const [meetingForm, setMeetingForm] = useState({
+    title: "",
+    type: "meeting" as ActivityType,
+    scheduledAt: "",
+    dur: "60",
+  });
 
   const handleWon = () => {
     if (!lead.productId) {
@@ -1370,45 +1379,164 @@ export default function LeadDetailPage() {
               </div>
             )}
 
-            {tab === "reunioes" && (
-              <div className="space-y-3">
-                <div className="flex justify-end">
-                  <Button size="sm" className="rounded-md h-8" style={{ background: "#128A68", color: "#FFFFFF" }}>
-                    <Plus size={14} className="mr-1" /> Agendar reunião
-                  </Button>
-                </div>
-                <div style={{ background: "#E1F5EE", borderRadius: 10, padding: 16 }}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center" style={{ color: "#128A68" }}>
-                      <Calendar size={18} />
+            {tab === "reunioes" && (() => {
+              const scheduled = lead.activities
+                .filter(a => a.scheduledAt)
+                .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime());
+
+              const typeStyle: Record<string, { bg: string; color: string }> = {
+                meeting:   { bg: "#DBEAFE", color: "#1D4ED8" },
+                call:      { bg: "#D1FAE5", color: "#065F46" },
+                follow_up: { bg: "#FEF3C7", color: "#92400E" },
+                task:      { bg: "#EDE9FE", color: "#5B21B6" },
+              };
+              const typeLabel: Record<string, string> = {
+                meeting: "Reunião", call: "Call", follow_up: "Follow-up", task: "Tarefa",
+              };
+
+              return (
+                <div className="space-y-3">
+                  {!showMeetingForm ? (
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        className="rounded-md h-8 text-xs"
+                        style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                        onClick={() => setShowMeetingForm(true)}
+                      >
+                        <Plus size={13} className="mr-1" /> Agendar atividade
+                      </Button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: "#085041" }}>Reunião de fechamento</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#085041" }}>22/04/2026 às 15h00 · Carlos Andrade</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#085041" }}>Participantes: {lead.name} + atendente</p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <Button size="sm" variant="outline" className="h-8 rounded-md text-xs" style={{ borderColor: "#128A68", color: "#128A68" }}>
-                          <Video size={12} className="mr-1" /> Entrar no Google Meet
+                  ) : (
+                    <div style={{ border: "0.5px solid hsl(var(--primary))", borderRadius: 10, padding: 14, background: "#FAFAFA" }}>
+                      <p className="text-xs font-semibold mb-3" style={{ color: "#111111" }}>Nova atividade agendada</p>
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Título *</label>
+                          <Input
+                            placeholder="Ex: Call de alinhamento"
+                            className="h-8 text-sm"
+                            value={meetingForm.title}
+                            onChange={e => setMeetingForm(f => ({ ...f, title: e.target.value }))}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
+                            <Select value={meetingForm.type} onValueChange={v => setMeetingForm(f => ({ ...f, type: v as ActivityType }))}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="meeting">Reunião</SelectItem>
+                                <SelectItem value="call">Call</SelectItem>
+                                <SelectItem value="follow_up">Follow-up</SelectItem>
+                                <SelectItem value="task">Tarefa</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Duração</label>
+                            <Select value={meetingForm.dur} onValueChange={v => setMeetingForm(f => ({ ...f, dur: v }))}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="15">15 min</SelectItem>
+                                <SelectItem value="30">30 min</SelectItem>
+                                <SelectItem value="60">1 hora</SelectItem>
+                                <SelectItem value="120">2 horas</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Data e hora *</label>
+                          <Input
+                            type="datetime-local"
+                            className="h-8 text-sm"
+                            value={meetingForm.scheduledAt}
+                            onChange={e => setMeetingForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs rounded-md"
+                          onClick={() => { setShowMeetingForm(false); setMeetingForm({ title: "", type: "meeting", scheduledAt: "", dur: "60" }); }}
+                        >
+                          Cancelar
                         </Button>
-                        <button className="text-xs text-destructive hover:underline">Cancelar reunião</button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs rounded-md"
+                          style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                          onClick={() => {
+                            if (!meetingForm.title.trim() || !meetingForm.scheduledAt) {
+                              toast.error("Preencha título e data/hora.");
+                              return;
+                            }
+                            addActivity(lead.id, {
+                              type: meetingForm.type,
+                              description: meetingForm.title,
+                              title: meetingForm.title,
+                              date: new Date().toISOString(),
+                              scheduledAt: new Date(meetingForm.scheduledAt).toISOString(),
+                              durationMinutes: Number(meetingForm.dur),
+                            });
+                            toast.success("Atividade agendada!");
+                            setShowMeetingForm(false);
+                            setMeetingForm({ title: "", type: "meeting", scheduledAt: "", dur: "60" });
+                          }}
+                        >
+                          Salvar
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                <div className="text-xs font-semibold uppercase tracking-wide pt-2" style={{ color: "#AAAAAA" }}>
-                  Reuniões anteriores
+                  {scheduled.length === 0 ? (
+                    <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
+                      <Calendar size={28} className="mx-auto mb-2 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">Nenhuma atividade agendada para este lead</p>
+                    </div>
+                  ) : (
+                    scheduled.map(a => {
+                      const s = new Date(a.scheduledAt!);
+                      const st = typeStyle[a.type] ?? { bg: "#F3F4F6", color: "#374151" };
+                      const lbl = typeLabel[a.type] ?? a.type;
+                      const isPast = s < new Date();
+                      const durMin = a.durationMinutes ?? 60;
+                      const durLabel = durMin >= 60 ? `${durMin / 60}h` : `${durMin} min`;
+                      return (
+                        <div
+                          key={a.id}
+                          className="flex items-start gap-3 p-3 rounded-lg"
+                          style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", opacity: isPast ? 0.6 : 1 }}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                            style={st}
+                          >
+                            <Calendar size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium" style={{ color: "#111111" }}>{a.title ?? a.description}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {fmtActivityDate(a.scheduledAt!)} · {durLabel}
+                            </p>
+                          </div>
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                            style={st}
+                          >
+                            {lbl}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
-                  <Calendar size={16} className="text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm" style={{ color: "#111111" }}>Apresentação inicial</p>
-                    <p className="text-xs text-muted-foreground">10/04/2026 · 45 min · Rafael</p>
-                  </div>
-                  <Badge className="border-0 text-[10px]" style={{ background: "#E1F5EE", color: "#085041" }}>Realizada</Badge>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {tab === "email" && (
               <div className="text-center py-16">

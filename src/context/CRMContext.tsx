@@ -152,6 +152,9 @@ function dbToActivity(row: Record<string, unknown>): Activity {
     description: row.description as string,
     userName: (row.user_name as string) ?? undefined,
     pinned: (row.pinned as boolean) ?? false,
+    title: (row.title as string) ?? undefined,
+    scheduledAt: (row.scheduled_at as string) ?? undefined,
+    durationMinutes: (row.duration_minutes as number) ?? undefined,
   };
 }
 
@@ -874,6 +877,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         description: activity.description,
         date: activity.date,
         user_name: activity.userName ?? null,
+        title: activity.title ?? null,
+        scheduled_at: activity.scheduledAt ?? null,
+        duration_minutes: activity.durationMinutes ?? null,
       }).then(({ error }) => {
         if (error) console.error("addActivity error:", error.message);
       });
