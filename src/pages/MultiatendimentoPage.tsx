@@ -66,41 +66,8 @@ type ZApiInstance = { instanceId: string; token: string; clientToken: string; ph
 /* ── mock data ────────────────────────────────────────────────────────── */
 const PIPELINE_STAGES = ["Novo Lead", "Contato Feito", "Proposta Enviada", "Negociação", "Fechado", "Perdido"];
 
-const INITIAL_CONVERSATIONS: Conversation[] = [
-  { id: "1", name: "Gilberto Gentil",  preview: "Oi Gilberto! Só passando para lembrar...", time: "6h",  channel: "whatsapp",  tags: ["Follow-up", "Rafael"],   company: "Gentil ME",       email: "gilberto@gentil.com",  phone: "+55 (11) 98001-0001", value: 1800 },
-  { id: "2", name: "Marcia Almeida",   preview: "Bom dia Marcia! Sei que a rotina está intensa...", time: "6h", channel: "whatsapp", tags: ["Follow-up", "Mariana"], company: "Almeida & Cia", email: "marcia@almeida.com",  phone: "+55 (11) 98001-0002", value: 2400 },
-  { id: "3", name: "Carlos Andrade",   preview: "Oi Carlos! Sua proposta está pronta...", time: "2h",  channel: "whatsapp",  tags: ["Proposta", "Carlos"],    company: "Andrade & Cia",   email: "carlos@andrade.com",   phone: "+55 (11) 99999-9999", value: 3500, dealNumber: "#1085", pipeline: "Pipeline Comercial" },
-  { id: "4", name: "Bruno Lima",       preview: "Bruno, conseguiu analisar nossa proposta?", time: "1h", channel: "instagram", tags: ["Negociação", "Rafael"], company: "Lima Corp",      email: "bruno@limacorp.com",   phone: "+55 (11) 98001-0004", value: 5200 },
-  { id: "5", name: "Ana Paula Silva",  preview: "Ana, tudo bem? Podemos agendar uma call?", time: "3h", channel: "whatsapp",  tags: ["SDR", "Mariana"],       company: "—",              email: "ana@email.com",        phone: "+55 (11) 98001-0005", value: 0 },
-  { id: "6", name: "Diego Ferreira",   preview: "Diego! Só confirmando nossa reunião...", time: "4h",  channel: "whatsapp",  tags: ["Reunião", "Carlos"],     company: "Ferreira LTDA",  email: "diego@ferreira.com",   phone: "+55 (11) 98001-0006", value: 7000 },
-  { id: "7", name: "Fernanda Lima",    preview: "Fernanda, segue o contrato conforme...", time: "5h",  channel: "instagram", tags: ["Fechado", "Rafael"],     company: "FL Design",      email: "fernanda@fl.com",      phone: "+55 (11) 98001-0007", value: 4100 },
-  { id: "8", name: "Larissa Andrade",  preview: "Oi Larissa! Como posso te ajudar hoje?", time: "7h",  channel: "whatsapp",  tags: ["SDR", "Mariana"],        company: "—",              email: "larissa@email.com",    phone: "+55 (11) 98001-0008", value: 0 },
-];
-
-const carlosMessages: Msg[] = [
-  { id: "m1",  from: "lead",  time: "14:06", kind: "audio", duration: "0:16", date: "Ontem" },
-  { id: "m2",  from: "agent", agent: "Rafael", time: "14:07", kind: "text", text: "Entendido Carlos! No seu caso pode parcelar em até 5x no cartão ou se for em boleto, 3x", date: "Ontem", read: true },
-  { id: "m3",  from: "lead",  time: "15:06", kind: "audio", duration: "0:29", date: "Ontem" },
-  { id: "m4",  from: "agent", agent: "Rafael", time: "15:54", kind: "text", text: "Vou formalizar para você", date: "Ontem", read: true },
-  { id: "m5",  from: "agent", agent: "Rafael", time: "16:11", kind: "text", text: "Te envio até amanhã, pedi nosso jurídico para fazer, tudo bem?", date: "Ontem", read: true },
-  { id: "m6",  from: "lead",  time: "16:37", kind: "text", text: "Obrigado", date: "Ontem" },
-  { id: "m7",  from: "lead",  time: "08:19", kind: "text", text: "Bom dia tudo bem?", date: "Hoje" },
-  { id: "m8",  from: "lead",  time: "08:19", kind: "text", text: "Fizeram?", date: "Hoje" },
-  { id: "m9",  from: "agent", agent: "Rafael", time: "08:45", kind: "text", text: "Bom dia Carlos! Estamos finalizando, te envio ainda hoje até as 14h", date: "Hoje", read: false },
-  { id: "m10", from: "agent", agent: "Rafael", time: "08:46", kind: "text", text: "Pode deixar que a gente garante! 👊", date: "Hoje", read: false },
-];
-
 function makeInitialConvStates(): Record<string, ConvState> {
-  return Object.fromEntries(
-    INITIAL_CONVERSATIONS.map(c => [c.id, {
-      messages: c.id === "3" ? carlosMessages : [],
-      stageIdx: c.tags.includes("Fechado") ? 4 : c.tags.includes("Negociação") ? 3 : c.tags.includes("Proposta") ? 2 : c.tags.includes("Reunião") ? 3 : 1,
-      meeting: null,
-      notes: "",
-      read: c.id === "3",
-      finished: c.tags.includes("Fechado"),
-    }])
-  );
+  return {};
 }
 
 /* ── sub-components ───────────────────────────────────────────────────── */
@@ -197,8 +164,8 @@ export default function MultiatendimentoPage() {
   const navigate = useNavigate();
   const { leads, pipelines, activePipeline } = useCRM();
 
-  const [convList, setConvList] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
-  const [activeId, setActiveId] = useState<string>("3");
+  const [convList, setConvList] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<string>("auto");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
@@ -464,7 +431,19 @@ export default function MultiatendimentoPage() {
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredConversations.length === 0 && (
             <div style={{ padding: "40px 16px", textAlign: "center" }}>
-              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+              {convList.length === 0 ? (
+                <>
+                  <p style={{ fontSize: 13, color: "#AAA", marginBottom: 4 }}>Nenhuma conversa ainda</p>
+                  <p style={{ fontSize: 12, color: "#CCC", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
+                  <button
+                    onClick={() => setNewConvOpen(true)}
+                    style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  >+ Nova conversa</button>
+                </>
+              ) : (
+                <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+              )}
             </div>
           )}
           {filteredConversations.map(c => {
