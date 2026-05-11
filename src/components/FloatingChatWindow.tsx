@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import {
@@ -20,24 +22,6 @@ interface ChatMsg {
   text: string;
 }
 
-const mockConversations: Record<string, ChatMsg[]> = {};
-const defaultMsgs: ChatMsg[] = [
-  { from: "lead", author: "", time: "08:19", text: "Bom dia tudo bem?" },
-  { from: "lead", author: "", time: "08:19", text: "Fizeram?" },
-  {
-    from: "agent",
-    author: "Rafael",
-    time: "08:45",
-    text: "Bom dia! Estamos finalizando, te envio ainda hoje até as 14h",
-  },
-  {
-    from: "agent",
-    author: "Rafael",
-    time: "08:46",
-    text: "Pode deixar que a gente garante!",
-  },
-];
-
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -46,6 +30,10 @@ function getInitials(name: string) {
     .map(n => n[0])
     .join("")
     .toUpperCase();
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 interface Props {
@@ -62,9 +50,11 @@ const RAIL_GAP = 8;
 export function FloatingChatWindow({ leadId, index }: Props) {
   const { leads, setSelectedLeadId } = useCRM();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
+  const { user } = useAuth();
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
     null
@@ -77,13 +67,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     .filter(Boolean)
     .slice(0, 4);
 
-  const messages = mockConversations[leadId] || defaultMsgs;
-
   useEffect(() => {
     if (msgsRef.current) {
       msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
     }
-  }, [leadId]);
+  }, [messages.length, leadId]);
 
   // Default position: bottom-right with rail to the left of the window
   const defaultRight = 16 + index * 20;
@@ -120,9 +108,50 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     ? { left: pos.x, top: pos.y }
     : { right: defaultRight, bottom: defaultBottom };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!draft.trim()) return;
+    const text = draft.trim();
+    const agentName = user?.email?.split("@")[0] ?? "Você";
+
+    // Adiciona à UI imediatamente (otimista)
+    const newMsg: ChatMsg = { from: "agent", author: agentName, time: nowTime(), text };
+    setMessages(prev => [...prev, newMsg]);
     setDraft("");
+
+    // Enviar via Z-API se houver instância conectada e telefone do lead
+    const contactPhone = lead.whatsapp;
+    if (user && contactPhone && contactPhone !== "—") {
+      try {
+        const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
+        if (raw) {
+          const creds = JSON.parse(raw);
+          if (creds.connected && creds.instanceId && creds.token) {
+            const cleanPhone = contactPhone.replace(/\D/g, "");
+            const res = await fetch(
+              `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}/send-text`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(creds.clientToken ? { "Client-Token": creds.clientToken } : {}),
+                },
+                body: JSON.stringify({ phone: cleanPhone, message: text }),
+              }
+            );
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
+            }
+          } else {
+            toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
+          }
+        } else {
+          toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
+        }
+      } catch {
+        toast.error("Falha ao enviar mensagem via WhatsApp");
+      }
+    }
   };
 
   return (
@@ -259,48 +288,61 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           className="flex-1 overflow-y-auto"
           style={{ background: "#FAFAFA", padding: 12 }}
         >
-          <div className="flex justify-center mb-3">
-            <span
-              className="text-[11px] px-3 py-1 rounded-full"
-              style={{ background: "#E5E5E5", color: "#666" }}
-            >
-              Hoje
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {messages.map((m, i) => {
-              const isLead = m.from === "lead";
-              return (
-                <div
-                  key={i}
-                  className={`flex flex-col ${isLead ? "items-start" : "items-end"}`}
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-2">
+              <div style={{ fontSize: 12, color: "#AAA", textAlign: "center" }}>
+                Nenhuma mensagem ainda
+              </div>
+              <div style={{ fontSize: 11, color: "#CCC", textAlign: "center" }}>
+                Envie uma mensagem para iniciar a conversa
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-center mb-3">
+                <span
+                  className="text-[11px] px-3 py-1 rounded-full"
+                  style={{ background: "#E5E5E5", color: "#666" }}
                 >
-                  <div
-                    className="mb-0.5"
-                    style={{ fontSize: 11, color: "#AAAAAA" }}
-                  >
-                    {isLead ? lead.name : m.author} · {m.time}
-                  </div>
-                  <div
-                    style={{
-                      maxWidth: "80%",
-                      padding: "8px 12px",
-                      fontSize: 13,
-                      lineHeight: 1.4,
-                      background: isLead ? "#FFFFFF" : "#0F6E56",
-                      color: isLead ? "#111111" : "#FFFFFF",
-                      border: isLead ? "0.5px solid #E5E5E5" : "none",
-                      borderRadius: isLead
-                        ? "4px 16px 16px 16px"
-                        : "16px 4px 16px 16px",
-                    }}
-                  >
-                    {m.text}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  Hoje
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {messages.map((m, i) => {
+                  const isLead = m.from === "lead";
+                  return (
+                    <div
+                      key={i}
+                      className={`flex flex-col ${isLead ? "items-start" : "items-end"}`}
+                    >
+                      <div
+                        className="mb-0.5"
+                        style={{ fontSize: 11, color: "#AAAAAA" }}
+                      >
+                        {isLead ? lead.name : m.author} · {m.time}
+                      </div>
+                      <div
+                        style={{
+                          maxWidth: "80%",
+                          padding: "8px 12px",
+                          fontSize: 13,
+                          lineHeight: 1.4,
+                          background: isLead ? "#FFFFFF" : "#0F6E56",
+                          color: isLead ? "#111111" : "#FFFFFF",
+                          border: isLead ? "0.5px solid #E5E5E5" : "none",
+                          borderRadius: isLead
+                            ? "4px 16px 16px 16px"
+                            : "16px 4px 16px 16px",
+                        }}
+                      >
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
