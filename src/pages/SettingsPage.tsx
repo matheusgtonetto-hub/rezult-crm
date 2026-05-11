@@ -1948,16 +1948,7 @@ function ConexoesSection() {
             }).eq("id", company.id);
 
             // 2. Garante que o webhook Z-API está apontando para a Edge Function
-            const webhookUrl = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/zapi-webhook";
-            const base    = `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}`;
-            const headers: HeadersInit = {
-              "Content-Type": "application/json",
-              ...(creds.clientToken ? { "Client-Token": creds.clientToken } : {}),
-            };
-            await fetch(`${base}/update-webhook-received`, {
-              method: "PUT", headers,
-              body: JSON.stringify({ value: webhookUrl }),
-            }).catch(() => {});
+            await configureZapiWebhook(creds);
           })();
         }
       }
@@ -1973,6 +1964,39 @@ function ConexoesSection() {
     "Content-Type": "application/json",
     ...(c.clientToken ? { "Client-Token": c.clientToken } : {}),
   });
+
+  // Configura o webhook na Z-API para receber mensagens no CRM
+  async function configureZapiWebhook(c: ZApiForm): Promise<boolean> {
+    const webhookUrl = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/zapi-webhook";
+    const base = zapiBase(c);
+    const hdrs: HeadersInit = {
+      "Content-Type": "application/json",
+      "instanceId": c.instanceId,
+      "token": c.token,
+      ...(c.clientToken ? { "Client-Token": c.clientToken } : {}),
+    };
+    const body = JSON.stringify({ value: webhookUrl, notifySentByMe: true });
+
+    // Tenta o endpoint principal (atualiza todos os webhooks)
+    try {
+      const r1 = await fetch(`${base}/webhooks`, { method: "POST", headers: hdrs, body });
+      if (r1.ok) return true;
+    } catch { /* continua */ }
+
+    // Fallback: endpoint específico de mensagens recebidas
+    try {
+      const r2 = await fetch(`${base}/update-webhook-received`, { method: "PUT", headers: hdrs, body: JSON.stringify({ value: webhookUrl }) });
+      if (r2.ok) return true;
+    } catch { /* continua */ }
+
+    // Fallback 2: endpoint sem /token/ no path (auth via headers)
+    try {
+      const r3 = await fetch(`https://api.z-api.io/instances/${c.instanceId}/webhooks`, { method: "POST", headers: hdrs, body });
+      if (r3.ok) return true;
+    } catch { /* continua */ }
+
+    return false;
+  }
 
   async function fetchQr(c: ZApiForm) {
     setQrLoading(true);
@@ -2047,14 +2071,7 @@ function ConexoesSection() {
         }
 
         // Configura automaticamente o webhook na Z-API para receber mensagens
-        const webhookUrl = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/zapi-webhook";
-        try {
-          await fetch(`${zapiBase(creds)}/update-webhook-received`, {
-            method: "PUT",
-            headers: zapiHeaders(creds),
-            body: JSON.stringify({ value: webhookUrl }),
-          });
-        } catch { /* não crítico */ }
+        await configureZapiWebhook(creds);
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
