@@ -1896,46 +1896,374 @@ function IntegracoesSection() {
 }
 
 /* ---------------- CONEXÕES ---------------- */
+type ZApiForm = { instanceId: string; token: string; clientToken: string };
+type ZApiStep = "provider" | "creds" | "qr" | "done";
+
 function ConexoesSection() {
-  const items = [
-    {
-      name: "WhatsApp",
-      description: "Envie e receba mensagens direto do CRM.",
-      icon: MessageSquare,
-    },
-    {
-      name: "Asaas",
-      description: "Cobranças e histórico financeiro automatizados.",
-      icon: KeyRound,
-    },
-    {
-      name: "Google Calendar",
-      description: "Sincronize tarefas e reuniões com seu calendário.",
-      icon: Calendar,
-    },
-  ];
+  const { user } = useAuth();
+
+  // persisted connection state (localStorage)
+  const storageKey = user ? `rzlt_zapi_${user.id}` : null;
+  const [connected, setConnected]   = useState(false);
+  const [connPhone, setConnPhone]   = useState("");
+  const [savedCreds, setSavedCreds] = useState<ZApiForm | null>(null);
+  const [checking, setChecking]     = useState(true);
+
+  // dialog state
+  const [open, setOpen]       = useState(false);
+  const [step, setStep]       = useState<ZApiStep>("provider");
+  const [form, setForm]       = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
+  const [qrSrc, setQrSrc]     = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [pollN, setPollN]     = useState(0);
+
+  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollNRef   = useRef(0);
+  const credsInFlight = useRef<ZApiForm | null>(null);
+
+  // ── load saved creds on mount ──────────────────────────────────────
+  useEffect(() => {
+    if (!storageKey) { setChecking(false); return; }
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const d = JSON.parse(raw);
+        setSavedCreds({ instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" });
+        setConnPhone(d.phone ?? "");
+        setConnected(d.connected ?? false);
+      }
+    } catch { /* ignore */ }
+    setChecking(false);
+    return () => stopPoll();
+  }, [storageKey]);
+
+  // ── Z-API helpers ──────────────────────────────────────────────────
+  const zapiBase    = (c: ZApiForm) => `https://api.z-api.io/instances/${c.instanceId}/token/${c.token}`;
+  const zapiHeaders = (c: ZApiForm): HeadersInit => ({
+    "Content-Type": "application/json",
+    ...(c.clientToken ? { "Client-Token": c.clientToken } : {}),
+  });
+
+  async function fetchQr(c: ZApiForm) {
+    setQrLoading(true);
+    setQrSrc("");
+    try {
+      const res  = await fetch(`${zapiBase(c)}/qr-code/image`, { headers: zapiHeaders(c) });
+      const data = await res.json();
+      if (data.value) {
+        setQrSrc(data.value);
+      } else {
+        toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
+      }
+    } catch {
+      toast.error("Erro ao conectar com a Z-API. Confirme o ID e Token da instância.");
+    } finally {
+      setQrLoading(false);
+    }
+  }
+
+  async function pollStatus(c: ZApiForm): Promise<{ connected: boolean; phone: string }> {
+    try {
+      const res  = await fetch(`${zapiBase(c)}/status`, { headers: zapiHeaders(c) });
+      const data = await res.json();
+      let phone = "";
+      if (data.connected) {
+        try {
+          const pr = await fetch(`${zapiBase(c)}/phone`, { headers: zapiHeaders(c) });
+          const pd = await pr.json();
+          phone = pd.phone ?? pd.value ?? "";
+        } catch { /* optional */ }
+      }
+      return { connected: !!data.connected, phone };
+    } catch {
+      return { connected: false, phone: "" };
+    }
+  }
+
+  function stopPoll() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setPolling(false);
+  }
+
+  function startPoll(c: ZApiForm) {
+    pollNRef.current    = 0;
+    credsInFlight.current = c;
+    setPollN(0);
+    setPolling(true);
+    timerRef.current = setInterval(async () => {
+      pollNRef.current += 1;
+      setPollN(pollNRef.current);
+      const result = await pollStatus(credsInFlight.current!);
+      if (result.connected) {
+        stopPoll();
+        const d = { ...credsInFlight.current!, phone: result.phone, connected: true };
+        if (storageKey) localStorage.setItem(storageKey, JSON.stringify(d));
+        setSavedCreds(credsInFlight.current);
+        setConnPhone(result.phone);
+        setConnected(true);
+        setStep("done");
+        toast.success("WhatsApp conectado com sucesso!");
+      } else if (pollNRef.current >= 3) {
+        stopPoll();
+      }
+    }, 15_000);
+  }
+
+  // ── dialog actions ─────────────────────────────────────────────────
+  async function handleGenerateQr() {
+    if (!form.instanceId.trim() || !form.token.trim()) {
+      toast.error("Preencha o ID da instância e o Token.");
+      return;
+    }
+    await fetchQr(form);
+    setStep("qr");
+    startPoll(form);
+  }
+
+  async function handleRegenerate() {
+    await fetchQr(form);
+    startPoll(form);
+  }
+
+  async function handleDisconnect() {
+    if (!savedCreds) return;
+    try {
+      await fetch(`${zapiBase(savedCreds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(savedCreds) });
+    } catch { /* ignore */ }
+    if (storageKey) localStorage.removeItem(storageKey);
+    setSavedCreds(null);
+    setConnPhone("");
+    setConnected(false);
+    toast.success("WhatsApp desconectado.");
+  }
+
+  function openDialog() {
+    setStep("provider");
+    setForm({ instanceId: "", token: "", clientToken: "" });
+    setQrSrc("");
+    setPollN(0);
+    setOpen(true);
+  }
+
+  function closeDialog() {
+    stopPoll();
+    setOpen(false);
+  }
+
+  // ── render ─────────────────────────────────────────────────────────
   return (
     <>
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Conexões</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {items.map(i => (
-          <div key={i.name} className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
-              <i.icon size={18} className="text-[#128A68]" />
+        {/* WhatsApp */}
+        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${connected ? "bg-[#E1F5EE]" : "bg-[#F5F5F5]"}`}>
+            <MessageSquare size={18} className={connected ? "text-[#128A68]" : "text-[#AAAAAA]"} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-[#111111]">WhatsApp</p>
+              {connected
+                ? <Badge className="text-[10px] h-5 bg-[#E1F5EE] text-[#128A68] border-0 hover:bg-[#E1F5EE]">Conectado</Badge>
+                : <Badge variant="secondary" className="text-[10px] h-5">Desconectado</Badge>
+              }
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-semibold text-[#111111]">{i.name}</p>
-                <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
+            <p className="text-xs text-[#AAAAAA]">Envie e receba mensagens direto do CRM.</p>
+            {connected ? (
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                {connPhone && <span className="text-xs text-[#535353] font-mono">{connPhone}</span>}
+                <Button
+                  size="sm" variant="outline"
+                  className="h-7 text-xs rounded-md border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white"
+                  onClick={handleDisconnect}
+                >
+                  Desconectar
+                </Button>
               </div>
-              <p className="text-xs text-[#AAAAAA]">{i.description}</p>
-              <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>
+            ) : (
+              <Button
+                size="sm" variant="outline" disabled={checking}
+                className="mt-3 h-7 text-xs rounded-md border-[#128A68] text-[#128A68] hover:bg-[#128A68] hover:text-white"
+                onClick={openDialog}
+              >
                 Conectar
               </Button>
-            </div>
+            )}
           </div>
-        ))}
+        </div>
+
+        {/* Asaas */}
+        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[#F5F5F5] flex items-center justify-center shrink-0">
+            <KeyRound size={18} className="text-[#AAAAAA]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-[#111111]">Asaas</p>
+              <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
+            </div>
+            <p className="text-xs text-[#AAAAAA]">Cobranças e histórico financeiro automatizados.</p>
+            <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>Conectar</Button>
+          </div>
+        </div>
+
+        {/* Google Calendar */}
+        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[#F5F5F5] flex items-center justify-center shrink-0">
+            <Calendar size={18} className="text-[#AAAAAA]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-[#111111]">Google Calendar</p>
+              <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
+            </div>
+            <p className="text-xs text-[#AAAAAA]">Sincronize tarefas e reuniões com seu calendário.</p>
+            <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>Conectar</Button>
+          </div>
+        </div>
       </div>
+
+      {/* ── Z-API Connection Dialog ─────────────────────────────────── */}
+      <Dialog open={open} onOpenChange={v => { if (!v) closeDialog(); }}>
+        <DialogContent className="max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare size={15} className="text-[#128A68]" /> Conectar WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Step 1 — Provider */}
+          {step === "provider" && (
+            <>
+              <p className="text-xs text-[#AAAAAA] -mt-1 mb-3">Selecione o provedor de integração</p>
+              <div
+                className="border-[1.5px] border-[#128A68] rounded-xl p-4 flex items-center gap-3 cursor-pointer bg-[#E1F5EE]/20"
+                onClick={() => setStep("creds")}
+              >
+                <div className="w-10 h-10 rounded-lg bg-[#128A68] flex items-center justify-center shrink-0">
+                  <Webhook size={18} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-[#111111]">Z-API</p>
+                  <p className="text-xs text-[#AAAAAA]">Instância dedicada via API oficial</p>
+                </div>
+                <CheckCircle2 size={16} className="text-[#128A68]" />
+              </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" className="border-[#EEEEEE]" onClick={closeDialog}>Cancelar</Button>
+                <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={() => setStep("creds")}>Continuar</Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 2 — Credentials */}
+          {step === "creds" && (
+            <>
+              <p className="text-xs text-[#AAAAAA] -mt-1 mb-3">
+                No painel da <strong>Z-API</strong>, acesse sua instância e copie o ID e o Token.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-[#535353] block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Ex: 3C1B2A3D4E5F..."
+                    value={form.instanceId}
+                    onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
+                    className="border-[#EEEEEE] font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[#535353] block mb-1">Token <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Token da instância"
+                    value={form.token}
+                    onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
+                    className="border-[#EEEEEE] font-mono text-sm"
+                    type="password"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[#535353] block mb-1">
+                    Client-Token <span className="text-[#AAAAAA] font-normal">(opcional — aba Segurança da Z-API)</span>
+                  </label>
+                  <Input
+                    placeholder="Apenas se habilitado"
+                    value={form.clientToken}
+                    onChange={e => setForm(f => ({ ...f, clientToken: e.target.value }))}
+                    className="border-[#EEEEEE] font-mono text-sm"
+                    type="password"
+                  />
+                </div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setStep("provider")}>Voltar</Button>
+                <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={handleGenerateQr} disabled={qrLoading}>
+                  {qrLoading ? "Gerando..." : "Gerar QR Code"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 3 — QR Code */}
+          {step === "qr" && (
+            <>
+              <p className="text-xs text-[#AAAAAA] -mt-1 mb-3 text-center">
+                Abra o WhatsApp → <strong>Dispositivos conectados</strong> → <strong>Conectar dispositivo</strong>
+              </p>
+              <div className="flex flex-col items-center">
+                {qrLoading ? (
+                  <div className="w-52 h-52 bg-[#F5F5F5] rounded-xl flex items-center justify-center">
+                    <p className="text-xs text-[#AAAAAA]">Carregando QR Code...</p>
+                  </div>
+                ) : qrSrc ? (
+                  <img src={qrSrc} alt="QR Code WhatsApp" className="w-52 h-52 rounded-xl border border-[#EEEEEE] object-contain" />
+                ) : (
+                  <div className="w-52 h-52 bg-[#FEF2F2] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
+                    <p className="text-xs text-[#E24B4A] font-medium text-center">Falha ao carregar o QR Code</p>
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-[#EEEEEE]" onClick={() => fetchQr(form)}>
+                      Tentar novamente
+                    </Button>
+                  </div>
+                )}
+
+                <div className="mt-3 h-8 flex items-center justify-center">
+                  {polling && (
+                    <p className="text-xs text-[#AAAAAA]">Aguardando leitura do QR… ({pollN}/3)</p>
+                  )}
+                  {!polling && pollN >= 3 && (
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-xs text-[#E24B4A]">QR Code expirado.</p>
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-[#128A68] text-[#128A68] hover:bg-[#128A68] hover:text-white" onClick={handleRegenerate}>
+                        Gerar novo QR Code
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <DialogFooter className="mt-3">
+                <Button variant="outline" className="border-[#EEEEEE]" onClick={() => { stopPoll(); setStep("creds"); }}>Voltar</Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 4 — Done */}
+          {step === "done" && (
+            <div className="py-2 text-center">
+              <div className="w-14 h-14 rounded-full bg-[#E1F5EE] flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 size={28} className="text-[#128A68]" />
+              </div>
+              <p className="text-sm font-semibold text-[#111111] mb-1">WhatsApp conectado!</p>
+              {connPhone && <p className="text-xs text-[#535353] font-mono mb-2">{connPhone}</p>}
+              <p className="text-xs text-[#AAAAAA]">Você já pode enviar e receber mensagens pelo Rezult CRM.</p>
+              <DialogFooter className="mt-5">
+                <Button className="bg-[#128A68] hover:bg-[#128A68]/90 w-full" onClick={closeDialog}>Concluir</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
