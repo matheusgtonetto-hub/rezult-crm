@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useCRM } from "@/context/CRMContext";
+import type { Lead, Pipeline } from "@/data/mockData";
 import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X,
+  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus,
 } from "lucide-react";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -64,7 +66,7 @@ type ZApiInstance = { instanceId: string; phone: string; label: string };
 /* ── mock data ────────────────────────────────────────────────────────── */
 const PIPELINE_STAGES = ["Novo Lead", "Contato Feito", "Proposta Enviada", "Negociação", "Fechado", "Perdido"];
 
-const conversations: Conversation[] = [
+const INITIAL_CONVERSATIONS: Conversation[] = [
   { id: "1", name: "Gilberto Gentil",  preview: "Oi Gilberto! Só passando para lembrar...", time: "6h",  channel: "whatsapp",  tags: ["Follow-up", "Rafael"],   company: "Gentil ME",       email: "gilberto@gentil.com",  phone: "+55 (11) 98001-0001", value: 1800 },
   { id: "2", name: "Marcia Almeida",   preview: "Bom dia Marcia! Sei que a rotina está intensa...", time: "6h", channel: "whatsapp", tags: ["Follow-up", "Mariana"], company: "Almeida & Cia", email: "marcia@almeida.com",  phone: "+55 (11) 98001-0002", value: 2400 },
   { id: "3", name: "Carlos Andrade",   preview: "Oi Carlos! Sua proposta está pronta...", time: "2h",  channel: "whatsapp",  tags: ["Proposta", "Carlos"],    company: "Andrade & Cia",   email: "carlos@andrade.com",   phone: "+55 (11) 99999-9999", value: 3500, dealNumber: "#1085", pipeline: "Pipeline Comercial" },
@@ -193,13 +195,19 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: any; label: strin
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { leads, pipelines, activePipeline } = useCRM();
 
+  const [convList, setConvList] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
   const [activeId, setActiveId] = useState<string>("3");
   const [activeFilter, setActiveFilter] = useState<string>("auto");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [convStates, setConvStates] = useState<Record<string, ConvState>>(makeInitialConvStates);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+  // nova conversa
+  const [newConvOpen, setNewConvOpen] = useState(false);
+  const [leadSearch, setLeadSearch] = useState("");
 
   // meeting form state (ephemeral)
   const [meetingFormFor, setMeetingFormFor] = useState<string | null>(null);
@@ -243,6 +251,62 @@ export default function MultiatendimentoPage() {
       }
     } catch { /* ignore */ }
   }, [user?.id]);
+
+  // ── nova conversa a partir de lead do pipeline ───────────────────────
+  function startConversationWithLead(leadId: string) {
+    const lead = leads[leadId];
+    if (!lead) return;
+
+    // se já existe conversa para esse lead, só ativa
+    const existing = convList.find(c => c.id === leadId);
+    if (existing) {
+      setActiveId(leadId);
+      setNewConvOpen(false);
+      setLeadSearch("");
+      return;
+    }
+
+    // encontra o nome da coluna (etapa) do lead
+    const allPipelines = pipelines ?? [];
+    let stageIdx = 1;
+    for (const p of allPipelines) {
+      const colIdx = (p.columns ?? []).findIndex(col => col.id === lead.stage);
+      if (colIdx >= 0) {
+        const fraction = colIdx / Math.max((p.columns.length - 1), 1);
+        stageIdx = Math.round(fraction * (PIPELINE_STAGES.length - 1));
+        break;
+      }
+    }
+
+    const pipelineName = allPipelines.find(p => p.id === lead.pipelineId)?.name
+      ?? activePipeline?.name
+      ?? "Pipeline Comercial";
+
+    const newConv: Conversation = {
+      id: leadId,
+      name: lead.name,
+      preview: "Nova conversa iniciada",
+      time: "agora",
+      channel: "whatsapp",
+      tags: lead.tags ?? [],
+      company: lead.company ?? "—",
+      email: lead.email ?? "—",
+      phone: lead.whatsapp ?? "—",
+      value: lead.value ?? 0,
+      pipeline: pipelineName,
+      dealNumber: `#${lead.dealNumber}`,
+    };
+
+    setConvList(prev => [newConv, ...prev]);
+    setConvStates(prev => ({
+      ...prev,
+      [leadId]: { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false },
+    }));
+    setActiveId(leadId);
+    setNewConvOpen(false);
+    setLeadSearch("");
+    toast.success(`Conversa iniciada com ${lead.name}`);
+  }
 
   // ── conv state helpers ──────────────────────────────────────────────
   function updateCs(id: string, patch: Partial<ConvState>) {
@@ -291,7 +355,7 @@ export default function MultiatendimentoPage() {
 
   // ── filter ──────────────────────────────────────────────────────────
   const filteredConversations = useMemo(() => {
-    let list = conversations;
+    let list = convList;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(c => c.name.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q));
@@ -303,15 +367,15 @@ export default function MultiatendimentoPage() {
       case "alert":   list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
     return list;
-  }, [searchQuery, activeFilter, convStates]);
+  }, [searchQuery, activeFilter, convStates, convList]);
 
   const filters = [
-    { id: "email",   icon: Mail,         count: conversations.filter(c => c.channel === "instagram").length },
-    { id: "pending", icon: Clock,        count: conversations.filter(c => !convStates[c.id]?.finished).length },
-    { id: "folder",  icon: Folder,       count: conversations.length },
-    { id: "auto",    icon: Zap,          count: conversations.length, highlight: true },
-    { id: "done",    icon: CheckCircle2, count: conversations.filter(c => convStates[c.id]?.finished).length },
-    { id: "alert",   icon: AlertTriangle,count: conversations.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "email",   icon: Mail,         count: convList.filter(c => c.channel === "instagram").length },
+    { id: "pending", icon: Clock,        count: convList.filter(c => !convStates[c.id]?.finished).length },
+    { id: "folder",  icon: Folder,       count: convList.length },
+    { id: "auto",    icon: Zap,          count: convList.length, highlight: true },
+    { id: "done",    icon: CheckCircle2, count: convList.filter(c => convStates[c.id]?.finished).length },
+    { id: "alert",   icon: AlertTriangle,count: convList.filter(c => c.tags.includes("Follow-up")).length },
   ];
 
   // ── grouped messages ────────────────────────────────────────────────
@@ -344,6 +408,13 @@ export default function MultiatendimentoPage() {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setNewConvOpen(true)}
+              title="Nova conversa"
+              style={{ background: "#128A68", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            >
+              <UserPlus size={14} color="#FFF" />
+            </button>
             <Bell
               size={16} color="#AAA" style={{ cursor: "pointer" }}
               onClick={() => toast("Nenhuma notificação nova")}
@@ -596,6 +667,15 @@ export default function MultiatendimentoPage() {
         )}
       </section>
 
+      {/* ── DIALOG: nova conversa ────────────────────────────────────── */}
+      <NewConvDialog
+        open={newConvOpen}
+        onClose={() => { setNewConvOpen(false); setLeadSearch(""); }}
+        leads={leads}
+        pipelines={pipelines ?? []}
+        onSelect={startConversationWithLead}
+      />
+
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
       <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "0.5px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
         {active && cs && (
@@ -773,3 +853,124 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px",
   fontSize: 13, color: "#111", background: "#FFF", outline: "none", width: "100%",
 };
+
+/* ── Nova conversa dialog ─────────────────────────────────────────────── */
+function NewConvDialog({
+  open, onClose, leads, pipelines, onSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  leads: Record<string, Lead>;
+  pipelines: Pipeline[];
+  onSelect: (leadId: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQ("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const pipelineMap = Object.fromEntries((pipelines ?? []).map(p => [p.id, p.name]));
+
+  const filteredLeads = Object.values(leads)
+    .filter(l => !l.dealStatus || l.dealStatus === "open")
+    .filter(l => !q.trim() || l.name.toLowerCase().includes(q.toLowerCase()) || (l.company ?? "").toLowerCase().includes(q.toLowerCase()))
+    .slice(0, 50);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: "#FFF", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+      >
+        {/* header */}
+        <div style={{ padding: "18px 20px 12px", borderBottom: "0.5px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Nova conversa</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um negócio do pipeline</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <X size={18} color="#AAA" />
+          </button>
+        </div>
+
+        {/* search */}
+        <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #F0F0F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="#AAA" />
+            <input
+              ref={inputRef}
+              placeholder="Buscar por nome ou empresa..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
+            />
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
+          </div>
+        </div>
+
+        {/* lista de leads */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {filteredLeads.length === 0 && (
+            <div style={{ padding: "40px 20px", textAlign: "center" }}>
+              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum negócio encontrado</p>
+              <p style={{ fontSize: 12, color: "#CCC", marginTop: 4 }}>Tente outro nome ou crie um lead no Pipeline</p>
+            </div>
+          )}
+          {filteredLeads.map(lead => (
+            <button
+              key={lead.id}
+              onClick={() => onSelect(lead.id)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              {/* avatar */}
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: colorFromString(lead.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                {initials(lead.name)}
+              </div>
+
+              {/* info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
+                  <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
+                </div>
+                <div style={{ display: "flex", align: "center", gap: 8, flexWrap: "wrap" }}>
+                  {lead.company && <span style={{ fontSize: 11, color: "#666" }}>{lead.company}</span>}
+                  {lead.company && <span style={{ fontSize: 11, color: "#DDD" }}>•</span>}
+                  <span style={{ fontSize: 11, color: "#AAA" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
+                </div>
+              </div>
+
+              {/* valor */}
+              {lead.value > 0 && (
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#128A68", flexShrink: 0 }}>
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(lead.value)}
+                </div>
+              )}
+
+              {/* ícone seta */}
+              <div style={{ flexShrink: 0, color: "#CCC" }}>→</div>
+            </button>
+          ))}
+        </div>
+
+        {/* footer */}
+        {filteredLeads.length > 0 && (
+          <div style={{ padding: "10px 20px", borderTop: "0.5px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
+            {filteredLeads.length} negócio{filteredLeads.length !== 1 ? "s" : ""} encontrado{filteredLeads.length !== 1 ? "s" : ""}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
