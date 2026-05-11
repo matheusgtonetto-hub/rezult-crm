@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
@@ -177,11 +179,40 @@ function FilterChip({ Icon, count, isActive, isHighlight, onClick }: { Icon: any
   );
 }
 
+/* ---------- types for Z-API instances ---------- */
+type ZApiInstance = { instanceId: string; phone: string; label: string };
+
 /* ---------- main page ---------- */
 export default function MultiatendimentoPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string>("3");
   const [activeFilter, setActiveFilter] = useState<string>("auto");
   const active = conversations.find(c => c.id === activeId);
+
+  // WhatsApp instances (loaded from localStorage — saved by ConexoesSection)
+  const [instances, setInstances] = useState<ZApiInstance[]>([]);
+  const [selectedInstance, setSelectedInstance] = useState<string>("");
+  const [instanceOpen, setInstanceOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
+    if (raw) {
+      try {
+        const d = JSON.parse(raw);
+        if (d.connected && d.instanceId) {
+          const inst: ZApiInstance = {
+            instanceId: d.instanceId,
+            phone: d.phone || d.instanceId,
+            label: d.phone ? `Z-API · ${d.phone}` : `Z-API · ${d.instanceId.slice(0, 8)}…`,
+          };
+          setInstances([inst]);
+          setSelectedInstance(inst.instanceId);
+        }
+      } catch { /* ignore */ }
+    }
+  }, [user?.id]);
 
   // Pipeline stage state
   const [stageIdx, setStageIdx] = useState(2); // Proposta Enviada
@@ -225,7 +256,7 @@ export default function MultiatendimentoPage() {
   ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }} onClick={() => instanceOpen && setInstanceOpen(false)}>
       {/* COLUNA 1 — LISTA */}
       <aside style={{ width: 300, minWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFFFFF", position: "relative", zIndex: 2 }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "0.5px solid #F0F0F0" }}>
@@ -320,13 +351,13 @@ export default function MultiatendimentoPage() {
         {active ? (
           <>
             {/* header */}
-            <div style={{ height: 52, background: "#FFFFFF", borderBottom: "0.5px solid #E5E5E5", padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ minHeight: 52, background: "#FFFFFF", borderBottom: "0.5px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: "50%",
                   background: colorFromString(active.name), color: "#fff",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 600,
+                  fontSize: 11, fontWeight: 600, flexShrink: 0,
                 }}>
                   {initials(active.name)}
                 </div>
@@ -335,6 +366,97 @@ export default function MultiatendimentoPage() {
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
                     <Filter size={10} />
                     {active.pipeline || "Pipeline Comercial"}
+                  </div>
+
+                  {/* WhatsApp instance selector */}
+                  <div style={{ position: "relative", marginTop: 4 }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setInstanceOpen(o => !o); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        background: instances.length > 0 ? "#E1F5EE" : "#F5F5F5",
+                        border: "none", borderRadius: 100,
+                        padding: "3px 8px 3px 6px",
+                        cursor: "pointer", outline: "none",
+                      }}
+                    >
+                      {/* WhatsApp icon */}
+                      <svg viewBox="0 0 24 24" width={12} height={12} aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <circle cx="12" cy="12" r="12" fill={instances.length > 0 ? "#25D366" : "#CCCCCC"} />
+                        <path fill="#FFFFFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                      </svg>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600,
+                        color: instances.length > 0 ? "#128A68" : "#AAAAAA",
+                      }}>
+                        {instances.length > 0
+                          ? (instances.find(i => i.instanceId === selectedInstance)?.label ?? instances[0].label)
+                          : "Sem instância conectada"}
+                      </span>
+                      <ChevronDown size={10} color={instances.length > 0 ? "#128A68" : "#AAAAAA"} />
+                    </button>
+
+                    {/* dropdown */}
+                    {instanceOpen && (
+                      <div onClick={e => e.stopPropagation()} style={{
+                        position: "absolute", top: "calc(100% + 4px)", left: 0,
+                        background: "#FFFFFF", border: "0.5px solid #E5E5E5",
+                        borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                        minWidth: 220, zIndex: 50, overflow: "hidden",
+                      }}>
+                        {instances.length > 0 ? (
+                          <>
+                            <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "#AAA", fontWeight: 700, letterSpacing: 0.5 }}>
+                              INSTÂNCIAS CONECTADAS
+                            </div>
+                            {instances.map(inst => (
+                              <button
+                                key={inst.instanceId}
+                                onClick={() => { setSelectedInstance(inst.instanceId); setInstanceOpen(false); }}
+                                style={{
+                                  width: "100%", display: "flex", alignItems: "center", gap: 8,
+                                  padding: "8px 12px", background: selectedInstance === inst.instanceId ? "#E1F5EE" : "transparent",
+                                  border: "none", cursor: "pointer", textAlign: "left",
+                                }}
+                                onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "#F9F9F9"; }}
+                                onMouseLeave={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "transparent"; }}
+                              >
+                                <svg viewBox="0 0 24 24" width={14} height={14} aria-hidden="true">
+                                  <circle cx="12" cy="12" r="12" fill="#25D366" />
+                                  <path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                                </svg>
+                                <div>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "#128A68" : "#111" }}>{inst.label}</div>
+                                  <div style={{ fontSize: 10, color: "#AAA" }}>Z-API</div>
+                                </div>
+                                {selectedInstance === inst.instanceId && (
+                                  <CheckCircle2 size={14} color="#128A68" style={{ marginLeft: "auto" }} />
+                                )}
+                              </button>
+                            ))}
+                            <div style={{ borderTop: "0.5px solid #F0F0F0", padding: "8px 12px" }}>
+                              <button
+                                onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }}
+                                style={{ background: "transparent", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                              >
+                                + Gerenciar conexões
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ padding: 16 }}>
+                            <p style={{ fontSize: 12, color: "#111", fontWeight: 600, marginBottom: 4 }}>Nenhuma instância conectada</p>
+                            <p style={{ fontSize: 11, color: "#AAA", marginBottom: 10 }}>Conecte um número WhatsApp em Configurações → Conexões.</p>
+                            <button
+                              onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }}
+                              style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                            >
+                              Ir para Conexões
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
