@@ -132,10 +132,10 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
   );
 }
 
-function FilterChip({ Icon, count, isActive, isHighlight, onClick }: { Icon: any; count: number | null; isActive: boolean; isHighlight: boolean; onClick: () => void }) {
-  let bg = "#F5F5F5", fg = "#535353", border = "1px solid transparent";
-  if (isHighlight && !isActive) { bg = "#128A68"; fg = "#FFF"; }
-  if (isActive) { bg = "#E1F5EE"; fg = "#128A68"; border = "1px solid #128A68"; }
+function FilterChip({ Icon, count, isActive, onClick }: { Icon: any; count: number | null; isActive: boolean; onClick: () => void }) {
+  const bg     = isActive ? "#E1F5EE" : "#F5F5F5";
+  const fg     = isActive ? "#128A68" : "#535353";
+  const border = isActive ? "1px solid #128A68" : "1px solid transparent";
   return (
     <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
       <Icon size={12} />
@@ -166,7 +166,7 @@ export default function MultiatendimentoPage() {
 
   const [convList, setConvList] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<string>("auto");
+  const [activeFilter, setActiveFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [convStates, setConvStates] = useState<Record<string, ConvState>>(makeInitialConvStates);
@@ -220,6 +220,41 @@ export default function MultiatendimentoPage() {
       }
     } catch { /* ignore */ }
   }, [user?.id]);
+
+  // ── escuta chat aberto pelo pipeline (FloatingChatWindow) ────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const leadId = (e as CustomEvent<{ leadId: string }>).detail?.leadId;
+      if (!leadId) return;
+      const lead = leads[leadId];
+      if (!lead) return;
+      setConvList(prev => {
+        if (prev.find(c => c.id === leadId)) return prev;
+        const allPipelines = pipelines ?? [];
+        const pipelineName = allPipelines.find(p => p.id === lead.pipelineId)?.name ?? "Pipeline Comercial";
+        return [{
+          id: leadId,
+          name: lead.name,
+          preview: "Conversa iniciada pelo Pipeline",
+          time: "agora",
+          channel: "whatsapp" as const,
+          tags: lead.tags ?? [],
+          company: lead.company ?? "—",
+          email: lead.email ?? "—",
+          phone: lead.whatsapp ?? "—",
+          value: lead.value ?? 0,
+          pipeline: pipelineName,
+          dealNumber: `#${lead.dealNumber}`,
+        }, ...prev];
+      });
+      setConvStates(prev => {
+        if (prev[leadId]) return prev;
+        return { ...prev, [leadId]: { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false } };
+      });
+    };
+    window.addEventListener("rzlt:chat-opened", handler);
+    return () => window.removeEventListener("rzlt:chat-opened", handler);
+  }, [leads, pipelines]);
 
   // ── nova conversa a partir de lead do pipeline ───────────────────────
   function startConversationWithLead(leadId: string) {
@@ -366,12 +401,12 @@ export default function MultiatendimentoPage() {
   }, [searchQuery, activeFilter, convStates, convList]);
 
   const filters = [
-    { id: "email",   icon: Mail,         count: convList.filter(c => c.channel === "instagram").length },
-    { id: "pending", icon: Clock,        count: convList.filter(c => !convStates[c.id]?.finished).length },
-    { id: "folder",  icon: Folder,       count: convList.length },
-    { id: "auto",    icon: Zap,          count: convList.length, highlight: true },
-    { id: "done",    icon: CheckCircle2, count: convList.filter(c => convStates[c.id]?.finished).length },
-    { id: "alert",   icon: AlertTriangle,count: convList.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "email",   icon: Mail,          count: convList.filter(c => c.channel === "instagram").length },
+    { id: "pending", icon: Clock,         count: convList.filter(c => !convStates[c.id]?.finished).length },
+    { id: "folder",  icon: Folder,        count: convList.length },
+    { id: "auto",    icon: Zap,           count: convList.length },
+    { id: "done",    icon: CheckCircle2,  count: convList.filter(c => convStates[c.id]?.finished).length },
+    { id: "alert",   icon: AlertTriangle, count: convList.filter(c => c.tags.includes("Follow-up")).length },
   ];
 
   // ── grouped messages ────────────────────────────────────────────────
@@ -423,7 +458,7 @@ export default function MultiatendimentoPage() {
 
           <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
             {filters.map(f => (
-              <FilterChip key={f.id} Icon={f.icon} count={f.count} isActive={activeFilter === f.id} isHighlight={!!f.highlight} onClick={() => setActiveFilter(f.id)} />
+              <FilterChip key={f.id} Icon={f.icon} count={f.count} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
             ))}
           </div>
         </div>
