@@ -61,7 +61,7 @@ type ConvState = {
   finished: boolean;
 };
 
-type ZApiInstance = { instanceId: string; phone: string; label: string };
+type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string };
 
 /* ── mock data ────────────────────────────────────────────────────────── */
 const PIPELINE_STAGES = ["Novo Lead", "Contato Feito", "Proposta Enviada", "Negociação", "Fechado", "Perdido"];
@@ -242,6 +242,8 @@ export default function MultiatendimentoPage() {
         if (d.connected && d.instanceId) {
           const inst: ZApiInstance = {
             instanceId: d.instanceId,
+            token: d.token ?? "",
+            clientToken: d.clientToken ?? "",
             phone: d.phone || d.instanceId,
             label: d.phone ? `Z-API · ${d.phone}` : `Z-API · ${d.instanceId.slice(0, 8)}…`,
           };
@@ -313,20 +315,47 @@ export default function MultiatendimentoPage() {
     setConvStates(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
-  function sendMessage() {
+  async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
+    const text = inputValue.trim();
     const msg: Msg = {
       id: `m${Date.now()}`,
       from: "agent",
       agent: user?.email?.split("@")[0] ?? "Você",
       time: nowTime(),
       kind: "text",
-      text: inputValue.trim(),
+      text,
       date: "Hoje",
       read: false,
     };
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
     setInputValue("");
+
+    // Enviar via Z-API se houver instância e telefone do contato
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    const contactPhone = active?.phone;
+    if (inst?.token && contactPhone) {
+      const cleanPhone = contactPhone.replace(/\D/g, "");
+      try {
+        const res = await fetch(
+          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
+            },
+            body: JSON.stringify({ phone: cleanPhone, message: text }),
+          }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(`Erro ao enviar mensagem: ${(err as { message?: string }).message ?? res.status}`);
+        }
+      } catch {
+        toast.error("Falha ao enviar mensagem via WhatsApp");
+      }
+    }
   }
 
   function markAsRead(id: string) {
