@@ -1909,6 +1909,8 @@ function ConexoesSection() {
   const [connPhone, setConnPhone]   = useState("");
   const [savedCreds, setSavedCreds] = useState<ZApiForm | null>(null);
   const [checking, setChecking]     = useState(true);
+  const [webhookOk, setWebhookOk]   = useState(false);
+  const syncedRef = useRef(false);
 
   // dialog state
   const [open, setOpen]       = useState(false);
@@ -1923,40 +1925,51 @@ function ConexoesSection() {
   const pollNRef   = useRef(0);
   const credsInFlight = useRef<ZApiForm | null>(null);
 
-  // ── load saved creds on mount + sincroniza Supabase e webhook ────────
+  // ── load saved creds on mount ─────────────────────────────────────────
   useEffect(() => {
     if (!storageKey) { setChecking(false); return; }
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const d = JSON.parse(raw);
-        const creds: ZApiForm = { instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" };
-        setSavedCreds(creds);
+        setSavedCreds({ instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" });
         setConnPhone(d.phone ?? "");
         setConnected(d.connected ?? false);
-
-        // Se está conectado, garante que Supabase e webhook estão configurados
-        if (d.connected && d.instanceId && company?.id) {
-          (async () => {
-            // 1. Salva no Supabase
-            await supabase.from("companies").update({
-              zapi_instance_id:  creds.instanceId,
-              zapi_token:        creds.token,
-              zapi_client_token: creds.clientToken || null,
-              zapi_phone:        d.phone || null,
-              zapi_connected:    true,
-            }).eq("id", company.id);
-
-            // 2. Garante que o webhook Z-API está apontando para a Edge Function
-            await configureZapiWebhook(creds);
-          })();
-        }
       }
     } catch { /* ignore */ }
     setChecking(false);
     return () => stopPoll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, company?.id]);
+  }, [storageKey]);
+
+  // ── sincroniza Supabase + webhook quando company estiver disponível ────
+  useEffect(() => {
+    if (!company?.id || !storageKey || syncedRef.current) return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d.connected || !d.instanceId) return;
+
+      syncedRef.current = true;
+      const creds: ZApiForm = { instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" };
+
+      (async () => {
+        // 1. Salva credenciais no Supabase
+        await supabase.from("companies").update({
+          zapi_instance_id:  creds.instanceId,
+          zapi_token:        creds.token,
+          zapi_client_token: creds.clientToken || null,
+          zapi_phone:        d.phone || null,
+          zapi_connected:    true,
+        }).eq("id", company.id);
+
+        // 2. Configura webhook Z-API → Edge Function
+        const ok = await configureZapiWebhook(creds);
+        setWebhookOk(ok);
+      })();
+    } catch { /* ignore */ }
+  }, [company?.id, storageKey]);
 
   // ── Z-API helpers ──────────────────────────────────────────────────
   const zapiBase    = (c: ZApiForm) => `https://api.z-api.io/instances/${c.instanceId}/token/${c.token}`;
@@ -2150,6 +2163,9 @@ function ConexoesSection() {
             {connected ? (
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {connPhone && <span className="text-xs text-[#535353] font-mono">{connPhone}</span>}
+                <Badge className={`text-[10px] h-5 border-0 ${webhookOk ? "bg-[#E1F5EE] text-[#128A68]" : "bg-yellow-50 text-yellow-700"}`}>
+                  {webhookOk ? "✓ Recebendo mensagens" : "Configurando webhook…"}
+                </Badge>
                 <Button
                   size="sm" variant="outline"
                   className="h-7 text-xs rounded-md border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white"

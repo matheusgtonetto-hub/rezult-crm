@@ -167,12 +167,28 @@ export default function MultiatendimentoPage() {
   const { leads, pipelines, activePipeline } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
-  const [convList, setConvList] = useState<Conversation[]>([]);
+  // ── chaves de persistência ───────────────────────────────────────────
+  const listKey  = user ? `rzlt_convlist_${user.id}`  : null;
+  const metaKey  = user ? `rzlt_convmeta_${user.id}`  : null;
+
+  const [convList, setConvList] = useState<Conversation[]>(() => {
+    if (!user) return [];
+    try {
+      const raw = localStorage.getItem(`rzlt_convlist_${user.id}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [activeId, setActiveId] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
-  const [convStates, setConvStates] = useState<Record<string, ConvState>>(makeInitialConvStates);
+  const [convStates, setConvStates] = useState<Record<string, ConvState>>(() => {
+    if (!user) return makeInitialConvStates();
+    try {
+      const raw = localStorage.getItem(`rzlt_convmeta_${user.id}`);
+      return raw ? JSON.parse(raw) : makeInitialConvStates();
+    } catch { return makeInitialConvStates(); }
+  });
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // nova conversa
@@ -197,6 +213,24 @@ export default function MultiatendimentoPage() {
 
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
+
+  // ── persistir convList no localStorage ──────────────────────────────
+  useEffect(() => {
+    if (!listKey) return;
+    try { localStorage.setItem(listKey, JSON.stringify(convList)); } catch {}
+  }, [convList, listKey]);
+
+  // ── persistir metadata das conversas (sem mensagens) ─────────────────
+  useEffect(() => {
+    if (!metaKey) return;
+    try {
+      const toSave: Record<string, ConvState> = {};
+      for (const [id, s] of Object.entries(convStates)) {
+        toSave[id] = { ...s, messages: [] }; // mensagens vêm do Supabase
+      }
+      localStorage.setItem(metaKey, JSON.stringify(toSave));
+    } catch {}
+  }, [convStates, metaKey]);
 
   // auto-scroll on new messages
   useEffect(() => {
