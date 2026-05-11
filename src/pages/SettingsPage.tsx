@@ -1923,21 +1923,49 @@ function ConexoesSection() {
   const pollNRef   = useRef(0);
   const credsInFlight = useRef<ZApiForm | null>(null);
 
-  // ── load saved creds on mount ──────────────────────────────────────
+  // ── load saved creds on mount + sincroniza Supabase e webhook ────────
   useEffect(() => {
     if (!storageKey) { setChecking(false); return; }
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const d = JSON.parse(raw);
-        setSavedCreds({ instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" });
+        const creds: ZApiForm = { instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" };
+        setSavedCreds(creds);
         setConnPhone(d.phone ?? "");
         setConnected(d.connected ?? false);
+
+        // Se está conectado, garante que Supabase e webhook estão configurados
+        if (d.connected && d.instanceId && company?.id) {
+          (async () => {
+            // 1. Salva no Supabase
+            await supabase.from("companies").update({
+              zapi_instance_id:  creds.instanceId,
+              zapi_token:        creds.token,
+              zapi_client_token: creds.clientToken || null,
+              zapi_phone:        d.phone || null,
+              zapi_connected:    true,
+            }).eq("id", company.id);
+
+            // 2. Garante que o webhook Z-API está apontando para a Edge Function
+            const webhookUrl = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/zapi-webhook";
+            const base    = `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}`;
+            const headers: HeadersInit = {
+              "Content-Type": "application/json",
+              ...(creds.clientToken ? { "Client-Token": creds.clientToken } : {}),
+            };
+            await fetch(`${base}/update-webhook-received`, {
+              method: "PUT", headers,
+              body: JSON.stringify({ value: webhookUrl }),
+            }).catch(() => {});
+          })();
+        }
       }
     } catch { /* ignore */ }
     setChecking(false);
     return () => stopPoll();
-  }, [storageKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, company?.id]);
 
   // ── Z-API helpers ──────────────────────────────────────────────────
   const zapiBase    = (c: ZApiForm) => `https://api.z-api.io/instances/${c.instanceId}/token/${c.token}`;
