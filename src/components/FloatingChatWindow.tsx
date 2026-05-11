@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import {
@@ -56,6 +57,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
     null
   );
@@ -72,6 +74,61 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
     }
   }, [messages.length, leadId]);
+
+  // Carregar histórico + Realtime ao abrir o chat
+  useEffect(() => {
+    if (realtimeRef.current) {
+      supabase.removeChannel(realtimeRef.current);
+      realtimeRef.current = null;
+    }
+    if (!lead || !user) return;
+    const cleanPhone = (lead.whatsapp ?? "").replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    setMessages([]);
+
+    supabase
+      .from("whatsapp_messages")
+      .select("*")
+      .eq("phone", cleanPhone)
+      .order("created_at", { ascending: true })
+      .limit(100)
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const agentName = user.email?.split("@")[0] ?? "Você";
+        setMessages(data.map(m => ({
+          from:   m.from_me ? "agent" : "lead",
+          author: m.from_me ? (m.sender_name ?? agentName) : (m.chat_name ?? lead.name),
+          time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+          text:   m.body ?? "",
+        })));
+      });
+
+    const ch = supabase
+      .channel(`fchat-${cleanPhone}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=eq.${cleanPhone}` },
+        (payload) => {
+          const m = payload.new as Record<string, any>;
+          if (m.from_me) return;
+          setMessages(prev => [...prev, {
+            from:   "lead",
+            author: m.chat_name ?? lead.name,
+            time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            text:   m.body ?? "",
+          }]);
+        }
+      )
+      .subscribe();
+    realtimeRef.current = ch;
+
+    return () => {
+      supabase.removeChannel(ch);
+      realtimeRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId, user?.id]);
 
   // Default position: bottom-right with rail to the left of the window
   const defaultRight = 16 + index * 20;
@@ -142,6 +199,18 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               const err = await res.json().catch(() => ({}));
               toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
             }
+
+            // Persiste para histórico
+            await supabase.from("whatsapp_messages").insert({
+              owner_id:    user.id,
+              instance_id: creds.instanceId,
+              phone:       cleanPhone,
+              from_me:     true,
+              body:        text,
+              type:        "text",
+              momment:     Date.now(),
+              sender_name: agentName,
+            });
           } else {
             toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
           }

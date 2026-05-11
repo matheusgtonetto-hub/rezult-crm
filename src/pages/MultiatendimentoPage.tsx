@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
+import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
@@ -192,6 +193,7 @@ export default function MultiatendimentoPage() {
 
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const realtimeRef    = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
@@ -200,6 +202,80 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [cs?.messages.length]);
+
+  // ── carregar histórico + realtime quando muda a conversa ────────────
+  useEffect(() => {
+    // limpa canal anterior
+    if (realtimeRef.current) {
+      supabase.removeChannel(realtimeRef.current);
+      realtimeRef.current = null;
+    }
+    if (!activeId || !active || !user) return;
+    const cleanPhone = (active.phone ?? "").replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    // Carrega histórico do Supabase
+    supabase
+      .from("whatsapp_messages")
+      .select("*")
+      .eq("phone", cleanPhone)
+      .order("created_at", { ascending: true })
+      .limit(100)
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const msgs: Msg[] = data.map(m => {
+          const d = new Date(m.momment ?? m.created_at);
+          const isToday     = d.toDateString() === new Date().toDateString();
+          const isYesterday = d.toDateString() === new Date(Date.now() - 86400000).toDateString();
+          return {
+            id:    m.id,
+            from:  m.from_me ? "agent" : "lead",
+            agent: m.from_me ? (m.sender_name ?? user.email?.split("@")[0] ?? "Você") : undefined,
+            time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            kind:  "text" as const,
+            text:  m.body ?? "",
+            date:  isToday ? "Hoje" : isYesterday ? "Ontem" : d.toLocaleDateString("pt-BR"),
+            read:  true,
+          };
+        });
+        updateCs(activeId, { messages: msgs });
+      });
+
+    // Inscreve para mensagens novas em tempo real
+    const ch = supabase
+      .channel(`wamsg-${cleanPhone}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=eq.${cleanPhone}` },
+        (payload) => {
+          const m = payload.new as Record<string, any>;
+          if (m.from_me) return; // mensagens enviadas já foram adicionadas otimisticamente
+          const d = new Date(m.momment ?? m.created_at);
+          const newMsg: Msg = {
+            id:   m.id,
+            from: "lead",
+            time: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            kind: "text" as const,
+            text: m.body ?? "",
+            date: "Hoje",
+            read: false,
+          };
+          setConvStates(prev => {
+            const cur = prev[activeId];
+            if (!cur || cur.messages.some(x => x.id === m.id)) return prev;
+            return { ...prev, [activeId]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
+          });
+        }
+      )
+      .subscribe();
+    realtimeRef.current = ch;
+
+    return () => {
+      supabase.removeChannel(ch);
+      realtimeRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.phone, user?.id]);
 
   // load Z-API instances
   useEffect(() => {
@@ -339,7 +415,7 @@ export default function MultiatendimentoPage() {
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
     setInputValue("");
 
-    // Enviar via Z-API se houver instância e telefone do contato
+    // Enviar via Z-API + persistir no Supabase
     const inst = instances.find(i => i.instanceId === selectedInstance);
     const contactPhone = active?.phone;
     if (inst?.token && contactPhone) {
@@ -362,6 +438,20 @@ export default function MultiatendimentoPage() {
         }
       } catch {
         toast.error("Falha ao enviar mensagem via WhatsApp");
+      }
+
+      // Persiste no banco para histórico futuro
+      if (user) {
+        await supabase.from("whatsapp_messages").insert({
+          owner_id:    user.id,
+          instance_id: inst.instanceId,
+          phone:       cleanPhone,
+          from_me:     true,
+          body:        text,
+          type:        "text",
+          momment:     Date.now(),
+          sender_name: user.email?.split("@")[0] ?? "Você",
+        });
       }
     }
   }
