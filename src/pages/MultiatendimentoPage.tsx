@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -246,13 +246,40 @@ export default function MultiatendimentoPage() {
   const [mOwner, setMOwner] = useState("Rafael");
   const [mNote, setMNote] = useState("");
 
+  // Search + filter logic
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredConversations = useMemo(() => {
+    let list = conversations;
+
+    // text search (name or preview)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(c =>
+        c.name.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q)
+      );
+    }
+
+    // chip filter
+    switch (activeFilter) {
+      case "email":    list = list.filter(c => c.channel === "instagram"); break;
+      case "pending":  list = list.filter(c => !c.tags.includes("Fechado")); break;
+      case "done":     list = list.filter(c => c.tags.includes("Fechado")); break;
+      case "alert":    list = list.filter(c => c.tags.includes("Follow-up")); break;
+      case "folder":   break; // show all
+      case "auto":     break; // show all (auto-assigned)
+    }
+
+    return list;
+  }, [searchQuery, activeFilter]);
+
   const filters = [
-    { id: "email", icon: Mail, count: 1 },
-    { id: "pending", icon: Clock, count: 1 },
-    { id: "folder", icon: Folder, count: 9 },
-    { id: "auto", icon: Zap, count: 41, highlight: true },
-    { id: "done", icon: CheckCircle2, count: null },
-    { id: "alert", icon: AlertTriangle, count: null },
+    { id: "email",   icon: Mail,         count: conversations.filter(c => c.channel === "instagram").length },
+    { id: "pending", icon: Clock,        count: conversations.filter(c => !c.tags.includes("Fechado")).length },
+    { id: "folder",  icon: Folder,       count: conversations.length },
+    { id: "auto",    icon: Zap,          count: conversations.length, highlight: true },
+    { id: "done",    icon: CheckCircle2, count: conversations.filter(c => c.tags.includes("Fechado")).length },
+    { id: "alert",   icon: AlertTriangle,count: conversations.filter(c => c.tags.includes("Follow-up")).length },
   ];
 
   return (
@@ -265,6 +292,8 @@ export default function MultiatendimentoPage() {
               <Search size={14} color="#AAA" />
               <input
                 placeholder="Pesquise seus contatos"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
               />
             </div>
@@ -287,7 +316,12 @@ export default function MultiatendimentoPage() {
         </div>
 
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {conversations.map(c => {
+          {filteredConversations.length === 0 && (
+            <div style={{ padding: "40px 16px", textAlign: "center" }}>
+              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+            </div>
+          )}
+          {filteredConversations.map(c => {
             const isActive = c.id === activeId;
             return (
               <div

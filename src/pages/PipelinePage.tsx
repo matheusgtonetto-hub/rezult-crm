@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useCRM } from "@/context/CRMContext";
+import { useAuth } from "@/context/AuthContext";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,31 @@ export default function PipelinePage() {
     deletePipelineGroup,
   } = useCRM();
   const { openChat } = useFloatingChat();
+  const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Z-API instances for WhatsApp selector
+  const [zapiInstances, setZapiInstances] = useState<{ instanceId: string; label: string }[]>([]);
+  const [selectedZapiInstance, setSelectedZapiInstance] = useState("");
+  const [wpPopoverLeadId, setWpPopoverLeadId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.connected && d.instanceId) {
+          const inst = {
+            instanceId: d.instanceId,
+            label: d.phone ? `Z-API · ${d.phone}` : `Z-API · ${d.instanceId.slice(0, 8)}…`,
+          };
+          setZapiInstances([inst]);
+          setSelectedZapiInstance(inst.instanceId);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [user?.id]);
 
   // Sidebar collapse — persisted in localStorage, collapsed by default on mobile
   const SIDEBAR_W = 240;
@@ -612,17 +637,73 @@ export default function PipelinePage() {
                                                   Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
                                                 </div>
                                               ) : <div />}
-                                              <button
-                                                onClick={e => {
-                                                  e.stopPropagation();
-                                                  openChat(leadId);
-                                                }}
-                                                className="flex items-center justify-center transition-colors hover:bg-muted"
-                                                style={{ width: 24, height: 24, borderRadius: 6 }}
-                                                aria-label="Abrir chat WhatsApp"
+                                              <Popover
+                                                open={wpPopoverLeadId === leadId}
+                                                onOpenChange={open => setWpPopoverLeadId(open ? leadId : null)}
                                               >
-                                                <WhatsAppIcon size={18} />
-                                              </button>
+                                                <PopoverTrigger asChild>
+                                                  <button
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      setWpPopoverLeadId(wpPopoverLeadId === leadId ? null : leadId);
+                                                    }}
+                                                    className="flex items-center justify-center transition-colors hover:bg-muted"
+                                                    style={{ width: 24, height: 24, borderRadius: 6 }}
+                                                    aria-label="Abrir chat WhatsApp"
+                                                  >
+                                                    <WhatsAppIcon size={18} />
+                                                  </button>
+                                                </PopoverTrigger>
+                                                <PopoverContent
+                                                  className="w-60 p-3"
+                                                  align="end"
+                                                  onClick={e => e.stopPropagation()}
+                                                >
+                                                  <p className="text-xs font-semibold text-[#111] mb-3">Enviar via WhatsApp</p>
+                                                  {zapiInstances.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                      {zapiInstances.map(inst => (
+                                                        <label key={inst.instanceId} className="flex items-center gap-2 cursor-pointer">
+                                                          <input
+                                                            type="radio"
+                                                            name={`wp-inst-${leadId}`}
+                                                            checked={selectedZapiInstance === inst.instanceId}
+                                                            onChange={() => setSelectedZapiInstance(inst.instanceId)}
+                                                            className="accent-[#128A68]"
+                                                          />
+                                                          <span className="text-xs text-[#535353]">{inst.label}</span>
+                                                        </label>
+                                                      ))}
+                                                      <Button
+                                                        size="sm"
+                                                        className="w-full bg-[#128A68] hover:bg-[#128A68]/90 h-7 text-xs mt-1"
+                                                        onClick={e => {
+                                                          e.stopPropagation();
+                                                          openChat(leadId);
+                                                          setWpPopoverLeadId(null);
+                                                        }}
+                                                      >
+                                                        Abrir chat
+                                                      </Button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="space-y-2">
+                                                      <p className="text-xs text-[#AAAAAA]">Nenhuma instância WhatsApp conectada.</p>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="w-full h-7 text-xs border-[#EEEEEE]"
+                                                        onClick={e => {
+                                                          e.stopPropagation();
+                                                          navigate("/configuracoes");
+                                                        }}
+                                                      >
+                                                        Conectar WhatsApp
+                                                      </Button>
+                                                    </div>
+                                                  )}
+                                                </PopoverContent>
+                                              </Popover>
                                             </div>
 
                                             {/* Footer: tags + tag button */}
