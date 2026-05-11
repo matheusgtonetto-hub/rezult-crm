@@ -1901,6 +1901,7 @@ type ZApiStep = "provider" | "creds" | "qr" | "done";
 
 function ConexoesSection() {
   const { user } = useAuth();
+  const { company } = useCompany();
 
   // persisted connection state (localStorage)
   const storageKey = user ? `rzlt_zapi_${user.id}` : null;
@@ -1997,13 +1998,35 @@ function ConexoesSection() {
       const result = await pollStatus(credsInFlight.current!);
       if (result.connected) {
         stopPoll();
-        const d = { ...credsInFlight.current!, phone: result.phone, connected: true };
+        const creds = credsInFlight.current!;
+        const d = { ...creds, phone: result.phone, connected: true };
         if (storageKey) localStorage.setItem(storageKey, JSON.stringify(d));
-        setSavedCreds(credsInFlight.current);
+        setSavedCreds(creds);
         setConnPhone(result.phone);
         setConnected(true);
         setStep("done");
         toast.success("WhatsApp conectado com sucesso!");
+
+        // Persiste no Supabase para o webhook identificar a instância
+        if (company?.id) {
+          await supabase.from("companies").update({
+            zapi_instance_id:  creds.instanceId,
+            zapi_token:        creds.token,
+            zapi_client_token: creds.clientToken || null,
+            zapi_phone:        result.phone || null,
+            zapi_connected:    true,
+          }).eq("id", company.id);
+        }
+
+        // Configura automaticamente o webhook na Z-API para receber mensagens
+        const webhookUrl = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/zapi-webhook";
+        try {
+          await fetch(`${zapiBase(creds)}/update-webhook-received`, {
+            method: "PUT",
+            headers: zapiHeaders(creds),
+            body: JSON.stringify({ value: webhookUrl }),
+          });
+        } catch { /* não crítico */ }
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
@@ -2036,6 +2059,14 @@ function ConexoesSection() {
     setConnPhone("");
     setConnected(false);
     toast.success("WhatsApp desconectado.");
+
+    // Limpa no Supabase
+    if (company?.id) {
+      await supabase.from("companies").update({
+        zapi_instance_id: null, zapi_token: null,
+        zapi_client_token: null, zapi_phone: null, zapi_connected: false,
+      }).eq("id", company.id);
+    }
   }
 
   function openDialog() {
