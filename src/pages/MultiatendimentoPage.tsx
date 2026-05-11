@@ -92,7 +92,7 @@ const carlosMessages: Msg[] = [
 
 function makeInitialConvStates(): Record<string, ConvState> {
   return Object.fromEntries(
-    conversations.map(c => [c.id, {
+    INITIAL_CONVERSATIONS.map(c => [c.id, {
       messages: c.id === "3" ? carlosMessages : [],
       stageIdx: c.tags.includes("Fechado") ? 4 : c.tags.includes("Negociação") ? 3 : c.tags.includes("Proposta") ? 2 : c.tags.includes("Reunião") ? 3 : 1,
       meeting: null,
@@ -224,7 +224,7 @@ export default function MultiatendimentoPage() {
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const active   = conversations.find(c => c.id === activeId);
+  const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
 
   // auto-scroll on new messages
