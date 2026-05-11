@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
+import { useFloatingChat } from "@/context/FloatingChatContext";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
@@ -163,6 +164,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { leads, pipelines, activePipeline } = useCRM();
+  const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
@@ -221,18 +223,18 @@ export default function MultiatendimentoPage() {
     } catch { /* ignore */ }
   }, [user?.id]);
 
-  // ── escuta chat aberto pelo pipeline (FloatingChatWindow) ────────────
+  // ── sincroniza chats abertos pelo Pipeline → multi-atendimento ───────
   useEffect(() => {
-    const handler = (e: Event) => {
-      const leadId = (e as CustomEvent<{ leadId: string }>).detail?.leadId;
-      if (!leadId) return;
-      const lead = leads[leadId];
-      if (!lead) return;
-      setConvList(prev => {
-        if (prev.find(c => c.id === leadId)) return prev;
-        const allPipelines = pipelines ?? [];
+    if (!openedLeadIds.length) return;
+    const allPipelines = pipelines ?? [];
+    setConvList(prev => {
+      let updated = [...prev];
+      for (const leadId of openedLeadIds) {
+        if (updated.find(c => c.id === leadId)) continue;
+        const lead = leads[leadId];
+        if (!lead) continue;
         const pipelineName = allPipelines.find(p => p.id === lead.pipelineId)?.name ?? "Pipeline Comercial";
-        return [{
+        updated = [{
           id: leadId,
           name: lead.name,
           preview: "Conversa iniciada pelo Pipeline",
@@ -245,16 +247,20 @@ export default function MultiatendimentoPage() {
           value: lead.value ?? 0,
           pipeline: pipelineName,
           dealNumber: `#${lead.dealNumber}`,
-        }, ...prev];
-      });
-      setConvStates(prev => {
-        if (prev[leadId]) return prev;
-        return { ...prev, [leadId]: { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false } };
-      });
-    };
-    window.addEventListener("rzlt:chat-opened", handler);
-    return () => window.removeEventListener("rzlt:chat-opened", handler);
-  }, [leads, pipelines]);
+        }, ...updated];
+      }
+      return updated;
+    });
+    setConvStates(prev => {
+      const next = { ...prev };
+      for (const leadId of openedLeadIds) {
+        if (!next[leadId]) {
+          next[leadId] = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
+        }
+      }
+      return next;
+    });
+  }, [openedLeadIds, leads, pipelines]);
 
   // ── nova conversa a partir de lead do pipeline ───────────────────────
   function startConversationWithLead(leadId: string) {

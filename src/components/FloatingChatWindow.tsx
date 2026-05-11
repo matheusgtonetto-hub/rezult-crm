@@ -73,11 +73,6 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
   }, [messages.length, leadId]);
 
-  // Notifica o multi-atendimento para criar/mostrar a conversa
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("rzlt:chat-opened", { detail: { leadId } }));
-  }, [leadId]);
-
   // Default position: bottom-right with rail to the left of the window
   const defaultRight = 16 + index * 20;
   const defaultBottom = 24 + index * 20;

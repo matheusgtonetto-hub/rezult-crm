@@ -8,6 +8,7 @@ export interface FloatingChatState {
 
 interface FloatingChatContextType {
   windows: FloatingChatState[];
+  openedLeadIds: string[];
   openChat: (leadId: string) => void;
   closeChat: (leadId: string) => void;
   minimizeChat: (leadId: string) => void;
@@ -26,16 +27,18 @@ const MAX_WINDOWS = 3;
 
 export function FloatingChatProvider({ children }: { children: ReactNode }) {
   const [windows, setWindows] = useState<FloatingChatState[]>([]);
+  const [openedLeadIds, setOpenedLeadIds] = useState<string[]>([]);
 
   const openChat = useCallback((leadId: string) => {
+    // Registra para o multi-atendimento criar a conversa
+    setOpenedLeadIds(prev => prev.includes(leadId) ? prev : [...prev, leadId]);
+
     setWindows(prev => {
       const exists = prev.find(w => w.leadId === leadId);
-      // Minimize all others, open requested
       const others = prev.filter(w => w.leadId !== leadId).map(w => ({ ...w, minimized: true }));
       const next = exists
         ? [...others, { ...exists, minimized: false, unread: false }]
         : [...others, { leadId, minimized: false }];
-      // Cap to MAX_WINDOWS — drop oldest minimized
       if (next.length > MAX_WINDOWS) {
         const minimizedIdx = next.findIndex(w => w.minimized);
         if (minimizedIdx >= 0) next.splice(minimizedIdx, 1);
@@ -64,7 +67,7 @@ export function FloatingChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <FloatingChatContext.Provider value={{ windows, openChat, closeChat, minimizeChat, restoreChat }}>
+    <FloatingChatContext.Provider value={{ windows, openedLeadIds, openChat, closeChat, minimizeChat, restoreChat }}>
       {children}
     </FloatingChatContext.Provider>
   );
