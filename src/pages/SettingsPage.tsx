@@ -1984,28 +1984,17 @@ function ConexoesSection() {
     const base = zapiBase(c);
     const hdrs: HeadersInit = {
       "Content-Type": "application/json",
-      "instanceId": c.instanceId,
-      "token": c.token,
       ...(c.clientToken ? { "Client-Token": c.clientToken } : {}),
     };
-    const body = JSON.stringify({ value: webhookUrl, notifySentByMe: true });
 
-    // Tenta o endpoint principal (atualiza todos os webhooks)
+    // PUT update-webhook-received é o endpoint correto para mensagens recebidas
     try {
-      const r1 = await fetch(`${base}/webhooks`, { method: "POST", headers: hdrs, body });
-      if (r1.ok) return true;
-    } catch { /* continua */ }
-
-    // Fallback: endpoint específico de mensagens recebidas
-    try {
-      const r2 = await fetch(`${base}/update-webhook-received`, { method: "PUT", headers: hdrs, body: JSON.stringify({ value: webhookUrl }) });
-      if (r2.ok) return true;
-    } catch { /* continua */ }
-
-    // Fallback 2: endpoint sem /token/ no path (auth via headers)
-    try {
-      const r3 = await fetch(`https://api.z-api.io/instances/${c.instanceId}/webhooks`, { method: "POST", headers: hdrs, body });
-      if (r3.ok) return true;
+      const r = await fetch(`${base}/update-webhook-received`, {
+        method: "PUT",
+        headers: hdrs,
+        body: JSON.stringify({ value: webhookUrl }),
+      });
+      if (r.ok) return true;
     } catch { /* continua */ }
 
     return false;

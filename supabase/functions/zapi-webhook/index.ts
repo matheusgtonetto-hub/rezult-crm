@@ -23,9 +23,9 @@ serve(async (req) => {
     return new Response("invalid json", { status: 400 });
   }
 
-  // Só processa mensagens de texto recebidas ou enviadas
-  const hasText = payload?.text?.message;
-  if (!hasText) {
+  // Só processa mensagens de texto
+  const textBody = payload?.text?.message;
+  if (!textBody) {
     return new Response("no text message", { status: 200 });
   }
 
@@ -37,7 +37,6 @@ serve(async (req) => {
     momment,
     chatName,
     senderName,
-    text,
   } = payload;
 
   if (!instanceId || !phone) {
@@ -60,24 +59,37 @@ serve(async (req) => {
 
   const cleanPhone = String(phone).replace(/\D/g, "");
 
-  const row = {
-    owner_id:    company.owner_id,
-    instance_id: instanceId,
-    phone:       cleanPhone,
-    message_id:  messageId ?? null,
-    from_me:     !!fromMe,
-    body:        text.message,
-    type:        "text",
-    momment:     momment ?? null,
-    chat_name:   chatName ?? null,
-    sender_name: senderName ?? null,
-  };
+  // Deduplicação manual por message_id antes de inserir
+  if (messageId) {
+    const { count } = await supabase
+      .from("whatsapp_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("message_id", messageId);
+    if (count && count > 0) {
+      return new Response("duplicate", { status: 200 });
+    }
+  }
 
   const { error } = await supabase
     .from("whatsapp_messages")
-    .upsert(row, { onConflict: "message_id", ignoreDuplicates: true });
+    .insert({
+      owner_id:    company.owner_id,
+      instance_id: instanceId,
+      phone:       cleanPhone,
+      message_id:  messageId ?? null,
+      from_me:     !!fromMe,
+      body:        textBody,
+      type:        "text",
+      momment:     momment ?? null,
+      chat_name:   chatName ?? null,
+      sender_name: senderName ?? null,
+    });
 
   if (error) {
+    // 23505 = unique_violation (race condition de deduplicação)
+    if (error.code === "23505") {
+      return new Response("duplicate", { status: 200 });
+    }
     console.error("Insert error:", error);
     return new Response("db error", { status: 500 });
   }
