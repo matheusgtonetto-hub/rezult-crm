@@ -65,8 +65,10 @@ type Conversation = {
 };
 
 type Msg =
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text"; text: string; date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio"; duration: string; date: string; read?: boolean };
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";  text: string;                    date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio"; duration: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image"; src: string; caption?: string;  date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";  filename: string;               date: string; read?: boolean };
 
 type Meeting = { date: string; time: string; owner: string; note: string };
 
@@ -80,6 +82,23 @@ type ConvState = {
 };
 
 type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string };
+
+/* ── emoji list ───────────────────────────────────────────────────────── */
+const EMOJIS = [
+  "😀","😃","😄","😁","😅","😂","🤣","😊","😍","🥰","😘","😎","🤩","🥳","😇",
+  "🤔","😬","😒","😔","😢","😭","😤","😡","🥺","😱","😴","😜","😝","🤯","🫡",
+  "👍","👎","👏","🙌","🤝","💪","✌️","🤞","👋","🫶","❤️","🔥","⭐","✅","💯",
+  "🎉","🚀","💡","📞","💬","📧","📅","🗓️","📋","✏️","🔔","💰","📊","🏆","🎯",
+];
+
+const AI_TEMPLATES: Record<number, string[]> = {
+  0: ["Olá! Tudo bem? Estou entrando em contato para conhecer melhor as suas necessidades. Tem alguns minutos?", "Boa tarde! Vi que você demonstrou interesse. Posso apresentar nossa solução?"],
+  1: ["Obrigado pelo contato! Para te atender melhor, qual é a sua principal necessidade hoje?", "Que bom falar com você! Pode me contar um pouco mais sobre o seu negócio?"],
+  2: ["Olá! Você teve a oportunidade de analisar nossa proposta? Posso esclarecer alguma dúvida?", "Boa tarde! Só passando para verificar se recebeu a proposta e se ficou alguma dúvida."],
+  3: ["Tenho uma condição especial disponível somente até esta semana. Podemos fechar agora?", "Que tal agendarmos uma reunião rápida para alinhar os últimos detalhes e finalizar?"],
+  4: ["Parabéns! Seja bem-vindo(a)! Agora vou te passar os próximos passos do processo.", "Ótimo fechamento! Já vou encaminhar o contrato para assinatura. Obrigado pela confiança!"],
+  5: ["Entendo a sua posição. Posso perguntar o que foi decisivo nesta decisão?", "Que pena não termos chegado a um acordo desta vez. Se mudar de ideia, estou à disposição!"],
+};
 
 /* ── mock data ────────────────────────────────────────────────────────── */
 const PIPELINE_STAGES = ["Novo Lead", "Contato Feito", "Proposta Enviada", "Negociação", "Fechado", "Perdido"];
@@ -213,6 +232,17 @@ export default function MultiatendimentoPage() {
   // ref para evitar closure stale no handler global de Realtime
   const convListRef    = useRef<Conversation[]>(convList);
   useEffect(() => { convListRef.current = convList; }, [convList]);
+
+  // ── toolbar states ────────────────────────────────────────────────────
+  const [showEmoji, setShowEmoji]         = useState(false);
+  const [showFiles, setShowFiles]         = useState(false);
+  const [recording, setRecording]         = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [aiLoading, setAiLoading]         = useState(false);
+  const fileInputRef       = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
+  const audioChunksRef     = useRef<Blob[]>([]);
+  const recordingTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
@@ -511,6 +541,135 @@ export default function MultiatendimentoPage() {
         preview: newConv.preview, stage_idx: stageIdx, notes: "", read: true, finished: false,
       }, { onConflict: "id", ignoreDuplicates: true });
     }
+  }
+
+  // ── toolbar helpers ──────────────────────────────────────────────────
+  function insertEmoji(emoji: string) {
+    setInputValue(v => v + emoji);
+    setShowEmoji(false);
+  }
+
+  function handleAttachClick() {
+    if (cs?.finished) return;
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !activeId || !active || !user) return;
+    e.target.value = "";
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (!inst?.token || !active.phone || active.phone === "—") {
+      toast.error("Nenhuma instância WhatsApp conectada");
+      return;
+    }
+    const cleanPhone = active.phone.replace(/\D/g, "");
+    const isImage = file.type.startsWith("image/");
+    toast.loading("Enviando arquivo…", { id: "file-send" });
+    try {
+      const base64 = await new Promise<string>((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res((reader.result as string).split(",")[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const endpoint = isImage ? "send-image" : "send-document";
+      const body = isImage
+        ? { phone: cleanPhone, image: base64, caption: file.name }
+        : { phone: cleanPhone, document: base64, filename: file.name };
+      const r = await fetch(
+        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
+        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
+      );
+      if (!r.ok) throw new Error(String(r.status));
+      const newMsg: Msg = isImage
+        ? { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
+        : { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
+      updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      toast.success("Arquivo enviado!", { id: "file-send" });
+    } catch {
+      toast.error("Erro ao enviar arquivo", { id: "file-send" });
+    }
+  }
+
+  async function startRecording() {
+    if (cs?.finished) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/ogg; codecs=opus" });
+        await sendAudioBlob(blob);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch {
+      toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
+    setRecording(false);
+  }
+
+  function cancelRecording() {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
+    audioChunksRef.current = [];
+    setRecording(false);
+    setRecordingTime(0);
+  }
+
+  async function sendAudioBlob(blob: Blob) {
+    if (!activeId || !active || !user) return;
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (!inst?.token || !active.phone || active.phone === "—") {
+      toast.error("Nenhuma instância WhatsApp conectada");
+      return;
+    }
+    const cleanPhone = active.phone.replace(/\D/g, "");
+    const duration = `${String(Math.floor(recordingTime / 60)).padStart(2, "0")}:${String(recordingTime % 60).padStart(2, "0")}`;
+    toast.loading("Enviando áudio…", { id: "audio-send" });
+    try {
+      const base64 = await new Promise<string>((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res((reader.result as string).split(",")[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      });
+      const r = await fetch(
+        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
+        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
+      );
+      if (!r.ok) throw new Error(String(r.status));
+      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, date: "Hoje", read: false };
+      updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      toast.success("Áudio enviado!", { id: "audio-send" });
+    } catch {
+      toast.error("Erro ao enviar áudio", { id: "audio-send" });
+    }
+  }
+
+  function suggestAI() {
+    if (!cs || aiLoading || cs.finished) return;
+    setAiLoading(true);
+    const templates = AI_TEMPLATES[cs.stageIdx] ?? AI_TEMPLATES[0];
+    const suggestion = templates[Math.floor(Math.random() * templates.length)];
+    setTimeout(() => { setInputValue(suggestion); setAiLoading(false); }, 500);
   }
 
   // ── conv state helpers ──────────────────────────────────────────────
@@ -891,9 +1050,23 @@ export default function MultiatendimentoPage() {
                           <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
                             {isAgent ? `${m.agent} • ${m.time}` : `${active.name} • ${m.time}`}
                           </div>
-                          <div style={{ padding: "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "0.5px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
-                            {m.kind === "text" ? <span style={{ flex: 1 }}>{m.text}</span> : <AudioBubble duration={m.duration} light={isAgent} />}
-                            {isAgent && m.kind === "text" && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}
+                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "0.5px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
+                            {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
+                            {m.kind === "audio" && <AudioBubble duration={m.duration} light={isAgent} />}
+                            {m.kind === "image" && (
+                              <div style={{ overflow: "hidden", borderRadius: 12 }}>
+                                <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
+                                {m.caption && <div style={{ padding: "4px 8px 6px", fontSize: 12, color: isAgent ? "rgba(255,255,255,0.8)" : "#666" }}>{m.caption}</div>}
+                              </div>
+                            )}
+                            {m.kind === "file" && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <FolderOpen size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                                </div>
+                                <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -905,32 +1078,123 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* rodapé */}
-            <div style={{ background: "#FFF", borderTop: "0.5px solid #E5E5E5", padding: "8px 16px", flexShrink: 0 }}>
+            <div style={{ background: "#FFF", borderTop: "0.5px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
+              {/* painel de emojis */}
+              {showEmoji && (
+                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {EMOJIS.map(e => (
+                      <button key={e} onClick={() => insertEmoji(e)}
+                        style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", borderRadius: 6, lineHeight: 1 }}
+                        onMouseEnter={ev => (ev.currentTarget.style.background = "#F5F5F5")}
+                        onMouseLeave={ev => (ev.currentTarget.style.background = "none")}
+                      >{e}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* painel de arquivos da conversa */}
+              {showFiles && (
+                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Arquivos da conversa</span>
+                    <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="#AAA" /></button>
+                  </div>
+                  {cs?.messages.filter(m => m.kind === "image" || m.kind === "file").length === 0 ? (
+                    <div style={{ textAlign: "center", color: "#AAA", fontSize: 13, padding: "16px 0" }}>Nenhum arquivo nesta conversa</div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {cs.messages.filter(m => m.kind === "image" || m.kind === "file").map(m => (
+                        m.kind === "image" ? (
+                          <img key={m.id} src={m.src} alt={m.caption} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, cursor: "pointer" }} onClick={() => window.open(m.src)} />
+                        ) : (
+                          <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
+                            <FolderOpen size={14} color="#128A68" />
+                            <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as any).filename}</span>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* input de arquivo (oculto) */}
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style={{ display: "none" }} onChange={handleFileSelect} />
+
+              {/* toolbar de ações */}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
-                {[Paperclip, CalendarIcon, FolderOpen, Smile, Mic].map((Icon, i) => (
-                  <Icon key={i} size={18} color="#AAA" style={{ cursor: "pointer" }} onClick={() => toast("Funcionalidade em breve")} />
-                ))}
-                <span title="Sugestão de resposta" onClick={() => toast("Sugestão IA em breve")} style={{ background: "#E1F5EE", borderRadius: 6, padding: 4, display: "inline-flex", cursor: "pointer" }}>
-                  <Sparkles size={16} color="#128A68" />
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                  placeholder={cs.finished ? "Conversa finalizada — reabra para responder" : "Mensagem..."}
-                  disabled={cs.finished}
-                  style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
+                <Paperclip
+                  size={18} color={cs.finished ? "#DDD" : "#AAA"}
+                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
+                  title="Anexar arquivo"
+                  onClick={handleAttachClick}
+                />
+                <CalendarIcon
+                  size={18} color={cs.finished ? "#DDD" : "#AAA"}
+                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
+                  title="Agendar reunião"
+                  onClick={() => { if (!cs.finished) { setMeetingFormFor(activeId); setShowEmoji(false); setShowFiles(false); } }}
+                />
+                <FolderOpen
+                  size={18} color={showFiles ? "#128A68" : "#AAA"}
+                  style={{ cursor: "pointer" }}
+                  title="Arquivos da conversa"
+                  onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }}
+                />
+                <Smile
+                  size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")}
+                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
+                  title="Emoji"
+                  onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }}
+                />
+                <Mic
+                  size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")}
+                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
+                  title={recording ? "Gravando… clique para parar" : "Gravar áudio"}
+                  onClick={() => { if (!cs.finished) { recording ? stopRecording() : startRecording(); } }}
                 />
                 <button
-                  onClick={sendMessage}
-                  disabled={!inputValue.trim() || cs.finished}
-                  style={{ background: inputValue.trim() && !cs.finished ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                  onClick={suggestAI}
+                  disabled={cs.finished || aiLoading}
+                  title="Sugestão de resposta com IA"
+                  style={{ background: "#E1F5EE", borderRadius: 6, padding: 4, display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer", border: "none", opacity: aiLoading ? 0.6 : 1 }}
                 >
-                  <Send size={16} color={inputValue.trim() && !cs.finished ? "#FFF" : "#AAA"} />
+                  <Sparkles size={16} color="#128A68" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
                 </button>
               </div>
+
+              {/* linha de entrada */}
+              {recording ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E53E3E", animation: "pulse 1s ease-in-out infinite" }} />
+                  <span style={{ fontSize: 13, color: "#E53E3E", fontVariantNumeric: "tabular-nums" }}>
+                    {String(Math.floor(recordingTime / 60)).padStart(2, "0")}:{String(recordingTime % 60).padStart(2, "0")}
+                  </span>
+                  <span style={{ fontSize: 13, color: "#AAA", flex: 1 }}>Gravando áudio…</span>
+                  <button onClick={cancelRecording} style={{ background: "none", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                  <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    value={inputValue}
+                    onChange={e => setInputValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); setShowEmoji(false); } }}
+                    placeholder={cs.finished ? "Conversa finalizada — reabra para responder" : "Mensagem..."}
+                    disabled={cs.finished}
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
+                  />
+                  <button
+                    onClick={() => { sendMessage(); setShowEmoji(false); }}
+                    disabled={!inputValue.trim() || cs.finished}
+                    style={{ background: inputValue.trim() && !cs.finished ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                  >
+                    <Send size={16} color={inputValue.trim() && !cs.finished ? "#FFF" : "#AAA"} />
+                  </button>
+                </div>
+              )}
             </div>
           </>
         ) : (
