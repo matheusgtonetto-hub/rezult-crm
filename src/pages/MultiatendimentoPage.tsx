@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
+import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
@@ -178,32 +179,17 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: any; label: strin
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
+  const { company } = useCompany();
   const navigate = useNavigate();
   const { leads, pipelines, activePipeline } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
-  // ── chaves de persistência ───────────────────────────────────────────
-  const listKey  = user ? `rzlt_convlist_${user.id}`  : null;
-  const metaKey  = user ? `rzlt_convmeta_${user.id}`  : null;
-
-  const [convList, setConvList] = useState<Conversation[]>(() => {
-    if (!user) return [];
-    try {
-      const raw = localStorage.getItem(`rzlt_convlist_${user.id}`);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
+  const [convList, setConvList] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
-  const [convStates, setConvStates] = useState<Record<string, ConvState>>(() => {
-    if (!user) return makeInitialConvStates();
-    try {
-      const raw = localStorage.getItem(`rzlt_convmeta_${user.id}`);
-      return raw ? JSON.parse(raw) : makeInitialConvStates();
-    } catch { return makeInitialConvStates(); }
-  });
+  const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // nova conversa
@@ -231,23 +217,45 @@ export default function MultiatendimentoPage() {
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
 
-  // ── persistir convList no localStorage ──────────────────────────────
+  // ── carregar conversas do Supabase ao iniciar ────────────────────────
   useEffect(() => {
-    if (!listKey) return;
-    try { localStorage.setItem(listKey, JSON.stringify(convList)); } catch {}
-  }, [convList, listKey]);
-
-  // ── persistir metadata das conversas (sem mensagens) ─────────────────
-  useEffect(() => {
-    if (!metaKey) return;
-    try {
-      const toSave: Record<string, ConvState> = {};
-      for (const [id, s] of Object.entries(convStates)) {
-        toSave[id] = { ...s, messages: [] }; // mensagens vêm do Supabase
-      }
-      localStorage.setItem(metaKey, JSON.stringify(toSave));
-    } catch {}
-  }, [convStates, metaKey]);
+    if (!user) return;
+    supabase
+      .from("whatsapp_conversations")
+      .select("*")
+      .eq("owner_id", user.id)
+      .order("last_msg_at", { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        setConvList(data.map(r => ({
+          id:         r.id,
+          name:       r.name,
+          preview:    r.preview,
+          time:       new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+          channel:    r.channel as Channel,
+          tags:       r.tags ?? [],
+          company:    r.company_name ?? undefined,
+          email:      r.email ?? undefined,
+          phone:      r.phone ?? undefined,
+          value:      r.value ?? undefined,
+          pipeline:   r.pipeline ?? undefined,
+          dealNumber: r.deal_number ?? undefined,
+        })));
+        const states: Record<string, ConvState> = {};
+        data.forEach(r => {
+          states[r.id] = {
+            messages: [],
+            stageIdx: r.stage_idx ?? 0,
+            meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
+            notes:    r.notes ?? "",
+            read:     r.read ?? true,
+            finished: r.finished ?? false,
+          };
+        });
+        setConvStates(states);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // auto-scroll on new messages
   useEffect(() => {
@@ -332,6 +340,10 @@ export default function MultiatendimentoPage() {
               };
               return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
             });
+            // Atualiza preview e timestamp no banco
+            supabase.from("whatsapp_conversations").update({
+              preview: m.body ?? "", last_msg_at: new Date().toISOString(), read: false,
+            }).eq("id", existing.id);
           } else {
             // Cria nova conversa automaticamente para este remetente
             const newId = crypto.randomUUID();
@@ -349,6 +361,13 @@ export default function MultiatendimentoPage() {
               ...prev,
               [newId]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
             }));
+            // Persiste nova conversa no banco
+            const uid = m.owner_id as string;
+            supabase.from("whatsapp_conversations").insert({
+              id: newId, owner_id: uid, name: newConv.name, phone: msgPhone,
+              channel: "whatsapp", tags: [], preview: m.body ?? "",
+              last_msg_at: new Date().toISOString(), read: false,
+            });
           }
         }
       )
@@ -358,32 +377,32 @@ export default function MultiatendimentoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // load Z-API instances
+  // load Z-API instances do banco via CompanyContext
   useEffect(() => {
-    if (!user) return;
-    try {
-      const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (d.connected && d.instanceId) {
-          const inst: ZApiInstance = {
-            instanceId: d.instanceId,
-            token: d.token ?? "",
-            clientToken: d.clientToken ?? "",
-            phone: d.phone || d.instanceId,
-            label: d.phone ? `Z-API · ${d.phone}` : `Z-API · ${d.instanceId.slice(0, 8)}…`,
-          };
-          setInstances([inst]);
-          setSelectedInstance(inst.instanceId);
-        }
-      }
-    } catch { /* ignore */ }
-  }, [user?.id]);
+    if (company?.zapi_connected && company.zapi_instance_id) {
+      const inst: ZApiInstance = {
+        instanceId:  company.zapi_instance_id,
+        token:       company.zapi_token ?? "",
+        clientToken: company.zapi_client_token ?? "",
+        phone:       company.zapi_phone ?? company.zapi_instance_id,
+        label:       company.zapi_phone
+          ? `Z-API · ${company.zapi_phone}`
+          : `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
+      };
+      setInstances([inst]);
+      setSelectedInstance(inst.instanceId);
+    } else {
+      setInstances([]);
+      setSelectedInstance("");
+    }
+  }, [company?.zapi_instance_id, company?.zapi_connected]);
 
   // ── sincroniza chats abertos pelo Pipeline → multi-atendimento ───────
   useEffect(() => {
-    if (!openedLeadIds.length) return;
+    if (!openedLeadIds.length || !user) return;
     const allPipelines = pipelines ?? [];
+    const toCreate: Array<{ conv: Conversation; cs: ConvState }> = [];
+
     setConvList(prev => {
       let updated = [...prev];
       for (const leadId of openedLeadIds) {
@@ -391,7 +410,7 @@ export default function MultiatendimentoPage() {
         const lead = leads[leadId];
         if (!lead) continue;
         const pipelineName = allPipelines.find(p => p.id === lead.pipelineId)?.name ?? "Pipeline Comercial";
-        updated = [{
+        const conv: Conversation = {
           id: leadId,
           name: lead.name,
           preview: "Conversa iniciada pelo Pipeline",
@@ -404,20 +423,32 @@ export default function MultiatendimentoPage() {
           value: lead.value ?? 0,
           pipeline: pipelineName,
           dealNumber: `#${lead.dealNumber}`,
-        }, ...updated];
+        };
+        const cs: ConvState = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
+        toCreate.push({ conv, cs });
+        updated = [conv, ...updated];
       }
       return updated;
     });
     setConvStates(prev => {
       const next = { ...prev };
-      for (const leadId of openedLeadIds) {
-        if (!next[leadId]) {
-          next[leadId] = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
-        }
+      for (const { conv, cs } of toCreate) {
+        if (!next[conv.id]) next[conv.id] = cs;
       }
       return next;
     });
-  }, [openedLeadIds, leads, pipelines]);
+    // Persiste novas conversas no Supabase
+    for (const { conv, cs } of toCreate) {
+      supabase.from("whatsapp_conversations").upsert({
+        id: conv.id, owner_id: user.id, name: conv.name, phone: conv.phone ?? null,
+        channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
+        email: conv.email ?? null, pipeline: conv.pipeline ?? null,
+        deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
+        preview: conv.preview, stage_idx: cs.stageIdx, notes: cs.notes,
+        read: cs.read, finished: cs.finished,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    }
+  }, [openedLeadIds, leads, pipelines, user?.id]);
 
   // ── nova conversa a partir de lead do pipeline ───────────────────────
   function startConversationWithLead(leadId: string) {
@@ -464,20 +495,44 @@ export default function MultiatendimentoPage() {
       dealNumber: `#${lead.dealNumber}`,
     };
 
+    const newCs: ConvState = { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false };
     setConvList(prev => [newConv, ...prev]);
-    setConvStates(prev => ({
-      ...prev,
-      [leadId]: { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false },
-    }));
+    setConvStates(prev => ({ ...prev, [leadId]: newCs }));
     setActiveId(leadId);
     setNewConvOpen(false);
     setLeadSearch("");
     toast.success(`Conversa iniciada com ${lead.name}`);
+    if (user) {
+      supabase.from("whatsapp_conversations").upsert({
+        id: leadId, owner_id: user.id, name: newConv.name, phone: newConv.phone ?? null,
+        channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
+        email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
+        deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
+        preview: newConv.preview, stage_idx: stageIdx, notes: "", read: true, finished: false,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    }
   }
 
   // ── conv state helpers ──────────────────────────────────────────────
   function updateCs(id: string, patch: Partial<ConvState>) {
     setConvStates(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    // Persiste campos não-mensagem no banco
+    const { messages: _, ...meta } = patch;
+    if (!user || Object.keys(meta).length === 0) return;
+    const dbPatch: Record<string, unknown> = {};
+    if ("stageIdx"  in meta) dbPatch.stage_idx     = meta.stageIdx;
+    if ("notes"     in meta) dbPatch.notes          = meta.notes;
+    if ("read"      in meta) dbPatch.read           = meta.read;
+    if ("finished"  in meta) dbPatch.finished       = meta.finished;
+    if ("meeting"   in meta) {
+      dbPatch.meeting_date  = meta.meeting?.date  ?? null;
+      dbPatch.meeting_time  = meta.meeting?.time  ?? null;
+      dbPatch.meeting_owner = meta.meeting?.owner ?? null;
+      dbPatch.meeting_note  = meta.meeting?.note  ?? null;
+    }
+    supabase.from("whatsapp_conversations").update(dbPatch).eq("id", id).then(({ error }) => {
+      if (error) console.error("updateCs DB:", error);
+    });
   }
 
   async function sendMessage() {

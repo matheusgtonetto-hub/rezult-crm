@@ -28,6 +28,12 @@ export interface Company {
   document?: string;
   // Logo
   logo_url?: string;
+  // Z-API WhatsApp integration
+  zapi_instance_id?: string | null;
+  zapi_token?: string | null;
+  zapi_client_token?: string | null;
+  zapi_phone?: string | null;
+  zapi_connected?: boolean;
   // Meta
   created_at?: string;
 }

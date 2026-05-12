@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCompany } from "@/context/CompanyContext";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ export default function PipelinePage() {
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { user } = useAuth();
+  const { company } = useCompany();
   const navigate = useNavigate();
 
   // Z-API instances for WhatsApp selector
@@ -94,22 +96,18 @@ export default function PipelinePage() {
   const [wpPopoverLeadId, setWpPopoverLeadId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    try {
-      const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
-      if (raw) {
-        const d = JSON.parse(raw);
-        if (d.connected && d.instanceId) {
-          const inst = {
-            instanceId: d.instanceId,
-            label: d.phone ? `Z-API · ${d.phone}` : `Z-API · ${d.instanceId.slice(0, 8)}…`,
-          };
-          setZapiInstances([inst]);
-          setSelectedZapiInstance(inst.instanceId);
-        }
-      }
-    } catch { /* ignore */ }
-  }, [user?.id]);
+    if (company?.zapi_connected && company.zapi_instance_id) {
+      const inst = {
+        instanceId: company.zapi_instance_id,
+        label: company.zapi_phone ? `Z-API · ${company.zapi_phone}` : `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
+      };
+      setZapiInstances([inst]);
+      setSelectedZapiInstance(inst.instanceId);
+    } else {
+      setZapiInstances([]);
+      setSelectedZapiInstance("");
+    }
+  }, [company?.zapi_instance_id, company?.zapi_connected]);
 
   // Sidebar collapse — persisted in localStorage, collapsed by default on mobile
   const SIDEBAR_W = 240;

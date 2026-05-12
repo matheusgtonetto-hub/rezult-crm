@@ -1901,16 +1901,13 @@ type ZApiStep = "provider" | "creds" | "qr" | "done";
 
 function ConexoesSection() {
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, updateCompany } = useCompany();
 
-  // persisted connection state (localStorage)
-  const storageKey = user ? `rzlt_zapi_${user.id}` : null;
   const [connected, setConnected]   = useState(false);
   const [connPhone, setConnPhone]   = useState("");
   const [savedCreds, setSavedCreds] = useState<ZApiForm | null>(null);
   const [checking, setChecking]     = useState(true);
   const [webhookOk, setWebhookOk]   = useState(false);
-  const syncedRef = useRef(false);
 
   // dialog state
   const [open, setOpen]       = useState(false);
@@ -1925,51 +1922,25 @@ function ConexoesSection() {
   const pollNRef   = useRef(0);
   const credsInFlight = useRef<ZApiForm | null>(null);
 
-  // ── load saved creds on mount ─────────────────────────────────────────
+  // ── carrega credenciais do banco (via CompanyContext) ─────────────────
   useEffect(() => {
-    if (!storageKey) { setChecking(false); return; }
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const d = JSON.parse(raw);
-        setSavedCreds({ instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" });
-        setConnPhone(d.phone ?? "");
-        setConnected(d.connected ?? false);
-      }
-    } catch { /* ignore */ }
+    if (!company) return;
+    if (company.zapi_connected && company.zapi_instance_id) {
+      setSavedCreds({ instanceId: company.zapi_instance_id, token: company.zapi_token ?? "", clientToken: company.zapi_client_token ?? "" });
+      setConnPhone(company.zapi_phone ?? "");
+      setConnected(true);
+      // Re-configura webhook silenciosamente para garantir que está ativo
+      const creds: ZApiForm = { instanceId: company.zapi_instance_id, token: company.zapi_token ?? "", clientToken: company.zapi_client_token ?? "" };
+      configureZapiWebhook(creds).then(ok => setWebhookOk(ok));
+    } else {
+      setSavedCreds(null);
+      setConnPhone("");
+      setConnected(false);
+    }
     setChecking(false);
     return () => stopPoll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
-
-  // ── sincroniza Supabase + webhook quando company estiver disponível ────
-  useEffect(() => {
-    if (!company?.id || !storageKey || syncedRef.current) return;
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      if (!d.connected || !d.instanceId) return;
-
-      syncedRef.current = true;
-      const creds: ZApiForm = { instanceId: d.instanceId, token: d.token, clientToken: d.clientToken ?? "" };
-
-      (async () => {
-        // 1. Salva credenciais no Supabase
-        await supabase.from("companies").update({
-          zapi_instance_id:  creds.instanceId,
-          zapi_token:        creds.token,
-          zapi_client_token: creds.clientToken || null,
-          zapi_phone:        d.phone || null,
-          zapi_connected:    true,
-        }).eq("id", company.id);
-
-        // 2. Configura webhook Z-API → Edge Function
-        const ok = await configureZapiWebhook(creds);
-        setWebhookOk(ok);
-      })();
-    } catch { /* ignore */ }
-  }, [company?.id, storageKey]);
+  }, [company?.zapi_instance_id, company?.zapi_connected]);
 
   // ── Z-API helpers ──────────────────────────────────────────────────
   const zapiBase    = (c: ZApiForm) => `https://api.z-api.io/instances/${c.instanceId}/token/${c.token}`;
@@ -2053,27 +2024,24 @@ function ConexoesSection() {
       if (result.connected) {
         stopPoll();
         const creds = credsInFlight.current!;
-        const d = { ...creds, phone: result.phone, connected: true };
-        if (storageKey) localStorage.setItem(storageKey, JSON.stringify(d));
         setSavedCreds(creds);
         setConnPhone(result.phone);
         setConnected(true);
         setStep("done");
         toast.success("WhatsApp conectado com sucesso!");
 
-        // Persiste no Supabase para o webhook identificar a instância
-        if (company?.id) {
-          await supabase.from("companies").update({
-            zapi_instance_id:  creds.instanceId,
-            zapi_token:        creds.token,
-            zapi_client_token: creds.clientToken || null,
-            zapi_phone:        result.phone || null,
-            zapi_connected:    true,
-          }).eq("id", company.id);
-        }
+        // Persiste no banco via CompanyContext
+        await updateCompany({
+          zapi_instance_id:  creds.instanceId,
+          zapi_token:        creds.token,
+          zapi_client_token: creds.clientToken || null,
+          zapi_phone:        result.phone || null,
+          zapi_connected:    true,
+        });
 
         // Configura automaticamente o webhook na Z-API para receber mensagens
-        await configureZapiWebhook(creds);
+        const ok = await configureZapiWebhook(creds);
+        setWebhookOk(ok);
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
@@ -2101,19 +2069,17 @@ function ConexoesSection() {
     try {
       await fetch(`${zapiBase(savedCreds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(savedCreds) });
     } catch { /* ignore */ }
-    if (storageKey) localStorage.removeItem(storageKey);
     setSavedCreds(null);
     setConnPhone("");
     setConnected(false);
+    setWebhookOk(false);
     toast.success("WhatsApp desconectado.");
 
-    // Limpa no Supabase
-    if (company?.id) {
-      await supabase.from("companies").update({
-        zapi_instance_id: null, zapi_token: null,
-        zapi_client_token: null, zapi_phone: null, zapi_connected: false,
-      }).eq("id", company.id);
-    }
+    // Limpa no banco via CompanyContext
+    await updateCompany({
+      zapi_instance_id: null, zapi_token: null,
+      zapi_client_token: null, zapi_phone: null, zapi_connected: false,
+    });
   }
 
   function openDialog() {

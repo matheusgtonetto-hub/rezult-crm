@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -52,6 +53,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const { leads, setSelectedLeadId } = useCRM();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const { user } = useAuth();
+  const { company } = useCompany();
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
@@ -178,47 +180,40 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // Enviar via Z-API se houver instância conectada e telefone do lead
     const contactPhone = lead.whatsapp;
     if (user && contactPhone && contactPhone !== "—") {
-      try {
-        const raw = localStorage.getItem(`rzlt_zapi_${user.id}`);
-        if (raw) {
-          const creds = JSON.parse(raw);
-          if (creds.connected && creds.instanceId && creds.token) {
-            const cleanPhone = contactPhone.replace(/\D/g, "");
-            const res = await fetch(
-              `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}/send-text`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  ...(creds.clientToken ? { "Client-Token": creds.clientToken } : {}),
-                },
-                body: JSON.stringify({ phone: cleanPhone, message: text }),
-              }
-            );
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
+      if (company?.zapi_connected && company.zapi_instance_id && company.zapi_token) {
+        try {
+          const cleanPhone = contactPhone.replace(/\D/g, "");
+          const res = await fetch(
+            `https://api.z-api.io/instances/${company.zapi_instance_id}/token/${company.zapi_token}/send-text`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(company.zapi_client_token ? { "Client-Token": company.zapi_client_token } : {}),
+              },
+              body: JSON.stringify({ phone: cleanPhone, message: text }),
             }
-
-            // Persiste para histórico
-            await supabase.from("whatsapp_messages").insert({
-              owner_id:    user.id,
-              instance_id: creds.instanceId,
-              phone:       cleanPhone,
-              from_me:     true,
-              body:        text,
-              type:        "text",
-              momment:     Date.now(),
-              sender_name: agentName,
-            });
-          } else {
-            toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
           }
-        } else {
-          toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
+          // Persiste para histórico
+          await supabase.from("whatsapp_messages").insert({
+            owner_id:    user.id,
+            instance_id: company.zapi_instance_id,
+            phone:       cleanPhone,
+            from_me:     true,
+            body:        text,
+            type:        "text",
+            momment:     Date.now(),
+            sender_name: agentName,
+          });
+        } catch {
+          toast.error("Falha ao enviar mensagem via WhatsApp");
         }
-      } catch {
-        toast.error("Falha ao enviar mensagem via WhatsApp");
+      } else {
+        toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
       }
     }
   };
