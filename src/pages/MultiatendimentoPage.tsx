@@ -246,44 +246,93 @@ export default function MultiatendimentoPage() {
   const recordingTimeRef   = useRef(0); // ref para evitar closure stale no onstop
 
   const active   = convList.find(c => c.id === activeId);
-  const cs       = activeId ? convStates[activeId] : null;
+  // Fix: fallback para evitar que cs seja null quando convStates[activeId] ainda não foi carregado
+  const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false };
+  const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
   // ── carregar conversas do Supabase ao iniciar ────────────────────────
   useEffect(() => {
     if (!user) return;
+
+    const mapRow = (r: any): Conversation => ({
+      id: r.id, name: r.name, preview: r.preview,
+      time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      channel: r.channel as Channel, tags: r.tags ?? [],
+      company: r.company_name ?? undefined, email: r.email ?? undefined,
+      phone: r.phone ?? undefined, value: r.value ?? undefined,
+      pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
+    });
+
+    const mapState = (r: any): ConvState => ({
+      messages: [],
+      stageIdx: r.stage_idx ?? 0,
+      meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
+      notes:    r.notes ?? "",
+      read:     r.read ?? true,
+      finished: r.finished ?? false,
+    });
+
     supabase
       .from("whatsapp_conversations")
       .select("*")
       .eq("owner_id", user.id)
       .order("last_msg_at", { ascending: false })
-      .then(({ data }) => {
-        if (!data) return;
-        setConvList(data.map(r => ({
-          id:         r.id,
-          name:       r.name,
-          preview:    r.preview,
-          time:       new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          channel:    r.channel as Channel,
-          tags:       r.tags ?? [],
-          company:    r.company_name ?? undefined,
-          email:      r.email ?? undefined,
-          phone:      r.phone ?? undefined,
-          value:      r.value ?? undefined,
-          pipeline:   r.pipeline ?? undefined,
-          dealNumber: r.deal_number ?? undefined,
-        })));
-        const states: Record<string, ConvState> = {};
-        data.forEach(r => {
-          states[r.id] = {
-            messages: [],
-            stageIdx: r.stage_idx ?? 0,
-            meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
-            notes:    r.notes ?? "",
-            read:     r.read ?? true,
-            finished: r.finished ?? false,
-          };
-        });
-        setConvStates(states);
+      .then(async ({ data, error }) => {
+        if (error) console.error("Erro ao carregar conversas:", error);
+
+        if (data && data.length > 0) {
+          // Fix race condition: MERGE com estado existente (não sobrescrever conversas do Pipeline)
+          setConvList(prev => {
+            const dbIds = new Set(data.map(r => r.id));
+            const extra = prev.filter(c => !dbIds.has(c.id)); // conversas só em memória
+            return [...data.map(mapRow), ...extra];
+          });
+          setConvStates(prev => {
+            const next: Record<string, ConvState> = { ...prev };
+            data.forEach(r => {
+              if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
+            });
+            return next;
+          });
+          return;
+        }
+
+        // Backfill: tabela vazia → cria conversas a partir de mensagens existentes
+        const { data: msgs } = await supabase
+          .from("whatsapp_messages")
+          .select("phone, chat_name, sender_name, body, momment, created_at")
+          .eq("owner_id", user.id)
+          .eq("from_me", false)
+          .order("created_at", { ascending: false });
+
+        if (!msgs?.length) return;
+
+        // Agrupa por telefone, pega a mensagem mais recente por contato
+        const phoneMap = new Map<string, any>();
+        for (const m of msgs) {
+          if (!phoneMap.has(m.phone)) phoneMap.set(m.phone, m);
+        }
+
+        const newConvs: Conversation[] = [];
+        const newStates: Record<string, ConvState> = {};
+        const dbRows: any[] = [];
+
+        for (const [phone, m] of phoneMap) {
+          const id = crypto.randomUUID();
+          const d = new Date(m.momment ?? m.created_at);
+          const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone });
+          newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
+          dbRows.push({ id, owner_id: user.id, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+        }
+
+        if (newConvs.length) {
+          setConvList(newConvs);
+          setConvStates(newStates);
+          supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
+            if (e) console.error("Backfill erro:", e);
+          });
+        }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -696,7 +745,8 @@ export default function MultiatendimentoPage() {
 
   // ── conv state helpers ──────────────────────────────────────────────
   function updateCs(id: string, patch: Partial<ConvState>) {
-    setConvStates(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    // Fix: garante estado base completo mesmo quando prev[id] é undefined
+    setConvStates(prev => ({ ...prev, [id]: { ...DEFAULT_CS, ...prev[id], ...patch } }));
     // Persiste campos não-mensagem no banco
     const { messages: _, ...meta } = patch;
     if (!user || Object.keys(meta).length === 0) return;
