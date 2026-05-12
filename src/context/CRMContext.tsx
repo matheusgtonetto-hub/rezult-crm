@@ -37,6 +37,7 @@ interface CRMContextType {
   addLead: (lead: Omit<Lead, "id">) => Promise<boolean>;
   deleteLead: (id: string) => void;
   moveLead: (leadId: string, fromCol: string, toCol: string, toIndex: number) => void;
+  transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => void;
   markLeadWon: (leadId: string, productName?: string, value?: number) => void;
   markLeadLost: (leadId: string, reason?: string) => void;
   markLeadOpen: (leadId: string) => void;
@@ -49,6 +50,11 @@ interface CRMContextType {
 
   addActivity: (leadId: string, activity: Omit<Activity, "id">) => void;
   updateActivity: (leadId: string, activityId: string, description: string) => void;
+  patchActivity: (leadId: string, activityId: string, fields: Partial<Pick<Activity, "title" | "description" | "scheduledAt" | "meetLink" | "contactEmail" | "type" | "durationMinutes" | "participants">>) => void;
+  completeActivity: (leadId: string, activityId: string) => void;
+  uncompleteActivity: (leadId: string, activityId: string) => void;
+  markNoShow: (leadId: string, activityId: string) => void;
+  unmarkNoShow: (leadId: string, activityId: string) => void;
   deleteActivity: (leadId: string, activityId: string) => void;
   pinActivity: (leadId: string, activityId: string, pinned: boolean) => void;
 
@@ -116,6 +122,13 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     phoneDdi: (row.phone_ddi as string) ?? undefined,
     site: (row.site as string) ?? undefined,
     email: (row.email as string) ?? undefined,
+    emails: (() => {
+      const raw = row.emails;
+      const parsed: string[] = Array.isArray(raw)
+        ? (raw as string[])
+        : (raw ? JSON.parse(raw as string) as string[] : []);
+      return parsed.length > 0 ? parsed : ((row.email as string) ? [(row.email as string)] : []);
+    })(),
     value: Number(row.value ?? 0),
     responsible: (row.responsible as string) ?? "",
     pipelineId: row.pipeline_id as string,
@@ -155,6 +168,11 @@ function dbToActivity(row: Record<string, unknown>): Activity {
     title: (row.title as string) ?? undefined,
     scheduledAt: (row.scheduled_at as string) ?? undefined,
     durationMinutes: (row.duration_minutes as number) ?? undefined,
+    contactEmail: (row.contact_email as string) ?? undefined,
+    meetLink: (row.meet_link as string) ?? undefined,
+    completedAt: (row.completed_at as string) ?? undefined,
+    noShowAt: (row.no_show_at as string) ?? undefined,
+    participants: row.participants ? JSON.parse(row.participants as string) as string[] : undefined,
   };
 }
 
@@ -503,7 +521,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         whatsapp: lead.whatsapp,
         phone_ddi: lead.phoneDdi || null,
         site: lead.site || null,
-        email: lead.email || null,
+        email: (lead.emails && lead.emails.length > 0 ? lead.emails[0] : lead.email) || null,
+        emails: JSON.stringify(lead.emails ?? []),
         value: lead.value,
         responsible: lead.responsible,
         priority: lead.priority,
@@ -578,6 +597,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if ("phoneDdi" in data) dbData.phone_ddi = data.phoneDdi ?? null;
     if ("site" in data) dbData.site = data.site ?? null;
     if ("email" in data) dbData.email = data.email ?? null;
+    if ("emails" in data) {
+      dbData.emails = JSON.stringify(data.emails ?? []);
+      dbData.email = (data.emails && data.emails.length > 0 ? data.emails[0] : null);
+    }
     if ("value" in data) dbData.value = data.value;
     if ("responsible" in data) dbData.responsible = data.responsible;
     if ("priority" in data) dbData.priority = data.priority;
@@ -636,6 +659,28 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       if (error) console.error("moveLead error:", error.message);
     });
   }, []);
+
+  const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
+    const lead = leads[leadId];
+    if (!lead) return;
+    const fromCol = lead.stage;
+    setPipelines(prev => prev.map(p => {
+      const hasFromCol = p.columns.some(c => c.id === fromCol);
+      const isTarget = p.id === toPipelineId;
+      if (!hasFromCol && !isTarget) return p;
+      return {
+        ...p,
+        columns: p.columns.map(c => {
+          if (c.id === fromCol) return { ...c, leadIds: c.leadIds.filter(id => id !== leadId) };
+          if (c.id === toColumnId) return { ...c, leadIds: [...c.leadIds, leadId] };
+          return c;
+        }),
+      };
+    }));
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open" } }));
+    supabase.from("leads").update({ pipeline_id: toPipelineId, column_id: toColumnId, status: "open" }).eq("id", leadId)
+      .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
+  }, [leads]);
 
   const findWonLostCol = useCallback((pipelineId: string, kind: "won" | "lost"): string | null => {
     const p = pipelines.find(x => x.id === pipelineId);
@@ -880,9 +925,117 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         title: activity.title ?? null,
         scheduled_at: activity.scheduledAt ?? null,
         duration_minutes: activity.durationMinutes ?? null,
-      }).then(({ error }) => {
-        if (error) console.error("addActivity error:", error.message);
+        contact_email: activity.contactEmail ?? null,
+        meet_link: activity.meetLink ?? null,
+        participants: activity.participants ? JSON.stringify(activity.participants) : null,
+      }).select().single().then(({ data, error }) => {
+        if (error) { console.error("addActivity error:", error.message); return; }
+        if (data) {
+          const realId = (data as Record<string, unknown>).id as string;
+          setLeads(prev => ({
+            ...prev,
+            [leadId]: {
+              ...prev[leadId],
+              activities: prev[leadId]?.activities.map(a => a.id === tempId ? { ...a, id: realId } : a) ?? [],
+            },
+          }));
+        }
       });
+    }
+  }, [user]);
+
+  const completeActivity = useCallback((leadId: string, activityId: string) => {
+    const completedAt = new Date().toISOString();
+    setLeads(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        activities: prev[leadId]?.activities.map(a =>
+          a.id === activityId ? { ...a, completedAt, noShowAt: undefined } : a
+        ) ?? [],
+      },
+    }));
+    if (user) {
+      supabase.from("activities").update({ completed_at: completedAt, no_show_at: null }).eq("id", activityId)
+        .then(({ error }) => { if (error) console.error("completeActivity error:", error.message); });
+    }
+  }, [user]);
+
+  const patchActivity = useCallback((
+    leadId: string,
+    activityId: string,
+    fields: Partial<Pick<Activity, "title" | "description" | "scheduledAt" | "meetLink" | "contactEmail" | "type" | "durationMinutes" | "participants">>
+  ) => {
+    setLeads(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        activities: prev[leadId]?.activities.map(a =>
+          a.id === activityId ? { ...a, ...fields } : a
+        ) ?? [],
+      },
+    }));
+    if (user) {
+      const dbFields: Record<string, unknown> = {};
+      if (fields.title !== undefined) dbFields.title = fields.title;
+      if (fields.description !== undefined) dbFields.description = fields.description;
+      if (fields.scheduledAt !== undefined) dbFields.scheduled_at = fields.scheduledAt;
+      if (fields.meetLink !== undefined) dbFields.meet_link = fields.meetLink;
+      if (fields.contactEmail !== undefined) dbFields.contact_email = fields.contactEmail;
+      if (fields.type !== undefined) dbFields.type = fields.type;
+      if (fields.durationMinutes !== undefined) dbFields.duration_minutes = fields.durationMinutes;
+      if (fields.participants !== undefined) dbFields.participants = fields.participants ? JSON.stringify(fields.participants) : null;
+      supabase.from("activities").update(dbFields).eq("id", activityId)
+        .then(({ error }) => { if (error) console.error("patchActivity error:", error.message); });
+    }
+  }, [user]);
+
+  const uncompleteActivity = useCallback((leadId: string, activityId: string) => {
+    setLeads(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        activities: prev[leadId]?.activities.map(a =>
+          a.id === activityId ? { ...a, completedAt: undefined } : a
+        ) ?? [],
+      },
+    }));
+    if (user) {
+      supabase.from("activities").update({ completed_at: null }).eq("id", activityId)
+        .then(({ error }) => { if (error) console.error("uncompleteActivity error:", error.message); });
+    }
+  }, [user]);
+
+  const markNoShow = useCallback((leadId: string, activityId: string) => {
+    const noShowAt = new Date().toISOString();
+    setLeads(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        activities: prev[leadId]?.activities.map(a =>
+          a.id === activityId ? { ...a, noShowAt, completedAt: undefined } : a
+        ) ?? [],
+      },
+    }));
+    if (user) {
+      supabase.from("activities").update({ no_show_at: noShowAt, completed_at: null }).eq("id", activityId)
+        .then(({ error }) => { if (error) console.error("markNoShow error:", error.message); });
+    }
+  }, [user]);
+
+  const unmarkNoShow = useCallback((leadId: string, activityId: string) => {
+    setLeads(prev => ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        activities: prev[leadId]?.activities.map(a =>
+          a.id === activityId ? { ...a, noShowAt: undefined } : a
+        ) ?? [],
+      },
+    }));
+    if (user) {
+      supabase.from("activities").update({ no_show_at: null }).eq("id", activityId)
+        .then(({ error }) => { if (error) console.error("unmarkNoShow error:", error.message); });
     }
   }, [user]);
 
@@ -939,10 +1092,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         pipelines, activePipelineId, setActivePipelineId, activePipeline,
         addPipeline, updatePipeline, deletePipeline,
         columns, updateColumn, deleteColumn, addColumn, reorderColumns,
-        leads, updateLead, addLead, deleteLead, moveLead,
+        leads, updateLead, addLead, deleteLead, moveLead, transferLead,
         markLeadWon, markLeadLost, markLeadOpen, nextDealNumber,
         tasks, addTask, updateTask, deleteTask,
-        addActivity, updateActivity, deleteActivity, pinActivity,
+        addActivity, updateActivity, patchActivity, completeActivity, uncompleteActivity, markNoShow, unmarkNoShow, deleteActivity, pinActivity,
         crmTags, addTag, updateTag, deleteTag,
         pipelineGroups, addPipelineGroup, deletePipelineGroup,
         teamMembers, memberColors, memberEmails, memberAvatars,

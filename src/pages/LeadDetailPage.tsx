@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -68,17 +69,25 @@ import {
   List,
   ListOrdered,
   Pin,
+  Phone,
+  MessageCircle,
+  RefreshCw,
+  Check,
+  X,
+  CalendarDays,
+  Link,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { ActivityDialog } from "@/components/ActivityDialog";
+import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import { toast } from "sonner";
 import type { ActivityType } from "@/data/mockData";
 
-type TabKey = "anotacoes" | "atividades" | "reunioes" | "email" | "arquivos";
+type TabKey = "anotacoes" | "atividades" | "email" | "arquivos";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "anotacoes", label: "Anotações" },
   { key: "atividades", label: "Atividades" },
-  { key: "reunioes", label: "Reuniões" },
   { key: "email", label: "E-mail" },
   { key: "arquivos", label: "Arquivos" },
 ];
@@ -227,6 +236,11 @@ export default function LeadDetailPage() {
     updateLead,
     addActivity,
     updateActivity,
+    patchActivity,
+    completeActivity,
+    uncompleteActivity,
+    markNoShow,
+    unmarkNoShow,
     deleteActivity,
     pinActivity,
     teamMembers,
@@ -237,6 +251,7 @@ export default function LeadDetailPage() {
     markLeadWon,
     markLeadLost,
     markLeadOpen,
+    transferLead,
     lossReasons,
     tasks: allTasks,
     addTask: addTaskToContext,
@@ -260,6 +275,55 @@ export default function LeadDetailPage() {
   });
   const [tab, setTab] = useState<TabKey>("anotacoes");
   const [newNote, setNewNote] = useState("");
+  const [addEmailMode, setAddEmailMode] = useState(false);
+  const [newEmailDraft, setNewEmailDraft] = useState("");
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
+
+  const openActivityDialog = () => {
+    setEditingActivityId(null);
+    setShowActivityDialog(true);
+  };
+
+  const openEditActivityDialog = (item: { id: string; title?: string; description?: string; type: ActivityType; scheduledAt?: string; meetLink?: string; durationMinutes?: number; participants?: string[] }) => {
+    setEditingActivityId(item.id);
+    setShowActivityDialog(true);
+  };
+
+  const editingActivity = editingActivityId ? lead?.activities?.find(a => a.id === editingActivityId) : undefined;
+
+  const handleActivitySubmit = (data: ActivitySubmitData) => {
+    if (!lead) return;
+    if (editingActivityId) {
+      patchActivity(lead.id, editingActivityId, {
+        title: data.title,
+        type: data.type,
+        description: data.description,
+        scheduledAt: new Date(data.scheduledAt).toISOString(),
+        durationMinutes: data.durationMinutes,
+        contactEmail: data.participants[0] || undefined,
+        meetLink: data.meetLink || undefined,
+        participants: data.participants.length > 0 ? data.participants : undefined,
+      });
+      toast.success("Atividade atualizada!");
+    } else {
+      addActivity(lead.id, {
+        date: new Date().toISOString(),
+        type: data.type,
+        title: data.title,
+        description: data.description,
+        scheduledAt: new Date(data.scheduledAt).toISOString(),
+        durationMinutes: data.durationMinutes,
+        contactEmail: data.participants[0] || undefined,
+        meetLink: data.meetLink || undefined,
+        participants: data.participants.length > 0 ? data.participants : undefined,
+      });
+      toast.success("Atividade criada!");
+    }
+    setShowActivityDialog(false);
+    setEditingActivityId(null);
+  };
   const [newNoteActive, setNewNoteActive] = useState(false);
   const newNoteDivRef = useRef<HTMLDivElement | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -440,40 +504,56 @@ export default function LeadDetailPage() {
 
   const [showWonProductDialog, setShowWonProductDialog] = useState(false);
   const [wonProductId, setWonProductId] = useState<string>("none");
+  const [wonTransferPipelineId, setWonTransferPipelineId] = useState<string>("none");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [recoveryPipelineId, setRecoveryPipelineId] = useState<string>("");
+  const [recoveryColumnId, setRecoveryColumnId] = useState<string>("");
 
-  const [showMeetingForm, setShowMeetingForm] = useState(false);
-  const [meetingForm, setMeetingForm] = useState({
-    title: "",
-    type: "meeting" as ActivityType,
-    scheduledAt: "",
-    dur: "60",
-  });
 
   const handleWon = () => {
-    if (!lead.productId) {
-      setWonProductId("none");
-      setShowWonProductDialog(true);
-      return;
-    }
-    const prod = products.find(p => p.id === lead.productId);
-    markLeadWon(lead.id, prod?.name, lead.value);
-    toast.success("Negócio marcado como ganho!");
+    setWonProductId("none");
+    setWonTransferPipelineId("none");
+    setShowWonProductDialog(true);
   };
 
   const handleConfirmWon = async () => {
     let prodName: string | undefined;
     let finalValue = lead.value;
     if (wonProductId && wonProductId !== "none") {
+      // Produto selecionado agora no dialog
       const prod = products.find(p => p.id === wonProductId);
       prodName = prod?.name;
       finalValue = prod?.defaultValue ?? lead.value;
       await updateLead(lead.id, { productId: wonProductId, value: finalValue });
+    } else if (lead.productId) {
+      // Produto já estava cadastrado no lead
+      const prod = products.find(p => p.id === lead.productId);
+      prodName = prod?.name;
+      finalValue = lead.value;
     }
     setShowWonProductDialog(false);
+
+    // markLeadWon registra o histórico; transferLead logo depois define dealStatus:"open"
+    // para que o card fique ativo no funil de destino (ex: CS).
     markLeadWon(lead.id, prodName, finalValue);
-    toast.success("Negócio marcado como ganho!");
+
+    let transferred = false;
+    if (wonTransferPipelineId && wonTransferPipelineId !== "none") {
+      const targetPipeline = pipelines.find(p => p.id === wonTransferPipelineId);
+      const firstColId = targetPipeline?.columns[0]?.id ?? "";
+      if (firstColId) {
+        transferLead(lead.id, wonTransferPipelineId, firstColId);
+        transferred = true;
+      }
+    }
+
+    toast.success(
+      transferred
+        ? `Negócio ganho e transferido para ${pipelines.find(p => p.id === wonTransferPipelineId)?.name ?? "outro funil"}!`
+        : "Negócio marcado como ganho!"
+    );
   };
   const handleLost = () => {
     setSelectedLossReasonId("none");
@@ -496,14 +576,44 @@ export default function LeadDetailPage() {
     toast.success("Negócio reaberto com sucesso.");
   };
 
+  const handleOpenRecovery = () => {
+    const firstOtherPipeline = pipelines.find(p => p.id !== lead.pipelineId) ?? pipelines[0];
+    const pid = firstOtherPipeline?.id ?? lead.pipelineId;
+    const firstCol = pipelines.find(p => p.id === pid)?.columns[0]?.id ?? "";
+    setRecoveryPipelineId(pid);
+    setRecoveryColumnId(firstCol);
+    setShowRecoveryDialog(true);
+  };
+
+  const handleConfirmRecovery = () => {
+    if (!recoveryPipelineId) return;
+    const targetPipeline = pipelines.find(p => p.id === recoveryPipelineId);
+    const firstColId = targetPipeline?.columns[0]?.id ?? "";
+    if (!firstColId) return;
+    const targetCol = targetPipeline?.columns[0];
+    transferLead(lead.id, recoveryPipelineId, firstColId);
+    setShowRecoveryDialog(false);
+    addActivity(lead.id, {
+      date: new Date().toISOString(),
+      type: "stage_change",
+      description: `Lead transferido para ${targetPipeline?.name ?? "outro funil"} › ${targetCol?.title ?? ""}`,
+    });
+    toast.success(`Lead movido para ${targetPipeline?.name ?? "outro funil"}.`);
+    navigate("/pipeline");
+  };
+
   const noteActivities = lead.activities.filter(a => a.type === "note");
 
+  const SCHEDULED_TYPES: ActivityType[] = ["meeting", "call", "whatsapp", "email", "follow_up", "task"];
+
   const unifiedActivities = [...lead.activities]
-    .filter(a => a.type === "note" || a.type === "stage_change" || a.type === "won" || a.type === "lost")
+    .filter(a => a.type === "note" || a.type === "stage_change" || a.type === "won" || a.type === "lost" || SCHEDULED_TYPES.includes(a.type))
     .sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
+      const tA = new Date(a.date ?? 0).getTime();
+      const tB = new Date(b.date ?? 0).getTime();
+      return tB - tA;
     });
 
   const fmtActivityDate = (iso: string) => {
@@ -511,11 +621,21 @@ export default function LeadDetailPage() {
     if (isNaN(d.getTime())) return iso;
     const parts = new Intl.DateTimeFormat("pt-BR", {
       timeZone: "America/Sao_Paulo",
-      day: "2-digit", month: "2-digit", year: "numeric",
+      day: "numeric", month: "long",
       hour: "2-digit", minute: "2-digit", hour12: false,
     }).formatToParts(d);
     const get = (t: string) => parts.find(p => p.type === t)?.value ?? "";
-    return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+    const day = get("day");
+    const month = get("month").charAt(0).toUpperCase() + get("month").slice(1);
+    const h = get("hour");
+    const m = get("minute");
+    return `${day} de ${month} às ${h}h${m !== "00" ? m : ""}`;
+  };
+
+  const fmtScheduledDate = (iso: string) => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    return d;
   };
 
   return (
@@ -533,23 +653,24 @@ export default function LeadDetailPage() {
           top: 0,
           zIndex: 30,
         }}
-        className="flex items-center justify-between px-4"
+        className="grid grid-cols-3 items-center px-4"
       >
+        {/* Esquerda */}
         <button
           onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors justify-self-start"
           style={{ color: "#111111" }}
         >
           <ArrowLeft size={16} />
           <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
         </button>
 
-
-        <div className="flex items-center gap-2">
+        {/* Centro */}
+        <div className="flex items-center justify-center gap-2">
           {lead.dealStatus === "won" || lead.dealStatus === "lost" ? (
             <>
               <div
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-semibold"
+                className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-semibold"
                 style={
                   lead.dealStatus === "won"
                     ? { background: "#DCFCE7", color: "#128A68" }
@@ -557,38 +678,47 @@ export default function LeadDetailPage() {
                 }
               >
                 {lead.dealStatus === "won"
-                  ? <><Trophy size={13} className="shrink-0" /> Ganho</>
-                  : <><XCircle size={13} className="shrink-0" /> Perdido</>}
+                  ? <><Trophy size={12} className="shrink-0" /> Ganho</>
+                  : <><XCircle size={12} className="shrink-0" /> Perdido</>}
               </div>
               <Button
                 onClick={handleReopen}
                 size="sm"
                 variant="outline"
-                className="rounded-lg font-semibold h-8 border-card-border"
+                className="rounded-lg font-semibold h-7 text-xs px-2.5 border-card-border"
               >
-                <RotateCcw size={13} className="mr-1" /> Reabrir
+                <RotateCcw size={12} className="mr-1" /> Reabrir
               </Button>
             </>
           ) : (
             <>
-              <Button
+              <button
                 onClick={handleWon}
-                size="sm"
-                className="rounded-lg font-semibold h-8"
+                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
                 style={{ background: "#128A68", color: "#FFFFFF" }}
               >
-                <Trophy size={14} className="mr-1" /> Ganho
-              </Button>
-              <Button
-                onClick={handleLost}
-                variant="destructive"
-                size="sm"
-                className="rounded-lg font-semibold h-8"
+                <Trophy size={12} /> Ganho
+              </button>
+              <button
+                onClick={handleOpenRecovery}
+                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                style={{ background: "#F59E0B", color: "#FFFFFF" }}
               >
-                <XCircle size={14} className="mr-1" /> Perdido
-              </Button>
+                <ArrowRightLeft size={12} /> Recuperação
+              </button>
+              <button
+                onClick={handleLost}
+                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                style={{ background: "#E24B4A", color: "#FFFFFF" }}
+              >
+                <XCircle size={12} /> Perdido
+              </button>
             </>
           )}
+        </div>
+
+        {/* Direita */}
+        <div className="flex items-center gap-2 justify-self-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
@@ -668,24 +798,27 @@ export default function LeadDetailPage() {
       {/* PROGRESS BAR */}
       <div
         style={{
-          height: 64,
+          height: 52,
           background: "#FFFFFF",
           borderBottom: "0.5px solid #E5E5E5",
-          paddingLeft: 25,
+          paddingLeft: 16,
           paddingRight: 16,
         }}
-        className="flex items-center overflow-x-auto gap-4"
+        className="grid grid-cols-3 items-center"
       >
-        <div className="flex flex-col shrink-0">
-          <div className="flex items-baseline gap-1.5">
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>{lead.name}</span>
-            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>#{lead.dealNumber}</span>
+        {/* Esquerda — nome e funil */}
+        <div className="flex flex-col justify-self-start min-w-0">
+          <div className="flex items-baseline gap-1">
+            <span className="font-bold truncate" style={{ fontSize: 16, color: "#111111" }}>{lead.name}</span>
+            <span className="text-[11px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
           </div>
-          <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+          <span className="text-[10px] text-muted-foreground truncate">
             {pipeline.name} → {stages[activeIdx]?.title ?? "—"}
           </span>
         </div>
-        <div className="flex items-center flex-1 justify-center" style={{ gap: 4 }}>
+
+        {/* Centro — etapas */}
+        <div className="flex items-center justify-center" style={{ gap: 3 }}>
           {stages.map((s, idx) => {
             const isActive = idx === activeIdx;
             const isPast = idx < activeIdx;
@@ -702,24 +835,26 @@ export default function LeadDetailPage() {
                   style={{
                     background: bg,
                     color,
-                    fontSize: 12,
+                    fontSize: 10,
                     fontWeight: 600,
-                    padding: "6px 22px",
-                    clipPath:
-                      "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)",
+                    padding: "3px 14px",
+                    clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)",
                     textAlign: "center",
                     whiteSpace: "nowrap",
                   }}
                 >
                   {s.title}
                 </div>
-                <span style={{ fontSize: 10, color: "#AAAAAA", marginTop: 4 }}>
+                <span style={{ fontSize: 9, color: "#AAAAAA", marginTop: 2 }}>
                   {days} {days === 1 ? "dia" : "dias"}
                 </span>
               </button>
             );
           })}
         </div>
+
+        {/* Direita — vazio para balancear o grid */}
+        <div />
       </div>
 
       {/* CONTENT */}
@@ -837,7 +972,57 @@ export default function LeadDetailPage() {
                           </button>
                         }
                       />
-                      <EditableField label="E-mail" value={lead.email} type="email" onSave={v => updateField("email", v)} />
+                      {/* Multi-email */}
+                      <div>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>E-mail</label>
+                        {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
+                          <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors">
+                            <span style={{ fontSize: 13, color: "#111111" }}>{em}</span>
+                            <button
+                              onClick={() => {
+                                const updated = (lead.emails ?? (lead.email ? [lead.email] : [])).filter((_, i) => i !== idx);
+                                updateLead(lead.id, { emails: updated, email: updated[0] });
+                              }}
+                              className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+                            >
+                              <X size={12} color="#AAAAAA" />
+                            </button>
+                          </div>
+                        ))}
+                        {addEmailMode ? (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Input
+                              autoFocus
+                              type="email"
+                              value={newEmailDraft}
+                              onChange={e => setNewEmailDraft(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") {
+                                  const em = newEmailDraft.trim().toLowerCase();
+                                  if (em) {
+                                    const updated = [...(lead.emails ?? (lead.email ? [lead.email] : [])), em];
+                                    updateLead(lead.id, { emails: updated, email: updated[0] });
+                                  }
+                                  setNewEmailDraft("");
+                                  setAddEmailMode(false);
+                                }
+                                if (e.key === "Escape") { setNewEmailDraft(""); setAddEmailMode(false); }
+                              }}
+                              onBlur={() => { setNewEmailDraft(""); setAddEmailMode(false); }}
+                              placeholder="email@exemplo.com"
+                              className="h-7 text-xs rounded-md flex-1"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAddEmailMode(true)}
+                            className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
+                            style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+                          >
+                            + Adicionar
+                          </button>
+                        )}
+                      </div>
                       <EditableField label="CPF/CNPJ" value={(lead as any).document} onSave={v => updateField("document" as any, v)} />
                       <EditableField label="Cidade/Estado" value={(lead as any).location} onSave={v => updateField("location" as any, v)} />
                       <EditableField label="LinkedIn" value={(lead as any).linkedin} onSave={v => updateField("linkedin" as any, v)} />
@@ -998,6 +1183,7 @@ export default function LeadDetailPage() {
             borderRadius: 10,
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
             minWidth: 0,
+            marginRight: "clamp(0px, calc((100vw - 960px) * 0.30), 60px)",
           }}
         >
           {/* Tabs */}
@@ -1159,7 +1345,7 @@ export default function LeadDetailPage() {
                               onClick={() => startEditing(n.id, n.description)}
                               className="flex items-center justify-center rounded-md hover:bg-muted transition-colors"
                               style={{ width: 24, height: 24 }}
-                              aria-label="Editar anotação"
+                              title="Editar anotação"
                             >
                               <Pencil size={13} className="text-muted-foreground" />
                             </button>
@@ -1167,7 +1353,7 @@ export default function LeadDetailPage() {
                               onClick={() => setDeletingNoteId(n.id)}
                               className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
                               style={{ width: 24, height: 24 }}
-                              aria-label="Excluir anotação"
+                              title="Excluir anotação"
                             >
                               <Trash2 size={13} className="text-destructive" />
                             </button>
@@ -1242,6 +1428,239 @@ export default function LeadDetailPage() {
                             dangerouslySetInnerHTML={{ __html: n.description }}
                           />
                         )}
+                      </div>
+                    );
+                  }
+
+                  // Scheduled activity (meeting, call, whatsapp, email, follow_up)
+                  if (SCHEDULED_TYPES.includes(item.type)) {
+                    const now = new Date();
+                    const scheduledDate = item.scheduledAt ? fmtScheduledDate(item.scheduledAt) : null;
+                    const isCompleted = !!item.completedAt;
+                    const isNoShow = !!item.noShowAt;
+                    const isOverdue = scheduledDate ? (scheduledDate < now && !isCompleted && !isNoShow) : false;
+                    const typeLabels: Record<string, string> = {
+                      meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp",
+                      email: "E-mail", follow_up: "Follow-up", task: "Tarefa",
+                    };
+                    const typeIcons: Record<string, typeof CalendarDays> = {
+                      meeting: CalendarDays, call: Phone, whatsapp: MessageCircle,
+                      email: Mail, follow_up: RefreshCw, task: CheckSquare,
+                    };
+                    const TypeIcon = typeIcons[item.type] ?? CalendarDays;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="group"
+                        style={{
+                          background: item.pinned ? "#FFFBEB" : "#FAFAF7",
+                          border: item.pinned
+                            ? "0.5px solid #FCD34D"
+                            : isCompleted
+                            ? "1.5px solid #128A68"
+                            : isNoShow
+                            ? "1.5px solid #E24B4A"
+                            : isOverdue
+                            ? "1.5px solid #FECACA"
+                            : "1.5px solid rgba(18, 138, 104, 0.35)",
+                          borderRadius: 10, padding: 15,
+                        }}
+                      >
+                        {/* Cabeçalho igual ao das anotações */}
+                        <div className="flex items-center gap-2 mb-1">
+                          {memberAvatars[lead.responsible] ? (
+                            <img
+                              src={memberAvatars[lead.responsible]}
+                              alt={lead.responsible}
+                              className="w-6 h-6 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                              style={{ background: respColor }}
+                            >
+                              {lead.responsible[0]}
+                            </div>
+                          )}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
+                          {item.pinned && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                              Fixada
+                            </span>
+                          )}
+                          <div className="ml-auto flex items-center gap-1">
+                            {isCompleted ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                            ) : isNoShow ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                            ) : (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                                {typeLabels[item.type] ?? item.type}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => pinActivity(lead.id, item.id, !item.pinned)}
+                              className="flex items-center justify-center rounded-md transition-colors"
+                              style={{ width: 24, height: 24, background: item.pinned ? "#FEF3C7" : "transparent" }}
+                              title={item.pinned ? "Desafixar atividade" : "Fixar atividade"}
+                            >
+                              <Pin size={13} style={{ color: item.pinned ? "#D97706" : "#AAAAAA" }} />
+                            </button>
+                            <button
+                              onClick={() => openEditActivityDialog(item)}
+                              className="flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+                              style={{ width: 24, height: 24 }}
+                              title="Editar atividade"
+                            >
+                              <Pencil size={13} className="text-muted-foreground" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingActivityId(item.id)}
+                              className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
+                              style={{ width: 24, height: 24 }}
+                              title="Excluir atividade"
+                            >
+                              <Trash2 size={13} className="text-destructive" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-card-border my-2" />
+
+                        <div className="flex items-start gap-2.5">
+                          {/* Círculo de status */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="flex-shrink-0 mt-0.5 transition-all"
+                                style={{
+                                  width: 18, height: 18, borderRadius: "50%",
+                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
+                                  background: isCompleted ? "#128A68" : isNoShow ? "#FEF9C3" : "transparent",
+                                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                                }}
+                              >
+                                {isCompleted && <Check size={10} color="#FFFFFF" />}
+                                {isNoShow && <X size={10} color="#D97706" />}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-44">
+                              {!isCompleted && !isNoShow ? (
+                                <>
+                                  <DropdownMenuItem onClick={() => completeActivity(lead.id, item.id)} className="text-xs">
+                                    <Check size={12} className="mr-2 text-green-600" /> Marcar como realizada
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => markNoShow(lead.id, item.id)} className="text-xs">
+                                    <X size={12} className="mr-2 text-amber-600" /> No-show
+                                  </DropdownMenuItem>
+                                </>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => isCompleted ? uncompleteActivity(lead.id, item.id) : unmarkNoShow(lead.id, item.id)}
+                                  className="text-xs"
+                                >
+                                  <RotateCcw size={12} className="mr-2" /> Desfazer
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            {/* Título */}
+                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{item.title || item.description}</p>
+                            {/* Tarefa + Data e hora */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground">Tarefa</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <TypeIcon size={11} className="text-muted-foreground shrink-0" />
+                                  <span className="text-xs" style={{ color: "#111111" }}>{typeLabels[item.type] ?? item.type}</span>
+                                </div>
+                              </div>
+                              {scheduledDate && (
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground">Data e hora</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(item.scheduledAt!)}</p>
+                                </div>
+                              )}
+                            </div>
+                            {/* Badge vencida */}
+                            {isOverdue && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                              </div>
+                            )}
+                            {/* Participantes + Link */}
+                            {(item.participants?.length || item.meetLink) ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground">Participantes</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {item.participants && item.participants.length > 0 ? (
+                                      <>
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border border-card-border bg-background">
+                                          {memberAvatars[item.participants[0]] ? (
+                                            <img src={memberAvatars[item.participants[0]]} alt={item.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
+                                          ) : (
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[item.participants[0]] ?? "#AAAAAA" }}>
+                                              {item.participants[0][0].toUpperCase()}
+                                            </div>
+                                          )}
+                                          <span className="truncate max-w-[80px]">{item.participants[0]}</span>
+                                        </div>
+                                        {item.participants.length > 1 && (
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
+                                                +{item.participants.length - 1}
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent align="start" className="w-56 p-2 space-y-1">
+                                              <p className="text-[10px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
+                                              {item.participants.map(email => (
+                                                <div key={email} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-xs">
+                                                  {memberAvatars[email] ? (
+                                                    <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                  ) : (
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                      {email[0].toUpperCase()}
+                                                    </div>
+                                                  )}
+                                                  <span className="truncate">{email}</span>
+                                                </div>
+                                              ))}
+                                            </PopoverContent>
+                                          </Popover>
+                                        )}
+                                      </>
+                                    ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                                  </div>
+                                </div>
+                                {item.meetLink && (
+                                  <div>
+                                    <p className="text-[10px] text-muted-foreground">Link do Meet / Zoom</p>
+                                    <a href={item.meetLink} target="_blank" rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="flex items-center gap-0.5 text-xs mt-0.5"
+                                      style={{ color: "hsl(var(--primary))" }}
+                                    >
+                                      <Link size={10} className="shrink-0" /> <span className="truncate">{item.meetLink}</span>
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                            {/* Descrição */}
+                            {item.title && item.description && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground">Descrição</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{item.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     );
                   }
@@ -1329,8 +1748,238 @@ export default function LeadDetailPage() {
                   <span className="text-xs text-muted-foreground">
                     {leadTasks.filter(t => t.status === "Pendente").length} pendente(s)
                   </span>
-                  <NewLeadTaskButton onAdd={addLeadTask} />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-md h-8 text-xs"
+                      style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                      onClick={openActivityDialog}
+                    >
+                      <Plus size={13} className="mr-1" /> Nova atividade
+                    </Button>
+                  </div>
                 </div>
+                {/* Atividades agendadas — card igual às anotações */}
+                {lead.activities
+                  .filter(a => SCHEDULED_TYPES.includes(a.type))
+                  .sort((a, b) => new Date(b.scheduledAt ?? b.date ?? 0).getTime() - new Date(a.scheduledAt ?? a.date ?? 0).getTime())
+                  .map(act => {
+                    const now = new Date();
+                    const scheduledDate = act.scheduledAt ? fmtScheduledDate(act.scheduledAt) : null;
+                    const isCompleted = !!act.completedAt;
+                    const isNoShow = !!act.noShowAt;
+                    const isOverdue = scheduledDate ? (scheduledDate < now && !isCompleted && !isNoShow) : false;
+                    const actTypeLabels: Record<string, string> = {
+                      meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp",
+                      email: "E-mail", follow_up: "Follow-up", task: "Tarefa",
+                    };
+                    const actTypeIcons: Record<string, typeof CalendarDays> = {
+                      meeting: CalendarDays, call: Phone, whatsapp: MessageCircle,
+                      email: Mail, follow_up: RefreshCw, task: CheckSquare,
+                    };
+                    const ActTypeIcon = actTypeIcons[act.type] ?? CalendarDays;
+                    return (
+                      <div
+                        key={act.id}
+                        className="group"
+                        style={{
+                          background: act.pinned ? "#FFFBEB" : "#FAFAF7",
+                          border: act.pinned
+                            ? "0.5px solid #FCD34D"
+                            : isCompleted
+                            ? "1.5px solid #128A68"
+                            : isNoShow
+                            ? "1.5px solid #E24B4A"
+                            : isOverdue
+                            ? "1.5px solid #FECACA"
+                            : "1.5px solid rgba(18, 138, 104, 0.35)",
+                          borderRadius: 10, padding: 15,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {memberAvatars[lead.responsible] ? (
+                            <img src={memberAvatars[lead.responsible]} alt={lead.responsible} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: respColor }}>
+                              {lead.responsible[0]}
+                            </div>
+                          )}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(act.date)}</span>
+                          {act.pinned && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                              Fixada
+                            </span>
+                          )}
+                          <div className="ml-auto flex items-center gap-1">
+                            {isCompleted ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                            ) : isNoShow ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                            ) : (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                                {actTypeLabels[act.type] ?? act.type}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => pinActivity(lead.id, act.id, !act.pinned)}
+                              className="flex items-center justify-center rounded-md transition-colors"
+                              style={{ width: 24, height: 24, background: act.pinned ? "#FEF3C7" : "transparent" }}
+                              title={act.pinned ? "Desafixar atividade" : "Fixar atividade"}
+                            >
+                              <Pin size={13} style={{ color: act.pinned ? "#D97706" : "#AAAAAA" }} />
+                            </button>
+                            <button
+                              onClick={() => openEditActivityDialog(act)}
+                              className="flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+                              style={{ width: 24, height: 24 }}
+                              title="Editar atividade"
+                            >
+                              <Pencil size={13} className="text-muted-foreground" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingActivityId(act.id)}
+                              className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
+                              style={{ width: 24, height: 24 }}
+                              title="Excluir atividade"
+                            >
+                              <Trash2 size={13} className="text-destructive" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="border-t border-card-border my-2" />
+                        <div className="flex items-start gap-2.5">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="flex-shrink-0 mt-0.5 transition-all"
+                                style={{
+                                  width: 18, height: 18, borderRadius: "50%",
+                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
+                                  background: isCompleted ? "#128A68" : isNoShow ? "#D97706" : "transparent",
+                                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                                }}
+                              >
+                                {isCompleted && <Check size={10} color="#FFFFFF" />}
+                                {isNoShow && <X size={10} color="#FFFFFF" />}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-44">
+                              {!isCompleted && !isNoShow && (
+                                <>
+                                  <DropdownMenuItem onClick={() => completeActivity(lead.id, act.id)}>
+                                    <Check size={13} className="mr-2 text-green-600" /> Marcar como realizada
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => markNoShow(lead.id, act.id)}>
+                                    <X size={13} className="mr-2 text-amber-600" /> No-show
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {(isCompleted || isNoShow) && (
+                                <DropdownMenuItem onClick={() => isCompleted ? uncompleteActivity(lead.id, act.id) : unmarkNoShow(lead.id, act.id)}>
+                                  <RefreshCw size={13} className="mr-2" /> Desfazer
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            {/* Título */}
+                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{act.title || act.description}</p>
+                            {/* Tarefa + Data e hora */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground">Tarefa</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <ActTypeIcon size={11} className="text-muted-foreground shrink-0" />
+                                  <span className="text-xs" style={{ color: "#111111" }}>{actTypeLabels[act.type] ?? act.type}</span>
+                                </div>
+                              </div>
+                              {scheduledDate && (
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground">Data e hora</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(act.scheduledAt!)}</p>
+                                </div>
+                              )}
+                            </div>
+                            {/* Badge vencida */}
+                            {isOverdue && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                              </div>
+                            )}
+                            {/* Participantes + Link */}
+                            {(act.participants?.length || act.meetLink) ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground">Participantes</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {act.participants && act.participants.length > 0 ? (
+                                      <>
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border border-card-border bg-background">
+                                          {memberAvatars[act.participants[0]] ? (
+                                            <img src={memberAvatars[act.participants[0]]} alt={act.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
+                                          ) : (
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[act.participants[0]] ?? "#AAAAAA" }}>
+                                              {act.participants[0][0].toUpperCase()}
+                                            </div>
+                                          )}
+                                          <span className="truncate max-w-[80px]">{act.participants[0]}</span>
+                                        </div>
+                                        {act.participants.length > 1 && (
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
+                                                +{act.participants.length - 1}
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent align="start" className="w-56 p-2 space-y-1">
+                                              <p className="text-[10px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
+                                              {act.participants.map(email => (
+                                                <div key={email} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-xs">
+                                                  {memberAvatars[email] ? (
+                                                    <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                  ) : (
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                      {email[0].toUpperCase()}
+                                                    </div>
+                                                  )}
+                                                  <span className="truncate">{email}</span>
+                                                </div>
+                                              ))}
+                                            </PopoverContent>
+                                          </Popover>
+                                        )}
+                                      </>
+                                    ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                                  </div>
+                                </div>
+                                {act.meetLink && (
+                                  <div>
+                                    <p className="text-[10px] text-muted-foreground">Link do Meet / Zoom</p>
+                                    <a href={act.meetLink} target="_blank" rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="flex items-center gap-0.5 text-xs mt-0.5"
+                                      style={{ color: "hsl(var(--primary))" }}
+                                    >
+                                      <Link size={10} className="shrink-0" /> <span className="truncate">{act.meetLink}</span>
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                            {/* Descrição */}
+                            {act.title && act.description && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground">Descrição</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{act.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
                 {leadTasks.length === 0 ? (
                   <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
                     <p className="text-sm text-muted-foreground">Nenhuma tarefa para este lead</p>
@@ -1379,164 +2028,6 @@ export default function LeadDetailPage() {
               </div>
             )}
 
-            {tab === "reunioes" && (() => {
-              const scheduled = lead.activities
-                .filter(a => a.scheduledAt)
-                .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime());
-
-              const typeStyle: Record<string, { bg: string; color: string }> = {
-                meeting:   { bg: "#DBEAFE", color: "#1D4ED8" },
-                call:      { bg: "#D1FAE5", color: "#065F46" },
-                follow_up: { bg: "#FEF3C7", color: "#92400E" },
-                task:      { bg: "#EDE9FE", color: "#5B21B6" },
-              };
-              const typeLabel: Record<string, string> = {
-                meeting: "Reunião", call: "Call", follow_up: "Follow-up", task: "Tarefa",
-              };
-
-              return (
-                <div className="space-y-3">
-                  {!showMeetingForm ? (
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        className="rounded-md h-8 text-xs"
-                        style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
-                        onClick={() => setShowMeetingForm(true)}
-                      >
-                        <Plus size={13} className="mr-1" /> Agendar atividade
-                      </Button>
-                    </div>
-                  ) : (
-                    <div style={{ border: "0.5px solid hsl(var(--primary))", borderRadius: 10, padding: 14, background: "#FAFAFA" }}>
-                      <p className="text-xs font-semibold mb-3" style={{ color: "#111111" }}>Nova atividade agendada</p>
-                      <div className="space-y-2.5">
-                        <div>
-                          <label className="text-xs text-muted-foreground mb-1 block">Título *</label>
-                          <Input
-                            placeholder="Ex: Call de alinhamento"
-                            className="h-8 text-sm"
-                            value={meetingForm.title}
-                            onChange={e => setMeetingForm(f => ({ ...f, title: e.target.value }))}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-                            <Select value={meetingForm.type} onValueChange={v => setMeetingForm(f => ({ ...f, type: v as ActivityType }))}>
-                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="meeting">Reunião</SelectItem>
-                                <SelectItem value="call">Call</SelectItem>
-                                <SelectItem value="follow_up">Follow-up</SelectItem>
-                                <SelectItem value="task">Tarefa</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Duração</label>
-                            <Select value={meetingForm.dur} onValueChange={v => setMeetingForm(f => ({ ...f, dur: v }))}>
-                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="15">15 min</SelectItem>
-                                <SelectItem value="30">30 min</SelectItem>
-                                <SelectItem value="60">1 hora</SelectItem>
-                                <SelectItem value="120">2 horas</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground mb-1 block">Data e hora *</label>
-                          <Input
-                            type="datetime-local"
-                            className="h-8 text-sm"
-                            value={meetingForm.scheduledAt}
-                            onChange={e => setMeetingForm(f => ({ ...f, scheduledAt: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-end gap-2 mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs rounded-md"
-                          onClick={() => { setShowMeetingForm(false); setMeetingForm({ title: "", type: "meeting", scheduledAt: "", dur: "60" }); }}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs rounded-md"
-                          style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
-                          onClick={() => {
-                            if (!meetingForm.title.trim() || !meetingForm.scheduledAt) {
-                              toast.error("Preencha título e data/hora.");
-                              return;
-                            }
-                            addActivity(lead.id, {
-                              type: meetingForm.type,
-                              description: meetingForm.title,
-                              title: meetingForm.title,
-                              date: new Date().toISOString(),
-                              scheduledAt: new Date(meetingForm.scheduledAt).toISOString(),
-                              durationMinutes: Number(meetingForm.dur),
-                            });
-                            toast.success("Atividade agendada!");
-                            setShowMeetingForm(false);
-                            setMeetingForm({ title: "", type: "meeting", scheduledAt: "", dur: "60" });
-                          }}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {scheduled.length === 0 ? (
-                    <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
-                      <Calendar size={28} className="mx-auto mb-2 text-muted-foreground/40" />
-                      <p className="text-sm text-muted-foreground">Nenhuma atividade agendada para este lead</p>
-                    </div>
-                  ) : (
-                    scheduled.map(a => {
-                      const s = new Date(a.scheduledAt!);
-                      const st = typeStyle[a.type] ?? { bg: "#F3F4F6", color: "#374151" };
-                      const lbl = typeLabel[a.type] ?? a.type;
-                      const isPast = s < new Date();
-                      const durMin = a.durationMinutes ?? 60;
-                      const durLabel = durMin >= 60 ? `${durMin / 60}h` : `${durMin} min`;
-                      return (
-                        <div
-                          key={a.id}
-                          className="flex items-start gap-3 p-3 rounded-lg"
-                          style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", opacity: isPast ? 0.6 : 1 }}
-                        >
-                          <div
-                            className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-                            style={st}
-                          >
-                            <Calendar size={14} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium" style={{ color: "#111111" }}>{a.title ?? a.description}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {fmtActivityDate(a.scheduledAt!)} · {durLabel}
-                            </p>
-                          </div>
-                          <span
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
-                            style={st}
-                          >
-                            {lbl}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              );
-            })()}
 
             {tab === "email" && (
               <div className="text-center py-16">
@@ -1650,50 +2141,196 @@ export default function LeadDetailPage() {
       </DialogContent>
     </Dialog>
 
+    <Dialog open={showRecoveryDialog} onOpenChange={setShowRecoveryDialog}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowRightLeft size={16} style={{ color: "#F59E0B" }} />
+            Transferir para outro funil
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">Funil de destino</label>
+            <Select
+              value={recoveryPipelineId}
+              onValueChange={setRecoveryPipelineId}
+            >
+              <SelectTrigger className="rounded-lg border-card-border">
+                <SelectValue placeholder="Selecione o funil" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setShowRecoveryDialog(false)} className="rounded-lg border-card-border">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmRecovery}
+            disabled={!recoveryPipelineId}
+            className="rounded-lg"
+            style={{ background: "#F59E0B", color: "#FFFFFF" }}
+          >
+            <ArrowRightLeft size={14} className="mr-1.5" /> Transferir lead
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog open={showWonProductDialog} onOpenChange={setShowWonProductDialog}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trophy size={16} style={{ color: "#128A68" }} />
-            Selecione o produto para fechar o ganho
+            Confirmar ganho
           </DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-1">
-          É necessário vincular um produto antes de marcar o negócio como ganho.
-        </p>
-        <Select value={wonProductId} onValueChange={setWonProductId}>
-          <SelectTrigger className="rounded-lg">
-            <SelectValue placeholder="Escolha um produto" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Selecione um produto</SelectItem>
-            {products.map(p => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-                {p.defaultValue > 0 && (
-                  <span className="ml-2 text-muted-foreground text-xs">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.defaultValue)}
-                  </span>
-                )}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DialogFooter className="gap-2">
+
+        <div className="space-y-4">
+          {/* Produto */}
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+              Produto{lead.productId ? "" : " *"}
+            </label>
+            {lead.productId ? (
+              <p className="text-sm px-3 py-2 rounded-lg border border-card-border bg-muted text-foreground">
+                {products.find(p => p.id === lead.productId)?.name ?? "—"}
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Nenhum produto vinculado. Selecione para registrar o ganho.
+                </p>
+                <Select value={wonProductId} onValueChange={setWonProductId}>
+                  <SelectTrigger className="rounded-lg">
+                    <SelectValue placeholder="Escolha um produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione um produto</SelectItem>
+                    {products.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        {p.defaultValue > 0 && (
+                          <span className="ml-2 text-muted-foreground text-xs">
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.defaultValue)}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
+
+          {/* Transferência de funil */}
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+              Transferir para outro funil{" "}
+              <span className="font-normal text-muted-foreground">(opcional)</span>
+            </label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Encaminhe o cliente ganho para outro funil, como CS ou Onboarding.
+            </p>
+            <Select value={wonTransferPipelineId} onValueChange={setWonTransferPipelineId}>
+              <SelectTrigger className="rounded-lg">
+                <SelectValue placeholder="Manter no funil atual" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Manter no funil atual</SelectItem>
+                {pipelines
+                  .filter(p => p.id !== lead.pipelineId)
+                  .map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {wonTransferPipelineId && wonTransferPipelineId !== "none" && (() => {
+              const target = pipelines.find(p => p.id === wonTransferPipelineId);
+              const firstCol = target?.columns[0];
+              return firstCol ? (
+                <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                  <span style={{ color: "#128A68" }}>→</span>
+                  Entrará em <strong className="text-foreground">{target?.name}</strong> na etapa <strong className="text-foreground">{firstCol.title}</strong>
+                </p>
+              ) : null;
+            })()}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 mt-2">
           <Button variant="outline" className="rounded-lg" onClick={() => setShowWonProductDialog(false)}>
             Cancelar
           </Button>
           <Button
             className="rounded-lg"
-            disabled={!wonProductId || wonProductId === "none"}
+            disabled={!lead.productId && (!wonProductId || wonProductId === "none")}
             style={{ background: "#128A68", color: "#FFFFFF" }}
             onClick={handleConfirmWon}
           >
-            <Trophy size={14} className="mr-1.5" /> Confirmar ganho
+            <Trophy size={14} className="mr-1.5" />
+            {wonTransferPipelineId && wonTransferPipelineId !== "none" ? "Ganho e transferir" : "Confirmar ganho"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Nova / Editar Atividade Dialog */}
+    <ActivityDialog
+      open={showActivityDialog}
+      onClose={() => { setShowActivityDialog(false); setEditingActivityId(null); }}
+      onSubmit={handleActivitySubmit}
+      isEditing={!!editingActivityId}
+      readOnly={!!(editingActivity?.userName && editingActivity.userName !== profile?.full_name)}
+      leads={leads}
+      teamMembers={teamMembers}
+      memberEmails={memberEmails}
+      memberAvatars={memberAvatars}
+      memberColors={memberColors}
+      defaultLead={lead}
+      initialValues={editingActivity ? {
+        title: editingActivity.title ?? editingActivity.description ?? "",
+        type: editingActivity.type,
+        scheduledAt: editingActivity.scheduledAt,
+        durationMinutes: editingActivity.durationMinutes,
+        meetLink: editingActivity.meetLink,
+        description: editingActivity.title ? (editingActivity.description ?? "") : "",
+        participants: editingActivity.participants,
+      } : undefined}
+    />
+
+    {/* Confirmar exclusão de atividade */}
+    <AlertDialog open={!!deletingActivityId} onOpenChange={v => !v && setDeletingActivityId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir atividade?</AlertDialogTitle>
+          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deletingActivityId) {
+                deleteActivity(lead.id, deletingActivityId);
+                setDeletingActivityId(null);
+                toast.success("Atividade excluída.");
+              }
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

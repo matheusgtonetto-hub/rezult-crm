@@ -1317,6 +1317,7 @@ function ProdutosSection() {
   const [sku, setSku]     = useState("");
   const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   const fmt = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -1416,7 +1417,7 @@ function ProdutosSection() {
                       <button onClick={() => openEdit(p)} className="text-[#CCCCCC] hover:text-[#535353] p-1 transition-colors">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => deleteProduct(p.id)} className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors">
+                      <button onClick={() => setDeletingProductId(p.id)} className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1427,6 +1428,19 @@ function ProdutosSection() {
           </Table>
         )}
       </div>
+
+      <Dialog open={!!deletingProductId} onOpenChange={o => !o && setDeletingProductId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir produto?</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">Esta ação não pode ser desfeita.</p>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg border-[#EEEEEE]" onClick={() => setDeletingProductId(null)}>Cancelar</Button>
+            <Button variant="destructive" className="rounded-lg" onClick={async () => { await deleteProduct(deletingProductId!); setDeletingProductId(null); }}>Excluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
         <DialogContent className="max-w-sm">

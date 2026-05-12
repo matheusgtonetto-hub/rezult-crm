@@ -1,25 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
+import { useProfile } from "@/context/ProfileContext";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { LeadDrawer } from "@/components/LeadDrawer";
+import { ActivityDialog } from "@/components/ActivityDialog";
+import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
-import type { ActivityType } from "@/data/mockData";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +20,9 @@ interface CalEvent {
   leadName: string;
   scheduledAt: Date;
   durationMinutes: number;
+  userName?: string;
+  isCompleted: boolean;
+  isNoShow: boolean;
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -46,19 +36,6 @@ const PT_MONTHS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const DURATION_OPTS = [
-  { v: "15",  l: "15 min" },
-  { v: "30",  l: "30 min" },
-  { v: "60",  l: "1 hora" },
-  { v: "120", l: "2 horas" },
-];
-
-const TYPE_OPTS: { v: ActivityType; l: string }[] = [
-  { v: "meeting",   l: "Reunião" },
-  { v: "call",      l: "Call" },
-  { v: "follow_up", l: "Follow-up" },
-  { v: "task",      l: "Tarefa" },
-];
 
 const TYPE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
   meeting:   { bg: "#DBEAFE", color: "#1D4ED8", border: "#3B82F6" },
@@ -147,7 +124,7 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
       </div>
 
       {/* Grade de dias */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "110px" }}>
         {days.map(day => {
           const isToday = sameDay(day, today);
           const inMonth = sameMonth(day, cur);
@@ -157,7 +134,8 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
             <div
               key={day.toISOString()}
               style={{
-                minHeight: 100,
+                height: 110,
+                overflow: "hidden",
                 padding: "6px 8px",
                 borderRight: "1px solid #F0F0F0",
                 borderBottom: "1px solid #F0F0F0",
@@ -184,7 +162,15 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
 
               <div className="space-y-0.5">
                 {dayEvts.slice(0, 3).map(evt => {
-                  const s = TYPE_STYLE[evt.type] ?? DEFAULT_STYLE;
+                  const now = new Date();
+                  const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
+                  const s = overdue
+                    ? { bg: "#FEE2E2", color: "#B91C1C" }
+                    : evt.isCompleted
+                    ? { bg: "#D1FAE5", color: "#065F46" }
+                    : evt.isNoShow
+                    ? { bg: "#FEE2E2", color: "#991B1B" }
+                    : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
                   return (
                     <button
                       key={evt.id}
@@ -352,7 +338,15 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   const m = evt.scheduledAt.getMinutes();
                   const top = ((h * 60 + m) / 60) * HOUR_H;
                   const height = Math.max((evt.durationMinutes / 60) * HOUR_H, 22);
-                  const s = TYPE_STYLE[evt.type] ?? DEFAULT_STYLE;
+                  const now = new Date();
+                  const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
+                  const s = overdue
+                    ? { bg: "#FEE2E2", color: "#B91C1C", border: "#F87171" }
+                    : evt.isCompleted
+                    ? { bg: "#D1FAE5", color: "#065F46", border: "#34D399" }
+                    : evt.isNoShow
+                    ? { bg: "#FEE2E2", color: "#991B1B", border: "#F87171" }
+                    : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
 
                   return (
                     <button
@@ -414,20 +408,47 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
-  const { leads, addActivity } = useCRM();
+  const navigate = useNavigate();
+  const { leads, addActivity, patchActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
+  const { profile } = useProfile();
   const [view, setView] = useState<CalView>("mes");
   const today = useMemo(() => new Date(), []);
   const [cur, setCur] = useState(() => new Date());
-  const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    type: "meeting" as ActivityType,
-    leadId: "",
-    scheduledAt: "",
-    dur: "60",
-  });
+  const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  const myName = profile?.full_name ?? "";
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(() =>
+    profile?.full_name ? [profile.full_name] : []
+  );
+  const [userPickerOpen, setUserPickerOpen] = useState(false);
+  const userPickerRef = useRef<HTMLDivElement>(null);
+
+  // Sincroniza seleção inicial quando o profile carrega
+  useEffect(() => {
+    if (myName && selectedUsers.length === 0) {
+      setSelectedUsers([myName]);
+    }
+  }, [myName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fecha o dropdown ao clicar fora
+  useEffect(() => {
+    if (!userPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (userPickerRef.current && !userPickerRef.current.contains(e.target as Node)) {
+        setUserPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [userPickerOpen]);
+
+  const toggleUser = (name: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(name) ? prev.filter(u => u !== name) : [...prev, name]
+    );
+  };
 
   // Rola para as 8h ao mudar de vista semana/dia
   useEffect(() => {
@@ -436,8 +457,8 @@ export default function CalendarPage() {
     }
   }, [view]);
 
-  // Eventos derivados do estado CRM
-  const calEvents = useMemo<CalEvent[]>(
+  // Todos os eventos com scheduledAt
+  const allCalEvents = useMemo<CalEvent[]>(
     () =>
       Object.values(leads).flatMap(lead =>
         (lead.activities ?? [])
@@ -450,17 +471,24 @@ export default function CalendarPage() {
             leadName: lead.name,
             scheduledAt: new Date(a.scheduledAt!),
             durationMinutes: a.durationMinutes ?? 60,
+            userName: a.userName,
+            isCompleted: !!a.completedAt,
+            isNoShow: !!a.noShowAt,
           }))
       ),
     [leads]
   );
 
-  const leadList = useMemo(
-    () => Object.values(leads).sort((a, b) => a.name.localeCompare(b.name)),
-    [leads]
-  );
+  // Filtra por usuários selecionados
+  const calEvents = useMemo(() => {
+    if (selectedUsers.length === 0) return allCalEvents;
+    return allCalEvents.filter(e => {
+      if (!e.userName) return selectedUsers.includes(myName);
+      return selectedUsers.includes(e.userName);
+    });
+  }, [allCalEvents, selectedUsers, myName]);
 
-  const navigate = (dir: 1 | -1) => {
+  const navDate = (dir: 1 | -1) => {
     setCur(d => {
       const r = new Date(d);
       if (view === "mes") r.setMonth(r.getMonth() + dir);
@@ -480,22 +508,36 @@ export default function CalendarPage() {
     return `${pad2(cur.getDate())} de ${PT_MONTHS[cur.getMonth()]} de ${cur.getFullYear()}`;
   };
 
-  const handleSave = () => {
-    if (!form.title.trim() || !form.leadId || !form.scheduledAt) {
-      toast.error("Preencha título, lead e data/hora.");
-      return;
+  const handleActivitySubmit = (data: ActivitySubmitData) => {
+    if (editingEvent) {
+      patchActivity(editingEvent.leadId, editingEvent.id, {
+        type: data.type,
+        title: data.title,
+        description: data.description,
+        scheduledAt: new Date(data.scheduledAt).toISOString(),
+        durationMinutes: data.durationMinutes,
+        meetLink: data.meetLink || undefined,
+        participants: data.participants.length > 0 ? data.participants : undefined,
+        contactEmail: data.participants[0] || undefined,
+      });
+      toast.success("Atividade atualizada!");
+      setEditingEvent(null);
+    } else {
+      if (!data.leadId) return;
+      addActivity(data.leadId, {
+        type: data.type,
+        title: data.title,
+        description: data.description,
+        date: new Date().toISOString(),
+        scheduledAt: new Date(data.scheduledAt).toISOString(),
+        durationMinutes: data.durationMinutes,
+        meetLink: data.meetLink || undefined,
+        participants: data.participants.length > 0 ? data.participants : undefined,
+        contactEmail: data.participants[0] || undefined,
+      });
+      toast.success("Atividade agendada!");
+      setShowModal(false);
     }
-    addActivity(form.leadId, {
-      type: form.type,
-      description: form.title,
-      title: form.title,
-      date: new Date().toISOString(),
-      scheduledAt: new Date(form.scheduledAt).toISOString(),
-      durationMinutes: Number(form.dur),
-    });
-    toast.success("Atividade agendada!");
-    setShowModal(false);
-    setForm({ title: "", type: "meeting", leadId: "", scheduledAt: "", dur: "60" });
   };
 
   return (
@@ -526,7 +568,7 @@ export default function CalendarPage() {
           {/* Navegação */}
           <div className="flex items-center gap-1">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navDate(-1)}
               className="flex items-center justify-center rounded-md hover:bg-muted transition-colors"
               style={{ width: 28, height: 28 }}
             >
@@ -540,7 +582,7 @@ export default function CalendarPage() {
               Hoje
             </button>
             <button
-              onClick={() => navigate(1)}
+              onClick={() => navDate(1)}
               className="flex items-center justify-center rounded-md hover:bg-muted transition-colors"
               style={{ width: 28, height: 28 }}
             >
@@ -552,7 +594,165 @@ export default function CalendarPage() {
             {periodLabel()}
           </span>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
+            {/* Seletor de usuários */}
+            {teamMembers.length > 0 && (
+              <div ref={userPickerRef} className="relative flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground">Agenda de:</span>
+
+                {/* Avatares dos selecionados (máx 5) */}
+                <div className="flex items-center" style={{ gap: -4 }}>
+                  {selectedUsers.slice(0, 5).map((name, idx) => {
+                    const avatar = memberAvatars[name];
+                    const color = memberColors[name] ?? "#AAAAAA";
+                    return (
+                      <div
+                        key={name}
+                        title={name}
+                        style={{
+                          marginLeft: idx === 0 ? 0 : -6,
+                          zIndex: 5 - idx,
+                          position: "relative",
+                          outline: `2px solid #FFFFFF`,
+                          borderRadius: "50%",
+                        }}
+                      >
+                        {avatar ? (
+                          <img
+                            src={avatar}
+                            alt={name}
+                            className="rounded-full object-cover block"
+                            style={{ width: 26, height: 26, border: `2px solid ${color}` }}
+                          />
+                        ) : (
+                          <div
+                            className="rounded-full flex items-center justify-center text-white font-semibold"
+                            style={{ width: 26, height: 26, background: color, fontSize: 10, border: `2px solid ${color}` }}
+                          >
+                            {name[0].toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {selectedUsers.length > 5 && (
+                    <div
+                      className="rounded-full flex items-center justify-center font-semibold"
+                      style={{
+                        width: 26, height: 26,
+                        background: "#E5E5E5",
+                        color: "#555",
+                        fontSize: 10,
+                        marginLeft: -6,
+                        zIndex: 0,
+                        border: "2px solid #FFFFFF",
+                      }}
+                    >
+                      +{selectedUsers.length - 5}
+                    </div>
+                  )}
+                  {selectedUsers.length === 0 && (
+                    <span className="text-[11px] text-muted-foreground italic">Nenhum</span>
+                  )}
+                </div>
+
+                {/* Botão para abrir o dropdown */}
+                <button
+                  onClick={() => setUserPickerOpen(v => !v)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-colors hover:bg-muted"
+                  style={{
+                    borderColor: userPickerOpen ? "hsl(var(--primary))" : "#E5E5E5",
+                    color: "#555",
+                    background: userPickerOpen ? "hsl(var(--primary) / 0.06)" : "#FFFFFF",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 1 }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+
+                {/* Dropdown com todos os membros */}
+                {userPickerOpen && (
+                  <div
+                    className="absolute bg-card border border-card-border shadow-lg z-50 overflow-hidden"
+                    style={{
+                      top: "calc(100% + 8px)",
+                      right: 0,
+                      width: 230,
+                      borderRadius: 12,
+                      maxHeight: 320,
+                      overflowY: "auto",
+                    }}
+                  >
+                    <div className="px-3 py-2 border-b border-card-border flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Membros do time</span>
+                      {selectedUsers.length > 0 && (
+                        <button
+                          onClick={() => setSelectedUsers([])}
+                          className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    {teamMembers.map(name => {
+                      const selected = selectedUsers.includes(name);
+                      const avatar = memberAvatars[name];
+                      const color = memberColors[name] ?? "#AAAAAA";
+                      const isMe = name === myName;
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => toggleUser(name)}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
+                        >
+                          {/* Checkbox */}
+                          <div
+                            className="flex items-center justify-center rounded flex-shrink-0"
+                            style={{
+                              width: 15, height: 15,
+                              border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC",
+                              background: selected ? color : "transparent",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            {selected && (
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                            )}
+                          </div>
+
+                          {/* Avatar */}
+                          {avatar ? (
+                            <img src={avatar} alt={name} className="rounded-full object-cover flex-shrink-0" style={{ width: 24, height: 24 }} />
+                          ) : (
+                            <div className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0" style={{ width: 24, height: 24, background: color, fontSize: 10 }}>
+                              {name[0].toUpperCase()}
+                            </div>
+                          )}
+
+                          {/* Nome */}
+                          <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
+                            {name}{isMe ? " (você)" : ""}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Separador */}
+            {teamMembers.length > 0 && (
+              <div style={{ width: 1, height: 20, background: "#E5E5E5" }} />
+            )}
+
             {/* Toggle de vista */}
             <div
               className="flex rounded-lg overflow-hidden"
@@ -593,7 +793,7 @@ export default function CalendarPage() {
             cur={cur}
             today={today}
             events={calEvents}
-            onEvt={e => setDrawerLeadId(e.leadId)}
+            onEvt={e => setEditingEvent(e)}
           />
         )}
         {(view === "semana" || view === "dia") && (
@@ -602,126 +802,44 @@ export default function CalendarPage() {
             cur={cur}
             today={today}
             events={calEvents}
-            onEvt={e => setDrawerLeadId(e.leadId)}
+            onEvt={e => setEditingEvent(e)}
             gridRef={gridRef}
           />
         )}
       </div>
 
-      <LeadDrawer
-        leadId={drawerLeadId}
-        open={!!drawerLeadId}
-        onClose={() => setDrawerLeadId(null)}
+      <ActivityDialog
+        open={showModal || !!editingEvent}
+        onClose={() => { setShowModal(false); setEditingEvent(null); }}
+        onSubmit={handleActivitySubmit}
+        isEditing={!!editingEvent}
+        readOnly={!!editingEvent && (() => {
+          const act = leads[editingEvent.leadId]?.activities?.find(a => a.id === editingEvent.id);
+          return !!(act?.userName && act.userName !== profile?.full_name);
+        })()}
+        onGoToLead={editingEvent ? () => {
+          setEditingEvent(null);
+          navigate(`/pipeline/lead/${editingEvent.leadId}`);
+        } : undefined}
+        leads={leads}
+        teamMembers={teamMembers}
+        memberEmails={memberEmails}
+        memberAvatars={memberAvatars}
+        memberColors={memberColors}
+        defaultLead={editingEvent ? leads[editingEvent.leadId] : undefined}
+        initialValues={editingEvent ? (() => {
+          const act = leads[editingEvent.leadId]?.activities?.find(a => a.id === editingEvent.id);
+          return {
+            title: act?.title ?? act?.description ?? editingEvent.title,
+            type: act?.type ?? editingEvent.type,
+            scheduledAt: act?.scheduledAt ?? editingEvent.scheduledAt.toISOString(),
+            durationMinutes: act?.durationMinutes ?? editingEvent.durationMinutes,
+            meetLink: act?.meetLink,
+            description: act?.title ? (act.description ?? "") : "",
+            participants: act?.participants,
+          };
+        })() : undefined}
       />
-
-      {/* Modal Nova atividade */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>Nova atividade</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-1">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Título *
-              </label>
-              <Input
-                placeholder="Ex: Reunião de alinhamento"
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Tipo
-              </label>
-              <Select
-                value={form.type}
-                onValueChange={v => setForm(f => ({ ...f, type: v as ActivityType }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTS.map(o => (
-                    <SelectItem key={o.v} value={o.v}>
-                      {o.l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Lead *
-              </label>
-              <Select
-                value={form.leadId}
-                onValueChange={v => setForm(f => ({ ...f, leadId: v }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecionar lead…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leadList.map(l => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Data e hora *
-                </label>
-                <Input
-                  type="datetime-local"
-                  className="h-9 text-sm"
-                  value={form.scheduledAt}
-                  onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Duração
-                </label>
-                <Select
-                  value={form.dur}
-                  onValueChange={v => setForm(f => ({ ...f, dur: v }))}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_OPTS.map(o => (
-                      <SelectItem key={o.v} value={o.v}>
-                        {o.l}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
-            >
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

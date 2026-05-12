@@ -23,6 +23,13 @@ import {
   Sparkles,
   Plus,
   CheckSquare,
+  CalendarDays,
+  Phone,
+  Mail,
+  RefreshCw,
+  Check,
+  Link,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -40,10 +47,15 @@ const ACTIVITY_META: Record<
 > = {
   note: { icon: StickyNote, tone: "text-foreground bg-muted", label: "Anotação" },
   stage_change: { icon: ArrowRightLeft, tone: "text-primary bg-primary/10", label: "Etapa" },
-  whatsapp: { icon: MessageCircle, tone: "text-success bg-success/10", label: "WhatsApp" },
+  whatsapp: { icon: MessageCircle, tone: "text-emerald-500 bg-emerald-500/10", label: "WhatsApp" },
   won: { icon: Trophy, tone: "text-success bg-success/10", label: "Ganho" },
   lost: { icon: XCircle, tone: "text-destructive bg-destructive/10", label: "Perdido" },
   created: { icon: PlusCircle, tone: "text-muted-foreground bg-muted", label: "Criado" },
+  meeting: { icon: CalendarDays, tone: "text-blue-500 bg-blue-500/10", label: "Reunião" },
+  call: { icon: Phone, tone: "text-green-500 bg-green-500/10", label: "Ligação" },
+  email: { icon: Mail, tone: "text-orange-500 bg-orange-500/10", label: "E-mail" },
+  follow_up: { icon: RefreshCw, tone: "text-purple-500 bg-purple-500/10", label: "Follow-up" },
+  task: { icon: CheckSquare, tone: "text-muted-foreground bg-muted", label: "Tarefa" },
 };
 
 export function LeadDrawer({ leadId, open, onClose }: Props) {
@@ -53,6 +65,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     columns,
     teamMembers,
     addActivity,
+    completeActivity,
     products,
     markLeadWon,
     markLeadLost,
@@ -64,6 +77,48 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [taskFilter, setTaskFilter] = useState<"pending" | "done" | "all">("pending");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [showNewTask, setShowNewTask] = useState(false);
+  const [showNewActivity, setShowNewActivity] = useState(false);
+  const [actTitle, setActTitle] = useState("");
+  const [actType, setActType] = useState<ActivityType>("meeting");
+  const [actScheduledAt, setActScheduledAt] = useState("");
+  const [actEmail, setActEmail] = useState("");
+  const [actMeetLink, setActMeetLink] = useState("");
+  const [actDescription, setActDescription] = useState("");
+
+  const SCHED_TYPES: { type: ActivityType; icon: typeof CalendarDays; label: string }[] = [
+    { type: "meeting", icon: CalendarDays, label: "Reunião" },
+    { type: "call", icon: Phone, label: "Ligação" },
+    { type: "whatsapp", icon: MessageCircle, label: "WhatsApp" },
+    { type: "email", icon: Mail, label: "E-mail" },
+    { type: "follow_up", icon: RefreshCw, label: "Follow-up" },
+  ];
+
+  const openNewActivity = () => {
+    const d = new Date();
+    d.setMinutes(Math.ceil(d.getMinutes() / 30) * 30, 0, 0);
+    setActScheduledAt(d.toISOString().slice(0, 16));
+    setActEmail(lead.email ?? "");
+    setActTitle("");
+    setActType("meeting");
+    setActMeetLink("");
+    setActDescription("");
+    setShowNewActivity(true);
+  };
+
+  const handleCreateActivity = () => {
+    if (!actTitle.trim() || !actScheduledAt) return;
+    addActivity(leadId, {
+      date: new Date().toISOString(),
+      type: actType,
+      title: actTitle.trim(),
+      description: actDescription,
+      scheduledAt: actScheduledAt,
+      contactEmail: actEmail || undefined,
+      meetLink: actMeetLink || undefined,
+    });
+    setShowNewActivity(false);
+    toast.success("Atividade criada!");
+  };
 
   if (!leadId || !leads[leadId]) return null;
   const lead = leads[leadId];
@@ -451,10 +506,127 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
           {/* Activity history */}
           <div className="border-t border-card-border pt-4">
-            <h4 className="text-sm font-semibold text-foreground mb-3">
-              Histórico de atividades
-            </h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-foreground">
+                Histórico de atividades
+              </h4>
+              {!showNewActivity && (
+                <Button
+                  size="sm"
+                  onClick={openNewActivity}
+                  className="h-7 rounded-lg text-xs"
+                >
+                  <Plus size={12} className="mr-1" />
+                  Nova atividade
+                </Button>
+              )}
+            </div>
+
+            {showNewActivity && (
+              <div className="mb-4 p-3 rounded-lg border border-card-border bg-background space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground">Nova atividade</p>
+                  <button onClick={() => setShowNewActivity(false)} className="text-muted-foreground hover:text-foreground">
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Título</label>
+                  <Input
+                    autoFocus
+                    placeholder="Ex: Reunião de apresentação"
+                    value={actTitle}
+                    onChange={e => setActTitle(e.target.value)}
+                    className="bg-card border-card-border rounded-lg h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1.5 block">Tipo</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {SCHED_TYPES.map(({ type: t, icon: Icon, label }) => (
+                      <button
+                        key={t}
+                        onClick={() => setActType(t)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-medium transition-colors ${
+                          actType === t
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-card-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        <Icon size={11} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Data e hora</label>
+                  <Input
+                    type="datetime-local"
+                    value={actScheduledAt}
+                    onChange={e => setActScheduledAt(e.target.value)}
+                    className="bg-card border-card-border rounded-lg h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">E-mail do contato</label>
+                  <Input
+                    type="email"
+                    placeholder="contato@empresa.com"
+                    value={actEmail}
+                    onChange={e => setActEmail(e.target.value)}
+                    className="bg-card border-card-border rounded-lg h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Link do Meet / Zoom</label>
+                  <Input
+                    type="url"
+                    placeholder="https://meet.google.com/..."
+                    value={actMeetLink}
+                    onChange={e => setActMeetLink(e.target.value)}
+                    className="bg-card border-card-border rounded-lg h-8 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Descrição</label>
+                  <Textarea
+                    placeholder="Detalhes da atividade..."
+                    value={actDescription}
+                    onChange={e => setActDescription(e.target.value)}
+                    className="bg-card border-card-border rounded-lg min-h-[60px] resize-none text-sm"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewActivity(false)}
+                    className="rounded-lg border-card-border flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleCreateActivity}
+                    disabled={!actTitle.trim() || !actScheduledAt}
+                    className="rounded-lg flex-1"
+                  >
+                    <Check size={12} className="mr-1" />
+                    Criar atividade
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-72 overflow-y-auto mb-3">
               {lead.activities.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   Nenhuma atividade registrada.
@@ -463,22 +635,73 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               {[...lead.activities].reverse().map(act => {
                 const meta = ACTIVITY_META[act.type] || ACTIVITY_META.note;
                 const Icon = meta.icon;
+                const isScheduled = !!act.scheduledAt;
+                const now = new Date();
+                const scheduledDate = act.scheduledAt ? new Date(act.scheduledAt) : null;
+                const isCompleted = !!act.completedAt;
+                const isOverdue = isScheduled && !isCompleted && scheduledDate! < now;
+
                 return (
                   <div
                     key={act.id}
                     className="flex gap-2 items-start text-xs p-2 rounded-lg hover:bg-secondary/50 transition-colors"
                   >
-                    <span
-                      className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${meta.tone}`}
-                    >
-                      <Icon size={13} />
-                    </span>
+                    {isScheduled ? (
+                      <button
+                        title={isCompleted ? "Realizada" : "Marcar como realizada"}
+                        disabled={isCompleted}
+                        onClick={() => !isCompleted && completeActivity(leadId!, act.id)}
+                        className={`shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all
+                          ${isCompleted
+                            ? "bg-green-500 border-green-500 text-white cursor-default"
+                            : isOverdue
+                              ? "bg-transparent border-destructive hover:bg-destructive/10 cursor-pointer"
+                              : "bg-transparent border-muted-foreground/40 hover:border-muted-foreground cursor-pointer"
+                          }`}
+                      >
+                        {isCompleted && <Check size={12} />}
+                      </button>
+                    ) : (
+                      <span
+                        className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${meta.tone}`}
+                      >
+                        <Icon size={13} />
+                      </span>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-foreground leading-snug">{act.description}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {meta.label} ·{" "}
-                        {new Date(act.date).toLocaleDateString("pt-BR")}
+                      <p className="text-foreground leading-snug font-medium">
+                        {act.title || act.description}
                       </p>
+                      {act.title && act.description && (
+                        <p className="text-muted-foreground leading-snug mt-0.5">{act.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground">
+                          {meta.label}
+                          {scheduledDate
+                            ? ` · ${scheduledDate.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`
+                            : ` · ${new Date(act.date).toLocaleDateString("pt-BR")}`
+                          }
+                        </span>
+                        {isOverdue && !isCompleted && (
+                          <span className="text-[10px] text-destructive font-medium">Vencida</span>
+                        )}
+                        {isCompleted && (
+                          <span className="text-[10px] text-green-500 font-medium">Realizada</span>
+                        )}
+                        {act.meetLink && (
+                          <a
+                            href={act.meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                          >
+                            <Link size={9} />
+                            Link
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -500,6 +723,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
         </div>
           </TabsContent>
         </Tabs>
+
       </SheetContent>
     </Sheet>
   );

@@ -3,7 +3,7 @@
 export type Priority = "Alta" | "Média" | "Baixa";
 export type LeadOrigin = "Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro";
 export type TaskStatus = "Pendente" | "Concluída";
-export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created" | "meeting" | "call" | "follow_up" | "task";
+export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created" | "meeting" | "call" | "follow_up" | "task" | "email";
 export type PipelineCategory = string;
 
 export interface PipelineGroup {
@@ -22,6 +22,11 @@ export interface Activity {
   title?: string;
   scheduledAt?: string;
   durationMinutes?: number;
+  contactEmail?: string;
+  meetLink?: string;
+  completedAt?: string;
+  noShowAt?: string;
+  participants?: string[];
 }
 
 export interface Lead {
@@ -33,6 +38,7 @@ export interface Lead {
   phoneDdi?: string;
   site?: string;
   email?: string;
+  emails?: string[];
   value: number;
   responsible: string;
   pipelineId: string;
@@ -47,6 +53,7 @@ export interface Lead {
   tags?: string[];
   dealStatus?: "open" | "won" | "lost";
   lossReasonId?: string;
+  created_at?: string;
   // Dados pessoais
   document?: string;
   birthDate?: string;

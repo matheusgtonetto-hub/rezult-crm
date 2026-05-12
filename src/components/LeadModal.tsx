@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Plus } from "lucide-react";
 
 const DDI_OPTIONS = [
   { code: "+55", flag: "🇧🇷" },
@@ -36,7 +36,7 @@ const empty = {
   tags: [] as string[],
   phoneDdi: "+55",
   whatsapp: "",
-  email: "",
+  emails: [] as string[],
   site: "",
   document: "",
   company: "",
@@ -68,17 +68,28 @@ export function LeadModal({ open, onClose, editLead }: Props) {
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [selectedPipelineId, setSelectedPipelineId] = useState("none");
+  const [emailInput, setEmailInput] = useState("");
+
+  const addEmail = (raw: string) => {
+    const e = raw.trim().toLowerCase();
+    if (!e || form.emails.includes(e)) return;
+    setForm(p => ({ ...p, emails: [...p.emails, e] }));
+    setEmailInput("");
+  };
+  const removeEmail = (e: string) =>
+    setForm(p => ({ ...p, emails: p.emails.filter(x => x !== e) }));
 
   useEffect(() => {
     if (open) {
       setTab("contato");
       setSelectedPipelineId(editLead?.pipelineId ?? "none");
+      setEmailInput("");
       setForm(editLead ? {
         name:         editLead.name         ?? "",
         tags:         editLead.tags         ?? [],
         phoneDdi:     editLead.phoneDdi     ?? "+55",
         whatsapp:     editLead.whatsapp     ?? "",
-        email:        editLead.email        ?? "",
+        emails:       editLead.emails?.length ? editLead.emails : (editLead.email ? [editLead.email] : []),
         site:         editLead.site         ?? "",
         document:     editLead.document     ?? "",
         company:      editLead.company      ?? "",
@@ -138,7 +149,8 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         tags:         form.tags,
         phoneDdi:     form.phoneDdi   || undefined,
         whatsapp:     form.whatsapp,
-        email:        form.email      || undefined,
+        emails:       form.emails,
+        email:        form.emails[0]  || undefined,
         site:         form.site       || undefined,
         document:     form.document   || undefined,
         company:      form.company    || undefined,
@@ -292,13 +304,46 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             </Field>
 
             <Field label="E-mail">
-              <Input
-                type="email"
-                value={form.email}
-                onChange={e => set("email", e.target.value)}
-                placeholder="email@exemplo.com"
-                className="border-border"
-              />
+              <div className="space-y-1.5">
+                {/* Chips dos emails cadastrados */}
+                {form.emails.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.emails.map(e => (
+                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-border">
+                        <span className="truncate max-w-[200px]">{e}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEmail(e)}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Input para adicionar novo email */}
+                <div className="flex gap-1.5">
+                  <Input
+                    type="email"
+                    value={emailInput}
+                    onChange={e => setEmailInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") { e.preventDefault(); addEmail(emailInput); }
+                    }}
+                    placeholder="email@exemplo.com"
+                    className="border-border flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addEmail(emailInput)}
+                    disabled={!emailInput.trim()}
+                    className="flex items-center justify-center w-8 h-9 rounded-md border border-border bg-muted hover:bg-muted/80 disabled:opacity-40 transition-colors shrink-0"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </div>
             </Field>
 
             <Field label="Site">
