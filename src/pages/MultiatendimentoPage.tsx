@@ -243,6 +243,7 @@ export default function MultiatendimentoPage() {
   const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
   const audioChunksRef     = useRef<Blob[]>([]);
   const recordingTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingTimeRef   = useRef(0); // ref para evitar closure stale no onstop
 
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
@@ -567,28 +568,34 @@ export default function MultiatendimentoPage() {
     const isImage = file.type.startsWith("image/");
     toast.loading("Enviando arquivo…", { id: "file-send" });
     try {
-      const base64 = await new Promise<string>((res, rej) => {
+      // BUG FIX: manter URI completa (data:image/jpeg;base64,...) que a Z-API exige
+      const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
-        reader.onload = () => res((reader.result as string).split(",")[1]);
+        reader.onload = () => res(reader.result as string);
         reader.onerror = rej;
         reader.readAsDataURL(file);
       });
-      const endpoint = isImage ? "send-image" : "send-document";
+      // BUG FIX: send-document exige extensão no path (/send-document/pdf)
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
+      const endpoint = isImage ? "send-image" : `send-document/${ext}`;
       const body = isImage
-        ? { phone: cleanPhone, image: base64, caption: file.name }
-        : { phone: cleanPhone, document: base64, filename: file.name };
+        ? { phone: cleanPhone, image: dataUri, caption: file.name }
+        : { phone: cleanPhone, document: dataUri, filename: file.name };
       const r = await fetch(
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
         { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
       );
-      if (!r.ok) throw new Error(String(r.status));
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        throw new Error((errBody as { error?: string }).error ?? String(r.status));
+      }
       const newMsg: Msg = isImage
         ? { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
         : { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       toast.success("Arquivo enviado!", { id: "file-send" });
-    } catch {
-      toast.error("Erro ao enviar arquivo", { id: "file-send" });
+    } catch (err) {
+      toast.error(`Erro ao enviar arquivo: ${(err as Error).message}`, { id: "file-send" });
     }
   }
 
@@ -596,19 +603,29 @@ export default function MultiatendimentoPage() {
     if (cs?.finished) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      // BUG FIX: usar o MIME type real que o browser suporta, sem forçar ogg
+      const mimeType =
+        MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")  ? "audio/ogg;codecs=opus"  :
+        MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
+        "audio/webm";
+      const mr = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: "audio/ogg; codecs=opus" });
-        await sendAudioBlob(blob);
+        // BUG FIX: criar Blob com o MIME type real gravado (não forçar ogg)
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
+        await sendAudioBlob(blob, recordingTimeRef.current);
       };
       mr.start();
       mediaRecorderRef.current = mr;
+      recordingTimeRef.current = 0;
       setRecording(true);
       setRecordingTime(0);
-      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+      recordingTimerRef.current = setInterval(() => {
+        recordingTimeRef.current += 1;
+        setRecordingTime(recordingTimeRef.current);
+      }, 1000);
     } catch {
       toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
     }
@@ -630,11 +647,12 @@ export default function MultiatendimentoPage() {
     }
     if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
     audioChunksRef.current = [];
+    recordingTimeRef.current = 0;
     setRecording(false);
     setRecordingTime(0);
   }
 
-  async function sendAudioBlob(blob: Blob) {
+  async function sendAudioBlob(blob: Blob, durationSecs: number) {
     if (!activeId || !active || !user) return;
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token || !active.phone || active.phone === "—") {
@@ -642,25 +660,29 @@ export default function MultiatendimentoPage() {
       return;
     }
     const cleanPhone = active.phone.replace(/\D/g, "");
-    const duration = `${String(Math.floor(recordingTime / 60)).padStart(2, "0")}:${String(recordingTime % 60).padStart(2, "0")}`;
+    const duration = `${String(Math.floor(durationSecs / 60)).padStart(2, "0")}:${String(durationSecs % 60).padStart(2, "0")}`;
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
-      const base64 = await new Promise<string>((res, rej) => {
+      // BUG FIX: manter URI completa (data:audio/webm;base64,...) que a Z-API exige
+      const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
-        reader.onload = () => res((reader.result as string).split(",")[1]);
+        reader.onload = () => res(reader.result as string);
         reader.onerror = rej;
         reader.readAsDataURL(blob);
       });
       const r = await fetch(
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
-        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
+        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: dataUri }) }
       );
-      if (!r.ok) throw new Error(String(r.status));
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        throw new Error((errBody as { error?: string }).error ?? String(r.status));
+      }
       const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       toast.success("Áudio enviado!", { id: "audio-send" });
-    } catch {
-      toast.error("Erro ao enviar áudio", { id: "audio-send" });
+    } catch (err) {
+      toast.error(`Erro ao enviar áudio: ${(err as Error).message}`, { id: "audio-send" });
     }
   }
 
