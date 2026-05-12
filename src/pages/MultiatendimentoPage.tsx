@@ -200,7 +200,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
-  const { leads, pipelines, activePipeline } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -249,6 +249,14 @@ export default function MultiatendimentoPage() {
   // Fix: fallback para evitar que cs seja null quando convStates[activeId] ainda não foi carregado
   const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
+
+  // Etapas reais do pipeline vinculado ao lead ativo
+  const linkedLead     = activeId ? leads[activeId] : null;
+  const linkedPipeline = linkedLead?.pipelineId ? (pipelines ?? []).find(p => p.id === linkedLead.pipelineId) : null;
+  const pipelineCols   = linkedPipeline?.columns ?? [];
+  const activeStages   = pipelineCols.length > 0 ? pipelineCols.map(c => c.name) : PIPELINE_STAGES;
+  const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === linkedLead?.stage) : -1;
+  const activeStageIdx = pipelineCols.length > 0 ? (rawColIdx >= 0 ? rawColIdx : 0) : (cs?.stageIdx ?? 0);
 
   // ── carregar conversas do Supabase ao iniciar ────────────────────────
   useEffect(() => {
@@ -1321,38 +1329,60 @@ export default function MultiatendimentoPage() {
             {/* ETAPA NO PIPELINE */}
             <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{PIPELINE_STAGES[cs.stageIdx]}</div>
-              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{active.pipeline || "Pipeline Comercial"}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</div>
+              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{active.pipeline || linkedPipeline?.name || "Pipeline"}</div>
 
               <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ position: "absolute", top: "50%", left: 5, right: 5, height: 2, background: "#E5E5E5", transform: "translateY(-50%)" }} />
-                <div style={{ position: "absolute", top: "50%", left: 5, width: `calc(${(cs.stageIdx / (PIPELINE_STAGES.length - 1)) * 100}% - 10px)`, height: 2, background: "#128A68", transform: "translateY(-50%)" }} />
-                {PIPELINE_STAGES.map((_, i) => {
+                <div style={{ position: "absolute", top: "50%", left: 5, width: `calc(${(activeStageIdx / Math.max(activeStages.length - 1, 1)) * 100}% - 10px)`, height: 2, background: "#128A68", transform: "translateY(-50%)" }} />
+                {activeStages.map((_, i) => {
                   let bg = "#E5E5E5";
-                  if (i < cs.stageIdx) bg = "rgba(18,138,104,0.3)";
-                  if (i === cs.stageIdx) bg = "#128A68";
+                  if (i < activeStageIdx) bg = "rgba(18,138,104,0.3)";
+                  if (i === activeStageIdx) bg = "#128A68";
                   return <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: bg, position: "relative", zIndex: 1 }} />;
                 })}
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => { if (cs.stageIdx > 0) updateCs(activeId, { stageIdx: cs.stageIdx - 1 }); }}
-                  disabled={cs.stageIdx === 0}
-                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: cs.stageIdx === 0 ? "not-allowed" : "pointer", opacity: cs.stageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                <button
+                  onClick={() => {
+                    if (activeStageIdx > 0) {
+                      const newIdx = activeStageIdx - 1;
+                      if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[newIdx].id, 0);
+                      updateCs(activeId, { stageIdx: newIdx });
+                    }
+                  }}
+                  disabled={activeStageIdx === 0}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 ><ArrowLeft size={12} /> Voltar</button>
-                <button onClick={() => { if (cs.stageIdx < PIPELINE_STAGES.length - 1) { const next = cs.stageIdx + 1; updateCs(activeId, { stageIdx: next }); toast.success(`Lead movido para ${PIPELINE_STAGES[next]} ✓`); } }}
-                  disabled={cs.stageIdx === PIPELINE_STAGES.length - 1}
-                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: cs.stageIdx === PIPELINE_STAGES.length - 1 ? "not-allowed" : "pointer", opacity: cs.stageIdx === PIPELINE_STAGES.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                <button
+                  onClick={() => {
+                    if (activeStageIdx < activeStages.length - 1) {
+                      const newIdx = activeStageIdx + 1;
+                      if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[newIdx].id, 0);
+                      updateCs(activeId, { stageIdx: newIdx });
+                      toast.success(`Lead movido para ${activeStages[newIdx]} ✓`);
+                    }
+                  }}
+                  disabled={activeStageIdx === activeStages.length - 1}
+                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
 
               <div style={{ fontSize: 11, color: "#AAA", marginTop: 12, marginBottom: 4 }}>ou escolha a etapa diretamente</div>
               <select
-                value={PIPELINE_STAGES[cs.stageIdx]}
-                onChange={e => { const idx = PIPELINE_STAGES.indexOf(e.target.value); if (idx >= 0) { updateCs(activeId, { stageIdx: idx }); toast.success(`Lead movido para ${e.target.value} ✓`); } }}
+                value={activeStages[activeStageIdx] ?? ""}
+                onChange={e => {
+                  const idx = activeStages.indexOf(e.target.value);
+                  if (idx >= 0) {
+                    if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[idx].id, 0);
+                    updateCs(activeId, { stageIdx: idx });
+                    toast.success(`Lead movido para ${e.target.value} ✓`);
+                  }
+                }}
                 style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FFF", outline: "none", cursor: "pointer" }}
               >
-                {PIPELINE_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                {activeStages.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
