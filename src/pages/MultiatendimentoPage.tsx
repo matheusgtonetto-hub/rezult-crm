@@ -25,6 +25,21 @@ function initials(name: string) {
 function nowTime() {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
+// Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
+function phonesMatch(a: string, b: string): boolean {
+  const da = a.replace(/\D/g, "");
+  const db = b.replace(/\D/g, "");
+  if (!da || !db) return false;
+  return da.slice(-11) === db.slice(-11);
+}
+// Retorna par de variantes do telefone para query OR (com e sem "55")
+function phoneVariants(raw: string): { local: string; full: string } {
+  const d = raw.replace(/\D/g, "");
+  if (d.length >= 12 && d.startsWith("55")) {
+    return { local: d.slice(2), full: d };
+  }
+  return { local: d, full: `55${d}` };
+}
 
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
@@ -209,7 +224,9 @@ export default function MultiatendimentoPage() {
 
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const realtimeRef    = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // ref para evitar closure stale no handler global de Realtime
+  const convListRef    = useRef<Conversation[]>(convList);
+  useEffect(() => { convListRef.current = convList; }, [convList]);
 
   const active   = convList.find(c => c.id === activeId);
   const cs       = activeId ? convStates[activeId] : null;
@@ -237,22 +254,17 @@ export default function MultiatendimentoPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [cs?.messages.length]);
 
-  // ── carregar histórico + realtime quando muda a conversa ────────────
+  // ── carregar histórico quando muda a conversa ───────────────────────
   useEffect(() => {
-    // limpa canal anterior
-    if (realtimeRef.current) {
-      supabase.removeChannel(realtimeRef.current);
-      realtimeRef.current = null;
-    }
     if (!activeId || !active || !user) return;
-    const cleanPhone = (active.phone ?? "").replace(/\D/g, "");
-    if (!cleanPhone) return;
+    const rawPhone = (active.phone ?? "").replace(/\D/g, "");
+    if (!rawPhone) return;
+    const { local, full } = phoneVariants(rawPhone);
 
-    // Carrega histórico do Supabase
     supabase
       .from("whatsapp_messages")
       .select("*")
-      .eq("phone", cleanPhone)
+      .or(`phone.eq.${local},phone.eq.${full}`)
       .order("created_at", { ascending: true })
       .limit(100)
       .then(({ data }) => {
@@ -274,42 +286,77 @@ export default function MultiatendimentoPage() {
         });
         updateCs(activeId, { messages: msgs });
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.phone, user?.id]);
 
-    // Inscreve para mensagens novas em tempo real
+  // ── listener global de mensagens recebidas (sem filtro de telefone) ──
+  // Trata tanto conversas existentes (phone mismatch de código de país)
+  // quanto novas mensagens de números ainda sem conversa no CRM
+  useEffect(() => {
+    if (!user) return;
+
     const ch = supabase
-      .channel(`wamsg-${cleanPhone}`)
+      .channel("wamsg-global")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=eq.${cleanPhone}` },
+        { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
           const m = payload.new as Record<string, any>;
-          if (m.from_me) return; // mensagens enviadas já foram adicionadas otimisticamente
+          if (m.from_me) return; // enviadas já são adicionadas otimisticamente
+
+          const msgPhone = (m.phone ?? "") as string;
           const d = new Date(m.momment ?? m.created_at);
-          const newMsg: Msg = {
-            id:   m.id,
-            from: "lead",
-            time: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-            kind: "text" as const,
-            text: m.body ?? "",
-            date: "Hoje",
-            read: false,
-          };
-          setConvStates(prev => {
-            const cur = prev[activeId];
-            if (!cur || cur.messages.some(x => x.id === m.id)) return prev;
-            return { ...prev, [activeId]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
-          });
+          const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+          // Procura conversa pelo telefone (ignora diferença de código de país)
+          const existing = convListRef.current.find(c => phonesMatch(c.phone ?? "", msgPhone));
+
+          if (existing) {
+            // Atualiza preview da conversa existente
+            setConvList(prev => prev.map(c =>
+              c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
+            ));
+            // Adiciona a mensagem no estado da conversa se já estiver carregada
+            setConvStates(prev => {
+              const cur = prev[existing.id];
+              if (!cur) return prev;
+              if (cur.messages.some(x => x.id === m.id)) return prev;
+              const newMsg: Msg = {
+                id:   m.id,
+                from: "lead",
+                time: timeStr,
+                kind: "text" as const,
+                text: m.body ?? "",
+                date: "Hoje",
+                read: false,
+              };
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
+            });
+          } else {
+            // Cria nova conversa automaticamente para este remetente
+            const newId = crypto.randomUUID();
+            const newConv: Conversation = {
+              id:      newId,
+              name:    m.chat_name ?? m.sender_name ?? msgPhone,
+              preview: m.body ?? "",
+              time:    timeStr,
+              channel: "whatsapp" as const,
+              tags:    [],
+              phone:   msgPhone,
+            };
+            setConvList(prev => [newConv, ...prev]);
+            setConvStates(prev => ({
+              ...prev,
+              [newId]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
+            }));
+          }
         }
       )
       .subscribe();
-    realtimeRef.current = ch;
 
-    return () => {
-      supabase.removeChannel(ch);
-      realtimeRef.current = null;
-    };
+    return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.phone, user?.id]);
+  }, [user?.id]);
 
   // load Z-API instances
   useEffect(() => {
