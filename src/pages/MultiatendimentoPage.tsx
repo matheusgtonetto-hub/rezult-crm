@@ -629,7 +629,7 @@ export default function MultiatendimentoPage() {
       const endpoint = isImage ? "send-image" : `send-document/${ext}`;
       const body = isImage
         ? { phone: cleanPhone, image: dataUri, caption: file.name }
-        : { phone: cleanPhone, document: dataUri, filename: file.name };
+        : { phone: cleanPhone, document: dataUri, fileName: file.name };
       const r = await fetch(
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
         { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
@@ -712,16 +712,17 @@ export default function MultiatendimentoPage() {
     const duration = `${String(Math.floor(durationSecs / 60)).padStart(2, "0")}:${String(durationSecs % 60).padStart(2, "0")}`;
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
-      // BUG FIX: manter URI completa (data:audio/webm;base64,...) que a Z-API exige
+      // Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,)
       const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
         reader.onload = () => res(reader.result as string);
         reader.onerror = rej;
         reader.readAsDataURL(blob);
       });
+      const base64 = dataUri.split(",")[1]; // strip data URI prefix
       const r = await fetch(
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
-        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: dataUri }) }
+        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
       );
       if (!r.ok) {
         const errBody = await r.json().catch(() => ({}));
