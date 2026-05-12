@@ -14,7 +14,13 @@
       "Bash(./node_modules/.bin/vite build *)",
       "Bash(npm run *)",
       "mcp__claude_ai_Supabase__list_projects",
-      "Bash(git clone *)"
+      "Bash(git clone *)",
+      "Bash(curl -s http://localhost:8083)",
+      "Bash(pkill -f \"vite\")",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(xargs ls)",
+      "Bash(ls ~/.ssh/)",
+      "Read(//Users/matheustonetto/**)"
     ]
   }
 }
