@@ -70,37 +70,40 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (!user) { setLoading(false); return; }
     setLoading(true);
 
-    // Try owned company first — fetch all rows to handle duplicates gracefully
-    let { data: ownerRows, error } = await supabase
-      .from("companies")
-      .select(COMPANY_FIELDS)
-      .eq("owner_id", user.id)
-      .order("plan_expires_at", { ascending: false });
-
-    if (error) console.error("[CompanyContext] owner query error:", error);
-
-    // If multiple rows exist (duplicate companies), prefer any non-free plan
     let data: Company | null = null;
-    if (ownerRows && ownerRows.length > 0) {
-      data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
+
+    // Check membership first: if company_name points to a company the user does NOT own,
+    // they are a member of that company — use it instead of their own
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("company_name")
+      .eq("id", user.id)
+      .single();
+
+    if (profileData?.company_name) {
+      const { data: memberCompany, error: memberError } = await supabase
+        .from("companies")
+        .select(COMPANY_FIELDS)
+        .eq("name", profileData.company_name)
+        .neq("owner_id", user.id)
+        .maybeSingle();
+      if (memberError) console.error("[CompanyContext] member query error:", memberError);
+      if (memberCompany) data = memberCompany as Company;
     }
 
-    // If not an owner, try to find company via profile's company_name (invited member)
+    // If not a member of another company, load owned company
     if (!data) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("company_name")
-        .eq("id", user.id)
-        .single();
+      const { data: ownerRows, error } = await supabase
+        .from("companies")
+        .select(COMPANY_FIELDS)
+        .eq("owner_id", user.id)
+        .order("plan_expires_at", { ascending: false });
 
-      if (profileData?.company_name) {
-        const { data: memberCompany, error: memberError } = await supabase
-          .from("companies")
-          .select(COMPANY_FIELDS)
-          .eq("name", profileData.company_name)
-          .maybeSingle();
-        if (memberError) console.error("[CompanyContext] member query error:", memberError);
-        data = memberCompany;
+      if (error) console.error("[CompanyContext] owner query error:", error);
+
+      // If multiple rows exist (duplicate companies), prefer any non-free plan
+      if (ownerRows && ownerRows.length > 0) {
+        data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
       }
     }
 
