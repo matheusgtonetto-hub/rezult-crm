@@ -73,23 +73,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     let data: Company | null = null;
 
     // Check membership first: if company_name points to a company the user does NOT own,
-    // they are a member of that company — use it instead of their own
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("company_name")
-      .eq("id", user.id)
-      .single();
-
-    if (profileData?.company_name) {
-      const { data: memberCompany, error: memberError } = await supabase
-        .from("companies")
-        .select(COMPANY_FIELDS)
-        .eq("name", profileData.company_name)
-        .neq("owner_id", user.id)
-        .maybeSingle();
-      if (memberError) console.error("[CompanyContext] member query error:", memberError);
-      if (memberCompany) data = memberCompany as Company;
-    }
+    // they are a member of that company — use it instead of their own.
+    // Uses a SECURITY DEFINER function to bypass RLS on the companies table.
+    const { data: memberRows, error: memberError } = await supabase
+      .rpc("get_my_member_company");
+    if (memberError) console.error("[CompanyContext] member company error:", memberError);
+    if (memberRows && memberRows.length > 0) data = memberRows[0] as Company;
 
     // If not a member of another company, load owned company
     if (!data) {
