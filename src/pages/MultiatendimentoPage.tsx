@@ -11,7 +11,7 @@ import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus,
+  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon,
 } from "lucide-react";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -369,16 +369,19 @@ export default function MultiatendimentoPage() {
           const d = new Date(m.momment ?? m.created_at);
           const isToday     = d.toDateString() === new Date().toDateString();
           const isYesterday = d.toDateString() === new Date(Date.now() - 86400000).toDateString();
-          return {
+          const dateLabel = isToday ? "Hoje" : isYesterday ? "Ontem" : d.toLocaleDateString("pt-BR");
+          const base = {
             id:    m.id,
-            from:  m.from_me ? "agent" : "lead",
+            from:  (m.from_me ? "agent" : "lead") as "agent" | "lead",
             agent: m.from_me ? (m.sender_name ?? user.email?.split("@")[0] ?? "Você") : undefined,
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-            kind:  "text" as const,
-            text:  m.body ?? "",
-            date:  isToday ? "Hoje" : isYesterday ? "Ontem" : d.toLocaleDateString("pt-BR"),
-            read:  true,
+            date:  dateLabel,
+            read:  true as const,
           };
+          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: m.body ?? "00:00" };
+          if (m.type === "image")    return { ...base, kind: "image"  as const, src: "", caption: m.body ?? "" };
+          if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo" };
+          return { ...base, kind: "text" as const, text: m.body ?? "" };
         });
         updateCs(activeId, { messages: msgs });
       });
@@ -650,6 +653,17 @@ export default function MultiatendimentoPage() {
         ? { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
         : { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      // Persiste no banco para histórico futuro
+      await supabase.from("whatsapp_messages").insert({
+        owner_id:    user.id,
+        instance_id: inst.instanceId,
+        phone:       cleanPhone,
+        from_me:     true,
+        body:        file.name,
+        type:        isImage ? "image" : "document",
+        momment:     Date.now(),
+        sender_name: user.email?.split("@")[0] ?? "Você",
+      });
       toast.success("Arquivo enviado!", { id: "file-send" });
     } catch (err) {
       toast.error(`Erro ao enviar arquivo: ${(err as Error).message}`, { id: "file-send" });
@@ -738,6 +752,17 @@ export default function MultiatendimentoPage() {
       }
       const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      // Persiste no banco para histórico futuro
+      await supabase.from("whatsapp_messages").insert({
+        owner_id:    user.id,
+        instance_id: inst.instanceId,
+        phone:       cleanPhone,
+        from_me:     true,
+        body:        duration,
+        type:        "audio",
+        momment:     Date.now(),
+        sender_name: user.email?.split("@")[0] ?? "Você",
+      });
       toast.success("Áudio enviado!", { id: "audio-send" });
     } catch (err) {
       toast.error(`Erro ao enviar áudio: ${(err as Error).message}`, { id: "audio-send" });
@@ -1136,8 +1161,15 @@ export default function MultiatendimentoPage() {
                             {m.kind === "audio" && <AudioBubble duration={m.duration} light={isAgent} />}
                             {m.kind === "image" && (
                               <div style={{ overflow: "hidden", borderRadius: 12 }}>
-                                <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
-                                {m.caption && <div style={{ padding: "4px 8px 6px", fontSize: 12, color: isAgent ? "rgba(255,255,255,0.8)" : "#666" }}>{m.caption}</div>}
+                                {m.src ? (
+                                  <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
+                                ) : (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px" }}>
+                                    <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "#128A68"} />
+                                    <span style={{ fontSize: 13 }}>{m.caption || "Imagem"}</span>
+                                  </div>
+                                )}
+                                {m.src && m.caption && <div style={{ padding: "4px 8px 6px", fontSize: 12, color: isAgent ? "rgba(255,255,255,0.8)" : "#666" }}>{m.caption}</div>}
                               </div>
                             )}
                             {m.kind === "file" && (
