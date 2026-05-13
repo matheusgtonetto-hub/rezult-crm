@@ -257,6 +257,8 @@ export default function LeadDetailPage() {
     addTask: addTaskToContext,
     updateTask,
     crmTags,
+    customFieldGroups,
+    updateLeadCustomFieldValues,
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { profile } = useProfile();
@@ -267,7 +269,7 @@ export default function LeadDetailPage() {
     [pipelines, lead, activePipeline]
   );
 
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     contato: true,
     qualificacao: true,
     origemTags: true,
@@ -399,13 +401,11 @@ export default function LeadDetailPage() {
     document.execCommand(command, false, value);
     checkFormats();
   };
-  const [qualFields, setQualFields] = useState<{ key: string; label: string; value: string }[]>([
-    { key: "buscando", label: "O que o lead está buscando?", value: "" },
-    { key: "ramo", label: "Qual o ramo da empresa?", value: "" },
-    { key: "decisor", label: "O lead é o decisor?", value: "" },
-    { key: "orcamento", label: "Orçamento disponível?", value: "" },
-    { key: "previsao", label: "Previsão de fechamento?", value: "" },
-  ]);
+  const [localCustomValues, setLocalCustomValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (lead?.customFieldValues) setLocalCustomValues(lead.customFieldValues);
+  }, [lead?.id]);
 
   if (!lead) {
     return (
@@ -496,7 +496,7 @@ export default function LeadDetailPage() {
     checkFormats();
   };
 
-  const toggleSection = (k: SectionKey) =>
+  const toggleSection = (k: string) =>
     setOpenSections(s => ({ ...s, [k]: !s[k] }));
 
   const updateField = (field: string, value: string | number | undefined) =>
@@ -653,20 +653,21 @@ export default function LeadDetailPage() {
           top: 0,
           zIndex: 30,
         }}
-        className="grid grid-cols-3 items-center px-4"
+        className="flex items-center justify-between px-4"
       >
         {/* Esquerda */}
         <button
           onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors justify-self-start"
+          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors"
           style={{ color: "#111111" }}
         >
           <ArrowLeft size={16} />
           <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
         </button>
 
-        {/* Centro */}
-        <div className="flex items-center justify-center gap-2">
+        {/* Direita */}
+        <div className="flex items-center gap-2">
+          {/* Botões de status */}
           {lead.dealStatus === "won" || lead.dealStatus === "lost" ? (
             <>
               <div
@@ -715,10 +716,10 @@ export default function LeadDetailPage() {
               </button>
             </>
           )}
-        </div>
 
-        {/* Direita */}
-        <div className="flex items-center gap-2 justify-self-end">
+          {/* Divisor */}
+          <div className="w-px h-6 bg-[#EEEEEE] mx-1" />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
@@ -1025,62 +1026,55 @@ export default function LeadDetailPage() {
                       </div>
                       <EditableField label="CPF/CNPJ" value={(lead as any).document} onSave={v => updateField("document" as any, v)} />
                       <EditableField label="Cidade/Estado" value={(lead as any).location} onSave={v => updateField("location" as any, v)} />
-                      <EditableField label="LinkedIn" value={(lead as any).linkedin} onSave={v => updateField("linkedin" as any, v)} />
                     </div>
                   )}
 
-                  {key === "qualificacao" && (
-                    <>
+                  {key === "qualificacao" && (() => {
+                    const defaultGroup = customFieldGroups.find(g => g.isDefault);
+                    if (!defaultGroup || defaultGroup.items.length === 0) {
+                      return (
+                        <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                          Adicione perguntas em Configurações → Campos adicionais.
+                        </p>
+                      );
+                    }
+                    return (
                       <div className="pt-2 space-y-2">
-                        {qualFields.map(f => {
-                          if (f.key === "decisor") {
-                            const isYes = f.value === "Sim";
+                        {defaultGroup.items.map(f => {
+                          const val = localCustomValues[f.id] ?? "";
+                          const saveValue = async (v: string) => {
+                            const next = { ...localCustomValues, [f.id]: v };
+                            setLocalCustomValues(next);
+                            await updateLeadCustomFieldValues(lead.id, next);
+                          };
+                          if (f.fieldType === "boolean") {
+                            const isYes = val === "Sim";
                             return (
-                              <div key={f.key} className="flex items-center justify-between gap-2">
+                              <div key={f.id} className="flex items-center justify-between gap-2">
                                 <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
                                 <div className="flex items-center gap-2">
                                   <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
                                     {isYes ? "Sim" : "Não"}
                                   </span>
-                                  <Switch
-                                    checked={isYes}
-                                    onCheckedChange={(v) =>
-                                      setQualFields(prev => prev.map(p => p.key === f.key ? { ...p, value: v ? "Sim" : "Não" } : p))
-                                    }
-                                  />
+                                  <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
                                 </div>
                               </div>
                             );
                           }
-                          const fieldType: "date" | "text" = f.key === "previsao" ? "date" : "text";
                           return (
                             <EditableField
-                              key={f.key}
+                              key={f.id}
                               label={f.label}
-                              value={f.value}
-                              type={fieldType}
-                              onSave={v =>
-                                setQualFields(prev => prev.map(p => p.key === f.key ? { ...p, value: v } : p))
-                              }
-                              display={fieldType === "date" ? (v => new Date(v).toLocaleDateString("pt-BR")) : undefined}
+                              value={val}
+                              type={f.fieldType === "date" ? "date" : "text"}
+                              onSave={saveValue}
+                              display={f.fieldType === "date" ? (v => v ? new Date(v).toLocaleDateString("pt-BR") : "") : undefined}
                             />
                           );
                         })}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full rounded-md h-8 text-xs mt-2"
-                        style={{ borderColor: "#128A68", color: "#128A68" }}
-                        onClick={() => {
-                          const k = `custom-${Date.now()}`;
-                          setQualFields(prev => [...prev, { key: k, label: "Novo campo", value: "" }]);
-                        }}
-                      >
-                        <Plus size={12} className="mr-1" /> Adicionar campo
-                      </Button>
-                    </>
-                  )}
+                    );
+                  })()}
 
                   {key === "origemTags" && (
                     <>
@@ -1168,6 +1162,81 @@ export default function LeadDetailPage() {
                         </DropdownMenu>
                       </div>
                     </>
+                  )}
+                </div>
+              )}
+            </section>
+          ))}
+
+          {/* Seções de campos adicionais criados pelo usuário */}
+          {customFieldGroups.filter(g => !g.isDefault).map(g => (
+            <section
+              key={g.id}
+              style={{
+                background: "#FFFFFF",
+                borderRadius: 10,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              }}
+            >
+              <button
+                onClick={() => toggleSection(g.id)}
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
+                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                  {g.name}
+                </span>
+                <ChevronDown
+                  size={14}
+                  color="#128A68"
+                  style={{
+                    transform: openSections[g.id] !== false ? "rotate(0deg)" : "rotate(-90deg)",
+                    transition: "transform 0.2s",
+                  }}
+                />
+              </button>
+
+              {openSections[g.id] !== false && (
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
+                  {g.items.length === 0 ? (
+                    <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                      Adicione perguntas em Configurações → Campos adicionais.
+                    </p>
+                  ) : (
+                    <div className="pt-2 space-y-2">
+                      {g.items.map(f => {
+                        const val = localCustomValues[f.id] ?? "";
+                        const saveValue = async (v: string) => {
+                          const next = { ...localCustomValues, [f.id]: v };
+                          setLocalCustomValues(next);
+                          await updateLeadCustomFieldValues(lead.id, next);
+                        };
+                        if (f.fieldType === "boolean") {
+                          const isYes = val === "Sim";
+                          return (
+                            <div key={f.id} className="flex items-center justify-between gap-2">
+                              <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                              <div className="flex items-center gap-2">
+                                <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                  {isYes ? "Sim" : "Não"}
+                                </span>
+                                <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <EditableField
+                            key={f.id}
+                            label={f.label}
+                            value={val}
+                            type={f.fieldType === "date" ? "date" : "text"}
+                            onSave={saveValue}
+                            display={f.fieldType === "date" ? (v => v ? new Date(v).toLocaleDateString("pt-BR") : "") : undefined}
+                          />
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}
@@ -1292,7 +1361,8 @@ export default function LeadDetailPage() {
                 </div>
 
                 {/* Unified timeline: notes + stage events */}
-                {unifiedActivities.map(item => {
+                {unifiedActivities.map((item, idx) => {
+                  const isLast = idx === unifiedActivities.length - 1;
                   if (item.type === "note") {
                     const n = item;
                     const isEditing = editingNoteId === n.id;
@@ -1305,8 +1375,15 @@ export default function LeadDetailPage() {
                       { icon: <ListOrdered size={13} />, title: "Lista numerada", cmd: "insertOrderedList" },
                     ];
                     return (
+                      <div key={n.id} className="flex gap-3 pb-3">
+                        <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "#F5F5F4", border: "1px solid #E5E5E5" }}>
+                            <StickyNote size={10} color="#888888" />
+                          </div>
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
                       <div
-                        key={n.id}
                         style={{
                           background: n.pinned ? "#FFFBEB" : "#FAFAF7",
                           border: n.pinned ? "0.5px solid #FCD34D" : "0.5px solid #E5E5E5",
@@ -1429,6 +1506,8 @@ export default function LeadDetailPage() {
                           />
                         )}
                       </div>
+                        </div>
+                      </div>
                     );
                   }
 
@@ -1450,8 +1529,15 @@ export default function LeadDetailPage() {
                     const TypeIcon = typeIcons[item.type] ?? CalendarDays;
 
                     return (
+                      <div key={item.id} className="flex gap-3 pb-3">
+                        <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "#DCFCE7" : isNoShow ? "#FEF3C7" : isOverdue ? "#FEE2E2" : "#ECFDF5", border: `1px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "rgba(18,138,104,0.4)"}` }}>
+                            <TypeIcon size={10} color={isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#128A68"} />
+                          </div>
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
                       <div
-                        key={item.id}
                         className="group"
                         style={{
                           background: item.pinned ? "#FFFBEB" : "#FAFAF7",
@@ -1662,6 +1748,8 @@ export default function LeadDetailPage() {
                           </div>
                         </div>
                       </div>
+                        </div>
+                      </div>
                     );
                   }
 
@@ -1673,14 +1761,17 @@ export default function LeadDetailPage() {
                     : { c: "#E24B4A", I: XCircle };
                   const Icon = meta.I;
                   return (
-                    <div key={item.id} className="flex items-start gap-3 py-1">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                        style={{ background: meta.c }}
-                      >
-                        <Icon size={10} color="#FFFFFF" />
+                    <div key={item.id} className="flex gap-3 pb-3">
+                      <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
+                        <div
+                          className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+                          style={{ background: meta.c }}
+                        >
+                          <Icon size={10} color="#FFFFFF" />
+                        </div>
+                        {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pt-0.5">
                         <p className="text-sm font-medium" style={{ color: "#111111" }}>{item.description}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {fmtActivityDate(item.date)}

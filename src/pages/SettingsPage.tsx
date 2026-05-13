@@ -23,7 +23,7 @@ import {
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
-  UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe,
+  UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { PLANS } from "@/data/plans";
@@ -1615,28 +1615,252 @@ function ListasSection() {
 
 /* ---------------- CAMPOS ---------------- */
 function CamposSection() {
-  const campos = [
-    { name: "Ramo da empresa", type: "Texto", required: false },
-    { name: "Orçamento disponível", type: "Número", required: true },
-    { name: "Decisor", type: "Checkbox", required: false },
-    { name: "Previsão de fechamento", type: "Data", required: false },
-  ];
+  const {
+    customFieldGroups,
+    addCustomFieldGroup, updateCustomFieldGroup, deleteCustomFieldGroup,
+    addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem,
+  } = useCRM();
+
+  const TYPE_LABEL: Record<string, string> = { text: "Texto", date: "Data", boolean: "Sim/Não" };
+
+  // Expanded groups
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
+
+  // Group modal
+  const [groupModal, setGroupModal] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
+
+  // Item modal
+  const [itemModal, setItemModal] = useState(false);
+  const [itemGroupId, setItemGroupId] = useState<string>("");
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemLabel, setItemLabel] = useState("");
+  const [itemType, setItemType] = useState<"text" | "date" | "boolean">("text");
+  const [savingItem, setSavingItem] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<{ groupId: string; itemId: string } | null>(null);
+
+  function openNewGroup() { setEditingGroupId(null); setGroupName(""); setGroupModal(true); }
+  function openEditGroup(id: string, name: string) { setEditingGroupId(id); setGroupName(name); setGroupModal(true); }
+
+  async function handleSaveGroup() {
+    if (!groupName.trim()) { toast.error("Nome é obrigatório."); return; }
+    setSavingGroup(true);
+    if (editingGroupId) {
+      await updateCustomFieldGroup(editingGroupId, groupName.trim());
+      toast.success("Campo atualizado!");
+    } else {
+      const g = await addCustomFieldGroup(groupName.trim());
+      if (!g) { toast.error("Erro ao criar campo."); setSavingGroup(false); return; }
+      setExpanded(p => ({ ...p, [g.id]: true }));
+      toast.success("Campo criado!");
+    }
+    setSavingGroup(false); setGroupModal(false);
+  }
+
+  function openNewItem(groupId: string) {
+    setItemGroupId(groupId); setEditingItemId(null); setItemLabel(""); setItemType("text"); setItemModal(true);
+  }
+  function openEditItem(groupId: string, id: string, label: string, fieldType: "text" | "date" | "boolean") {
+    setItemGroupId(groupId); setEditingItemId(id); setItemLabel(label); setItemType(fieldType); setItemModal(true);
+  }
+
+  async function handleSaveItem() {
+    if (!itemLabel.trim()) { toast.error("Pergunta é obrigatória."); return; }
+    setSavingItem(true);
+    if (editingItemId) {
+      await updateCustomFieldItem(editingItemId, { label: itemLabel.trim(), fieldType: itemType });
+      toast.success("Pergunta atualizada!");
+    } else {
+      const item = await addCustomFieldItem(itemGroupId, itemLabel.trim(), itemType);
+      if (!item) { toast.error("Erro ao criar pergunta."); setSavingItem(false); return; }
+      toast.success("Pergunta criada!");
+    }
+    setSavingItem(false); setItemModal(false);
+  }
+
   return (
     <>
-      <SectionHeader title="Campos adicionais" onAdd="+ Novo campo" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {campos.map(c => (
-            <div key={c.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <p className="flex-1 text-[13px] text-[#111111] font-medium">{c.name}</p>
-              <Badge variant="secondary" className="text-xs">{c.type}</Badge>
-              <Switch defaultChecked={c.required} />
-              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+      <SectionHeader
+        title="Campos adicionais"
+        subtitle="Crie campos personalizados que aparecem no card de cada lead"
+        onAdd="+ Novo campo"
+        onClick={openNewGroup}
+      />
+
+      <div className="space-y-3 mb-5">
+        {customFieldGroups.length === 0 && (
+          <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl px-4 py-10 text-center">
+            <p className="text-sm text-[#AAAAAA]">Nenhum campo adicional cadastrado ainda.</p>
+          </div>
+        )}
+
+        {customFieldGroups.map(g => (
+          <div key={g.id} className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl overflow-hidden">
+            {/* Header do grupo */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              <button
+                onClick={() => toggle(g.id)}
+                className="flex items-center gap-2 flex-1 text-left"
+              >
+                <div className="w-7 h-7 rounded-lg bg-[#E1F5EE] flex items-center justify-center shrink-0">
+                  <FormInput size={13} className="text-[#128A68]" />
+                </div>
+                <span className="text-[13px] font-semibold text-[#111111]">{g.name}</span>
+                {g.isDefault && <Badge className="text-[10px] bg-[#E1F5EE] text-[#128A68] border-0">padrão</Badge>}
+                <Badge variant="secondary" className="text-[10px]">{g.items.length} perguntas</Badge>
+                <ChevronDown
+                  size={14}
+                  className="text-[#AAAAAA] ml-auto transition-transform"
+                  style={{ transform: expanded[g.id] ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+              <button onClick={() => openEditGroup(g.id, g.name)} className="text-[#CCCCCC] hover:text-[#535353] p-1 transition-colors">
+                <Pencil size={14} />
+              </button>
+              {!g.isDefault && (
+                <button onClick={() => setDeletingGroupId(g.id)} className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      </Card>
+
+            {/* Perguntas */}
+            {expanded[g.id] && (
+              <div className="border-t border-[#F0F0F0]">
+                {g.items.length === 0 && (
+                  <p className="text-xs text-[#AAAAAA] text-center py-4">Nenhuma pergunta ainda.</p>
+                )}
+                {g.items.map(item => (
+                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#F8F8F8] last:border-b-0 hover:bg-[#FAFAFA]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#CCCCCC] shrink-0 ml-2" />
+                    <span className="flex-1 text-[12px] text-[#333333]">{item.label}</span>
+                    <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
+                    <button
+                      onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
+                      className="text-[#CCCCCC] hover:text-[#535353] p-1 transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => setDeletingItem({ groupId: g.id, itemId: item.id })}
+                      className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+                <div className="px-4 py-2.5">
+                  <button
+                    onClick={() => openNewItem(g.id)}
+                    className="flex items-center gap-1.5 text-[11px] text-[#128A68] hover:text-[#128A68]/80 font-medium transition-colors"
+                  >
+                    <Plus size={12} /> Adicionar pergunta
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Modal grupo */}
+      <Dialog open={groupModal} onOpenChange={v => !v && setGroupModal(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingGroupId ? "Editar campo" : "Novo campo"}</DialogTitle>
+          </DialogHeader>
+          <div className="py-1">
+            <label className="text-xs font-medium text-[#535353] mb-1.5 block">Nome do campo *</label>
+            <Input
+              value={groupName}
+              onChange={e => setGroupName(e.target.value)}
+              placeholder="Ex: Financeiro, Qualificação..."
+              autoFocus
+              className="border-[#EEEEEE]"
+              onKeyDown={e => e.key === "Enter" && handleSaveGroup()}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setGroupModal(false)} className="border-[#EEEEEE]">Cancelar</Button>
+            <Button onClick={handleSaveGroup} disabled={savingGroup} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {savingGroup ? "Salvando..." : editingGroupId ? "Salvar" : "Criar campo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal pergunta */}
+      <Dialog open={itemModal} onOpenChange={v => !v && setItemModal(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingItemId ? "Editar pergunta" : "Nova pergunta"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Pergunta *</label>
+              <Input
+                value={itemLabel}
+                onChange={e => setItemLabel(e.target.value)}
+                placeholder="Ex: Qual o orçamento disponível?"
+                autoFocus
+                className="border-[#EEEEEE]"
+                onKeyDown={e => e.key === "Enter" && handleSaveItem()}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#535353] mb-1.5 block">Tipo de resposta</label>
+              <Select value={itemType} onValueChange={(v: "text" | "date" | "boolean") => setItemType(v)}>
+                <SelectTrigger className="border-[#EEEEEE]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Texto</SelectItem>
+                  <SelectItem value="date">Data</SelectItem>
+                  <SelectItem value="boolean">Sim/Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setItemModal(false)} className="border-[#EEEEEE]">Cancelar</Button>
+            <Button onClick={handleSaveItem} disabled={savingItem} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {savingItem ? "Salvando..." : editingItemId ? "Salvar" : "Criar pergunta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmar exclusão de grupo */}
+      <Dialog open={!!deletingGroupId} onOpenChange={o => !o && setDeletingGroupId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover campo?</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">Todas as perguntas dentro deste campo serão removidas. Esta ação não pode ser desfeita.</p>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setDeletingGroupId(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={async () => { await deleteCustomFieldGroup(deletingGroupId!); toast.success("Campo removido."); setDeletingGroupId(null); }}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmar exclusão de pergunta */}
+      <Dialog open={!!deletingItem} onOpenChange={o => !o && setDeletingItem(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover pergunta?</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">Esta ação não pode ser desfeita.</p>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setDeletingItem(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={async () => { await deleteCustomFieldItem(deletingItem!.groupId, deletingItem!.itemId); toast.success("Pergunta removida."); setDeletingItem(null); }}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

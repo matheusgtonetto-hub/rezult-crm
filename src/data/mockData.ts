@@ -29,6 +29,25 @@ export interface Activity {
   participants?: string[];
 }
 
+export type CustomFieldType = "text" | "date" | "boolean";
+
+export interface CustomFieldItem {
+  id: string;
+  groupId: string;
+  label: string;
+  fieldType: CustomFieldType;
+  position: number;
+}
+
+export interface CustomFieldGroup {
+  id: string;
+  name: string;
+  position: number;
+  isDefault: boolean;
+  items: CustomFieldItem[];
+  created_at?: string;
+}
+
 export interface Lead {
   id: string;
   dealNumber: number;
@@ -66,6 +85,7 @@ export interface Lead {
   neighborhood?: string;
   city?: string;
   state?: string;
+  customFieldValues?: Record<string, string>;
 }
 
 export interface Tag {

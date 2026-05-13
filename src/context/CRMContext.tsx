@@ -5,7 +5,7 @@ import {
 import {
   Lead, Task, Tag, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
   Activity, PipelineCategory, Priority, LeadOrigin,
-  ActivityType, TaskStatus,
+  ActivityType, TaskStatus, CustomFieldGroup, CustomFieldItem, CustomFieldType,
 } from "@/data/mockData";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -76,6 +76,16 @@ interface CRMContextType {
   addLossReason: (name: string) => Promise<boolean>;
   updateLossReason: (id: string, name: string) => Promise<void>;
   deleteLossReason: (id: string) => Promise<void>;
+
+  customFieldGroups: CustomFieldGroup[];
+  addCustomFieldGroup: (name: string) => Promise<CustomFieldGroup | null>;
+  updateCustomFieldGroup: (id: string, name: string) => Promise<void>;
+  deleteCustomFieldGroup: (id: string) => Promise<void>;
+  addCustomFieldItem: (groupId: string, label: string, fieldType: CustomFieldType) => Promise<CustomFieldItem | null>;
+  updateCustomFieldItem: (id: string, data: Partial<Pick<CustomFieldItem, "label" | "fieldType">>) => Promise<void>;
+  deleteCustomFieldItem: (groupId: string, itemId: string) => Promise<void>;
+  updateLeadCustomFieldValues: (leadId: string, values: Record<string, string>) => Promise<void>;
+
   logout: () => void;
 
   selectedLeadId: string | null;
@@ -153,6 +163,7 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     created_at: (row.created_at as string) ?? undefined,
     dealStatus: (row.status as "open" | "won" | "lost") ?? "open",
     lossReasonId: (row.loss_reason_id as string) ?? undefined,
+    customFieldValues: (row.custom_field_values as Record<string, string>) ?? {},
     activities,
   };
 }
@@ -202,6 +213,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [pipelineGroups, setPipelineGroups] = useState<PipelineGroup[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
+  const [customFieldGroups, setCustomFieldGroups] = useState<CustomFieldGroup[]>([]);
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [memberEmails, setMemberEmails] = useState<Record<string, string>>({});
   const [memberAvatars, setMemberAvatars] = useState<Record<string, string>>({});
@@ -239,7 +251,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     async function loadAll() {
       setCrmLoading(true);
 
-      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, myProfileRes] = await Promise.all([
+      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes] = await Promise.all([
         supabase.from("pipelines").select("*").order("position"),
         supabase.from("pipeline_columns").select("*").order("position"),
         supabase.from("leads").select("*").order("position"),
@@ -249,6 +261,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         supabase.from("pipeline_groups").select("*").order("created_at"),
         supabase.from("products").select("*").order("created_at"),
         supabase.from("loss_reasons").select("*").order("created_at"),
+        supabase.from("custom_field_groups").select("*").order("position"),
         supabase.from("profiles").select("company_name, full_name").eq("id", user.id).single(),
       ]);
 
@@ -290,6 +303,80 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const dbGroupsList = (groupRes.data ?? []) as Record<string, unknown>[];
       const dbProducts = (productRes.data ?? []) as Record<string, unknown>[];
       const dbLossReasons = (lossReasonRes.data ?? []) as Record<string, unknown>[];
+      const dbCFGroups = (customFieldRes.data ?? []) as Record<string, unknown>[];
+
+      // Load items for all groups
+      const { data: cfItemsData } = await supabase
+        .from("custom_field_items")
+        .select("*")
+        .order("position");
+      const dbCFItems = (cfItemsData ?? []) as Record<string, unknown>[];
+
+      const builtGroups: CustomFieldGroup[] = dbCFGroups.map(g => ({
+        id: g.id as string,
+        name: g.name as string,
+        position: (g.position as number) ?? 0,
+        isDefault: !!(g.is_default),
+        created_at: (g.created_at as string) ?? undefined,
+        items: dbCFItems
+          .filter(i => i.group_id === g.id)
+          .map(i => ({
+            id: i.id as string,
+            groupId: i.group_id as string,
+            label: i.label as string,
+            fieldType: (i.field_type as CustomFieldType) ?? "text",
+            position: (i.position as number) ?? 0,
+          })),
+      }));
+
+      // Seed default "Qualificação" group on first use — only if no default group exists
+      const hasDefault = builtGroups.some(g => g.isDefault);
+      if (!hasDefault) {
+        const { data: gData } = await supabase
+          .from("custom_field_groups")
+          .insert({ owner_id: user.id, name: "Qualificação", position: 0, is_default: true })
+          .select()
+          .single();
+        if (gData) {
+          const gRow = gData as Record<string, unknown>;
+          const defaultItems = [
+            { label: "O que o lead está buscando?", field_type: "text", position: 0 },
+            { label: "Qual o ramo da empresa?",     field_type: "text", position: 1 },
+            { label: "O lead é o decisor?",         field_type: "boolean", position: 2 },
+            { label: "Orçamento disponível?",       field_type: "text", position: 3 },
+            { label: "Previsão de fechamento?",     field_type: "date", position: 4 },
+          ].map(i => ({ ...i, owner_id: user.id, group_id: gRow.id }));
+          const { data: iData } = await supabase
+            .from("custom_field_items")
+            .insert(defaultItems)
+            .select();
+          const iRows = (iData ?? []) as Record<string, unknown>[];
+          builtGroups.push({
+            id: gRow.id as string,
+            name: "Qualificação",
+            position: 0,
+            isDefault: true,
+            items: iRows.map((i, idx) => ({
+              id: i.id as string,
+              groupId: gRow.id as string,
+              label: i.label as string,
+              fieldType: (i.field_type as CustomFieldType) ?? "text",
+              position: idx,
+            })),
+          });
+        }
+      }
+
+      // Deduplicate: if multiple default groups exist in DB, keep only the first
+      let sawDefault = false;
+      const deduped = builtGroups.filter(g => {
+        if (g.isDefault) {
+          if (sawDefault) return false;
+          sawDefault = true;
+        }
+        return true;
+      });
+      setCustomFieldGroups(deduped);
 
       // Map activities by lead_id
       const actsByLead: Record<string, Activity[]> = {};
@@ -623,6 +710,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if ("city" in data) dbData.city = data.city ?? null;
     if ("state" in data) dbData.state = data.state ?? null;
     if ("lossReasonId" in data) dbData.loss_reason_id = data.lossReasonId ?? null;
+    if ("customFieldValues" in data) dbData.custom_field_values = data.customFieldValues ?? {};
 
     if (Object.keys(dbData).length > 0) {
       const { error } = await supabase.from("leads").update(dbData).eq("id", id);
@@ -763,6 +851,77 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     setLossReasons(prev => prev.filter(r => r.id !== id));
     const { error } = await supabase.from("loss_reasons").delete().eq("id", id);
     if (error) console.error("deleteLossReason error:", error.message);
+  }, []);
+
+  // ── Custom Field Groups & Items ────────────────────────────────────────────
+
+  const addCustomFieldGroup = useCallback(async (name: string): Promise<CustomFieldGroup | null> => {
+    if (!user) return null;
+    const position = customFieldGroups.length;
+    const { data, error } = await supabase
+      .from("custom_field_groups")
+      .insert({ owner_id: user.id, name, position })
+      .select().single();
+    if (error || !data) { console.error("addCustomFieldGroup:", error?.message); return null; }
+    const row = data as Record<string, unknown>;
+    const group: CustomFieldGroup = { id: row.id as string, name, position, isDefault: false, items: [] };
+    setCustomFieldGroups(prev => [...prev, group]);
+    return group;
+  }, [user, customFieldGroups.length]);
+
+  const updateCustomFieldGroup = useCallback(async (id: string, name: string) => {
+    setCustomFieldGroups(prev => prev.map(g => g.id === id ? { ...g, name } : g));
+    const { error } = await supabase.from("custom_field_groups").update({ name }).eq("id", id);
+    if (error) console.error("updateCustomFieldGroup:", error.message);
+  }, []);
+
+  const deleteCustomFieldGroup = useCallback(async (id: string) => {
+    setCustomFieldGroups(prev => prev.filter(g => g.id !== id));
+    const { error } = await supabase.from("custom_field_groups").delete().eq("id", id);
+    if (error) console.error("deleteCustomFieldGroup:", error.message);
+  }, []);
+
+  const addCustomFieldItem = useCallback(async (groupId: string, label: string, fieldType: CustomFieldType): Promise<CustomFieldItem | null> => {
+    if (!user) return null;
+    const group = customFieldGroups.find(g => g.id === groupId);
+    const position = group ? group.items.length : 0;
+    const { data, error } = await supabase
+      .from("custom_field_items")
+      .insert({ owner_id: user.id, group_id: groupId, label, field_type: fieldType, position })
+      .select().single();
+    if (error || !data) { console.error("addCustomFieldItem:", error?.message); return null; }
+    const row = data as Record<string, unknown>;
+    const item: CustomFieldItem = { id: row.id as string, groupId, label, fieldType, position };
+    setCustomFieldGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, items: [...g.items, item] } : g
+    ));
+    return item;
+  }, [user, customFieldGroups]);
+
+  const updateCustomFieldItem = useCallback(async (id: string, data: Partial<Pick<CustomFieldItem, "label" | "fieldType">>) => {
+    setCustomFieldGroups(prev => prev.map(g => ({
+      ...g,
+      items: g.items.map(i => i.id === id ? { ...i, ...data } : i),
+    })));
+    const dbData: Record<string, unknown> = {};
+    if ("label" in data) dbData.label = data.label;
+    if ("fieldType" in data) dbData.field_type = data.fieldType;
+    const { error } = await supabase.from("custom_field_items").update(dbData).eq("id", id);
+    if (error) console.error("updateCustomFieldItem:", error.message);
+  }, []);
+
+  const deleteCustomFieldItem = useCallback(async (groupId: string, itemId: string) => {
+    setCustomFieldGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g
+    ));
+    const { error } = await supabase.from("custom_field_items").delete().eq("id", itemId);
+    if (error) console.error("deleteCustomFieldItem:", error.message);
+  }, []);
+
+  const updateLeadCustomFieldValues = useCallback(async (leadId: string, values: Record<string, string>) => {
+    setLeads(prev => prev[leadId] ? { ...prev, [leadId]: { ...prev[leadId], customFieldValues: values } } : prev);
+    const { error } = await supabase.from("leads").update({ custom_field_values: values }).eq("id", leadId);
+    if (error) console.error("updateLeadCustomFieldValues:", error.message);
   }, []);
 
   // ── Tags ───────────────────────────────────────────────────────────────────
@@ -1101,6 +1260,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         teamMembers, memberColors, memberEmails, memberAvatars,
         products, addProduct, updateProduct, deleteProduct,
         lossReasons, addLossReason, updateLossReason, deleteLossReason,
+        customFieldGroups, addCustomFieldGroup, updateCustomFieldGroup, deleteCustomFieldGroup,
+        addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem, updateLeadCustomFieldValues,
         logout: signOut,
         selectedLeadId, setSelectedLeadId,
       }}
