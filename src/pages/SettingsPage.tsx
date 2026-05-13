@@ -790,13 +790,18 @@ function EquipeSection() {
   }, [company?.name, company?.owner_id]);
 
   const loadPendingInvites = useCallback(async () => {
-    if (!isAdmin || !company?.id) return;
-    const { data } = await supabase
+    if (!isAdmin || !company?.id) {
+      console.log("[EquipeSection] loadPendingInvites skipped — isAdmin:", isAdmin, "company?.id:", company?.id);
+      return;
+    }
+    const { data, error } = await supabase
       .from("company_invites")
       .select("id, email, created_at")
       .eq("company_id", company.id)
       .is("accepted_at", null)
       .order("created_at", { ascending: false });
+    if (error) console.error("[EquipeSection] loadPendingInvites error:", error);
+    console.log("[EquipeSection] pendingInvites loaded:", data);
     setPendingInvites((data ?? []) as PendingInvite[]);
   }, [isAdmin, company?.id]);
 
@@ -810,16 +815,28 @@ function EquipeSection() {
       member_email: inviteEmail.trim().toLowerCase(),
     });
     setInviting(false);
-    if (error) { toast.error("Erro ao processar convite."); return; }
+
+    if (error) {
+      console.error("[EquipeSection] add_member_to_company error:", error);
+      toast.error(`Erro ao processar convite: ${error.message}`);
+      return;
+    }
+
+    console.log("[EquipeSection] add_member_to_company returned:", data);
 
     if (data === "ok") {
       toast.success("Membro adicionado com sucesso!");
       loadMembers();
+      loadPendingInvites();
     } else if (data === "invited") {
       toast.success("Convite registrado! Quando esse e-mail criar uma conta, o acesso será liberado automaticamente.");
       loadPendingInvites();
     } else if (data === "no_company") {
       toast.error("Sua conta ainda não está vinculada a uma empresa.");
+      return;
+    } else {
+      console.error("[EquipeSection] Retorno inesperado da função:", data);
+      toast.error("Resposta inesperada do servidor. Verifique o console.");
       return;
     }
     setInviteEmail("");
