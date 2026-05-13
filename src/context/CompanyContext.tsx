@@ -72,28 +72,25 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
     let data: Company | null = null;
 
-    // Check membership first: if company_name points to a company the user does NOT own,
-    // they are a member of that company — use it instead of their own.
-    // Uses a SECURITY DEFINER function to bypass RLS on the companies table.
-    const { data: memberRows, error: memberError } = await supabase
-      .rpc("get_my_member_company");
-    if (memberError) console.error("[CompanyContext] member company error:", memberError);
-    if (memberRows && memberRows.length > 0) data = memberRows[0] as Company;
+    // Owners always see their own company first
+    const { data: ownerRows, error: ownerError } = await supabase
+      .from("companies")
+      .select(COMPANY_FIELDS)
+      .eq("owner_id", user.id)
+      .order("plan_expires_at", { ascending: false });
 
-    // If not a member of another company, load owned company
+    if (ownerError) console.error("[CompanyContext] owner query error:", ownerError);
+
+    if (ownerRows && ownerRows.length > 0) {
+      data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
+    }
+
+    // If user owns no company, check if they are a member of another company
     if (!data) {
-      const { data: ownerRows, error } = await supabase
-        .from("companies")
-        .select(COMPANY_FIELDS)
-        .eq("owner_id", user.id)
-        .order("plan_expires_at", { ascending: false });
-
-      if (error) console.error("[CompanyContext] owner query error:", error);
-
-      // If multiple rows exist (duplicate companies), prefer any non-free plan
-      if (ownerRows && ownerRows.length > 0) {
-        data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
-      }
+      const { data: memberRows, error: memberError } = await supabase
+        .rpc("get_my_member_company");
+      if (memberError) console.error("[CompanyContext] member company error:", memberError);
+      if (memberRows && memberRows.length > 0) data = memberRows[0] as Company;
     }
 
     setCompany(data ?? null);
