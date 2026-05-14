@@ -12,8 +12,9 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload } from "lucide-react";
 import { LeadModal } from "@/components/LeadModal";
+import { ImportLeadsModal } from "@/components/ImportLeadsModal";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
@@ -29,6 +30,9 @@ export default function LeadsPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+
+  // Import modal
+  const [importOpen, setImportOpen] = useState(false);
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);
@@ -103,9 +107,14 @@ export default function LeadsPage() {
             Consulte, crie, modifique ou remova seus leads
           </p>
         </div>
-        <Button onClick={openCreate} className="rounded-lg font-semibold">
-          <Plus size={16} className="mr-1" /> Novo Lead
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)} className="rounded-lg font-semibold">
+            <Upload size={16} className="mr-1" /> Importar lista
+          </Button>
+          <Button onClick={openCreate} className="rounded-lg font-semibold">
+            <Plus size={16} className="mr-1" /> Novo Lead
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">
@@ -293,6 +302,8 @@ export default function LeadsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportLeadsModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }
