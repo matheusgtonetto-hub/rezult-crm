@@ -260,7 +260,7 @@ export default function MultiatendimentoPage() {
   const effectiveLead  = linkedLead ?? linkedLeadByPhone ?? null;
   const linkedPipeline = effectiveLead?.pipelineId ? (pipelines ?? []).find(p => p.id === effectiveLead.pipelineId) : null;
   const pipelineCols   = linkedPipeline?.columns ?? [];
-  const activeStages   = pipelineCols.length > 0 ? pipelineCols.map(c => c.name) : PIPELINE_STAGES;
+  const activeStages   = pipelineCols.length > 0 ? pipelineCols.map(c => c.title) : PIPELINE_STAGES;
   const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === effectiveLead?.stage) : -1;
   const activeStageIdx = pipelineCols.length > 0 ? (rawColIdx >= 0 ? rawColIdx : 0) : (cs?.stageIdx ?? 0);
 
