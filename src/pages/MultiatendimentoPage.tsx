@@ -220,7 +220,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -845,12 +845,25 @@ export default function MultiatendimentoPage() {
 
   async function toggleConvTag(tagName: string) {
     if (!activeId || !active) return;
+
+    // Atualiza tags da conversa
     const current = active.tags ?? [];
     const next = current.includes(tagName)
       ? current.filter(t => t !== tagName)
       : [...current, tagName];
     setConvList(prev => prev.map(c => c.id === activeId ? { ...c, tags: next } : c));
     await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
+
+    // Sincroniza tags no lead vinculado (para aparecer no card do pipeline)
+    const linkedLead = leads[activeId]
+      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+    if (linkedLead) {
+      const leadTags = linkedLead.tags ?? [];
+      const nextLeadTags = leadTags.includes(tagName)
+        ? leadTags.filter(t => t !== tagName)
+        : [...leadTags, tagName];
+      await updateLead(linkedLead.id, { tags: nextLeadTags });
+    }
   }
 
   // ── conv state helpers ──────────────────────────────────────────────
