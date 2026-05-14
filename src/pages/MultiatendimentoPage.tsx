@@ -169,15 +169,35 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
   );
 }
 
-function FilterChip({ Icon, count, isActive, onClick }: { Icon: any; count: number | null; isActive: boolean; onClick: () => void }) {
+function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: any; count: number | null; isActive: boolean; onClick: () => void; label?: string }) {
+  const [hovered, setHovered] = useState(false);
   const bg     = isActive ? "#E1F5EE" : "#F5F5F5";
   const fg     = isActive ? "#128A68" : "#535353";
   const border = isActive ? "1px solid #128A68" : "1px solid transparent";
   return (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-      <Icon size={12} />
-      {count !== null && <span>{count}</span>}
-    </button>
+    <div style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && label && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          background: "#111", color: "#FFF", fontSize: 11, fontWeight: 500,
+          padding: "4px 8px", borderRadius: 6, whiteSpace: "nowrap", pointerEvents: "none",
+          zIndex: 200, boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+        }}>
+          {label}
+          <div style={{
+            position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+            borderWidth: "4px 4px 0", borderStyle: "solid", borderColor: "#111 transparent transparent",
+          }} />
+        </div>
+      )}
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <Icon size={12} />
+        {count !== null && <span>{count}</span>}
+      </button>
+    </div>
   );
 }
 
@@ -954,12 +974,12 @@ export default function MultiatendimentoPage() {
   }, [searchQuery, activeFilter, convStates, convList]);
 
   const filters = [
-    { id: "email",   icon: Mail,          count: convList.filter(c => c.channel === "instagram").length },
-    { id: "pending", icon: Clock,         count: convList.filter(c => !convStates[c.id]?.finished).length },
-    { id: "folder",  icon: Folder,        count: convList.length },
-    { id: "auto",    icon: Zap,           count: convList.length },
-    { id: "done",    icon: CheckCircle2,  count: convList.filter(c => convStates[c.id]?.finished).length },
-    { id: "alert",   icon: AlertTriangle, count: convList.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "email",   icon: Mail,          label: "Instagram",      count: convList.filter(c => c.channel === "instagram").length },
+    { id: "pending", icon: Clock,         label: "Não lidas",      count: convList.filter(c => !convStates[c.id]?.finished).length },
+    { id: "folder",  icon: Folder,        label: "Todas",          count: convList.length },
+    { id: "auto",    icon: Zap,           label: "Automações",     count: convList.length },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas",    count: convList.filter(c => convStates[c.id]?.finished).length },
+    { id: "alert",   icon: AlertTriangle, label: "Follow-up",      count: convList.filter(c => c.tags.includes("Follow-up")).length },
   ];
 
   // ── grouped messages ────────────────────────────────────────────────
@@ -1011,7 +1031,7 @@ export default function MultiatendimentoPage() {
 
           <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
             {filters.map(f => (
-              <FilterChip key={f.id} Icon={f.icon} count={f.count} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
+              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
             ))}
           </div>
         </div>
