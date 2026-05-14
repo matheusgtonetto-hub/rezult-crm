@@ -64,13 +64,27 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
   </div>
 );
 
+const ADMIN_ONLY_SECTIONS: SectionId[] = ["planos", "empresa"];
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { logout, products } = useCRM();
+  const { isOwner } = useCompany();
   const [active, setActive] = useState<SectionId>("perfil");
   const [pwOpen, setPwOpen] = useState(false);
   const [showApi, setShowApi] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
+
+  const visibleSections = SECTIONS.filter(s =>
+    isOwner || !ADMIN_ONLY_SECTIONS.includes(s.id)
+  );
+
+  // Se o membro tentar acessar uma seção restrita, redireciona para perfil
+  useEffect(() => {
+    if (!isOwner && ADMIN_ONLY_SECTIONS.includes(active)) {
+      setActive("perfil");
+    }
+  }, [isOwner, active]);
 
   return (
     <div className="flex h-screen bg-[#FAFAFA]">
@@ -83,7 +97,7 @@ export default function SettingsPage() {
           <ArrowLeft size={14} /> Voltar
         </button>
         <nav className="flex-1 overflow-y-auto py-2">
-          {SECTIONS.map(s => {
+          {visibleSections.map(s => {
             const isActive = active === s.id;
             return (
               <button
