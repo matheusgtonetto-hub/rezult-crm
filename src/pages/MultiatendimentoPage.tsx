@@ -250,12 +250,18 @@ export default function MultiatendimentoPage() {
   const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
-  // Etapas reais do pipeline vinculado ao lead ativo
+  // Etapas reais do pipeline vinculado ao lead ativo.
+  // Tenta por ID primeiro (conversas abertas pelo pipeline); se não achar,
+  // busca pelo telefone (conversas de backfill com UUID aleatório como id).
   const linkedLead     = activeId ? leads[activeId] : null;
-  const linkedPipeline = linkedLead?.pipelineId ? (pipelines ?? []).find(p => p.id === linkedLead.pipelineId) : null;
+  const linkedLeadByPhone = !linkedLead && active?.phone
+    ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""))
+    : null;
+  const effectiveLead  = linkedLead ?? linkedLeadByPhone ?? null;
+  const linkedPipeline = effectiveLead?.pipelineId ? (pipelines ?? []).find(p => p.id === effectiveLead.pipelineId) : null;
   const pipelineCols   = linkedPipeline?.columns ?? [];
   const activeStages   = pipelineCols.length > 0 ? pipelineCols.map(c => c.name) : PIPELINE_STAGES;
-  const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === linkedLead?.stage) : -1;
+  const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === effectiveLead?.stage) : -1;
   const activeStageIdx = pipelineCols.length > 0 ? (rawColIdx >= 0 ? rawColIdx : 0) : (cs?.stageIdx ?? 0);
 
   // ── carregar conversas do Supabase ao iniciar ────────────────────────
@@ -1034,7 +1040,7 @@ export default function MultiatendimentoPage() {
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{active.name}</div>
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
                     <Filter size={10} />
-                    {active.pipeline || "Pipeline Comercial"}
+                    {linkedPipeline?.name || active.pipeline || "Pipeline Comercial"}
                   </div>
 
                   {/* WhatsApp instance selector */}
@@ -1362,7 +1368,7 @@ export default function MultiatendimentoPage() {
             <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</div>
-              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{active.pipeline || linkedPipeline?.name || "Pipeline"}</div>
+              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
 
               <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ position: "absolute", top: "50%", left: 5, right: 5, height: 2, background: "#E5E5E5", transform: "translateY(-50%)" }} />
@@ -1380,7 +1386,7 @@ export default function MultiatendimentoPage() {
                   onClick={() => {
                     if (activeStageIdx > 0) {
                       const newIdx = activeStageIdx - 1;
-                      if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[newIdx].id, 0);
+                      if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[newIdx].id, 0);
                       updateCs(activeId, { stageIdx: newIdx });
                     }
                   }}
@@ -1391,7 +1397,7 @@ export default function MultiatendimentoPage() {
                   onClick={() => {
                     if (activeStageIdx < activeStages.length - 1) {
                       const newIdx = activeStageIdx + 1;
-                      if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[newIdx].id, 0);
+                      if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[newIdx].id, 0);
                       updateCs(activeId, { stageIdx: newIdx });
                       toast.success(`Lead movido para ${activeStages[newIdx]} ✓`);
                     }
@@ -1509,9 +1515,9 @@ export default function MultiatendimentoPage() {
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(active.value)}
                   </div>
                 ) : null}
-                <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{active.pipeline || "Pipeline Comercial"}</div>
+                <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
                 <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: `${((cs.stageIdx + 1) / PIPELINE_STAGES.length) * 100}%`, height: "100%", background: "#128A68" }} />
+                  <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
                 </div>
                 <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{active.dealNumber || `#${active.id.padStart(4, "0")}`}</div>
               </div>
