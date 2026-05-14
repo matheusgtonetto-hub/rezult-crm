@@ -2222,6 +2222,23 @@ function ConexoesSection() {
   const [polling, setPolling] = useState(false);
   const [pollN, setPollN]     = useState(0);
 
+  // manage dialog state
+  const [manageTab, setManageTab]         = useState<"auth" | "intervals" | "config">("auth");
+  const [connName, setConnName]           = useState("");
+  const [editForm, setEditForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
+  const [showInstId, setShowInstId]       = useState(false);
+  const [showTok, setShowTok]             = useState(false);
+  const [showClientTok, setShowClientTok] = useState(false);
+  const [autoMin, setAutoMin]             = useState(3);
+  const [autoMax, setAutoMax]             = useState(15);
+  const [agentMin, setAgentMin]           = useState(0);
+  const [agentMax, setAgentMax]           = useState(2);
+  const [typingMin, setTypingMin]         = useState(0);
+  const [typingMax, setTypingMax]         = useState(1);
+  const [typingEnabled, setTypingEnabled] = useState(false);
+  const [listenGroups, setListenGroups]   = useState(false);
+  const [restoreMsg, setRestoreMsg]       = useState(false);
+
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollNRef   = useRef(0);
   const credsInFlight = useRef<ZApiForm | null>(null);
@@ -2398,6 +2415,12 @@ function ConexoesSection() {
   function openManageDialog() {
     if (connected && savedCreds) {
       setStep("done");
+      setConnName(connPhone || "Z-API WhatsApp");
+      setEditForm(savedCreds);
+      setManageTab("auth");
+      setShowInstId(false);
+      setShowTok(false);
+      setShowClientTok(false);
     } else {
       setStep("select");
       setSelectedCategory("whatsapp");
@@ -2411,6 +2434,21 @@ function ConexoesSection() {
   function closeDialog() {
     stopPoll();
     setOpen(false);
+  }
+
+  async function handleUpdate() {
+    if (!editForm.instanceId.trim() || !editForm.token.trim()) {
+      toast.error("Preencha o ID da instância e o Token.");
+      return;
+    }
+    setSavedCreds(editForm);
+    await updateCompany({
+      zapi_instance_id:  editForm.instanceId,
+      zapi_token:        editForm.token,
+      zapi_client_token: editForm.clientToken || null,
+    });
+    toast.success("Conexão atualizada com sucesso!");
+    closeDialog();
   }
 
   // ── render ─────────────────────────────────────────────────────────
@@ -2580,6 +2618,164 @@ function ConexoesSection() {
         ))}
       </div>
 
+      {/* ── Gerenciar conexão (Dialog separado) ──────────────────────────── */}
+      <Dialog open={open && step === "done"} onOpenChange={v => { if (!v) closeDialog(); }}>
+        <DialogContent style={{ maxWidth: 740, padding: 0, overflow: "hidden" }}>
+          <DialogTitle className="sr-only">Gerenciar conexão</DialogTitle>
+          <div style={{ display: "flex", height: 540 }}>
+            {/* Left sidebar */}
+            <div style={{ width: 170, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 2 }}>
+              {[
+                { id: "whatsapp", label: "Whatsapp", active: true },
+                { id: "instagram", label: "Instagram", active: false },
+                { id: "messenger", label: "Messenger", active: false },
+                { id: "universal", label: "Universal", active: false, badge: "Beta" },
+              ].map(item => (
+                <div key={item.id} style={{ padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: item.active ? 600 : 400, color: item.active ? "#111" : "#AAAAAA", background: item.active ? "#FFF" : "transparent", boxShadow: item.active ? "0 1px 3px rgba(0,0,0,0.08)" : "none", display: "flex", alignItems: "center", gap: 6, cursor: item.active ? "default" : "not-allowed" }}>
+                  {item.label}
+                  {item.badge && <span style={{ fontSize: 10, background: "#E8E8E8", color: "#777", padding: "1px 6px", borderRadius: 999 }}>{item.badge}</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Right panel */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+              {/* Header */}
+              <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <div style={{ width: 20, height: 20, background: "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Webhook size={11} color="#FFF" />
+                    </div>
+                    <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>Z-API</span>
+                  </div>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: 0 }}>Atualizar conexão</h2>
+                </div>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAA" }}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Connection name */}
+              <div style={{ padding: "14px 24px 0" }}>
+                <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
+                <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-[#EEEEEE] text-sm" />
+              </div>
+
+              {/* Tabs */}
+              <div style={{ padding: "0 24px", marginTop: 14, display: "flex", gap: 0, borderBottom: "1px solid #EEEEEE" }}>
+                {(["auth", "intervals", "config"] as const).map((tab, i) => {
+                  const labels = ["Autenticação", "Intervalos", "Configurações"];
+                  return (
+                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "#128A68" : "#888", borderBottom: manageTab === tab ? "2px solid #128A68" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
+                      {labels[i]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
+                {manageTab === "auth" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
+                      <div style={{ position: "relative" }}>
+                        <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-[#EEEEEE] font-mono text-sm pr-10" />
+                        <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                          {showInstId ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
+                      <div style={{ position: "relative" }}>
+                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-[#EEEEEE] font-mono text-sm pr-10" />
+                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                          {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 4 }}>Token de segurança</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                        <Lock size={12} color="#AAA" />
+                        <span style={{ fontSize: 11, color: "#AAA" }}>Acesse a página de Segurança para obter</span>
+                      </div>
+                      <div style={{ position: "relative" }}>
+                        <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-[#EEEEEE] font-mono text-sm pr-10" />
+                        <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                          {showClientTok ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {manageTab === "intervals" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {[
+                      { label: "Intervalo de envio das automações", min: autoMin, max: autoMax, setMin: setAutoMin, setMax: setAutoMax, hasToggle: false },
+                      { label: "Intervalo de envio dos atendentes", min: agentMin, max: agentMax, setMin: setAgentMin, setMax: setAgentMax, hasToggle: false },
+                      { label: 'Intervalo da animação de "Digitando..."', min: typingMin, max: typingMax, setMin: setTypingMin, setMax: setTypingMax, hasToggle: true },
+                    ].map((row, i) => (
+                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{row.label}</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                              <span style={{ fontSize: 13, color: "#535353" }}>Entre</span>
+                              <input type="number" value={row.min} min={0} onChange={e => row.setMin(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "#535353" }}>e</span>
+                              <input type="number" value={row.max} min={0} onChange={e => row.setMax(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "#535353" }}>segundos</span>
+                            </div>
+                          </div>
+                          {row.hasToggle && <Switch checked={typingEnabled} onCheckedChange={setTypingEnabled} />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {manageTab === "config" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {[
+                      { label: "Ouvir grupos", desc: "Receber mensagens enviadas em grupos", checked: listenGroups, onChange: setListenGroups, info: false },
+                      { label: "Restaurar mensagens", desc: "Recuperar mensagens anteriores à conexão", checked: restoreMsg, onChange: setRestoreMsg, info: true },
+                    ].map((item, i) => (
+                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{item.label}</p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                            <span style={{ fontSize: 12, color: "#888" }}>{item.desc}</span>
+                            {item.info && <span title="Pode levar alguns minutos" style={{ cursor: "help", color: "#AAA" }}>ⓘ</span>}
+                          </div>
+                        </div>
+                        <Switch checked={item.checked} onCheckedChange={item.onChange} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#AAA" }}>
+                  <Lock size={12} />
+                  <span>Ao continuar, você concorda com nossos <span style={{ color: "#128A68", cursor: "pointer" }}>Termos de Uso</span></span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button variant="outline" className="border-[#EEEEEE] text-sm h-9" onClick={() => { handleDisconnect(); closeDialog(); }}>Remover</Button>
+                  <Button variant="outline" className="border-[#EEEEEE] text-sm h-9" onClick={closeDialog}>Cancelar</Button>
+                  <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-sm h-9" onClick={handleUpdate}>Finalizar</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Seleção de provedor (Dialog separado para evitar conflitos de CSS) ── */}
       <Dialog open={open && step === "select"} onOpenChange={v => { if (!v) closeDialog(); }}>
         <DialogContent style={{ maxWidth: 640, padding: 0, overflow: "hidden" }}>
@@ -2650,8 +2846,8 @@ function ConexoesSection() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Connection Dialog (creds / qr / done) ─────────────────────── */}
-      <Dialog open={open && step !== "select"} onOpenChange={v => { if (!v) closeDialog(); }}>
+      {/* ── Connection Dialog (creds / qr / provider) ─────────────────── */}
+      <Dialog open={open && step !== "select" && step !== "done"} onOpenChange={v => { if (!v) closeDialog(); }}>
         <DialogContent className="max-w-[420px]">
 
           <DialogHeader>
@@ -2774,30 +2970,6 @@ function ConexoesSection() {
             </>
           )}
 
-          {/* Step 4 — Done / Manage */}
-          {step === "done" && (
-            <div className="py-2 text-center">
-              <div className="w-14 h-14 rounded-full bg-[#E1F5EE] flex items-center justify-center mx-auto mb-3">
-                <CheckCircle2 size={28} className="text-[#128A68]" />
-              </div>
-              <p className="text-sm font-semibold text-[#111111] mb-1">WhatsApp conectado!</p>
-              {connPhone && <p className="text-xs text-[#535353] font-mono mb-2">{connPhone}</p>}
-              <Badge className={`text-[10px] border-0 ${webhookOk ? "bg-[#E1F5EE] text-[#128A68]" : "bg-yellow-50 text-yellow-700"}`}>
-                {webhookOk ? "✓ Recebendo mensagens" : "Configurando webhook…"}
-              </Badge>
-              <p className="text-xs text-[#AAAAAA] mt-3">Você já pode enviar e receber mensagens pelo Rezult CRM.</p>
-              <DialogFooter className="mt-5 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white flex-1"
-                  onClick={() => { handleDisconnect(); closeDialog(); }}
-                >
-                  Desconectar
-                </Button>
-                <Button className="bg-[#128A68] hover:bg-[#128A68]/90 flex-1" onClick={closeDialog}>Fechar</Button>
-              </DialogFooter>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </>
