@@ -24,6 +24,7 @@ import {
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
+  Search, ExternalLink, Settings2,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { PLANS } from "@/data/plans";
@@ -2170,6 +2171,7 @@ function ConexoesSection() {
   const [savedCreds, setSavedCreds] = useState<ZApiForm | null>(null);
   const [checking, setChecking]     = useState(true);
   const [webhookOk, setWebhookOk]   = useState(false);
+  const [searchConn, setSearchConn] = useState("");
 
   // dialog state
   const [open, setOpen]       = useState(false);
@@ -2345,10 +2347,14 @@ function ConexoesSection() {
   }
 
   function openDialog() {
-    setStep("provider");
-    setForm({ instanceId: "", token: "", clientToken: "" });
-    setQrSrc("");
-    setPollN(0);
+    if (connected && savedCreds) {
+      setStep("done");
+    } else {
+      setStep("provider");
+      setForm({ instanceId: "", token: "", clientToken: "" });
+      setQrSrc("");
+      setPollN(0);
+    }
     setOpen(true);
   }
 
@@ -2358,80 +2364,168 @@ function ConexoesSection() {
   }
 
   // ── render ─────────────────────────────────────────────────────────
+  const ALL_CONNECTIONS = [
+    {
+      id: "zapi",
+      platform: "Z-API",
+      category: "WhatsApp",
+      domain: "z-api.io",
+      name: connected ? (connPhone || "Z-API WhatsApp") : "Z-API WhatsApp",
+      description: "Z-API é uma plataforma que facilita a automação e a integração de mensagens no WhatsApp, permitindo o envio e recebimento de mensagens de forma eficiente e programática.",
+      iconBg: "#1A1A1A",
+      iconColor: "#FFFFFF",
+      Icon: Webhook,
+      connected,
+      available: true,
+    },
+    {
+      id: "gcal",
+      platform: "Google Calendar",
+      category: "Agenda",
+      domain: "google.com",
+      name: "Google Calendar",
+      description: "Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.",
+      iconBg: "#4285F4",
+      iconColor: "#FFFFFF",
+      Icon: Calendar,
+      connected: false,
+      available: false,
+    },
+    {
+      id: "asaas",
+      platform: "Asaas",
+      category: "Financeiro",
+      domain: "asaas.com",
+      name: "Cobranças Asaas",
+      description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.",
+      iconBg: "#FF6B35",
+      iconColor: "#FFFFFF",
+      Icon: CreditCard,
+      connected: false,
+      available: false,
+    },
+    {
+      id: "instagram",
+      platform: "Instagram API",
+      category: "Instagram",
+      domain: "instagram.com",
+      name: "Instagram Mensagens",
+      description: "Receba e responda mensagens diretas do Instagram diretamente no CRM, sem alternar de plataforma.",
+      iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)",
+      iconColor: "#FFFFFF",
+      Icon: MessageSquare,
+      connected: false,
+      available: false,
+    },
+  ];
+
+  const filteredConns = searchConn.trim()
+    ? ALL_CONNECTIONS.filter(c =>
+        c.name.toLowerCase().includes(searchConn.toLowerCase()) ||
+        c.platform.toLowerCase().includes(searchConn.toLowerCase()) ||
+        c.category.toLowerCase().includes(searchConn.toLowerCase())
+      )
+    : ALL_CONNECTIONS;
+
   return (
     <>
-      <h1 className="text-xl font-semibold text-[#111111] mb-6">Conexões</h1>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-[#111111]">Conexões</h1>
+          <p className="text-sm text-[#AAAAAA] mt-0.5">Gerencie suas conexões de comunicação</p>
+        </div>
+        <Button
+          className="bg-[#128A68] hover:bg-[#128A68]/90 text-white text-sm"
+          onClick={openDialog}
+        >
+          Criar
+        </Button>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* WhatsApp */}
-        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${connected ? "bg-[#E1F5EE]" : "bg-[#F5F5F5]"}`}>
-            <MessageSquare size={18} className={connected ? "text-[#128A68]" : "text-[#AAAAAA]"} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-semibold text-[#111111]">WhatsApp</p>
-              {connected
-                ? <Badge className="text-[10px] h-5 bg-[#E1F5EE] text-[#128A68] border-0 hover:bg-[#E1F5EE]">Conectado</Badge>
-                : <Badge variant="secondary" className="text-[10px] h-5">Desconectado</Badge>
-              }
-            </div>
-            <p className="text-xs text-[#AAAAAA]">Envie e receba mensagens direto do CRM.</p>
-            {connected ? (
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                {connPhone && <span className="text-xs text-[#535353] font-mono">{connPhone}</span>}
-                <Badge className={`text-[10px] h-5 border-0 ${webhookOk ? "bg-[#E1F5EE] text-[#128A68]" : "bg-yellow-50 text-yellow-700"}`}>
-                  {webhookOk ? "✓ Recebendo mensagens" : "Configurando webhook…"}
-                </Badge>
-                <Button
-                  size="sm" variant="outline"
-                  className="h-7 text-xs rounded-md border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white"
-                  onClick={handleDisconnect}
-                >
-                  Desconectar
-                </Button>
+      {/* Search + count */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAAAAA]" />
+          <input
+            value={searchConn}
+            onChange={e => setSearchConn(e.target.value)}
+            placeholder="Pesquisar..."
+            className="w-full pl-8 pr-3 py-2 text-sm border border-[#EEEEEE] rounded-lg outline-none bg-white focus:border-[#128A68] text-[#111]"
+          />
+        </div>
+        <span className="text-sm text-[#AAAAAA]">{filteredConns.length} resultado{filteredConns.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Cards grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredConns.map(conn => (
+          <div
+            key={conn.id}
+            className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col gap-0 hover:shadow-md transition-shadow"
+          >
+            {/* Top row: status + domain */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[#22C55E]" : "bg-[#D1D5DB]"}`} />
+                <span className={`text-xs font-medium ${conn.connected ? "text-[#16A34A]" : "text-[#6B7280]"}`}>
+                  {conn.connected ? "Conectado" : conn.available ? "Desconectado" : "Em breve"}
+                </span>
               </div>
-            ) : (
-              <Button
-                size="sm" variant="outline" disabled={checking}
-                className="mt-3 h-7 text-xs rounded-md border-[#128A68] text-[#128A68] hover:bg-[#128A68] hover:text-white"
-                onClick={openDialog}
+              <a
+                href={`https://${conn.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:text-[#128A68] transition-colors"
               >
-                Conectar
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Asaas */}
-        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#F5F5F5] flex items-center justify-center shrink-0">
-            <KeyRound size={18} className="text-[#AAAAAA]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-semibold text-[#111111]">Asaas</p>
-              <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
+                {conn.domain}
+                <ExternalLink size={11} />
+              </a>
             </div>
-            <p className="text-xs text-[#AAAAAA]">Cobranças e histórico financeiro automatizados.</p>
-            <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>Conectar</Button>
-          </div>
-        </div>
 
-        {/* Google Calendar */}
-        <div className="bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#F5F5F5] flex items-center justify-center shrink-0">
-            <Calendar size={18} className="text-[#AAAAAA]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-semibold text-[#111111]">Google Calendar</p>
-              <Badge variant="secondary" className="text-[10px] h-5">Em breve</Badge>
+            {/* Platform icon + name + category */}
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: conn.iconBg }}
+              >
+                <conn.Icon size={22} color={conn.iconColor} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#111111] leading-tight">{conn.platform}</p>
+                <p className="text-xs text-[#AAAAAA]">{conn.category}</p>
+              </div>
             </div>
-            <p className="text-xs text-[#AAAAAA]">Sincronize tarefas e reuniões com seu calendário.</p>
-            <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-[#EEEEEE]" disabled>Conectar</Button>
+
+            {/* Connection name */}
+            <p className="text-base font-bold text-[#111111] mb-2 leading-snug">{conn.name}</p>
+
+            {/* Description */}
+            <p className="text-xs text-[#888] leading-relaxed flex-1 mb-4 line-clamp-3">{conn.description}</p>
+
+            {/* Footer: gerenciar + toggle */}
+            <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0]">
+              <button
+                onClick={() => conn.available ? openDialog() : undefined}
+                disabled={!conn.available}
+                className="flex items-center gap-1.5 text-sm font-medium text-[#535353] hover:text-[#128A68] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Settings2 size={14} />
+                Gerenciar
+              </button>
+              <Switch
+                checked={conn.connected}
+                disabled={!conn.available}
+                onCheckedChange={checked => {
+                  if (conn.id === "zapi") {
+                    if (checked) openDialog();
+                    else handleDisconnect();
+                  }
+                }}
+              />
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* ── Z-API Connection Dialog ─────────────────────────────────── */}
@@ -2557,7 +2651,7 @@ function ConexoesSection() {
             </>
           )}
 
-          {/* Step 4 — Done */}
+          {/* Step 4 — Done / Manage */}
           {step === "done" && (
             <div className="py-2 text-center">
               <div className="w-14 h-14 rounded-full bg-[#E1F5EE] flex items-center justify-center mx-auto mb-3">
@@ -2565,9 +2659,19 @@ function ConexoesSection() {
               </div>
               <p className="text-sm font-semibold text-[#111111] mb-1">WhatsApp conectado!</p>
               {connPhone && <p className="text-xs text-[#535353] font-mono mb-2">{connPhone}</p>}
-              <p className="text-xs text-[#AAAAAA]">Você já pode enviar e receber mensagens pelo Rezult CRM.</p>
-              <DialogFooter className="mt-5">
-                <Button className="bg-[#128A68] hover:bg-[#128A68]/90 w-full" onClick={closeDialog}>Concluir</Button>
+              <Badge className={`text-[10px] border-0 ${webhookOk ? "bg-[#E1F5EE] text-[#128A68]" : "bg-yellow-50 text-yellow-700"}`}>
+                {webhookOk ? "✓ Recebendo mensagens" : "Configurando webhook…"}
+              </Badge>
+              <p className="text-xs text-[#AAAAAA] mt-3">Você já pode enviar e receber mensagens pelo Rezult CRM.</p>
+              <DialogFooter className="mt-5 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white flex-1"
+                  onClick={() => { handleDisconnect(); closeDialog(); }}
+                >
+                  Desconectar
+                </Button>
+                <Button className="bg-[#128A68] hover:bg-[#128A68]/90 flex-1" onClick={closeDialog}>Fechar</Button>
               </DialogFooter>
             </div>
           )}
