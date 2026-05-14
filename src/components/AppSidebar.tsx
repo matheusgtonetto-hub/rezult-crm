@@ -39,13 +39,13 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA" },
-  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA" },
+  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA", locked: true },
+  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA", locked: true },
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/automacoes", label: "Automações", icon: Zap },
+  { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
 ];
 
@@ -306,31 +306,20 @@ export function AppSidebar() {
         <div className="flex flex-col items-center" style={{ gap: 4 }}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <RouterNavLink
-                to="/rezult-pay"
-                className={itemBase}
-                style={{
-                  ...itemSize,
-                  background: pathname.startsWith("/rezult-pay") ? ACTIVE_BG : "transparent",
-                  color: pathname.startsWith("/rezult-pay") ? ICON_ACTIVE : ICON_INACTIVE,
-                }}
-                onMouseEnter={(e) => {
-                  if (!pathname.startsWith("/rezult-pay")) {
-                    e.currentTarget.style.background = HOVER_BG;
-                    e.currentTarget.style.color = "rgba(255,255,255,0.9)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!pathname.startsWith("/rezult-pay")) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = ICON_INACTIVE;
-                  }
-                }}
+              <div
+                className={`${itemBase} cursor-not-allowed relative`}
+                style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
               >
                 <CreditCard size={18} strokeWidth={1.75} />
-              </RouterNavLink>
+                <span
+                  className="absolute -top-0.5 -right-0.5 rounded-[3px] flex items-center justify-center font-semibold leading-none px-1"
+                  style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 7, height: 10 }}
+                >
+                  EM BREVE
+                </span>
+              </div>
             </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Rezult Pay</TooltipContent>
+            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Rezult Pay · Em breve</TooltipContent>
           </Tooltip>
 
           <Tooltip>
