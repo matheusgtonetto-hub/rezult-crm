@@ -2580,74 +2580,85 @@ function ConexoesSection() {
         ))}
       </div>
 
-      {/* ── Connection Dialog ─────────────────────────────────── */}
-      <Dialog open={open} onOpenChange={v => { if (!v) closeDialog(); }}>
-        <DialogContent className={step === "select" ? "max-w-[640px] p-0 overflow-hidden block" : "max-w-[420px]"}>
+      {/* ── Seleção de provedor (Dialog separado para evitar conflitos de CSS) ── */}
+      <Dialog open={open && step === "select"} onOpenChange={v => { if (!v) closeDialog(); }}>
+        <DialogContent style={{ maxWidth: 640, padding: 0, overflow: "hidden" }}>
+          <DialogTitle className="sr-only">Criar conexão</DialogTitle>
+          <div style={{ display: "flex", height: 440 }}>
+            {/* Left sidebar */}
+            <div style={{ width: 160, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
+              {CONN_CATEGORIES.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCategory(c.id)}
+                  style={{
+                    textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: 500,
+                    background: selectedCategory === c.id ? "rgba(18,138,104,0.1)" : "transparent",
+                    color: selectedCategory === c.id ? "#128A68" : "#535353",
+                    border: "none", cursor: "pointer",
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
 
-          {/* Step 0 — Select provider (two-panel layout) */}
-          {step === "select" && (
-            <div className="flex" style={{ height: 420 }}>
-              {/* Left sidebar */}
-              <div className="shrink-0 bg-[#F7F7F7] border-r border-[#EEEEEE] flex flex-col p-3 gap-1" style={{ width: 160 }}>
-                {CONN_CATEGORIES.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCategory(c.id)}
-                    className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === c.id ? "bg-[#128A68]/10 text-[#128A68]" : "text-[#535353] hover:bg-[#EEEEEE]"}`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
+            {/* Right content */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", borderBottom: "1px solid #F0F0F0" }}>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>{selectedCat.label}</p>
+                  <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{selectedCat.description}</p>
+                </div>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAAAAA" }}>
+                  <X size={16} />
+                </button>
               </div>
-
-              {/* Right content */}
-              <div className="flex-1 flex flex-col min-w-0">
-                <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F0F0]">
-                  <div>
-                    <h2 className="text-base font-semibold text-[#111]">{selectedCat.label}</h2>
-                    <p className="text-xs text-[#AAAAAA] mt-0.5">{selectedCat.description}</p>
-                  </div>
-                  <button onClick={closeDialog} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#F0F0F0] text-[#AAA] hover:text-[#111]">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                  {selectedCat.providers.map(prov => {
-                    const ProvIcon = prov.Icon;
-                    return (
-                      <button
-                        key={prov.id}
-                        onClick={() => {
-                          if (!prov.available) { toast("Em breve"); return; }
-                          if (prov.id === "zapi") setStep("creds");
-                        }}
-                        className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${prov.available ? "border-[#EEEEEE] hover:border-[#128A68] hover:bg-[#E1F5EE]/20 cursor-pointer" : "border-[#EEEEEE] opacity-50 cursor-not-allowed"}`}
-                      >
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: prov.iconBg }}>
-                          <ProvIcon size={20} color="#FFF" />
+              <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                {selectedCat.providers.map(prov => {
+                  const ProvIcon = prov.Icon;
+                  return (
+                    <button
+                      key={prov.id}
+                      onClick={() => {
+                        if (!prov.available) { toast("Em breve"); return; }
+                        if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
+                      }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: 16,
+                        borderRadius: 12, border: `1.5px solid ${prov.available ? "#EEEEEE" : "#EEEEEE"}`,
+                        textAlign: "left", background: "transparent", cursor: prov.available ? "pointer" : "not-allowed",
+                        opacity: prov.available ? 1 : 0.5,
+                      }}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: prov.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <ProvIcon size={20} color="#FFF" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{prov.name}</span>
+                          {!prov.available && <span style={{ fontSize: 10, background: "#F5F5F5", color: "#AAAAAA", padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>Em breve</span>}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#111]">{prov.name}</span>
-                            {!prov.available && <span className="text-[10px] bg-[#F5F5F5] text-[#AAAAAA] px-2 py-0.5 rounded-full font-medium">Em breve</span>}
-                          </div>
-                          <p className="text-xs text-[#AAAAAA] mt-0.5 truncate">{prov.desc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{prov.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          {step !== "select" && (
+      {/* ── Connection Dialog (creds / qr / done) ─────────────────────── */}
+      <Dialog open={open && step !== "select"} onOpenChange={v => { if (!v) closeDialog(); }}>
+        <DialogContent className="max-w-[420px]">
+
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare size={15} className="text-[#128A68]" /> Conectar WhatsApp
             </DialogTitle>
           </DialogHeader>
-          )}
 
           {/* Step 1 — Provider (now skipped, but kept for back-compat) */}
           {step === "provider" && (
