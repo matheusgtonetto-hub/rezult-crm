@@ -2387,6 +2387,15 @@ function ConexoesSection() {
   }
 
   function openDialog() {
+    setStep("select");
+    setSelectedCategory("whatsapp");
+    setForm({ instanceId: "", token: "", clientToken: "" });
+    setQrSrc("");
+    setPollN(0);
+    setOpen(true);
+  }
+
+  function openManageDialog() {
     if (connected && savedCreds) {
       setStep("done");
     } else {
@@ -2547,7 +2556,7 @@ function ConexoesSection() {
             {/* Footer: gerenciar + toggle */}
             <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0]">
               <button
-                onClick={() => conn.available ? openDialog() : undefined}
+                onClick={() => conn.available ? openManageDialog() : undefined}
                 disabled={!conn.available}
                 className="flex items-center gap-1.5 text-sm font-medium text-[#535353] hover:text-[#128A68] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -2559,7 +2568,7 @@ function ConexoesSection() {
                 disabled={!conn.available}
                 onCheckedChange={checked => {
                   if (conn.id === "zapi") {
-                    if (checked) openDialog();
+                    if (checked) openManageDialog();
                     else handleDisconnect();
                   }
                 }}
