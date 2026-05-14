@@ -265,11 +265,16 @@ export default function MultiatendimentoPage() {
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
+  const [tagPickerPos, setTagPickerPos]   = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const tagBtnRef    = useRef<HTMLButtonElement>(null);
   const tagPickerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!showTagPicker) return;
     const handle = (e: MouseEvent) => {
-      if (tagPickerRef.current && !tagPickerRef.current.contains(e.target as Node)) {
+      if (
+        tagPickerRef.current && !tagPickerRef.current.contains(e.target as Node) &&
+        tagBtnRef.current && !tagBtnRef.current.contains(e.target as Node)
+      ) {
         setShowTagPicker(false); setTagSearch("");
       }
     };
@@ -1480,16 +1485,24 @@ export default function MultiatendimentoPage() {
                       <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{(active.tags ?? []).length - 4}</span>
                     )}
                     {/* Botão "+" */}
-                    <div style={{ position: "relative" }} ref={tagPickerRef}>
+                    <div style={{ position: "relative" }}>
                       <button
-                        onClick={() => { setShowTagPicker(v => !v); setTagSearch(""); }}
+                        ref={tagBtnRef}
+                        onClick={() => {
+                          if (!showTagPicker) {
+                            const r = tagBtnRef.current?.getBoundingClientRect();
+                            if (r) setTagPickerPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                          }
+                          setShowTagPicker(v => !v);
+                          setTagSearch("");
+                        }}
                         style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
                       >
                         <Plus size={10} />
                       </button>
 
                       {showTagPicker && (
-                        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 200, overflow: "hidden" }}>
+                        <div ref={tagPickerRef} style={{ position: "fixed", top: tagPickerPos.top, right: tagPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
                           <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
                             <input
                               value={tagSearch}
