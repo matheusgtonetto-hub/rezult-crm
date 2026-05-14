@@ -843,6 +843,22 @@ export default function MultiatendimentoPage() {
     }
   }
 
+  // Ao abrir o painel Lista, sincroniza tags da conversa → lead (backfill)
+  useEffect(() => {
+    if (!showListaPanel || !activeId) return;
+    const conv = convList.find(c => c.id === activeId);
+    if (!conv) return;
+    const convTags = conv.tags ?? [];
+    if (convTags.length === 0) return;
+    const linkedLead = leads[activeId]
+      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
+    if (!linkedLead) return;
+    const leadTags = linkedLead.tags ?? [];
+    const toAdd = convTags.filter(t => !leadTags.includes(t));
+    if (toAdd.length > 0) updateLead(linkedLead.id, { tags: [...leadTags, ...toAdd] });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showListaPanel, activeId]);
+
   async function toggleConvTag(tagName: string) {
     if (!activeId || !active) return;
 
