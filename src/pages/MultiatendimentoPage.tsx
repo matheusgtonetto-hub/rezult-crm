@@ -11,7 +11,7 @@ import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon,
+  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List,
 } from "lucide-react";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -260,8 +260,22 @@ export default function MultiatendimentoPage() {
   const [negocioValue, setNegocioValue]         = useState("");
   const [negocioLoading, setNegocioLoading]     = useState(false);
 
-  // ── painel "Lista" (tags) ────────────────────────────────────────────
   const [showListaPanel, setShowListaPanel] = useState(false);
+
+  // ── tag picker inline ──────────────────────────────────────────────
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [tagSearch, setTagSearch]         = useState("");
+  const tagPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showTagPicker) return;
+    const handle = (e: MouseEvent) => {
+      if (tagPickerRef.current && !tagPickerRef.current.contains(e.target as Node)) {
+        setShowTagPicker(false); setTagSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showTagPicker]);
 
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
@@ -843,9 +857,9 @@ export default function MultiatendimentoPage() {
     }
   }
 
-  // Ao abrir o painel Lista, sincroniza tags da conversa → lead (backfill)
+  // Ao trocar de conversa, sincroniza tags da conversa → lead (backfill)
   useEffect(() => {
-    if (!showListaPanel || !activeId) return;
+    if (!activeId) return;
     const conv = convList.find(c => c.id === activeId);
     if (!conv) return;
     const convTags = conv.tags ?? [];
@@ -857,7 +871,7 @@ export default function MultiatendimentoPage() {
     const toAdd = convTags.filter(t => !leadTags.includes(t));
     if (toAdd.length > 0) updateLead(linkedLead.id, { tags: [...leadTags, ...toAdd] });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showListaPanel, activeId]);
+  }, [activeId]);
 
   async function toggleConvTag(tagName: string) {
     if (!activeId || !active) return;
@@ -1448,7 +1462,75 @@ export default function MultiatendimentoPage() {
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{active.name}</span>
                     <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate("/leads")} />
                   </div>
-                  <span style={{ fontSize: 12, color: "#AAA" }}>{active.company || "—"}</span>
+                  {/* Tags inline + picker */}
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 5 }}>
+                    {(active.tags ?? []).slice(0, 4).map(tagName => {
+                      const tag = crmTags.find(t => t.name === tagName);
+                      return (
+                        <span
+                          key={tagName}
+                          onClick={() => toggleConvTag(tagName)}
+                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "#666", border: `1px solid ${tag?.color || "#E5E5E5"}`, borderRadius: 100, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                        >
+                          {tagName}
+                        </span>
+                      );
+                    })}
+                    {(active.tags ?? []).length > 4 && (
+                      <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{(active.tags ?? []).length - 4}</span>
+                    )}
+                    {/* Botão "+" */}
+                    <div style={{ position: "relative" }} ref={tagPickerRef}>
+                      <button
+                        onClick={() => { setShowTagPicker(v => !v); setTagSearch(""); }}
+                        style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
+                      >
+                        <Plus size={10} />
+                      </button>
+
+                      {showTagPicker && (
+                        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 200, overflow: "hidden" }}>
+                          <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
+                            <input
+                              value={tagSearch}
+                              onChange={e => setTagSearch(e.target.value)}
+                              placeholder="Pesquisar..."
+                              autoFocus
+                              style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
+                            />
+                          </div>
+                          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                            {crmTags
+                              .filter(t => !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                              .map(tag => {
+                                const isActive = (active.tags ?? []).includes(tag.name);
+                                return (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => toggleConvTag(tag.name)}
+                                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: isActive ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                  >
+                                    {isActive
+                                      ? <Check size={13} color="#128A68" />
+                                      : <div style={{ width: 13 }} />}
+                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, display: "inline-block", flexShrink: 0 }} />
+                                    <span style={{ fontSize: 13, color: "#111", fontWeight: isActive ? 600 : 400 }}>{tag.name}</span>
+                                  </button>
+                                );
+                              })}
+                            {crmTags.filter(t => !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
+                              <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma tag encontrada</div>
+                            )}
+                          </div>
+                          <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
+                            <button onClick={() => { navigate("/configuracoes"); setShowTagPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                              Criar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1470,7 +1552,7 @@ export default function MultiatendimentoPage() {
                   style={{ flex: 1, background: showListaPanel ? "#E1F5EE" : "#F5F5F5", border: showListaPanel ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = showListaPanel ? "#E1F5EE" : "#F5F5F5")}
-                ><Tag size={12} /> Lista</button>
+                ><List size={12} /> Lista</button>
               </div>
 
               {/* Painel: + Negócio */}
@@ -1517,43 +1599,10 @@ export default function MultiatendimentoPage() {
                 </div>
               )}
 
-              {/* Painel: Lista (tags) */}
+              {/* Painel: Lista */}
               {showListaPanel && (
-                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 10 }}>Tags da conversa</div>
-                  {crmTags.length === 0 ? (
-                    <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "8px 0" }}>
-                      Nenhuma tag criada ainda.<br />
-                      <span style={{ color: "#128A68", cursor: "pointer" }} onClick={() => navigate("/configuracoes")}>Criar tags em Configurações →</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {crmTags.map(tag => {
-                        const active_ = (active.tags ?? []).includes(tag.name);
-                        return (
-                          <button
-                            key={tag.id}
-                            onClick={() => toggleConvTag(tag.name)}
-                            style={{
-                              border: `1.5px solid ${active_ ? tag.color : "#E5E5E5"}`,
-                              background: active_ ? `${tag.color}22` : "#FFF",
-                              borderRadius: 100,
-                              padding: "4px 12px",
-                              fontSize: 12,
-                              fontWeight: active_ ? 600 : 400,
-                              color: active_ ? tag.color : "#666",
-                              cursor: "pointer",
-                              display: "flex", alignItems: "center", gap: 5,
-                            }}
-                          >
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, display: "inline-block", flexShrink: 0 }} />
-                            {tag.name}
-                            {active_ && <Check size={11} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14, textAlign: "center" }}>
+                  <div style={{ fontSize: 12, color: "#AAA" }}>Em breve</div>
                 </div>
               )}
             </div>
