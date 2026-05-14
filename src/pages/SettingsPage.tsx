@@ -2160,7 +2160,46 @@ function IntegracoesSection() {
 
 /* ---------------- CONEXÕES ---------------- */
 type ZApiForm = { instanceId: string; token: string; clientToken: string };
-type ZApiStep = "provider" | "creds" | "qr" | "done";
+type ZApiStep = "select" | "provider" | "creds" | "qr" | "done";
+
+const CONN_CATEGORIES = [
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    description: "Crie conexões com a plataforma WhatsApp",
+    providers: [
+      { id: "zapi", name: "Z-API", desc: "Crie uma nova conexão com a API do Z-API", available: true,
+        iconBg: "#1A1A1A", Icon: Webhook },
+    ],
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    description: "Crie conexões com a plataforma Instagram",
+    providers: [
+      { id: "instagram_api", name: "Instagram API", desc: "Crie uma nova conexão com a API do Instagram", available: false,
+        iconBg: "#E1306C", Icon: MessageSquare },
+    ],
+  },
+  {
+    id: "agenda",
+    label: "Agenda",
+    description: "Crie conexões com plataformas de agenda",
+    providers: [
+      { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: false,
+        iconBg: "#4285F4", Icon: Calendar },
+    ],
+  },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    description: "Crie conexões com plataformas financeiras",
+    providers: [
+      { id: "asaas", name: "Asaas", desc: "Crie uma nova conexão com a API do Asaas", available: false,
+        iconBg: "#FF6B35", Icon: CreditCard },
+    ],
+  },
+] as const;
 
 function ConexoesSection() {
   const { user } = useAuth();
@@ -2172,6 +2211,7 @@ function ConexoesSection() {
   const [checking, setChecking]     = useState(true);
   const [webhookOk, setWebhookOk]   = useState(false);
   const [searchConn, setSearchConn] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("whatsapp");
 
   // dialog state
   const [open, setOpen]       = useState(false);
@@ -2350,7 +2390,8 @@ function ConexoesSection() {
     if (connected && savedCreds) {
       setStep("done");
     } else {
-      setStep("provider");
+      setStep("select");
+      setSelectedCategory("whatsapp");
       setForm({ instanceId: "", token: "", clientToken: "" });
       setQrSrc("");
       setPollN(0);
@@ -2528,16 +2569,76 @@ function ConexoesSection() {
         ))}
       </div>
 
-      {/* ── Z-API Connection Dialog ─────────────────────────────────── */}
+      {/* ── Connection Dialog ─────────────────────────────────── */}
       <Dialog open={open} onOpenChange={v => { if (!v) closeDialog(); }}>
-        <DialogContent className="max-w-[420px]">
+        <DialogContent className={step === "select" ? "max-w-[640px] p-0 overflow-hidden" : "max-w-[420px]"}>
+
+          {/* Step 0 — Select provider (two-panel layout) */}
+          {step === "select" && (() => {
+            const cat = CONN_CATEGORIES.find(c => c.id === selectedCategory) ?? CONN_CATEGORIES[0];
+            return (
+              <div className="flex h-[420px]">
+                {/* Left sidebar */}
+                <div className="w-40 shrink-0 bg-[#F7F7F7] border-r border-[#EEEEEE] flex flex-col p-3 gap-1">
+                  {CONN_CATEGORIES.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedCategory(c.id)}
+                      className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === c.id ? "bg-[#128A68]/10 text-[#128A68]" : "text-[#535353] hover:bg-[#EEEEEE]"}`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right content */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F0F0]">
+                    <div>
+                      <h2 className="text-base font-semibold text-[#111]">{cat.label}</h2>
+                      <p className="text-xs text-[#AAAAAA] mt-0.5">{cat.description}</p>
+                    </div>
+                    <button onClick={closeDialog} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[#F0F0F0] text-[#AAA] hover:text-[#111]">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+                    {cat.providers.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          if (!p.available) { toast("Em breve"); return; }
+                          if (p.id === "zapi") setStep("creds");
+                        }}
+                        className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${p.available ? "border-[#EEEEEE] hover:border-[#128A68] hover:bg-[#E1F5EE]/20 cursor-pointer" : "border-[#EEEEEE] opacity-50 cursor-not-allowed"}`}
+                      >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: p.iconBg }}>
+                          <p.Icon size={20} color="#FFF" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[#111]">{p.name}</span>
+                            {!p.available && <span className="text-[10px] bg-[#F5F5F5] text-[#AAAAAA] px-2 py-0.5 rounded-full font-medium">Em breve</span>}
+                          </div>
+                          <p className="text-xs text-[#AAAAAA] mt-0.5 truncate">{p.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {step !== "select" && (
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare size={15} className="text-[#128A68]" /> Conectar WhatsApp
             </DialogTitle>
           </DialogHeader>
+          )}
 
-          {/* Step 1 — Provider */}
+          {/* Step 1 — Provider (now skipped, but kept for back-compat) */}
           {step === "provider" && (
             <>
               <p className="text-xs text-[#AAAAAA] -mt-1 mb-3">Selecione o provedor de integração</p>
@@ -2601,7 +2702,7 @@ function ConexoesSection() {
                 </div>
               </div>
               <DialogFooter className="mt-4">
-                <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setStep("provider")}>Voltar</Button>
+                <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setStep("select")}>Voltar</Button>
                 <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={handleGenerateQr} disabled={qrLoading}>
                   {qrLoading ? "Gerando..." : "Gerar QR Code"}
                 </Button>
