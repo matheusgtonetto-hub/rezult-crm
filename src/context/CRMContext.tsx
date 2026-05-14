@@ -9,6 +9,7 @@ import {
 } from "@/data/mockData";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useCompany } from "@/context/CompanyContext";
 import { toast } from "sonner";
 
 interface CRMContextType {
@@ -203,6 +204,7 @@ function dbToTask(row: Record<string, unknown>): Task {
 
 export function CRMProvider({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
+  const { company } = useCompany();
 
   const [crmLoading, setCrmLoading] = useState(true);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -232,7 +234,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     return map;
   }, [teamMembers]);
 
-  // ── Load all data when user changes ───────────────────────────────────────
+  // ── Load all data when user or selected company changes ───────────────────
   useEffect(() => {
     if (!user) {
       setPipelines([]);
@@ -242,57 +244,60 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setPipelineGroups([]);
       setProducts([]);
       setLossReasons([]);
+      setCustomFieldGroups([]);
       setTeamMembers([]);
       setActivePipelineId("");
       setCrmLoading(false);
       return;
     }
+    if (!company) return; // wait for CompanyContext to finish loading
+
+    // Clear previous company's data immediately to avoid mixing
+    setPipelines([]);
+    setLeads({});
+    setTasks([]);
+    setCrmTags([]);
+    setPipelineGroups([]);
+    setProducts([]);
+    setLossReasons([]);
+    setCustomFieldGroups([]);
+    setTeamMembers([]);
+    setActivePipelineId("");
+    setCrmLoading(true);
+
+    const ownerId = company.owner_id;
 
     async function loadAll() {
-      setCrmLoading(true);
 
       const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes] = await Promise.all([
-        supabase.from("pipelines").select("*").order("position"),
+        supabase.from("pipelines").select("*").eq("owner_id", ownerId).order("position"),
         supabase.from("pipeline_columns").select("*").order("position"),
-        supabase.from("leads").select("*").order("position"),
-        supabase.from("activities").select("*"),
-        supabase.from("tasks").select("*").order("created_at"),
-        supabase.from("tags").select("*").order("created_at"),
-        supabase.from("pipeline_groups").select("*").order("created_at"),
-        supabase.from("products").select("*").order("created_at"),
-        supabase.from("loss_reasons").select("*").order("created_at"),
-        supabase.from("custom_field_groups").select("*").order("position"),
-        supabase.from("profiles").select("company_name, full_name").eq("id", user.id).single(),
+        supabase.from("leads").select("*").eq("owner_id", ownerId).order("position"),
+        supabase.from("activities").select("*").eq("owner_id", ownerId),
+        supabase.from("tasks").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("tags").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("pipeline_groups").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("products").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("loss_reasons").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("custom_field_groups").select("*").eq("owner_id", ownerId).order("position"),
+        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
       ]);
 
-      const myProfileData = myProfileRes.data as { company_name?: string; full_name?: string } | null;
-      const companyName = myProfileData?.company_name;
+      const myProfileData = myProfileRes.data as { full_name?: string } | null;
       if (myProfileData?.full_name) setCurrentUserName(myProfileData.full_name);
-      if (companyName) {
-        const { data: ownerData } = await supabase
-          .from("companies")
-          .select("owner_id")
-          .eq("name", companyName)
-          .single();
-        const ownerId = (ownerData as { owner_id?: string } | null)?.owner_id ?? user.id;
-        const { data: membersData } = await supabase
-          .from("profiles")
-          .select("full_name, email, avatar_url")
-          .or(`company_name.eq.${companyName},id.eq.${ownerId}`)
-          .order("full_name");
-        const rows = (membersData ?? []) as { full_name: string; email?: string; avatar_url?: string }[];
-        setTeamMembers(rows.map(p => p.full_name).filter(Boolean));
-        const emailMap: Record<string, string> = {};
-        const avatarMap: Record<string, string> = {};
-        rows.forEach(p => {
-          if (p.full_name && p.email) emailMap[p.full_name] = p.email;
-          if (p.full_name && p.avatar_url) avatarMap[p.full_name] = p.avatar_url;
-        });
-        setMemberEmails(emailMap);
-        setMemberAvatars(avatarMap);
-      } else {
-        setTeamMembers([]);
-      }
+
+      // Load team members via company RPC (works for owners and members)
+      const { data: membersData } = await supabase.rpc("get_company_members", { p_company_id: company.id });
+      const memberRows = (membersData ?? []) as { user_id: string; full_name: string; email: string; avatar_url: string }[];
+      setTeamMembers(memberRows.map(p => p.full_name).filter(Boolean));
+      const emailMap: Record<string, string> = {};
+      const avatarMap: Record<string, string> = {};
+      memberRows.forEach(p => {
+        if (p.full_name && p.email) emailMap[p.full_name] = p.email;
+        if (p.full_name && p.avatar_url) avatarMap[p.full_name] = p.avatar_url;
+      });
+      setMemberEmails(emailMap);
+      setMemberAvatars(avatarMap);
 
       const dbPipelines = (pipelineRes.data ?? []) as Record<string, unknown>[];
       const dbColumns = (columnRes.data ?? []) as Record<string, unknown>[];
@@ -309,6 +314,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const { data: cfItemsData } = await supabase
         .from("custom_field_items")
         .select("*")
+        .eq("owner_id", ownerId)
         .order("position");
       const dbCFItems = (cfItemsData ?? []) as Record<string, unknown>[];
 
@@ -329,12 +335,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           })),
       }));
 
-      // Seed default "Qualificação" group on first use — only if no default group exists
+      // Seed default "Qualificação" group — only on first use, only for the company owner
       const hasDefault = builtGroups.some(g => g.isDefault);
-      if (!hasDefault) {
+      if (!hasDefault && ownerId === user.id) {
         const { data: gData } = await supabase
           .from("custom_field_groups")
-          .insert({ owner_id: user.id, name: "Qualificação", position: 0, is_default: true })
+          .insert({ owner_id: ownerId, name: "Qualificação", position: 0, is_default: true })
           .select()
           .single();
         if (gData) {
@@ -345,7 +351,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
             { label: "O lead é o decisor?",         field_type: "boolean", position: 2 },
             { label: "Orçamento disponível?",       field_type: "text", position: 3 },
             { label: "Previsão de fechamento?",     field_type: "date", position: 4 },
-          ].map(i => ({ ...i, owner_id: user.id, group_id: gRow.id }));
+          ].map(i => ({ ...i, owner_id: ownerId, group_id: gRow.id }));
           const { data: iData } = await supabase
             .from("custom_field_items")
             .insert(defaultItems)
@@ -445,7 +451,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
 
     loadAll();
-  }, [user?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, company?.id]);
 
   // Keep activePipelineId valid when pipelines list changes
   useEffect(() => {
@@ -472,11 +479,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     colDefs: Omit<PipelineColumn, "leadIds">[],
     description?: string
   ) => {
-    if (!user) return;
+    if (!user || !company) return;
 
     const { data: pData, error: pErr } = await supabase
       .from("pipelines")
-      .insert({ owner_id: user.id, name, category, description: description ?? "", position: pipelines.length })
+      .insert({ owner_id: company.owner_id, name, category, description: description ?? "", position: pipelines.length })
       .select()
       .single();
 
@@ -504,7 +511,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     setPipelines(prev => [...prev, newPipeline]);
     setActivePipelineId(newPipeline.id);
-  }, [user, pipelines.length]);
+  }, [user, company, pipelines.length]);
 
   const updatePipeline = useCallback((id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description">>) => {
     setPipelines(prev => prev.map(p => (p.id === id ? { ...p, ...data } : p)));
@@ -585,7 +592,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [leads]);
 
   const addLead = useCallback(async (lead: Omit<Lead, "id">): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !company) return false;
 
     if (!lead.pipelineId) {
       toast.error("Crie um pipeline antes de adicionar um lead.");
@@ -599,7 +606,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("leads")
       .insert({
-        owner_id: user.id,
+        owner_id: company.owner_id,
         pipeline_id: lead.pipelineId,
         column_id: lead.stage || null,
         deal_number: lead.dealNumber,
@@ -646,7 +653,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (lead.activities.length > 0) {
       await supabase.from("activities").insert(
         lead.activities.map(a => ({
-          owner_id: user.id,
+          owner_id: company.owner_id,
           lead_id: realId,
           type: a.type,
           description: a.description,
@@ -672,7 +679,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         : p
     ));
     return true;
-  }, [user, pipelines]);
+  }, [user, company, pipelines]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
     setLeads(prev => ({ ...prev, [id]: { ...prev[id], ...data } }));
@@ -779,7 +786,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [pipelines]);
 
   const markLeadWon = useCallback((leadId: string, productName?: string, value?: number) => {
-    if (!user) return;
+    if (!user || !company) return;
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "won" } }));
     supabase.from("leads").update({ status: "won" }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadWon error:", error.message); });
@@ -792,12 +799,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: user.id, lead_id: leadId, type: "won", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "won", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadWon activity error:", error.message); });
-  }, [user, currentUserName]);
+  }, [user, company, currentUserName]);
 
   const markLeadLost = useCallback((leadId: string, reason?: string) => {
-    if (!user) return;
+    if (!user || !company) return;
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "lost" } }));
     supabase.from("leads").update({ status: "lost" }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadLost error:", error.message); });
@@ -809,12 +816,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: user.id, lead_id: leadId, type: "lost", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "lost", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadLost activity error:", error.message); });
-  }, [user, currentUserName]);
+  }, [user, company, currentUserName]);
 
   const markLeadOpen = useCallback((leadId: string) => {
-    if (!user) return;
+    if (!user || !company) return;
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open" } }));
     supabase.from("leads").update({ status: "open" }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadOpen error:", error.message); });
@@ -823,23 +830,23 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: user.id, lead_id: leadId, type: "stage_change", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "stage_change", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadOpen activity error:", error.message); });
-  }, [user, currentUserName]);
+  }, [user, company, currentUserName]);
 
   // ── Loss Reasons ───────────────────────────────────────────────────────────
 
   const addLossReason = useCallback(async (name: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !company) return false;
     const { data, error } = await supabase
       .from("loss_reasons")
-      .insert({ owner_id: user.id, name })
+      .insert({ owner_id: company.owner_id, name })
       .select()
       .single();
     if (error) { console.error("addLossReason error:", error.message); return false; }
     setLossReasons(prev => [...prev, { id: data.id as string, name: data.name as string }]);
     return true;
-  }, [user]);
+  }, [user, company]);
 
   const updateLossReason = useCallback(async (id: string, name: string) => {
     setLossReasons(prev => prev.map(r => r.id === id ? { ...r, name } : r));
@@ -856,18 +863,18 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Custom Field Groups & Items ────────────────────────────────────────────
 
   const addCustomFieldGroup = useCallback(async (name: string): Promise<CustomFieldGroup | null> => {
-    if (!user) return null;
+    if (!user || !company) return null;
     const position = customFieldGroups.length;
     const { data, error } = await supabase
       .from("custom_field_groups")
-      .insert({ owner_id: user.id, name, position })
+      .insert({ owner_id: company.owner_id, name, position })
       .select().single();
     if (error || !data) { console.error("addCustomFieldGroup:", error?.message); return null; }
     const row = data as Record<string, unknown>;
     const group: CustomFieldGroup = { id: row.id as string, name, position, isDefault: false, items: [] };
     setCustomFieldGroups(prev => [...prev, group]);
     return group;
-  }, [user, customFieldGroups.length]);
+  }, [user, company, customFieldGroups.length]);
 
   const updateCustomFieldGroup = useCallback(async (id: string, name: string) => {
     setCustomFieldGroups(prev => prev.map(g => g.id === id ? { ...g, name } : g));
@@ -882,12 +889,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addCustomFieldItem = useCallback(async (groupId: string, label: string, fieldType: CustomFieldType): Promise<CustomFieldItem | null> => {
-    if (!user) return null;
+    if (!user || !company) return null;
     const group = customFieldGroups.find(g => g.id === groupId);
     const position = group ? group.items.length : 0;
     const { data, error } = await supabase
       .from("custom_field_items")
-      .insert({ owner_id: user.id, group_id: groupId, label, field_type: fieldType, position })
+      .insert({ owner_id: company.owner_id, group_id: groupId, label, field_type: fieldType, position })
       .select().single();
     if (error || !data) { console.error("addCustomFieldItem:", error?.message); return null; }
     const row = data as Record<string, unknown>;
@@ -896,7 +903,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       g.id === groupId ? { ...g, items: [...g.items, item] } : g
     ));
     return item;
-  }, [user, customFieldGroups]);
+  }, [user, company, customFieldGroups]);
 
   const updateCustomFieldItem = useCallback(async (id: string, data: Partial<Pick<CustomFieldItem, "label" | "fieldType">>) => {
     setCustomFieldGroups(prev => prev.map(g => ({
@@ -927,10 +934,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Tags ───────────────────────────────────────────────────────────────────
 
   const addTag = useCallback(async (name: string, description: string, color: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !company) return false;
     const { data, error } = await supabase
       .from("tags")
-      .insert({ owner_id: user.id, name, description, color })
+      .insert({ owner_id: company.owner_id, name, description, color })
       .select()
       .single();
     if (error || !data) {
@@ -941,7 +948,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const row = data as Record<string, unknown>;
     setCrmTags(prev => [...prev, { id: row.id as string, name, description, color }]);
     return true;
-  }, [user]);
+  }, [user, company]);
 
   const updateTag = useCallback(async (id: string, data: Partial<Omit<Tag, "id">>) => {
     setCrmTags(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
@@ -959,10 +966,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Pipeline groups ────────────────────────────────────────────────────────
 
   const addPipelineGroup = useCallback(async (name: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !company) return false;
     const { data, error } = await supabase
       .from("pipeline_groups")
-      .insert({ owner_id: user.id, name, created_by: user.email ?? "" })
+      .insert({ owner_id: company.owner_id, name, created_by: user.email ?? "" })
       .select()
       .single();
     if (error || !data) {
@@ -973,7 +980,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const row = data as Record<string, unknown>;
     setPipelineGroups(prev => [...prev, { id: row.id as string, name, createdBy: user.email ?? "" }]);
     return true;
-  }, [user]);
+  }, [user, company]);
 
   const deletePipelineGroup = useCallback((id: string) => {
     setPipelineGroups(prev => prev.filter(g => g.id !== id));
@@ -985,20 +992,20 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Products ───────────────────────────────────────────────────────────────
 
   const addProduct = useCallback(async (data: Omit<Product, "id">) => {
-    if (!user) return;
+    if (!user || !company) return;
     const { data: row, error } = await supabase
       .from("products")
-      .insert({ owner_id: user.id, name: data.name, sku: data.sku, default_value: data.defaultValue })
+      .insert({ owner_id: company.owner_id, name: data.name, sku: data.sku, default_value: data.defaultValue })
       .select()
       .single();
-    if (error) { toast.error("Erro ao criar produto."); return; }
+    if (error || !row) { toast.error("Erro ao criar produto."); return; }
     setProducts(prev => [...prev, {
       id: (row as Record<string, unknown>).id as string,
       name: data.name,
       sku: data.sku,
       defaultValue: data.defaultValue,
     }]);
-  }, [user]);
+  }, [user, company]);
 
   const updateProduct = useCallback(async (id: string, data: Partial<Omit<Product, "id">>) => {
     const dbData: Record<string, unknown> = {};
@@ -1019,12 +1026,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Tasks ──────────────────────────────────────────────────────────────────
 
   const addTask = useCallback(async (task: Omit<Task, "id">) => {
-    if (!user) return;
+    if (!user || !company) return;
 
     const { data, error } = await supabase
       .from("tasks")
       .insert({
-        owner_id: user.id,
+        owner_id: company.owner_id,
         lead_id: task.leadId || null,
         lead_name: task.leadName,
         title: task.title,
@@ -1038,7 +1045,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (error || !data) { toast.error("Erro ao criar tarefa."); return; }
 
     setTasks(prev => [...prev, dbToTask(data as Record<string, unknown>)]);
-  }, [user]);
+  }, [user, company]);
 
   const updateTask = useCallback((id: string, data: Partial<Task>) => {
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...data } : t)));
@@ -1073,9 +1080,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), full] },
     }));
-    if (user) {
+    if (user && company) {
       supabase.from("activities").insert({
-        owner_id: user.id,
+        owner_id: company.owner_id,
         lead_id: leadId,
         type: activity.type,
         description: activity.description,
@@ -1101,7 +1108,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         }
       });
     }
-  }, [user]);
+  }, [user, company]);
 
   const completeActivity = useCallback((leadId: string, activityId: string) => {
     const completedAt = new Date().toISOString();

@@ -42,6 +42,9 @@ type CompanyUpdateData = Partial<Omit<Company, "id" | "owner_id" | "plan" | "pla
 
 interface CompanyContextType {
   company: Company | null;
+  availableCompanies: Company[];
+  setSelectedCompany: (c: Company) => void;
+  isOwner: boolean;
   companyLoading: boolean;
   isFreePlan: boolean;
   planExpired: boolean;
@@ -52,6 +55,7 @@ interface CompanyContextType {
 }
 
 const COMPANY_FIELDS = "*";
+const SELECTED_COMPANY_KEY = "rz_selected_company_id";
 
 const CompanyContext = createContext<CompanyContextType | null>(null);
 
@@ -63,16 +67,19 @@ export function useCompany() {
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [company, setCompany]        = useState<Company | null>(null);
+  const [availableCompanies, setAvailableCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
+    () => localStorage.getItem(SELECTED_COMPANY_KEY)
+  );
   const [companyLoading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) { setLoading(false); return; }
+    if (!user) { setAvailableCompanies([]); setLoading(false); return; }
     setLoading(true);
 
-    let data: Company | null = null;
+    const all: Company[] = [];
 
-    // Owners always see their own company first
+    // Owned companies (prefer paid plan)
     const { data: ownerRows, error: ownerError } = await supabase
       .from("companies")
       .select(COMPANY_FIELDS)
@@ -80,24 +87,42 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .order("plan_expires_at", { ascending: false });
 
     if (ownerError) console.error("[CompanyContext] owner query error:", ownerError);
+    if (ownerRows) all.push(...(ownerRows as Company[]));
 
-    if (ownerRows && ownerRows.length > 0) {
-      data = (ownerRows.find((r) => r.plan !== "free") ?? ownerRows[0]) as Company;
+    // Member companies (via company_members table)
+    const { data: memberRows, error: memberError } = await supabase
+      .rpc("get_my_member_companies");
+    if (memberError) console.error("[CompanyContext] member companies error:", memberError);
+    if (memberRows) {
+      for (const c of memberRows as Company[]) {
+        if (!all.find(x => x.id === c.id)) all.push(c);
+      }
     }
 
-    // If user owns no company, check if they are a member of another company
-    if (!data) {
-      const { data: memberRows, error: memberError } = await supabase
-        .rpc("get_my_member_company");
-      if (memberError) console.error("[CompanyContext] member company error:", memberError);
-      if (memberRows && memberRows.length > 0) data = memberRows[0] as Company;
-    }
-
-    setCompany(data ?? null);
+    setAvailableCompanies(all);
     setLoading(false);
   }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const selectedCompany = useMemo(() => {
+    if (availableCompanies.length === 0) return null;
+    if (selectedCompanyId) {
+      const found = availableCompanies.find(c => c.id === selectedCompanyId);
+      if (found) return found;
+    }
+    // Default: prefer paid plan, then first
+    return availableCompanies.find(c => c.plan !== "free") ?? availableCompanies[0];
+  }, [availableCompanies, selectedCompanyId]);
+
+  const setSelectedCompany = useCallback((c: Company) => {
+    setSelectedCompanyId(c.id);
+    localStorage.setItem(SELECTED_COMPANY_KEY, c.id);
+  }, []);
+
+  const company = selectedCompany;
+
+  const isOwner = company?.owner_id === user?.id;
 
   const isFreePlan = company?.plan === "free";
 
@@ -121,7 +146,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .select(COMPANY_FIELDS)
       .single();
     if (error) throw error;
-    if (updated) setCompany(updated as Company);
+    if (updated) {
+      setAvailableCompanies(prev =>
+        prev.map(c => c.id === (updated as Company).id ? updated as Company : c)
+      );
+    }
   }, [user, company]);
 
   const uploadLogo = useCallback(async (file: File) => {
@@ -141,12 +170,28 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .select(COMPANY_FIELDS)
       .single();
     if (updateError) throw updateError;
-    if (updated) setCompany(updated as Company);
+    if (updated) {
+      setAvailableCompanies(prev =>
+        prev.map(c => c.id === (updated as Company).id ? updated as Company : c)
+      );
+    }
   }, [user, company]);
 
   return (
     <CompanyContext.Provider
-      value={{ company, companyLoading, isFreePlan, planExpired, planDaysLeft, refetchCompany: load, updateCompany, uploadLogo }}
+      value={{
+        company,
+        availableCompanies,
+        setSelectedCompany,
+        isOwner,
+        companyLoading,
+        isFreePlan,
+        planExpired,
+        planDaysLeft,
+        refetchCompany: load,
+        updateCompany,
+        uploadLogo,
+      }}
     >
       {children}
     </CompanyContext.Provider>

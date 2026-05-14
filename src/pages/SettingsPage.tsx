@@ -778,16 +778,16 @@ function EquipeSection() {
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
   const loadMembers = useCallback(async () => {
-    if (!company?.name) return;
+    if (!company?.id) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, avatar_url")
-      .or(`company_name.eq.${company.name},id.eq.${company.owner_id}`)
-      .order("full_name");
-    setMembers((data ?? []) as Member[]);
+    const { data, error } = await supabase.rpc("get_company_members", { p_company_id: company.id });
+    if (error) console.error("[EquipeSection] loadMembers error:", error);
+    setMembers(
+      ((data ?? []) as { user_id: string; full_name: string; email: string; avatar_url: string | null }[])
+        .map(r => ({ id: r.user_id, full_name: r.full_name, email: r.email, avatar_url: r.avatar_url }))
+    );
     setLoading(false);
-  }, [company?.name, company?.owner_id]);
+  }, [company?.id]);
 
   const loadPendingInvites = useCallback(async () => {
     if (!isAdmin || !company?.id) return;

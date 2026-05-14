@@ -15,7 +15,6 @@ import {
   Bell,
   HelpCircle,
   Plus,
-  RefreshCw,
   UserCircle,
   Bot,
   CreditCard,
@@ -84,7 +83,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
-  const { company } = useCompany();
+  const { company, availableCompanies, setSelectedCompany } = useCompany();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
 
@@ -250,11 +249,30 @@ export function AppSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <RefreshCw size={14} className="mr-2" /> Trocar empresa
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Plus size={14} className="mr-2" /> Adicionar empresa
+            {availableCompanies.length > 1 && (
+              <>
+                {availableCompanies
+                  .filter(c => c.id !== company?.id)
+                  .map(c => (
+                    <DropdownMenuItem key={c.id} onClick={() => setSelectedCompany(c)}>
+                      <div
+                        className="w-4 h-4 rounded flex items-center justify-center text-white text-[8px] font-bold overflow-hidden shrink-0 mr-2"
+                        style={{ background: c.logo_url ? "transparent" : colorFromString(c.name) }}
+                      >
+                        {c.logo_url
+                          ? <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
+                          : initials(c.name)}
+                      </div>
+                      <span className="truncate">{c.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem asChild>
+              <a href="/company-register">
+                <Plus size={14} className="mr-2" /> Adicionar empresa
+              </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
