@@ -200,7 +200,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
-  const { leads, pipelines, activePipeline, moveLead } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -232,6 +232,16 @@ export default function MultiatendimentoPage() {
   // ref para evitar closure stale no handler global de Realtime
   const convListRef    = useRef<Conversation[]>(convList);
   useEffect(() => { convListRef.current = convList; }, [convList]);
+
+  // ── painel "+ Negócio" ───────────────────────────────────────────────
+  const [showNegocioForm, setShowNegocioForm]   = useState(false);
+  const [negocioName, setNegocioName]           = useState("");
+  const [negocioPipelineId, setNegocioPipelineId] = useState("");
+  const [negocioValue, setNegocioValue]         = useState("");
+  const [negocioLoading, setNegocioLoading]     = useState(false);
+
+  // ── painel "Lista" (tags) ────────────────────────────────────────────
+  const [showListaPanel, setShowListaPanel] = useState(false);
 
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
@@ -781,6 +791,46 @@ export default function MultiatendimentoPage() {
     const templates = AI_TEMPLATES[cs.stageIdx] ?? AI_TEMPLATES[0];
     const suggestion = templates[Math.floor(Math.random() * templates.length)];
     setTimeout(() => { setInputValue(suggestion); setAiLoading(false); }, 500);
+  }
+
+  async function handleCreateNegocio() {
+    if (!active || !user) return;
+    const pipeline = (pipelines ?? []).find(p => p.id === negocioPipelineId);
+    const firstCol = pipeline?.columns[0];
+    if (!pipeline || !firstCol) { toast.error("Escolha um pipeline válido"); return; }
+    setNegocioLoading(true);
+    const ok = await addLead({
+      dealNumber: nextDealNumber,
+      name: negocioName || active.name,
+      whatsapp: active.phone ?? "",
+      value: parseFloat(negocioValue.replace(/[^\d,]/g, "").replace(",", ".")) || 0,
+      responsible: "",
+      pipelineId: negocioPipelineId,
+      stage: firstCol.id,
+      priority: "Média",
+      origin: "Outro",
+      entryDate: new Date().toISOString().split("T")[0],
+      notes: "",
+      activities: [],
+      tags: [],
+    });
+    setNegocioLoading(false);
+    if (ok) {
+      toast.success("Negócio criado com sucesso!");
+      setShowNegocioForm(false);
+      setNegocioName("");
+      setNegocioValue("");
+    }
+  }
+
+  async function toggleConvTag(tagName: string) {
+    if (!activeId || !active) return;
+    const current = active.tags ?? [];
+    const next = current.includes(tagName)
+      ? current.filter(t => t !== tagName)
+      : [...current, tagName];
+    setConvList(prev => prev.map(c => c.id === activeId ? { ...c, tags: next } : c));
+    await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
   }
 
   // ── conv state helpers ──────────────────────────────────────────────
@@ -1354,14 +1404,109 @@ export default function MultiatendimentoPage() {
               </div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                {[{ icon: Plus, label: "Negócio" }, { icon: Zap, label: "Automação" }, { icon: Tag, label: "Lista" }].map(({ icon: Icon, label }) => (
-                  <button key={label} onClick={() => toast(`${label}: em breve`)}
-                    style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
-                  ><Icon size={12} /> {label}</button>
-                ))}
+                <button
+                  onClick={() => { setShowNegocioForm(v => !v); setShowListaPanel(false); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
+                  style={{ flex: 1, background: showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
+                ><Plus size={12} /> Negócio</button>
+                <button
+                  onClick={() => toast("Automação: em breve")}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
+                ><Zap size={12} /> Automação</button>
+                <button
+                  onClick={() => { setShowListaPanel(v => !v); setShowNegocioForm(false); }}
+                  style={{ flex: 1, background: showListaPanel ? "#E1F5EE" : "#F5F5F5", border: showListaPanel ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = showListaPanel ? "#E1F5EE" : "#F5F5F5")}
+                ><Tag size={12} /> Lista</button>
               </div>
+
+              {/* Painel: + Negócio */}
+              {showNegocioForm && (
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo negócio</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
+                    <input
+                      value={negocioName}
+                      onChange={e => setNegocioName(e.target.value)}
+                      placeholder={active.name}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Pipeline</label>
+                    <select
+                      value={negocioPipelineId}
+                      onChange={e => setNegocioPipelineId(e.target.value)}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF", cursor: "pointer" }}
+                    >
+                      <option value="">Selecione...</option>
+                      {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Valor (opcional)</label>
+                    <input
+                      value={negocioValue}
+                      onChange={e => setNegocioValue(e.target.value)}
+                      placeholder="R$ 0,00"
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
+                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                    <button
+                      onClick={handleCreateNegocio}
+                      disabled={negocioLoading || !negocioPipelineId}
+                      style={{ background: negocioLoading || !negocioPipelineId ? "#AAA" : "#128A68", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading || !negocioPipelineId ? "not-allowed" : "pointer" }}
+                    >{negocioLoading ? "Criando…" : "Criar negócio"}</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Painel: Lista (tags) */}
+              {showListaPanel && (
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 10 }}>Tags da conversa</div>
+                  {crmTags.length === 0 ? (
+                    <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "8px 0" }}>
+                      Nenhuma tag criada ainda.<br />
+                      <span style={{ color: "#128A68", cursor: "pointer" }} onClick={() => navigate("/configuracoes")}>Criar tags em Configurações →</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {crmTags.map(tag => {
+                        const active_ = (active.tags ?? []).includes(tag.name);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => toggleConvTag(tag.name)}
+                            style={{
+                              border: `1.5px solid ${active_ ? tag.color : "#E5E5E5"}`,
+                              background: active_ ? `${tag.color}22` : "#FFF",
+                              borderRadius: 100,
+                              padding: "4px 12px",
+                              fontSize: 12,
+                              fontWeight: active_ ? 600 : 400,
+                              color: active_ ? tag.color : "#666",
+                              cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: 5,
+                            }}
+                          >
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, display: "inline-block", flexShrink: 0 }} />
+                            {tag.name}
+                            {active_ && <Check size={11} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ETAPA NO PIPELINE */}
