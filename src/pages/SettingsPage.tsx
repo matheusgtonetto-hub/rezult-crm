@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ArrowLeft, User, Tag, Package, XCircle, List, FormInput, Building2,
+  ArrowLeft, User, Tag, Package, X, XCircle, List, FormInput, Building2,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
