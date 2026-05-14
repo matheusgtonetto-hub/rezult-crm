@@ -106,12 +106,13 @@ export function AppSidebar() {
             >
               <Icon size={18} strokeWidth={1.75} />
               <span
-                className="absolute -top-0.5 -right-0.5 rounded-[3px] flex items-center justify-center font-semibold leading-none px-1"
+                className="absolute top-0 right-0 rounded-[3px] flex items-center justify-center font-semibold leading-none whitespace-nowrap"
                 style={{
                   background: "rgba(255,255,255,0.15)",
                   color: "rgba(255,255,255,0.7)",
-                  fontSize: 7,
-                  height: 10,
+                  fontSize: 5.5,
+                  height: 8,
+                  padding: "0 2px",
                 }}
               >
                 EM BREVE
@@ -312,8 +313,8 @@ export function AppSidebar() {
               >
                 <CreditCard size={18} strokeWidth={1.75} />
                 <span
-                  className="absolute -top-0.5 -right-0.5 rounded-[3px] flex items-center justify-center font-semibold leading-none px-1"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 7, height: 10 }}
+                  className="absolute top-0 right-0 rounded-[3px] flex items-center justify-center font-semibold leading-none whitespace-nowrap"
+                  style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 5.5, height: 8, padding: "0 2px" }}
                 >
                   EM BREVE
                 </span>
