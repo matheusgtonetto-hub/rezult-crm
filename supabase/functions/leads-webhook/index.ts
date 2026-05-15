@@ -98,10 +98,10 @@ serve(async (req) => {
       name,
       whatsapp:    phone,
       phone_ddi:   "+55",
-      email:       email ?? undefined,
-      emails:      email ? [email] : [],
+      email:       email ?? null,
+      emails:      JSON.stringify(email ? [email] : []),
       pipeline_id: pipelineId,
-      stage:       stageId,
+      column_id:   stageId,
       value:       0,
       responsible: "",
       priority:    "Média",
@@ -109,7 +109,7 @@ serve(async (req) => {
       entry_date:  new Date().toISOString().split("T")[0],
       notes,
       tags,
-      deal_status: "open",
+      status:      "open",
     })
     .select("id, deal_number")
     .single();
