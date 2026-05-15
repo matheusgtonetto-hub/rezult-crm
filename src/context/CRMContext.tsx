@@ -3,7 +3,7 @@ import {
   useCallback, useMemo, useEffect,
 } from "react";
 import {
-  Lead, Task, Tag, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
+  Lead, Task, Tag, CrmList, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
   Activity, PipelineCategory, Priority, LeadOrigin,
   ActivityType, TaskStatus, CustomFieldGroup, CustomFieldItem, CustomFieldType,
 } from "@/data/mockData";
@@ -63,6 +63,13 @@ interface CRMContextType {
   addTag: (name: string, description: string, color: string) => Promise<boolean>;
   updateTag: (id: string, data: Partial<Omit<Tag, "id">>) => Promise<void>;
   deleteTag: (id: string) => void;
+
+  crmLists: CrmList[];
+  addList: (name: string, description: string) => Promise<CrmList | null>;
+  updateList: (id: string, data: Partial<Pick<CrmList, "name" | "description">>) => Promise<void>;
+  deleteList: (id: string) => Promise<void>;
+  addLeadToList: (listId: string, leadId: string) => Promise<void>;
+  removeLeadFromList: (listId: string, leadId: string) => Promise<void>;
 
   teamMembers: string[];
   memberColors: Record<string, string>;
@@ -212,6 +219,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Record<string, Lead>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [crmTags, setCrmTags] = useState<Tag[]>([]);
+  const [crmLists, setCrmLists] = useState<CrmList[]>([]);
   const [pipelineGroups, setPipelineGroups] = useState<PipelineGroup[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
@@ -269,7 +277,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     async function loadAll() {
 
-      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes] = await Promise.all([
+      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
         supabase.from("pipelines").select("*").eq("owner_id", ownerId).order("position"),
         supabase.from("pipeline_columns").select("*").order("position"),
         supabase.from("leads").select("*").eq("owner_id", ownerId).order("position"),
@@ -281,6 +289,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         supabase.from("loss_reasons").select("*").eq("owner_id", ownerId).order("created_at"),
         supabase.from("custom_field_groups").select("*").eq("owner_id", ownerId).order("position"),
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+        supabase.from("lists").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("list_leads").select("list_id, lead_id"),
       ]);
 
       const myProfileData = myProfileRes.data as { full_name?: string } | null;
@@ -430,10 +440,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         createdBy: (r.created_by as string) ?? "",
       }));
 
+      const dbLists = (listRes.data ?? []) as Record<string, unknown>[];
+      const dbListLeads = (listLeadRes.data ?? []) as { list_id: string; lead_id: string }[];
+      const listsArr: CrmList[] = dbLists.map(r => ({
+        id: r.id as string,
+        name: r.name as string,
+        description: (r.description as string) ?? "",
+        created_at: r.created_at as string | undefined,
+        leadIds: dbListLeads.filter(ll => ll.list_id === (r.id as string)).map(ll => ll.lead_id),
+      }));
+
       setPipelines(pipelinesArr);
       setLeads(leadsMap);
       setTasks(tasksList);
       setCrmTags(tagsList);
+      setCrmLists(listsArr);
       setPipelineGroups(groupsList);
       setProducts(dbProducts.map(p => ({
         id: p.id as string,
@@ -931,6 +952,43 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (error) console.error("updateLeadCustomFieldValues:", error.message);
   }, []);
 
+  // ── Lists ──────────────────────────────────────────────────────────────────
+
+  const addList = useCallback(async (name: string, description: string): Promise<CrmList | null> => {
+    const ownerId = user?.id; if (!ownerId) return null;
+    const { data, error } = await supabase.from("lists").insert({ owner_id: ownerId, name, description }).select().single();
+    if (error || !data) { toast.error("Erro ao criar lista"); return null; }
+    const newList: CrmList = { id: data.id as string, name, description, leadIds: [], created_at: data.created_at as string };
+    setCrmLists(prev => [...prev, newList]);
+    return newList;
+  }, [user]);
+
+  const updateList = useCallback(async (id: string, data: Partial<Pick<CrmList, "name" | "description">>) => {
+    setCrmLists(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
+    const { error } = await supabase.from("lists").update(data).eq("id", id);
+    if (error) toast.error("Erro ao atualizar lista");
+  }, []);
+
+  const deleteList = useCallback(async (id: string) => {
+    setCrmLists(prev => prev.filter(l => l.id !== id));
+    const { error } = await supabase.from("lists").delete().eq("id", id);
+    if (error) toast.error("Erro ao excluir lista");
+  }, []);
+
+  const addLeadToList = useCallback(async (listId: string, leadId: string) => {
+    setCrmLists(prev => prev.map(l => l.id === listId && !l.leadIds.includes(leadId)
+      ? { ...l, leadIds: [...l.leadIds, leadId] } : l));
+    const { error } = await supabase.from("list_leads").insert({ list_id: listId, lead_id: leadId });
+    if (error) { toast.error("Erro ao adicionar lead à lista"); }
+  }, []);
+
+  const removeLeadFromList = useCallback(async (listId: string, leadId: string) => {
+    setCrmLists(prev => prev.map(l => l.id === listId
+      ? { ...l, leadIds: l.leadIds.filter(id => id !== leadId) } : l));
+    const { error } = await supabase.from("list_leads").delete().eq("list_id", listId).eq("lead_id", leadId);
+    if (error) { toast.error("Erro ao remover lead da lista"); }
+  }, []);
+
   // ── Tags ───────────────────────────────────────────────────────────────────
 
   const addTag = useCallback(async (name: string, description: string, color: string): Promise<boolean> => {
@@ -1263,6 +1321,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         tasks, addTask, updateTask, deleteTask,
         addActivity, updateActivity, patchActivity, completeActivity, uncompleteActivity, markNoShow, unmarkNoShow, deleteActivity, pinActivity,
         crmTags, addTag, updateTag, deleteTag,
+        crmLists, addList, updateList, deleteList, addLeadToList, removeLeadFromList,
         pipelineGroups, addPipelineGroup, deletePipelineGroup,
         teamMembers, memberColors, memberEmails, memberAvatars,
         products, addProduct, updateProduct, deleteProduct,
