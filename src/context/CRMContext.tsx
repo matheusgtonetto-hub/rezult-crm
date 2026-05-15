@@ -955,13 +955,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Lists ──────────────────────────────────────────────────────────────────
 
   const addList = useCallback(async (name: string, description: string): Promise<CrmList | null> => {
-    const ownerId = user?.id; if (!ownerId) return null;
-    const { data, error } = await supabase.from("lists").insert({ owner_id: ownerId, name, description }).select().single();
-    if (error || !data) { toast.error("Erro ao criar lista"); return null; }
+    if (!user || !company) return null;
+    const { data, error } = await supabase.from("lists").insert({ owner_id: company.owner_id, name, description }).select().single();
+    if (error || !data) { toast.error("Erro ao criar lista"); console.error("addList error:", error?.message, error?.details); return null; }
     const newList: CrmList = { id: data.id as string, name, description, leadIds: [], created_at: data.created_at as string };
     setCrmLists(prev => [...prev, newList]);
     return newList;
-  }, [user]);
+  }, [user, company]);
 
   const updateList = useCallback(async (id: string, data: Partial<Pick<CrmList, "name" | "description">>) => {
     setCrmLists(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
