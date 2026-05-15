@@ -880,8 +880,14 @@ export default function MultiatendimentoPage() {
   }
 
   function handleScheduleSubmit(data: ActivitySubmitData) {
-    if (!data.leadId) { toast.error("Nenhum negócio vinculado para salvar a atividade."); return; }
-    addActivity(data.leadId, {
+    // ActivityDialog retorna leadId: undefined quando defaultLead foi passado — usar lead vinculado
+    const resolvedLeadId = data.leadId ?? (() => {
+      if (!active) return undefined;
+      const ll = leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+      return ll?.id;
+    })();
+    if (!resolvedLeadId) { toast.error("Nenhum negócio vinculado para salvar a atividade."); return; }
+    addActivity(resolvedLeadId, {
       type: data.type,
       title: data.title,
       description: data.description,
