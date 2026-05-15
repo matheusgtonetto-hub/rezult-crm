@@ -1666,6 +1666,17 @@ export default function MultiatendimentoPage() {
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
                 ><Zap size={12} /> Automação</button>
+                <button
+                  onClick={e => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setListPickerPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                    setShowListPicker(v => !v);
+                    setListSearch("");
+                  }}
+                  style={{ flex: 1, background: showListPicker ? "#E1F5EE" : "#F5F5F5", border: showListPicker ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = showListPicker ? "#E1F5EE" : "#F5F5F5")}
+                ><List size={12} /> Lista</button>
               </div>
 
               {/* Painel: + Negócio */}
