@@ -217,6 +217,26 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: any; label: strin
   );
 }
 
+function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties }) {
+  const [err, setErr] = useState(false);
+  useEffect(() => { setErr(false); }, [avatarUrl]);
+  if (avatarUrl && !err) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        onError={() => setErr(true)}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0, ...style }}
+      />
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize, fontWeight: 700, flexShrink: 0, ...style }}>
+      {initials(name)}
+    </div>
+  );
+}
+
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
@@ -242,6 +262,34 @@ export default function MultiatendimentoPage() {
   const [instances, setInstances] = useState<ZApiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<string>("");
   const [instanceOpen, setInstanceOpen] = useState(false);
+
+  // ── profile pictures cache ───────────────────────────────────────────
+  const [convAvatars, setConvAvatars] = useState<Record<string, string>>({});
+  const fetchingAvatars = useRef<Set<string>>(new Set());
+
+  async function fetchAvatar(phone: string) {
+    const inst = instances[0];
+    if (!inst || !phone) return;
+    const p = phone.replace(/\D/g, "");
+    if (!p || fetchingAvatars.current.has(p) || convAvatars[p]) return;
+    fetchingAvatars.current.add(p);
+    try {
+      const res = await fetch(
+        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
+        { headers: { "Client-Token": inst.clientToken } }
+      );
+      if (!res.ok) return;
+      const json = await res.json() as { value?: string };
+      if (json.value) setConvAvatars(prev => ({ ...prev, [p]: json.value! }));
+    } catch { /* ignore */ }
+  }
+
+  // Fetch photos for visible conversations when instances load
+  useEffect(() => {
+    if (!instances[0] || convList.length === 0) return;
+    convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instances.length, convList.length]);
 
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1160,9 +1208,7 @@ export default function MultiatendimentoPage() {
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ position: "relative", flexShrink: 0 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: colorFromString(c.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600 }}>
-                    {initials(c.name)}
-                  </div>
+                  <ConvAvatar name={c.name} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} />
                   <ChannelBadge channel={c.channel} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1196,9 +1242,7 @@ export default function MultiatendimentoPage() {
             {/* header */}
             <div style={{ minHeight: 52, background: "#FFF", borderBottom: "0.5px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: colorFromString(active.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-                  {initials(active.name)}
-                </div>
+                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{active.name}</div>
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
@@ -1317,9 +1361,7 @@ export default function MultiatendimentoPage() {
                     return (
                       <div key={m.id} style={{ display: "flex", justifyContent: isAgent ? "flex-end" : "flex-start", marginBottom: 12 }}>
                         {!isAgent && (
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: colorFromString(active.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, marginRight: 8, flexShrink: 0 }}>
-                            {initials(active.name)}
-                          </div>
+                          <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
                         <div style={{ maxWidth: "65%" }}>
                           <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
@@ -1489,9 +1531,7 @@ export default function MultiatendimentoPage() {
             {/* HEADER */}
             <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: colorFromString(active.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
-                  {initials(active.name)}
-                </div>
+                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{active.name}</span>
@@ -1858,9 +1898,7 @@ export default function MultiatendimentoPage() {
                 onClick={() => navigate("/pipeline")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: colorFromString(active.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600 }}>
-                    {initials(active.name)}
-                  </div>
+                  <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{active.name}</div>
                     <div style={{ fontSize: 11, color: "#AAA" }}>{active.company || "Sem empresa"}</div>
