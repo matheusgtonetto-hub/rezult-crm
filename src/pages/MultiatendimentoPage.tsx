@@ -11,8 +11,10 @@ import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List,
+  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays,
 } from "lucide-react";
+import { ActivityDialog } from "@/components/ActivityDialog";
+import type { ActivitySubmitData } from "@/components/ActivityDialog";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -220,7 +222,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -259,6 +261,9 @@ export default function MultiatendimentoPage() {
   const [negocioPipelineId, setNegocioPipelineId] = useState("");
   const [negocioValue, setNegocioValue]         = useState("");
   const [negocioLoading, setNegocioLoading]     = useState(false);
+
+  // ── dialog de agendamento ────────────────────────────────────────────
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
 
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -857,7 +862,7 @@ export default function MultiatendimentoPage() {
     if (!pipeline || !firstCol) { toast.error("Escolha um pipeline válido"); return; }
     setNegocioLoading(true);
     const ok = await addLead({
-      dealNumber: nextDealNumber,
+      dealNumber: nextDealNumber(),
       name: negocioName || active.name,
       whatsapp: active.phone ?? "",
       value: parseFloat(negocioValue.replace(/[^\d,]/g, "").replace(",", ".")) || 0,
@@ -878,6 +883,23 @@ export default function MultiatendimentoPage() {
       setNegocioName("");
       setNegocioValue("");
     }
+  }
+
+  function handleScheduleSubmit(data: ActivitySubmitData) {
+    if (!data.leadId) { toast.error("Nenhum negócio vinculado para salvar a atividade."); return; }
+    addActivity(data.leadId, {
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      date: new Date().toISOString(),
+      scheduledAt: new Date(data.scheduledAt).toISOString(),
+      durationMinutes: data.durationMinutes,
+      meetLink: data.meetLink || undefined,
+      participants: data.participants.length > 0 ? data.participants : undefined,
+      contactEmail: data.participants[0] || undefined,
+    });
+    toast.success("Atividade agendada!");
+    setShowScheduleDialog(false);
   }
 
   // Ao trocar de conversa, sincroniza tags da conversa → lead (backfill)
@@ -1394,36 +1416,21 @@ export default function MultiatendimentoPage() {
 
               {/* toolbar de ações */}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
-                <Paperclip
-                  size={18} color={cs.finished ? "#DDD" : "#AAA"}
-                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
-                  title="Anexar arquivo"
-                  onClick={handleAttachClick}
-                />
-                <CalendarIcon
-                  size={18} color={cs.finished ? "#DDD" : "#AAA"}
-                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
-                  title="Agendar reunião"
-                  onClick={() => { if (!cs.finished) { setMeetingFormFor(activeId); setShowEmoji(false); setShowFiles(false); } }}
-                />
-                <FolderOpen
-                  size={18} color={showFiles ? "#128A68" : "#AAA"}
-                  style={{ cursor: "pointer" }}
-                  title="Arquivos da conversa"
-                  onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }}
-                />
-                <Smile
-                  size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")}
-                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
-                  title="Emoji"
-                  onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }}
-                />
-                <Mic
-                  size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")}
-                  style={{ cursor: cs.finished ? "not-allowed" : "pointer" }}
-                  title={recording ? "Gravando… clique para parar" : "Gravar áudio"}
-                  onClick={() => { if (!cs.finished) { recording ? stopRecording() : startRecording(); } }}
-                />
+                <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                  <Paperclip size={18} color={cs.finished ? "#DDD" : "#AAA"} />
+                </span>
+                <span title="Agendar reunião" onClick={() => { if (!cs.finished) { setMeetingFormFor(activeId); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                  <CalendarIcon size={18} color={cs.finished ? "#DDD" : "#AAA"} />
+                </span>
+                <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
+                  <FolderOpen size={18} color={showFiles ? "#128A68" : "#AAA"} />
+                </span>
+                <span title="Emoji" onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                  <Smile size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
+                </span>
+                <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { recording ? stopRecording() : startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")} />
+                </span>
                 <button
                   onClick={suggestAI}
                   disabled={cs.finished || aiLoading}
@@ -1677,6 +1684,12 @@ export default function MultiatendimentoPage() {
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = showListPicker ? "#E1F5EE" : "#F5F5F5")}
                 ><List size={12} /> Lista</button>
+                <button
+                  onClick={() => setShowScheduleDialog(true)}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
+                ><CalendarDays size={12} /> Agendar</button>
               </div>
 
               {/* Painel: + Negócio */}
@@ -1886,6 +1899,26 @@ export default function MultiatendimentoPage() {
           </>
         )}
       </aside>
+
+      {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
+      {showScheduleDialog && (() => {
+        const linkedLead = active
+          ? (leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? "")))
+          : undefined;
+        return (
+          <ActivityDialog
+            open={showScheduleDialog}
+            onClose={() => setShowScheduleDialog(false)}
+            onSubmit={handleScheduleSubmit}
+            leads={leads}
+            teamMembers={teamMembers}
+            memberEmails={memberEmails}
+            memberAvatars={memberAvatars}
+            memberColors={memberColors}
+            defaultLead={linkedLead}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -1985,7 +2018,7 @@ function NewConvDialog({
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
                   <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
                 </div>
-                <div style={{ display: "flex", align: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   {lead.company && <span style={{ fontSize: 11, color: "#666" }}>{lead.company}</span>}
                   {lead.company && <span style={{ fontSize: 11, color: "#DDD" }}>•</span>}
                   <span style={{ fontSize: 11, color: "#AAA" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
