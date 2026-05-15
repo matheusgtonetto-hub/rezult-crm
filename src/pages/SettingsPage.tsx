@@ -1612,26 +1612,98 @@ function MotivosSection() {
 
 /* ---------------- LISTAS ---------------- */
 function ListasSection() {
-  const listas = [
-    { name: "Leads quentes", count: 18 },
-    { name: "Clientes ativos", count: 42 },
-    { name: "Para reativar", count: 7 },
-  ];
+  const { crmLists, addList, updateList, deleteList } = useCRM();
+
+  const [showForm, setShowForm]     = useState(false);
+  const [editId, setEditId]         = useState<string | null>(null);
+  const [formName, setFormName]     = useState("");
+  const [formDesc, setFormDesc]     = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [deleting, setDeleting]     = useState<string | null>(null);
+
+  function openCreate() { setEditId(null); setFormName(""); setFormDesc(""); setShowForm(true); }
+  function openEdit(l: { id: string; name: string; description: string }) {
+    setEditId(l.id); setFormName(l.name); setFormDesc(l.description); setShowForm(true);
+  }
+  function closeForm() { setShowForm(false); setEditId(null); setFormName(""); setFormDesc(""); }
+
+  async function handleSave() {
+    if (!formName.trim()) { toast.error("Nome da lista é obrigatório."); return; }
+    setSaving(true);
+    if (editId) {
+      await updateList(editId, { name: formName.trim(), description: formDesc.trim() });
+      toast.success("Lista atualizada!");
+    } else {
+      const created = await addList(formName.trim(), formDesc.trim());
+      if (created) toast.success("Lista criada!");
+    }
+    setSaving(false);
+    closeForm();
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await deleteList(id);
+    toast.success("Lista excluída.");
+    setDeleting(null);
+  }
+
   return (
     <>
-      <SectionHeader title="Listas" onAdd="+ Nova lista" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {listas.map(l => (
-            <div key={l.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg">
-              <List size={16} className="text-[#128A68]" />
-              <p className="flex-1 text-[13px] text-[#111111] font-medium">{l.name}</p>
-              <span className="text-xs text-[#AAAAAA]">{l.count} leads</span>
-              <button className="text-[#535353] hover:text-[#111111] p-1"><Pencil size={14} /></button>
-              <button className="text-[#535353] hover:text-[#E24B4A] p-1"><Trash2 size={14} /></button>
+      <SectionHeader title="Listas" onAdd="+ Nova lista" onClick={openCreate} />
+
+      {showForm && (
+        <Card className="mb-4">
+          <p className="text-sm font-semibold text-[#111111] mb-3">{editId ? "Editar lista" : "Nova lista"}</p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-[#535353] block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-[#EEEEEE]" />
             </div>
-          ))}
-        </div>
+            <div>
+              <label className="text-xs font-medium text-[#535353] block mb-1">Descrição <span className="text-[#AAAAAA] font-normal">(opcional)</span></label>
+              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-[#EEEEEE]" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="border-[#EEEEEE]" onClick={closeForm}>Cancelar</Button>
+            <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando…" : editId ? "Salvar" : "Criar"}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        {crmLists.length === 0 ? (
+          <div className="py-8 text-center">
+            <List size={32} className="text-[#E5E5E5] mx-auto mb-2" />
+            <p className="text-sm text-[#AAAAAA]">Nenhuma lista criada ainda.</p>
+            <p className="text-xs text-[#AAAAAA] mt-1">Crie listas para organizar seus leads por segmento.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {crmLists.map(l => (
+              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-[#EEEEEE] rounded-lg group">
+                <List size={16} className="text-[#128A68] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] text-[#111111] font-medium truncate">{l.name}</p>
+                  {l.description && <p className="text-xs text-[#AAAAAA] truncate">{l.description}</p>}
+                </div>
+                <span className="text-xs text-[#AAAAAA] shrink-0">{l.leadIds.length} lead{l.leadIds.length !== 1 ? "s" : ""}</span>
+                <button
+                  onClick={() => openEdit(l)}
+                  className="text-[#535353] hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                ><Pencil size={14} /></button>
+                <button
+                  onClick={() => handleDelete(l.id)}
+                  disabled={deleting === l.id}
+                  className="text-[#535353] hover:text-[#E24B4A] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                ><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </>
   );

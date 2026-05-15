@@ -220,7 +220,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -1612,12 +1612,58 @@ export default function MultiatendimentoPage() {
                 </div>
               )}
 
-              {/* Painel: Lista */}
-              {showListaPanel && (
-                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14, textAlign: "center" }}>
-                  <div style={{ fontSize: 12, color: "#AAA" }}>Em breve</div>
-                </div>
-              )}
+              {/* Painel: Lista (adicionar lead a listas) */}
+              {showListaPanel && (() => {
+                const linkedLead = leads[activeId]
+                  ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+                return (
+                  <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 10 }}>Adicionar a lista</div>
+                    {!linkedLead ? (
+                      <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "4px 0" }}>
+                        Nenhum negócio vinculado a esta conversa.
+                      </div>
+                    ) : crmLists.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "4px 0" }}>
+                        Nenhuma lista criada ainda.{" "}
+                        <span style={{ color: "#128A68", cursor: "pointer" }} onClick={() => navigate("/configuracoes")}>
+                          Criar em Configurações →
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {crmLists.map(lst => {
+                          const inList = lst.leadIds.includes(linkedLead.id);
+                          return (
+                            <button
+                              key={lst.id}
+                              onClick={() => inList
+                                ? removeLeadFromList(lst.id, linkedLead.id)
+                                : addLeadToList(lst.id, linkedLead.id)
+                              }
+                              style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                border: `1.5px solid ${inList ? "#128A68" : "#E5E5E5"}`,
+                                background: inList ? "#E1F5EE" : "#FFF",
+                                borderRadius: 8, padding: "7px 10px",
+                                cursor: "pointer", textAlign: "left",
+                              }}
+                            >
+                              <List size={13} color={inList ? "#128A68" : "#888"} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: inList ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lst.name}</div>
+                                {lst.description && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lst.description}</div>}
+                              </div>
+                              <span style={{ fontSize: 11, color: "#AAA", flexShrink: 0 }}>{lst.leadIds.length}</span>
+                              {inList && <Check size={12} color="#128A68" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* ETAPA NO PIPELINE */}

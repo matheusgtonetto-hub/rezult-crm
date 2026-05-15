@@ -88,6 +88,14 @@ export interface Lead {
   customFieldValues?: Record<string, string>;
 }
 
+export interface CrmList {
+  id: string;
+  name: string;
+  description: string;
+  leadIds: string[];
+  created_at?: string;
+}
+
 export interface Tag {
   id: string;
   name: string;
