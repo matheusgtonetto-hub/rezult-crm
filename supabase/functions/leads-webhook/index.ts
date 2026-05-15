@@ -84,7 +84,7 @@ serve(async (req) => {
   const dealNumber = ((maxRow as any)?.deal_number ?? 1000) + 1;
 
   const phone  = String(payload.phone ?? payload.whatsapp ?? "").replace(/\D/g, "");
-  const name   = String(payload.name  ?? phone || "Lead sem nome").trim();
+  const name   = String((payload.name ?? phone) || "Lead sem nome").trim();
   const email  = String(payload.email ?? "").trim() || null;
   const source = String(payload.source ?? "Outro");
   const notes  = String(payload.notes  ?? "").trim();
