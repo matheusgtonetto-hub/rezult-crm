@@ -260,8 +260,6 @@ export default function MultiatendimentoPage() {
   const [negocioValue, setNegocioValue]         = useState("");
   const [negocioLoading, setNegocioLoading]     = useState(false);
 
-  const [showListaPanel, setShowListaPanel] = useState(false);
-
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
@@ -281,6 +279,26 @@ export default function MultiatendimentoPage() {
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showTagPicker]);
+
+  // ── list picker inline ─────────────────────────────────────────────
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [listSearch, setListSearch]         = useState("");
+  const [listPickerPos, setListPickerPos]   = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const listBtnRef    = useRef<HTMLButtonElement>(null);
+  const listPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showListPicker) return;
+    const handle = (e: MouseEvent) => {
+      if (
+        listPickerRef.current && !listPickerRef.current.contains(e.target as Node) &&
+        listBtnRef.current && !listBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowListPicker(false); setListSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showListPicker]);
 
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
@@ -898,6 +916,20 @@ export default function MultiatendimentoPage() {
         ? leadTags.filter(t => t !== tagName)
         : [...leadTags, tagName];
       await updateLead(linkedLead.id, { tags: nextLeadTags });
+    }
+  }
+
+  async function toggleConvList(listId: string) {
+    if (!activeId || !active) return;
+    const linkedLead = leads[activeId]
+      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+    if (!linkedLead) return;
+    const list = crmLists.find(l => l.id === listId);
+    if (!list) return;
+    if (list.leadIds.includes(linkedLead.id)) {
+      await removeLeadFromList(listId, linkedLead.id);
+    } else {
+      await addLeadToList(listId, linkedLead.id);
     }
   }
 
@@ -1545,11 +1577,85 @@ export default function MultiatendimentoPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Listas inline + picker */}
+                {(() => {
+                  const linkedLead = leads[activeId]
+                    ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+                  const convLists = crmLists.filter(l => linkedLead && l.leadIds.includes(linkedLead.id));
+                  return (
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 4 }}>
+                      {convLists.slice(0, 3).map(lst => (
+                        <span
+                          key={lst.id}
+                          onClick={() => toggleConvList(lst.id)}
+                          style={{ background: "#E1F5EE", color: "#128A68", border: "1px solid #128A6820", borderRadius: 100, padding: "2px 7px", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
+                        >
+                          <List size={9} />{lst.name}
+                        </span>
+                      ))}
+                      {convLists.length > 3 && <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convLists.length - 3}</span>}
+                      <div style={{ position: "relative" }}>
+                        <button
+                          ref={listBtnRef}
+                          onClick={() => {
+                            if (!showListPicker) {
+                              const r = listBtnRef.current?.getBoundingClientRect();
+                              if (r) setListPickerPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                            }
+                            setShowListPicker(v => !v);
+                            setListSearch("");
+                          }}
+                          style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
+                        ><Plus size={10} /></button>
+                        {showListPicker && (
+                          <div ref={listPickerRef} style={{ position: "fixed", top: listPickerPos.top, right: listPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
+                            <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
+                              <input
+                                value={listSearch}
+                                onChange={e => setListSearch(e.target.value)}
+                                placeholder="Pesquisar lista..."
+                                autoFocus
+                                style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
+                              />
+                            </div>
+                            <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                              {crmLists
+                                .filter(l => !listSearch || l.name.toLowerCase().includes(listSearch.toLowerCase()))
+                                .map(lst => {
+                                  const inList = linkedLead ? lst.leadIds.includes(linkedLead.id) : false;
+                                  return (
+                                    <button
+                                      key={lst.id}
+                                      onClick={() => toggleConvList(lst.id)}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: inList ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                    >
+                                      {inList ? <Check size={13} color="#128A68" /> : <div style={{ width: 13 }} />}
+                                      <List size={13} color="#128A68" />
+                                      <span style={{ fontSize: 13, color: "#111", fontWeight: inList ? 600 : 400 }}>{lst.name}</span>
+                                    </button>
+                                  );
+                                })}
+                              {crmLists.filter(l => !listSearch || l.name.toLowerCase().includes(listSearch.toLowerCase())).length === 0 && (
+                                <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma lista encontrada</div>
+                              )}
+                            </div>
+                            <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
+                              <button onClick={() => { navigate("/configuracoes"); setShowListPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                                Criar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
-                  onClick={() => { setShowNegocioForm(v => !v); setShowListaPanel(false); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
+                  onClick={() => { setShowNegocioForm(v => !v); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
                   style={{ flex: 1, background: showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
@@ -1560,12 +1666,6 @@ export default function MultiatendimentoPage() {
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
                 ><Zap size={12} /> Automação</button>
-                <button
-                  onClick={() => { setShowListaPanel(v => !v); setShowNegocioForm(false); }}
-                  style={{ flex: 1, background: showListaPanel ? "#E1F5EE" : "#F5F5F5", border: showListaPanel ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = showListaPanel ? "#E1F5EE" : "#F5F5F5")}
-                ><List size={12} /> Lista</button>
               </div>
 
               {/* Painel: + Negócio */}
@@ -1612,58 +1712,6 @@ export default function MultiatendimentoPage() {
                 </div>
               )}
 
-              {/* Painel: Lista (adicionar lead a listas) */}
-              {showListaPanel && (() => {
-                const linkedLead = leads[activeId]
-                  ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
-                return (
-                  <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 10 }}>Adicionar a lista</div>
-                    {!linkedLead ? (
-                      <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "4px 0" }}>
-                        Nenhum negócio vinculado a esta conversa.
-                      </div>
-                    ) : crmLists.length === 0 ? (
-                      <div style={{ fontSize: 12, color: "#AAA", textAlign: "center", padding: "4px 0" }}>
-                        Nenhuma lista criada ainda.{" "}
-                        <span style={{ color: "#128A68", cursor: "pointer" }} onClick={() => navigate("/configuracoes")}>
-                          Criar em Configurações →
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {crmLists.map(lst => {
-                          const inList = lst.leadIds.includes(linkedLead.id);
-                          return (
-                            <button
-                              key={lst.id}
-                              onClick={() => inList
-                                ? removeLeadFromList(lst.id, linkedLead.id)
-                                : addLeadToList(lst.id, linkedLead.id)
-                              }
-                              style={{
-                                display: "flex", alignItems: "center", gap: 8,
-                                border: `1.5px solid ${inList ? "#128A68" : "#E5E5E5"}`,
-                                background: inList ? "#E1F5EE" : "#FFF",
-                                borderRadius: 8, padding: "7px 10px",
-                                cursor: "pointer", textAlign: "left",
-                              }}
-                            >
-                              <List size={13} color={inList ? "#128A68" : "#888"} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: inList ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lst.name}</div>
-                                {lst.description && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lst.description}</div>}
-                              </div>
-                              <span style={{ fontSize: 11, color: "#AAA", flexShrink: 0 }}>{lst.leadIds.length}</span>
-                              {inList && <Check size={12} color="#128A68" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
             </div>
 
             {/* ETAPA NO PIPELINE */}

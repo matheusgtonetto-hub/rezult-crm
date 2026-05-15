@@ -1612,7 +1612,7 @@ function MotivosSection() {
 
 /* ---------------- LISTAS ---------------- */
 function ListasSection() {
-  const { crmLists, addList, updateList, deleteList } = useCRM();
+  const { crmLists, addList, updateList, deleteList, leads, pipelines } = useCRM();
 
   const [showForm, setShowForm]     = useState(false);
   const [editId, setEditId]         = useState<string | null>(null);
@@ -1620,6 +1620,19 @@ function ListasSection() {
   const [formDesc, setFormDesc]     = useState("");
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState<string | null>(null);
+  const [viewListId, setViewListId] = useState<string | null>(null);
+
+  const viewList  = viewListId ? crmLists.find(l => l.id === viewListId) : null;
+  const viewLeads = viewList ? viewList.leadIds.map(id => leads[id]).filter(Boolean) : [];
+  function stageName(leadId: string): string {
+    const lead = leads[leadId];
+    if (!lead) return "";
+    for (const p of pipelines) {
+      const col = p.columns.find(c => c.id === lead.stage);
+      if (col) return `${p.name} › ${col.title}`;
+    }
+    return "";
+  }
 
   function openCreate() { setEditId(null); setFormName(""); setFormDesc(""); setShowForm(true); }
   function openEdit(l: { id: string; name: string; description: string }) {
@@ -1692,6 +1705,11 @@ function ListasSection() {
                 </div>
                 <span className="text-xs text-[#AAAAAA] shrink-0">{l.leadIds.length} lead{l.leadIds.length !== 1 ? "s" : ""}</span>
                 <button
+                  onClick={() => setViewListId(l.id)}
+                  className="text-[#535353] hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Ver leads"
+                ><Eye size={14} /></button>
+                <button
                   onClick={() => openEdit(l)}
                   className="text-[#535353] hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 ><Pencil size={14} /></button>
@@ -1705,6 +1723,54 @@ function ListasSection() {
           </div>
         )}
       </Card>
+
+      {/* Modal: Ver leads da lista */}
+      <Dialog open={!!viewListId} onOpenChange={() => setViewListId(null)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#F0F0F0]">
+            <div className="flex items-center gap-2">
+              <List size={15} className="text-[#128A68]" />
+              <span className="text-[14px] font-semibold text-[#111111]">{viewList?.name}</span>
+              {viewList?.description && (
+                <span className="text-xs text-[#AAAAAA] truncate">{viewList.description}</span>
+              )}
+            </div>
+          </div>
+          <div className="max-h-80 overflow-y-auto px-5 py-3">
+            {viewLeads.length === 0 ? (
+              <div className="py-8 text-center">
+                <List size={28} className="text-[#E5E5E5] mx-auto mb-2" />
+                <p className="text-sm text-[#AAAAAA]">Nenhum lead nesta lista.</p>
+                <p className="text-xs text-[#AAAAAA] mt-1">Adicione leads pelo Multiatendimento.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {viewLeads.map(lead => (
+                  <div key={lead.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border-[0.5px] border-[#EEEEEE]">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                      style={{ background: `hsl(${Math.abs(lead.name.split("").reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % 360} 55% 45%)` }}
+                    >
+                      {lead.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-[#111111] truncate">{lead.name}</p>
+                      {stageName(lead.id) && (
+                        <p className="text-xs text-[#AAAAAA] truncate">{stageName(lead.id)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="px-5 py-3 border-t border-[#F0F0F0] flex justify-end">
+            <Button variant="outline" className="border-[#EEEEEE] text-xs h-8" onClick={() => setViewListId(null)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
