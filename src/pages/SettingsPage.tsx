@@ -73,7 +73,6 @@ export default function SettingsPage() {
   const { isOwner } = useCompany();
   const [active, setActive] = useState<SectionId>("perfil");
   const [pwOpen, setPwOpen] = useState(false);
-  const [showApi, setShowApi] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
 
   const visibleSections = SECTIONS.filter(s =>
@@ -134,7 +133,7 @@ export default function SettingsPage() {
           {active === "atividades" && <AtividadesSection />}
           {active === "integracoes" && <IntegracoesSection />}
           {active === "conexoes" && <ConexoesSection />}
-          {active === "api" && <ApiSection showApi={showApi} setShowApi={setShowApi} />}
+          {active === "api" && <ApiSection />}
           {active === "mcp" && <McpSection />}
           {active === "armazenamento" && <ArmazenamentoSection />}
         </div>
@@ -2977,30 +2976,311 @@ function ConexoesSection() {
 }
 
 /* ---------------- API ---------------- */
-function ApiSection({ showApi, setShowApi }: any) {
-  const key = "rz_live_a8f3b2c91d7e4f5a6b8c9d0e1f2a3b4c";
-  const masked = "rz_live_••••••••••••••••••••••••";
+const WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/leads-webhook";
+
+function generateApiKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return "rz_live_" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+interface ApiKey {
+  id: string;
+  label: string;
+  key: string;
+  active: boolean;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+function ApiSection() {
+  const { company } = useCompany();
+  const { user } = useAuth();
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [newKeyModal, setNewKeyModal] = useState<{ key: string; label: string } | null>(null);
+  const [labelInput, setLabelInput] = useState("Chave padrão");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
+
+  const loadKeys = useCallback(async () => {
+    if (!company) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("webhook_api_keys")
+      .select("id, label, key, active, created_at, last_used_at")
+      .eq("company_id", company.id)
+      .order("created_at", { ascending: false });
+    setKeys((data as ApiKey[]) ?? []);
+    setLoading(false);
+  }, [company]);
+
+  useEffect(() => { loadKeys(); }, [loadKeys]);
+
+  const handleGenerate = async () => {
+    if (!company || !user) return;
+    setGenerating(true);
+    const newKey = generateApiKey();
+    const { data, error } = await supabase
+      .from("webhook_api_keys")
+      .insert({ company_id: company.id, owner_id: user.id, key: newKey, label: labelInput || "Chave padrão" })
+      .select("id, label, key, active, created_at, last_used_at")
+      .single();
+    setGenerating(false);
+    if (error) { toast.error("Erro ao gerar chave."); return; }
+    setKeys(prev => [data as ApiKey, ...prev]);
+    setNewKeyModal({ key: newKey, label: (data as ApiKey).label });
+    setShowCreateForm(false);
+    setLabelInput("Chave padrão");
+  };
+
+  const handleToggle = async (k: ApiKey) => {
+    const { error } = await supabase
+      .from("webhook_api_keys")
+      .update({ active: !k.active })
+      .eq("id", k.id);
+    if (error) { toast.error("Erro ao atualizar chave."); return; }
+    setKeys(prev => prev.map(x => x.id === k.id ? { ...x, active: !k.active } : x));
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("webhook_api_keys").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error("Erro ao remover chave."); return; }
+    setKeys(prev => prev.filter(x => x.id !== deleteTarget.id));
+    toast.success("Chave removida.");
+    setDeleteTarget(null);
+  };
+
+  const toggleVisible = (id: string) =>
+    setVisibleKeys(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const fmtDate = (iso: string | null) => {
+    if (!iso) return "—";
+    return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+  };
+
+  const curlExample = `curl -X POST ${WEBHOOK_URL} \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: SUA_CHAVE_AQUI" \\
+  -d '{
+    "name": "João Silva",
+    "phone": "11999998888",
+    "email": "joao@exemplo.com",
+    "source": "Site",
+    "notes": "Veio pelo formulário de contato"
+  }'`;
+
   return (
     <>
       <h1 className="text-xl font-semibold text-[#111111] mb-6">Chaves de API</h1>
+
+      {/* Webhook endpoint */}
       <Card>
-        <SectionTitle title="Sua chave de API" subtitle="Use esta chave para integrar o Rezult com sistemas externos" />
-        <div className="flex gap-2">
-          <Input value={showApi ? key : masked} readOnly className="border-[#EEEEEE] font-mono text-[13px]" />
-          <Button variant="outline" size="icon" onClick={() => setShowApi((v: boolean) => !v)} className="border-[#EEEEEE]">
-            {showApi ? <EyeOff size={14} /> : <Eye size={14} />}
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(key); toast.success("Copiado!"); }} className="border-[#EEEEEE]">
+        <SectionTitle
+          title="Endpoint do Webhook"
+          subtitle="Envie leads externos para o Rezult via HTTP POST"
+        />
+        <div className="flex gap-2 mb-4">
+          <Input
+            value={WEBHOOK_URL}
+            readOnly
+            className="border-[#EEEEEE] font-mono text-xs text-[#535353]"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            className="border-[#EEEEEE] shrink-0"
+            onClick={() => { navigator.clipboard.writeText(WEBHOOK_URL); toast.success("URL copiada!"); }}
+          >
             <Copy size={14} />
           </Button>
         </div>
-        <div className="mt-5 pt-5 border-t border-[#EEEEEE]">
-          <Button variant="outline" className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white">
-            Gerar nova chave
-          </Button>
-          <p className="text-xs text-[#E24B4A] mt-2">⚠ Isso invalidará a chave atual</p>
+
+        {/* Campos aceitos */}
+        <div className="rounded-lg border border-[#EEEEEE] overflow-hidden mb-4">
+          <div className="bg-[#F8F8F8] px-3 py-2 text-xs font-medium text-[#555] border-b border-[#EEEEEE]">
+            Campos aceitos no body (JSON)
+          </div>
+          <div className="divide-y divide-[#F5F5F5]">
+            {[
+              { field: "name",        type: "string",  req: false, desc: "Nome do lead" },
+              { field: "phone",       type: "string",  req: false, desc: "Telefone / WhatsApp (somente números)" },
+              { field: "email",       type: "string",  req: false, desc: "E-mail do lead" },
+              { field: "pipeline_id", type: "uuid",    req: false, desc: "ID do pipeline (usa o primeiro se omitido)" },
+              { field: "stage_id",    type: "uuid",    req: false, desc: "ID da etapa (usa a primeira se omitido)" },
+              { field: "source",      type: "string",  req: false, desc: "Origem: Instagram, Facebook Ads, Indicação, Site, Outro" },
+              { field: "notes",       type: "string",  req: false, desc: "Observações" },
+              { field: "tags",        type: "string[]", req: false, desc: "Lista de tags (nomes)" },
+            ].map(r => (
+              <div key={r.field} className="grid grid-cols-[120px_80px_1fr] px-3 py-2 text-xs">
+                <span className="font-mono text-[#128A68]">{r.field}</span>
+                <span className="text-[#AAAAAA]">{r.type}</span>
+                <span className="text-[#555]">{r.desc}</span>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Exemplo cURL */}
+        <details className="group">
+          <summary className="cursor-pointer text-xs font-medium text-[#535353] flex items-center gap-1 select-none">
+            <span className="group-open:hidden">▶</span>
+            <span className="hidden group-open:inline">▼</span>
+            Ver exemplo cURL
+          </summary>
+          <div className="mt-2 bg-[#1A1A2E] rounded-lg p-4 font-mono text-xs text-[#E0E0E0] whitespace-pre overflow-x-auto relative">
+            {curlExample}
+            <button
+              onClick={() => { navigator.clipboard.writeText(curlExample); toast.success("Copiado!"); }}
+              className="absolute top-2 right-2 p-1.5 rounded bg-white/10 hover:bg-white/20 text-white"
+            >
+              <Copy size={12} />
+            </button>
+          </div>
+        </details>
       </Card>
+
+      {/* Chaves */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <SectionTitle title="Suas chaves" subtitle="Cada chave autentica requisições do webhook" />
+          {!showCreateForm && (
+            <Button
+              size="sm"
+              className="bg-[#128A68] hover:bg-[#128A68]/90 h-8"
+              onClick={() => setShowCreateForm(true)}
+            >
+              <Plus size={13} className="mr-1" /> Nova chave
+            </Button>
+          )}
+        </div>
+
+        {showCreateForm && (
+          <div className="flex gap-2 mb-4 p-3 bg-[#F8FDFB] border border-[#D0EDE5] rounded-lg">
+            <Input
+              placeholder="Nome da chave (ex: Site, RD Station)"
+              value={labelInput}
+              onChange={e => setLabelInput(e.target.value)}
+              className="border-[#EEEEEE] text-sm h-9"
+              onKeyDown={e => e.key === "Enter" && handleGenerate()}
+            />
+            <Button size="sm" className="bg-[#128A68] hover:bg-[#128A68]/90 h-9 shrink-0" onClick={handleGenerate} disabled={generating}>
+              {generating ? "Gerando..." : "Gerar"}
+            </Button>
+            <Button size="sm" variant="outline" className="h-9 shrink-0" onClick={() => setShowCreateForm(false)}>
+              Cancelar
+            </Button>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-[#AAAAAA] py-4 text-center">Carregando...</p>
+        ) : keys.length === 0 ? (
+          <div className="text-center py-8">
+            <KeyRound size={32} className="mx-auto mb-2 text-[#DDDDDD]" />
+            <p className="text-sm text-[#AAAAAA]">Nenhuma chave criada ainda.</p>
+            <p className="text-xs text-[#CCCCCC] mt-1">Clique em "Nova chave" para começar.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {keys.map(k => {
+              const visible = visibleKeys.has(k.id);
+              const masked  = k.key.slice(0, 12) + "••••••••••••••••••••••••";
+              return (
+                <div key={k.id} className="flex items-center gap-3 p-3 border border-[#EEEEEE] rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#111]">{k.label}</p>
+                    <p className="font-mono text-xs text-[#888] truncate mt-0.5">
+                      {visible ? k.key : masked}
+                    </p>
+                    <p className="text-[11px] text-[#AAAAAA] mt-0.5">
+                      Criada em {fmtDate(k.created_at)}
+                      {k.last_used_at && ` · Último uso ${fmtDate(k.last_used_at)}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => toggleVisible(k.id)}
+                      className="p-1.5 rounded hover:bg-[#F5F5F5] text-[#888]"
+                      title={visible ? "Ocultar" : "Mostrar"}
+                    >
+                      {visible ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(k.key); toast.success("Chave copiada!"); }}
+                      className="p-1.5 rounded hover:bg-[#F5F5F5] text-[#888]"
+                      title="Copiar"
+                    >
+                      <Copy size={13} />
+                    </button>
+                    <Switch
+                      checked={k.active}
+                      onCheckedChange={() => handleToggle(k)}
+                      className="data-[state=checked]:bg-[#128A68] scale-75"
+                    />
+                    <button
+                      onClick={() => setDeleteTarget(k)}
+                      className="p-1.5 rounded hover:bg-[#FEF2F2] text-[#CCCCCC] hover:text-[#E24B4A]"
+                      title="Excluir"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Modal: chave recém-criada */}
+      <Dialog open={!!newKeyModal} onOpenChange={v => !v && setNewKeyModal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chave criada com sucesso</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-[#535353] mb-3">
+            Copie e guarde sua chave agora. Por segurança, ela <strong>não será exibida novamente</strong>.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={newKeyModal?.key ?? ""}
+              readOnly
+              className="font-mono text-xs border-[#EEEEEE]"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-[#EEEEEE] shrink-0"
+              onClick={() => { navigator.clipboard.writeText(newKeyModal?.key ?? ""); toast.success("Copiada!"); }}
+            >
+              <Copy size={14} />
+            </Button>
+          </div>
+          <DialogFooter className="mt-3">
+            <Button className="bg-[#128A68] hover:bg-[#128A68]/90 w-full" onClick={() => setNewKeyModal(null)}>
+              <CheckCircle2 size={14} className="mr-1" /> Entendido, já copiei
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: confirmar exclusão */}
+      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Remover chave</DialogTitle></DialogHeader>
+          <p className="text-sm text-[#535353]">
+            Tem certeza que deseja remover a chave <strong>{deleteTarget?.label}</strong>?
+            Integrações que usam esta chave deixarão de funcionar.
+          </p>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
