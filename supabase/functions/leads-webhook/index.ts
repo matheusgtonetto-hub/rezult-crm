@@ -6,24 +6,87 @@ const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
 };
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
+// Nomes de campo que o Facebook Lead Ads usa para cada dado
+const NAME_FIELDS  = ["full_name", "name", "nome", "first_name", "last_name"];
+const PHONE_FIELDS = ["phone_number", "phone", "telefone", "celular", "whatsapp", "mobile"];
+const EMAIL_FIELDS = ["email", "e-mail", "correio"];
+
+function fieldVal(fields: { name: string; values: string[] }[], keys: string[]): string {
+  for (const key of keys) {
+    const f = fields.find(f => f.name.toLowerCase() === key);
+    if (f?.values?.[0]) return f.values[0];
+  }
+  return "";
+}
+
+// Extrai campos do payload independente do formato recebido
+function extractFields(payload: Record<string, unknown>) {
+  // Formato Facebook Lead Ads (field_data array)
+  // { field_data: [{ name: "full_name", values: ["João"] }, ...] }
+  if (Array.isArray(payload.field_data)) {
+    const fields = payload.field_data as { name: string; values: string[] }[];
+    const firstName = fieldVal(fields, ["first_name"]);
+    const lastName  = fieldVal(fields, ["last_name"]);
+    const fullName  = fieldVal(fields, ["full_name", "name", "nome"]);
+    const name  = fullName || [firstName, lastName].filter(Boolean).join(" ");
+    const phone = fieldVal(fields, PHONE_FIELDS);
+    const email = fieldVal(fields, EMAIL_FIELDS);
+    return { name, phone, email };
+  }
+
+  // Formato Facebook via Make/n8n (entry[].changes[].value com field_data)
+  // Tenta desempacotar o envelope do Facebook
+  const entries = payload.entry as any[];
+  if (Array.isArray(entries)) {
+    for (const entry of entries) {
+      for (const change of (entry.changes ?? [])) {
+        const val = change?.value;
+        if (Array.isArray(val?.field_data)) {
+          const fields = val.field_data as { name: string; values: string[] }[];
+          const firstName = fieldVal(fields, ["first_name"]);
+          const lastName  = fieldVal(fields, ["last_name"]);
+          const fullName  = fieldVal(fields, ["full_name", "name", "nome"]);
+          const name  = fullName || [firstName, lastName].filter(Boolean).join(" ");
+          const phone = fieldVal(fields, PHONE_FIELDS);
+          const email = fieldVal(fields, EMAIL_FIELDS);
+          return { name, phone, email };
+        }
+      }
+    }
+  }
+
+  // Formato simples: { name, phone, email } — já funcionava antes
+  const name  = String(payload.name  ?? payload.full_name  ?? payload.nome  ?? "").trim();
+  const phone = String(payload.phone ?? payload.phone_number ?? payload.whatsapp ?? payload.telefone ?? payload.celular ?? "").trim();
+  const email = String(payload.email ?? payload["e-mail"] ?? "").trim();
+  return { name, phone, email };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
-  if (req.method === "GET") return json({ ok: true, service: "leads-webhook" });
+  // Facebook webhook verification challenge
+  const url = new URL(req.url);
+  if (req.method === "GET") {
+    const challenge = url.searchParams.get("hub.challenge");
+    if (challenge) return new Response(challenge, { headers: { "Content-Type": "text/plain" } });
+    return json({ ok: true, service: "leads-webhook" });
+  }
 
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  // Aceita x-api-key ou Authorization: Bearer <key>
+  // Aceita x-api-key ou Authorization: Bearer <key> ou query param api_key
   const apiKey =
     req.headers.get("x-api-key") ??
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    url.searchParams.get("api_key") ??
     "";
 
   if (!apiKey) return json({ error: "missing api key" }, 401);
@@ -34,6 +97,8 @@ serve(async (req) => {
   } catch {
     return json({ error: "invalid json body" }, 400);
   }
+
+  console.log("Payload recebido:", JSON.stringify(payload));
 
   const db = createClient(supabaseUrl, serviceKey);
 
@@ -47,10 +112,9 @@ serve(async (req) => {
   if (keyErr || !keyRow) return json({ error: "invalid api key" }, 401);
   if (!keyRow.active) return json({ error: "api key is disabled" }, 403);
 
-  const ownerId   = keyRow.owner_id as string;
-  const companyId = keyRow.company_id as string;
+  const ownerId = keyRow.owner_id as string;
 
-  // Resolve pipeline e etapa (usa o informado ou o primeiro disponível)
+  // Resolve pipeline e etapa
   let pipelineId = String(payload.pipeline_id ?? "");
   let stageId    = String(payload.stage_id    ?? "");
 
@@ -83,10 +147,12 @@ serve(async (req) => {
 
   const dealNumber = ((maxRow as any)?.deal_number ?? 1000) + 1;
 
-  const phone  = String(payload.phone ?? payload.whatsapp ?? "").replace(/\D/g, "");
-  const name   = String((payload.name ?? phone) || "Lead sem nome").trim();
-  const email  = String(payload.email ?? "").trim() || null;
-  const source = String(payload.source ?? "Outro");
+  const { name: rawName, phone: rawPhone, email: rawEmail } = extractFields(payload);
+
+  const phone  = rawPhone.replace(/\D/g, "");
+  const name   = rawName || phone || "Lead sem nome";
+  const email  = rawEmail.trim() || null;
+  const source = String(payload.source ?? "Facebook Ads");
   const notes  = String(payload.notes  ?? "").trim();
   const tags   = Array.isArray(payload.tags) ? (payload.tags as string[]) : [];
 
@@ -119,7 +185,6 @@ serve(async (req) => {
     return json({ error: "failed to create lead", detail: insertErr.message }, 500);
   }
 
-  // Atualiza last_used_at da chave
   await db
     .from("webhook_api_keys")
     .update({ last_used_at: new Date().toISOString() })
