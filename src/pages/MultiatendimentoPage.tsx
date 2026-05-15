@@ -237,12 +237,6 @@ export default function MultiatendimentoPage() {
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [leadSearch, setLeadSearch] = useState("");
 
-  // meeting form state (ephemeral)
-  const [meetingFormFor, setMeetingFormFor] = useState<string | null>(null);
-  const [mDate, setMDate] = useState("");
-  const [mTime, setMTime] = useState("");
-  const [mOwner, setMOwner] = useState("Rafael");
-  const [mNote, setMNote] = useState("");
 
   // Z-API instances
   const [instances, setInstances] = useState<ZApiInstance[]>([]);
@@ -1045,15 +1039,6 @@ export default function MultiatendimentoPage() {
     toast.success("Conversa finalizada ✓");
   }
 
-  function saveMeeting() {
-    if (!meetingFormFor) return;
-    if (!mDate || !mTime) { toast.error("Informe data e hora"); return; }
-    updateCs(meetingFormFor, { meeting: { date: mDate, time: mTime, owner: mOwner, note: mNote } });
-    setMeetingFormFor(null);
-    setMDate(""); setMTime(""); setMNote("");
-    toast.success("Reunião agendada ✓");
-  }
-
   function cancelMeeting(id: string) {
     updateCs(id, { meeting: null });
     toast("Reunião cancelada");
@@ -1419,7 +1404,7 @@ export default function MultiatendimentoPage() {
                 <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                   <Paperclip size={18} color={cs.finished ? "#DDD" : "#AAA"} />
                 </span>
-                <span title="Agendar reunião" onClick={() => { if (!cs.finished) { setMeetingFormFor(activeId); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                <span title="Agendar atividade" onClick={() => { if (!cs.finished) { setShowScheduleDialog(true); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                   <CalendarIcon size={18} color={cs.finished ? "#DDD" : "#AAA"} />
                 </span>
                 <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
@@ -1799,52 +1784,43 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* PRÓXIMA ATIVIDADE */}
-            <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
-
-              {cs.meeting ? (
-                <div style={{ background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <CalendarIcon size={16} color="#128A68" />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{cs.meeting.date} às {cs.meeting.time}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>Responsável: {cs.meeting.owner}</div>
-                  <span style={{ display: "inline-block", background: "#E1F5EE", color: "#128A68", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 8 }}>Reunião agendada</span>
-                  {cs.meeting.note && <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{cs.meeting.note}</div>}
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <button onClick={() => { setMeetingFormFor(activeId); setMDate(cs.meeting!.date); setMTime(cs.meeting!.time); setMOwner(cs.meeting!.owner); setMNote(cs.meeting!.note); }}
-                      style={{ background: "transparent", border: "none", color: "#666", fontSize: 11, cursor: "pointer", padding: 0 }}>Remarcar</button>
-                    <button onClick={() => cancelMeeting(activeId)}
-                      style={{ background: "transparent", border: "none", color: "#A32D2D", fontSize: 11, cursor: "pointer", padding: 0 }}>Cancelar</button>
-                  </div>
+            {(() => {
+              const ll = leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+              const now = new Date();
+              const nextAct = ll?.activities
+                .filter(a => a.scheduledAt && !a.completedAt && !a.noShowAt && new Date(a.scheduledAt) >= now)
+                .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+              const TYPE_LABEL: Record<string, string> = { meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp", follow_up: "Follow-up", task: "Tarefa" };
+              return (
+                <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
+                  {nextAct ? (
+                    <div style={{ background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <CalendarIcon size={14} color="#128A68" />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>
+                          {new Date(nextAct.scheduledAt!).toLocaleDateString("pt-BR")} às {new Date(nextAct.scheduledAt!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      {nextAct.userName && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>Responsável: {nextAct.userName}</div>}
+                      <span style={{ display: "inline-block", background: "#E1F5EE", color: "#128A68", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 6 }}>{TYPE_LABEL[nextAct.type] ?? nextAct.type}</span>
+                      {nextAct.title && <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 4 }}>{nextAct.title}</div>}
+                      {nextAct.description && <div style={{ fontSize: 12, color: "#666" }}>{nextAct.description}</div>}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
+                      <button
+                        onClick={() => setShowScheduleDialog(true)}
+                        style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
+                      ><Plus size={12} /> Agendar atividade</button>
+                    </>
+                  )}
                 </div>
-              ) : meetingFormFor === activeId ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <input type="date" value={mDate} onChange={e => setMDate(e.target.value)} style={inputStyle} />
-                  <input type="time" value={mTime} onChange={e => setMTime(e.target.value)} style={inputStyle} />
-                  <select value={mOwner} onChange={e => setMOwner(e.target.value)} style={inputStyle}>
-                    <option>Rafael</option><option>Mariana</option><option>Carlos</option>
-                  </select>
-                  <textarea placeholder="Observação..." value={mNote} onChange={e => setMNote(e.target.value)}
-                    style={{ ...inputStyle, minHeight: 50, resize: "vertical", fontFamily: "inherit" }} />
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button onClick={() => { setMeetingFormFor(null); setMDate(""); setMTime(""); setMNote(""); }}
-                      style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
-                    <button onClick={saveMeeting}
-                      style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Agendar</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
-                  <button onClick={() => setMeetingFormFor(activeId)}
-                    style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  ><Plus size={12} /> Agendar reunião</button>
-                </>
-              )}
-            </div>
+              );
+            })()}
 
             {/* SEÇÕES EXPANSÍVEIS */}
             <Section title="Perfil" defaultOpen>
