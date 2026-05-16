@@ -759,6 +759,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const moveLead = useCallback((leadId: string, fromCol: string, toCol: string, toIndex: number) => {
+    const lead = leads[leadId];
+    const newResponsible = !lead?.responsible && currentUserName ? currentUserName : lead?.responsible;
     setPipelines(prev => prev.map(p => {
       const hasFrom = p.columns.some(c => c.id === fromCol);
       const hasTo = p.columns.some(c => c.id === toCol);
@@ -770,16 +772,19 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       to.leadIds.splice(toIndex, 0, leadId);
       return { ...p, columns: newCols };
     }));
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol } }));
-    supabase.from("leads").update({ column_id: toCol }).eq("id", leadId).then(({ error }) => {
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, responsible: newResponsible ?? prev[leadId]?.responsible } }));
+    const update: Record<string, unknown> = { column_id: toCol };
+    if (newResponsible) update.responsible = newResponsible;
+    supabase.from("leads").update(update).eq("id", leadId).then(({ error }) => {
       if (error) console.error("moveLead error:", error.message);
     });
-  }, []);
+  }, [leads, currentUserName]);
 
   const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
     const lead = leads[leadId];
     if (!lead) return;
     const fromCol = lead.stage;
+    const newResponsible = !lead.responsible && currentUserName ? currentUserName : lead.responsible;
     setPipelines(prev => prev.map(p => {
       const hasFromCol = p.columns.some(c => c.id === fromCol);
       const isTarget = p.id === toPipelineId;
@@ -793,10 +798,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         }),
       };
     }));
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open" } }));
-    supabase.from("leads").update({ pipeline_id: toPipelineId, column_id: toColumnId, status: "open" }).eq("id", leadId)
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open", responsible: newResponsible ?? prev[leadId]?.responsible } }));
+    const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open" };
+    if (newResponsible) update.responsible = newResponsible;
+    supabase.from("leads").update(update).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
-  }, [leads]);
+  }, [leads, currentUserName]);
 
   const findWonLostCol = useCallback((pipelineId: string, kind: "won" | "lost"): string | null => {
     const p = pipelines.find(x => x.id === pipelineId);
