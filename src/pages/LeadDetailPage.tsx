@@ -1,8 +1,10 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
+import { useAuth } from "@/context/AuthContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useProfile } from "@/context/ProfileContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -76,6 +78,8 @@ import {
   X,
   CalendarDays,
   Link,
+  Download,
+  ImageIcon,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -326,6 +330,99 @@ export default function LeadDetailPage() {
     setShowActivityDialog(false);
     setEditingActivityId(null);
   };
+
+  // ── Arquivos ──────────────────────────────────────────────────────────
+  const { user } = useAuth();
+
+  interface UploadedFile { id: string; name: string; size: number; mimeType: string; storagePath: string; uploadedBy: string; createdAt: string; }
+  interface WaFile { id: string; name: string; type: "image" | "document"; fromMe: boolean; senderName: string; createdAt: string; }
+
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [waFiles, setWaFiles] = useState<WaFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const fileUploadRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!lead?.id || !user) return;
+    // Arquivos uploadados manualmente
+    supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false })
+      .then(({ data }) => setUploadedFiles((data ?? []).map((r: any) => ({
+        id: r.id, name: r.name, size: r.size ?? 0, mimeType: r.mime_type ?? "",
+        storagePath: r.storage_path, uploadedBy: r.uploaded_by ?? "", createdAt: r.created_at,
+      }))));
+    // Arquivos do WhatsApp (mensagens com tipo image/document vinculadas pelo telefone)
+    if (lead.whatsapp) {
+      const phone = lead.whatsapp.replace(/\D/g, "");
+      const phoneAlt = phone.startsWith("55") ? phone.slice(2) : `55${phone}`;
+      supabase.from("whatsapp_messages")
+        .select("id, body, type, from_me, sender_name, created_at, momment")
+        .eq("owner_id", user.id)
+        .in("type", ["image", "document"])
+        .or(`phone.eq.${phone},phone.eq.${phoneAlt}`)
+        .order("created_at", { ascending: false })
+        .limit(100)
+        .then(({ data }) => setWaFiles((data ?? []).map((r: any) => ({
+          id: r.id, name: r.body ?? "arquivo",
+          type: r.type as "image" | "document",
+          fromMe: !!r.from_me,
+          senderName: r.sender_name ?? (r.from_me ? "Você" : lead.name),
+          createdAt: r.created_at ?? new Date(r.momment).toISOString(),
+        }))));
+    }
+  }, [lead?.id, lead?.whatsapp, user?.id]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !lead || !user) return;
+    e.target.value = "";
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `${user.id}/${lead.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("lead-files").upload(path, file);
+      if (upErr) throw upErr;
+      const { error: dbErr } = await supabase.from("lead_files").insert({
+        owner_id: user.id, lead_id: lead.id,
+        name: file.name, size: file.size, mime_type: file.type,
+        storage_path: path, uploaded_by: user.email?.split("@")[0] ?? "Você",
+      });
+      if (dbErr) throw dbErr;
+      // Refresh list
+      const { data } = await supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false });
+      setUploadedFiles((data ?? []).map((r: any) => ({
+        id: r.id, name: r.name, size: r.size ?? 0, mimeType: r.mime_type ?? "",
+        storagePath: r.storage_path, uploadedBy: r.uploaded_by ?? "", createdAt: r.created_at,
+      })));
+      toast.success("Arquivo enviado!");
+    } catch (err) {
+      toast.error("Erro ao enviar arquivo.");
+      console.error(err);
+    } finally { setUploading(false); }
+  }
+
+  async function handleDownloadFile(f: UploadedFile) {
+    const { data } = await supabase.storage.from("lead-files").createSignedUrl(f.storagePath, 60);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Erro ao gerar link de download.");
+  }
+
+  async function handleDeleteFile(f: UploadedFile) {
+    setDeletingFileId(f.id);
+    await supabase.storage.from("lead-files").remove([f.storagePath]);
+    await supabase.from("lead_files").delete().eq("id", f.id);
+    setUploadedFiles(prev => prev.filter(x => x.id !== f.id));
+    setDeletingFileId(null);
+    toast.success("Arquivo excluído.");
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes === 0) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   const [newNoteActive, setNewNoteActive] = useState(false);
   const newNoteDivRef = useRef<HTMLDivElement | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -2131,32 +2228,79 @@ export default function LeadDetailPage() {
             )}
 
             {tab === "arquivos" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Upload */}
+                <input ref={fileUploadRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" />
                 <div
                   className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
-                  style={{ borderColor: "#E5E5E5" }}
+                  style={{ borderColor: uploading ? "#128A68" : "#E5E5E5" }}
+                  onClick={() => !uploading && fileUploadRef.current?.click()}
                 >
-                  <Upload size={24} className="mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm font-medium" style={{ color: "#111111" }}>Arraste arquivos ou clique</p>
+                  <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "#128A68" : "#AAAAAA" }} />
+                  <p className="text-sm font-medium" style={{ color: "#111111" }}>
+                    {uploading ? "Enviando…" : "Clique para enviar um arquivo"}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, XLSX, imagens</p>
                 </div>
-                {[
-                  { name: "Proposta_Carlos_Andrade.pdf", size: "2.4MB", date: "14/04", who: "Rafael" },
-                  { name: "Contrato_modelo.docx", size: "180KB", date: "12/04", who: "Rafael" },
-                ].map(f => (
-                  <div key={f.name} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
-                    <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center" style={{ color: "#128A68" }}>
-                      <FileText size={16} />
+
+                {/* Arquivos uploadados */}
+                {uploadedFiles.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enviados manualmente</p>
+                    <div className="space-y-2">
+                      {uploadedFiles.map(f => (
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                          <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "#128A68" }}>
+                            {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatBytes(f.size)} · {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.uploadedBy}
+                            </p>
+                          </div>
+                          <button onClick={() => handleDownloadFile(f)} className="text-muted-foreground hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Baixar">
+                            <Download size={14} />
+                          </button>
+                          <button onClick={() => handleDeleteFile(f)} disabled={deletingFileId === f.id} className="text-muted-foreground hover:text-[#E24B4A] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium" style={{ color: "#111111" }}>{f.name}</p>
-                      <p className="text-xs text-muted-foreground">{f.size} · {f.date} · {f.who}</p>
-                    </div>
-                    <button className="text-muted-foreground hover:text-foreground">
-                      <MoreHorizontal size={14} />
-                    </button>
                   </div>
-                ))}
+                )}
+
+                {/* Arquivos do WhatsApp */}
+                {waFiles.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Via WhatsApp</p>
+                    <div className="space-y-2">
+                      {waFiles.map(f => (
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "#F0FDF4", color: "#25D366" }}>
+                            {f.type === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.senderName} · {f.fromMe ? "Enviado" : "Recebido"}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#E1F5EE", color: "#128A68" }}>WhatsApp</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {uploadedFiles.length === 0 && waFiles.length === 0 && (
+                  <div className="text-center py-6">
+                    <FileText size={28} className="mx-auto mb-2 text-muted-foreground opacity-30" />
+                    <p className="text-sm text-muted-foreground">Nenhum arquivo ainda.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Envie um arquivo ou troque mídia pelo WhatsApp.</p>
+                  </div>
+                )}
               </div>
             )}
 
