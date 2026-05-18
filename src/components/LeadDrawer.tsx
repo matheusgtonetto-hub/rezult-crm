@@ -667,7 +667,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                   ) : convs.map(c => (
                     <div
                       key={c.id}
-                      onClick={() => { onClose(); navigate("/multiatendimento"); }}
+                      onClick={() => { onClose(); navigate("/multiatendimento", { state: { openConvId: c.id } }); }}
                       style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid #F0F0F0", borderRadius: 12, marginBottom: 8, background: "#FAFAFA", cursor: "pointer" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#F0F9F6")}
                       onMouseLeave={e => (e.currentTarget.style.background = "#FAFAFA")}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
@@ -244,6 +244,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
+  const location = useLocation();
   const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
   const { openedLeadIds } = useFloatingChat();
 
@@ -298,6 +299,20 @@ export default function MultiatendimentoPage() {
   // ref para evitar closure stale no handler global de Realtime
   const convListRef    = useRef<Conversation[]>(convList);
   useEffect(() => { convListRef.current = convList; }, [convList]);
+
+  // Abre conversa específica quando navegado a partir do drawer de leads
+  useEffect(() => {
+    const targetId = (location.state as { openConvId?: string } | null)?.openConvId;
+    if (!targetId || convList.length === 0) return;
+    const target = convList.find(c => c.id === targetId);
+    if (target) {
+      setActiveId(targetId);
+      updateCs(targetId, { read: true });
+      // Limpa o state para não reativar em navegações futuras
+      window.history.replaceState({}, "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, convList.length]);
 
   // ── painel "+ Negócio" ───────────────────────────────────────────────
   const [showNegocioForm, setShowNegocioForm]   = useState(false);
