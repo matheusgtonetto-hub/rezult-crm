@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
@@ -150,18 +151,18 @@ function normalizeStr(s: string) {
 }
 
 function CityField({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
-  const [editing, setEditing]   = useState(false);
-  const [query, setQuery]       = useState(value ?? "");
-  const [cities, setCities]     = useState<IbgeCity[]>(cachedCities);
-  const [loading, setLoading]   = useState(false);
-  const [dropPos, setDropPos]   = useState<{ top: number; left: number; width: number; openUp: boolean } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [query, setQuery]     = useState(value ?? "");
+  const [cities, setCities]   = useState<IbgeCity[]>(cachedCities);
+  const [loading, setLoading] = useState(false);
+  const [rect, setRect]       = useState<DOMRect | null>(null);
   const wrapRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef  = useRef<HTMLDivElement>(null);
 
-  // Pré-carrega as cidades ao montar o componente
+  // Pré-carrega cidades ao montar para que estejam prontas ao clicar
   useEffect(() => {
-    if (cachedCities.length === 0 && !citiesFetching) {
+    if (cachedCities.length === 0) {
       setLoading(true);
       loadIbgeCities(c => { setCities(c); setLoading(false); });
     }
@@ -169,17 +170,13 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   useEffect(() => { if (!editing) setQuery(value ?? ""); }, [value, editing]);
 
-  function calcPos() {
+  function updateRect() {
     const r = wrapRef.current?.getBoundingClientRect();
-    if (!r) return null;
-    const dropH = 240;
-    const spaceBelow = window.innerHeight - r.bottom;
-    const openUp = spaceBelow < dropH && r.top > dropH;
-    return { top: openUp ? r.top - dropH - 4 : r.bottom + 4, left: r.left, width: r.width, openUp };
+    setRect(r ?? null);
   }
 
   function openEdit() {
-    setDropPos(calcPos());
+    updateRect();
     setEditing(true);
   }
 
@@ -187,14 +184,12 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
     if (editing) requestAnimationFrame(() => inputRef.current?.focus());
   }, [editing]);
 
-  // Recalcula posição ao rolar ou redimensionar
+  // Mantém posição sincronizada com scroll/resize
   useEffect(() => {
     if (!editing) return;
-    const update = () => setDropPos(calcPos());
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => { window.removeEventListener("scroll", update, true); window.removeEventListener("resize", update); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => { window.removeEventListener("scroll", updateRect, true); window.removeEventListener("resize", updateRect); };
   }, [editing]);
 
   useEffect(() => {
@@ -216,12 +211,17 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   function commit(val: string) {
     setEditing(false);
-    setDropPos(null);
+    setRect(null);
     if (val !== (value ?? "")) onSave(val);
   }
 
   const hasValue = !!value?.trim();
-  const showDrop = editing && dropPos && (loading || filtered.length > 0);
+  const showDrop = editing && query.length >= 2 && rect;
+
+  // Abre para cima se não há espaço abaixo
+  const dropTop = rect
+    ? (window.innerHeight - rect.bottom < 240 && rect.top > 240 ? rect.top - 244 : rect.bottom + 4)
+    : 0;
 
   return (
     <div ref={wrapRef} className="group">
@@ -230,10 +230,10 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
         <input
           ref={inputRef}
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={e => { setQuery(e.target.value); updateRect(); }}
           onKeyDown={e => {
             if (e.key === "Enter") { if (filtered.length > 0) commit(`${filtered[0].nome} - ${filtered[0].sigla}`); else commit(query); }
-            if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setDropPos(null); }
+            if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setRect(null); }
           }}
           placeholder="Digite o nome da cidade…"
           style={{ width: "100%", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
@@ -251,14 +251,28 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
           + Adicionar
         </button>
       )}
-      {/* Dropdown via position:fixed para escapar de overflow:hidden dos pais */}
-      {showDrop && (
+      {/* Portal: renderiza no document.body, escapa de qualquer CSS containing block */}
+      {showDrop && createPortal(
         <div
           ref={dropRef}
-          style={{ position: "fixed", top: dropPos!.top, left: dropPos!.left, width: dropPos!.width, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflowY: "auto" }}
+          style={{
+            position: "fixed",
+            top: dropTop,
+            left: rect!.left,
+            width: rect!.width,
+            background: "#FFF",
+            border: "1px solid #E5E5E5",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 99999,
+            maxHeight: 240,
+            overflowY: "auto",
+          }}
         >
           {loading && filtered.length === 0 ? (
             <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Carregando cidades…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Nenhuma cidade encontrada</div>
           ) : filtered.map(c => (
             <button
               key={`${c.nome}-${c.sigla}`}
@@ -271,7 +285,8 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
               <span style={{ fontSize: 11, color: "#AAA", fontWeight: 700 }}>{c.sigla}</span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
