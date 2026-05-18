@@ -537,28 +537,36 @@ export default function MultiatendimentoPage() {
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+          // Mensagens de sistema: busca conversa pelo ID direto (phone = conv ID) ou por telefone
+          if (m.type === "system") {
+            const sysConv = convListRef.current.find(c => c.id === msgPhone || phonesMatch(c.phone ?? "", msgPhone));
+            if (sysConv) {
+              setConvStates(prev => {
+                const cur = prev[sysConv.id];
+                if (!cur) return prev;
+                if (cur.messages.some(x => x.id === m.id)) return prev;
+                const sysMsg: Msg = { id: m.id, from: "system" as const, time: timeStr, kind: "system" as const, text: m.body ?? "", date: "Hoje" };
+                return { ...prev, [sysConv.id]: { ...cur, messages: [...cur.messages, sysMsg] } };
+              });
+            }
+            return; // nunca cria nova conversa para mensagem de sistema
+          }
+
           // Procura conversa pelo telefone (ignora diferença de código de país)
           const existing = convListRef.current.find(c => phonesMatch(c.phone ?? "", msgPhone));
 
           if (existing) {
-            // Atualiza preview da conversa existente (exceto mensagens de sistema)
-            if (m.type !== "system") {
-              setConvList(prev => prev.map(c =>
-                c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
-              ));
-            }
+            // Atualiza preview da conversa existente
+            setConvList(prev => prev.map(c =>
+              c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
+            ));
             // Adiciona a mensagem no estado da conversa se já estiver carregada
             setConvStates(prev => {
               const cur = prev[existing.id];
               if (!cur) return prev;
               if (cur.messages.some(x => x.id === m.id)) return prev;
-              let newMsg: Msg;
-              if (m.type === "system") {
-                newMsg = { id: m.id, from: "system" as const, time: timeStr, kind: "system" as const, text: m.body ?? "", date: "Hoje" };
-              } else {
-                newMsg = { id: m.id, from: "lead", time: timeStr, kind: "text" as const, text: m.body ?? "", date: "Hoje", read: false };
-              }
-              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: m.type === "system" ? cur.read : false } };
+              const newMsg: Msg = { id: m.id, from: "lead", time: timeStr, kind: "text" as const, text: m.body ?? "", date: "Hoje", read: false };
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
             });
             // Atualiza preview e timestamp no banco
             supabase.from("whatsapp_conversations").update({
@@ -1121,16 +1129,25 @@ export default function MultiatendimentoPage() {
       text: sysText,
       date: "Hoje",
     };
-    updateCs(activeId, {
-      assignedTo: memberName,
-      messages: [...(cs?.messages ?? []), sysMsg],
+
+    // Functional update garante que usamos o estado mais recente (evita closure stale)
+    setConvStates(prev => {
+      const cur = prev[activeId] ?? DEFAULT_CS;
+      return { ...prev, [activeId]: { ...cur, assignedTo: memberName, messages: [...cur.messages, sysMsg] } };
     });
+
+    // Persiste assignedTo na conversa
+    supabase.from("whatsapp_conversations")
+      .update({ assigned_to: memberName })
+      .eq("id", activeId)
+      .then(({ error }) => { if (error) console.error("updateCs assignedTo:", error); });
+
     // Atualiza o responsável no lead vinculado (aparece no card do Pipeline)
     const linkedLead = leads[activeId]
       ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active?.phone ?? ""));
     if (linkedLead) updateLead(linkedLead.id, { responsible: memberName });
-    // Persiste no banco como tipo "system" para aparecer no histórico
-    // phone: usa número real se disponível, senão usa o ID da conversa como chave
+
+    // Persiste mensagem de sistema no banco para sobreviver a page refresh
     const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
     supabase.from("whatsapp_messages").insert({
       id:          msgId,
@@ -1142,7 +1159,13 @@ export default function MultiatendimentoPage() {
       type:        "system",
       momment:     Date.now(),
       sender_name: null,
-    }).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
+    }).then(({ error }) => {
+      if (error) {
+        console.error("Erro ao salvar evento de transferência:", error);
+        toast.error(`Erro ao salvar histórico: ${error.message}`);
+      }
+    });
+
     toast.success(`Atendimento transferido para ${memberName}`);
     setShowTransferDialog(false);
   }
