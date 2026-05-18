@@ -145,30 +145,56 @@ async function loadIbgeCities(onDone: (cities: IbgeCity[]) => void) {
   onDone(cachedCities);
 }
 
+function normalizeStr(s: string) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 function CityField({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
   const [editing, setEditing]   = useState(false);
   const [query, setQuery]       = useState(value ?? "");
   const [cities, setCities]     = useState<IbgeCity[]>(cachedCities);
   const [loading, setLoading]   = useState(false);
-  const [dropPos, setDropPos]   = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropPos, setDropPos]   = useState<{ top: number; left: number; width: number; openUp: boolean } | null>(null);
   const wrapRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef  = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (!editing) setQuery(value ?? ""); }, [value, editing]);
-
-  function openEdit() {
-    const r = wrapRef.current?.getBoundingClientRect();
-    if (r) setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
-    setEditing(true);
-    if (cities.length === 0) {
+  // Pré-carrega as cidades ao montar o componente
+  useEffect(() => {
+    if (cachedCities.length === 0 && !citiesFetching) {
       setLoading(true);
       loadIbgeCities(c => { setCities(c); setLoading(false); });
     }
+  }, []);
+
+  useEffect(() => { if (!editing) setQuery(value ?? ""); }, [value, editing]);
+
+  function calcPos() {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    const dropH = 240;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const openUp = spaceBelow < dropH && r.top > dropH;
+    return { top: openUp ? r.top - dropH - 4 : r.bottom + 4, left: r.left, width: r.width, openUp };
+  }
+
+  function openEdit() {
+    setDropPos(calcPos());
+    setEditing(true);
   }
 
   useEffect(() => {
     if (editing) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [editing]);
+
+  // Recalcula posição ao rolar ou redimensionar
+  useEffect(() => {
+    if (!editing) return;
+    const update = () => setDropPos(calcPos());
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => { window.removeEventListener("scroll", update, true); window.removeEventListener("resize", update); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
   useEffect(() => {
@@ -183,8 +209,9 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, query]);
 
+  const normQuery = normalizeStr(query);
   const filtered = query.length >= 2
-    ? cities.filter(c => `${c.nome} - ${c.sigla}`.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
+    ? cities.filter(c => normalizeStr(`${c.nome} ${c.sigla}`).includes(normQuery)).slice(0, 10)
     : [];
 
   function commit(val: string) {
@@ -194,6 +221,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
   }
 
   const hasValue = !!value?.trim();
+  const showDrop = editing && dropPos && (loading || filtered.length > 0);
 
   return (
     <div ref={wrapRef} className="group">
@@ -207,7 +235,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             if (e.key === "Enter") { if (filtered.length > 0) commit(`${filtered[0].nome} - ${filtered[0].sigla}`); else commit(query); }
             if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setDropPos(null); }
           }}
-          placeholder={loading ? "Carregando cidades…" : "Digite o nome da cidade…"}
+          placeholder="Digite o nome da cidade…"
           style={{ width: "100%", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
         />
       ) : hasValue ? (
@@ -224,12 +252,14 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
         </button>
       )}
       {/* Dropdown via position:fixed para escapar de overflow:hidden dos pais */}
-      {editing && dropPos && filtered.length > 0 && (
+      {showDrop && (
         <div
           ref={dropRef}
-          style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflowY: "auto" }}
+          style={{ position: "fixed", top: dropPos!.top, left: dropPos!.left, width: dropPos!.width, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflowY: "auto" }}
         >
-          {filtered.map(c => (
+          {loading && filtered.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Carregando cidades…</div>
+          ) : filtered.map(c => (
             <button
               key={`${c.nome}-${c.sigla}`}
               onMouseDown={e => { e.preventDefault(); commit(`${c.nome} - ${c.sigla}`); }}
