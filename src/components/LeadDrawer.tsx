@@ -159,33 +159,18 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [convs, setConvs]           = useState<WaConv[]>([]);
   const [convsLoading, setConvsLoading] = useState(false);
 
-  if (!leadId || !leads[leadId]) return null;
-  const lead = leads[leadId];
+  // Deriva lead ANTES dos hooks restantes (sem early return ainda)
+  const lead = leadId ? leads[leadId] : null;
+  const leadPhone = lead?.whatsapp ?? "";
 
-  const pipeline = pipelines.find(p => p.id === lead.pipelineId);
-  const stage    = pipeline?.columns.find(c => c.id === lead.stage);
-  const initials = lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
-  const color    = colorFromName(lead.name);
-  const tasks    = allTasks.filter(t => t.leadId === leadId);
-
-  // Negócios relacionados: todos os leads com o mesmo telefone ou e-mail
-  const phoneNorm = lead.whatsapp?.replace(/\D/g, "") ?? "";
-  const relatedLeads = Object.values(leads).filter(l => {
-    if (!l.whatsapp) return false;
-    const lp = l.whatsapp.replace(/\D/g, "");
-    const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
-    const sameEmail = !!(lead.email && l.email && lead.email === l.email);
-    return samePhone || sameEmail;
-  });
-
-  // Carrega arquivos ao abrir aba
+  // Carrega arquivos ao abrir aba — hook ANTES do early return
   const loadFiles = useCallback(async () => {
-    if (!user || !leadId) return;
+    if (!user || !leadId || !lead) return;
     setFilesLoading(true);
     const [{ data: fData }, { data: wData }] = await Promise.all([
       supabase.from("lead_files").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
       (() => {
-        const [p1, p2] = phoneVariants(lead.whatsapp ?? "");
+        const [p1, p2] = phoneVariants(leadPhone);
         return supabase.from("whatsapp_messages").select("id,body,type,from_me,sender_name,created_at,momment")
           .eq("owner_id", user.id).in("type", ["image","document"])
           .or(`phone.eq.${p1},phone.eq.${p2}`)
@@ -202,24 +187,43 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       body: r.body ?? "",
     })));
     setFilesLoading(false);
-  }, [user, leadId, lead.whatsapp]);
+  }, [user, leadId, leadPhone, lead]);
 
-  // Carrega conversas ao abrir aba
+  // Carrega conversas ao abrir aba — hook ANTES do early return
   const loadConvs = useCallback(async () => {
-    if (!user) return;
+    if (!user || !lead) return;
     setConvsLoading(true);
-    const [p1, p2] = phoneVariants(lead.whatsapp ?? "");
+    const [p1, p2] = phoneVariants(leadPhone);
     const { data } = await supabase.from("whatsapp_conversations").select("id,name,phone,preview,last_msg_at,finished,read")
       .eq("owner_id", user.id).or(`phone.eq.${p1},phone.eq.${p2}`)
       .order("last_msg_at", { ascending: false });
     setConvs((data ?? []) as WaConv[]);
     setConvsLoading(false);
-  }, [user, lead.whatsapp]);
+  }, [user, leadPhone, lead]);
 
   useEffect(() => {
     if (historyTab === "arquivos") loadFiles();
     if (historyTab === "atendimentos") loadConvs();
   }, [historyTab, loadFiles, loadConvs]);
+
+  // Early return DEPOIS de todos os hooks
+  if (!leadId || !lead) return null;
+
+  const pipeline = pipelines.find(p => p.id === lead.pipelineId);
+  const stage    = pipeline?.columns.find(c => c.id === lead.stage);
+  const initials = lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const color    = colorFromName(lead.name);
+  const tasks    = allTasks.filter(t => t.leadId === leadId);
+
+  // Negócios relacionados: todos os leads com o mesmo telefone ou e-mail
+  const phoneNorm = lead.whatsapp?.replace(/\D/g, "") ?? "";
+  const relatedLeads = Object.values(leads).filter(l => {
+    if (!l.whatsapp) return false;
+    const lp = l.whatsapp.replace(/\D/g, "");
+    const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
+    const sameEmail = !!(lead.email && l.email && lead.email === l.email);
+    return samePhone || sameEmail;
+  });
 
   const downloadFile = async (f: LeadFile) => {
     const { data } = await supabase.storage.from("lead-files").createSignedUrl(f.storagePath, 60);
