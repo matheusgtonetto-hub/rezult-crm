@@ -172,6 +172,11 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     dealStatus: (row.status as "open" | "won" | "lost") ?? "open",
     lossReasonId: (row.loss_reason_id as string) ?? undefined,
     customFieldValues: (row.custom_field_values as Record<string, string>) ?? {},
+    utmSource:   (row.utm_source   as string) ?? undefined,
+    utmMedium:   (row.utm_medium   as string) ?? undefined,
+    utmCampaign: (row.utm_campaign as string) ?? undefined,
+    utmTerm:     (row.utm_term     as string) ?? undefined,
+    utmContent:  (row.utm_content  as string) ?? undefined,
     activities,
   };
 }
@@ -739,6 +744,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if ("state" in data) dbData.state = data.state ?? null;
     if ("lossReasonId" in data) dbData.loss_reason_id = data.lossReasonId ?? null;
     if ("customFieldValues" in data) dbData.custom_field_values = data.customFieldValues ?? {};
+    if ("utmSource"   in data) dbData.utm_source   = data.utmSource   ?? null;
+    if ("utmMedium"   in data) dbData.utm_medium   = data.utmMedium   ?? null;
+    if ("utmCampaign" in data) dbData.utm_campaign = data.utmCampaign ?? null;
+    if ("utmTerm"     in data) dbData.utm_term     = data.utmTerm     ?? null;
+    if ("utmContent"  in data) dbData.utm_content  = data.utmContent  ?? null;
 
     if (Object.keys(dbData).length > 0) {
       const { error } = await supabase.from("leads").update(dbData).eq("id", id);

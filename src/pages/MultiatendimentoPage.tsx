@@ -1981,10 +1981,10 @@ export default function MultiatendimentoPage() {
             {/* SEÇÕES EXPANSÍVEIS */}
             <Section title="Perfil" defaultOpen>
               {[
-                ["Nome",               active.name],
-                ["E-mail",             active.email || "—"],
-                ["Telefone",           active.phone || "—"],
-                ["Empresa",            active.company || "—"],
+                ["Nome",     effectiveLead?.name    || active.name],
+                ["E-mail",   effectiveLead?.email   || active.email   || "—"],
+                ["Telefone", effectiveLead?.whatsapp || active.phone   || "—"],
+                ["Empresa",  effectiveLead?.company || active.company || "—"],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
                   <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
