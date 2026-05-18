@@ -480,13 +480,16 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     if (!activeId || !active || !user) return;
     const rawPhone = (active.phone ?? "").replace(/\D/g, "");
-    if (!rawPhone) return;
-    const { local, full } = phoneVariants(rawPhone);
+    // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
+    // que foram salvas com o ID da conversa como chave (quando não há telefone real)
+    const phoneFilter = rawPhone
+      ? (() => { const { local, full } = phoneVariants(rawPhone); return `phone.eq.${local},phone.eq.${full},phone.eq.${activeId}`; })()
+      : `phone.eq.${activeId}`;
 
     supabase
       .from("whatsapp_messages")
       .select("*")
-      .or(`phone.eq.${local},phone.eq.${full}`)
+      .or(phoneFilter)
       .order("created_at", { ascending: true })
       .limit(100)
       .then(({ data }) => {
@@ -1127,10 +1130,13 @@ export default function MultiatendimentoPage() {
       ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active?.phone ?? ""));
     if (linkedLead) updateLead(linkedLead.id, { responsible: memberName });
     // Persiste no banco como tipo "system" para aparecer no histórico
+    // phone: usa número real se disponível, senão usa o ID da conversa como chave
+    const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
     supabase.from("whatsapp_messages").insert({
       id:          msgId,
       owner_id:    user.id,
-      phone:       active?.phone?.replace(/\D/g, "") ?? "",
+      instance_id: instances[0]?.instanceId ?? "system",
+      phone:       phoneForSystem,
       from_me:     false,
       body:        sysText,
       type:        "system",
