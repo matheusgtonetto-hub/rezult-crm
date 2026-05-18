@@ -2232,12 +2232,14 @@ export default function LeadDetailPage() {
 
 
             {tab === "email" && (
-              <div className="text-center py-16">
-                <Mail size={36} className="mx-auto mb-3 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground mb-3">Nenhum e-mail trocado com este lead</p>
-                <Button size="sm" className="rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}>
-                  <Plus size={14} className="mr-1" /> Enviar e-mail
-                </Button>
+              <div className="text-center py-16 px-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-50 mb-4">
+                  <Mail size={26} className="text-amber-400" />
+                </div>
+                <p className="text-sm font-semibold text-gray-700 mb-1">Em breve</p>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  A integração de e-mail está sendo desenvolvida e será disponibilizada em breve.
+                </p>
               </div>
             )}
 
