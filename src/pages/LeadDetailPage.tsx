@@ -381,13 +381,27 @@ export default function LeadDetailPage() {
       const ext = file.name.split(".").pop() ?? "bin";
       const path = `${user.id}/${lead.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("lead-files").upload(path, file);
-      if (upErr) throw upErr;
+      if (upErr) {
+        if (upErr.message?.includes("Bucket not found") || upErr.message?.includes("bucket"))
+          toast.error("Bucket 'lead-files' não encontrado. Execute a migração SQL no Supabase.");
+        else
+          toast.error(`Erro no storage: ${upErr.message}`);
+        return;
+      }
       const { error: dbErr } = await supabase.from("lead_files").insert({
         owner_id: user.id, lead_id: lead.id,
         name: file.name, size: file.size, mime_type: file.type,
         storage_path: path, uploaded_by: user.email?.split("@")[0] ?? "Você",
       });
-      if (dbErr) throw dbErr;
+      if (dbErr) {
+        // Limpa o arquivo do storage se o registro no banco falhou
+        await supabase.storage.from("lead-files").remove([path]);
+        if (dbErr.message?.includes("relation") || dbErr.code === "42P01")
+          toast.error("Tabela 'lead_files' não encontrada. Execute a migração SQL no Supabase.");
+        else
+          toast.error(`Erro ao salvar: ${dbErr.message}`);
+        return;
+      }
       // Refresh list
       const { data } = await supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false });
       setUploadedFiles((data ?? []).map((r: any) => ({
@@ -396,7 +410,7 @@ export default function LeadDetailPage() {
       })));
       toast.success("Arquivo enviado!");
     } catch (err) {
-      toast.error("Erro ao enviar arquivo.");
+      toast.error(`Erro ao enviar: ${(err as Error).message}`);
       console.error(err);
     } finally { setUploading(false); }
   }
