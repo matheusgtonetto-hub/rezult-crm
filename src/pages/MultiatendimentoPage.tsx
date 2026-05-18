@@ -67,10 +67,11 @@ type Conversation = {
 };
 
 type Msg =
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";  text: string;                    date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio"; duration: string;               date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image"; src: string; caption?: string;  date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";  filename: string;               date: string; read?: boolean };
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string;               date: string; read?: boolean }
+  | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
 
 type Meeting = { date: string; time: string; owner: string; note: string };
 
@@ -503,6 +504,7 @@ export default function MultiatendimentoPage() {
             date:  dateLabel,
             read:  true as const,
           };
+          if (m.type === "system")   return { id: m.id, from: "system" as const, time: base.time, kind: "system" as const, text: m.body ?? "", date: base.date };
           if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: m.body ?? "00:00" };
           if (m.type === "image")    return { ...base, kind: "image"  as const, src: "", caption: m.body ?? "" };
           if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo" };
@@ -536,25 +538,24 @@ export default function MultiatendimentoPage() {
           const existing = convListRef.current.find(c => phonesMatch(c.phone ?? "", msgPhone));
 
           if (existing) {
-            // Atualiza preview da conversa existente
-            setConvList(prev => prev.map(c =>
-              c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
-            ));
+            // Atualiza preview da conversa existente (exceto mensagens de sistema)
+            if (m.type !== "system") {
+              setConvList(prev => prev.map(c =>
+                c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
+              ));
+            }
             // Adiciona a mensagem no estado da conversa se já estiver carregada
             setConvStates(prev => {
               const cur = prev[existing.id];
               if (!cur) return prev;
               if (cur.messages.some(x => x.id === m.id)) return prev;
-              const newMsg: Msg = {
-                id:   m.id,
-                from: "lead",
-                time: timeStr,
-                kind: "text" as const,
-                text: m.body ?? "",
-                date: "Hoje",
-                read: false,
-              };
-              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
+              let newMsg: Msg;
+              if (m.type === "system") {
+                newMsg = { id: m.id, from: "system" as const, time: timeStr, kind: "system" as const, text: m.body ?? "", date: "Hoje" };
+              } else {
+                newMsg = { id: m.id, from: "lead", time: timeStr, kind: "text" as const, text: m.body ?? "", date: "Hoje", read: false };
+              }
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: m.type === "system" ? cur.read : false } };
             });
             // Atualiza preview e timestamp no banco
             supabase.from("whatsapp_conversations").update({
@@ -1105,8 +1106,33 @@ export default function MultiatendimentoPage() {
   }
 
   function handleTransfer(memberName: string) {
-    if (!activeId) return;
-    updateCs(activeId, { assignedTo: memberName });
+    if (!activeId || !user) return;
+    const fromName = user.email?.split("@")[0] ?? "Você";
+    const msgId = crypto.randomUUID();
+    const sysText = `Atendimento transferido para ${memberName} por ${fromName}`;
+    const sysMsg: Msg = {
+      id:   msgId,
+      from: "system",
+      time: nowTime(),
+      kind: "system",
+      text: sysText,
+      date: "Hoje",
+    };
+    updateCs(activeId, {
+      assignedTo: memberName,
+      messages: [...(cs?.messages ?? []), sysMsg],
+    });
+    // Persiste no banco como tipo "system" para aparecer no histórico
+    supabase.from("whatsapp_messages").insert({
+      id:          msgId,
+      owner_id:    user.id,
+      phone:       active?.phone?.replace(/\D/g, "") ?? "",
+      from_me:     false,
+      body:        sysText,
+      type:        "system",
+      momment:     Date.now(),
+      sender_name: null,
+    }).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
     toast.success(`Atendimento transferido para ${memberName}`);
     setShowTransferDialog(false);
   }
@@ -1370,6 +1396,19 @@ export default function MultiatendimentoPage() {
                     <div style={{ flex: 1, height: 0.5, background: "#E5E5E5" }} />
                   </div>
                   {msgs.map(m => {
+                    if (m.kind === "system") {
+                      return (
+                        <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
+                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
+                          <span style={{ fontSize: 11, color: "#888", background: "#F0F0F0", border: "0.5px solid #E0E0E0", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                            <UserCheck size={11} color="#888" />
+                            {m.text}
+                            <span style={{ color: "#BBB", marginLeft: 2 }}>· {m.time}</span>
+                          </span>
+                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
+                        </div>
+                      );
+                    }
                     const isAgent = m.from === "agent";
                     return (
                       <div key={m.id} style={{ display: "flex", justifyContent: isAgent ? "flex-end" : "flex-start", marginBottom: 12 }}>
