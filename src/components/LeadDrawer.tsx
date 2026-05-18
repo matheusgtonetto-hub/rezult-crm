@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   MessageCircle, Trophy, XCircle, StickyNote, ArrowRightLeft,
   PlusCircle, CheckSquare, CalendarDays, Phone, Mail, RefreshCw,
   Briefcase, ChevronRight, ExternalLink, Pencil,
+  FileText, Image, Download, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ActivityType, LeadOrigin } from "@/data/mockData";
@@ -113,20 +116,48 @@ const fmtDate = (d: string) => {
   return dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
+interface LeadFile {
+  id: string; name: string; size: number; mimeType: string;
+  storagePath: string; uploadedBy: string; createdAt: string;
+}
+interface WaFile {
+  id: string; name: string; type: "image" | "document";
+  fromMe: boolean; senderName: string | null; createdAt: string; body: string;
+}
+interface WaConv {
+  id: string; name: string; phone: string; preview: string | null;
+  last_msg_at: string | null; finished: boolean; read: boolean;
+}
+
+function phoneVariants(raw: string) {
+  const d = raw.replace(/\D/g, "");
+  return d.startsWith("55") ? [d, d.slice(2)] : [d, `55${d}`];
+}
+
 export function LeadDrawer({ leadId, open, onClose }: Props) {
   const {
     leads, updateLead, pipelines, teamMembers,
     addActivity, updateTask,
-    tasks: allTasks, addTask: addTaskToContext,
-    markLeadWon, markLeadLost,
+    tasks: allTasks,
+    markLeadWon,
     customFieldGroups,
   } = useCRM();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [detailsTab, setDetailsTab] = useState<DetailsTab>("perfil");
   const [historyTab, setHistoryTab]  = useState<HistoryTab>("historico");
   const [newNote, setNewNote]         = useState("");
   const [notesOpen, setNotesOpen]     = useState(true);
+
+  // Arquivos
+  const [leadFiles, setLeadFiles]   = useState<LeadFile[]>([]);
+  const [waFiles,   setWaFiles]     = useState<WaFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+
+  // Atendimentos
+  const [convs, setConvs]           = useState<WaConv[]>([]);
+  const [convsLoading, setConvsLoading] = useState(false);
 
   if (!leadId || !leads[leadId]) return null;
   const lead = leads[leadId];
@@ -136,6 +167,65 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const initials = lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
   const color    = colorFromName(lead.name);
   const tasks    = allTasks.filter(t => t.leadId === leadId);
+
+  // Negócios relacionados: todos os leads com o mesmo telefone ou e-mail
+  const phoneNorm = lead.whatsapp?.replace(/\D/g, "") ?? "";
+  const relatedLeads = Object.values(leads).filter(l => {
+    if (!l.whatsapp) return false;
+    const lp = l.whatsapp.replace(/\D/g, "");
+    const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
+    const sameEmail = !!(lead.email && l.email && lead.email === l.email);
+    return samePhone || sameEmail;
+  });
+
+  // Carrega arquivos ao abrir aba
+  const loadFiles = useCallback(async () => {
+    if (!user || !leadId) return;
+    setFilesLoading(true);
+    const [{ data: fData }, { data: wData }] = await Promise.all([
+      supabase.from("lead_files").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
+      (() => {
+        const [p1, p2] = phoneVariants(lead.whatsapp ?? "");
+        return supabase.from("whatsapp_messages").select("id,body,type,from_me,sender_name,created_at,momment")
+          .eq("owner_id", user.id).in("type", ["image","document"])
+          .or(`phone.eq.${p1},phone.eq.${p2}`)
+          .order("momment", { ascending: false }).limit(50);
+      })(),
+    ]);
+    setLeadFiles((fData ?? []).map((r: any) => ({
+      id: r.id, name: r.name, size: r.size, mimeType: r.mime_type,
+      storagePath: r.storage_path, uploadedBy: r.uploaded_by, createdAt: r.created_at,
+    })));
+    setWaFiles((wData ?? []).map((r: any) => ({
+      id: r.id, name: r.body ?? "arquivo", type: r.type,
+      fromMe: r.from_me, senderName: r.sender_name, createdAt: r.created_at ?? String(r.momment),
+      body: r.body ?? "",
+    })));
+    setFilesLoading(false);
+  }, [user, leadId, lead.whatsapp]);
+
+  // Carrega conversas ao abrir aba
+  const loadConvs = useCallback(async () => {
+    if (!user) return;
+    setConvsLoading(true);
+    const [p1, p2] = phoneVariants(lead.whatsapp ?? "");
+    const { data } = await supabase.from("whatsapp_conversations").select("id,name,phone,preview,last_msg_at,finished,read")
+      .eq("owner_id", user.id).or(`phone.eq.${p1},phone.eq.${p2}`)
+      .order("last_msg_at", { ascending: false });
+    setConvs((data ?? []) as WaConv[]);
+    setConvsLoading(false);
+  }, [user, lead.whatsapp]);
+
+  useEffect(() => {
+    if (historyTab === "arquivos") loadFiles();
+    if (historyTab === "atendimentos") loadConvs();
+  }, [historyTab, loadFiles, loadConvs]);
+
+  const downloadFile = async (f: LeadFile) => {
+    const { data } = await supabase.storage.from("lead-files").createSignedUrl(f.storagePath, 60);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Erro ao gerar link de download");
+  };
 
   const sortedActs = [...lead.activities].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -420,29 +510,182 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
               {/* ── NEGÓCIOS ── */}
               {historyTab === "negocios" && (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
-                  <Briefcase size={36} style={{ margin: "0 auto 12px", opacity: 0.25 }} />
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#888" }}>Negócios vinculados</p>
-                  <p style={{ fontSize: 12, color: "#AAA", marginTop: 4 }}>Abra o perfil completo para ver negócios</p>
-                  <button
-                    onClick={() => { onClose(); navigate(`/pipeline/lead/${leadId}`); }}
-                    style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "#128A68", border: "1px solid #128A6830", borderRadius: 8, padding: "7px 18px", background: "transparent", cursor: "pointer" }}
-                  >
-                    Ver perfil completo
-                  </button>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div>
+                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Negócios</h3>
+                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{relatedLeads.length} negócio{relatedLeads.length !== 1 ? "s" : ""} encontrado{relatedLeads.length !== 1 ? "s" : ""}</p>
+                    </div>
+                  </div>
+                  {relatedLeads.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
+                      <Briefcase size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
+                      <p style={{ fontSize: 13 }}>Nenhum negócio encontrado</p>
+                    </div>
+                  ) : relatedLeads.map(l => {
+                    const lPipeline = pipelines.find(p => p.id === l.pipelineId);
+                    const lStage    = lPipeline?.columns.find(c => c.id === l.stage);
+                    const isWon     = l.dealStatus === "won";
+                    const isLost    = l.dealStatus === "lost";
+                    const statusColor = isWon ? "#22C55E" : isLost ? "#EF4444" : "#128A68";
+                    const statusBg    = isWon ? "#DCFCE7" : isLost ? "#FEE2E2" : "#E6F5F0";
+                    const statusLabel = isWon ? "Ganho" : isLost ? "Perdido" : "Em aberto";
+                    return (
+                      <div
+                        key={l.id}
+                        onClick={() => { onClose(); navigate(`/pipeline/lead/${l.id}`); }}
+                        style={{ border: "1px solid #F0F0F0", borderRadius: 12, padding: "14px 16px", marginBottom: 10, cursor: "pointer", background: l.id === leadId ? "#F9FFF9" : "#FAFAFA", borderLeft: l.id === leadId ? "3px solid #128A68" : "1px solid #F0F0F0", transition: "background 0.15s" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F0F9F6")}
+                        onMouseLeave={e => (e.currentTarget.style.background = l.id === leadId ? "#F9FFF9" : "#FAFAFA")}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68" }}>#{l.dealNumber}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{l.name}</span>
+                              {l.id === leadId && <span style={{ fontSize: 9, fontWeight: 700, color: "#888", background: "#F0F0F0", padding: "1px 6px", borderRadius: 100 }}>ESTE</span>}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              {lPipeline && (
+                                <span style={{ fontSize: 11, color: "#555", background: "#F5F5F5", padding: "2px 8px", borderRadius: 100 }}>
+                                  {lPipeline.name}
+                                </span>
+                              )}
+                              {lStage && (
+                                <span style={{ fontSize: 11, color: "#555", background: lStage.color + "20", padding: "2px 8px", borderRadius: 100 }}>
+                                  {lStage.title}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            {!!l.value && <p style={{ fontSize: 13, fontWeight: 700, color: "#128A68" }}>{formatBRL(l.value)}</p>}
+                            <span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusBg, padding: "2px 8px", borderRadius: 100, display: "inline-block", marginTop: 4 }}>{statusLabel}</span>
+                          </div>
+                        </div>
+                        {l.responsible && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0F0F0" }}>
+                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: colorFromName(l.responsible), color: "#FFF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {l.responsible[0]}
+                            </div>
+                            <span style={{ fontSize: 11, color: "#666" }}>{l.responsible}</span>
+                            {l.entryDate && <span style={{ fontSize: 11, color: "#AAA", marginLeft: "auto" }}>{new Date(l.entryDate).toLocaleDateString("pt-BR")}</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* ── ARQUIVOS / ATENDIMENTOS ── */}
-              {(historyTab === "arquivos" || historyTab === "atendimentos") && (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
-                  <p style={{ fontSize: 13, color: "#AAA" }}>Em breve disponível nesta visualização</p>
-                  <button
-                    onClick={() => { onClose(); navigate(`/pipeline/lead/${leadId}`); }}
-                    style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: "#128A68", border: "1px solid #128A6830", borderRadius: 8, padding: "7px 18px", background: "transparent", cursor: "pointer" }}
-                  >
-                    Ver perfil completo
-                  </button>
+              {/* ── ARQUIVOS ── */}
+              {historyTab === "arquivos" && (
+                <div>
+                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111", marginBottom: 16 }}>Arquivos</h3>
+                  {filesLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "#AAA" }}>
+                      <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
+                      <span style={{ fontSize: 13 }}>Carregando arquivos…</span>
+                    </div>
+                  ) : leadFiles.length === 0 && waFiles.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
+                      <FileText size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
+                      <p style={{ fontSize: 13 }}>Nenhum arquivo encontrado</p>
+                    </div>
+                  ) : (
+                    <>
+                      {leadFiles.length > 0 && (
+                        <>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Enviados manualmente</p>
+                          {leadFiles.map(f => (
+                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #F0F0F0", borderRadius: 10, marginBottom: 8, background: "#FAFAFA" }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                {f.mimeType?.startsWith("image") ? <Image size={18} color="#378ADD" /> : <FileText size={18} color="#378ADD" />}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 13, color: "#111", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</p>
+                                <p style={{ fontSize: 11, color: "#AAA" }}>{f.size ? `${(f.size / 1024).toFixed(0)} KB` : ""} · {fmtDate(f.createdAt)}</p>
+                              </div>
+                              <button onClick={() => downloadFile(f)} style={{ padding: "6px", background: "none", border: "none", cursor: "pointer", color: "#128A68", borderRadius: 6 }}>
+                                <Download size={15} />
+                              </button>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {waFiles.length > 0 && (
+                        <>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: 0.5, margin: "12px 0 8px" }}>Do WhatsApp</p>
+                          {waFiles.map(f => (
+                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #F0F0F0", borderRadius: 10, marginBottom: 8, background: "#FAFAFA" }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#E6F5F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                {f.type === "image" ? <Image size={18} color="#128A68" /> : <FileText size={18} color="#128A68" />}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{f.type === "image" ? "Imagem" : "Documento"}</p>
+                                <p style={{ fontSize: 11, color: "#AAA" }}>{f.fromMe ? "Enviado" : "Recebido"} · {fmtDate(f.createdAt)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── ATENDIMENTOS ── */}
+              {historyTab === "atendimentos" && (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div>
+                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Atendimentos</h3>
+                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Conversas no WhatsApp</p>
+                    </div>
+                    <button
+                      onClick={() => { onClose(); navigate("/multiatendimento"); }}
+                      style={{ fontSize: 11, fontWeight: 600, color: "#128A68", border: "1px solid #128A6830", borderRadius: 8, padding: "5px 12px", background: "transparent", cursor: "pointer" }}
+                    >
+                      Abrir chat
+                    </button>
+                  </div>
+                  {convsLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "#AAA" }}>
+                      <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
+                      <span style={{ fontSize: 13 }}>Carregando atendimentos…</span>
+                    </div>
+                  ) : convs.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
+                      <MessageCircle size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
+                      <p style={{ fontSize: 13 }}>Nenhuma conversa encontrada</p>
+                      <p style={{ fontSize: 12, color: "#AAA", marginTop: 4 }}>As conversas aparecem após o primeiro contato no Multiatendimento</p>
+                    </div>
+                  ) : convs.map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => { onClose(); navigate("/multiatendimento"); }}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid #F0F0F0", borderRadius: 12, marginBottom: 8, background: "#FAFAFA", cursor: "pointer" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F0F9F6")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#FAFAFA")}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: colorFromName(c.name || "?"), color: "#FFF", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {(c.name || "?")[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || c.phone}</p>
+                          {c.last_msg_at && <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(c.last_msg_at)}</span>}
+                        </div>
+                        {c.preview && <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{c.preview}</p>}
+                        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: c.finished ? "#AAA" : "#128A68", background: c.finished ? "#F5F5F5" : "#E6F5F0", padding: "2px 8px", borderRadius: 100 }}>
+                            {c.finished ? "Arquivado" : "Em aberto"}
+                          </span>
+                          {!c.read && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: "#128A68", padding: "2px 8px", borderRadius: 100 }}>Nova</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
