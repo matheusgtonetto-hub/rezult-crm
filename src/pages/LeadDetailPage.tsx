@@ -133,14 +133,22 @@ type IbgeCity = { nome: string; sigla: string };
 let cachedCities: IbgeCity[] = [];
 let citiesFetching = false;
 
+const BR_STATES = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"] as const;
+
 async function loadIbgeCities(onDone: (cities: IbgeCity[]) => void) {
   if (cachedCities.length > 0) { onDone(cachedCities); return; }
   if (citiesFetching) { const wait = () => cachedCities.length > 0 ? onDone(cachedCities) : setTimeout(wait, 200); wait(); return; }
   citiesFetching = true;
   try {
-    const res  = await fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome");
-    const data = await res.json() as { nome: string; microrregiao: { mesorregiao: { UF: { sigla: string } } } }[];
-    cachedCities = data.map(m => ({ nome: m.nome, sigla: m.microrregiao.mesorregiao.UF.sigla }));
+    const results = await Promise.all(
+      BR_STATES.map(uf =>
+        fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}`)
+          .then(r => r.json() as Promise<{ nome: string }[]>)
+          .then(data => data.map(m => ({ nome: m.nome, sigla: uf })))
+          .catch(() => [] as IbgeCity[])
+      )
+    );
+    cachedCities = results.flat().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
   } catch { /* ignora */ }
   citiesFetching = false;
   onDone(cachedCities);
