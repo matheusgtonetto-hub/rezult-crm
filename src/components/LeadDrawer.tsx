@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -6,10 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   MessageCircle, Trophy, XCircle, StickyNote, ArrowRightLeft,
   PlusCircle, CheckSquare, CalendarDays, Phone, Mail, RefreshCw,
-  Briefcase, ChevronRight, ExternalLink,
+  Briefcase, ChevronRight, ExternalLink, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { ActivityType } from "@/data/mockData";
+import type { ActivityType, LeadOrigin } from "@/data/mockData";
 
 interface Props {
   leadId: string | null;
@@ -19,6 +19,69 @@ interface Props {
 
 type DetailsTab = "perfil" | "endereco" | "campos";
 type HistoryTab = "historico" | "atividades" | "negocios" | "arquivos" | "atendimentos";
+
+// Campo editável inline — clique para editar, blur/Enter para salvar
+function InlineField({
+  label, value, onSave, type = "text", options,
+}: {
+  label: string;
+  value?: string | null;
+  onSave: (v: string) => void;
+  type?: "text" | "email" | "tel";
+  options?: string[];
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState(value ?? "");
+  const inputRef              = useRef<HTMLInputElement | HTMLSelectElement>(null);
+
+  useEffect(() => { setDraft(value ?? ""); }, [value]);
+  useEffect(() => { if (editing) (inputRef.current as HTMLInputElement)?.focus(); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft !== (value ?? "")) onSave(draft);
+  };
+
+  return (
+    <div className="group">
+      <span style={{ fontSize: 10, color: "#AAA", display: "block", marginBottom: 2 }}>{label}</span>
+      {editing ? (
+        options ? (
+          <select
+            ref={inputRef as React.RefObject<HTMLSelectElement>}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
+          >
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            type={type}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); } }}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
+          />
+        )
+      ) : (
+        <div
+          onClick={() => setEditing(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "text", padding: "4px 0", minHeight: 22, borderBottom: "1px solid transparent" }}
+          className="hover:border-b-[#E0E0E0]"
+        >
+          <span style={{ fontSize: 13, color: draft ? "#222" : "#BBBBBB", fontStyle: draft ? "normal" : "italic" }}>
+            {draft || `+ ${label}`}
+          </span>
+          <Pencil size={11} color="#BBBBBB" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ flexShrink: 0 }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function colorFromName(name: string): string {
   const palette = ["#128A68","#378ADD","#F59E0B","#8B5CF6","#EF4444","#0EA5E9","#EC4899","#14B8A6"];
@@ -108,13 +171,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
   });
 
-  const fieldRow = (label: string, value?: string | null) =>
-    value ? (
-      <div key={label}>
-        <span style={{ fontSize: 10, color: "#AAA", display: "block", marginBottom: 2 }}>{label}</span>
-        <span style={{ fontSize: 13, color: "#222" }}>{value}</span>
-      </div>
-    ) : null;
+  const ORIGINS: LeadOrigin[] = ["Instagram","Facebook Ads","Meta Ads","Google Ads","TikTok Ads","LinkedIn Ads","YouTube Ads","Email Marketing","Orgânico","WhatsApp","Evento","Indicação","Site","Outro"];
 
   return (
     <Sheet open={open} onOpenChange={() => onClose()}>
@@ -211,45 +268,45 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             </div>
 
             <div style={{ padding: "14px 16px", flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-              {detailsTab === "perfil" && [
-                fieldRow("Nome",      lead.name),
-                fieldRow("Empresa",   lead.company),
-                fieldRow("E-mail",    lead.email),
-                fieldRow("Telefone",  lead.whatsapp),
-                fieldRow("Documento", lead.document),
-                fieldRow("Origem",    lead.origin),
-                fieldRow("Site",      lead.site),
-              ]}
+              {detailsTab === "perfil" && <>
+                <InlineField label="Nome"      value={lead.name}      onSave={v => updateLead(leadId, { name: v })} />
+                <InlineField label="Empresa"   value={lead.company}   onSave={v => updateLead(leadId, { company: v })} />
+                <InlineField label="E-mail"    value={lead.email}     onSave={v => updateLead(leadId, { email: v })} type="email" />
+                <InlineField label="Telefone"  value={lead.whatsapp}  onSave={v => updateLead(leadId, { whatsapp: v })} type="tel" />
+                <InlineField label="Documento" value={lead.document}  onSave={v => updateLead(leadId, { document: v } as any)} />
+                <InlineField label="Origem"    value={lead.origin}    onSave={v => updateLead(leadId, { origin: v as LeadOrigin })} options={ORIGINS} />
+                <InlineField label="Site"      value={lead.site}      onSave={v => updateLead(leadId, { site: v })} />
+              </>}
 
-              {detailsTab === "endereco" && (
-                [
-                  fieldRow("CEP",         lead.zipCode),
-                  fieldRow("Endereço",    lead.address),
-                  fieldRow("Número",      lead.addrNumber),
-                  fieldRow("Complemento", lead.complement),
-                  fieldRow("Bairro",      lead.neighborhood),
-                  fieldRow("Cidade",      lead.city),
-                  fieldRow("Estado",      lead.state),
-                  fieldRow("País",        lead.country),
-                ].filter(Boolean).length === 0
-                  ? <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum endereço cadastrado</p>
-                  : [
-                    fieldRow("CEP",         lead.zipCode),
-                    fieldRow("Endereço",    lead.address),
-                    fieldRow("Número",      lead.addrNumber),
-                    fieldRow("Complemento", lead.complement),
-                    fieldRow("Bairro",      lead.neighborhood),
-                    fieldRow("Cidade",      lead.city),
-                    fieldRow("Estado",      lead.state),
-                    fieldRow("País",        lead.country),
-                  ]
-              )}
+              {detailsTab === "endereco" && <>
+                <InlineField label="CEP"         value={lead.zipCode}      onSave={v => updateLead(leadId, { zipCode: v })} />
+                <InlineField label="Endereço"    value={lead.address}      onSave={v => updateLead(leadId, { address: v })} />
+                <InlineField label="Número"      value={lead.addrNumber}   onSave={v => updateLead(leadId, { addrNumber: v })} />
+                <InlineField label="Complemento" value={lead.complement}   onSave={v => updateLead(leadId, { complement: v })} />
+                <InlineField label="Bairro"      value={lead.neighborhood} onSave={v => updateLead(leadId, { neighborhood: v })} />
+                <InlineField label="Cidade"      value={lead.city}         onSave={v => updateLead(leadId, { city: v })} />
+                <InlineField label="Estado"      value={lead.state}        onSave={v => updateLead(leadId, { state: v })} />
+                <InlineField label="País"        value={lead.country}      onSave={v => updateLead(leadId, { country: v })} />
+              </>}
 
               {detailsTab === "campos" && (() => {
                 const allItems = customFieldGroups.flatMap(g => g.items);
-                const filled = allItems.filter(f => lead.customFieldValues?.[f.id]);
-                if (filled.length === 0) return <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional preenchido</p>;
-                return filled.map(f => fieldRow(f.label, lead.customFieldValues?.[f.id]));
+                if (allItems.length === 0) return <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
+                return (
+                  <>
+                    {allItems.map(f => (
+                      <InlineField
+                        key={f.id}
+                        label={f.label}
+                        value={lead.customFieldValues?.[f.id]}
+                        onSave={v => {
+                          const next = { ...(lead.customFieldValues ?? {}), [f.id]: v };
+                          updateLead(leadId, { customFieldValues: next });
+                        }}
+                      />
+                    ))}
+                  </>
+                );
               })()}
             </div>
           </div>

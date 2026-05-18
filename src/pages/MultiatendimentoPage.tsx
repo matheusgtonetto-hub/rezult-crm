@@ -1996,11 +1996,19 @@ export default function MultiatendimentoPage() {
             <Section title="Notas">
               <textarea
                 placeholder="Adicionar nota..."
-                value={cs.notes}
-                onChange={e => updateCs(activeId, { notes: e.target.value })}
+                value={effectiveLead ? (effectiveLead.notes ?? "") : cs.notes}
+                onChange={e => {
+                  if (effectiveLead) {
+                    updateLead(effectiveLead.id, { notes: e.target.value });
+                  } else {
+                    updateCs(activeId, { notes: e.target.value });
+                  }
+                }}
                 style={{ width: "100%", background: "#F5F5F5", borderRadius: 8, padding: 10, border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", minHeight: 80, resize: "vertical" }}
               />
-              {cs.notes && <div style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>Salvo automaticamente</div>}
+              {(effectiveLead ? effectiveLead.notes : cs.notes) && (
+                <div style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>Salvo automaticamente</div>
+              )}
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
