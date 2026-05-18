@@ -121,108 +121,127 @@ function formatPhone(raw: string): string {
   return raw;
 }
 
+function formatDocument(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 11) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+  if (d.length === 14) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
+  return raw;
+}
+
 type IbgeCity = { nome: string; sigla: string };
 let cachedCities: IbgeCity[] = [];
+let citiesFetching = false;
+
+async function loadIbgeCities(onDone: (cities: IbgeCity[]) => void) {
+  if (cachedCities.length > 0) { onDone(cachedCities); return; }
+  if (citiesFetching) { const wait = () => cachedCities.length > 0 ? onDone(cachedCities) : setTimeout(wait, 200); wait(); return; }
+  citiesFetching = true;
+  try {
+    const res  = await fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome");
+    const data = await res.json() as { nome: string; microrregiao: { mesorregiao: { UF: { sigla: string } } } }[];
+    cachedCities = data.map(m => ({ nome: m.nome, sigla: m.microrregiao.mesorregiao.UF.sigla }));
+  } catch { /* ignora */ }
+  citiesFetching = false;
+  onDone(cachedCities);
+}
 
 function CityField({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
   const [editing, setEditing]   = useState(false);
   const [query, setQuery]       = useState(value ?? "");
   const [cities, setCities]     = useState<IbgeCity[]>(cachedCities);
   const [loading, setLoading]   = useState(false);
+  const [dropPos, setDropPos]   = useState<{ top: number; left: number; width: number } | null>(null);
+  const wrapRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropRef  = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setQuery(value ?? ""); }, [value]);
+  useEffect(() => { if (!editing) setQuery(value ?? ""); }, [value, editing]);
 
-  async function ensureCities() {
-    if (cachedCities.length > 0) { setCities(cachedCities); return; }
-    setLoading(true);
-    try {
-      const res  = await fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome");
-      const data = await res.json() as { nome: string; microrregiao: { mesorregiao: { UF: { sigla: string } } } }[];
-      cachedCities = data.map(m => ({ nome: m.nome, sigla: m.microrregiao.mesorregiao.UF.sigla }));
-      setCities(cachedCities);
-    } catch { /* ignora */ }
-    setLoading(false);
+  function openEdit() {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    setEditing(true);
+    if (cities.length === 0) {
+      setLoading(true);
+      loadIbgeCities(c => { setCities(c); setLoading(false); });
+    }
   }
 
   useEffect(() => {
-    if (!editing) return;
-    requestAnimationFrame(() => inputRef.current?.focus());
-    ensureCities();
+    if (editing) requestAnimationFrame(() => inputRef.current?.focus());
   }, [editing]);
 
   useEffect(() => {
     if (!editing) return;
     const handle = (e: MouseEvent) => {
-      if (!dropRef.current?.contains(e.target as Node) && e.target !== inputRef.current) {
-        commit(query);
-      }
+      if (dropRef.current?.contains(e.target as Node)) return;
+      if (wrapRef.current?.contains(e.target as Node)) return;
+      commit(query);
     };
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, query]);
 
   const filtered = query.length >= 2
-    ? cities.filter(c => `${c.nome} ${c.sigla}`.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    ? cities.filter(c => `${c.nome} - ${c.sigla}`.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
     : [];
 
   function commit(val: string) {
     setEditing(false);
+    setDropPos(null);
     if (val !== (value ?? "")) onSave(val);
   }
 
   const hasValue = !!value?.trim();
 
   return (
-    <div className="group" style={{ position: "relative" }}>
+    <div ref={wrapRef} className="group">
       <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Cidade</label>
       {editing ? (
-        <>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter") commit(query);
-              if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); }
-            }}
-            placeholder={loading ? "Carregando cidades…" : "Digite o nome da cidade…"}
-            style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
-          />
-          {filtered.length > 0 && (
-            <div ref={dropRef} style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 999, maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
-              {filtered.map(c => (
-                <button
-                  key={`${c.nome}-${c.sigla}`}
-                  onMouseDown={e => { e.preventDefault(); commit(`${c.nome} - ${c.sigla}`); }}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", fontSize: 13, color: "#111", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span>{c.nome}</span>
-                  <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>{c.sigla}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") { if (filtered.length > 0) commit(`${filtered[0].nome} - ${filtered[0].sigla}`); else commit(query); }
+            if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setDropPos(null); }
+          }}
+          placeholder={loading ? "Carregando cidades…" : "Digite o nome da cidade…"}
+          style={{ width: "100%", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+        />
       ) : hasValue ? (
         <div
           className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
-          onClick={() => setEditing(true)}
+          onClick={openEdit}
         >
           <span style={{ fontSize: 13, color: "#111111" }}>{value}</span>
           <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
         </div>
       ) : (
-        <button
-          onClick={() => setEditing(true)}
-          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
-          style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
-        >
+        <button onClick={openEdit} className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full" style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}>
           + Adicionar
         </button>
+      )}
+      {/* Dropdown via position:fixed para escapar de overflow:hidden dos pais */}
+      {editing && dropPos && filtered.length > 0 && (
+        <div
+          ref={dropRef}
+          style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflowY: "auto" }}
+        >
+          {filtered.map(c => (
+            <button
+              key={`${c.nome}-${c.sigla}`}
+              onMouseDown={e => { e.preventDefault(); commit(`${c.nome} - ${c.sigla}`); }}
+              style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13, color: "#111", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              <span>{c.nome}</span>
+              <span style={{ fontSize: 11, color: "#AAA", fontWeight: 700 }}>{c.sigla}</span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1252,7 +1271,7 @@ export default function LeadDetailPage() {
                           </button>
                         )}
                       </div>
-                      <EditableField label="CPF/CNPJ" value={(lead as any).document} onSave={v => updateField("document" as any, v)} />
+                      <EditableField label="CPF/CNPJ" value={(lead as any).document} display={v => v ? formatDocument(v) : ""} onSave={v => updateField("document" as any, v)} />
                       <CityField value={lead.city} onSave={v => updateField("city", v)} />
                     </div>
                   )}
