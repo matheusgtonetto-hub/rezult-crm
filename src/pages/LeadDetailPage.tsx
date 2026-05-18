@@ -332,6 +332,34 @@ function EditableField({
   );
 }
 
+function UtmSection({ lead, updateField }: { lead: import("@/data/mockData").Lead; updateField: (f: string, v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const hasAny = !!(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.utmTerm || lead.utmContent);
+  return (
+    <>
+      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: "2px 0" }}
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#AAA", letterSpacing: 0.5 }}>
+          PARÂMETROS UTM{hasAny && !open ? <span style={{ marginLeft: 6, background: "#E1F5EE", color: "#128A68", borderRadius: 100, padding: "1px 6px", fontSize: 10 }}>preenchido</span> : null}
+        </span>
+        <ChevronDown size={13} color="#AAA" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
+      </button>
+      {open && (
+        <div className="space-y-2 pt-1">
+          <EditableField label="utm_source"   value={lead.utmSource}   onSave={v => updateField("utmSource", v)} />
+          <EditableField label="utm_medium"   value={lead.utmMedium}   onSave={v => updateField("utmMedium", v)} />
+          <EditableField label="utm_campaign" value={lead.utmCampaign} onSave={v => updateField("utmCampaign", v)} />
+          <EditableField label="utm_term"     value={lead.utmTerm}     onSave={v => updateField("utmTerm", v)} />
+          <EditableField label="utm_content"  value={lead.utmContent}  onSave={v => updateField("utmContent", v)} />
+        </div>
+      )}
+    </>
+  );
+}
+
 function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -1139,12 +1167,14 @@ export default function LeadDetailPage() {
                 <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
                   {key === "negocio" && (
                     <div className="pt-2 space-y-2">
-                      <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Valor</label>
-                        <p style={{ color: "#128A68", fontWeight: 700, fontSize: 16 }}>
-                          {formatBRL(products.find(p => p.id === lead.productId)?.defaultValue ?? 0)}
-                        </p>
-                      </div>
+                      <EditableField
+                        label="Orçamento / Valor"
+                        value={lead.value ?? 0}
+                        type="number"
+                        display={v => formatBRL(Number(v) || 0)}
+                        valueStyle={{ color: "#128A68", fontWeight: 700, fontSize: 15 }}
+                        onSave={v => updateField("value", Number(v.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0)}
+                      />
                       <div>
                         <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Pipeline</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
@@ -1345,13 +1375,7 @@ export default function LeadDetailPage() {
                         </p>
                       </div>
 
-                      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 4 }}>PARÂMETROS UTM</p>
-                      <EditableField label="utm_source"   value={lead.utmSource}   onSave={v => updateField("utmSource", v)} />
-                      <EditableField label="utm_medium"   value={lead.utmMedium}   onSave={v => updateField("utmMedium", v)} />
-                      <EditableField label="utm_campaign" value={lead.utmCampaign} onSave={v => updateField("utmCampaign", v)} />
-                      <EditableField label="utm_term"     value={lead.utmTerm}     onSave={v => updateField("utmTerm", v)} />
-                      <EditableField label="utm_content"  value={lead.utmContent}  onSave={v => updateField("utmContent", v)} />
+                      <UtmSection lead={lead} updateField={updateField} />
 
                       <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
 
