@@ -1122,6 +1122,10 @@ export default function MultiatendimentoPage() {
       assignedTo: memberName,
       messages: [...(cs?.messages ?? []), sysMsg],
     });
+    // Atualiza o responsável no lead vinculado (aparece no card do Pipeline)
+    const linkedLead = leads[activeId]
+      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active?.phone ?? ""));
+    if (linkedLead) updateLead(linkedLead.id, { responsible: memberName });
     // Persiste no banco como tipo "system" para aparecer no histórico
     supabase.from("whatsapp_messages").insert({
       id:          msgId,
