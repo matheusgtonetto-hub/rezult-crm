@@ -1145,7 +1145,16 @@ export default function MultiatendimentoPage() {
     // Atualiza o responsável no lead vinculado (aparece no card do Pipeline)
     const linkedLead = leads[activeId]
       ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active?.phone ?? ""));
-    if (linkedLead) updateLead(linkedLead.id, { responsible: memberName });
+    if (linkedLead) {
+      updateLead(linkedLead.id, { responsible: memberName });
+      // Registra nas anotações do negócio (visível em Detalhes do negócio)
+      addActivity(linkedLead.id, {
+        type: "note",
+        date: new Date().toISOString(),
+        description: sysText,
+        userName: fromName,
+      });
+    }
 
     // Persiste mensagem de sistema no banco para sobreviver a page refresh
     const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
