@@ -778,6 +778,18 @@ export default function LeadDetailPage() {
   const formatBRL = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+  // Detecta se um label de campo é monetário e formata o valor
+  const customFieldDisplay = (label: string, fieldType: string) => {
+    if (fieldType === "date") return (v: string) => v ? new Date(v).toLocaleDateString("pt-BR") : "";
+    if (/orçamento|orcamento|valor|budget|preço|preco|custo/i.test(label)) {
+      return (v: string) => {
+        const n = Number(v.replace(/[^\d.,]/g, "").replace(",", "."));
+        return isNaN(n) || v.trim() === "" ? v : formatBRL(n);
+      };
+    }
+    return undefined;
+  };
+
   const stages = pipeline.columns;
   const activeIdx = stages.findIndex(c => c.id === lead.stage);
   const today = new Date().toISOString().split("T")[0];
@@ -1398,7 +1410,7 @@ export default function LeadDetailPage() {
                               value={val}
                               type={f.fieldType === "date" ? "date" : "text"}
                               onSave={saveValue}
-                              display={f.fieldType === "date" ? (v => v ? new Date(v).toLocaleDateString("pt-BR") : "") : undefined}
+                              display={customFieldDisplay(f.label, f.fieldType)}
                             />
                           );
                         })}
@@ -1559,7 +1571,7 @@ export default function LeadDetailPage() {
                             value={val}
                             type={f.fieldType === "date" ? "date" : "text"}
                             onSave={saveValue}
-                            display={f.fieldType === "date" ? (v => v ? new Date(v).toLocaleDateString("pt-BR") : "") : undefined}
+                            display={customFieldDisplay(f.label, f.fieldType)}
                           />
                         );
                       })}
