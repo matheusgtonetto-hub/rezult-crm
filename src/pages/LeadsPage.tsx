@@ -15,6 +15,7 @@ import {
 import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload } from "lucide-react";
 import { LeadModal } from "@/components/LeadModal";
 import { ImportLeadsModal } from "@/components/ImportLeadsModal";
+import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
@@ -33,6 +34,9 @@ export default function LeadsPage() {
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
+
+  // Drawer de detalhes do lead
+  const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);
@@ -167,7 +171,11 @@ export default function LeadsPage() {
             </TableHeader>
             <TableBody>
               {filtered.map(lead => (
-                <TableRow key={lead.id} className="border-card-border hover:bg-secondary/50">
+                <TableRow
+                  key={lead.id}
+                  className="border-card-border hover:bg-secondary/50 cursor-pointer"
+                  onClick={() => setDrawerLeadId(lead.id)}
+                >
                   <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
                   <TableCell>
@@ -200,7 +208,7 @@ export default function LeadsPage() {
                       return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
@@ -304,6 +312,13 @@ export default function LeadsPage() {
       </Dialog>
 
       <ImportLeadsModal open={importOpen} onClose={() => setImportOpen(false)} />
+
+      {/* Lead Detail Drawer */}
+      <LeadDrawer
+        leadId={drawerLeadId}
+        open={!!drawerLeadId}
+        onClose={() => setDrawerLeadId(null)}
+      />
     </div>
   );
 }
