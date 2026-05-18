@@ -11,7 +11,7 @@ import {
   Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays,
+  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
@@ -81,6 +81,7 @@ type ConvState = {
   notes: string;
   read: boolean;
   finished: boolean;
+  assignedTo?: string;
 };
 
 type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string };
@@ -307,6 +308,9 @@ export default function MultiatendimentoPage() {
   // ── dialog de agendamento ────────────────────────────────────────────
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
 
+  // ── dialog de transferência ──────────────────────────────────────────
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
@@ -361,7 +365,7 @@ export default function MultiatendimentoPage() {
 
   const active   = convList.find(c => c.id === activeId);
   // Fix: fallback para evitar que cs seja null quando convStates[activeId] ainda não foi carregado
-  const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false };
+  const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false, assignedTo: undefined };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
   // Etapas reais do pipeline vinculado ao lead ativo.
@@ -398,6 +402,7 @@ export default function MultiatendimentoPage() {
       notes:    r.notes ?? "",
       read:     r.read ?? true,
       finished: r.finished ?? false,
+      assignedTo: r.assigned_to ?? undefined,
     });
 
     supabase
@@ -1021,6 +1026,7 @@ export default function MultiatendimentoPage() {
       dbPatch.meeting_owner = meta.meeting?.owner ?? null;
       dbPatch.meeting_note  = meta.meeting?.note  ?? null;
     }
+    if ("assignedTo" in meta) dbPatch.assigned_to = meta.assignedTo ?? null;
     supabase.from("whatsapp_conversations").update(dbPatch).eq("id", id).then(({ error }) => {
       if (error) console.error("updateCs DB:", error);
     });
@@ -1096,6 +1102,13 @@ export default function MultiatendimentoPage() {
   function cancelMeeting(id: string) {
     updateCs(id, { meeting: null });
     toast("Reunião cancelada");
+  }
+
+  function handleTransfer(memberName: string) {
+    if (!activeId) return;
+    updateCs(activeId, { assignedTo: memberName });
+    toast.success(`Atendimento transferido para ${memberName}`);
+    setShowTransferDialog(false);
   }
 
   // ── filter ──────────────────────────────────────────────────────────
@@ -1324,7 +1337,7 @@ export default function MultiatendimentoPage() {
                   {moreMenuOpen && (
                     <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
                       {[
-                        { label: "Transferir", action: () => toast("Funcionalidade em breve") },
+                        { label: "Transferir", action: () => { setShowTransferDialog(true); setMoreMenuOpen(false); } },
                         { label: "Arquivar", action: () => { updateCs(activeId, { finished: true }); toast("Conversa arquivada"); setMoreMenuOpen(false); } },
                         { label: "Abrir perfil", action: () => { navigate("/leads"); setMoreMenuOpen(false); } },
                       ].map(item => (
@@ -1723,6 +1736,22 @@ export default function MultiatendimentoPage() {
                 ><CalendarDays size={12} /> Agendar</button>
               </div>
 
+              {/* Atendente responsável */}
+              {cs.assignedTo && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
+                  <UserCheck size={13} color="#128A68" />
+                  <span style={{ fontSize: 12, color: "#666" }}>Atendente:</span>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[cs.assignedTo] ?? colorFromString(cs.assignedTo), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
+                    {initials(cs.assignedTo)}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
+                  <button
+                    onClick={() => setShowTransferDialog(true)}
+                    style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  >Transferir</button>
+                </div>
+              )}
+
               {/* Painel: + Negócio */}
               {showNegocioForm && (
                 <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1920,6 +1949,18 @@ export default function MultiatendimentoPage() {
         )}
       </aside>
 
+      {/* ── DIALOG: transferir atendimento ──────────────────────────── */}
+      <TransferDialog
+        open={showTransferDialog}
+        onClose={() => setShowTransferDialog(false)}
+        onTransfer={handleTransfer}
+        teamMembers={teamMembers}
+        memberEmails={memberEmails}
+        memberAvatars={memberAvatars}
+        memberColors={memberColors}
+        currentAssignee={cs?.assignedTo}
+      />
+
       {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
       {showScheduleDialog && (() => {
         const linkedLead = active
@@ -1947,6 +1988,121 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px",
   fontSize: 13, color: "#111", background: "#FFF", outline: "none", width: "100%",
 };
+
+/* ── Transfer dialog ─────────────────────────────────────────────────── */
+function TransferDialog({
+  open, onClose, onTransfer, teamMembers, memberEmails, memberAvatars, memberColors, currentAssignee,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onTransfer: (memberName: string) => void;
+  teamMembers: string[];
+  memberEmails: Record<string, string>;
+  memberAvatars: Record<string, string>;
+  memberColors: Record<string, string>;
+  currentAssignee?: string;
+}) {
+  const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQ("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const filtered = teamMembers.filter(m => !q.trim() || m.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: "#FFF", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+      >
+        {/* header */}
+        <div style={{ padding: "18px 20px 12px", borderBottom: "0.5px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 7 }}>
+              <UserCheck size={16} color="#128A68" /> Transferir atendimento
+            </div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione o atendente que receberá esta conversa</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <X size={18} color="#AAA" />
+          </button>
+        </div>
+
+        {/* search */}
+        <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #F0F0F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="#AAA" />
+            <input
+              ref={inputRef}
+              placeholder="Buscar atendente..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
+            />
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
+          </div>
+        </div>
+
+        {/* lista de membros */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: "32px 20px", textAlign: "center" }}>
+              <UserCheck size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum atendente encontrado</p>
+            </div>
+          )}
+          {filtered.map(memberName => {
+            const isCurrentAssignee = memberName === currentAssignee;
+            const avatar = memberAvatars[memberName];
+            const color = memberColors[memberName] ?? colorFromString(memberName);
+            const email = memberEmails[memberName] ?? "";
+            return (
+              <button
+                key={memberName}
+                onClick={() => onTransfer(memberName)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isCurrentAssignee ? "#F0FBF6" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={e => { if (!isCurrentAssignee) e.currentTarget.style.background = "#F5F5F5"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = isCurrentAssignee ? "#F0FBF6" : "transparent"; }}
+              >
+                {/* avatar */}
+                {avatar ? (
+                  <img src={avatar} alt={memberName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                    {initials(memberName)}
+                  </div>
+                )}
+
+                {/* info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{memberName}</div>
+                  {email && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
+                </div>
+
+                {isCurrentAssignee && (
+                  <span style={{ fontSize: 11, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "3px 8px", borderRadius: 100, flexShrink: 0 }}>Atual</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* footer */}
+        <div style={{ padding: "10px 20px", borderTop: "0.5px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
+          {filtered.length} atendente{filtered.length !== 1 ? "s" : ""} disponíve{filtered.length !== 1 ? "is" : "l"}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Nova conversa dialog ─────────────────────────────────────────────── */
 function NewConvDialog({
