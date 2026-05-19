@@ -111,14 +111,22 @@ export default function IntegracoesPage() {
   const [copied, setCopied]                   = useState(false);
   const [saving, setSaving]                   = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
+
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    setLoadError(false);
+    const { data, error } = await supabase
       .from("webhook_integrations")
       .select("*")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
+    if (error) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
     setIntegrations((data ?? []).map(mapRow));
     setLoading(false);
   }, [user]);
@@ -126,8 +134,11 @@ export default function IntegracoesPage() {
   useEffect(() => { load(); }, [load]);
 
   // ── Create ──────────────────────────────────────────────────────────────────
+  const [creating, setCreating] = useState(false);
+
   const createIntegration = async (type: string) => {
-    if (!user) return;
+    if (!user || creating) return;
+    setCreating(true);
     const { data, error } = await supabase.from("webhook_integrations").insert({
       owner_id: user.id,
       name: "Nova integração",
@@ -136,7 +147,15 @@ export default function IntegracoesPage() {
       field_mappings: {},
       automation_settings: {},
     }).select().single();
-    if (error) { toast.error("Erro ao criar integração"); return; }
+    setCreating(false);
+    if (error) {
+      if ((error as { code?: string }).code === "42P01") {
+        toast.error("Tabela não encontrada. Execute a migration SQL no Supabase primeiro.");
+      } else {
+        toast.error(`Erro ao criar integração: ${error.message}`);
+      }
+      return;
+    }
     const created = mapRow(data as Record<string, unknown>);
     setIntegrations(prev => [created, ...prev]);
     setShowCreate(false);
@@ -287,11 +306,31 @@ export default function IntegracoesPage() {
               <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
               <span style={{ fontSize: 13 }}>Carregando…</span>
             </div>
+          ) : loadError ? (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <AlertTriangle size={36} style={{ margin: "0 auto 12px", color: "#F59E0B", opacity: 0.6 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>Erro ao carregar integrações</p>
+              <p style={{ fontSize: 13, color: "#AAA", marginTop: 4, marginBottom: 16 }}>
+                Execute a migration SQL no Supabase para criar a tabela <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4 }}>webhook_integrations</code>
+              </p>
+              <button
+                onClick={load}
+                style={{ fontSize: 13, fontWeight: 600, color: "#2563EB", background: "#EBF3FC", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer" }}
+              >
+                Tentar novamente
+              </button>
+            </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
               <ShoppingBag size={36} style={{ margin: "0 auto 12px", opacity: 0.2 }} />
               <p style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>Nenhuma integração encontrada</p>
-              <p style={{ fontSize: 13, marginTop: 4 }}>Clique em "Criar" para adicionar sua primeira integração</p>
+              <p style={{ fontSize: 13, marginTop: 4, marginBottom: 16 }}>Configure um webhook para receber leads automaticamente</p>
+              <button
+                onClick={() => setShowCreate(true)}
+                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: "#2563EB", border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Plus size={15} /> Criar primeiro webhook
+              </button>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
@@ -349,13 +388,13 @@ export default function IntegracoesPage() {
                 {INTEGRATION_TYPES.find(c => c.category === createCat)?.types.map(t => (
                   <div
                     key={t.id}
-                    onClick={() => createIntegration(t.id)}
-                    style={{ display: "flex", gap: 14, padding: "14px", border: "1px solid #E5E5E5", borderRadius: 12, cursor: "pointer", marginBottom: 10, background: "#FAFAFA" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#EBF3FC"; e.currentTarget.style.borderColor = "#2563EB30"; }}
+                    onClick={() => !creating && createIntegration(t.id)}
+                    style={{ display: "flex", gap: 14, padding: "14px", border: "1px solid #E5E5E5", borderRadius: 12, cursor: creating ? "default" : "pointer", marginBottom: 10, background: "#FAFAFA", opacity: creating ? 0.6 : 1 }}
+                    onMouseEnter={e => { if (!creating) { e.currentTarget.style.background = "#EBF3FC"; e.currentTarget.style.borderColor = "#2563EB30"; } }}
                     onMouseLeave={e => { e.currentTarget.style.background = "#FAFAFA"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
                   >
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <t.icon size={20} color="#2563EB" />
+                      {creating ? <Loader2 size={20} color="#2563EB" style={{ animation: "spin 1s linear infinite" }} /> : <t.icon size={20} color="#2563EB" />}
                     </div>
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{t.name}</p>
