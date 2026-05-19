@@ -33,8 +33,6 @@ interface Integration {
 
 type ConfigTab = "perfil" | "negocios" | "automacao" | "campos";
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? "";
-
 const INTEGRATION_TYPES = [
   {
     category: "Negócios",
@@ -48,7 +46,7 @@ const INTEGRATION_TYPES = [
 ];
 
 function webhookUrl(token: string) {
-  return `${SUPABASE_URL}/functions/v1/webhook-entry/${token}`;
+  return `https://app.rezultcrm.com/api/webhook/${token}`;
 }
 
 function mapRow(r: Record<string, unknown>): Integration {
