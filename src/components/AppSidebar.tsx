@@ -19,7 +19,6 @@ import {
   Bot,
   CreditCard,
   CalendarDays,
-  Webhook,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -47,7 +46,6 @@ const navItems: NavItem[] = [
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
   { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
-  { to: "/integracoes", label: "Integrações", icon: Webhook },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
 ];
 

@@ -24,7 +24,6 @@ import AgentesPage from "./pages/AgentesPage";
 import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
 import AutomacoesPage from "./pages/AutomacoesPage";
-import IntegracoesPage from "./pages/IntegracoesPage";
 import CompanyRegisterPage from "./pages/CompanyRegisterPage";
 import SetupPage from "./pages/SetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -85,7 +84,6 @@ function AppRoutes() {
             <Route path="/rezult-pay" element={<RezultPayPage />} />
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />
-            <Route path="/integracoes" element={<IntegracoesPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Route>
