@@ -141,6 +141,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     tasks: allTasks,
     markLeadWon,
     customFieldGroups,
+    addLead, nextDealNumber,
   } = useCRM();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -149,6 +150,12 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [historyTab, setHistoryTab]  = useState<HistoryTab>("historico");
   const [newNote, setNewNote]         = useState("");
   const [notesOpen, setNotesOpen]     = useState(true);
+
+  // Novo negócio
+  const [showNewDeal, setShowNewDeal]       = useState(false);
+  const [newDealPipeline, setNewDealPipeline] = useState("");
+  const [newDealStage, setNewDealStage]       = useState("");
+  const [newDealCreating, setNewDealCreating] = useState(false);
 
   // Arquivos
   const [leadFiles, setLeadFiles]   = useState<LeadFile[]>([]);
@@ -224,6 +231,32 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     const sameEmail = !!(lead.email && l.email && lead.email === l.email);
     return samePhone || sameEmail;
   });
+
+  const newDealPipelineObj = pipelines.find(p => p.id === newDealPipeline);
+
+  const createDeal = async () => {
+    if (!newDealPipeline || !newDealStage) return;
+    setNewDealCreating(true);
+    await addLead({
+      ...lead,
+      id: undefined as unknown as string,
+      dealNumber: nextDealNumber(),
+      pipelineId: newDealPipeline,
+      stage: newDealStage,
+      dealStatus: "open",
+      activities: [{
+        id: `a-${Date.now()}`,
+        date: new Date().toISOString(),
+        type: "created",
+        description: `Negócio criado a partir do contato ${lead.name}.`,
+      }],
+    });
+    toast.success("Negócio criado com sucesso!");
+    setShowNewDeal(false);
+    setNewDealPipeline("");
+    setNewDealStage("");
+    setNewDealCreating(false);
+  };
 
   const downloadFile = async (f: LeadFile) => {
     const { data } = await supabase.storage.from("lead-files").createSignedUrl(f.storagePath, 60);
@@ -520,7 +553,62 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Negócios</h3>
                       <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{relatedLeads.length} negócio{relatedLeads.length !== 1 ? "s" : ""} encontrado{relatedLeads.length !== 1 ? "s" : ""}</p>
                     </div>
+                    <button
+                      onClick={() => {
+                        const first = pipelines[0];
+                        setNewDealPipeline(first?.id ?? "");
+                        setNewDealStage(first?.columns[0]?.id ?? "");
+                        setShowNewDeal(v => !v);
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "#888" : "#128A68", border: `1px solid ${showNewDeal ? "#E0E0E0" : "#128A6830"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
+                    >
+                      <PlusCircle size={13} />
+                      {showNewDeal ? "Cancelar" : "Novo negócio"}
+                    </button>
                   </div>
+
+                  {/* Formulário inline de novo negócio */}
+                  {showNewDeal && (
+                    <div style={{ border: "1px solid #128A6830", borderRadius: 12, padding: "16px", marginBottom: 16, background: "#F9FFF9" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 12 }}>Criar negócio para <span style={{ color: "#128A68" }}>{lead.name}</span></p>
+
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Pipeline</label>
+                        <select
+                          value={newDealPipeline}
+                          onChange={e => {
+                            setNewDealPipeline(e.target.value);
+                            const p = pipelines.find(p => p.id === e.target.value);
+                            setNewDealStage(p?.columns[0]?.id ?? "");
+                          }}
+                          style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#FFF", color: "#111" }}
+                        >
+                          {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Etapa</label>
+                        <select
+                          value={newDealStage}
+                          onChange={e => setNewDealStage(e.target.value)}
+                          style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#FFF", color: "#111" }}
+                        >
+                          {(newDealPipelineObj?.columns ?? []).map(c => (
+                            <option key={c.id} value={c.id}>{c.title}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={createDeal}
+                        disabled={!newDealPipeline || !newDealStage || newDealCreating}
+                        style={{ width: "100%", padding: "9px", background: (!newDealPipeline || !newDealStage || newDealCreating) ? "#CCC" : "#128A68", color: "#FFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (!newDealPipeline || !newDealStage || newDealCreating) ? "default" : "pointer", transition: "background 0.15s" }}
+                      >
+                        {newDealCreating ? "Criando…" : "✓ Criar negócio"}
+                      </button>
+                    </div>
+                  )}
                   {relatedLeads.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <Briefcase size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
