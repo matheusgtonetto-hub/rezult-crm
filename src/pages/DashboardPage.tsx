@@ -4,7 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, Users, CheckCircle, DollarSign, XCircle, Clock, Trophy, MessageSquare } from "lucide-react";
+import { TrendingUp, Users, CheckCircle, DollarSign, XCircle, Clock, Trophy, MessageSquare, ArrowDown } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const { leads, columns, pipelines, products, teamMembers, memberColors, tasks } = useCRM();
   const [period, setPeriod] = useState<Period>("30d");
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
+  const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
 
   const allLeads = Object.values(leads);
 
@@ -131,6 +132,47 @@ export default function DashboardPage() {
     };
   }, [allLeads]);
 
+  // Funnel analysis
+  const periodCutoff = useMemo(() => {
+    const now = new Date();
+    if (period === "7d") return new Date(now.getTime() - 7 * 86400000);
+    if (period === "30d") return new Date(now.getTime() - 30 * 86400000);
+    if (period === "90d") return new Date(now.getTime() - 90 * 86400000);
+    return new Date(now.getFullYear(), 0, 1);
+  }, [period]);
+
+  const funnelPipeline = useMemo(
+    () => pipelines.find(p => p.id === funnelPipelineId) || pipelines[0] || null,
+    [pipelines, funnelPipelineId],
+  );
+
+  const funnelData = useMemo(() => {
+    if (!funnelPipeline) return [];
+    const stages = [...funnelPipeline.columns].sort((a, b) => a.position - b.position);
+    const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
+
+    return stages.map((stage, i) => {
+      const entered = new Set<string>();
+
+      if (i === 0) {
+        pipelineLeads.forEach(lead => {
+          if (new Date(lead.entryDate) >= periodCutoff) entered.add(lead.id);
+        });
+      }
+
+      pipelineLeads.forEach(lead => {
+        lead.activities.forEach(act => {
+          if (act.type !== "stage_change") return;
+          if (new Date(act.date) < periodCutoff) return;
+          const match = act.description.match(/para "(.+)"\./);
+          if (match && match[1] === stage.title) entered.add(lead.id);
+        });
+      });
+
+      return { stage, count: entered.size };
+    });
+  }, [funnelPipeline, allLeads, periodCutoff]);
+
   const tooltipStyle = {
     backgroundColor: "hsl(var(--card))",
     border: "0.5px solid hsl(var(--card-border))",
@@ -163,6 +205,7 @@ export default function DashboardPage() {
         <TabsList className="bg-card border border-card-border rounded-lg">
           <TabsTrigger value="negocios" className="rounded-md">Negócios</TabsTrigger>
           <TabsTrigger value="atividades" className="rounded-md">Atividades</TabsTrigger>
+          <TabsTrigger value="funil" className="rounded-md">Funil</TabsTrigger>
         </TabsList>
 
         <TabsContent value="negocios" className="space-y-6 mt-0">
@@ -370,6 +413,116 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="funil" className="space-y-6 mt-0">
+          {/* Pipeline selector */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-muted-foreground">Pipeline:</span>
+            <Select
+              value={funnelPipeline?.id ?? ""}
+              onValueChange={setFunnelPipelineId}
+            >
+              <SelectTrigger className="w-[220px] h-9 bg-card border-card-border rounded-lg">
+                <SelectValue placeholder="Selecionar pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!funnelPipeline ? (
+            <div className="bg-card border border-card-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+              Nenhum pipeline encontrado.
+            </div>
+          ) : funnelData.length === 0 ? (
+            <div className="bg-card border border-card-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+              Este pipeline não possui etapas configuradas.
+            </div>
+          ) : (() => {
+            const maxCount = Math.max(...funnelData.map(d => d.count), 1);
+            const firstCount = funnelData[0]?.count ?? 0;
+            const lastCount = funnelData[funnelData.length - 1]?.count ?? 0;
+            const overallConv = firstCount > 0 ? ((lastCount / firstCount) * 100).toFixed(1) : "—";
+
+            return (
+              <div className="space-y-4">
+                {/* Summary cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-card border border-card-border rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Entradas no funil</p>
+                    <p className="text-2xl font-bold text-foreground">{firstCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{funnelData[0]?.stage.title}</p>
+                  </div>
+                  <div className="bg-card border border-card-border rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Conversão geral</p>
+                    <p className="text-2xl font-bold text-foreground">{overallConv}{overallConv !== "—" ? "%" : ""}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {funnelData[0]?.stage.title} → {funnelData[funnelData.length - 1]?.stage.title}
+                    </p>
+                  </div>
+                  <div className="bg-card border border-card-border rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Chegaram na última etapa</p>
+                    <p className="text-2xl font-bold text-foreground">{lastCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{funnelData[funnelData.length - 1]?.stage.title}</p>
+                  </div>
+                </div>
+
+                {/* Funnel stages */}
+                <div className="bg-card border border-card-border rounded-xl p-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-5">Leads por etapa no período</h3>
+                  <div className="space-y-1">
+                    {funnelData.map((row, i) => {
+                      const prev = funnelData[i - 1];
+                      const convPct = prev && prev.count > 0
+                        ? ((row.count / prev.count) * 100).toFixed(1)
+                        : null;
+                      const barPct = maxCount > 0 ? (row.count / maxCount) * 100 : 0;
+
+                      return (
+                        <div key={row.stage.id}>
+                          {convPct !== null && (
+                            <div className="flex items-center gap-2 py-1.5 pl-1">
+                              <ArrowDown size={12} className="text-muted-foreground shrink-0" />
+                              <span className="text-xs text-muted-foreground">{convPct}% de conversão</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 group">
+                            {/* Color dot + name */}
+                            <div className="w-[180px] shrink-0 flex items-center gap-2">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }}
+                              />
+                              <span className="text-sm text-foreground truncate font-medium">{row.stage.title}</span>
+                            </div>
+                            {/* Bar */}
+                            <div className="flex-1 h-8 bg-muted rounded-lg overflow-hidden">
+                              <div
+                                className="h-full rounded-lg transition-all duration-500"
+                                style={{
+                                  width: `${barPct}%`,
+                                  backgroundColor: row.stage.color || "hsl(var(--primary))",
+                                  minWidth: row.count > 0 ? "4px" : "0",
+                                }}
+                              />
+                            </div>
+                            {/* Count */}
+                            <div className="w-16 text-right shrink-0">
+                              <span className="text-sm font-semibold text-foreground">{row.count}</span>
+                              <span className="text-xs text-muted-foreground ml-1">lead{row.count !== 1 ? "s" : ""}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
