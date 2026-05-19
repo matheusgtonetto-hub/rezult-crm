@@ -69,6 +69,7 @@ export default function PipelinePage() {
     activePipeline,
     leads,
     moveLead,
+    addActivity,
     selectedLeadId,
     setSelectedLeadId,
     memberColors,
@@ -173,6 +174,17 @@ export default function PipelinePage() {
       ordered.splice(destination.index, 0, moved);
       reorderColumns(activePipeline!.id, ordered.map(c => c.id));
       return;
+    }
+    if (source.droppableId !== destination.droppableId) {
+      const cols = activePipeline?.columns ?? [];
+      const fromCol = cols.find(c => c.id === source.droppableId);
+      const toCol = cols.find(c => c.id === destination.droppableId);
+      addActivity(draggableId, {
+        id: `a-${Date.now()}`,
+        date: new Date().toISOString(),
+        type: "stage_change",
+        description: `Movido de "${fromCol?.title}" para "${toCol?.title}".`,
+      });
     }
     moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
   };
