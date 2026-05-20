@@ -264,11 +264,17 @@ export default function DashboardPage() {
 
       {/* Top KPIs — dados gerais, todos os funis, sem filtro de período */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
+      {(() => {
+        const openLeads = allLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
+        const funnelConv = allLeads.length > 0 ? ((wonLeads.length / allLeads.length) * 100).toFixed(1) : null;
+        const cards = [
           {
             label: "Total de negócios",
             value: allLeads.length,
             sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
+            conv: funnelConv,
+            convLabel: "conv. do funil",
+            convColor: "text-primary",
             icon: DollarSign,
             color: "text-primary",
           },
@@ -276,6 +282,9 @@ export default function DashboardPage() {
             label: "Total de ganhos",
             value: wonLeads.length,
             sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
+            conv: funnelConv,
+            convLabel: "taxa de conversão",
+            convColor: "text-success",
             icon: Trophy,
             color: "text-success",
           },
@@ -283,17 +292,24 @@ export default function DashboardPage() {
             label: "Total perdidos",
             value: lostLeads.length,
             sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
+            conv: allLeads.length > 0 ? ((lostLeads.length / allLeads.length) * 100).toFixed(1) : null,
+            convLabel: "taxa de perda",
+            convColor: "text-destructive",
             icon: TrendingUp,
             color: "text-destructive",
           },
           {
             label: "Total em aberto",
-            value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-            sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+            value: openLeads.length,
+            sub: fmt(openLeads.reduce((s, l) => s + l.value, 0)),
+            conv: allLeads.length > 0 ? ((openLeads.length / allLeads.length) * 100).toFixed(1) : null,
+            convLabel: "em andamento",
+            convColor: "text-primary",
             icon: Clock,
             color: "text-primary",
           },
-        ].map(c => (
+        ];
+        return cards.map(c => (
           <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
@@ -301,8 +317,12 @@ export default function DashboardPage() {
             </div>
             <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
             <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
+            {c.conv !== null && (
+              <p className={`text-[11px] font-semibold mt-1.5 ${c.convColor}`}>{c.conv}% {c.convLabel}</p>
+            )}
           </div>
-        ))}
+        ));
+      })()}
       </div>
 
       <Tabs defaultValue="negocios" className="space-y-6">
