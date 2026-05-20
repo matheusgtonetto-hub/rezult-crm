@@ -190,6 +190,7 @@ export function AppSidebar() {
           bottom: 0,
           zIndex: 100,
           overflow: "hidden",
+          borderRadius: "0 16px 16px 0",
           background: SIDEBAR_BG,
           paddingTop: 12,
           paddingBottom: 12,
