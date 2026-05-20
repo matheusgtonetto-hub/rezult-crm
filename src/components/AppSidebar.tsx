@@ -39,14 +39,14 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA", locked: true },
-  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA", locked: true },
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
   { to: "/automacoes", label: "Automações", icon: Zap },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
+  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA", locked: true },
+  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA", locked: true },
 ];
 
 function colorFromString(str: string) {
