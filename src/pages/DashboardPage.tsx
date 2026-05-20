@@ -825,6 +825,38 @@ export default function DashboardPage() {
                             </tr>
                           );
                         })}
+                        {(() => {
+                          const pipelineWon = wonInPeriod.filter(l => l.pipelineId === funnelPipeline!.id).length;
+                          const pipelineLost = lostInPeriod.filter(l => l.pipelineId === funnelPipeline!.id).length;
+                          const wonPct = firstCount > 0 ? `${((pipelineWon / firstCount) * 100).toFixed(1)}%` : "—";
+                          const lostPct = firstCount > 0 ? `${((pipelineLost / firstCount) * 100).toFixed(1)}%` : "—";
+                          return (
+                            <>
+                              <tr className="hover:bg-muted/30 transition-colors border-t-2 border-card-border">
+                                <td className="py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-success" />
+                                    <span className="font-medium text-success">Ganhos</span>
+                                  </div>
+                                </td>
+                                <td className="text-right py-2.5 font-semibold text-success">{pipelineWon}</td>
+                                <td className="text-right py-2.5 text-muted-foreground">—</td>
+                                <td className="text-right py-2.5 font-medium text-success">{wonPct}</td>
+                              </tr>
+                              <tr className="hover:bg-muted/30 transition-colors">
+                                <td className="py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-destructive" />
+                                    <span className="font-medium text-destructive">Perdidos</span>
+                                  </div>
+                                </td>
+                                <td className="text-right py-2.5 font-semibold text-destructive">{pipelineLost}</td>
+                                <td className="text-right py-2.5 text-muted-foreground">—</td>
+                                <td className="text-right py-2.5 font-medium text-destructive">{lostPct}</td>
+                              </tr>
+                            </>
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>
