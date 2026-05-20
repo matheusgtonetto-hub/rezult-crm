@@ -246,11 +246,19 @@ export default function DashboardPage() {
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <div className="p-6 max-w-[1400px] mx-auto">
+      <Tabs defaultValue="negocios" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-3">
+          <TabsList className="bg-card border border-card-border rounded-lg">
+            <TabsTrigger value="negocios" className="rounded-md">Negócios</TabsTrigger>
+            <TabsTrigger value="atividades" className="rounded-md">Atividades</TabsTrigger>
+            <TabsTrigger value="funil" className="rounded-md">Funil</TabsTrigger>
+          </TabsList>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {/* Top KPIs — filtrados pelo período selecionado */}
@@ -300,13 +308,6 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
-
-      <Tabs defaultValue="negocios" className="space-y-6">
-        <TabsList className="bg-card border border-card-border rounded-lg">
-          <TabsTrigger value="negocios" className="rounded-md">Negócios</TabsTrigger>
-          <TabsTrigger value="atividades" className="rounded-md">Atividades</TabsTrigger>
-          <TabsTrigger value="funil" className="rounded-md">Funil</TabsTrigger>
-        </TabsList>
 
         {/* ──────────── NEGÓCIOS ──────────── */}
         <TabsContent value="negocios" className="space-y-4 mt-0">
