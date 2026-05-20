@@ -415,7 +415,7 @@ export default function DashboardPage() {
 
           {/* Agent table */}
           <div className="bg-card border border-card-border rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos atendentes</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
             {agentPerformance.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
             ) : (
