@@ -283,6 +283,7 @@ export default function DashboardPage() {
             label: "Total perdidos",
             value: lostLeads.length,
             sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
+            conv: allLeads.length > 0 ? `${((lostLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
             icon: TrendingUp,
             color: "text-destructive",
           },
@@ -301,6 +302,9 @@ export default function DashboardPage() {
             </div>
             <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
             <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
+            {"conv" in c && c.conv && (
+              <p className="text-[11px] font-semibold mt-1.5 text-destructive">{c.conv}</p>
+            )}
           </div>
         ))}
       </div>
