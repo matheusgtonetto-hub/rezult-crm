@@ -224,7 +224,8 @@ export default function DashboardPage() {
         name: leads[id]?.name ?? "Lead removido",
         responsible: leads[id]?.responsible ?? "",
       }));
-      return { stage, count: entered.size, leadDetails };
+      const wonCount = [...entered].filter(id => leads[id]?.dealStatus === "won").length;
+      return { stage, count: entered.size, wonCount, leadDetails };
     });
   }, [funnelPipeline, allLeads, leads, periodCutoff]);
 
@@ -705,14 +706,12 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
                   {(() => {
-                    const chartData = funnelData.map((row, i) => ({
+                    const chartData = funnelData.map((row) => ({
                       name: row.stage.title,
-                      leads: row.count,
+                      Negócios: row.count,
+                      Ganhos: row.wonCount,
                       stageId: row.stage.id,
                       color: row.stage.color || "hsl(var(--primary))",
-                      convLabel: i > 0 && funnelData[i - 1].count > 0
-                        ? `${((row.count / funnelData[i - 1].count) * 100).toFixed(0)}%`
-                        : "",
                     }));
 
                     const renderTick = (props: any) => {
@@ -764,13 +763,23 @@ export default function DashboardPage() {
                           <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
                           <Tooltip
                             contentStyle={tooltip}
-                            formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Entraram"]}
+                            formatter={(v: number, name: string) => [`${v} lead${v !== 1 ? "s" : ""}`, name]}
                           />
-                          <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="Negócios" radius={[4, 4, 0, 0]}>
                             {chartData.map((entry, i) => (
                               <Cell
                                 key={i}
                                 fill={entry.color}
+                                opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
+                              />
+                            ))}
+                          </Bar>
+                          <Bar dataKey="Ganhos" radius={[4, 4, 0, 0]} fill="#10B981">
+                            {chartData.map((entry, i) => (
+                              <Cell
+                                key={i}
+                                fill="#10B981"
                                 opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
                               />
                             ))}
