@@ -7,7 +7,7 @@ import {
 import {
   TrendingUp, Users, CheckCircle, DollarSign, Clock, Trophy,
   MessageSquare, ArrowDown, Calendar, Phone, Mail, AlertTriangle,
-  Activity as ActivityIcon,
+  Activity as ActivityIcon, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -219,9 +219,14 @@ export default function DashboardPage() {
           if (m && m[1] === stage.title) entered.add(lead.id);
         });
       });
-      return { stage, count: entered.size };
+      const leadDetails = [...entered].map(id => ({
+        id,
+        name: leads[id]?.name ?? "Lead removido",
+        responsible: leads[id]?.responsible ?? "",
+      }));
+      return { stage, count: entered.size, leadDetails };
     });
-  }, [funnelPipeline, allLeads, periodCutoff]);
+  }, [funnelPipeline, allLeads, leads, periodCutoff]);
 
   const tooltip = {
     backgroundColor: "hsl(var(--card))",
@@ -232,6 +237,8 @@ export default function DashboardPage() {
   };
 
   const periodLabel = { "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", year: "este ano" }[period];
+
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
@@ -660,6 +667,7 @@ export default function DashboardPage() {
                       const prev = funnelData[i - 1];
                       const convPct = prev && prev.count > 0 ? `${((row.count / prev.count) * 100).toFixed(1)}%` : null;
                       const barPct = (row.count / maxCount) * 100;
+                      const isExpanded = expandedStage === row.stage.id;
                       return (
                         <div key={row.stage.id}>
                           {convPct !== null && (
@@ -668,8 +676,14 @@ export default function DashboardPage() {
                               <span className="text-xs text-muted-foreground">{convPct} de conversão</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-3">
+                          <div
+                            className="flex items-center gap-3 cursor-pointer rounded-lg hover:bg-muted/40 px-1 transition-colors"
+                            onClick={() => setExpandedStage(isExpanded ? null : row.stage.id)}
+                          >
                             <div className="w-[180px] shrink-0 flex items-center gap-2">
+                              {isExpanded
+                                ? <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+                                : <ChevronRight size={13} className="text-muted-foreground shrink-0" />}
                               <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
                               <span className="text-sm text-foreground truncate font-medium">{row.stage.title}</span>
                             </div>
@@ -684,6 +698,23 @@ export default function DashboardPage() {
                               <span className="text-xs text-muted-foreground ml-1">lead{row.count !== 1 ? "s" : ""}</span>
                             </div>
                           </div>
+                          {isExpanded && (
+                            <div className="ml-[196px] mt-1 mb-2 space-y-1">
+                              {row.leadDetails.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">Nenhum lead encontrado.</p>
+                              ) : (
+                                row.leadDetails.map(l => (
+                                  <div key={l.id} className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/40">
+                                    <Users size={12} className="text-muted-foreground shrink-0" />
+                                    <span className="text-xs text-foreground font-medium">{l.name}</span>
+                                    {l.responsible && (
+                                      <span className="text-xs text-muted-foreground ml-auto">{l.responsible}</span>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
