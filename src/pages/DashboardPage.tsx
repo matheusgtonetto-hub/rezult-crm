@@ -261,13 +261,37 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Top KPIs */}
+      {/* Top KPIs — dados gerais, todos os funis, sem filtro de período */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Novos leads", value: periodLeads.length, sub: `nos últimos ${periodLabel}`, icon: Users, color: "text-primary" },
-          { label: "Ganhos no período", value: wonInPeriod.length, sub: fmt(revenueInPeriod), icon: Trophy, color: "text-success" },
-          { label: "Conversão", value: pct(wonInPeriod.length, wonInPeriod.length + lostInPeriod.length), sub: `${lostInPeriod.length} perdidos`, icon: TrendingUp, color: "text-foreground" },
-          { label: "Atividades", value: activityStats.total, sub: `${activityStats.meetings} reuniões`, icon: ActivityIcon, color: "text-primary" },
+          {
+            label: "Total de negócios",
+            value: allLeads.length,
+            sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
+            icon: DollarSign,
+            color: "text-primary",
+          },
+          {
+            label: "Total de ganhos",
+            value: wonLeads.length,
+            sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
+            icon: Trophy,
+            color: "text-success",
+          },
+          {
+            label: "Total perdidos",
+            value: lostLeads.length,
+            sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
+            icon: TrendingUp,
+            color: "text-destructive",
+          },
+          {
+            label: "Total em aberto",
+            value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+            sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+            icon: Clock,
+            color: "text-primary",
+          },
         ].map(c => (
           <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
             <div className="flex items-center justify-between mb-3">
