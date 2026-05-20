@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
   { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/automacoes", label: "Automações", icon: Zap, locked: true },
+  { to: "/automacoes", label: "Automações", icon: Zap },
   { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
 ];
 
