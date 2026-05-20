@@ -20,7 +20,10 @@
       "mcp__claude_ai_Supabase__get_logs",
       "Bash(xargs ls)",
       "Bash(ls ~/.ssh/)",
-      "Read(//Users/matheustonetto/**)"
+      "Read(//Users/matheustonetto/**)",
+      "Bash(git pull *)",
+      "Bash(npx supabase *)",
+      "Bash(supabase functions *)"
     ]
   }
 }
