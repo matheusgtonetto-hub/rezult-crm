@@ -56,12 +56,18 @@ export default function DashboardPage() {
   const pct = (n: number, d: number) =>
     d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "—";
 
-  const periodCutoff = dateRange.from;
-  const periodTo     = dateRange.to;
-  const inPeriod     = (d: Date) => d >= periodCutoff && d <= periodTo;
+  // Normaliza para início e fim do dia no fuso local
+  const periodCutoff = new Date(dateRange.from);
+  periodCutoff.setHours(0, 0, 0, 0);
+  const periodTo = new Date(dateRange.to);
+  periodTo.setHours(23, 59, 59, 999);
+
+  // Parseia entryDate (string YYYY-MM-DD) como hora local, não UTC
+  const parseEntryDate = (d: string) => new Date(d + "T00:00:00");
+  const inPeriod = (d: Date) => d >= periodCutoff && d <= periodTo;
 
   const periodLeads = useMemo(
-    () => allLeads.filter(l => inPeriod(new Date(l.entryDate))),
+    () => allLeads.filter(l => inPeriod(parseEntryDate(l.entryDate))),
     [allLeads, dateRange],
   );
 
@@ -84,7 +90,7 @@ export default function DashboardPage() {
     const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
     const data = months.map(mes => ({ mes, novos: 0, ganhos: 0, perdidos: 0 }));
     allLeads.forEach(lead => {
-      const e = new Date(lead.entryDate);
+      const e = parseEntryDate(lead.entryDate);
       if (e >= periodCutoff && e <= periodTo) data[e.getMonth()].novos++;
       lead.activities.forEach(act => {
         const d = new Date(act.date);
@@ -208,7 +214,7 @@ export default function DashboardPage() {
     const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
     return stages.map((stage, i) => {
       const entered = new Set<string>();
-      if (i === 0) pipelineLeads.forEach(l => { const d = new Date(l.entryDate); if (d >= periodCutoff && d <= periodTo) entered.add(l.id); });
+      if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (d >= periodCutoff && d <= periodTo) entered.add(l.id); });
       pipelineLeads.forEach(lead => {
         lead.activities.forEach(act => {
           const d = new Date(act.date);
