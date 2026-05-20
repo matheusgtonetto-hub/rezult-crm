@@ -82,20 +82,19 @@ export default function DashboardPage() {
 
   const monthlyData = useMemo(() => {
     const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-    const year = new Date().getFullYear();
     const data = months.map(mes => ({ mes, novos: 0, ganhos: 0, perdidos: 0 }));
     allLeads.forEach(lead => {
       const e = new Date(lead.entryDate);
-      if (e.getFullYear() === year) data[e.getMonth()].novos++;
+      if (e >= periodCutoff && e <= periodTo) data[e.getMonth()].novos++;
       lead.activities.forEach(act => {
         const d = new Date(act.date);
-        if (d.getFullYear() !== year) return;
+        if (d < periodCutoff || d > periodTo) return;
         if (act.type === "won") data[d.getMonth()].ganhos++;
         if (act.type === "lost") data[d.getMonth()].perdidos++;
       });
     });
     return data;
-  }, [allLeads]);
+  }, [allLeads, dateRange]);
 
   const originData = useMemo(() => {
     const map = new Map<string, number>();
@@ -108,16 +107,16 @@ export default function DashboardPage() {
 
   const lossReasonData = useMemo(() => {
     const map = new Map<string, number>();
-    lostLeads.forEach(l => {
+    lostInPeriod.forEach(l => {
       const r = lossReasons.find(x => x.id === l.lossReasonId)?.name || "Sem motivo";
       map.set(r, (map.get(r) || 0) + 1);
     });
     return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-  }, [lostLeads, lossReasons]);
+  }, [lostInPeriod, lossReasons]);
 
   const agentPerformance = useMemo(() => {
     return teamMembers.map(m => {
-      const ml = allLeads.filter(l => l.responsible === m);
+      const ml = periodLeads.filter(l => l.responsible === m);
       const won = ml.filter(l => l.dealStatus === "won");
       const lost = ml.filter(l => l.dealStatus === "lost").length;
       const totalValue = won.reduce((s, l) => s + l.value, 0);
@@ -133,15 +132,15 @@ export default function DashboardPage() {
         color: memberColors[m] || "#888",
       };
     }).sort((a, b) => b.totalValue - a.totalValue);
-  }, [allLeads, teamMembers, memberColors]);
+  }, [periodLeads, teamMembers, memberColors]);
 
   const donutData = useMemo(() => {
     return teamMembers.map(m => {
-      const ml = allLeads.filter(l => l.responsible === m);
+      const ml = periodLeads.filter(l => l.responsible === m);
       const value = donutMode === "value" ? ml.reduce((s, l) => s + l.value, 0) : ml.length;
       return { name: m, value, color: memberColors[m] || "#888" };
     }).filter(d => d.value > 0);
-  }, [allLeads, teamMembers, memberColors, donutMode]);
+  }, [periodLeads, teamMembers, memberColors, donutMode]);
 
   const barData = useMemo(() => columns.map(c => ({
     name: c.title, leads: c.leadIds.length, fill: c.color,
@@ -149,7 +148,7 @@ export default function DashboardPage() {
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; count: number; value: number }>();
-    allLeads.forEach(l => {
+    periodLeads.forEach(l => {
       if (!l.productId) return;
       const p = products.find(x => x.id === l.productId);
       if (!p) return;
@@ -158,7 +157,7 @@ export default function DashboardPage() {
       map.set(p.id, cur);
     });
     return [...map.values()].sort((a, b) => b.count - a.count).slice(0, 5);
-  }, [allLeads, products]);
+  }, [periodLeads, products]);
 
   const activityStats = useMemo(() => {
     const allActs = allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadName: l.name })));
@@ -248,36 +247,36 @@ export default function DashboardPage() {
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
-      {/* Top KPIs — dados gerais, todos os funis, sem filtro de período */}
+      {/* Top KPIs — filtrados pelo período selecionado */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             label: "Total de negócios",
-            value: allLeads.length,
-            sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
+            value: periodLeads.length,
+            sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
             icon: DollarSign,
             color: "text-primary",
           },
           {
             label: "Total de ganhos",
-            value: wonLeads.length,
-            sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
-            conv: allLeads.length > 0 ? `${((wonLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
+            value: wonInPeriod.length,
+            sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
+            conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
             icon: Trophy,
             color: "text-success",
           },
           {
             label: "Total perdidos",
-            value: lostLeads.length,
-            sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
-            conv: allLeads.length > 0 ? `${((lostLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
+            value: lostInPeriod.length,
+            sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
+            conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
             icon: TrendingUp,
             color: "text-destructive",
           },
           {
             label: "Total em aberto",
-            value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-            sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+            value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+            sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
             icon: Clock,
             color: "text-primary",
           },
@@ -308,7 +307,7 @@ export default function DashboardPage() {
           {/* Monthly line */}
           <div className="bg-card border border-card-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">
-              Evolução mensal — {new Date().getFullYear()}
+              Evolução no período — {periodLabel}
             </h3>
             <ResponsiveContainer width="100%" height={230}>
               <LineChart data={monthlyData}>
