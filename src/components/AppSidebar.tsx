@@ -3,21 +3,20 @@ import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import {
-  Users,
-  CheckSquare,
-  BarChart3,
-  Settings,
+  ContactRound,
+  LayoutDashboard,
+  Cog,
   LogOut,
-  MessageSquare,
-  Zap,
-  KanbanSquare,
-  Sparkles,
+  MessagesSquare,
+  Workflow,
+  Columns2,
+  Brain,
   Bell,
-  HelpCircle,
+  Info,
   Plus,
   UserCircle,
-  Bot,
-  CreditCard,
+  BrainCircuit,
+  BadgeDollarSign,
   CalendarDays,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -33,20 +32,20 @@ import {
 type NavItem = {
   to: string;
   label: string;
-  icon: typeof BarChart3;
+  icon: typeof LayoutDashboard;
   locked?: boolean;
   badge?: "IA" | "Em breve";
 };
 
 const navItems: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { to: "/pipeline", label: "Pipelines", icon: KanbanSquare },
-  { to: "/leads", label: "Leads", icon: Users },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/pipeline", label: "Pipelines", icon: Columns2 },
+  { to: "/leads", label: "Leads", icon: ContactRound },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/automacoes", label: "Automações", icon: Zap },
-  { to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare },
-  { to: "/pilot", label: "Pilot", icon: Sparkles, badge: "IA", locked: true },
-  { to: "/agentes", label: "Agentes", icon: Bot, badge: "IA", locked: true },
+  { to: "/automacoes", label: "Automações", icon: Workflow },
+  { to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare },
+  { to: "/pilot", label: "Pilot", icon: Brain, badge: "IA", locked: true },
+  { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA", locked: true },
 ];
 
 function colorFromString(str: string) {
@@ -310,7 +309,7 @@ export function AppSidebar() {
                 className={`${itemBase} cursor-not-allowed relative`}
                 style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
               >
-                <CreditCard size={18} strokeWidth={1.75} />
+                <BadgeDollarSign size={18} strokeWidth={1.75} />
                 <span
                   className="absolute top-0 right-0 rounded-[3px] flex items-center justify-center font-semibold leading-none whitespace-nowrap"
                   style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 5.5, height: 8, padding: "0 2px" }}
@@ -344,7 +343,7 @@ export function AppSidebar() {
                 onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
               >
-                <HelpCircle size={18} strokeWidth={1.75} />
+                <Info size={18} strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" className="bg-[#111111] text-white border-0">Ajuda</TooltipContent>
@@ -373,7 +372,7 @@ export function AppSidebar() {
                   }
                 }}
               >
-                <Settings size={18} strokeWidth={1.75} />
+                <Cog size={18} strokeWidth={1.75} />
               </RouterNavLink>
             </TooltipTrigger>
             <TooltipContent side="right" className="bg-[#111111] text-white border-0">Configurações</TooltipContent>
