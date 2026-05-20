@@ -10,9 +10,7 @@ import {
   Activity as ActivityIcon, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type Period = "7d" | "30d" | "90d" | "year";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   stage_change: "Mudança de etapa",
@@ -41,7 +39,10 @@ export default function DashboardPage() {
     leads, columns, pipelines, products, teamMembers, memberColors, tasks, lossReasons,
   } = useCRM();
 
-  const [period, setPeriod] = useState<Period>("30d");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({
+    from: new Date(Date.now() - 30 * 86400000),
+    to: new Date(),
+  });
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
 
@@ -54,17 +55,13 @@ export default function DashboardPage() {
   const pct = (n: number, d: number) =>
     d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "—";
 
-  const periodCutoff = useMemo(() => {
-    const now = new Date();
-    if (period === "7d") return new Date(now.getTime() - 7 * 86400000);
-    if (period === "30d") return new Date(now.getTime() - 30 * 86400000);
-    if (period === "90d") return new Date(now.getTime() - 90 * 86400000);
-    return new Date(now.getFullYear(), 0, 1);
-  }, [period]);
+  const periodCutoff = dateRange.from;
+  const periodTo     = dateRange.to;
+  const inPeriod     = (d: Date) => d >= periodCutoff && d <= periodTo;
 
   const periodLeads = useMemo(
-    () => allLeads.filter(l => new Date(l.entryDate) >= periodCutoff),
-    [allLeads, periodCutoff],
+    () => allLeads.filter(l => inPeriod(new Date(l.entryDate))),
+    [allLeads, dateRange],
   );
 
   const { wonInPeriod, lostInPeriod, revenueInPeriod } = useMemo(() => {
@@ -72,7 +69,7 @@ export default function DashboardPage() {
     const lostIds = new Set<string>();
     allLeads.forEach(lead => {
       lead.activities.forEach(act => {
-        if (new Date(act.date) < periodCutoff) return;
+        if (!inPeriod(new Date(act.date))) return;
         if (act.type === "won") wonIds.add(lead.id);
         if (act.type === "lost") lostIds.add(lead.id);
       });
@@ -80,7 +77,7 @@ export default function DashboardPage() {
     const w = wonLeads.filter(l => wonIds.has(l.id));
     const lo = lostLeads.filter(l => lostIds.has(l.id));
     return { wonInPeriod: w, lostInPeriod: lo, revenueInPeriod: w.reduce((s, l) => s + l.value, 0) };
-  }, [allLeads, wonLeads, lostLeads, periodCutoff]);
+  }, [allLeads, wonLeads, lostLeads, dateRange]);
 
   const monthlyData = useMemo(() => {
     const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -164,7 +161,7 @@ export default function DashboardPage() {
 
   const activityStats = useMemo(() => {
     const allActs = allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadName: l.name })));
-    const inPeriod = allActs.filter(a => new Date(a.date) >= periodCutoff);
+    const inPeriod = allActs.filter(a => { const d = new Date(a.date); return d >= periodCutoff && d <= periodTo; });
     const byType = new Map<string, number>();
     inPeriod.forEach(a => byType.set(a.type, (byType.get(a.type) || 0) + 1));
     const meetings = inPeriod.filter(a => a.type === "meeting");
@@ -190,7 +187,7 @@ export default function DashboardPage() {
       upcoming,
       recent,
     };
-  }, [allLeads, periodCutoff]);
+  }, [allLeads, dateRange]);
 
   const overdueTasks = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -211,10 +208,11 @@ export default function DashboardPage() {
     const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
     return stages.map((stage, i) => {
       const entered = new Set<string>();
-      if (i === 0) pipelineLeads.forEach(l => { if (new Date(l.entryDate) >= periodCutoff) entered.add(l.id); });
+      if (i === 0) pipelineLeads.forEach(l => { const d = new Date(l.entryDate); if (d >= periodCutoff && d <= periodTo) entered.add(l.id); });
       pipelineLeads.forEach(lead => {
         lead.activities.forEach(act => {
-          if (act.type !== "stage_change" || new Date(act.date) < periodCutoff) return;
+          const d = new Date(act.date);
+          if (act.type !== "stage_change" || d < periodCutoff || d > periodTo) return;
           const m = act.description.match(/para "(.+)"\./);
           if (m && m[1] === stage.title) entered.add(lead.id);
         });
@@ -227,7 +225,7 @@ export default function DashboardPage() {
       const wonCount = [...entered].filter(id => leads[id]?.dealStatus === "won").length;
       return { stage, count: entered.size, wonCount, leadDetails };
     });
-  }, [funnelPipeline, allLeads, leads, periodCutoff]);
+  }, [funnelPipeline, allLeads, leads, dateRange]);
 
   const tooltip = {
     backgroundColor: "hsl(var(--card))",
@@ -237,7 +235,7 @@ export default function DashboardPage() {
     fontSize: 12,
   };
 
-  const periodLabel = { "7d": "7 dias", "30d": "30 dias", "90d": "90 dias", year: "este ano" }[period];
+  const periodLabel = `${dateRange.from.toLocaleDateString("pt-BR")} – ${dateRange.to.toLocaleDateString("pt-BR")}`;
 
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
 
@@ -246,20 +244,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Período:</span>
-          <Select value={period} onValueChange={v => setPeriod(v as Period)}>
-            <SelectTrigger className="w-[160px] h-9 bg-card border-card-border rounded-lg">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Últimos 7 dias</SelectItem>
-              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-              <SelectItem value="90d">Últimos 90 dias</SelectItem>
-              <SelectItem value="year">Este ano</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* Top KPIs — dados gerais, todos os funis, sem filtro de período */}
