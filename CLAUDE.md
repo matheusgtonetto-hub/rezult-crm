@@ -114,6 +114,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `tasks` | Tarefas vinculadas a leads |
 | `tags` | Tags de leads |
 | `activities` | Histórico de atividades de um lead |
+| `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
