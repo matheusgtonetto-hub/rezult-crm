@@ -46,23 +46,21 @@ export default function AppLayout() {
 
   const showBanner = isFreePlan && !planExpired && planDaysLeft !== null;
 
-  // Dock height (~56px) + bottom offset (16px) + breathing room (8px)
-  const DOCK_CLEARANCE = 80;
-
   return (
-    <div style={{ height: "100vh", width: "100vw", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
       <AppSidebar />
       <main
         style={{
-          width: "100vw",
+          marginLeft: 52,
+          width: "calc(100vw - 52px)",
           height: "100vh",
           overflowY: "auto",
           overflowX: "hidden",
           background: "hsl(var(--background))",
-          paddingBottom: DOCK_CLEARANCE + (showBanner ? BANNER_HEIGHT : 0),
+          paddingBottom: showBanner ? BANNER_HEIGHT : 0,
         }}
       >
-        <div style={{ width: "100%", boxSizing: "border-box" }}>
+        <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>
           <Outlet />
         </div>
       </main>
