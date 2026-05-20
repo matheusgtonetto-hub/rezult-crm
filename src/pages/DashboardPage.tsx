@@ -733,7 +733,6 @@ export default function DashboardPage() {
                                 opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
                               />
                             ))}
-                            <LabelList dataKey="convLabel" content={renderConvLabel} />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
