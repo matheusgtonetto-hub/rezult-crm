@@ -139,7 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Supabase returns identities:[] for duplicate emails without erroring.
     if ((data.user?.identities?.length ?? 1) === 0) {
-      await supabase.auth.resend({ type: "signup", email });
+      await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/login` },
+      });
       return { error: null, needsConfirmation: true, resentConfirmation: true };
     }
 
@@ -157,7 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resendConfirmation = async (email: string): Promise<void> => {
-    await supabase.auth.resend({ type: "signup", email });
+    await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/login` },
+    });
   };
 
   const resetPassword = async (email: string): Promise<string | null> => {
