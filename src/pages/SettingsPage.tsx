@@ -2414,15 +2414,24 @@ function ConexoesSection() {
       toast.error("Preencha o ID da instância e o Token.");
       return;
     }
-    setSavedCreds(editForm);
-    await updateCompany({
-      zapi_instance_id:  editForm.instanceId,
-      zapi_token:        editForm.token,
-      zapi_client_token: editForm.clientToken || null,
-      zapi_name:         connName.trim() || null,
-    });
-    toast.success("Conexão atualizada com sucesso!");
-    closeDialog();
+    try {
+      setSavedCreds(editForm);
+      await updateCompany({
+        zapi_instance_id:  editForm.instanceId,
+        zapi_token:        editForm.token,
+        zapi_client_token: editForm.clientToken || null,
+        zapi_name:         connName.trim() || null,
+      });
+      toast.success("Conexão atualizada com sucesso!");
+      closeDialog();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("zapi_name") || msg.includes("column")) {
+        toast.error("Execute a migration SQL para adicionar a coluna zapi_name na tabela companies.");
+      } else {
+        toast.error("Erro ao salvar: " + msg);
+      }
+    }
   }
 
   // ── render ─────────────────────────────────────────────────────────
