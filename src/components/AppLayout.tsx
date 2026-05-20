@@ -51,8 +51,8 @@ export default function AppLayout() {
       <AppSidebar />
       <main
         style={{
-          marginLeft: 55,
-          width: "calc(100vw - 55px)",
+          marginLeft: 52,
+          width: "calc(100vw - 52px)",
           height: "100vh",
           overflowY: "auto",
           overflowX: "hidden",
