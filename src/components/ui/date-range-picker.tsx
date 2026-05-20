@@ -33,12 +33,24 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   const [draft, setDraft] = useState<DateRange>({ from: value.from, to: value.to });
 
   const handleSelect = (range: DateRange | undefined) => {
-    if (!range) return;
-    setDraft(range);
-    if (range.from && range.to) {
-      onChange({ from: range.from, to: range.to });
-      setOpen(false);
+    if (!range) {
+      // react-day-picker retorna undefined quando o usuário clica no mesmo dia
+      // que já era o `from` — interpretamos como seleção de dia único
+      if (draft.from) {
+        const single = { from: draft.from, to: draft.from };
+        setDraft(single);
+        onChange(single);
+      }
+      return;
     }
+
+    setDraft(range);
+
+    if (range.from && range.to) {
+      // Segundo clique: intervalo completo — aplica mas NÃO fecha
+      onChange({ from: range.from, to: range.to });
+    }
+    // Primeiro clique (só from): mantém o calendário aberto aguardando o segundo
   };
 
   const handlePreset = (preset: typeof PRESETS[number]) => {
@@ -54,7 +66,9 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   };
 
   const displayText = value.from && value.to
-    ? `${format(value.from, "dd/MM/yyyy")} - ${format(value.to, "dd/MM/yyyy")}`
+    ? value.from.toDateString() === value.to.toDateString()
+      ? format(value.from, "dd/MM/yyyy")
+      : `${format(value.from, "dd/MM/yyyy")} - ${format(value.to, "dd/MM/yyyy")}`
     : "Selecionar período";
 
   return (
@@ -86,6 +100,11 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 {preset.label}
               </button>
             ))}
+            {draft.from && !draft.to && (
+              <p className="text-xs text-muted-foreground px-2 pt-3">
+                Selecione o segundo dia
+              </p>
+            )}
           </div>
 
           {/* Calendar */}
