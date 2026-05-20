@@ -706,24 +706,35 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
                   {(() => {
-                    const chartData = funnelData.map((row) => ({
-                      name: row.stage.title,
-                      Negócios: row.count,
-                      Ganhos: row.wonCount,
-                      stageId: row.stage.id,
-                      color: row.stage.color || "hsl(var(--primary))",
-                    }));
+                    const chartData = [
+                      ...funnelData.map((row) => ({
+                        name: row.stage.title,
+                        leads: row.count,
+                        stageId: row.stage.id,
+                        color: row.stage.color || "hsl(var(--primary))",
+                        isGanhos: false,
+                      })),
+                      {
+                        name: "Ganhos",
+                        leads: pWon.length,
+                        stageId: "ganhos",
+                        color: "#10B981",
+                        isGanhos: true,
+                      },
+                    ];
 
                     const renderTick = (props: any) => {
                       const { x, y, payload, index } = props;
-                      const row = funnelData[index];
+                      const entry = chartData[index];
+                      const countLabel = entry?.isGanhos ? pWon.length : (funnelData[index]?.count ?? 0);
+                      const isGanhos = entry?.isGanhos;
                       return (
                         <g transform={`translate(${x},${y})`}>
-                          <text x={0} y={0} dy={14} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={11}>
+                          <text x={0} y={0} dy={14} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--muted-foreground))"} fontSize={11} fontWeight={isGanhos ? "600" : "400"}>
                             {payload.value}
                           </text>
-                          <text x={0} y={0} dy={30} textAnchor="middle" fill="hsl(var(--foreground))" fontSize={13} fontWeight="bold">
-                            {row?.count ?? 0}
+                          <text x={0} y={0} dy={30} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--foreground))"} fontSize={13} fontWeight="bold">
+                            {countLabel}
                           </text>
                         </g>
                       );
@@ -763,23 +774,13 @@ export default function DashboardPage() {
                           <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
                           <Tooltip
                             contentStyle={tooltip}
-                            formatter={(v: number, name: string) => [`${v} lead${v !== 1 ? "s" : ""}`, name]}
+                            formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Leads"]}
                           />
-                          <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Bar dataKey="Negócios" radius={[4, 4, 0, 0]}>
+                          <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
                             {chartData.map((entry, i) => (
                               <Cell
                                 key={i}
                                 fill={entry.color}
-                                opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
-                              />
-                            ))}
-                          </Bar>
-                          <Bar dataKey="Ganhos" radius={[4, 4, 0, 0]} fill="#10B981">
-                            {chartData.map((entry, i) => (
-                              <Cell
-                                key={i}
-                                fill="#10B981"
                                 opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
                               />
                             ))}
