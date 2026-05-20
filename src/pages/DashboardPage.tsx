@@ -647,16 +647,14 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground mt-1">{funnelData[0]?.stage.title}</p>
                   </div>
                   <div className="bg-card border border-card-border rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Conversão geral</p>
-                    <p className="text-2xl font-bold text-foreground">{overallConv}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {funnelData[0]?.stage.title} → {funnelData[funnelData.length - 1]?.stage.title}
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Receita gerada</p>
+                    <p className="text-2xl font-bold text-foreground">{fmt(revenueInPeriod)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">leads ganhos no período</p>
                   </div>
                   <div className="bg-card border border-card-border rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Chegaram na última etapa</p>
-                    <p className="text-2xl font-bold text-foreground">{lastCount}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{funnelData[funnelData.length - 1]?.stage.title}</p>
+                    <p className="text-xs text-muted-foreground mb-1">Ganhos</p>
+                    <p className="text-2xl font-bold text-foreground">{wonInPeriod.length}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{fmt(revenueInPeriod / (wonInPeriod.length || 1))} ticket médio</p>
                   </div>
                 </div>
 
