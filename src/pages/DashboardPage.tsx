@@ -264,17 +264,11 @@ export default function DashboardPage() {
 
       {/* Top KPIs — dados gerais, todos os funis, sem filtro de período */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {(() => {
-        const openLeads = allLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
-        const funnelConv = allLeads.length > 0 ? ((wonLeads.length / allLeads.length) * 100).toFixed(1) : null;
-        const cards = [
+        {[
           {
             label: "Total de negócios",
             value: allLeads.length,
             sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
-            conv: funnelConv,
-            convLabel: "conv. do funil",
-            convColor: "text-primary",
             icon: DollarSign,
             color: "text-primary",
           },
@@ -282,9 +276,6 @@ export default function DashboardPage() {
             label: "Total de ganhos",
             value: wonLeads.length,
             sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
-            conv: funnelConv,
-            convLabel: "taxa de conversão",
-            convColor: "text-success",
             icon: Trophy,
             color: "text-success",
           },
@@ -292,24 +283,17 @@ export default function DashboardPage() {
             label: "Total perdidos",
             value: lostLeads.length,
             sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
-            conv: allLeads.length > 0 ? ((lostLeads.length / allLeads.length) * 100).toFixed(1) : null,
-            convLabel: "taxa de perda",
-            convColor: "text-destructive",
             icon: TrendingUp,
             color: "text-destructive",
           },
           {
             label: "Total em aberto",
-            value: openLeads.length,
-            sub: fmt(openLeads.reduce((s, l) => s + l.value, 0)),
-            conv: allLeads.length > 0 ? ((openLeads.length / allLeads.length) * 100).toFixed(1) : null,
-            convLabel: "em andamento",
-            convColor: "text-primary",
+            value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+            sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
             icon: Clock,
             color: "text-primary",
           },
-        ];
-        return cards.map(c => (
+        ].map(c => (
           <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
@@ -317,12 +301,8 @@ export default function DashboardPage() {
             </div>
             <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
             <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
-            {c.conv !== null && (
-              <p className={`text-[11px] font-semibold mt-1.5 ${c.convColor}`}>{c.conv}% {c.convLabel}</p>
-            )}
           </div>
-        ));
-      })()}
+        ))}
       </div>
 
       <Tabs defaultValue="negocios" className="space-y-6">
@@ -687,7 +667,7 @@ export default function DashboardPage() {
             const pOpen  = pLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
             return (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de negócios</span>
@@ -719,6 +699,16 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-[28px] leading-none font-bold text-foreground">{pOpen.length}</p>
                     <p className="text-[12px] text-muted-foreground mt-2">{fmt(pOpen.reduce((s, l) => s + l.value, 0))}</p>
+                  </div>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Conversão do funil</span>
+                      <TrendingUp size={15} className="text-success" />
+                    </div>
+                    <p className="text-[28px] leading-none font-bold text-foreground">
+                      {firstCount > 0 ? `${((pWon.length / firstCount) * 100).toFixed(1)}%` : "—"}
+                    </p>
+                    <p className="text-[12px] text-muted-foreground mt-2">{pWon.length} ganhos de {firstCount} MQL</p>
                   </div>
                 </div>
 
