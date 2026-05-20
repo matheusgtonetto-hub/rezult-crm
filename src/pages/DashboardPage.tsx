@@ -661,64 +661,66 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="bg-card border border-card-border rounded-xl p-6">
-                  <h3 className="text-sm font-semibold text-foreground mb-5">Leads por etapa no período</h3>
-                  <div className="space-y-1">
-                    {funnelData.map((row, i) => {
-                      const prev = funnelData[i - 1];
-                      const convPct = prev && prev.count > 0 ? `${((row.count / prev.count) * 100).toFixed(1)}%` : null;
-                      const barPct = (row.count / maxCount) * 100;
-                      const isExpanded = expandedStage === row.stage.id;
-                      return (
-                        <div key={row.stage.id}>
-                          {convPct !== null && (
-                            <div className="flex items-center gap-2 py-1.5 pl-1">
-                              <ArrowDown size={12} className="text-muted-foreground shrink-0" />
-                              <span className="text-xs text-muted-foreground">{convPct} de conversão</span>
-                            </div>
-                          )}
-                          <div
-                            className="flex items-center gap-3 cursor-pointer rounded-lg hover:bg-muted/40 px-1 transition-colors"
-                            onClick={() => setExpandedStage(isExpanded ? null : row.stage.id)}
-                          >
-                            <div className="w-[180px] shrink-0 flex items-center gap-2">
-                              {isExpanded
-                                ? <ChevronDown size={13} className="text-muted-foreground shrink-0" />
-                                : <ChevronRight size={13} className="text-muted-foreground shrink-0" />}
-                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
-                              <span className="text-sm text-foreground truncate font-medium">{row.stage.title}</span>
-                            </div>
-                            <div className="flex-1 h-8 bg-muted rounded-lg overflow-hidden">
-                              <div
-                                className="h-full rounded-lg transition-all duration-500"
-                                style={{ width: `${barPct}%`, backgroundColor: row.stage.color || "hsl(var(--primary))", minWidth: row.count > 0 ? "4px" : "0" }}
-                              />
-                            </div>
-                            <div className="w-16 text-right shrink-0">
-                              <span className="text-sm font-semibold text-foreground">{row.count}</span>
-                              <span className="text-xs text-muted-foreground ml-1">lead{row.count !== 1 ? "s" : ""}</span>
-                            </div>
-                          </div>
-                          {isExpanded && (
-                            <div className="ml-[196px] mt-1 mb-2 space-y-1">
-                              {row.leadDetails.length === 0 ? (
-                                <p className="text-xs text-muted-foreground py-1">Nenhum lead encontrado.</p>
-                              ) : (
-                                row.leadDetails.map(l => (
-                                  <div key={l.id} className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/40">
-                                    <Users size={12} className="text-muted-foreground shrink-0" />
-                                    <span className="text-xs text-foreground font-medium">{l.name}</span>
-                                    {l.responsible && (
-                                      <span className="text-xs text-muted-foreground ml-auto">{l.responsible}</span>
-                                    )}
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
+                  <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
+                  <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart
+                      data={funnelData.map(row => ({ name: row.stage.title, leads: row.count, stageId: row.stage.id, fill: row.stage.color || "hsl(var(--primary))" }))}
+                      onClick={e => {
+                        const id = e?.activePayload?.[0]?.payload?.stageId;
+                        if (id) setExpandedStage(prev => prev === id ? null : id);
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                      <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
+                      <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={tooltip}
+                        formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Entraram"]}
+                      />
+                      <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
+                        {funnelData.map((row, i) => (
+                          <Cell
+                            key={i}
+                            fill={row.stage.color || "hsl(var(--primary))"}
+                            opacity={expandedStage && expandedStage !== row.stage.id ? 0.4 : 1}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  {/* Lead list for selected stage */}
+                  {expandedStage && (() => {
+                    const selected = funnelData.find(r => r.stage.id === expandedStage);
+                    if (!selected) return null;
+                    return (
+                      <div className="mt-4 border-t border-card-border pt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selected.stage.color || "hsl(var(--primary))" }} />
+                          <span className="text-sm font-semibold text-foreground">{selected.stage.title}</span>
+                          <span className="text-xs text-muted-foreground">— {selected.count} lead{selected.count !== 1 ? "s" : ""}</span>
+                          <button onClick={() => setExpandedStage(null)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">fechar</button>
                         </div>
-                      );
-                    })}
-                  </div>
+                        {selected.leadDetails.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Nenhum lead encontrado.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {selected.leadDetails.map(l => (
+                              <div key={l.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/40">
+                                <Users size={12} className="text-muted-foreground shrink-0" />
+                                <span className="text-xs text-foreground font-medium truncate">{l.name}</span>
+                                {l.responsible && (
+                                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{l.responsible}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Conversion table */}
