@@ -660,25 +660,44 @@ export default function DashboardPage() {
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
-            const lastCount = funnelData[funnelData.length - 1]?.count ?? 0;
-            const overallConv = firstCount > 0 ? `${((lastCount / firstCount) * 100).toFixed(1)}%` : "—";
+            const pLeads = allLeads.filter(l => l.pipelineId === funnelPipeline!.id);
+            const pWon   = pLeads.filter(l => l.dealStatus === "won");
+            const pLost  = pLeads.filter(l => l.dealStatus === "lost");
+            const pOpen  = pLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
             return (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-card border border-card-border rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Entradas no funil</p>
-                    <p className="text-2xl font-bold text-foreground">{firstCount}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{funnelData[0]?.stage.title}</p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de negócios</span>
+                      <DollarSign size={15} className="text-primary" />
+                    </div>
+                    <p className="text-[28px] leading-none font-bold text-foreground">{pLeads.length}</p>
+                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLeads.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card border border-card-border rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Receita gerada</p>
-                    <p className="text-2xl font-bold text-foreground">{fmt(revenueInPeriod)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">leads ganhos no período</p>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de ganhos</span>
+                      <Trophy size={15} className="text-success" />
+                    </div>
+                    <p className="text-[28px] leading-none font-bold text-foreground">{pWon.length}</p>
+                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pWon.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card border border-card-border rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Ganhos</p>
-                    <p className="text-2xl font-bold text-foreground">{wonInPeriod.length}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{fmt(revenueInPeriod / (wonInPeriod.length || 1))} ticket médio</p>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total perdidos</span>
+                      <TrendingUp size={15} className="text-destructive" />
+                    </div>
+                    <p className="text-[28px] leading-none font-bold text-foreground">{pLost.length}</p>
+                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLost.reduce((s, l) => s + l.value, 0))}</p>
+                  </div>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total em aberto</span>
+                      <Clock size={15} className="text-primary" />
+                    </div>
+                    <p className="text-[28px] leading-none font-bold text-foreground">{pOpen.length}</p>
+                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pOpen.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
                 </div>
 
