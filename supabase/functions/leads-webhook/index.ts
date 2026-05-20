@@ -63,7 +63,10 @@ function extractFields(payload: Record<string, unknown>) {
   }
 
   // Formato simples: { name, phone, email } — já funcionava antes
-  const name  = String(payload.name  ?? payload.full_name  ?? payload.nome  ?? "").trim();
+  const rawName = String(payload.name ?? payload.full_name ?? payload.nome ?? "").trim();
+  const firstName = String(payload.first_name ?? payload.nome ?? "").trim();
+  const lastName  = String(payload.last_name  ?? "").trim();
+  const name  = rawName || [firstName, lastName].filter(Boolean).join(" ");
   const phone = String(payload.phone ?? payload.phone_number ?? payload.whatsapp ?? payload.telefone ?? payload.celular ?? "").trim();
   const email = String(payload.email ?? payload["e-mail"] ?? "").trim();
   return { name, phone, email };
@@ -154,7 +157,8 @@ serve(async (req) => {
   const email  = rawEmail.trim() || null;
   const source = String(payload.source ?? "Facebook Ads");
   const notes  = String(payload.notes  ?? "").trim();
-  const tags   = Array.isArray(payload.tags) ? (payload.tags as string[]) : [];
+  const baseTags = Array.isArray(payload.tags) ? (payload.tags as string[]) : [];
+  const tags = baseTags.includes("Meta ads") ? baseTags : ["Meta ads", ...baseTags];
 
   const { data: lead, error: insertErr } = await db
     .from("leads")
