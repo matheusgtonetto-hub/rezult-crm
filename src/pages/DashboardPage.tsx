@@ -677,29 +677,33 @@ export default function DashboardPage() {
                             </div>
                           )}
                           <div
-                            className="flex items-center gap-3 cursor-pointer rounded-lg hover:bg-muted/40 px-1 transition-colors"
+                            className="cursor-pointer rounded-lg hover:bg-muted/40 px-1 py-0.5 transition-colors"
                             onClick={() => setExpandedStage(isExpanded ? null : row.stage.id)}
                           >
-                            <div className="w-[180px] shrink-0 flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-1">
                               {isExpanded
-                                ? <ChevronDown size={13} className="text-muted-foreground shrink-0" />
-                                : <ChevronRight size={13} className="text-muted-foreground shrink-0" />}
-                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
-                              <span className="text-sm text-foreground truncate font-medium">{row.stage.title}</span>
+                                ? <ChevronDown size={12} className="text-muted-foreground shrink-0" />
+                                : <ChevronRight size={12} className="text-muted-foreground shrink-0" />}
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
+                              <span className="text-xs font-medium text-foreground">{row.stage.title}</span>
+                              <span className="ml-auto text-xs font-semibold text-foreground">
+                                {row.count} lead{row.count !== 1 ? "s" : ""}
+                              </span>
                             </div>
-                            <div className="flex-1 h-8 bg-muted rounded-lg overflow-hidden">
+                            <div className="w-full h-7 flex items-center justify-center">
                               <div
-                                className="h-full rounded-lg transition-all duration-500"
-                                style={{ width: `${barPct}%`, backgroundColor: row.stage.color || "hsl(var(--primary))", minWidth: row.count > 0 ? "4px" : "0" }}
+                                className="h-full rounded-md transition-all duration-500"
+                                style={{
+                                  width: `${barPct}%`,
+                                  backgroundColor: row.stage.color || "hsl(var(--primary))",
+                                  minWidth: row.count > 0 ? "6px" : "0",
+                                  opacity: 0.85,
+                                }}
                               />
-                            </div>
-                            <div className="w-16 text-right shrink-0">
-                              <span className="text-sm font-semibold text-foreground">{row.count}</span>
-                              <span className="text-xs text-muted-foreground ml-1">lead{row.count !== 1 ? "s" : ""}</span>
                             </div>
                           </div>
                           {isExpanded && (
-                            <div className="ml-[196px] mt-1 mb-2 space-y-1">
+                            <div className="mt-1 mb-2 space-y-1 px-1">
                               {row.leadDetails.length === 0 ? (
                                 <p className="text-xs text-muted-foreground py-1">Nenhum lead encontrado.</p>
                               ) : (
