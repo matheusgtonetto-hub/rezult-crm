@@ -261,56 +261,56 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Top KPIs — filtrados pelo período selecionado */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total de negócios",
-            value: periodLeads.length,
-            sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
-            icon: DollarSign,
-            color: "text-primary",
-          },
-          {
-            label: "Total de ganhos",
-            value: wonInPeriod.length,
-            sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
-            conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
-            icon: Trophy,
-            color: "text-success",
-          },
-          {
-            label: "Total perdidos",
-            value: lostInPeriod.length,
-            sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
-            conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
-            icon: TrendingUp,
-            color: "text-destructive",
-          },
-          {
-            label: "Total em aberto",
-            value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-            sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
-            icon: Clock,
-            color: "text-primary",
-          },
-        ].map(c => (
-          <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
-              <c.icon size={15} className={c.color} />
-            </div>
-            <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
-            <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
-            {"conv" in c && c.conv && (
-              <p className={`text-[11px] font-semibold mt-1.5 ${c.color}`}>{c.conv}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
         {/* ──────────── NEGÓCIOS ──────────── */}
         <TabsContent value="negocios" className="space-y-4 mt-0">
+          {/* KPIs de negócios */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Total de negócios",
+                value: periodLeads.length,
+                sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
+                icon: DollarSign,
+                color: "text-primary",
+              },
+              {
+                label: "Total de ganhos",
+                value: wonInPeriod.length,
+                sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
+                conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
+                icon: Trophy,
+                color: "text-success",
+              },
+              {
+                label: "Total perdidos",
+                value: lostInPeriod.length,
+                sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
+                conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
+                icon: TrendingUp,
+                color: "text-destructive",
+              },
+              {
+                label: "Total em aberto",
+                value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+                sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+                icon: Clock,
+                color: "text-primary",
+              },
+            ].map(c => (
+              <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
+                  <c.icon size={15} className={c.color} />
+                </div>
+                <p className="text-[28px] leading-none font-bold text-foreground">{c.value}</p>
+                <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
+                {"conv" in c && c.conv && (
+                  <p className={`text-[11px] font-semibold mt-1.5 ${c.color}`}>{c.conv}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
           {/* Monthly line */}
           <div className="bg-card border border-card-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">
