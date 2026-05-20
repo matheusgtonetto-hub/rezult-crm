@@ -2175,65 +2175,41 @@ const CONN_CATEGORIES = [
 
 function ConexoesSection() {
   const { user } = useAuth();
-  const { company, updateCompany } = useCompany();
+  const { whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
-  const [connected, setConnected]   = useState(false);
-  const [connPhone, setConnPhone]   = useState("");
-  const [savedCreds, setSavedCreds] = useState<ZApiForm | null>(null);
-  const [checking, setChecking]     = useState(true);
-  const [webhookOk, setWebhookOk]   = useState(false);
   const [searchConn, setSearchConn] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("whatsapp");
 
-  // dialog state
-  const [open, setOpen]       = useState(false);
-  const [step, setStep]       = useState<ZApiStep>("provider");
-  const [form, setForm]       = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
-  const [qrSrc, setQrSrc]     = useState("");
+  // dialog state (wizard de nova conexão)
+  const [open, setOpen]           = useState(false);
+  const [step, setStep]           = useState<ZApiStep>("provider");
+  const [form, setForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
+  const [qrSrc, setQrSrc]         = useState("");
   const [qrLoading, setQrLoading] = useState(false);
-  const [polling, setPolling] = useState(false);
-  const [pollN, setPollN]     = useState(0);
+  const [polling, setPolling]     = useState(false);
+  const [pollN, setPollN]         = useState(0);
 
-  // manage dialog state
-  const [manageTab, setManageTab]         = useState<"auth" | "intervals" | "config">("auth");
-  const [connName, setConnName]           = useState("");
-  const [editForm, setEditForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
-  const [showInstId, setShowInstId]       = useState(false);
-  const [showTok, setShowTok]             = useState(false);
-  const [showClientTok, setShowClientTok] = useState(false);
-  const [autoMin, setAutoMin]             = useState(3);
-  const [autoMax, setAutoMax]             = useState(15);
-  const [agentMin, setAgentMin]           = useState(0);
-  const [agentMax, setAgentMax]           = useState(2);
-  const [typingMin, setTypingMin]         = useState(0);
-  const [typingMax, setTypingMax]         = useState(1);
-  const [typingEnabled, setTypingEnabled] = useState(false);
-  const [listenGroups, setListenGroups]   = useState(false);
-  const [restoreMsg, setRestoreMsg]       = useState(false);
+  // manage dialog state (editar conexão existente)
+  const [editingConnId, setEditingConnId]         = useState<string | null>(null);
+  const [manageTab, setManageTab]                 = useState<"auth" | "intervals" | "config">("auth");
+  const [connName, setConnName]                   = useState("");
+  const [editForm, setEditForm]                   = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
+  const [showInstId, setShowInstId]               = useState(false);
+  const [showTok, setShowTok]                     = useState(false);
+  const [showClientTok, setShowClientTok]         = useState(false);
+  const [autoMin, setAutoMin]                     = useState(3);
+  const [autoMax, setAutoMax]                     = useState(15);
+  const [agentMin, setAgentMin]                   = useState(0);
+  const [agentMax, setAgentMax]                   = useState(2);
+  const [typingMin, setTypingMin]                 = useState(0);
+  const [typingMax, setTypingMax]                 = useState(1);
+  const [typingEnabled, setTypingEnabled]         = useState(false);
+  const [listenGroups, setListenGroups]           = useState(false);
+  const [restoreMsg, setRestoreMsg]               = useState(false);
 
-  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollNRef   = useRef(0);
+  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollNRef      = useRef(0);
   const credsInFlight = useRef<ZApiForm | null>(null);
-
-  // ── carrega credenciais do banco (via CompanyContext) ─────────────────
-  useEffect(() => {
-    if (!company) return;
-    if (company.zapi_connected && company.zapi_instance_id) {
-      setSavedCreds({ instanceId: company.zapi_instance_id, token: company.zapi_token ?? "", clientToken: company.zapi_client_token ?? "" });
-      setConnPhone(company.zapi_phone ?? "");
-      setConnected(true);
-      // Re-configura webhook silenciosamente para garantir que está ativo
-      const creds: ZApiForm = { instanceId: company.zapi_instance_id, token: company.zapi_token ?? "", clientToken: company.zapi_client_token ?? "" };
-      configureZapiWebhook(creds).then(ok => setWebhookOk(ok));
-    } else {
-      setSavedCreds(null);
-      setConnPhone("");
-      setConnected(false);
-    }
-    setChecking(false);
-    return () => stopPoll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [company?.zapi_instance_id, company?.zapi_connected]);
 
   // ── Z-API helpers ──────────────────────────────────────────────────
   const zapiBase    = (c: ZApiForm) => `https://api.z-api.io/instances/${c.instanceId}/token/${c.token}`;
@@ -2317,25 +2293,25 @@ function ConexoesSection() {
       if (result.connected) {
         stopPoll();
         const creds = credsInFlight.current!;
-        setSavedCreds(creds);
-        setConnPhone(result.phone);
-        setConnected(true);
         setStep("done");
         toast.success("WhatsApp conectado com sucesso!");
 
-        // Persiste no banco via CompanyContext
-        await updateCompany({
-          zapi_instance_id:  creds.instanceId,
-          zapi_token:        creds.token,
-          zapi_client_token: creds.clientToken || null,
-          zapi_phone:        result.phone || null,
-          zapi_name:         connName.trim() || result.phone || "WhatsApp",
-          zapi_connected:    true,
+        // Salva na tabela whatsapp_connections
+        const newConn = await addWhatsAppConnection({
+          name:        connName.trim() || result.phone || "WhatsApp",
+          instanceId:  creds.instanceId,
+          token:       creds.token,
+          clientToken: creds.clientToken || null,
+          phone:       result.phone || null,
+          connected:   true,
+          active:      true,
         });
+        setEditingConnId(newConn.id);
+        setConnName(newConn.name);
+        setEditForm(creds);
 
         // Configura automaticamente o webhook na Z-API para receber mensagens
-        const ok = await configureZapiWebhook(creds);
-        setWebhookOk(ok);
+        await configureZapiWebhook(creds);
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
@@ -2359,48 +2335,42 @@ function ConexoesSection() {
   }
 
   async function handleDisconnect() {
-    if (!savedCreds) return;
-    try {
-      await fetch(`${zapiBase(savedCreds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(savedCreds) });
-    } catch { /* ignore */ }
-    setSavedCreds(null);
-    setConnPhone("");
-    setConnected(false);
-    setWebhookOk(false);
-    toast.success("WhatsApp desconectado.");
-
-    // Limpa no banco via CompanyContext
-    await updateCompany({
-      zapi_instance_id: null, zapi_token: null,
-      zapi_client_token: null, zapi_phone: null, zapi_connected: false,
-    });
+    if (!editingConnId) return;
+    const conn = whatsappConnections.find(c => c.id === editingConnId);
+    if (conn) {
+      const creds: ZApiForm = { instanceId: conn.instanceId, token: conn.token, clientToken: conn.clientToken ?? "" };
+      try { await fetch(`${zapiBase(creds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(creds) }); } catch { /* ignore */ }
+    }
+    await removeWhatsAppConnection(editingConnId);
+    setEditingConnId(null);
+    closeDialog();
+    toast.success("Conexão removida.");
   }
 
-  function openDialog() {
+  function openDialog() { openNewDialog(); }
+
+  function openManageDialog(connId: string) {
+    const conn = whatsappConnections.find(c => c.id === connId);
+    if (!conn) return;
+    setEditingConnId(connId);
+    setConnName(conn.name);
+    setEditForm({ instanceId: conn.instanceId, token: conn.token, clientToken: conn.clientToken ?? "" });
+    setStep("done");
+    setManageTab("auth");
+    setShowInstId(false);
+    setShowTok(false);
+    setShowClientTok(false);
+    setOpen(true);
+  }
+
+  function openNewDialog() {
+    setEditingConnId(null);
+    setConnName("");
     setStep("select");
     setSelectedCategory("whatsapp");
     setForm({ instanceId: "", token: "", clientToken: "" });
     setQrSrc("");
     setPollN(0);
-    setOpen(true);
-  }
-
-  function openManageDialog() {
-    if (connected && savedCreds) {
-      setStep("done");
-      setConnName(company?.zapi_name || connPhone || "Z-API WhatsApp");
-      setEditForm(savedCreds);
-      setManageTab("auth");
-      setShowInstId(false);
-      setShowTok(false);
-      setShowClientTok(false);
-    } else {
-      setStep("select");
-      setSelectedCategory("whatsapp");
-      setForm({ instanceId: "", token: "", clientToken: "" });
-      setQrSrc("");
-      setPollN(0);
-    }
     setOpen(true);
   }
 
@@ -2410,95 +2380,32 @@ function ConexoesSection() {
   }
 
   async function handleUpdate() {
+    if (!editingConnId) return;
     if (!editForm.instanceId.trim() || !editForm.token.trim()) {
       toast.error("Preencha o ID da instância e o Token.");
       return;
     }
     try {
-      setSavedCreds(editForm);
-      await updateCompany({
-        zapi_instance_id:  editForm.instanceId,
-        zapi_token:        editForm.token,
-        zapi_client_token: editForm.clientToken || null,
-        zapi_name:         connName.trim() || null,
+      await updateWhatsAppConnection(editingConnId, {
+        name:        connName.trim() || "WhatsApp",
+        instanceId:  editForm.instanceId,
+        token:       editForm.token,
+        clientToken: editForm.clientToken || null,
       });
       toast.success("Conexão atualizada com sucesso!");
       closeDialog();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("zapi_name") || msg.includes("column")) {
-        toast.error("Execute a migration SQL para adicionar a coluna zapi_name na tabela companies.");
-      } else {
-        toast.error("Erro ao salvar: " + msg);
-      }
+      toast.error("Erro ao salvar: " + String(err));
     }
   }
 
-  // ── render ─────────────────────────────────────────────────────────
-  const ALL_CONNECTIONS = [
-    {
-      id: "zapi",
-      platform: "Z-API",
-      category: "WhatsApp",
-      domain: "z-api.io",
-      name: connected ? (connPhone || "Z-API WhatsApp") : "Z-API WhatsApp",
-      description: "Z-API é uma plataforma que facilita a automação e a integração de mensagens no WhatsApp, permitindo o envio e recebimento de mensagens de forma eficiente e programática.",
-      iconBg: "#1A1A1A",
-      iconColor: "#FFFFFF",
-      Icon: Webhook,
-      connected,
-      available: true,
-    },
-    {
-      id: "gcal",
-      platform: "Google Calendar",
-      category: "Agenda",
-      domain: "google.com",
-      name: "Google Calendar",
-      description: "Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.",
-      iconBg: "#4285F4",
-      iconColor: "#FFFFFF",
-      Icon: Calendar,
-      connected: false,
-      available: false,
-    },
-    {
-      id: "asaas",
-      platform: "Asaas",
-      category: "Financeiro",
-      domain: "asaas.com",
-      name: "Cobranças Asaas",
-      description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.",
-      iconBg: "#FF6B35",
-      iconColor: "#FFFFFF",
-      Icon: CreditCard,
-      connected: false,
-      available: false,
-    },
-    {
-      id: "instagram",
-      platform: "Instagram API",
-      category: "Instagram",
-      domain: "instagram.com",
-      name: "Instagram Mensagens",
-      description: "Receba e responda mensagens diretas do Instagram diretamente no CRM, sem alternar de plataforma.",
-      iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)",
-      iconColor: "#FFFFFF",
-      Icon: MessageSquare,
-      connected: false,
-      available: false,
-    },
-  ];
-
-  const filteredConns = searchConn.trim()
-    ? ALL_CONNECTIONS.filter(c =>
-        c.name.toLowerCase().includes(searchConn.toLowerCase()) ||
-        c.platform.toLowerCase().includes(searchConn.toLowerCase()) ||
-        c.category.toLowerCase().includes(searchConn.toLowerCase())
-      )
-    : ALL_CONNECTIONS;
-
   const selectedCat = CONN_CATEGORIES.find(c => c.id === selectedCategory) ?? CONN_CATEGORIES[0];
+
+  const COMING_SOON = [
+    { id: "gcal", platform: "Google Calendar", category: "Agenda",     domain: "google.com",    name: "Google Calendar",    description: "Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.", iconBg: "#4285F4", Icon: Calendar },
+    { id: "asaas", platform: "Asaas",          category: "Financeiro", domain: "asaas.com",     name: "Cobranças Asaas",    description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.", iconBg: "#FF6B35", Icon: CreditCard },
+    { id: "ig",   platform: "Instagram API",   category: "Instagram",  domain: "instagram.com", name: "Instagram Mensagens",description: "Receba e responda mensagens diretas do Instagram diretamente no CRM.", iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: MessageSquare },
+  ];
 
   return (
     <>
@@ -2508,97 +2415,89 @@ function ConexoesSection() {
           <h1 className="text-xl font-semibold text-[#111111]">Conexões</h1>
           <p className="text-sm text-[#AAAAAA] mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
-        <Button
-          className="bg-[#128A68] hover:bg-[#128A68]/90 text-white text-sm"
-          onClick={openDialog}
-        >
+        <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-white text-sm" onClick={openNewDialog}>
           Criar
         </Button>
       </div>
 
-      {/* Search + count */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAAAAA]" />
-          <input
-            value={searchConn}
-            onChange={e => setSearchConn(e.target.value)}
-            placeholder="Pesquisar..."
-            className="w-full pl-8 pr-3 py-2 text-sm border border-[#EEEEEE] rounded-lg outline-none bg-white focus:border-[#128A68] text-[#111]"
-          />
+      {/* ── WhatsApp — instâncias conectadas ─────────────────────────── */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-[#111]">WhatsApp</p>
+          <button onClick={openNewDialog} className="flex items-center gap-1 text-xs font-medium text-[#128A68] hover:opacity-80">
+            <Plus size={13} /> Adicionar instância
+          </button>
         </div>
-        <span className="text-sm text-[#AAAAAA]">{filteredConns.length} resultado{filteredConns.length !== 1 ? "s" : ""}</span>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {whatsappConnections.map(conn => (
+            <div key={conn.id} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[#22C55E]" : "bg-[#D1D5DB]"}`} />
+                  <span className={`text-xs font-medium ${conn.connected ? "text-[#16A34A]" : "text-[#6B7280]"}`}>
+                    {conn.connected ? "Conectado" : "Desconectado"}
+                  </span>
+                </div>
+                <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:text-[#128A68]">
+                  z-api.io <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#111] flex items-center justify-center shrink-0">
+                  <Webhook size={18} color="#FFF" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#111] truncate">{conn.name}</p>
+                  <p className="text-xs text-[#AAAAAA] truncate">{conn.phone || "Z-API"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0] mt-auto">
+                <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-[#535353] hover:text-[#128A68] transition-colors">
+                  <Settings2 size={14} /> Gerenciar
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Card "Adicionar nova instância" */}
+          <button
+            onClick={openNewDialog}
+            className="bg-white border border-dashed border-[#DDDDDD] rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-[#128A68] hover:bg-[#F0FAF6] transition-all min-h-[140px] cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#E1F5EE] flex items-center justify-center">
+              <Plus size={18} className="text-[#128A68]" />
+            </div>
+            <p className="text-sm font-medium text-[#128A68]">Adicionar WhatsApp</p>
+          </button>
+        </div>
       </div>
 
-      {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredConns.map(conn => (
-          <div
-            key={conn.id}
-            className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col gap-0 hover:shadow-md transition-shadow"
-          >
-            {/* Top row: status + domain */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[#22C55E]" : "bg-[#D1D5DB]"}`} />
-                <span className={`text-xs font-medium ${conn.connected ? "text-[#16A34A]" : "text-[#6B7280]"}`}>
-                  {conn.connected ? "Conectado" : conn.available ? "Desconectado" : "Em breve"}
-                </span>
+      {/* ── Outras integrações (em breve) ────────────────────────────── */}
+      <div>
+        <p className="text-sm font-semibold text-[#111] mb-3">Outras conexões</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {COMING_SOON.map(conn => (
+            <div key={conn.id} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col opacity-60">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-[#6B7280]">Em breve</span>
+                <a href={`https://${conn.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#AAAAAA]">
+                  {conn.domain} <ExternalLink size={11} />
+                </a>
               </div>
-              <a
-                href={`https://${conn.domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:text-[#128A68] transition-colors"
-              >
-                {conn.domain}
-                <ExternalLink size={11} />
-              </a>
-            </div>
-
-            {/* Platform icon + name + category */}
-            <div className="flex items-center gap-3 mb-3">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: conn.iconBg }}
-              >
-                <conn.Icon size={22} color={conn.iconColor} />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.iconBg }}>
+                  <conn.Icon size={18} color="#FFF" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#111]">{conn.name}</p>
+                  <p className="text-xs text-[#AAAAAA]">{conn.category}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-[#111111] leading-tight">{conn.platform}</p>
-                <p className="text-xs text-[#AAAAAA]">{conn.category}</p>
-              </div>
+              <p className="text-xs text-[#888] leading-relaxed line-clamp-2">{conn.description}</p>
             </div>
-
-            {/* Connection name */}
-            <p className="text-base font-bold text-[#111111] mb-2 leading-snug">{conn.name}</p>
-
-            {/* Description */}
-            <p className="text-xs text-[#888] leading-relaxed flex-1 mb-4 line-clamp-3">{conn.description}</p>
-
-            {/* Footer: gerenciar + toggle */}
-            <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0]">
-              <button
-                onClick={() => conn.available ? openManageDialog() : undefined}
-                disabled={!conn.available}
-                className="flex items-center gap-1.5 text-sm font-medium text-[#535353] hover:text-[#128A68] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Settings2 size={14} />
-                Gerenciar
-              </button>
-              <Switch
-                checked={conn.connected}
-                disabled={!conn.available}
-                onCheckedChange={checked => {
-                  if (conn.id === "zapi") {
-                    if (checked) openManageDialog();
-                    else handleDisconnect();
-                  }
-                }}
-              />
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* ── Gerenciar conexão (Dialog separado) ──────────────────────────── */}

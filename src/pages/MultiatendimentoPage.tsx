@@ -242,7 +242,7 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; 
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, whatsappConnections } = useCompany();
   const navigate = useNavigate();
   const location = useLocation();
   const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
@@ -620,25 +620,23 @@ export default function MultiatendimentoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // load Z-API instances do banco via CompanyContext
+  // load Z-API instances da tabela whatsapp_connections via CompanyContext
   useEffect(() => {
-    if (company?.zapi_connected && company.zapi_instance_id) {
-      const inst: ZApiInstance = {
-        instanceId:  company.zapi_instance_id,
-        token:       company.zapi_token ?? "",
-        clientToken: company.zapi_client_token ?? "",
-        phone:       company.zapi_phone ?? company.zapi_instance_id,
-        label:       company.zapi_name
-          || company.zapi_phone
-          || `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
-      };
-      setInstances([inst]);
-      setSelectedInstance(inst.instanceId);
-    } else {
-      setInstances([]);
-      setSelectedInstance("");
-    }
-  }, [company?.zapi_instance_id, company?.zapi_connected]);
+    const insts: ZApiInstance[] = whatsappConnections
+      .filter(c => c.connected && c.active)
+      .map(c => ({
+        instanceId:  c.instanceId,
+        token:       c.token,
+        clientToken: c.clientToken ?? "",
+        phone:       c.phone ?? c.instanceId,
+        label:       c.name,
+      }));
+    setInstances(insts);
+    setSelectedInstance(prev => {
+      if (insts.find(i => i.instanceId === prev)) return prev;
+      return insts[0]?.instanceId ?? "";
+    });
+  }, [whatsappConnections]);
 
   // ── sincroniza chats abertos pelo Pipeline → multi-atendimento ───────
   useEffect(() => {

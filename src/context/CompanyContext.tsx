@@ -41,6 +41,32 @@ export interface Company {
 
 type CompanyUpdateData = Partial<Omit<Company, "id" | "owner_id" | "plan" | "plan_expires_at">>;
 
+export interface WhatsAppConnection {
+  id: string;
+  name: string;
+  instanceId: string;
+  token: string;
+  clientToken?: string | null;
+  phone?: string | null;
+  connected: boolean;
+  active: boolean;
+  createdAt: string;
+}
+
+function mapConn(r: Record<string, unknown>): WhatsAppConnection {
+  return {
+    id:          r.id as string,
+    name:        (r.name as string) || "WhatsApp",
+    instanceId:  r.instance_id as string,
+    token:       r.token as string,
+    clientToken: r.client_token as string | null,
+    phone:       r.phone as string | null,
+    connected:   r.connected as boolean,
+    active:      r.active as boolean,
+    createdAt:   r.created_at as string,
+  };
+}
+
 interface CompanyContextType {
   company: Company | null;
   availableCompanies: Company[];
@@ -53,6 +79,10 @@ interface CompanyContextType {
   refetchCompany: () => void;
   updateCompany: (data: CompanyUpdateData) => Promise<void>;
   uploadLogo: (file: File) => Promise<void>;
+  whatsappConnections: WhatsAppConnection[];
+  addWhatsAppConnection: (data: Omit<WhatsAppConnection, "id" | "createdAt">) => Promise<WhatsAppConnection>;
+  updateWhatsAppConnection: (id: string, data: Partial<Omit<WhatsAppConnection, "id" | "createdAt">>) => Promise<void>;
+  removeWhatsAppConnection: (id: string) => Promise<void>;
 }
 
 const COMPANY_FIELDS = "*";
@@ -73,6 +103,60 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem(SELECTED_COMPANY_KEY)
   );
   const [companyLoading, setLoading] = useState(true);
+  const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
+
+  const loadConnections = useCallback(async () => {
+    if (!user) { setWhatsappConnections([]); return; }
+    const { data, error } = await supabase
+      .from("whatsapp_connections")
+      .select("*")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true });
+    if (!error && data) setWhatsappConnections((data as Record<string, unknown>[]).map(mapConn));
+  }, [user?.id]);
+
+  useEffect(() => { loadConnections(); }, [loadConnections]);
+
+  const addWhatsAppConnection = useCallback(async (data: Omit<WhatsAppConnection, "id" | "createdAt">): Promise<WhatsAppConnection> => {
+    if (!user) throw new Error("Não autenticado");
+    const { data: row, error } = await supabase
+      .from("whatsapp_connections")
+      .insert({
+        owner_id:     user.id,
+        name:         data.name,
+        instance_id:  data.instanceId,
+        token:        data.token,
+        client_token: data.clientToken ?? null,
+        phone:        data.phone ?? null,
+        connected:    data.connected,
+        active:       data.active,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    const conn = mapConn(row as Record<string, unknown>);
+    setWhatsappConnections(prev => [...prev, conn]);
+    return conn;
+  }, [user]);
+
+  const updateWhatsAppConnection = useCallback(async (id: string, data: Partial<Omit<WhatsAppConnection, "id" | "createdAt">>) => {
+    const payload: Record<string, unknown> = {};
+    if (data.name         !== undefined) payload.name         = data.name;
+    if (data.instanceId   !== undefined) payload.instance_id  = data.instanceId;
+    if (data.token        !== undefined) payload.token        = data.token;
+    if (data.clientToken  !== undefined) payload.client_token = data.clientToken;
+    if (data.phone        !== undefined) payload.phone        = data.phone;
+    if (data.connected    !== undefined) payload.connected    = data.connected;
+    if (data.active       !== undefined) payload.active       = data.active;
+    const { error } = await supabase.from("whatsapp_connections").update(payload).eq("id", id);
+    if (error) throw error;
+    setWhatsappConnections(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+  }, []);
+
+  const removeWhatsAppConnection = useCallback(async (id: string) => {
+    await supabase.from("whatsapp_connections").delete().eq("id", id);
+    setWhatsappConnections(prev => prev.filter(c => c.id !== id));
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) { setAvailableCompanies([]); setLoading(false); return; }
@@ -192,6 +276,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         refetchCompany: load,
         updateCompany,
         uploadLogo,
+        whatsappConnections,
+        addWhatsAppConnection,
+        updateWhatsAppConnection,
+        removeWhatsAppConnection,
       }}
     >
       {children}
