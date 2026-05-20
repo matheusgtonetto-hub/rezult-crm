@@ -2329,6 +2329,7 @@ function ConexoesSection() {
           zapi_token:        creds.token,
           zapi_client_token: creds.clientToken || null,
           zapi_phone:        result.phone || null,
+          zapi_name:         connName.trim() || result.phone || "WhatsApp",
           zapi_connected:    true,
         });
 
@@ -2387,7 +2388,7 @@ function ConexoesSection() {
   function openManageDialog() {
     if (connected && savedCreds) {
       setStep("done");
-      setConnName(connPhone || "Z-API WhatsApp");
+      setConnName(company?.zapi_name || connPhone || "Z-API WhatsApp");
       setEditForm(savedCreds);
       setManageTab("auth");
       setShowInstId(false);
@@ -2418,6 +2419,7 @@ function ConexoesSection() {
       zapi_instance_id:  editForm.instanceId,
       zapi_token:        editForm.token,
       zapi_client_token: editForm.clientToken || null,
+      zapi_name:         connName.trim() || null,
     });
     toast.success("Conexão atualizada com sucesso!");
     closeDialog();

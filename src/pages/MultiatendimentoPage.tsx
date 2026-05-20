@@ -628,9 +628,9 @@ export default function MultiatendimentoPage() {
         token:       company.zapi_token ?? "",
         clientToken: company.zapi_client_token ?? "",
         phone:       company.zapi_phone ?? company.zapi_instance_id,
-        label:       company.zapi_phone
-          ? `Z-API · ${company.zapi_phone}`
-          : `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
+        label:       company.zapi_name
+          || company.zapi_phone
+          || `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
       };
       setInstances([inst]);
       setSelectedInstance(inst.instanceId);

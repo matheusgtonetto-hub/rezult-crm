@@ -33,6 +33,7 @@ export interface Company {
   zapi_token?: string | null;
   zapi_client_token?: string | null;
   zapi_phone?: string | null;
+  zapi_name?: string | null;
   zapi_connected?: boolean;
   // Meta
   created_at?: string;
