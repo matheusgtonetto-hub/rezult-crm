@@ -86,6 +86,7 @@ function AppRoutes() {
             <Route path="/automacoes" element={<AutomacoesPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="/configuracoes/:section" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

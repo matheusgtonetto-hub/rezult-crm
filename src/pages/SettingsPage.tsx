@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
@@ -70,9 +70,9 @@ const ADMIN_ONLY_SECTIONS: SectionId[] = ["planos", "empresa"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { section } = useParams<{ section?: string }>();
   const { logout, products } = useCRM();
   const { isOwner } = useCompany();
-  const [active, setActive] = useState<SectionId>("perfil");
   const [pwOpen, setPwOpen] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
 
@@ -80,12 +80,22 @@ export default function SettingsPage() {
     isOwner || !ADMIN_ONLY_SECTIONS.includes(s.id)
   );
 
-  // Se o membro tentar acessar uma seção restrita, redireciona para perfil
+  // Deriva a aba ativa a partir da URL; fallback para "perfil"
+  const validIds = SECTIONS.map(s => s.id);
+  const rawSection = section as SectionId | undefined;
+  const active: SectionId =
+    rawSection && validIds.includes(rawSection) && (isOwner || !ADMIN_ONLY_SECTIONS.includes(rawSection))
+      ? rawSection
+      : "perfil";
+
+  function setActive(id: SectionId) {
+    navigate(`/configuracoes/${id}`, { replace: true });
+  }
+
+  // Redireciona para /configuracoes/perfil se a URL não tiver seção
   useEffect(() => {
-    if (!isOwner && ADMIN_ONLY_SECTIONS.includes(active)) {
-      setActive("perfil");
-    }
-  }, [isOwner, active]);
+    if (!section) navigate("/configuracoes/perfil", { replace: true });
+  }, [section, navigate]);
 
   return (
     <div className="flex h-screen bg-[#FAFAFA]">
