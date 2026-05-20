@@ -185,7 +185,7 @@ export function AppSidebar() {
           maxWidth: 52,
           position: "fixed",
           top: 8,
-          left: 8,
+          left: 4,
           bottom: 8,
           zIndex: 100,
           overflow: "hidden",
