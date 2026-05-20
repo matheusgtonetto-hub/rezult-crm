@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useCRM } from "@/context/CRMContext";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
 import {
   TrendingUp, Users, CheckCircle, DollarSign, Clock, Trophy,
@@ -663,33 +663,82 @@ export default function DashboardPage() {
                 <div className="bg-card border border-card-border rounded-xl p-6">
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart
-                      data={funnelData.map(row => ({ name: row.stage.title, leads: row.count, stageId: row.stage.id, fill: row.stage.color || "hsl(var(--primary))" }))}
-                      onClick={e => {
-                        const id = e?.activePayload?.[0]?.payload?.stageId;
-                        if (id) setExpandedStage(prev => prev === id ? null : id);
-                      }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
-                      <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                      <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={tooltip}
-                        formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Entraram"]}
-                      />
-                      <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
-                        {funnelData.map((row, i) => (
-                          <Cell
-                            key={i}
-                            fill={row.stage.color || "hsl(var(--primary))"}
-                            opacity={expandedStage && expandedStage !== row.stage.id ? 0.4 : 1}
+                  {(() => {
+                    const chartData = funnelData.map((row, i) => ({
+                      name: row.stage.title,
+                      leads: row.count,
+                      stageId: row.stage.id,
+                      color: row.stage.color || "hsl(var(--primary))",
+                      convLabel: i > 0 && funnelData[i - 1].count > 0
+                        ? `${((row.count / funnelData[i - 1].count) * 100).toFixed(0)}%`
+                        : "",
+                    }));
+
+                    const renderTick = (props: any) => {
+                      const { x, y, payload, index } = props;
+                      const row = funnelData[index];
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text x={0} y={0} dy={14} textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize={11}>
+                            {payload.value}
+                          </text>
+                          <text x={0} y={0} dy={30} textAnchor="middle" fill="hsl(var(--foreground))" fontSize={13} fontWeight="bold">
+                            {row?.count ?? 0}
+                          </text>
+                        </g>
+                      );
+                    };
+
+                    const renderConvLabel = (props: any) => {
+                      const { x, y, width, height, value } = props;
+                      if (!value || Number(height) < 26) return null;
+                      return (
+                        <text
+                          x={Number(x) + Number(width) / 2}
+                          y={Number(y) + Number(height) / 2}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="white"
+                          fontSize={11}
+                          fontWeight="600"
+                        >
+                          {value}
+                        </text>
+                      );
+                    };
+
+                    return (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart
+                          data={chartData}
+                          margin={{ bottom: 20 }}
+                          onClick={e => {
+                            const id = e?.activePayload?.[0]?.payload?.stageId;
+                            if (id) setExpandedStage(prev => prev === id ? null : id);
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                          <XAxis dataKey="name" tick={renderTick} axisLine={false} tickLine={false} height={48} />
+                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                          <Tooltip
+                            contentStyle={tooltip}
+                            formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Entraram"]}
                           />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                          <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
+                            {chartData.map((entry, i) => (
+                              <Cell
+                                key={i}
+                                fill={entry.color}
+                                opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
+                              />
+                            ))}
+                            <LabelList dataKey="convLabel" content={renderConvLabel} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
 
                   {/* Lead list for selected stage */}
                   {expandedStage && (() => {
