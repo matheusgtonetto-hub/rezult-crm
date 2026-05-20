@@ -10,6 +10,7 @@ import {
   Activity as ActivityIcon, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 
 const ACTIVITY_LABELS: Record<string, string> = {
