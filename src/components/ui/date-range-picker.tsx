@@ -21,11 +21,12 @@ interface DateRangePickerProps {
 }
 
 const PRESETS = [
-  { label: "Hoje",            from: () => subDays(new Date(), 0),  to: () => new Date() },
-  { label: "Últimos 7 dias",  from: () => subDays(new Date(), 6),  to: () => new Date() },
-  { label: "Últimos 15 dias", from: () => subDays(new Date(), 14), to: () => new Date() },
-  { label: "Últimos 3 meses", from: () => subMonths(new Date(), 3),to: () => new Date() },
-  { label: "Último ano",      from: () => subDays(new Date(), 364),to: () => new Date() },
+  { label: "Hoje",              from: () => subDays(new Date(), 0),       to: () => new Date() },
+  { label: "Últimos 7 dias",    from: () => subDays(new Date(), 6),       to: () => new Date() },
+  { label: "Últimos 15 dias",   from: () => subDays(new Date(), 14),      to: () => new Date() },
+  { label: "Últimos 3 meses",   from: () => subMonths(new Date(), 3),     to: () => new Date() },
+  { label: "Último ano",        from: () => subDays(new Date(), 364),     to: () => new Date() },
+  { label: "Todo o histórico",  from: () => new Date("2000-01-01"),       to: () => new Date() },
 ];
 
 export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {

@@ -63,11 +63,15 @@ export default function DashboardPage() {
   periodTo.setHours(23, 59, 59, 999);
 
   // Parseia entryDate (string YYYY-MM-DD) como hora local, não UTC
-  const parseEntryDate = (d: string) => new Date(d + "T00:00:00");
+  // entryDate vazio → retorna null (lead sem data é sempre incluído)
+  const parseEntryDate = (d: string) => (d ? new Date(d + "T00:00:00") : null);
   const inPeriod = (d: Date) => d >= periodCutoff && d <= periodTo;
 
   const periodLeads = useMemo(
-    () => allLeads.filter(l => inPeriod(parseEntryDate(l.entryDate))),
+    () => allLeads.filter(l => {
+      const d = parseEntryDate(l.entryDate);
+      return !d || inPeriod(d); // sem entryDate: sempre inclui
+    }),
     [allLeads, dateRange],
   );
 
@@ -91,7 +95,7 @@ export default function DashboardPage() {
     const data = months.map(mes => ({ mes, novos: 0, ganhos: 0, perdidos: 0 }));
     allLeads.forEach(lead => {
       const e = parseEntryDate(lead.entryDate);
-      if (e >= periodCutoff && e <= periodTo) data[e.getMonth()].novos++;
+      if (e && e >= periodCutoff && e <= periodTo) data[e.getMonth()].novos++;
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
@@ -214,7 +218,7 @@ export default function DashboardPage() {
     const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
     return stages.map((stage, i) => {
       const entered = new Set<string>();
-      if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (d >= periodCutoff && d <= periodTo) entered.add(l.id); });
+      if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (!d || (d >= periodCutoff && d <= periodTo)) entered.add(l.id); });
       pipelineLeads.forEach(lead => {
         lead.activities.forEach(act => {
           const d = new Date(act.date);
