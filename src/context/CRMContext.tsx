@@ -196,7 +196,12 @@ function dbToActivity(row: Record<string, unknown>): Activity {
     meetLink: (row.meet_link as string) ?? undefined,
     completedAt: (row.completed_at as string) ?? undefined,
     noShowAt: (row.no_show_at as string) ?? undefined,
-    participants: row.participants ? JSON.parse(row.participants as string) as string[] : undefined,
+    participants: (() => {
+      const p = row.participants;
+      if (!p) return undefined;
+      if (Array.isArray(p)) return p as string[];
+      try { return JSON.parse(p as string) as string[]; } catch { return undefined; }
+    })(),
   };
 }
 
@@ -476,7 +481,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setCrmLoading(false);
     }
 
-    loadAll();
+    loadAll().catch(err => {
+      console.error("[CRMContext] loadAll crash:", err);
+      setCrmLoading(false);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, company?.id]);
 

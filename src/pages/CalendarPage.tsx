@@ -221,6 +221,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
       : [cur];
   const cols = days.length;
 
+  const hasEventsInPeriod = days.some(day => events.some(e => sameDay(e.scheduledAt, day)));
+
   return (
     <div
       style={{
@@ -231,8 +233,28 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
         height: "calc(100vh - 148px)",
         display: "flex",
         flexDirection: "column",
+        position: "relative",
       }}
     >
+      {!hasEventsInPeriod && events.length === 0 && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            pointerEvents: "none",
+          }}
+        >
+          <CalendarDays size={32} style={{ color: "#CCCCCC" }} />
+          <p style={{ fontSize: 14, color: "#AAAAAA", fontWeight: 500 }}>Nenhuma atividade agendada</p>
+          <p style={{ fontSize: 12, color: "#CCCCCC" }}>Clique em "Nova atividade" para agendar uma reunião ou tarefa</p>
+        </div>
+      )}
       {/* Cabeçalho com dias */}
       <div
         style={{
@@ -409,7 +431,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
 
 export default function CalendarPage() {
   const navigate = useNavigate();
-  const { leads, addActivity, patchActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
+  const { leads, addActivity, patchActivity, teamMembers, memberEmails, memberAvatars, memberColors, crmLoading } = useCRM();
   const { profile } = useProfile();
   const [view, setView] = useState<CalView>("semana");
   const today = useMemo(() => new Date(), []);
@@ -788,23 +810,31 @@ export default function CalendarPage() {
 
       {/* Corpo do calendário */}
       <div className="flex-1 p-4 overflow-hidden">
-        {view === "mes" && (
-          <MonthView
-            cur={cur}
-            today={today}
-            events={calEvents}
-            onEvt={e => setEditingEvent(e)}
-          />
-        )}
-        {(view === "semana" || view === "dia") && (
-          <TimeGridView
-            view={view}
-            cur={cur}
-            today={today}
-            events={calEvents}
-            onEvt={e => setEditingEvent(e)}
-            gridRef={gridRef}
-          />
+        {crmLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
+        ) : (
+          <>
+            {view === "mes" && (
+              <MonthView
+                cur={cur}
+                today={today}
+                events={calEvents}
+                onEvt={e => setEditingEvent(e)}
+              />
+            )}
+            {(view === "semana" || view === "dia") && (
+              <TimeGridView
+                view={view}
+                cur={cur}
+                today={today}
+                events={calEvents}
+                onEvt={e => setEditingEvent(e)}
+                gridRef={gridRef}
+              />
+            )}
+          </>
         )}
       </div>
 
