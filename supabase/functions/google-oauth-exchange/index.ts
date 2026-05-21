@@ -1,52 +1,51 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:8080",
-  "https://app.rezultcrm.com",
-];
+const corsHeaders = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-function cors(origin: string | null) {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin":  allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-}
-
-const json = (body: unknown, status = 200, origin: string | null = null) =>
+const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors(origin), "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
 serve(async (req) => {
-  const origin = req.headers.get("origin");
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors(origin) });
-  if (req.method !== "POST")    return json({ error: "method not allowed" }, 405, origin);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST")    return json({ error: "method not allowed" }, 405);
 
-  const clientId     = Deno.env.get("GOOGLE_CLIENT_ID")!;
-  const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
-  const redirectUri  = Deno.env.get("GOOGLE_REDIRECT_URI")!;
-  const supabaseUrl  = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+  const clientId     = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
+  const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
+  const redirectUri  = Deno.env.get("GOOGLE_REDIRECT_URI") ?? "";
+  const supabaseUrl  = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  console.log("[oauth] clientId:", clientId ? clientId.slice(0, 20) + "..." : "VAZIO");
+  console.log("[oauth] redirectUri:", redirectUri || "VAZIO");
+  console.log("[oauth] serviceKey:", serviceKey ? "ok" : "VAZIO");
 
   // Extrai user_id do JWT do Supabase
   const authHeader = req.headers.get("authorization") ?? "";
   const jwt        = authHeader.replace(/^Bearer\s+/i, "");
+  console.log("[oauth] jwt presente:", jwt ? "sim" : "NÃO");
 
   let body: { code?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400, origin); }
+  try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
   const { code } = body;
-  if (!code) return json({ error: "missing code" }, 400, origin);
+  console.log("[oauth] code recebido:", code ? code.slice(0, 12) + "..." : "VAZIO");
+  if (!code) return json({ error: "missing code" }, 400);
 
   // Identifica o usuário via JWT
   const db = createClient(supabaseUrl, serviceKey);
-  const { data: { user }, error: userErr } = await db.auth.getUser(jwt);
-  if (userErr || !user) return json({ error: "unauthorized" }, 401, origin);
+  const authResult = await db.auth.getUser(jwt);
+  console.log("[oauth] getUser error:", authResult.error?.message ?? "nenhum");
+  const user = authResult.data?.user;
+  if (authResult.error || !user) return json({ error: "unauthorized", detail: authResult.error?.message }, 401);
 
   // 1. Troca o code pelo token Google
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -64,7 +63,7 @@ serve(async (req) => {
   if (!tokenRes.ok) {
     const detail = await tokenRes.text();
     console.error("Google token error:", detail);
-    return json({ error: "google_token_exchange_failed", detail }, 502, origin);
+    return json({ error: "google_token_exchange_failed", detail }, 502);
   }
 
   const tokenData = await tokenRes.json() as {
@@ -107,8 +106,14 @@ serve(async (req) => {
 
   if (upsertErr) {
     console.error("Upsert error:", upsertErr);
-    return json({ error: "db_error", detail: upsertErr.message }, 500, origin);
+    return json({ error: "db_error", detail: upsertErr.message }, 500);
   }
 
-  return json({ success: true, email: googleUser.email ?? null }, 200, origin);
+  return json({ success: true, email: googleUser.email ?? null }, 200);
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[oauth] CRASH não capturado:", msg);
+    return json({ error: "internal_error", detail: msg }, 500);
+  }
 });

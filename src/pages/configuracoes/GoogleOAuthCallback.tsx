@@ -9,43 +9,60 @@ import { toast } from "sonner";
 const _initialCode  = new URLSearchParams(window.location.search).get("code");
 const _initialError = new URLSearchParams(window.location.search).get("error");
 
+async function exchangeCode(code: string): Promise<void> {
+  console.log("[OAuth] Chamando Edge Function com code:", code.slice(0, 12) + "...");
+
+  const { data, error } = await supabase.functions.invoke("google-oauth-exchange", {
+    body: { code },
+  });
+
+  console.log("[OAuth] Resposta da Edge Function — data:", data, "error:", error);
+
+  if (error) throw error;
+}
+
 export default function GoogleOAuthCallback() {
   const navigate = useNavigate();
   const ran      = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
-    if (_initialError) {
-      setError(`Google retornou erro: ${_initialError}`);
+    const code  = _initialCode;
+    const error = _initialError;
+
+    console.log("[OAuth] code capturado:", code ? code.slice(0, 12) + "..." : "VAZIO");
+    console.log("[OAuth] error capturado:", error ?? "nenhum");
+
+    if (error) {
+      setErrorMsg(`Erro retornado pelo Google: ${error}`);
       return;
     }
 
-    if (!_initialCode) {
-      setError("Código de autorização não encontrado na URL.");
+    if (!code) {
+      setErrorMsg("Código de autorização não encontrado na URL.");
       return;
     }
 
-    supabase.functions
-      .invoke("google-oauth-exchange", { body: { code: _initialCode } })
-      .then(({ error: fnErr }) => {
-        if (fnErr) throw fnErr;
+    exchangeCode(code)
+      .then(() => {
         toast.success("Google conectado com sucesso!");
         navigate("/configuracoes/conexoes", { replace: true });
       })
       .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
+        const msg = err instanceof Error ? err.message : JSON.stringify(err);
+        console.error("[OAuth] Falha na troca do code:", msg);
+        setErrorMsg(msg);
       });
   }, [navigate]);
 
-  if (error) {
+  if (errorMsg) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
         <p className="text-sm text-destructive font-medium">Erro ao conectar com o Google</p>
-        <p className="text-xs text-muted-foreground max-w-sm text-center">{error}</p>
+        <p className="text-xs text-muted-foreground max-w-sm text-center">{errorMsg}</p>
         <button
           onClick={() => navigate("/configuracoes/conexoes", { replace: true })}
           className="text-sm text-primary underline"
