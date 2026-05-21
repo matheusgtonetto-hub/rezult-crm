@@ -156,6 +156,18 @@ export default function PipelinePage() {
   const [confirmDeletePipeline, setConfirmDeletePipeline] = useState(false);
   const [colorPickerColId, setColorPickerColId] = useState<string | null>(null);
 
+  // Modal de confirmação de avanço de etapa
+  const [pendingAdvance, setPendingAdvance] = useState<{
+    leadId: string;
+    leadName: string;
+    fromColId: string;
+    fromColTitle: string;
+    toColId: string;
+    toColTitle: string;
+    toIndex: number;
+    sourceIndex: number;
+  } | null>(null);
+
   // Filters
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
@@ -178,7 +190,24 @@ export default function PipelinePage() {
     if (source.droppableId !== destination.droppableId) {
       const cols = activePipeline?.columns ?? [];
       const fromCol = cols.find(c => c.id === source.droppableId);
-      const toCol = cols.find(c => c.id === destination.droppableId);
+      const toCol   = cols.find(c => c.id === destination.droppableId);
+      const isAdvance = (toCol?.position ?? 0) > (fromCol?.position ?? 0);
+      if (isAdvance) {
+        // Move otimístico para o card ficar no destino enquanto o modal está aberto
+        moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
+        setPendingAdvance({
+          leadId: draggableId,
+          leadName: leads[draggableId]?.name ?? "",
+          fromColId: source.droppableId,
+          fromColTitle: fromCol?.title ?? "",
+          toColId: destination.droppableId,
+          toColTitle: toCol?.title ?? "",
+          toIndex: destination.index,
+          sourceIndex: source.index,
+        });
+        return;
+      }
+      // Mover para etapa anterior — executa sem confirmação
       addActivity(draggableId, {
         id: `a-${Date.now()}`,
         date: new Date().toISOString(),
@@ -187,6 +216,24 @@ export default function PipelinePage() {
       });
     }
     moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
+  };
+
+  const handleConfirmAdvance = () => {
+    if (!pendingAdvance) return;
+    addActivity(pendingAdvance.leadId, {
+      id: `a-${Date.now()}`,
+      date: new Date().toISOString(),
+      type: "stage_change",
+      description: `Movido de "${pendingAdvance.fromColTitle}" para "${pendingAdvance.toColTitle}".`,
+    });
+    setPendingAdvance(null);
+  };
+
+  const handleCancelAdvance = () => {
+    if (!pendingAdvance) return;
+    // Reverte o move otimístico
+    moveLead(pendingAdvance.leadId, pendingAdvance.toColId, pendingAdvance.fromColId, pendingAdvance.sourceIndex);
+    setPendingAdvance(null);
   };
 
   const formatCurrency = (v: number) =>
@@ -839,6 +886,23 @@ export default function PipelinePage() {
           onClose={() => setSelectedLeadId(null)}
         />
 
+
+        {/* Confirmação de avanço de etapa */}
+        <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar avanço de etapa</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
+                <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelAdvance}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmAdvance}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Rename column */}
         <Dialog open={!!renamingCol} onOpenChange={(o) => !o && setRenamingCol(null)}>
