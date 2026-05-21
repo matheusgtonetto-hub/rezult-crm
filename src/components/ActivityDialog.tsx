@@ -183,11 +183,9 @@ export function ActivityDialog({
 
     if (type === "meeting" && addToCalendar && googleConnected) {
       const startDt = `${date}T${time}:00`;
-      const endMs   = new Date(`${date}T${time}`).getTime() + duration * 60_000;
-      const endDt   = new Date(endMs).toISOString().slice(0, 19);
       supabase.functions
         .invoke("google-calendar-event", {
-          body: { title: title.trim(), description, start_datetime: startDt, end_datetime: endDt, attendees: participants },
+          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
         })
         .then(({ data, error }) => {
           if (error) throw error;

@@ -26,13 +26,19 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
-    let body: { title?: string; description?: string; start_datetime?: string; end_datetime?: string; attendees?: string[] };
+    let body: { title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[] };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { title, description, start_datetime, end_datetime, attendees = [] } = body;
-    if (!title || !start_datetime || !end_datetime) {
-      return json({ error: "missing required fields: title, start_datetime, end_datetime" }, 400);
+    const { title, description, start_datetime, duration_minutes = 60, attendees = [] } = body;
+    if (!title || !start_datetime) {
+      return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
+
+    // Calcula end_datetime somando duration_minutes ao start local (sem conversão UTC)
+    const startMs = new Date(start_datetime + "Z").getTime();
+    const endDate = new Date(startMs + duration_minutes * 60_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const end_datetime = `${endDate.getUTCFullYear()}-${pad(endDate.getUTCMonth() + 1)}-${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}:${pad(endDate.getUTCMinutes())}:00`;
 
     // Identifica o usuário
     const db = createClient(supabaseUrl, serviceKey);
