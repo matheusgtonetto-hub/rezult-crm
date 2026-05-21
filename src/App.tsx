@@ -74,6 +74,7 @@ function AppRoutes() {
           <Route path="/company-register" element={<CompanyRegisterPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/configuracoes/email/callback" element={<GoogleOAuthCallback />} />
           <Route element={<AppLayout />}>
             <Route path="/pilot" element={<PilotPage />} />
             <Route path="/pipeline" element={<PipelinePage />} />
@@ -88,7 +89,6 @@ function AppRoutes() {
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="/configuracoes/:section" element={<SettingsPage />} />
-            <Route path="/configuracoes/email/callback" element={<GoogleOAuthCallback />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

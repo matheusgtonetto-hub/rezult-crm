@@ -3,23 +3,33 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+// Captura o code ANTES de qualquer lifecycle do React — o Supabase pode
+// limpar o ?code= da URL via history.replaceState ao detectar o parâmetro
+// no fluxo PKCE, então precisamos ler aqui, na inicialização do módulo.
+const _initialCode  = new URLSearchParams(window.location.search).get("code");
+const _initialError = new URLSearchParams(window.location.search).get("error");
+
 export default function GoogleOAuthCallback() {
-  const navigate  = useNavigate();
-  const ran       = useRef(false);
+  const navigate = useNavigate();
+  const ran      = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (!code) {
+    if (_initialError) {
+      setError(`Google retornou erro: ${_initialError}`);
+      return;
+    }
+
+    if (!_initialCode) {
       setError("Código de autorização não encontrado na URL.");
       return;
     }
 
     supabase.functions
-      .invoke("google-oauth-exchange", { body: { code } })
+      .invoke("google-oauth-exchange", { body: { code: _initialCode } })
       .then(({ error: fnErr }) => {
         if (fnErr) throw fnErr;
         toast.success("Google conectado com sucesso!");
