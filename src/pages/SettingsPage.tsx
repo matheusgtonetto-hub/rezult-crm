@@ -2514,6 +2514,59 @@ function ConexoesSection() {
         </div>
       </div>
 
+      {/* ── Google Calendar ──────────────────────────────────────────── */}
+      <div className="mb-6">
+        <p className="text-sm font-semibold text-[#111] mb-3">Google Calendar</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {googleLoading ? (
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex items-center justify-center min-h-[140px]">
+              <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
+            </div>
+          ) : googleConn ? (
+            <div className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+                  <span className="text-xs font-medium text-[#16A34A]">Conectado</span>
+                </div>
+                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:text-[#4285F4]">
+                  calendar.google.com <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#4285F4" }}>
+                  <Calendar size={18} color="#FFF" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#111]">Google Calendar</p>
+                  <p className="text-xs text-[#AAAAAA] truncate">{googleConn.email ?? "Agenda"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0] mt-auto">
+                <button
+                  onClick={handleDisconnectGoogle}
+                  disabled={googleDisconnecting}
+                  className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                >
+                  <X size={14} /> {googleDisconnecting ? "Desconectando..." : "Desconectar"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleConnectGoogle}
+              className="bg-white border border-dashed border-[#DDDDDD] rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-[#4285F4] hover:bg-blue-50/30 transition-all min-h-[140px] cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#4285F4" }}>
+                <Calendar size={18} color="#FFF" />
+              </div>
+              <p className="text-sm font-medium text-[#4285F4]">Conectar com Google</p>
+              <p className="text-xs text-[#AAAAAA] text-center">Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.</p>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Outras integrações (em breve) ────────────────────────────── */}
       <div>
         <p className="text-sm font-semibold text-[#111] mb-3">Outras conexões</p>
