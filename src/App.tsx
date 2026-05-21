@@ -28,6 +28,7 @@ import CompanyRegisterPage from "./pages/CompanyRegisterPage";
 import SetupPage from "./pages/SetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
+import GoogleOAuthCallback from "./pages/configuracoes/GoogleOAuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ function AppRoutes() {
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="/configuracoes/:section" element={<SettingsPage />} />
+            <Route path="/configuracoes/email/callback" element={<GoogleOAuthCallback />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

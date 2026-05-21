@@ -2187,6 +2187,38 @@ function ConexoesSection() {
   const { user } = useAuth();
   const { whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
+  // Google OAuth state
+  const [googleConn, setGoogleConn]           = useState<{ id: string; email: string | null } | null>(null);
+  const [googleLoading, setGoogleLoading]     = useState(true);
+  const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
+
+  useEffect(() => {
+    import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
+      checkGoogleConnection()
+        .then(c => setGoogleConn(c ? { id: c.id, email: c.email } : null))
+        .finally(() => setGoogleLoading(false));
+    });
+  }, []);
+
+  async function handleConnectGoogle() {
+    const { initGoogleOAuth } = await import("@/lib/googleOAuth");
+    initGoogleOAuth();
+  }
+
+  async function handleDisconnectGoogle() {
+    setGoogleDisconnecting(true);
+    try {
+      const { disconnectGoogle } = await import("@/lib/googleOAuth");
+      await disconnectGoogle();
+      setGoogleConn(null);
+      toast.success("Google desconectado.");
+    } catch {
+      toast.error("Erro ao desconectar o Google.");
+    } finally {
+      setGoogleDisconnecting(false);
+    }
+  }
+
   const [searchConn, setSearchConn] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("whatsapp");
 
@@ -2412,7 +2444,6 @@ function ConexoesSection() {
   const selectedCat = CONN_CATEGORIES.find(c => c.id === selectedCategory) ?? CONN_CATEGORIES[0];
 
   const COMING_SOON = [
-    { id: "gcal", platform: "Google Calendar", category: "Agenda",     domain: "google.com",    name: "Google Calendar",    description: "Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.", iconBg: "#4285F4", Icon: Calendar },
     { id: "asaas", platform: "Asaas",          category: "Financeiro", domain: "asaas.com",     name: "Cobranças Asaas",    description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.", iconBg: "#FF6B35", Icon: CreditCard },
     { id: "ig",   platform: "Instagram API",   category: "Instagram",  domain: "instagram.com", name: "Instagram Mensagens",description: "Receba e responda mensagens diretas do Instagram diretamente no CRM.", iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: MessageSquare },
   ];
@@ -2483,10 +2514,64 @@ function ConexoesSection() {
         </div>
       </div>
 
-      {/* ── Outras integrações (em breve) ────────────────────────────── */}
+      {/* ── Outras integrações ────────────────────────────── */}
       <div>
         <p className="text-sm font-semibold text-[#111] mb-3">Outras conexões</p>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+          {/* Google Calendar — ativo */}
+          <div className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              {googleLoading ? (
+                <span className="text-xs text-[#AAAAAA]">Verificando…</span>
+              ) : googleConn ? (
+                <span className="flex items-center gap-1 text-xs font-medium text-[#16A34A]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] inline-block" />
+                  Conectado
+                </span>
+              ) : (
+                <span className="text-xs text-[#6B7280]">Não conectado</span>
+              )}
+              <a href="https://google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#AAAAAA]">
+                google.com <ExternalLink size={11} />
+              </a>
+            </div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#4285F4" }}>
+                <Calendar size={18} color="#FFF" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#111]">Google Calendar</p>
+                {googleConn?.email
+                  ? <p className="text-xs text-[#AAAAAA] truncate max-w-[140px]">{googleConn.email}</p>
+                  : <p className="text-xs text-[#AAAAAA]">Agenda</p>
+                }
+              </div>
+            </div>
+            <p className="text-xs text-[#888] leading-relaxed line-clamp-2 mb-4">
+              Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.
+            </p>
+            <div className="mt-auto">
+              {googleConn ? (
+                <button
+                  onClick={handleDisconnectGoogle}
+                  disabled={googleDisconnecting}
+                  className="w-full text-xs font-medium text-destructive border border-destructive/30 rounded-lg py-1.5 hover:bg-destructive/5 transition-colors disabled:opacity-50"
+                >
+                  {googleDisconnecting ? "Desconectando…" : "Desconectar"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleConnectGoogle}
+                  className="w-full text-xs font-medium text-white bg-[#4285F4] rounded-lg py-1.5 hover:bg-[#4285F4]/90 transition-colors"
+                >
+                  Conectar com Google
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Em breve */}
           {COMING_SOON.map(conn => (
             <div key={conn.id} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col opacity-60">
               <div className="flex items-center justify-between mb-3">
