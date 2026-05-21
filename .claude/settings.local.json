@@ -23,7 +23,17 @@
       "Read(//Users/matheustonetto/**)",
       "Bash(git pull *)",
       "Bash(npx supabase *)",
-      "Bash(supabase functions *)"
+      "Bash(supabase functions *)",
+      "Bash(npm run dev > /tmp/dev-output.log 2>&1 & *)",
+      "Bash(npm --prefix /Users/matheustonetto/Documents/rezult-crm run dev)",
+      "Bash(npm --prefix /Users/matheustonetto/Documents/rezult-crm run build)",
+      "Bash(node -e ' *)",
+      "Bash(pkill -f vite)",
+      "Bash(curl -s http://localhost:8080)",
+      "Bash(lsof -ti:8080)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }
