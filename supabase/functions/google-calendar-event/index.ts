@@ -87,7 +87,7 @@ serve(async (req) => {
       }
     }
 
-    // Cria evento no Google Calendar
+    // Cria evento no Google Calendar com Google Meet
     const event = {
       summary: title,
       description: description ?? "",
@@ -96,10 +96,16 @@ serve(async (req) => {
       ...(attendees.length > 0 && {
         attendees: attendees.map(email => ({ email })),
       }),
+      conferenceData: {
+        createRequest: {
+          requestId: crypto.randomUUID(),
+          conferenceSolutionKey: { type: "hangoutsMeet" },
+        },
+      },
     };
 
     const calRes = await fetch(
-      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1",
       {
         method:  "POST",
         headers: {
@@ -116,9 +122,16 @@ serve(async (req) => {
       return json({ error: "calendar_event_failed", detail }, 502);
     }
 
-    const calData = await calRes.json() as { id: string; htmlLink: string };
+    const calData = await calRes.json() as {
+      id: string;
+      htmlLink: string;
+      conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+    };
 
-    return json({ success: true, event_id: calData.id, event_link: calData.htmlLink });
+    const meetLink = calData.conferenceData?.entryPoints
+      ?.find(ep => ep.entryPointType === "video")?.uri ?? null;
+
+    return json({ success: true, event_id: calData.id, event_link: calData.htmlLink, meet_link: meetLink });
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

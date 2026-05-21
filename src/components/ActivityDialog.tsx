@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X, CalendarPlus,
+  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X, CalendarPlus, Video, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -109,6 +109,8 @@ export function ActivityDialog({
   const [leadDropdownOpen, setLeadDropdownOpen] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
+  const [generatingMeet, setGeneratingMeet] = useState(false);
+  const [meetEventCreated, setMeetEventCreated] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,6 +138,7 @@ export function ActivityDialog({
       }
       setDuration(initialValues.durationMinutes ?? 60);
       setMeetLink(initialValues.meetLink ?? "");
+      setMeetEventCreated(false);
       setDescription(initialValues.description ?? "");
       setParticipants(initialValues.participants ?? []);
       const initLeadId = initialValues.leadId ?? "";
@@ -148,6 +151,7 @@ export function ActivityDialog({
       setTime(nt);
       setDuration(60);
       setMeetLink("");
+      setMeetEventCreated(false);
       setDescription("");
       setParticipants([]);
       setSelectedLeadId("");
@@ -167,6 +171,34 @@ export function ActivityDialog({
   const removeParticipant = (email: string) =>
     setParticipants(prev => prev.filter(e => e !== email));
 
+  const handleGenerateMeetLink = async () => {
+    if (!googleConnected || generatingMeet) return;
+    setGeneratingMeet(true);
+    try {
+      const startDt = `${date}T${time}:00`;
+      const { data, error } = await supabase.functions.invoke("google-calendar-event", {
+        body: {
+          title: title.trim() || "Reunião",
+          description,
+          start_datetime: startDt,
+          duration_minutes: duration,
+          attendees: participants,
+        },
+      });
+      if (error) throw error;
+      if (data?.meet_link) {
+        setMeetLink(data.meet_link);
+        setMeetEventCreated(true);
+      } else {
+        toast.error("Link do Meet não retornado. Verifique se o Google Calendar está conectado.");
+      }
+    } catch {
+      toast.error("Erro ao gerar link do Google Meet.");
+    } finally {
+      setGeneratingMeet(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title.trim() || !date || !time) return;
     if (!defaultLead && !selectedLeadId) return;
@@ -181,7 +213,7 @@ export function ActivityDialog({
       leadId: defaultLead ? undefined : selectedLeadId,
     });
 
-    if (type === "meeting" && addToCalendar && googleConnected) {
+    if (type === "meeting" && addToCalendar && googleConnected && !meetEventCreated) {
       const startDt = `${date}T${time}:00`;
       supabase.functions
         .invoke("google-calendar-event", {
@@ -329,8 +361,8 @@ export function ActivityDialog({
             </div>
           </div>
 
-          {/* Google Calendar — só aparece para Reunião quando conectado */}
-          {type === "meeting" && googleConnected && !readOnly && (
+          {/* Google Calendar — só aparece para Reunião quando conectado e sem Meet link já criado */}
+          {type === "meeting" && googleConnected && !readOnly && !meetEventCreated && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <div
                 onClick={() => setAddToCalendar(p => !p)}
@@ -578,19 +610,69 @@ export function ActivityDialog({
             )}
           </div>
 
-          {/* Link */}
-          <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Link do Meet / Zoom</label>
-            <Input
-              type="url"
-              placeholder="https://meet.google.com/..."
-              value={meetLink}
-              onChange={e => setMeetLink(e.target.value)}
-              readOnly={readOnly}
-              className="bg-background border-card-border h-8 text-sm"
-              style={{ borderRadius: 15, color: meetLink ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
-            />
-          </div>
+          {/* Google Meet link */}
+          {type === "meeting" && (
+            <div className="space-y-1.5">
+              {!readOnly && (
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={handleGenerateMeetLink}
+                    disabled={!googleConnected || generatingMeet || !!meetLink}
+                    title={!googleConnected ? "Conecte o Google Calendar nas Configurações" : undefined}
+                    className={`flex items-center gap-2 w-full h-8 px-3 border text-xs font-medium transition-all ${
+                      meetLink
+                        ? "border-blue-200 bg-blue-50 text-blue-700 cursor-default"
+                        : googleConnected
+                        ? "border-card-border bg-background text-foreground hover:border-blue-400 hover:text-blue-600"
+                        : "border-card-border bg-background text-muted-foreground cursor-not-allowed opacity-60"
+                    }`}
+                    style={{ borderRadius: 15 }}
+                  >
+                    {generatingMeet
+                      ? <Loader2 size={13} className="animate-spin shrink-0 text-blue-500" />
+                      : <Video size={13} className={meetLink ? "text-blue-500 shrink-0" : "text-muted-foreground shrink-0"} />
+                    }
+                    <span>
+                      {generatingMeet
+                        ? "Gerando link..."
+                        : meetLink
+                        ? "Link do Google Meet criado"
+                        : "Criar link do Google Meet"}
+                    </span>
+                    {!googleConnected && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">Conectar Google</span>
+                    )}
+                  </button>
+                </div>
+              )}
+              {meetLink && (
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100"
+                  style={{ borderRadius: 15 }}
+                >
+                  <Video size={12} className="text-blue-500 shrink-0" />
+                  <a
+                    href={meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline truncate flex-1"
+                  >
+                    {meetLink}
+                  </a>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => { setMeetLink(""); setMeetEventCreated(false); }}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Descrição */}
           <div>
