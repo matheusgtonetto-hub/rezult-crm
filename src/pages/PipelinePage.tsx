@@ -193,8 +193,8 @@ export default function PipelinePage() {
       const toCol   = cols.find(c => c.id === destination.droppableId);
       const isAdvance = (toCol?.position ?? 0) > (fromCol?.position ?? 0);
       if (isAdvance) {
-        // Move otimístico para o card ficar no destino enquanto o modal está aberto
-        moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
+        // Não move o estado ainda — DnD reverte o card automaticamente para origem
+        // enquanto o modal está aberto. O move só acontece se confirmar.
         setPendingAdvance({
           leadId: draggableId,
           leadName: leads[draggableId]?.name ?? "",
@@ -220,6 +220,7 @@ export default function PipelinePage() {
 
   const handleConfirmAdvance = () => {
     if (!pendingAdvance) return;
+    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, pendingAdvance.toColId, pendingAdvance.toIndex);
     addActivity(pendingAdvance.leadId, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
@@ -230,9 +231,7 @@ export default function PipelinePage() {
   };
 
   const handleCancelAdvance = () => {
-    if (!pendingAdvance) return;
-    // Reverte o move otimístico
-    moveLead(pendingAdvance.leadId, pendingAdvance.toColId, pendingAdvance.fromColId, pendingAdvance.sourceIndex);
+    // Estado nunca foi alterado — só limpa o pendingAdvance
     setPendingAdvance(null);
   };
 
