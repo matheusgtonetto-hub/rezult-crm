@@ -17,8 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X,
+  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X, CalendarPlus,
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { checkGoogleConnection } from "@/lib/googleOAuth";
 import type { ActivityType, Lead } from "@/data/mockData";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -104,10 +107,16 @@ export function ActivityDialog({
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const [leadSearch, setLeadSearch] = useState("");
   const [leadDropdownOpen, setLeadDropdownOpen] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    checkGoogleConnection().then(conn => {
+      setGoogleConnected(!!conn);
+      setAddToCalendar(!!conn);
+    });
     const { date: nd, time: nt } = getNow15();
     if (initialValues) {
       setTitle(initialValues.title ?? "");
@@ -158,7 +167,7 @@ export function ActivityDialog({
   const removeParticipant = (email: string) =>
     setParticipants(prev => prev.filter(e => e !== email));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !date || !time) return;
     if (!defaultLead && !selectedLeadId) return;
     onSubmit({
@@ -171,6 +180,30 @@ export function ActivityDialog({
       description,
       leadId: defaultLead ? undefined : selectedLeadId,
     });
+
+    if (type === "meeting" && addToCalendar && googleConnected) {
+      const startDt = `${date}T${time}:00`;
+      const endMs   = new Date(`${date}T${time}`).getTime() + duration * 60_000;
+      const endDt   = new Date(endMs).toISOString().slice(0, 19);
+      supabase.functions
+        .invoke("google-calendar-event", {
+          body: { title: title.trim(), description, start_datetime: startDt, end_datetime: endDt, attendees: participants },
+        })
+        .then(({ data, error }) => {
+          if (error) throw error;
+          toast.success(
+            <span>
+              Evento criado no Google Calendar.{" "}
+              {data?.event_link && (
+                <a href={data.event_link} target="_blank" rel="noopener noreferrer" className="underline">
+                  Ver evento
+                </a>
+              )}
+            </span>,
+          );
+        })
+        .catch(() => toast.error("Não foi possível criar o evento no Google Calendar."));
+    }
   };
 
   const activeLead = defaultLead ?? (selectedLeadId ? leads[selectedLeadId] : undefined);
@@ -297,6 +330,24 @@ export function ActivityDialog({
               ))}
             </div>
           </div>
+
+          {/* Google Calendar — só aparece para Reunião quando conectado */}
+          {type === "meeting" && googleConnected && !readOnly && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                onClick={() => setAddToCalendar(p => !p)}
+                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                  addToCalendar ? "bg-primary border-primary" : "border-card-border bg-background"
+                }`}
+              >
+                {addToCalendar && <Check size={10} className="text-primary-foreground" />}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CalendarPlus size={12} className="text-muted-foreground" />
+                <span className="text-xs text-foreground">Adicionar ao Google Calendar</span>
+              </div>
+            </label>
+          )}
 
           {/* Data + Horário + Duração */}
           <div className="grid grid-cols-3 gap-2">

@@ -1,0 +1,122 @@
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST")    return json({ error: "method not allowed" }, 405);
+
+  try {
+    const clientId    = Deno.env.get("GOOGLE_CLIENT_ID")    ?? "";
+    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
+    const supabaseUrl  = Deno.env.get("SUPABASE_URL")         ?? "";
+    const serviceKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    const authHeader = req.headers.get("authorization") ?? "";
+    const jwt        = authHeader.replace(/^Bearer\s+/i, "");
+
+    let body: { title?: string; description?: string; start_datetime?: string; end_datetime?: string; attendees?: string[] };
+    try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
+
+    const { title, description, start_datetime, end_datetime, attendees = [] } = body;
+    if (!title || !start_datetime || !end_datetime) {
+      return json({ error: "missing required fields: title, start_datetime, end_datetime" }, 400);
+    }
+
+    // Identifica o usuário
+    const db = createClient(supabaseUrl, serviceKey);
+    const authResult = await db.auth.getUser(jwt);
+    const user = authResult.data?.user;
+    if (authResult.error || !user) return json({ error: "unauthorized" }, 401);
+
+    // Busca token Google do usuário
+    const { data: tokenRow, error: tokenErr } = await db
+      .from("google_oauth_tokens")
+      .select("access_token, refresh_token, token_expiry")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (tokenErr || !tokenRow) {
+      return json({ error: "google_not_connected" }, 400);
+    }
+
+    let accessToken: string = tokenRow.access_token;
+
+    // Renova se expirado
+    const isExpired = tokenRow.token_expiry && new Date(tokenRow.token_expiry) <= new Date();
+    if (isExpired && tokenRow.refresh_token) {
+      const refreshRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id:     clientId,
+          client_secret: clientSecret,
+          refresh_token: tokenRow.refresh_token,
+          grant_type:    "refresh_token",
+        }),
+      });
+
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json() as { access_token: string; expires_in?: number };
+        accessToken = refreshData.access_token;
+        await db.from("google_oauth_tokens").update({
+          access_token: accessToken,
+          token_expiry: refreshData.expires_in
+            ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
+            : null,
+        }).eq("user_id", user.id);
+      } else {
+        return json({ error: "token_refresh_failed" }, 502);
+      }
+    }
+
+    // Cria evento no Google Calendar
+    const event = {
+      summary: title,
+      description: description ?? "",
+      start: { dateTime: start_datetime, timeZone: "America/Sao_Paulo" },
+      end:   { dateTime: end_datetime,   timeZone: "America/Sao_Paulo" },
+      ...(attendees.length > 0 && {
+        attendees: attendees.map(email => ({ email })),
+      }),
+    };
+
+    const calRes = await fetch(
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      {
+        method:  "POST",
+        headers: {
+          Authorization:  `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(event),
+      },
+    );
+
+    if (!calRes.ok) {
+      const detail = await calRes.text();
+      console.error("Google Calendar error:", detail);
+      return json({ error: "calendar_event_failed", detail }, 502);
+    }
+
+    const calData = await calRes.json() as { id: string; htmlLink: string };
+
+    return json({ success: true, event_id: calData.id, event_link: calData.htmlLink });
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[calendar] CRASH:", msg);
+    return json({ error: "internal_error", detail: msg }, 500);
+  }
+});
