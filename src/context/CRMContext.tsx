@@ -648,7 +648,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         priority: lead.priority,
         origin: lead.origin,
         product_id: lead.productId || null,
-        entry_date: lead.entryDate || new Date().toISOString().split("T")[0],
+        entry_date: lead.entryDate || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
         next_follow_up: lead.nextFollowUp || null,
         notes: lead.notes,
         tags: lead.tags ?? [],

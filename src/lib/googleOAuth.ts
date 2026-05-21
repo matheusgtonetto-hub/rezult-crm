@@ -20,7 +20,10 @@ export function initGoogleOAuth() {
     access_type:   "offline",
     prompt:        "consent",
   });
-  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  const fullUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  console.log("[GoogleOAuth] REDIRECT_URI:", REDIRECT_URI);
+  console.log("[GoogleOAuth] URL completa:", fullUrl);
+  window.location.href = fullUrl;
 }
 
 export async function checkGoogleConnection() {
