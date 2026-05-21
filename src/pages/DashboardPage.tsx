@@ -70,7 +70,7 @@ export default function DashboardPage() {
   const periodLeads = useMemo(
     () => allLeads.filter(l => {
       const d = parseEntryDate(l.entryDate);
-      return !d || inPeriod(d); // sem entryDate: sempre inclui
+      return d !== null && inPeriod(d);
     }),
     [allLeads, dateRange],
   );
@@ -218,7 +218,7 @@ export default function DashboardPage() {
     const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
     return stages.map((stage, i) => {
       const entered = new Set<string>();
-      if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (!d || (d >= periodCutoff && d <= periodTo)) entered.add(l.id); });
+      if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (d !== null && d >= periodCutoff && d <= periodTo) entered.add(l.id); });
       pipelineLeads.forEach(lead => {
         lead.activities.forEach(act => {
           const d = new Date(act.date);
@@ -267,36 +267,36 @@ export default function DashboardPage() {
 
         {/* ──────────── NEGÓCIOS ──────────── */}
         <TabsContent value="negocios" className="space-y-4 mt-0">
-          {/* KPIs de negócios — totais gerais, todos os pipelines, sem filtro de período */}
+          {/* KPIs de negócios — todos os pipelines, filtrados pelo período */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               {
                 label: "Total de negócios",
-                value: allLeads.length,
-                sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
+                value: periodLeads.length,
+                sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
                 icon: DollarSign,
                 color: "text-primary",
               },
               {
                 label: "Total de ganhos",
-                value: wonLeads.length,
-                sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
-                conv: allLeads.length > 0 ? `${((wonLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
+                value: wonInPeriod.length,
+                sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
+                conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
                 icon: Trophy,
                 color: "text-success",
               },
               {
                 label: "Total perdidos",
-                value: lostLeads.length,
-                sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
-                conv: allLeads.length > 0 ? `${((lostLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
+                value: lostInPeriod.length,
+                sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
+                conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
                 icon: TrendingUp,
                 color: "text-destructive",
               },
               {
                 label: "Total em aberto",
-                value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-                sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+                value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+                sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
                 icon: Clock,
                 color: "text-primary",
               },
@@ -662,7 +662,11 @@ export default function DashboardPage() {
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
-            const pLeads = allLeads.filter(l => l.pipelineId === funnelPipeline!.id);
+            const pLeads = allLeads.filter(l => {
+              if (l.pipelineId !== funnelPipeline!.id) return false;
+              const d = parseEntryDate(l.entryDate);
+              return d !== null && inPeriod(d);
+            });
             const pWon   = pLeads.filter(l => l.dealStatus === "won");
             const pLost  = pLeads.filter(l => l.dealStatus === "lost");
             const pOpen  = pLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
