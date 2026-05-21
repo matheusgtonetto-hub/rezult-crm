@@ -267,36 +267,36 @@ export default function DashboardPage() {
 
         {/* ──────────── NEGÓCIOS ──────────── */}
         <TabsContent value="negocios" className="space-y-4 mt-0">
-          {/* KPIs de negócios */}
+          {/* KPIs de negócios — totais gerais, todos os pipelines, sem filtro de período */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               {
                 label: "Total de negócios",
-                value: periodLeads.length,
-                sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
+                value: allLeads.length,
+                sub: fmt(allLeads.reduce((s, l) => s + l.value, 0)),
                 icon: DollarSign,
                 color: "text-primary",
               },
               {
                 label: "Total de ganhos",
-                value: wonInPeriod.length,
-                sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
-                conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
+                value: wonLeads.length,
+                sub: fmt(wonLeads.reduce((s, l) => s + l.value, 0)),
+                conv: allLeads.length > 0 ? `${((wonLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
                 icon: Trophy,
                 color: "text-success",
               },
               {
                 label: "Total perdidos",
-                value: lostInPeriod.length,
-                sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
-                conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
+                value: lostLeads.length,
+                sub: fmt(lostLeads.reduce((s, l) => s + l.value, 0)),
+                conv: allLeads.length > 0 ? `${((lostLeads.length / allLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
                 icon: TrendingUp,
                 color: "text-destructive",
               },
               {
                 label: "Total em aberto",
-                value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-                sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
+                value: allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
+                sub: fmt(allLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
                 icon: Clock,
                 color: "text-primary",
               },
