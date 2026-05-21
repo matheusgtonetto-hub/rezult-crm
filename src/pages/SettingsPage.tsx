@@ -2187,54 +2187,6 @@ function ConexoesSection() {
   const { user } = useAuth();
   const { company, whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
-  // ── Google Calendar ────────────────────────────────────────────────
-  const [gcalEmail, setGcalEmail]     = useState<string | null>(null);
-  const [gcalLoading, setGcalLoading] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("google_calendar_connections")
-      .select("google_email")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setGcalEmail(data?.google_email ?? null));
-
-    const params = new URLSearchParams(window.location.search);
-    const googleResult = params.get("google");
-    if (googleResult === "connected") {
-      window.history.replaceState({}, "", window.location.pathname);
-      toast.success("Google Calendar conectado com sucesso!");
-      supabase
-        .from("google_calendar_connections")
-        .select("google_email")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => setGcalEmail(data?.google_email ?? null));
-    } else if (googleResult === "error") {
-      window.history.replaceState({}, "", window.location.pathname);
-      toast.error("Não foi possível conectar o Google Calendar.");
-    }
-  }, [user?.id]);
-
-  async function handleGcalDisconnect() {
-    setGcalLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/google/disconnect", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (!res.ok) throw new Error();
-      setGcalEmail(null);
-      toast.success("Google Calendar desconectado");
-    } catch {
-      toast.error("Erro ao desconectar o Google Calendar");
-    } finally {
-      setGcalLoading(false);
-    }
-  }
-
   // Google OAuth state
   const [googleConn, setGoogleConn]           = useState<{ id: string; email: string | null } | null>(null);
   const [googleLoading, setGoogleLoading]     = useState(true);
@@ -2559,55 +2511,6 @@ function ConexoesSection() {
             </div>
             <p className="text-sm font-medium text-[#128A68]">Adicionar WhatsApp</p>
           </button>
-        </div>
-      </div>
-
-      {/* ── Google Calendar ──────────────────────────────────────────── */}
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-[#111] mb-3">Google Calendar</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {gcalEmail ? (
-            <div className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
-                  <span className="text-xs font-medium text-[#16A34A]">Conectado</span>
-                </div>
-                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#AAAAAA] hover:text-[#4285F4]">
-                  google.com <ExternalLink size={11} />
-                </a>
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#4285F4" }}>
-                  <Calendar size={18} color="#FFF" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#111]">Google Calendar</p>
-                  <p className="text-xs text-[#AAAAAA] truncate">{gcalEmail}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-3 border-t border-[#F0F0F0] mt-auto">
-                <button
-                  onClick={handleGcalDisconnect}
-                  disabled={gcalLoading}
-                  className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
-                >
-                  <X size={14} /> {gcalLoading ? "Desconectando..." : "Desconectar"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => { window.location.href = `/api/google/auth?userId=${user?.id}&companyId=${company?.id}`; }}
-              className="bg-white border border-dashed border-[#DDDDDD] rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-[#4285F4] hover:bg-blue-50/30 transition-all min-h-[140px] cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#4285F4" }}>
-                <Calendar size={18} color="#FFF" />
-              </div>
-              <p className="text-sm font-medium text-[#4285F4]">Conectar Google Calendar</p>
-              <p className="text-xs text-[#AAAAAA] text-center">Sincronize reuniões com seu calendário Google</p>
-            </button>
-          )}
         </div>
       </div>
 

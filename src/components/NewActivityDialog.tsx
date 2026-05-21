@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarDays, Phone, MessageCircle, Mail, RefreshCw, Check, CalendarCheck2 } from "lucide-react";
+import { CalendarDays, Phone, MessageCircle, Mail, RefreshCw, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ActivityType } from "@/data/mockData";
 import { supabase } from "@/lib/supabase";
@@ -70,20 +70,6 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
   const [contactEmail, setContactEmail] = useState(defaultEmail);
   const [meetLink, setMeetLink]         = useState("");
   const [description, setDescription]  = useState("");
-  const [syncToGcal, setSyncToGcal]     = useState(true);
-  const [gcalConnected, setGcalConnected] = useState(false);
-
-  // Verifica se o usuário tem Google Calendar conectado
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    supabase
-      .from("google_calendar_connections")
-      .select("id")
-      .eq("user_id", session.user.id)
-      .maybeSingle()
-      .then(({ data }) => setGcalConnected(!!data));
-  }, [session?.user?.id]);
-
   const reset = () => {
     setTitle("");
     setType("meeting");
@@ -92,7 +78,6 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
     setContactEmail(defaultEmail);
     setMeetLink("");
     setDescription("");
-    setSyncToGcal(true);
   };
 
   const handleClose = () => {
@@ -116,31 +101,6 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
     onSubmit(formData);
     reset();
     onClose();
-
-    // Sincroniza com Google Calendar em background (não bloqueia o fechamento do dialog)
-    if (type === "meeting" && gcalConnected && syncToGcal && session?.access_token) {
-      fetch("/api/google/create-event", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          title:           title.trim(),
-          scheduledAt,
-          durationMinutes,
-          meetLink:        meetLink  || undefined,
-          description:     description || undefined,
-          contactEmail:    contactEmail || undefined,
-        }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) toast.success("Evento criado no Google Calendar");
-          else toast.error("Não foi possível criar no Google Calendar");
-        })
-        .catch(() => toast.error("Erro ao sincronizar com Google Calendar"));
-    }
   };
 
   return (
@@ -249,24 +209,6 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
             />
           </div>
 
-          {/* Toggle Google Calendar — só para reunião com gcal conectado */}
-          {type === "meeting" && gcalConnected && (
-            <button
-              type="button"
-              onClick={() => setSyncToGcal(v => !v)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                syncToGcal
-                  ? "border-blue-200 bg-blue-50 text-blue-700"
-                  : "border-card-border bg-background text-muted-foreground"
-              }`}
-            >
-              <CalendarCheck2 size={15} />
-              <span className="flex-1 text-left">Criar evento no Google Calendar</span>
-              <span className={`w-8 h-4 rounded-full transition-colors flex items-center ${syncToGcal ? "bg-blue-500" : "bg-muted"}`}>
-                <span className={`w-3 h-3 rounded-full bg-white shadow transition-transform mx-0.5 ${syncToGcal ? "translate-x-4" : "translate-x-0"}`} />
-              </span>
-            </button>
-          )}
         </div>
 
         <DialogFooter className="gap-2">
