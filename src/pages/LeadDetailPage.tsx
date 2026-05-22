@@ -540,6 +540,7 @@ export default function LeadDetailPage() {
         contactEmail: data.participants[0] || undefined,
         meetLink: data.meetLink || undefined,
         participants: data.participants.length > 0 ? data.participants : undefined,
+        gcalEventId: data.gcalEventId,
       });
       toast.success("Atividade criada!");
     }

@@ -975,6 +975,7 @@ export default function MultiatendimentoPage() {
       meetLink: data.meetLink || undefined,
       participants: data.participants.length > 0 ? data.participants : undefined,
       contactEmail: data.participants[0] || undefined,
+      gcalEventId: data.gcalEventId,
     });
     toast.success("Atividade agendada!");
     setShowScheduleDialog(false);
