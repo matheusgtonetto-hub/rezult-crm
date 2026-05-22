@@ -213,14 +213,17 @@ export function ActivityDialog({
     let gcalEventId: string | undefined = meetGcalEventId;
 
     // Cria evento no Google Calendar se ainda não foi criado via Meet link
+    console.log("[ActivityDialog] handleSubmit - type:", type, "addToCalendar:", addToCalendar, "googleConnected:", googleConnected, "meetEventCreated:", meetEventCreated, "meetGcalEventId:", meetGcalEventId);
     if (type === "meeting" && addToCalendar && googleConnected && !meetEventCreated) {
       const startDt = `${date}T${time}:00`;
       try {
         const { data, error } = await supabase.functions.invoke("google-calendar-event", {
           body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
         });
-        if (!error && data) {
-          gcalEventId = data.event_id as string | undefined;
+        console.log("[ActivityDialog] google-calendar-event response - data:", data, "error:", error);
+        if (!error && data && !data.error) {
+          gcalEventId = data.event_id ? (data.event_id as string) : undefined;
+          console.log("[ActivityDialog] gcalEventId captured:", gcalEventId);
           toast.success(
             <span>
               Evento criado no Google Calendar.{" "}
@@ -231,11 +234,16 @@ export function ActivityDialog({
               )}
             </span>,
           );
+        } else {
+          console.error("[ActivityDialog] Falha ao criar evento:", error ?? data);
+          toast.error("Não foi possível criar o evento no Google Calendar.");
         }
-      } catch {
+      } catch (err) {
+        console.error("[ActivityDialog] Exceção ao criar evento:", err);
         toast.error("Não foi possível criar o evento no Google Calendar.");
       }
     }
+    console.log("[ActivityDialog] gcalEventId final antes do onSubmit:", gcalEventId);
 
     onSubmit({
       title: title.trim(),
