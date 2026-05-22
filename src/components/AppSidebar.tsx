@@ -2,6 +2,7 @@ import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   ContactRound,
   LayoutDashboard,
@@ -36,17 +37,6 @@ type NavItem = {
   locked?: boolean;
   badge?: "IA" | "Em breve";
 };
-
-const navItems: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/pipeline", label: "Pipelines", icon: Columns2 },
-  { to: "/leads", label: "Leads", icon: ContactRound },
-  { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/automacoes", label: "Automações", icon: Workflow },
-  { to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare },
-  { to: "/pilot", label: "Pilot", icon: Brain, badge: "IA", locked: true },
-  { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA", locked: true },
-];
 
 function colorFromString(str: string) {
   let hash = 0;
@@ -83,8 +73,24 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { company, availableCompanies, setSelectedCompany } = useCompany();
+  const { can, canAny } = usePermissions();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
+
+  const navItems: NavItem[] = [
+    { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
+    ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
+      ? [{ to: "/pipeline", label: "Pipelines", icon: Columns2 }] : []),
+    ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
+      ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
+    { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
+    ...(canAny("automacoes:admin", "automacoes:member")
+      ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
+    ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare }] : []),
+    { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },
+    { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const, locked: true },
+  ];
 
   const itemBase =
     "flex items-center justify-center rounded-[15px] transition-colors duration-200 relative shrink-0";

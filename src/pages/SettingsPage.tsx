@@ -24,7 +24,7 @@ import {
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
-  Search, ExternalLink, Settings2,
+  Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { PLANS } from "@/data/plans";
@@ -777,12 +777,151 @@ interface Member {
   full_name: string;
   email: string;
   avatar_url: string | null;
+  permissions: string[];
+  is_owner: boolean;
 }
 
 interface PendingInvite {
   id: string;
   email: string;
   created_at: string;
+}
+
+const PERMISSION_GROUPS = [
+  {
+    id: "pipelines", label: "Pipelines", icon: KanbanSquare,
+    description: "Permissões relacionadas à administração de pipelines.",
+    options: [
+      { id: "pipelines:admin",  label: "Administrador de Pipelines", description: "Permite a criação, modificação, duplicação e configuração de pipelines." },
+      { id: "pipelines:member", label: "Membro de Pipelines",        description: "Possibilita a manutenção de negócios na pipeline." },
+    ],
+  },
+  {
+    id: "automacoes", label: "Automações", icon: Zap,
+    description: "Permissões relacionadas ao fluxo de automações",
+    options: [
+      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
+      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
+    ],
+  },
+  {
+    id: "cadastros", label: "Cadastros auxiliares", icon: Tag,
+    description: "Permissões relacionadas aos cadastros auxiliares",
+    options: [
+      { id: "cadastros:admin",  label: "Administrador de Cadastros Auxiliares", description: "Permite acesso a criação, edição e exclusão dos auxiliares, como: produtos, tags, listas, etc." },
+      { id: "cadastros:member", label: "Membro de Cadastros Auxiliares",        description: "Permite acesso à listagem de auxiliares, como: produtos, tags, listas etc." },
+    ],
+  },
+  {
+    id: "leads", label: "Leads", icon: Users,
+    description: "Permissões relacionadas à gestão de leads.",
+    options: [
+      { id: "leads:admin",      label: "Administrador de Leads",     description: "Permite acesso à listagem de leads e a todas as ações relacionadas à eles." },
+      { id: "leads:operator",   label: "Operador de Leads",          description: "Permite criação e alteração de leads (usar em conjunto com Membro de leads restrito)." },
+      { id: "leads:member",     label: "Membro de Leads",            description: "Permite acesso à listagem de leads." },
+      { id: "leads:restricted", label: "Membro de Leads (restrito)", description: "Acessa os leads o qual o usuário é responsável e os negócios que o usuário é o atendente responsável." },
+    ],
+  },
+  {
+    id: "impulsos", label: "Impulsos", icon: Rocket,
+    description: "Permite acesso ao Impulsos.",
+    options: [
+      { id: "impulsos:admin", label: "Administrador de Boosts", description: "Permite acesso ao Impulsos." },
+    ],
+  },
+  {
+    id: "multiatendimento", label: "Multiatendimento", icon: MessageSquare,
+    description: "Permissões relacionadas ao multiatendimento",
+    options: [
+      { id: "multiatendimento:admin",      label: "Administrador de multiatendimento", description: "Permite acesso completo ao multiatendimento, ao dashboard e às configurações, sem limitações." },
+      { id: "multiatendimento:supervisor", label: "Supervisor de multiatendimento",    description: "Permite acesso ao multiatendimento e ao dashboard, respeitando as permissões configuradas." },
+      { id: "multiatendimento:attendant",  label: "Atendente de multiatendimento",     description: "Permite acesso ao multiatendimento, limitado pelas configurações de permissões." },
+    ],
+  },
+  {
+    id: "atividades", label: "Atividades", icon: CalendarDays,
+    description: "Permissões relacionadas às atividades.",
+    options: [
+      { id: "atividades:admin", label: "Administrador de Atividades", description: "Permite acesso ao calendário de atividade de todos atendentes." },
+    ],
+  },
+];
+
+const PERM_MODULE_LABELS: Record<string, string> = {
+  pipelines: "Pipelines", automacoes: "Automações", cadastros: "Cadastros",
+  leads: "Leads", impulsos: "Impulsos", multiatendimento: "Multi", atividades: "Atividades",
+};
+
+function permSummary(permissions: string[]): string {
+  const modules = [...new Set(permissions.map(p => p.split(":")[0]))];
+  return modules.map(m => PERM_MODULE_LABELS[m] ?? m).join(" · ");
+}
+
+function PermissionsEditor({
+  permissions, onChange,
+}: { permissions: string[]; onChange: (p: string[]) => void }) {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
+    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, true]))
+  );
+
+  const toggle = (permId: string) => {
+    const next = permissions.includes(permId)
+      ? permissions.filter(p => p !== permId)
+      : [...permissions.filter(p => !p.startsWith(permId.split(":")[0] + ":")), permId];
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+      {PERMISSION_GROUPS.map(group => {
+        const Icon = group.icon;
+        const isOpen = openGroups[group.id] ?? true;
+        const groupSelected = group.options.some(o => permissions.includes(o.id));
+        return (
+          <div key={group.id} className="border border-[#EEEEEE] rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-[#FAFAFA] hover:bg-[#F5F5F5] transition-colors"
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${groupSelected ? "bg-[#E1F5EE]" : "bg-[#F0F0F0]"}`}>
+                <Icon size={14} className={groupSelected ? "text-[#128A68]" : "text-[#AAAAAA]"} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className={`text-[13px] font-semibold ${groupSelected ? "text-[#128A68]" : "text-[#111111]"}`}>{group.label}</p>
+                <p className="text-[11px] text-[#AAAAAA] leading-tight">{group.description}</p>
+              </div>
+              <ChevronDown size={14} className={`text-[#AAAAAA] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+            {isOpen && (
+              <div className="divide-y divide-[#F5F5F5]">
+                {group.options.map(opt => {
+                  const selected = permissions.includes(opt.id);
+                  return (
+                    <label
+                      key={opt.id}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-[#F0FDF8]" : "bg-white hover:bg-[#FAFAFA]"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggle(opt.id)}
+                        className="mt-0.5 accent-[#128A68] w-4 h-4 shrink-0"
+                      />
+                      <div>
+                        <p className={`text-[13px] font-medium ${selected ? "text-[#128A68]" : "text-[#111111]"}`}>{opt.label}</p>
+                        <p className="text-[11px] text-[#AAAAAA] mt-0.5 leading-tight">{opt.description}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function EquipeSection() {
@@ -793,9 +932,14 @@ function EquipeSection() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePerms, setInvitePerms] = useState<string[]>([]);
+  const [isAdminInvite, setIsAdminInvite] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
+  const [editMember, setEditMember] = useState<Member | null>(null);
+  const [editPerms, setEditPerms] = useState<string[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isAdmin = company?.owner_id === user?.id;
 
@@ -808,8 +952,8 @@ function EquipeSection() {
     const { data, error } = await supabase.rpc("get_company_members", { p_company_id: company.id });
     if (error) console.error("[EquipeSection] loadMembers error:", error);
     setMembers(
-      ((data ?? []) as { user_id: string; full_name: string; email: string; avatar_url: string | null }[])
-        .map(r => ({ id: r.user_id, full_name: r.full_name, email: r.email, avatar_url: r.avatar_url }))
+      ((data ?? []) as { id: string; full_name: string; email: string; avatar_url: string | null; permissions: string[]; is_owner: boolean }[])
+        .map(r => ({ id: r.id, full_name: r.full_name, email: r.email, avatar_url: r.avatar_url, permissions: r.permissions ?? [], is_owner: r.is_owner }))
     );
     setLoading(false);
   }, [company?.id]);
@@ -832,8 +976,10 @@ function EquipeSection() {
   const handleAddMember = async () => {
     if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
     setInviting(true);
+    const permsToSend = isAdminInvite ? ["admin"] : invitePerms;
     const { data, error } = await supabase.rpc("add_member_to_company", {
       member_email: inviteEmail.trim().toLowerCase(),
+      member_permissions: permsToSend,
     });
     setInviting(false);
 
@@ -847,17 +993,18 @@ function EquipeSection() {
       toast.success("Membro adicionado com sucesso!");
       await Promise.all([loadMembers(), loadPendingInvites()]);
     } else if (data === "invited") {
-      toast.success("Convite registrado! Quando esse e-mail criar uma conta, o acesso será liberado automaticamente.");
+      toast.success("Convite registrado! O acesso será liberado ao criar conta com este e-mail.");
       await loadPendingInvites();
     } else if (data === "no_company") {
       toast.error("Sua conta ainda não está vinculada a uma empresa.");
       return;
     } else {
-      console.error("[EquipeSection] Retorno inesperado da função:", data);
-      toast.error("Resposta inesperada do servidor. Verifique o console.");
+      toast.error("Resposta inesperada do servidor.");
       return;
     }
     setInviteEmail("");
+    setInvitePerms([]);
+    setIsAdminInvite(false);
     setAddOpen(false);
   };
 
@@ -878,6 +1025,25 @@ function EquipeSection() {
     if (error) { toast.error("Erro ao cancelar convite."); return; }
     toast.success("Convite cancelado.");
     setPendingInvites(prev => prev.filter(i => i.email !== email));
+  };
+
+  const openEditPermissions = (m: Member) => {
+    setEditMember(m);
+    setEditPerms(m.permissions);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!editMember) return;
+    setSavingEdit(true);
+    const { error } = await supabase.rpc("update_member_permissions", {
+      p_member_id: editMember.id,
+      p_permissions: editPerms,
+    });
+    setSavingEdit(false);
+    if (error) { toast.error("Erro ao salvar permissões."); return; }
+    toast.success("Permissões atualizadas!");
+    setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, permissions: editPerms } : m));
+    setEditMember(null);
   };
 
   return (
@@ -909,8 +1075,8 @@ function EquipeSection() {
         ) : (
           <div className="space-y-2">
             {members.map(m => {
-              const isOwner = m.id === company?.owner_id;
-              const isSelf  = m.id === user?.id;
+              const isSelf = m.id === user?.id;
+              const summary = m.is_owner ? null : permSummary(m.permissions);
               return (
                 <div
                   key={m.id}
@@ -927,25 +1093,49 @@ function EquipeSection() {
                         {m.full_name || "—"}
                         {isSelf && <span className="text-[#AAAAAA] font-normal ml-1">(você)</span>}
                       </p>
-                      {isOwner && (
+                      {m.is_owner && (
                         <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
                           <Crown size={9} /> Admin
+                        </span>
+                      )}
+                      {!m.is_owner && m.permissions.includes("admin") && (
+                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                          <Crown size={9} /> Admin
+                        </span>
+                      )}
+                      {!m.is_owner && !m.permissions.includes("admin") && summary && (
+                        <span className="text-[10px] text-[#128A68] bg-[#E1F5EE] rounded-full px-2 py-0.5 shrink-0">
+                          {summary}
+                        </span>
+                      )}
+                      {!m.is_owner && !m.permissions.includes("admin") && !summary && (
+                        <span className="text-[10px] text-[#AAAAAA] bg-[#F5F5F5] rounded-full px-2 py-0.5 shrink-0">
+                          Sem permissões
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] text-[#AAAAAA] truncate">{m.email}</p>
                   </div>
-                  {isAdmin && !isOwner && (
-                    <button
-                      onClick={() => handleRemove(m.id)}
-                      disabled={removing === m.id}
-                      className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors disabled:opacity-50"
-                      title="Remover da equipe"
-                    >
-                      {removing === m.id
-                        ? <div className="w-4 h-4 rounded-full border-2 border-[#E24B4A] border-t-transparent animate-spin" />
-                        : <UserMinus size={15} />}
-                    </button>
+                  {isAdmin && !m.is_owner && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => openEditPermissions(m)}
+                        className="text-[11px] text-[#128A68] hover:underline px-2 py-1"
+                        title="Editar permissões"
+                      >
+                        Editar permissões
+                      </button>
+                      <button
+                        onClick={() => handleRemove(m.id)}
+                        disabled={removing === m.id}
+                        className="text-[#CCCCCC] hover:text-[#E24B4A] p-1 transition-colors disabled:opacity-50"
+                        title="Remover da equipe"
+                      >
+                        {removing === m.id
+                          ? <div className="w-4 h-4 rounded-full border-2 border-[#E24B4A] border-t-transparent animate-spin" />
+                          : <UserMinus size={15} />}
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -959,7 +1149,7 @@ function EquipeSection() {
         )}
       </Card>
 
-      {/* Convites pendentes — visível apenas para admin */}
+      {/* Convites pendentes */}
       {isAdmin && (
         <Card>
           <SectionTitle
@@ -1004,23 +1194,51 @@ function EquipeSection() {
         </Card>
       )}
 
-      <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); } }}>
-        <DialogContent className="max-w-sm">
+      {/* Dialog: Adicionar membro */}
+      <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-1.5">
-            <label className="text-xs font-medium text-[#535353]">E-mail do usuário *</label>
-            <Input
-              type="email"
-              placeholder="joao@empresa.com"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleAddMember()}
-              className="border-[#EEEEEE]"
-              autoFocus
-            />
-            <div className="bg-[#F0F9F5] border border-[#C6E9DC] rounded-lg px-3 py-2.5 mt-2">
+          <div className="py-2 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[#535353]">E-mail do usuário *</label>
+              <Input
+                type="email"
+                placeholder="joao@empresa.com"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                className="border-[#EEEEEE]"
+                autoFocus
+              />
+            </div>
+
+            {/* Toggle admin */}
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-[#EEEEEE] bg-white hover:bg-[#FAFAFA]"}`}>
+              <input
+                type="checkbox"
+                checked={isAdminInvite}
+                onChange={e => setIsAdminInvite(e.target.checked)}
+                className="accent-[#D97706] w-4 h-4 shrink-0"
+              />
+              <div>
+                <p className={`text-[13px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-[#111111]"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[11px] text-[#AAAAAA]">Igual ao dono da conta. Vê e gerencia tudo.</p>
+              </div>
+            </label>
+
+            {/* Grupos de permissão — ocultos se admin */}
+            {!isAdminInvite && (
+              <>
+                <p className="text-xs font-semibold text-[#535353] uppercase tracking-wide">Permissões por módulo</p>
+                <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
+              </>
+            )}
+
+            <div className="bg-[#F0F9F5] border border-[#C6E9DC] rounded-lg px-3 py-2.5">
               <p className="text-[11px] text-[#128A68] leading-relaxed">
                 <strong>Já tem conta:</strong> o acesso é liberado imediatamente.<br />
                 <strong>Sem conta ainda:</strong> o convite fica registrado e o acesso é liberado automaticamente ao criar a conta com este e-mail.
@@ -1031,6 +1249,46 @@ function EquipeSection() {
             <Button variant="outline" onClick={() => setAddOpen(false)} className="border-[#EEEEEE]">Cancelar</Button>
             <Button onClick={handleAddMember} disabled={inviting} className="bg-[#128A68] hover:bg-[#128A68]/90">
               {inviting ? "Processando..." : "Convidar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Editar permissões */}
+      <Dialog open={!!editMember} onOpenChange={v => !v && setEditMember(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar permissões — {editMember?.full_name || editMember?.email}</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            {/* Toggle admin */}
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-[#EEEEEE] bg-white hover:bg-[#FAFAFA]"}`}>
+              <input
+                type="checkbox"
+                checked={editPerms.includes("admin")}
+                onChange={e => setEditPerms(e.target.checked ? ["admin"] : [])}
+                className="accent-[#D97706] w-4 h-4 shrink-0"
+              />
+              <div>
+                <p className={`text-[13px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-[#111111]"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[11px] text-[#AAAAAA]">Igual ao dono da conta. Vê e gerencia tudo.</p>
+              </div>
+            </label>
+
+            {!editPerms.includes("admin") && (
+              <>
+                <p className="text-xs font-semibold text-[#535353] uppercase tracking-wide">Permissões por módulo</p>
+                <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
+              </>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditMember(null)} className="border-[#EEEEEE]">Cancelar</Button>
+            <Button onClick={handleSavePermissions} disabled={savingEdit} className="bg-[#128A68] hover:bg-[#128A68]/90">
+              {savingEdit ? "Salvando..." : "Salvar permissões"}
             </Button>
           </DialogFooter>
         </DialogContent>
