@@ -499,10 +499,25 @@ export default function CalendarPage() {
     }
   }, [leads, deleteActivity]);
 
-  // Auto-sync ao abrir o calendário (silencioso)
+  // Mantém referência atualizada para não precisar recriar o event listener
+  const syncFromGoogleRef = useRef(syncFromGoogle);
+  useEffect(() => { syncFromGoogleRef.current = syncFromGoogle; }, [syncFromGoogle]);
+
+  // Auto-sync silencioso ao carregar o calendário
   useEffect(() => {
-    if (!crmLoading) syncFromGoogle(false);
+    if (!crmLoading) syncFromGoogleRef.current(false);
   }, [crmLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync quando o usuário volta para a aba (ex: deletou do Google Calendar em outra aba)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncFromGoogleRef.current(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   // Fecha o dropdown ao clicar fora
   useEffect(() => {
