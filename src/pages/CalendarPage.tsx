@@ -1,12 +1,14 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
 import { Button } from "@/components/ui/button";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { checkGoogleConnection } from "@/lib/googleOAuth";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ interface CalEvent {
   userName?: string;
   isCompleted: boolean;
   isNoShow: boolean;
+  gcalEventId?: string;
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -431,7 +434,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
 
 export default function CalendarPage() {
   const navigate = useNavigate();
-  const { leads, addActivity, patchActivity, teamMembers, memberEmails, memberAvatars, memberColors, crmLoading } = useCRM();
+  const { leads, addActivity, patchActivity, deleteActivity, teamMembers, memberEmails, memberAvatars, memberColors, crmLoading } = useCRM();
   const { profile } = useProfile();
   const [view, setView] = useState<CalView>("semana");
   const today = useMemo(() => new Date(), []);
@@ -439,6 +442,8 @@ export default function CalendarPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  const [syncing, setSyncing] = useState(false);
 
   const myName = profile?.full_name ?? "";
   const [selectedUsers, setSelectedUsers] = useState<string[]>(() =>
@@ -453,6 +458,51 @@ export default function CalendarPage() {
       setSelectedUsers([myName]);
     }
   }, [myName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync Google Calendar → CRM: remove atividades cujos eventos foram deletados no Google
+  const syncFromGoogle = useCallback(async (showToast = false) => {
+    const conn = await checkGoogleConnection();
+    if (!conn) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("google-calendar-sync", { body: {} });
+      if (error || !data) { if (showToast) toast.error("Erro ao sincronizar com o Google Calendar."); return; }
+      if (data.error === "sync_token_expired") {
+        // Token expirado — na próxima chamada fará full sync
+        if (showToast) toast.info("Sincronização reiniciada. Tente novamente.");
+        return;
+      }
+      const cancelledIds: string[] = data.cancelled_event_ids ?? [];
+      if (cancelledIds.length > 0) {
+        // Encontra atividades com esses gcalEventIds e deleta do CRM
+        const toDelete: { leadId: string; activityId: string }[] = [];
+        Object.values(leads).forEach(lead => {
+          (lead.activities ?? []).forEach(act => {
+            if (act.gcalEventId && cancelledIds.includes(act.gcalEventId)) {
+              toDelete.push({ leadId: lead.id, activityId: act.id });
+            }
+          });
+        });
+        toDelete.forEach(({ leadId, activityId }) => deleteActivity(leadId, activityId));
+        if (showToast && toDelete.length > 0) {
+          toast.success(`${toDelete.length} atividade${toDelete.length > 1 ? "s" : ""} removida${toDelete.length > 1 ? "s" : ""} (deletada${toDelete.length > 1 ? "s" : ""} no Google Calendar).`);
+        } else if (showToast) {
+          toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
+        }
+      } else if (showToast) {
+        toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
+      }
+    } catch {
+      if (showToast) toast.error("Erro ao sincronizar com o Google Calendar.");
+    } finally {
+      setSyncing(false);
+    }
+  }, [leads, deleteActivity]);
+
+  // Auto-sync ao abrir o calendário (silencioso)
+  useEffect(() => {
+    if (!crmLoading) syncFromGoogle(false);
+  }, [crmLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fecha o dropdown ao clicar fora
   useEffect(() => {
@@ -496,6 +546,7 @@ export default function CalendarPage() {
             userName: a.userName,
             isCompleted: !!a.completedAt,
             isNoShow: !!a.noShowAt,
+            gcalEventId: a.gcalEventId,
           }))
       ),
     [leads]
@@ -556,10 +607,18 @@ export default function CalendarPage() {
         meetLink: data.meetLink || undefined,
         participants: data.participants.length > 0 ? data.participants : undefined,
         contactEmail: data.participants[0] || undefined,
+        gcalEventId: data.gcalEventId,
       });
       toast.success("Atividade agendada!");
       setShowModal(false);
     }
+  };
+
+  const handleDeleteEvent = () => {
+    if (!editingEvent) return;
+    deleteActivity(editingEvent.leadId, editingEvent.id, editingEvent.gcalEventId);
+    toast.success("Atividade excluída.");
+    setEditingEvent(null);
   };
 
   return (
@@ -796,6 +855,16 @@ export default function CalendarPage() {
               ))}
             </div>
 
+            <button
+              onClick={() => syncFromGoogle(true)}
+              disabled={syncing}
+              title="Sincronizar com Google Calendar"
+              className="flex items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-50"
+              style={{ width: 32, height: 32, borderColor: "#E5E5E5" }}
+            >
+              <RefreshCw size={14} className={`text-muted-foreground ${syncing ? "animate-spin" : ""}`} />
+            </button>
+
             <Button
               size="sm"
               className="h-8 rounded-md text-xs"
@@ -842,6 +911,7 @@ export default function CalendarPage() {
         open={showModal || !!editingEvent}
         onClose={() => { setShowModal(false); setEditingEvent(null); }}
         onSubmit={handleActivitySubmit}
+        onDelete={editingEvent ? handleDeleteEvent : undefined}
         isEditing={!!editingEvent}
         readOnly={!!editingEvent && (() => {
           const act = leads[editingEvent.leadId]?.activities?.find(a => a.id === editingEvent.id);

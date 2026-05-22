@@ -27,6 +27,7 @@ export interface Activity {
   completedAt?: string;
   noShowAt?: string;
   participants?: string[];
+  gcalEventId?: string;
 }
 
 export type CustomFieldType = "text" | "date" | "boolean";

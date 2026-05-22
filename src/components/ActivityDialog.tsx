@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X, CalendarPlus, Video, Loader2,
+  CalendarDays, Phone, MessageCircle, RefreshCw, Check, X, CalendarPlus, Video, Loader2, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -50,12 +50,14 @@ export interface ActivitySubmitData {
   meetLink: string;
   description: string;
   leadId?: string;
+  gcalEventId?: string;
 }
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: ActivitySubmitData) => void;
+  onDelete?: () => void;
   isEditing?: boolean;
   readOnly?: boolean;
   onGoToLead?: () => void;
@@ -90,7 +92,7 @@ function getNow15() {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ActivityDialog({
-  open, onClose, onSubmit, isEditing = false, readOnly = false, onGoToLead,
+  open, onClose, onSubmit, onDelete, isEditing = false, readOnly = false, onGoToLead,
   leads, teamMembers, memberEmails, memberAvatars, memberColors,
   defaultLead, initialValues,
 }: Props) {
@@ -111,6 +113,8 @@ export function ActivityDialog({
   const [addToCalendar, setAddToCalendar] = useState(false);
   const [generatingMeet, setGeneratingMeet] = useState(false);
   const [meetEventCreated, setMeetEventCreated] = useState(false);
+  const [meetGcalEventId, setMeetGcalEventId] = useState<string | undefined>();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -160,6 +164,8 @@ export function ActivityDialog({
     setParticipantInput("");
     setDropdownOpen(false);
     setLeadDropdownOpen(false);
+    setMeetGcalEventId(undefined);
+    setConfirmDelete(false);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addParticipant = (email: string) => {
@@ -189,6 +195,7 @@ export function ActivityDialog({
       if (data?.meet_link) {
         setMeetLink(data.meet_link);
         setMeetEventCreated(true);
+        if (data.event_id) setMeetGcalEventId(data.event_id as string);
       } else {
         toast.error("Link do Meet não retornado. Verifique se o Google Calendar está conectado.");
       }
@@ -202,6 +209,34 @@ export function ActivityDialog({
   const handleSubmit = async () => {
     if (!title.trim() || !date || !time) return;
     if (!defaultLead && !selectedLeadId) return;
+
+    let gcalEventId: string | undefined = meetGcalEventId;
+
+    // Cria evento no Google Calendar se ainda não foi criado via Meet link
+    if (type === "meeting" && addToCalendar && googleConnected && !meetEventCreated) {
+      const startDt = `${date}T${time}:00`;
+      try {
+        const { data, error } = await supabase.functions.invoke("google-calendar-event", {
+          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
+        });
+        if (!error && data) {
+          gcalEventId = data.event_id as string | undefined;
+          toast.success(
+            <span>
+              Evento criado no Google Calendar.{" "}
+              {data.event_link && (
+                <a href={data.event_link as string} target="_blank" rel="noopener noreferrer" className="underline">
+                  Ver evento
+                </a>
+              )}
+            </span>,
+          );
+        }
+      } catch {
+        toast.error("Não foi possível criar o evento no Google Calendar.");
+      }
+    }
+
     onSubmit({
       title: title.trim(),
       type,
@@ -211,29 +246,8 @@ export function ActivityDialog({
       meetLink,
       description,
       leadId: defaultLead ? undefined : selectedLeadId,
+      gcalEventId,
     });
-
-    if (type === "meeting" && addToCalendar && googleConnected && !meetEventCreated) {
-      const startDt = `${date}T${time}:00`;
-      supabase.functions
-        .invoke("google-calendar-event", {
-          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
-        })
-        .then(({ data, error }) => {
-          if (error) throw error;
-          toast.success(
-            <span>
-              Evento criado no Google Calendar.{" "}
-              {data?.event_link && (
-                <a href={data.event_link} target="_blank" rel="noopener noreferrer" className="underline">
-                  Ver evento
-                </a>
-              )}
-            </span>,
-          );
-        })
-        .catch(() => toast.error("Não foi possível criar o evento no Google Calendar."));
-    }
   };
 
   const activeLead = defaultLead ?? (selectedLeadId ? leads[selectedLeadId] : undefined);
@@ -705,37 +719,122 @@ export function ActivityDialog({
 
         <DialogFooter className="gap-2 mt-2">
           {readOnly ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="border-card-border w-full"
-              style={{ borderRadius: 15 }}
-            >
-              Fechar
-            </Button>
+            <div className="flex w-full gap-2">
+              {onDelete && (
+                confirmDelete ? (
+                  <div className="flex gap-1.5 flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(false)}
+                      className="border-card-border flex-1 text-xs"
+                      style={{ borderRadius: 15 }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => { onDelete(); onClose(); }}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
+                      style={{ borderRadius: 15 }}
+                    >
+                      Confirmar exclusão
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      className="border-red-200 text-red-500 hover:bg-red-50"
+                      style={{ borderRadius: 15 }}
+                    >
+                      <Trash2 size={13} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onClose}
+                      className="border-card-border flex-1"
+                      style={{ borderRadius: 15 }}
+                    >
+                      Fechar
+                    </Button>
+                  </>
+                )
+              )}
+              {!onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  className="border-card-border w-full"
+                  style={{ borderRadius: 15 }}
+                >
+                  Fechar
+                </Button>
+              )}
+            </div>
           ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onClose}
-                className="border-card-border flex-1"
-                style={{ borderRadius: 15 }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                className="flex-1"
-                style={{ borderRadius: 15 }}
-              >
-                <Check size={13} className="mr-1" />
-                {isEditing ? "Salvar alterações" : "Criar atividade"}
-              </Button>
-            </>
+            <div className="flex w-full gap-2">
+              {onDelete && isEditing && (
+                confirmDelete ? (
+                  <div className="flex gap-1.5 flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(false)}
+                      className="border-card-border flex-1 text-xs"
+                      style={{ borderRadius: 15 }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => { onDelete(); onClose(); }}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
+                      style={{ borderRadius: 15 }}
+                    >
+                      Confirmar exclusão
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDelete(true)}
+                    className="border-red-200 text-red-500 hover:bg-red-50 shrink-0"
+                    style={{ borderRadius: 15 }}
+                  >
+                    <Trash2 size={13} />
+                  </Button>
+                )
+              )}
+              {!confirmDelete && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onClose}
+                    className="border-card-border flex-1"
+                    style={{ borderRadius: 15 }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    className="flex-1"
+                    style={{ borderRadius: 15 }}
+                  >
+                    <Check size={13} className="mr-1" />
+                    {isEditing ? "Salvar alterações" : "Criar atividade"}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
         </DialogFooter>
       </DialogContent>

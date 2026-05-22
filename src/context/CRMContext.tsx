@@ -56,7 +56,7 @@ interface CRMContextType {
   uncompleteActivity: (leadId: string, activityId: string) => void;
   markNoShow: (leadId: string, activityId: string) => void;
   unmarkNoShow: (leadId: string, activityId: string) => void;
-  deleteActivity: (leadId: string, activityId: string) => void;
+  deleteActivity: (leadId: string, activityId: string, gcalEventId?: string) => void;
   pinActivity: (leadId: string, activityId: string, pinned: boolean) => void;
 
   crmTags: Tag[];
@@ -196,6 +196,7 @@ function dbToActivity(row: Record<string, unknown>): Activity {
     meetLink: (row.meet_link as string) ?? undefined,
     completedAt: (row.completed_at as string) ?? undefined,
     noShowAt: (row.no_show_at as string) ?? undefined,
+    gcalEventId: (row.gcal_event_id as string) ?? undefined,
     participants: (() => {
       const p = row.participants;
       if (!p) return undefined;
@@ -1177,6 +1178,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         contact_email: activity.contactEmail ?? null,
         meet_link: activity.meetLink ?? null,
         participants: activity.participants ? JSON.stringify(activity.participants) : null,
+        gcal_event_id: activity.gcalEventId ?? null,
       }).select().single().then(({ data, error }) => {
         if (error) { console.error("addActivity error:", error.message); return; }
         if (data) {
@@ -1288,7 +1290,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const deleteActivity = useCallback((leadId: string, activityId: string) => {
+  const deleteActivity = useCallback((leadId: string, activityId: string, gcalEventId?: string) => {
     setLeads(prev => ({
       ...prev,
       [leadId]: {
@@ -1299,6 +1301,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (user) {
       supabase.from("activities").delete().eq("id", activityId)
         .then(({ error }) => { if (error) console.error("deleteActivity error:", error.message); });
+      if (gcalEventId) {
+        supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId } })
+          .catch(() => {});
+      }
     }
   }, [user]);
 
