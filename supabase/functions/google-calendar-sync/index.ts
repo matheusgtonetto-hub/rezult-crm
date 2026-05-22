@@ -26,13 +26,19 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
+    let body: { event_ids?: string[] };
+    try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
+
+    const { event_ids = [] } = body;
+    if (event_ids.length === 0) return json({ success: true, deleted_event_ids: [] });
+
     const db = createClient(supabaseUrl, serviceKey);
     const { data: { user }, error: authError } = await db.auth.getUser(jwt);
     if (authError || !user) return json({ error: "unauthorized" }, 401);
 
     const { data: tokenRow, error: tokenErr } = await db
       .from("google_oauth_tokens")
-      .select("access_token, refresh_token, token_expiry, gcal_sync_token")
+      .select("access_token, refresh_token, token_expiry")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -40,6 +46,7 @@ serve(async (req) => {
 
     let accessToken: string = tokenRow.access_token;
 
+    // Renova token se expirado
     const isExpired = tokenRow.token_expiry && new Date(tokenRow.token_expiry) <= new Date();
     if (isExpired && tokenRow.refresh_token) {
       const refreshRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -66,52 +73,27 @@ serve(async (req) => {
       }
     }
 
-    // Busca eventos incrementalmente usando syncToken, ou faz sync inicial
-    const syncToken: string | null = tokenRow.gcal_sync_token ?? null;
-    let url: string;
+    // Verifica cada evento individualmente no Google Calendar
+    const results = await Promise.all(
+      event_ids.map(async (eventId) => {
+        try {
+          const res = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+          if (res.status === 404 || res.status === 410) return { eventId, deleted: true };
+          if (!res.ok) return { eventId, deleted: false };
+          const data = await res.json() as { status?: string };
+          return { eventId, deleted: data.status === "cancelled" };
+        } catch {
+          return { eventId, deleted: false };
+        }
+      }),
+    );
 
-    if (syncToken) {
-      url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?syncToken=${encodeURIComponent(syncToken)}&showDeleted=true`;
-    } else {
-      // Sync inicial: só eventos futuros (últimos 7 dias + próximos 90 dias)
-      const timeMin = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&showDeleted=true&maxResults=250&singleEvents=true`;
-    }
+    const deletedEventIds = results.filter(r => r.deleted).map(r => r.eventId);
+    return json({ success: true, deleted_event_ids: deletedEventIds });
 
-    const gcalRes = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    // syncToken expirado — resetar e retornar para o cliente tentar de novo
-    if (gcalRes.status === 410) {
-      await db.from("google_oauth_tokens").update({ gcal_sync_token: null }).eq("user_id", user.id);
-      return json({ error: "sync_token_expired", cancelled_event_ids: [] });
-    }
-
-    if (!gcalRes.ok) {
-      const detail = await gcalRes.text();
-      return json({ error: "gcal_list_failed", detail }, 502);
-    }
-
-    const gcalData = await gcalRes.json() as {
-      items?: Array<{ id: string; status?: string }>;
-      nextSyncToken?: string;
-      nextPageToken?: string;
-    };
-
-    // Salva novo sync token
-    if (gcalData.nextSyncToken) {
-      await db.from("google_oauth_tokens")
-        .update({ gcal_sync_token: gcalData.nextSyncToken })
-        .eq("user_id", user.id);
-    }
-
-    // Retorna IDs de eventos cancelados/deletados
-    const cancelledIds = (gcalData.items ?? [])
-      .filter(e => e.status === "cancelled")
-      .map(e => e.id);
-
-    return json({ success: true, cancelled_event_ids: cancelledIds });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[calendar-sync] CRASH:", msg);

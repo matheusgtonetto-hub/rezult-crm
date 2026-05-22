@@ -459,38 +459,45 @@ export default function CalendarPage() {
     }
   }, [myName]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync Google Calendar → CRM: remove atividades cujos eventos foram deletados no Google
+  // Sync Google Calendar → CRM: verifica diretamente cada evento e remove os deletados
   const syncFromGoogle = useCallback(async (showToast = false) => {
     const conn = await checkGoogleConnection();
     if (!conn) return;
+
+    // Coleta todos os gcal_event_ids das atividades carregadas
+    const tracked: { leadId: string; activityId: string; gcalEventId: string }[] = [];
+    Object.values(leads).forEach(lead => {
+      (lead.activities ?? []).forEach(act => {
+        if (act.gcalEventId) {
+          tracked.push({ leadId: lead.id, activityId: act.id, gcalEventId: act.gcalEventId });
+        }
+      });
+    });
+
+    if (tracked.length === 0) return; // nada para verificar
+
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", { body: {} });
-      if (error || !data) { if (showToast) toast.error("Erro ao sincronizar com o Google Calendar."); return; }
-      if (data.error === "sync_token_expired") {
-        // Token expirado — na próxima chamada fará full sync
-        if (showToast) toast.info("Sincronização reiniciada. Tente novamente.");
+      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+        body: { event_ids: tracked.map(t => t.gcalEventId) },
+      });
+
+      if (error || !data?.success) {
+        if (showToast) toast.error("Erro ao sincronizar com o Google Calendar.");
         return;
       }
-      const cancelledIds: string[] = data.cancelled_event_ids ?? [];
-      if (cancelledIds.length > 0) {
-        // Encontra atividades com esses gcalEventIds e deleta do CRM
-        const toDelete: { leadId: string; activityId: string }[] = [];
-        Object.values(leads).forEach(lead => {
-          (lead.activities ?? []).forEach(act => {
-            if (act.gcalEventId && cancelledIds.includes(act.gcalEventId)) {
-              toDelete.push({ leadId: lead.id, activityId: act.id });
-            }
-          });
-        });
-        toDelete.forEach(({ leadId, activityId }) => deleteActivity(leadId, activityId));
-        if (showToast && toDelete.length > 0) {
-          toast.success(`${toDelete.length} atividade${toDelete.length > 1 ? "s" : ""} removida${toDelete.length > 1 ? "s" : ""} (deletada${toDelete.length > 1 ? "s" : ""} no Google Calendar).`);
-        } else if (showToast) {
-          toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
-        }
-      } else if (showToast) {
-        toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
+
+      const deletedIds: string[] = data.deleted_event_ids ?? [];
+      if (deletedIds.length === 0) {
+        if (showToast) toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
+        return;
+      }
+
+      const toDelete = tracked.filter(t => deletedIds.includes(t.gcalEventId));
+      toDelete.forEach(({ leadId, activityId }) => deleteActivity(leadId, activityId));
+
+      if (showToast) {
+        toast.success(`${toDelete.length} atividade${toDelete.length > 1 ? "s removidas" : " removida"} (deletada${toDelete.length > 1 ? "s" : ""} no Google Calendar).`);
       }
     } catch {
       if (showToast) toast.error("Erro ao sincronizar com o Google Calendar.");
