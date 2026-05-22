@@ -367,6 +367,20 @@ export default function MultiatendimentoPage() {
     return () => document.removeEventListener("mousedown", handle);
   }, [showListPicker]);
 
+  // ── settings modal ───────────────────────────────────────────────────
+  const [showMultiSettings, setShowMultiSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"config" | "dept" | "agents" | "quick">("config");
+  const [cfgDefDept, setCfgDefDept]         = useState("");
+  const [cfgHorario, setCfgHorario]         = useState("");
+  const [cfgTranscricao, setCfgTranscricao] = useState("desativado");
+  const [cfgAssinatura, setCfgAssinatura]   = useState(false);
+  const [cfgMantAtend, setCfgMantAtend]     = useState(false);
+  const [cfgMantDept, setCfgMantDept]       = useState(false);
+  const [selectedAgent, setSelectedAgent]   = useState<string | null>(null);
+  const [agentSearch, setAgentSearch]       = useState("");
+  const [deptSearch, setDeptSearch]         = useState("");
+  const [qmSearch, setQmSearch]             = useState("");
+
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
   const [showFiles, setShowFiles]         = useState(false);
@@ -1261,7 +1275,7 @@ export default function MultiatendimentoPage() {
             />
             <Settings
               size={16} color="#AAA" style={{ cursor: "pointer" }}
-              onClick={() => navigate("/configuracoes")}
+              onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
             />
           </div>
 
@@ -2064,6 +2078,221 @@ export default function MultiatendimentoPage() {
         currentAssignee={cs?.assignedTo}
       />
 
+      {/* ── MODAL: configurações multiatendimento ───────────────────── */}
+      {showMultiSettings && (
+        <div
+          onClick={() => setShowMultiSettings(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#FFF", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
+          >
+            {/* sidebar */}
+            <div style={{ width: 180, background: "#F8F8F8", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #EEEEEE" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Multiatendimento</div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Configurações</div>
+              </div>
+              {(["config", "dept", "agents", "quick"] as const).map((tab, i) => {
+                const labels = ["Configurações", "Departamento", "Atendentes", "Mensagens rápidas"];
+                const active2 = settingsTab === tab;
+                return (
+                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "#128A68" : "#444", borderLeft: active2 ? "3px solid #128A68" : "3px solid transparent", transition: "all 0.15s" }}>
+                    {labels[i]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* content */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* header */}
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>
+                    {settingsTab === "config" ? "Configurações" : settingsTab === "dept" ? "Departamentos" : settingsTab === "agents" ? "Atendentes" : "Mensagens rápidas"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                    {settingsTab === "config" ? "Gerencie as configurações de atendimento" : settingsTab === "dept" ? "Organize suas equipes com departamentos" : settingsTab === "agents" ? "Gerencie os atendentes e suas permissões" : "Crie e gerencie mensagens rápidas"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {settingsTab === "dept" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
+                  {settingsTab === "quick" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
+                  <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+                </div>
+              </div>
+
+              {/* body */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+
+                {/* ── Configurações ── */}
+                {settingsTab === "config" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    {/* coluna esquerda */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {[
+                        { icon: <List size={15} color="#4285F4" />, title: "Departamento padrão", desc: "As conversas por padrão serão iniciadas nesse departamento", value: cfgDefDept, set: setCfgDefDept, options: [{ v: "", l: "Selecionar" }, ...teamMembers.map(m => ({ v: m, l: m }))] },
+                        { icon: <Clock size={15} color="#4285F4" />, title: "Horário de funcionamento", desc: "Defina o horário padrão de funcionamento dos departamentos", value: cfgHorario, set: setCfgHorario, options: [{ v: "", l: "Selecionar" }, { v: "24h", l: "24 horas" }, { v: "comercial", l: "Horário comercial (8h–18h)" }] },
+                        { icon: <Mic size={15} color="#4285F4" />, title: "Transcrição de áudios", desc: "Defina quando as mensagens de áudio serão transcritas automaticamente", value: cfgTranscricao, set: setCfgTranscricao, options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
+                      ].map((item, i) => (
+                        <div key={i} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.title}</div>
+                              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                            </div>
+                          </div>
+                          <select value={item.value} onChange={e => item.set(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
+                            {item.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* coluna direita */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {/* Assinatura */}
+                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color="#4285F4" /></div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Assinatura obrigatória</div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
+                        </div>
+                        <MuToggle checked={cfgAssinatura} onChange={() => setCfgAssinatura(p => !p)} />
+                      </div>
+
+                      {/* Informações ao finalizar */}
+                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CheckCircle2 size={15} color="#4285F4" /></div>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Informações ao finalizar</div>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                          {[
+                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend },
+                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept },
+                          ].map((row, i) => (
+                            <div key={i}>
+                              {i > 0 && <div style={{ height: 1, background: "#EEEEEE", margin: "8px 0" }} />}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
+                                <MuToggle checked={row.val} onChange={() => row.set((p: boolean) => !p)} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Departamento ── */}
+                {settingsTab === "dept" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+                      <Search size={14} color="#AAA" />
+                      <input placeholder="Pesquisar..." value={deptSearch} onChange={e => setDeptSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
+                      <span style={{ fontSize: 12, color: "#AAA" }}>0 resultados</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 100px 48px", padding: "6px 0", borderBottom: "1px solid #EEEEEE", marginBottom: 8 }}>
+                      {["Departamentos", "Horário de funcionamento", "Data de criação", ""].map((h, i) => (
+                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</span>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
+                      <Folder size={32} color="#E5E5E5" />
+                      <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Nenhum departamento criado</p>
+                      <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Criar" para adicionar um departamento</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Atendentes ── */}
+                {settingsTab === "agents" && (
+                  <div style={{ display: "flex", gap: 14, height: 380 }}>
+                    {/* lista */}
+                    <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "7px 10px", marginBottom: 4, flexShrink: 0 }}>
+                        <Search size={13} color="#AAA" />
+                        <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#111", flex: 1, minWidth: 0 }} />
+                      </div>
+                      {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
+                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid #128A68" : "3px solid transparent", flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(m)}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
+                            {memberEmails[m] && <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
+                          </div>
+                        </button>
+                      ))}
+                      {teamMembers.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "#CCC", fontSize: 12 }}>Nenhum atendente</div>}
+                    </div>
+
+                    {/* detalhe */}
+                    <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 12, padding: 16, overflowY: "auto" }}>
+                      {selectedAgent ? (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #EEEEEE" }}>
+                            <div style={{ width: 38, height: 38, borderRadius: "50%", background: colorFromString(selectedAgent), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{initials(selectedAgent)}</div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedAgent}</div>
+                              <div style={{ fontSize: 11, color: "#888" }}>{memberEmails[selectedAgent] ?? ""}</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Visualização do atendente</div>
+                          <div style={{ background: "#D1FAE5", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#128A68", marginBottom: 14 }}>
+                            O atendente sempre pode ver as conversas atribuídas a ele
+                          </div>
+                          {[
+                            { label: "Permitir ver conversas de outros atendentes", desc: "Permite o atendente ver as conversas com outros atendentes atribuídos" },
+                            { label: "Desabilitar conversas sem atendentes", desc: "Não permite ver conversas que não possuem um atendente" },
+                          ].map((item, i) => (
+                            <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.label}</div>
+                                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                              </div>
+                              <MuToggle checked={false} onChange={() => toast.info("Em breve")} />
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
+                          <UserCheck size={28} color="#E5E5E5" />
+                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Selecione um atendente</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Mensagens rápidas ── */}
+                {settingsTab === "quick" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+                      <Search size={14} color="#AAA" />
+                      <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
+                      <Zap size={32} color="#E5E5E5" />
+                      <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Nenhuma mensagem rápida criada</p>
+                      <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
       {showScheduleDialog && (() => {
         const linkedLead = active
@@ -2091,6 +2320,18 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px",
   fontSize: 13, color: "#111", background: "#FFF", outline: "none", width: "100%",
 };
+
+/* ── Toggle reutilizável para o modal de config ──────────────────────── */
+function MuToggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      style={{ width: 42, height: 22, borderRadius: 11, background: checked ? "#128A68" : "#D1D5DB", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+    >
+      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+    </button>
+  );
+}
 
 /* ── Transfer dialog ─────────────────────────────────────────────────── */
 function TransferDialog({
