@@ -1273,10 +1273,13 @@ export default function MultiatendimentoPage() {
               size={16} color="#AAA" style={{ cursor: "pointer" }}
               onClick={() => toast("Nenhuma notificação nova")}
             />
-            <Settings
-              size={16} color="#AAA" style={{ cursor: "pointer" }}
+            <button
               onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
-            />
+              title="Configurações do multiatendimento"
+              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            >
+              <Settings size={14} color="#666" />
+            </button>
           </div>
 
           <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
