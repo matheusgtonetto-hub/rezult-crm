@@ -1339,7 +1339,7 @@ export default function MultiatendimentoPage() {
       {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
       <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#F4F6F8", minWidth: 0 }}>
         {/* Barra de configurações — fora do painel de conversas */}
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "6px 12px", borderBottom: "0.5px solid #F0F0F0", background: "#FFF", flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", padding: "6px 12px", borderBottom: "0.5px solid #F0F0F0", background: "#FFF", flexShrink: 0 }}>
           <button
             onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
             title="Configurações do multiatendimento"
