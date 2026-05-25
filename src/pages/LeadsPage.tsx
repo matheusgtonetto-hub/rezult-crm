@@ -19,7 +19,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, deleteLead, addLead, nextDealNumber } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -162,7 +162,7 @@ export default function LeadsPage() {
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nome</TableHead>
-                <TableHead className="text-muted-foreground">Empresa</TableHead>
+                <TableHead className="text-muted-foreground">Responsável</TableHead>
                 <TableHead className="text-muted-foreground">Contato</TableHead>
                 <TableHead className="text-muted-foreground">Pipeline</TableHead>
                 <TableHead className="text-muted-foreground">Data de Criação</TableHead>
@@ -177,7 +177,30 @@ export default function LeadsPage() {
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
                   <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
+                  <TableCell>
+                    {lead.responsible ? (
+                      <div className="flex items-center gap-2">
+                        {memberAvatars[lead.responsible] ? (
+                          <img
+                            src={memberAvatars[lead.responsible]}
+                            alt={lead.responsible}
+                            className="rounded-full object-cover shrink-0"
+                            style={{ width: 24, height: 24 }}
+                          />
+                        ) : (
+                          <div
+                            className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
+                            style={{ width: 24, height: 24, background: memberColors[lead.responsible] ?? "#AAAAAA", fontSize: 10 }}
+                          >
+                            {lead.responsible[0].toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-sm text-foreground">{lead.responsible}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm text-foreground">
