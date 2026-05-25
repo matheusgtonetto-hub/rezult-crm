@@ -323,12 +323,15 @@ export default function AutomacoesPage() {
     const onMove = (e: MouseEvent) => {
       // Port drag: draw the connecting line
       if (portDragRef.current && canvasRef.current) {
-        const { pan, zoom, nodes } = stateRef.current;
+        const { pan, zoom } = stateRef.current;
         const rect = canvasRef.current.getBoundingClientRect();
-        const fromNode = nodes.find(n => n.id === portDragRef.current!.fromNodeId);
-        if (fromNode) {
-          const x1 = fromNode.x + 260;
-          const y1 = fromNode.y + 110;
+        const portEl = canvasRef.current.querySelector(
+          `[data-port][data-from-node="${portDragRef.current.fromNodeId}"]`
+        ) as HTMLElement | null;
+        if (portEl) {
+          const portRect = portEl.getBoundingClientRect();
+          const x1 = (portRect.left + portRect.width / 2 - rect.left - pan.x) / zoom;
+          const y1 = (portRect.top + portRect.height / 2 - rect.top - pan.y) / zoom;
           const x2 = (e.clientX - rect.left - pan.x) / zoom;
           const y2 = (e.clientY - rect.top - pan.y) / zoom;
           setPortDragLine({ x1, y1, x2, y2 });
@@ -787,7 +790,8 @@ export default function AutomacoesPage() {
                 {nodes.filter(n => n.parentId).map(n => {
                   const parent = nodes.find(p => p.id === n.parentId);
                   if (!parent) return null;
-                  const x1 = parent.x + 260, y1 = parent.y + 110;
+                  const x1 = parent.type === "start" ? parent.x + 244 : parent.x + 248;
+                  const y1 = parent.type === "start" ? parent.y + 158 : parent.y + 110;
                   const x2 = n.x, y2 = n.y + 40;
                   return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#CCCCCC" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
                 })}
@@ -1091,7 +1095,13 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart }: 
         </button>
         <div style={{ fontSize: 11, color: "#6B7280", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Quando o evento ocorrer, então</span>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#378ADD" }} />
+          <div
+            data-port
+            data-from-node={node.id}
+            title="Arraste para adicionar próximo passo"
+            onMouseDown={onPortDragStart}
+            style={{ width: 12, height: 12, borderRadius: "50%", background: "#378ADD", border: "2px solid #FFFFFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", flexShrink: 0 }}
+          />
         </div>
       </div>
       {/* Metrics */}
@@ -1100,23 +1110,6 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart }: 
         <span style={{ color: "#F59E0B", fontWeight: 600 }}>0 Alertas</span>
         <span style={{ color: "#EF4444", fontWeight: 600 }}>0 Erros</span>
       </div>
-
-      {/* Output port — aparece após gatilho ser definido; arrastar para posicionar próximo bloco */}
-      {node.trigger && (
-        <div
-          data-port
-          data-from-node={node.id}
-          title="Arraste para adicionar próximo passo"
-          onMouseDown={onPortDragStart}
-          style={{
-            position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)",
-            width: 16, height: 16, borderRadius: "50%",
-            background: "#378ADD", border: "2.5px solid #FFFFFF",
-            cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)",
-            zIndex: 5,
-          }}
-        />
-      )}
     </div>
   );
 }
