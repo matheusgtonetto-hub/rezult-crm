@@ -1245,10 +1245,10 @@ export default function MultiatendimentoPage() {
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
-      <aside style={{ width: 300, minWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2 }}>
+      <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "0.5px solid #F0F0F0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px" }}>
               <Search size={14} color="#AAA" />
               <input
                 placeholder="Pesquise seus contatos"
