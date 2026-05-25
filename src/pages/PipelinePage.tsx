@@ -88,8 +88,6 @@ export default function PipelinePage() {
     addPipelineGroup,
     deletePipelineGroup,
     teamMembers,
-    memberAvatars,
-    memberColors,
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { user } = useAuth();
