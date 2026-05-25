@@ -2483,6 +2483,7 @@ function ConexoesSection() {
   // dialog state (wizard de nova conexão)
   const [open, setOpen]           = useState(false);
   const [step, setStep]           = useState<ZApiStep>("provider");
+  const [tutStep, setTutStep]     = useState(0);
   const [form, setForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
   const [qrSrc, setQrSrc]         = useState("");
   const [qrLoading, setQrLoading] = useState(false);
@@ -2668,6 +2669,7 @@ function ConexoesSection() {
     setConnName("");
     setStep("select");
     setSelectedCategory("whatsapp");
+    setTutStep(0);
     setForm({ instanceId: "", token: "", clientToken: "" });
     setQrSrc("");
     setPollN(0);
@@ -3092,68 +3094,146 @@ function ConexoesSection() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Tutorial Z-API */}
+          {/* Tutorial Z-API — 2 slides navegáveis */}
           {step === "tutorial" && (
             <>
-              <p className="text-xs text-[#AAAAAA] -mt-1 mb-4">Siga os passos abaixo para encontrar suas credenciais no painel da Z-API.</p>
-
-              <div className="space-y-3">
-                {/* Step 1 */}
-                <div style={{ display: "flex", gap: 12, padding: "12px 14px", background: "#F9FAFB", borderRadius: 12, border: "1px solid #F0F0F0" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "#128A68", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>1</span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>Acesse o painel da Z-API</p>
-                    <p style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>Vá em <strong>app.z-api.io</strong> e faça login na sua conta. Se ainda não tem conta, crie uma gratuitamente.</p>
-                    <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#128A68", fontWeight: 600, marginTop: 5, textDecoration: "none" }}>
-                      Abrir Z-API <ExternalLink size={10} />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Step 2 */}
-                <div style={{ display: "flex", gap: 12, padding: "12px 14px", background: "#F9FAFB", borderRadius: 12, border: "1px solid #F0F0F0" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "#128A68", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>2</span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>Selecione ou crie uma instância</p>
-                    <p style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>No menu lateral, clique em <strong>Instâncias</strong>. Selecione uma existente ou clique em <strong>"+ Criar Instância"</strong>.</p>
-                  </div>
-                </div>
-
-                {/* Step 3 */}
-                <div style={{ display: "flex", gap: 12, padding: "12px 14px", background: "#F9FAFB", borderRadius: 12, border: "1px solid #F0F0F0" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "#128A68", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>3</span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>Copie o ID e o Token</p>
-                    <p style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>Dentro da instância, você verá o <strong>ID da Instância</strong> e o <strong>Token</strong> logo no topo. Clique em copiar em cada campo.</p>
-                    <div style={{ display: "flex", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>ID da Instância</span>
-                      <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Token</span>
-                      <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Client-Token</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 4 */}
-                <div style={{ display: "flex", gap: 12, padding: "12px 14px", background: "#F9FAFB", borderRadius: 12, border: "1px solid #F0F0F0" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "#128A68", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>4</span>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>Cole aqui e escaneie o QR Code</p>
-                    <p style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>Clique em <strong>"Continuar"</strong>, preencha as credenciais e gere o QR Code. Escaneie com o WhatsApp para finalizar.</p>
-                  </div>
-                </div>
+              {/* Barra de progresso */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: -4 }}>
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "#128A68" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "#128A68" : "#EEEEEE", transition: "background 0.2s" }} />
               </div>
 
-              <DialogFooter className="mt-5">
-                <Button variant="outline" className="border-[#EEEEEE]" onClick={closeDialog}>Cancelar</Button>
-                <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={() => setStep("creds")}>Continuar</Button>
+              {/* ── Slide 1: ID da Instância e Token ── */}
+              {tutStep === 0 && (
+                <>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Instance ID e o Token?</p>
+                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
+                    Acesse <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ color: "#128A68", fontWeight: 600, textDecoration: "none" }}>app.z-api.io</a>, faça login e clique na sua instância. As credenciais ficam logo na tela principal.
+                  </p>
+
+                  {/* Caminho de navegação */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
+                    {["app.z-api.io", "Instâncias", "Clique na instância"].map((item, i) => (
+                      <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 2 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Mockup visual da tela da instância */}
+                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                    {/* Barra do browser */}
+                    <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
+                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/instances/sua-instancia</span>
+                    </div>
+                    {/* Conteúdo mockup */}
+                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 12 }}>📱</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>Minha Instância</span>
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", padding: "1px 7px", borderRadius: 99, fontWeight: 600, marginLeft: "auto" }}>Conectada</span>
+                      </div>
+
+                      {/* Instance ID */}
+                      <div style={{ marginBottom: 10 }}>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                            3C1B2A3D4E5F6G7H8I9J...
+                          </div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                        </div>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                      </div>
+
+                      {/* Token */}
+                      <div>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                            F9G8H7I6J5K4L3M2N1O0...
+                          </div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                        </div>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── Slide 2: Client-Token ── */}
+              {tutStep === 1 && (
+                <>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Client-Token?</p>
+                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
+                    O Client-Token é um token de segurança da <strong>sua conta</strong> (não da instância). Fica nas configurações de segurança.
+                  </p>
+
+                  {/* Caminho de navegação */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
+                    {["app.z-api.io", "Seu avatar (topo)", "Segurança", "Token de Segurança da Conta"].map((item, i) => (
+                      <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 3 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Mockup visual da tela de segurança */}
+                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                    {/* Barra do browser */}
+                    <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
+                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/security</span>
+                    </div>
+                    {/* Conteúdo mockup */}
+                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#111", marginBottom: 4 }}>Token de Segurança da Conta</p>
+                      <p style={{ fontSize: 10, color: "#888", marginBottom: 12, lineHeight: 1.4 }}>Adiciona uma camada extra de proteção às suas instâncias.</p>
+
+                      {/* Client-Token field */}
+                      <div style={{ marginBottom: 12 }}>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                            Bearer A1B2C3D4E5F6G7H8...
+                          </div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                        </div>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                      </div>
+
+                      {/* Botão Configurar */}
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#128A68", borderRadius: 8, padding: "6px 14px" }}>
+                        <span style={{ fontSize: 11, color: "#FFF", fontWeight: 600 }}>⚙ Configurar Agora</span>
+                      </div>
+                      <p style={{ fontSize: 9, color: "#E24B4A", fontWeight: 600, marginTop: 6 }}>👆 Se ainda não ativou, clique aqui primeiro</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <DialogFooter className="mt-4">
+                {tutStep === 0 ? (
+                  <>
+                    <Button variant="outline" className="border-[#EEEEEE]" onClick={closeDialog}>Cancelar</Button>
+                    <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={() => setTutStep(1)}>Próximo →</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="border-[#EEEEEE]" onClick={() => setTutStep(0)}>← Anterior</Button>
+                    <Button className="bg-[#128A68] hover:bg-[#128A68]/90" onClick={() => setStep("creds")}>Já tenho as credenciais</Button>
+                  </>
+                )}
               </DialogFooter>
             </>
           )}
