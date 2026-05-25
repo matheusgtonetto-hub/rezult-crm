@@ -5,7 +5,7 @@ import {
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
-  Clock, Shuffle, Bot, Code2, Sliders,
+  Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -25,6 +25,16 @@ type TriggerConfig = { categoryId: string; triggerId: string; label: string; des
 
 type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomizador" | "api" | "campos" | "ia" | "javascript";
 
+type SubBlockType = "mensagem_texto" | "entrada_usuario" | "atraso_tempo" | "mensagem_audio" | "arquivo_anexo" | "arquivo_url";
+
+type SubBlock = {
+  id: string;
+  type: SubBlockType;
+  text?: string;
+  delaySeconds?: number;
+  fileUrl?: string;
+};
+
 type CanvasNode = {
   id: string;
   type: "start" | ActionNodeType;
@@ -32,6 +42,7 @@ type CanvasNode = {
   label: string;
   trigger?: TriggerConfig | null;
   parentId?: string | null;
+  subBlocks?: SubBlock[];
 };
 
 type AutomationRecord = {
@@ -190,11 +201,17 @@ export default function AutomacoesPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
   const [saving, setSaving]             = useState(false);
-  const [addNodeMenu, setAddNodeMenu]   = useState<string | null>(null);
+  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number } | null>(null);
+  const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [nodePanel, setNodePanel]       = useState<string | null>(null);
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const panRef    = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
-  const fileRef   = useRef<HTMLInputElement>(null);
+  const canvasRef    = useRef<HTMLDivElement>(null);
+  const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const fileRef      = useRef<HTMLInputElement>(null);
+  const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
+  // Always-fresh refs to avoid stale closures in mouse event handlers
+  const stateRef = useRef({ pan, zoom, nodes });
+  stateRef.current = { pan, zoom, nodes };
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -260,23 +277,42 @@ export default function AutomacoesPage() {
 
   // ── Canvas interactions ───────────────────────────────────────────────────
 
-  const handleAddNode = (fromNodeId: string, type: string, label: string) => {
-    const fromNode = nodes.find(n => n.id === fromNodeId);
-    if (!fromNode) return;
-    const children = nodes.filter(n => n.parentId === fromNodeId);
+  const startPortDrag = (e: React.MouseEvent, fromNodeId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    portDragRef.current = { fromNodeId, startX: e.clientX, startY: e.clientY };
+  };
+
+  const handleAddNode = (type: string, label: string) => {
+    if (!addNodeMenu) return;
     const newNode: CanvasNode = {
       id: `n${Date.now()}`,
       type: type as ActionNodeType,
-      x: fromNode.x + 340,
-      y: fromNode.y + children.length * 180,
+      x: addNodeMenu.x,
+      y: addNodeMenu.y,
       label,
-      parentId: fromNodeId,
+      parentId: addNodeMenu.fromNodeId,
+      subBlocks: [],
     };
     setNodes(prev => [...prev, newNode]);
     setAddNodeMenu(null);
   };
 
+  const addSubBlock = (nodeId: string, type: SubBlockType) => {
+    const newBlock: SubBlock = { id: `sb${Date.now()}`, type };
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, subBlocks: [...(n.subBlocks ?? []), newBlock] } : n));
+  };
+
+  const removeSubBlock = (nodeId: string, blockId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, subBlocks: (n.subBlocks ?? []).filter(b => b.id !== blockId) } : n));
+  };
+
+  const updateSubBlock = (nodeId: string, blockId: string, data: Partial<SubBlock>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, subBlocks: (n.subBlocks ?? []).map(b => b.id === blockId ? { ...b, ...data } : b) } : n));
+  };
+
   const onCanvasMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("[data-port]")) return;
     if ((e.target as HTMLElement).closest("[data-node]")) return;
     panRef.current = { startX: e.clientX, startY: e.clientY, baseX: pan.x, baseY: pan.y };
     setSelectedNode(null);
@@ -285,10 +321,46 @@ export default function AutomacoesPage() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      // Port drag: draw the connecting line
+      if (portDragRef.current && canvasRef.current) {
+        const { pan, zoom, nodes } = stateRef.current;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const fromNode = nodes.find(n => n.id === portDragRef.current!.fromNodeId);
+        if (fromNode) {
+          const x1 = fromNode.x + 260;
+          const y1 = fromNode.y + 110;
+          const x2 = (e.clientX - rect.left - pan.x) / zoom;
+          const y2 = (e.clientY - rect.top - pan.y) / zoom;
+          setPortDragLine({ x1, y1, x2, y2 });
+        }
+        return;
+      }
       if (!panRef.current) return;
       setPan({ x: panRef.current.baseX + e.clientX - panRef.current.startX, y: panRef.current.baseY + e.clientY - panRef.current.startY });
     };
-    const onUp = () => { panRef.current = null; };
+    const onUp = (e: MouseEvent) => {
+      // Port drag end: show block selection popup at drop position
+      if (portDragRef.current && canvasRef.current) {
+        const { pan, zoom, nodes } = stateRef.current;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const dx = e.clientX - portDragRef.current.startX;
+        const dy = e.clientY - portDragRef.current.startY;
+        const isDrag = Math.sqrt(dx * dx + dy * dy) > 30;
+        const fromNodeId = portDragRef.current.fromNodeId;
+        portDragRef.current = null;
+        setPortDragLine(null);
+        if (isDrag) {
+          const dropX = (e.clientX - rect.left - pan.x) / zoom;
+          const dropY = (e.clientY - rect.top - pan.y) / zoom;
+          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY });
+        } else {
+          const fromNode = nodes.find(n => n.id === fromNodeId);
+          if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50 });
+        }
+        return;
+      }
+      panRef.current = null;
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
@@ -531,7 +603,23 @@ export default function AutomacoesPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
-      <Sidebar />
+      {/* Left panel: Mensagem config panel OR default sidebar */}
+      {view === "editor" && nodePanel && nodes.find(n => n.id === nodePanel)?.type === "mensagem" ? (
+        <MensagemPanel
+          node={nodes.find(n => n.id === nodePanel)!}
+          onClose={() => setNodePanel(null)}
+          onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+          onDuplicate={() => {
+            const n = nodes.find(x => x.id === nodePanel);
+            if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
+          }}
+          addSubBlock={(type) => addSubBlock(nodePanel, type)}
+          removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
+          updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
+        />
+      ) : (
+        <Sidebar />
+      )}
 
       {/* ── LIST VIEW ──────────────────────────────────────────────────────── */}
       {view === "list" && (
@@ -703,12 +791,13 @@ export default function AutomacoesPage() {
                   const x2 = n.x, y2 = n.y + 40;
                   return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#CCCCCC" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
                 })}
-                {addNodeMenu && (() => {
-                  const p = nodes.find(n => n.id === addNodeMenu);
-                  if (!p) return null;
-                  const x1 = p.x + 260, y1 = p.y + 110, x2 = p.x + 320, y2 = p.y + 110;
-                  return <path key="addline" d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke="#378ADD" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
-                })()}
+                {/* Live drag line */}
+                {portDragLine && (
+                  <path
+                    d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
+                    stroke="#378ADD" strokeWidth={2} fill="none" strokeDasharray="5,4"
+                  />
+                )}
               </svg>
 
               {/* Nodes */}
@@ -719,45 +808,42 @@ export default function AutomacoesPage() {
                   selected={selectedNode === n.id}
                   onSelect={() => setSelectedNode(n.id)}
                   onAddTrigger={() => setTriggerOpen(true)}
-                  onAddStep={() => setAddNodeMenu(addNodeMenu === n.id ? null : n.id)}
+                  onPortDragStart={(e) => startPortDrag(e, n.id)}
                 />
               ) : (
                 <ActionNode
                   key={n.id}
                   node={n}
                   selected={selectedNode === n.id}
-                  onSelect={() => setSelectedNode(n.id)}
+                  onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
+                  onPortDragStart={(e) => startPortDrag(e, n.id)}
                 />
               ))}
 
-              {/* Add node popup */}
-              {addNodeMenu && (() => {
-                const parentNode = nodes.find(n => n.id === addNodeMenu);
-                if (!parentNode) return null;
-                return (
-                  <div
-                    data-node
-                    style={{ position: "absolute", left: parentNode.x + 322, top: parentNode.y + 50, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    {ACTION_TYPES.map(at => {
-                      const Icon = at.icon;
-                      return (
-                        <button
-                          key={at.id}
-                          onClick={() => handleAddNode(addNodeMenu, at.id, at.label)}
-                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left", fontSize: 13, color: "#111111" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <Icon size={16} color={at.color} />
-                          {at.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              {/* Add node popup — appears at drop position */}
+              {addNodeMenu && (
+                <div
+                  data-node
+                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {ACTION_TYPES.map(at => {
+                    const Icon = at.icon;
+                    return (
+                      <button
+                        key={at.id}
+                        onClick={() => handleAddNode(at.id, at.label)}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left", fontSize: 13, color: "#111111" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Icon size={16} color={at.color} />
+                        {at.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -961,12 +1047,12 @@ const zoomBtn: React.CSSProperties = {
   color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onAddStep }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
-  onAddStep: () => void;
+  onPortDragStart: (e: React.MouseEvent) => void;
 }) {
   return (
     <div
@@ -1015,17 +1101,18 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onAddStep }: {
         <span style={{ color: "#EF4444", fontWeight: 600 }}>0 Erros</span>
       </div>
 
-      {/* Output port — aparece após gatilho ser definido */}
+      {/* Output port — aparece após gatilho ser definido; arrastar para posicionar próximo bloco */}
       {node.trigger && (
         <div
-          data-node
-          title="Adicionar próximo passo"
-          onClick={(e) => { e.stopPropagation(); onAddStep(); }}
+          data-port
+          data-from-node={node.id}
+          title="Arraste para adicionar próximo passo"
+          onMouseDown={onPortDragStart}
           style={{
             position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)",
             width: 16, height: 16, borderRadius: "50%",
             background: "#378ADD", border: "2.5px solid #FFFFFF",
-            cursor: "pointer", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)",
+            cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)",
             zIndex: 5,
           }}
         />
@@ -1036,34 +1123,304 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onAddStep }: {
 
 // ─── ActionNode ───────────────────────────────────────────────────────────────
 
-function ActionNode({ node, selected, onSelect }: {
+const SUB_BLOCK_ICONS: Record<SubBlockType, React.ElementType> = {
+  mensagem_texto:  AlignLeft,
+  entrada_usuario: HelpCircle,
+  atraso_tempo:    Clock,
+  mensagem_audio:  Mic,
+  arquivo_anexo:   Paperclip,
+  arquivo_url:     Link2,
+};
+
+const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
+  mensagem_texto:  "Mensagem de texto",
+  entrada_usuario: "Entrada do usuário",
+  atraso_tempo:    "Atraso de tempo",
+  mensagem_audio:  "Mensagem de áudio",
+  arquivo_anexo:   "Arquivo anexo",
+  arquivo_url:     "Arquivo URL Dinâmica",
+};
+
+function ActionNode({ node, selected, onSelect, onPortDragStart }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
+  onPortDragStart: (e: React.MouseEvent) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
+  const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
+
+  if (node.type !== "mensagem") {
+    return (
+      <div
+        data-node
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        style={{
+          position: "absolute", left: node.x, top: node.y, width: 240,
+          background: "#FFFFFF",
+          border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
+          borderRadius: 12, padding: 14, cursor: "pointer",
+          boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon size={15} color={at?.color ?? "#6B7280"} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{node.label}</span>
+        </div>
+        <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 8 }}>Clique para configurar</div>
+        <div
+          data-port data-from-node={node.id}
+          title="Arraste para adicionar próximo passo"
+          onMouseDown={onPortDragStart}
+          style={{ position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, borderRadius: "50%", background: "#378ADD", border: "2.5px solid #FFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 5 }}
+        />
+      </div>
+    );
+  }
+
+  // ── Mensagem node ────────────────────────────────────────────────────────
   return (
     <div
       data-node
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       style={{
-        position: "absolute", left: node.x, top: node.y, width: 240,
+        position: "absolute", left: node.x, top: node.y, width: 280,
         background: "#FFFFFF",
-        border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
-        borderRadius: 12, padding: 14, cursor: "pointer",
-        boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
+        border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
+        borderRadius: 12, cursor: "pointer",
+        boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={15} color={at?.color ?? "#6B7280"} />
+      {/* Toolbar above node (shown when selected) */}
+      {selected && (
+        <div style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+          {[Trash2, Copy, Download].map((Ic, i) => (
+            <button key={i} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            ><Ic size={13} /></button>
+          ))}
         </div>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{node.label}</span>
+      )}
+
+      {/* Header */}
+      <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <MessageCircle size={16} color="#3B82F6" />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Mensagem</span>
       </div>
-      <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 8, lineHeight: 1.4 }}>
-        Clique para configurar
+
+      {/* Body */}
+      <div style={{ padding: "10px 14px" }}>
+        {(!node.subBlocks || node.subBlocks.length === 0) ? (
+          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+            Envie e receba mensagens. Clique para adicionar uma mensagem:
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {node.subBlocks.map(b => {
+              const SBIcon = SUB_BLOCK_ICONS[b.type];
+              return (
+                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                  <SBIcon size={12} color="#6B7280" />
+                  {b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Output ports */}
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+          {hasUserInput && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda.</span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+            <div
+              data-port data-from-node={node.id}
+              onMouseDown={onPortDragStart}
+              style={{ width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer metrics */}
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#3B82F6" }}>Sucessos</div></div>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
       </div>
     </div>
+  );
+}
+
+// ─── MensagemPanel ────────────────────────────────────────────────────────────
+
+const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color: string }[] = [
+  { type: "mensagem_texto",  icon: AlignLeft,  color: "#374151" },
+  { type: "entrada_usuario", icon: HelpCircle, color: "#3B82F6" },
+  { type: "atraso_tempo",    icon: Clock,      color: "#3B82F6" },
+  { type: "mensagem_audio",  icon: Mic,        color: "#6B7280" },
+  { type: "arquivo_anexo",   icon: Paperclip,  color: "#374151" },
+  { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
+];
+
+function MensagemPanel({ node, onClose, onDelete, onDuplicate, addSubBlock, removeSubBlock, updateSubBlock }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  addSubBlock: (type: SubBlockType) => void;
+  removeSubBlock: (blockId: string) => void;
+  updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
+}) {
+  return (
+    <aside style={{ width: 340, minWidth: 340, maxWidth: 340, height: "100vh", background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Mensagens
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {[{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }, { Icon: Download, action: () => {}, color: "#6B7280", hover: "#F3F4F6" }].map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Envie, receba e armazene respostas</p>
+      </div>
+
+      {/* Conexão */}
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0" }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <select style={{ flex: 1, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
+            <option>Selecionar</option>
+          </select>
+          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></button>
+          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Settings size={12} /></button>
+        </div>
+        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+      </div>
+
+      {/* Added sub-blocks */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {(node.subBlocks ?? []).map(b => {
+          const SBIcon = SUB_BLOCK_ICONS[b.type];
+          return (
+            <div key={b.id} style={{ marginBottom: 8, border: "0.5px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
+              {/* Sub-block toolbar */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
+                <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                ><Trash2 size={11} /></button>
+              </div>
+              {/* Sub-block content */}
+              <div style={{ padding: "10px 12px" }}>
+                {b.type === "mensagem_texto" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
+                    <textarea
+                      value={b.text ?? ""}
+                      onChange={e => updateSubBlock(b.id, { text: e.target.value })}
+                      placeholder="Digite a mensagem..."
+                      style={{ width: "100%", minHeight: 80, border: "0.5px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                    />
+                  </div>
+                )}
+                {b.type === "entrada_usuario" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
+                    <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
+                  </div>
+                )}
+                {b.type === "atraso_tempo" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
+                      <input
+                        type="number" min={0}
+                        value={b.delaySeconds ?? 0}
+                        onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
+                        style={{ width: 64, padding: "5px 8px", border: "0.5px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
+                      />
+                      <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+                    </div>
+                  </div>
+                )}
+                {b.type === "mensagem_audio" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
+                    <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
+                      <button style={{ padding: "6px 14px", border: "0.5px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
+                        <Mic size={12} /> Iniciar gravação
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {b.type === "arquivo_anexo" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
+                    <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
+                      <Upload size={20} color="#D1D5DB" />
+                      Selecionar arquivo
+                      <input type="file" style={{ display: "none" }} />
+                    </label>
+                  </div>
+                )}
+                {b.type === "arquivo_url" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
+                    <input
+                      type="url"
+                      value={b.fileUrl ?? ""}
+                      onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
+                      placeholder="URL do arquivo"
+                      style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                    />
+                    {b.fileUrl && !b.fileUrl.startsWith("http") && (
+                      <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sub-block type buttons */}
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "8px 0" }}>
+        {MENSAGEM_SUB_BLOCKS.map(({ type, icon: Icon, color }) => (
+          <button
+            key={type}
+            onClick={() => addSubBlock(type)}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: "transparent", border: "none", cursor: "pointer", fontSize: 12, color: "#111111", textAlign: "left" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <Icon size={15} color={color} />
+            {SUB_BLOCK_LABELS[type]}
+          </button>
+        ))}
+      </div>
+    </aside>
   );
 }
