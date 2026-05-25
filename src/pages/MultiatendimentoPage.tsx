@@ -1269,13 +1269,6 @@ export default function MultiatendimentoPage() {
             >
               <UserPlus size={14} color="#FFF" />
             </button>
-            <button
-              onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
-              title="Configurações do multiatendimento"
-              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
-            >
-              <Settings size={14} color="#666" />
-            </button>
           </div>
 
           <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
@@ -1345,6 +1338,16 @@ export default function MultiatendimentoPage() {
 
       {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
       <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#F4F6F8", minWidth: 0 }}>
+        {/* Barra de configurações — fora do painel de conversas */}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "6px 12px", borderBottom: "0.5px solid #F0F0F0", background: "#FFF", flexShrink: 0 }}>
+          <button
+            onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
+            title="Configurações do multiatendimento"
+            style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          >
+            <Settings size={14} color="#666" />
+          </button>
+        </div>
         {active && cs ? (
           <>
             {/* header */}
