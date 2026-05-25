@@ -162,6 +162,9 @@ export default function PipelinePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleSidebar]);
 
+  // Popover de responsável inline no card
+  const [respPopoverLeadId, setRespPopoverLeadId] = useState<string | null>(null);
+
   // Column edit/delete dialogs
   const [renamingCol, setRenamingCol] = useState<{ id: string; title: string } | null>(null);
   const [deletingCol, setDeletingCol] = useState<{ id: string; title: string; count: number } | null>(null);
@@ -759,24 +762,94 @@ export default function PipelinePage() {
                                               </div>
                                             </div>
 
-                                            {/* Responsible */}
-                                            <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                                              {lead.responsible && memberAvatars[lead.responsible] ? (
-                                                <img
-                                                  src={memberAvatars[lead.responsible]}
-                                                  alt={lead.responsible}
-                                                  className="w-4 h-4 rounded-full object-cover shrink-0"
-                                                />
-                                              ) : (
-                                                <div
-                                                  className="w-4 h-4 rounded-full flex items-center justify-center text-white shrink-0"
-                                                  style={{ fontSize: 8, fontWeight: 700, backgroundColor: lead.responsible ? respColor : "#AAAAAA" }}
+                                            {/* Responsible — clicável para alterar */}
+                                            <Popover
+                                              open={respPopoverLeadId === leadId}
+                                              onOpenChange={open => setRespPopoverLeadId(open ? leadId : null)}
+                                            >
+                                              <PopoverTrigger asChild>
+                                                <button
+                                                  type="button"
+                                                  onClick={e => e.stopPropagation()}
+                                                  onMouseDown={e => e.stopPropagation()}
+                                                  className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors group"
+                                                  style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}
                                                 >
-                                                  {lead.responsible ? lead.responsible[0] : "S"}
+                                                  {lead.responsible && memberAvatars[lead.responsible] ? (
+                                                    <img
+                                                      src={memberAvatars[lead.responsible]}
+                                                      alt={lead.responsible}
+                                                      className="w-4 h-4 rounded-full object-cover shrink-0"
+                                                    />
+                                                  ) : (
+                                                    <div
+                                                      className="w-4 h-4 rounded-full flex items-center justify-center text-white shrink-0"
+                                                      style={{ fontSize: 8, fontWeight: 700, backgroundColor: lead.responsible ? respColor : "#AAAAAA" }}
+                                                    >
+                                                      {lead.responsible ? lead.responsible[0] : "S"}
+                                                    </div>
+                                                  )}
+                                                  <span className="truncate flex-1">{lead.responsible || "Sem responsável"}</span>
+                                                </button>
+                                              </PopoverTrigger>
+                                              <PopoverContent
+                                                side="bottom"
+                                                align="start"
+                                                className="p-0 w-52 overflow-hidden"
+                                                style={{ borderRadius: 12, zIndex: 200 }}
+                                                onClick={e => e.stopPropagation()}
+                                                onMouseDown={e => e.stopPropagation()}
+                                              >
+                                                <div className="px-3 py-2 border-b border-card-border">
+                                                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Responsável</span>
                                                 </div>
-                                              )}
-                                              <span className="truncate">{lead.responsible || "Sem responsável"}</span>
-                                            </div>
+                                                <button
+                                                  className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted transition-colors"
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    updateLead(leadId, { responsible: "" });
+                                                    setRespPopoverLeadId(null);
+                                                  }}
+                                                >
+                                                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#E5E5E5" }}>
+                                                    <span style={{ fontSize: 9, color: "#888", fontWeight: 700 }}>S</span>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground" style={{ fontWeight: !lead.responsible ? 600 : 400 }}>Sem responsável</span>
+                                                  {!lead.responsible && (
+                                                    <svg className="ml-auto shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                  )}
+                                                </button>
+                                                {teamMembers.map(name => {
+                                                  const selected = lead.responsible === name;
+                                                  const avatar = memberAvatars[name];
+                                                  const color = memberColors[name] ?? "#AAAAAA";
+                                                  return (
+                                                    <button
+                                                      key={name}
+                                                      className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted transition-colors"
+                                                      style={{ background: selected ? `${color}14` : undefined }}
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        updateLead(leadId, { responsible: name });
+                                                        setRespPopoverLeadId(null);
+                                                      }}
+                                                    >
+                                                      {avatar ? (
+                                                        <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 20, height: 20 }} />
+                                                      ) : (
+                                                        <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>
+                                                          {name[0].toUpperCase()}
+                                                        </div>
+                                                      )}
+                                                      <span className="text-xs truncate flex-1" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
+                                                      {selected && (
+                                                        <svg className="shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                      )}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </PopoverContent>
+                                            </Popover>
 
                                             {/* Value */}
                                             <div className="mt-2">
