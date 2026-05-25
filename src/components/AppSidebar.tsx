@@ -10,7 +10,7 @@ import {
   LogOut,
   MessagesSquare,
   Workflow,
-  Columns2,
+  Filter,
   Brain,
   Bell,
   Info,
@@ -80,7 +80,7 @@ export function AppSidebar() {
   const navItems: NavItem[] = [
     { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
-      ? [{ to: "/pipeline", label: "Pipelines", icon: Columns2 }] : []),
+      ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
     { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
