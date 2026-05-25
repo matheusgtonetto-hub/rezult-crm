@@ -415,8 +415,8 @@ export default function PipelinePage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Page header */}
-        <div className="px-6 pt-6 pb-3 flex items-center justify-between gap-4">
-          <div className="min-w-0">
+        <div className="px-6 pt-6 pb-3 flex items-center gap-4">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold text-foreground truncate">
               {activePipeline.name}
             </h1>
@@ -425,6 +425,78 @@ export default function PipelinePage() {
               {activePipeline.columns.reduce((s, c) => s + c.leadIds.length, 0)} negócios
             </p>
           </div>
+
+          {/* Seletor "Visualizando como:" — apenas admins */}
+          {isAdmin && teamMembers.length > 0 && (
+            <div ref={viewPickerRef} className="relative flex items-center gap-2 shrink-0">
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap">Visualizando como:</span>
+              <button
+                onClick={() => setViewPickerOpen(v => !v)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg border bg-card text-sm transition-colors hover:bg-secondary"
+                style={{
+                  borderColor: viewPickerOpen ? "hsl(var(--primary))" : "hsl(var(--card-border))",
+                  color: viewAsUser ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                }}
+              >
+                {viewAsUser ? (
+                  <>
+                    {memberAvatars[viewAsUser] ? (
+                      <img src={memberAvatars[viewAsUser]} alt={viewAsUser} className="rounded-full object-cover shrink-0" style={{ width: 18, height: 18 }} />
+                    ) : (
+                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser] ?? "#AAAAAA", fontSize: 9 }}>
+                        {viewAsUser[0].toUpperCase()}
+                      </div>
+                    )}
+                    <span className="max-w-[120px] truncate">{viewAsUser}</span>
+                  </>
+                ) : (
+                  <span>Todos os leads</span>
+                )}
+                <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+              </button>
+
+              {viewPickerOpen && (
+                <div
+                  className="absolute bg-card border border-card-border shadow-lg z-[200] overflow-hidden"
+                  style={{ top: "calc(100% + 6px)", right: 0, width: 210, borderRadius: 12, maxHeight: 300, overflowY: "auto" }}
+                >
+                  <div className="px-3 py-2 border-b border-card-border">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Visualizando como</span>
+                  </div>
+                  <button
+                    onClick={() => { setViewAsUser(null); setViewPickerOpen(false); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser === null ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser === null ? "hsl(var(--primary))" : "transparent" }}>
+                      {viewAsUser === null && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <span className="text-xs" style={{ fontWeight: viewAsUser === null ? 600 : 400 }}>Todos os leads</span>
+                  </button>
+                  {teamMembers.map(name => {
+                    const selected = viewAsUser === name;
+                    const avatar = memberAvatars[name];
+                    const color = memberColors[name] ?? "#AAAAAA";
+                    return (
+                      <button key={name} onClick={() => { setViewAsUser(name); setViewPickerOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted">
+                        <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
+                          {selected && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                        </div>
+                        {avatar ? (
+                          <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 22, height: 22 }} />
+                        ) : (
+                          <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 22, height: 22, background: color, fontSize: 9 }}>{name[0].toUpperCase()}</div>
+                        )}
+                        <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
+                          {name}{name === myName ? " (você)" : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -518,121 +590,6 @@ export default function PipelinePage() {
             />
           </div>
 
-          {/* Seletor "Visualizando como:" — apenas para admins */}
-          {isAdmin && teamMembers.length > 0 && (
-            <>
-              <div className="w-px h-5 bg-card-border shrink-0" />
-              <div ref={viewPickerRef} className="relative flex items-center gap-1.5 ml-auto shrink-0">
-                <span className="text-[11px] text-muted-foreground whitespace-nowrap">Visualizando como:</span>
-
-                <button
-                  onClick={() => setViewPickerOpen(v => !v)}
-                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg border bg-card text-sm transition-colors hover:bg-secondary"
-                  style={{
-                    borderColor: viewPickerOpen ? "hsl(var(--primary))" : "hsl(var(--card-border))",
-                    color: viewAsUser ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
-                  }}
-                >
-                  {viewAsUser ? (
-                    <>
-                      {memberAvatars[viewAsUser] ? (
-                        <img
-                          src={memberAvatars[viewAsUser]}
-                          alt={viewAsUser}
-                          className="rounded-full object-cover shrink-0"
-                          style={{ width: 18, height: 18 }}
-                        />
-                      ) : (
-                        <div
-                          className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
-                          style={{ width: 18, height: 18, background: memberColors[viewAsUser] ?? "#AAAAAA", fontSize: 9 }}
-                        >
-                          {viewAsUser[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="max-w-[120px] truncate">{viewAsUser}</span>
-                    </>
-                  ) : (
-                    <span>Todos os leads</span>
-                  )}
-                  <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
-                </button>
-
-                {viewPickerOpen && (
-                  <div
-                    className="absolute bg-card border border-card-border shadow-lg z-50 overflow-hidden"
-                    style={{ top: "calc(100% + 6px)", right: 0, width: 210, borderRadius: 12, maxHeight: 300, overflowY: "auto" }}
-                  >
-                    <div className="px-3 py-2 border-b border-card-border">
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Visualizando como</span>
-                    </div>
-
-                    {/* Opção "Todos os leads" */}
-                    <button
-                      onClick={() => { setViewAsUser(null); setViewPickerOpen(false); }}
-                      className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
-                    >
-                      <div
-                        className="flex items-center justify-center rounded shrink-0"
-                        style={{
-                          width: 15, height: 15,
-                          border: viewAsUser === null ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC",
-                          background: viewAsUser === null ? "hsl(var(--primary))" : "transparent",
-                        }}
-                      >
-                        {viewAsUser === null && (
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-xs" style={{ fontWeight: viewAsUser === null ? 600 : 400 }}>Todos os leads</span>
-                    </button>
-
-                    {/* Um item por membro do time */}
-                    {teamMembers.map(name => {
-                      const selected = viewAsUser === name;
-                      const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "#AAAAAA";
-                      const isMe = name === myName;
-                      return (
-                        <button
-                          key={name}
-                          onClick={() => { setViewAsUser(name); setViewPickerOpen(false); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
-                        >
-                          <div
-                            className="flex items-center justify-center rounded shrink-0"
-                            style={{
-                              width: 15, height: 15,
-                              border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC",
-                              background: selected ? color : "transparent",
-                            }}
-                          >
-                            {selected && (
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                              </svg>
-                            )}
-                          </div>
-                          {avatar ? (
-                            <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 22, height: 22 }} />
-                          ) : (
-                            <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 22, height: 22, background: color, fontSize: 9 }}>
-                              {name[0].toUpperCase()}
-                            </div>
-                          )}
-                          <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
-                            {name}{isMe ? " (você)" : ""}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         {/* Kanban */}
