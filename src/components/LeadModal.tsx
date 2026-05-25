@@ -40,6 +40,7 @@ const empty = {
   site: "",
   document: "",
   company: "",
+  responsible: "",
   origin: "Outro" as string,
   birthDate: "",
   country: "Brasil",
@@ -62,7 +63,7 @@ interface Props {
 }
 
 export function LeadModal({ open, onClose, editLead }: Props) {
-  const { addLead, updateLead, pipelines, nextDealNumber, crmTags } = useCRM();
+  const { addLead, updateLead, pipelines, nextDealNumber, crmTags, teamMembers } = useCRM();
   const [tab, setTab] = useState("contato");
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
@@ -93,6 +94,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         site:         editLead.site         ?? "",
         document:     editLead.document     ?? "",
         company:      editLead.company      ?? "",
+        responsible:  editLead.responsible  ?? "",
         origin:       editLead.origin       ?? "Outro",
         birthDate:    editLead.birthDate    ?? "",
         country:      editLead.country      ?? "Brasil",
@@ -153,7 +155,8 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         email:        form.emails[0]  || undefined,
         site:         form.site       || undefined,
         document:     form.document   || undefined,
-        company:      form.company    || undefined,
+        company:      form.company      || undefined,
+        responsible:  form.responsible  || "",
         origin:       form.origin as Lead["origin"],
         birthDate:    form.birthDate  || undefined,
         country:      form.country    || undefined,
@@ -180,7 +183,6 @@ export function LeadModal({ open, onClose, editLead }: Props) {
           ...patch,
           dealNumber:  nextDealNumber(),
           value:       0,
-          responsible: "",
           pipelineId:  chosenPipeline?.id ?? "",
           stage:       chosenCol?.id      ?? "",
           priority:    "Média",
@@ -253,19 +255,36 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
-            <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
-              <SelectTrigger className="border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {pipelines.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
+              <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
+                <SelectTrigger className="border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {pipelines.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Responsável</label>
+              <Select value={form.responsible || "__none__"} onValueChange={v => set("responsible", v === "__none__" ? "" : v)}>
+                <SelectTrigger className="border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem responsável</SelectItem>
+                  {teamMembers.map(name => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
