@@ -5,6 +5,7 @@ import {
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
+  Clock, Shuffle, Bot, Code2, Sliders,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -22,12 +23,15 @@ import { useCompany } from "@/context/CompanyContext";
 
 type TriggerConfig = { categoryId: string; triggerId: string; label: string; description: string };
 
+type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomizador" | "api" | "campos" | "ia" | "javascript";
+
 type CanvasNode = {
   id: string;
-  type: "start";
+  type: "start" | ActionNodeType;
   x: number; y: number;
   label: string;
   trigger?: TriggerConfig | null;
+  parentId?: string | null;
 };
 
 type AutomationRecord = {
@@ -128,6 +132,18 @@ const TRIGGER_CATEGORIES = [
   },
 ];
 
+const ACTION_TYPES = [
+  { id: "mensagem",     label: "Mensagem",             icon: MessageCircle, color: "#0EA5E9" },
+  { id: "acoes",        label: "Ações",                icon: Zap,           color: "#F97316" },
+  { id: "condicoes",    label: "Condições",            icon: Filter,        color: "#8B5CF6" },
+  { id: "espera",       label: "Espera",               icon: Clock,         color: "#3B82F6" },
+  { id: "randomizador", label: "Randomizador",         icon: Shuffle,       color: "#F97316" },
+  { id: "api",          label: "API",                  icon: Globe,         color: "#3B82F6" },
+  { id: "campos",       label: "Operações de campos",  icon: Sliders,       color: "#22C55E" },
+  { id: "ia",           label: "IA",                   icon: Bot,           color: "#8B5CF6" },
+  { id: "javascript",   label: "JavaScript",           icon: Code2,         color: "#3B82F6" },
+] as const;
+
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -174,6 +190,7 @@ export default function AutomacoesPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
   const [saving, setSaving]             = useState(false);
+  const [addNodeMenu, setAddNodeMenu]   = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const panRef    = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -243,10 +260,27 @@ export default function AutomacoesPage() {
 
   // ── Canvas interactions ───────────────────────────────────────────────────
 
+  const handleAddNode = (fromNodeId: string, type: string, label: string) => {
+    const fromNode = nodes.find(n => n.id === fromNodeId);
+    if (!fromNode) return;
+    const children = nodes.filter(n => n.parentId === fromNodeId);
+    const newNode: CanvasNode = {
+      id: `n${Date.now()}`,
+      type: type as ActionNodeType,
+      x: fromNode.x + 340,
+      y: fromNode.y + children.length * 180,
+      label,
+      parentId: fromNodeId,
+    };
+    setNodes(prev => [...prev, newNode]);
+    setAddNodeMenu(null);
+  };
+
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-node]")) return;
     panRef.current = { startX: e.clientX, startY: e.clientY, baseX: pan.x, baseY: pan.y };
     setSelectedNode(null);
+    setAddNodeMenu(null);
   };
 
   useEffect(() => {
@@ -453,7 +487,7 @@ export default function AutomacoesPage() {
                     return (
                       <div
                         key={item.id}
-                        onClick={() => view === "editor" ? openEditor(item.id) : setSelectedId(item.id)}
+                        onClick={() => openEditor(item.id)}
                         className="group"
                         style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: sel ? "#F0FDF4" : "transparent", borderLeft: sel ? "3px solid hsl(var(--primary))" : "3px solid transparent", cursor: "pointer" }}
                       >
@@ -660,15 +694,70 @@ export default function AutomacoesPage() {
             style={{ position: "absolute", inset: 0, cursor: "grab" }}
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
-              {nodes.map(n => (
+              {/* SVG connection lines */}
+              <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible", pointerEvents: "none" }}>
+                {nodes.filter(n => n.parentId).map(n => {
+                  const parent = nodes.find(p => p.id === n.parentId);
+                  if (!parent) return null;
+                  const x1 = parent.x + 260, y1 = parent.y + 110;
+                  const x2 = n.x, y2 = n.y + 40;
+                  return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#CCCCCC" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                })}
+                {addNodeMenu && (() => {
+                  const p = nodes.find(n => n.id === addNodeMenu);
+                  if (!p) return null;
+                  const x1 = p.x + 260, y1 = p.y + 110, x2 = p.x + 320, y2 = p.y + 110;
+                  return <path key="addline" d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke="#378ADD" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                })()}
+              </svg>
+
+              {/* Nodes */}
+              {nodes.map(n => n.type === "start" ? (
                 <StartNode
                   key={n.id}
                   node={{ ...n, trigger: n.id === "n1" ? trigger : n.trigger }}
                   selected={selectedNode === n.id}
                   onSelect={() => setSelectedNode(n.id)}
                   onAddTrigger={() => setTriggerOpen(true)}
+                  onAddStep={() => setAddNodeMenu(addNodeMenu === n.id ? null : n.id)}
+                />
+              ) : (
+                <ActionNode
+                  key={n.id}
+                  node={n}
+                  selected={selectedNode === n.id}
+                  onSelect={() => setSelectedNode(n.id)}
                 />
               ))}
+
+              {/* Add node popup */}
+              {addNodeMenu && (() => {
+                const parentNode = nodes.find(n => n.id === addNodeMenu);
+                if (!parentNode) return null;
+                return (
+                  <div
+                    data-node
+                    style={{ position: "absolute", left: parentNode.x + 322, top: parentNode.y + 50, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {ACTION_TYPES.map(at => {
+                      const Icon = at.icon;
+                      return (
+                        <button
+                          key={at.id}
+                          onClick={() => handleAddNode(addNodeMenu, at.id, at.label)}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left", fontSize: 13, color: "#111111" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <Icon size={16} color={at.color} />
+                          {at.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -872,11 +961,12 @@ const zoomBtn: React.CSSProperties = {
   color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
-function StartNode({ node, selected, onSelect, onAddTrigger }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onAddStep }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
+  onAddStep: () => void;
 }) {
   return (
     <div
@@ -923,6 +1013,56 @@ function StartNode({ node, selected, onSelect, onAddTrigger }: {
         <span style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>0 Sucessos</span>
         <span style={{ color: "#F59E0B", fontWeight: 600 }}>0 Alertas</span>
         <span style={{ color: "#EF4444", fontWeight: 600 }}>0 Erros</span>
+      </div>
+
+      {/* Output port — aparece após gatilho ser definido */}
+      {node.trigger && (
+        <div
+          data-node
+          title="Adicionar próximo passo"
+          onClick={(e) => { e.stopPropagation(); onAddStep(); }}
+          style={{
+            position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)",
+            width: 16, height: 16, borderRadius: "50%",
+            background: "#378ADD", border: "2.5px solid #FFFFFF",
+            cursor: "pointer", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)",
+            zIndex: 5,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── ActionNode ───────────────────────────────────────────────────────────────
+
+function ActionNode({ node, selected, onSelect }: {
+  node: CanvasNode;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const at = ACTION_TYPES.find(a => a.id === node.type);
+  const Icon = at?.icon ?? Zap;
+  return (
+    <div
+      data-node
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      style={{
+        position: "absolute", left: node.x, top: node.y, width: 240,
+        background: "#FFFFFF",
+        border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
+        borderRadius: 12, padding: 14, cursor: "pointer",
+        boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={15} color={at?.color ?? "#6B7280"} />
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{node.label}</span>
+      </div>
+      <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 8, lineHeight: 1.4 }}>
+        Clique para configurar
       </div>
     </div>
   );
