@@ -2620,8 +2620,8 @@ function ConexoesSection() {
 
   // ── dialog actions ─────────────────────────────────────────────────
   async function handleGenerateQr() {
-    if (!form.instanceId.trim() || !form.token.trim()) {
-      toast.error("Preencha o ID da instância e o Token.");
+    if (!form.instanceId.trim() || !form.token.trim() || !form.clientToken.trim()) {
+      toast.error("Preencha o ID da instância, o Token e o Client-Token.");
       return;
     }
     await fetchQr(form);
@@ -3134,7 +3134,7 @@ function ConexoesSection() {
                     <div style={{ display: "flex", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>ID da Instância</span>
                       <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Token</span>
-                      <span style={{ fontSize: 10, background: "#F5F5F5", color: "#666", fontWeight: 500, padding: "2px 8px", borderRadius: 6 }}>Client-Token (opcional)</span>
+                      <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>Client-Token</span>
                     </div>
                   </div>
                 </div>
@@ -3210,10 +3210,10 @@ function ConexoesSection() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-[#535353] block mb-1">
-                    Client-Token <span className="text-[#AAAAAA] font-normal">(opcional — aba Segurança da Z-API)</span>
+                    Client-Token <span className="text-[#E24B4A]">*</span> <span className="text-[#AAAAAA] font-normal">(aba Segurança da Z-API)</span>
                   </label>
                   <Input
-                    placeholder="Apenas se habilitado"
+                    placeholder="Client-Token da instância"
                     value={form.clientToken}
                     onChange={e => setForm(f => ({ ...f, clientToken: e.target.value }))}
                     className="border-[#EEEEEE] font-mono text-sm"
