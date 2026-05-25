@@ -39,7 +39,7 @@ function toPhoneString(val: unknown): string {
 }
 
 export function ImportLeadsModal({ open, onClose }: Props) {
-  const { pipelines, crmTags, addLead, leads: existingLeads } = useCRM();
+  const { pipelines, crmTags, addLead, leads: existingLeads, teamMembers, memberColors, memberAvatars } = useCRM();
 
   const [file, setFile]           = useState<File | null>(null);
   const [headers, setHeaders]     = useState<string[]>([]);
@@ -56,6 +56,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
   const [pipelineId, setPipelineId] = useState(() => pipelines[0]?.id ?? "");
   const [stageId,    setStageId]    = useState(() => pipelines[0]?.columns[0]?.id ?? "");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedResponsibles, setSelectedResponsibles] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,7 +146,9 @@ export function ImportLeadsModal({ open, onClose }: Props) {
         email: email || undefined,
         emails: email ? [email] : [],
         company: undefined, site: undefined,
-        value: 0, responsible: "",
+        value: 0,
+        responsible: selectedResponsibles[0] ?? "",
+        responsibles: selectedResponsibles,
         pipelineId, stage: stageId,
         priority: "Média", origin: "Outro",
         productId: undefined,
@@ -172,6 +175,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
     setFile(null); setHeaders([]); setRows([]); setParseError("");
     setNameCol(NONE); setPhoneCol(NONE); setEmailCol(NONE);
     setSelectedTags([]);
+    setSelectedResponsibles([]);
     setPipelineId(pipelines[0]?.id ?? "");
     setStageId(pipelines[0]?.columns[0]?.id ?? "");
     onClose();
@@ -353,6 +357,64 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {teamMembers.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[#333]">
+                    Responsáveis <span className="text-[#AAAAAA] font-normal">(opcional)</span>
+                  </label>
+                  <div className="border border-[#EEEEEE] rounded-lg p-2 space-y-0.5 max-h-[130px] overflow-y-auto">
+                    {teamMembers.map(name => {
+                      const selected = selectedResponsibles.includes(name);
+                      const avatar = memberAvatars[name];
+                      const color = memberColors[name] ?? "#AAAAAA";
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() =>
+                            setSelectedResponsibles(prev =>
+                              prev.includes(name) ? prev.filter(r => r !== name) : [...prev, name]
+                            )
+                          }
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left transition-colors hover:bg-[#F5F5F5]"
+                        >
+                          <div
+                            className="flex items-center justify-center rounded shrink-0"
+                            style={{
+                              width: 14, height: 14,
+                              border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC",
+                              background: selected ? color : "transparent",
+                            }}
+                          >
+                            {selected && (
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                            )}
+                          </div>
+                          {avatar ? (
+                            <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 20, height: 20 }} />
+                          ) : (
+                            <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>
+                              {name[0].toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-xs" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedResponsibles.length > 0 && (
+                    <p className="text-[11px] text-[#AAAAAA]">
+                      {selectedResponsibles.length === 1
+                        ? `1 responsável selecionado`
+                        : `${selectedResponsibles.length} responsáveis selecionados`}
+                      {" — "}será aplicado a todos os leads importados.
+                    </p>
+                  )}
                 </div>
               )}
             </>
