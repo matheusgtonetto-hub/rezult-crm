@@ -317,6 +317,7 @@ export default function AutomacoesPage() {
     panRef.current = { startX: e.clientX, startY: e.clientY, baseX: pan.x, baseY: pan.y };
     setSelectedNode(null);
     setAddNodeMenu(null);
+    setNodePanel(null);
   };
 
   useEffect(() => {
