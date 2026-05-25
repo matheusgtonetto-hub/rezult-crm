@@ -2484,6 +2484,7 @@ function ConexoesSection() {
   const [open, setOpen]           = useState(false);
   const [step, setStep]           = useState<ZApiStep>("provider");
   const [tutStep, setTutStep]     = useState(0);
+  const [skipTutorial, setSkipTutorial] = useState(() => localStorage.getItem("zapi_skip_tutorial") === "1");
   const [form, setForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
   const [qrSrc, setQrSrc]         = useState("");
   const [qrLoading, setQrLoading] = useState(false);
@@ -3056,7 +3057,7 @@ function ConexoesSection() {
                       key={prov.id}
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
-                        if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep("tutorial"); setOpen(true); }, 120); }
+                        if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
@@ -3221,6 +3222,21 @@ function ConexoesSection() {
                   </div>
                 </>
               )}
+
+              {/* Não mostrar novamente */}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 4, marginBottom: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={skipTutorial}
+                  onChange={e => {
+                    setSkipTutorial(e.target.checked);
+                    if (e.target.checked) localStorage.setItem("zapi_skip_tutorial", "1");
+                    else localStorage.removeItem("zapi_skip_tutorial");
+                  }}
+                  style={{ accentColor: "#128A68", width: 14, height: 14, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 12, color: "#888" }}>Não mostrar novamente</span>
+              </label>
 
               <DialogFooter className="mt-4">
                 {tutStep === 0 ? (
