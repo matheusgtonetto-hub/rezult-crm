@@ -8,7 +8,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
-  Search, Bell, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
+  Search, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
   MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
@@ -1269,10 +1269,6 @@ export default function MultiatendimentoPage() {
             >
               <UserPlus size={14} color="#FFF" />
             </button>
-            <Bell
-              size={16} color="#AAA" style={{ cursor: "pointer" }}
-              onClick={() => toast("Nenhuma notificação nova")}
-            />
             <button
               onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
               title="Configurações do multiatendimento"
@@ -1849,20 +1845,30 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* Atendente responsável */}
-              {cs.assignedTo && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
-                  <UserCheck size={13} color="#128A68" />
-                  <span style={{ fontSize: 12, color: "#666" }}>Atendente:</span>
-                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[cs.assignedTo] ?? colorFromString(cs.assignedTo), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
-                    {initials(cs.assignedTo)}
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
-                  <button
-                    onClick={() => setShowTransferDialog(true)}
-                    style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
-                  >Transferir</button>
-                </div>
-              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
+                <UserCheck size={13} color="#128A68" />
+                <span style={{ fontSize: 12, color: "#666" }}>Atendente:</span>
+                {cs.assignedTo ? (
+                  <>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[cs.assignedTo] ?? colorFromString(cs.assignedTo), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
+                      {initials(cs.assignedTo)}
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
+                    <button
+                      onClick={() => setShowTransferDialog(true)}
+                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                    >Transferir</button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem atendente</span>
+                    <button
+                      onClick={() => setShowTransferDialog(true)}
+                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                    >Atribuir</button>
+                  </>
+                )}
+              </div>
 
               {/* Painel: + Negócio */}
               {showNegocioForm && (
