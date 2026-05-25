@@ -149,6 +149,11 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     })(),
     value: Number(row.value ?? 0),
     responsible: (row.responsible as string) ?? "",
+    responsibles: (() => {
+      const raw = row.responsibles;
+      if (Array.isArray(raw)) return raw as string[];
+      try { return raw ? JSON.parse(raw as string) as string[] : []; } catch { return []; }
+    })(),
     pipelineId: row.pipeline_id as string,
     stage: (row.column_id as string) ?? "",
     priority: (row.priority as Priority) ?? "Média",
@@ -654,6 +659,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         emails: JSON.stringify(lead.emails ?? []),
         value: lead.value,
         responsible: lead.responsible,
+        responsibles: lead.responsibles ?? (lead.responsible ? [lead.responsible] : []),
         priority: lead.priority,
         origin: lead.origin,
         product_id: lead.productId || null,
@@ -732,6 +738,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
     if ("value" in data) dbData.value = data.value;
     if ("responsible" in data) dbData.responsible = data.responsible;
+    if ("responsibles" in data) {
+      dbData.responsibles = data.responsibles ?? [];
+      // keep responsible in sync with first element
+      if (!("responsible" in data)) dbData.responsible = data.responsibles?.[0] ?? "";
+    }
     if ("priority" in data) dbData.priority = data.priority;
     if ("origin" in data) dbData.origin = data.origin;
     if ("productId" in data) dbData.product_id = data.productId ?? null;
@@ -791,9 +802,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       to.leadIds.splice(toIndex, 0, leadId);
       return { ...p, columns: newCols };
     }));
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, responsible: newResponsible ?? prev[leadId]?.responsible } }));
+    const newResponsibles = newResponsible
+      ? (leads[leadId]?.responsibles?.includes(newResponsible) ? leads[leadId].responsibles : [newResponsible, ...(leads[leadId]?.responsibles ?? [])])
+      : leads[leadId]?.responsibles ?? [];
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
     const update: Record<string, unknown> = { column_id: toCol };
-    if (newResponsible) update.responsible = newResponsible;
+    if (newResponsible) { update.responsible = newResponsible; update.responsibles = newResponsibles; }
     supabase.from("leads").update(update).eq("id", leadId).then(({ error }) => {
       if (error) console.error("moveLead error:", error.message);
     });
@@ -817,9 +831,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         }),
       };
     }));
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open", responsible: newResponsible ?? prev[leadId]?.responsible } }));
+    const newResp2 = newResponsible;
+    const newResps2 = newResp2
+      ? (lead.responsibles?.includes(newResp2) ? lead.responsibles : [newResp2, ...(lead.responsibles ?? [])])
+      : lead.responsibles ?? [];
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
     const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open" };
-    if (newResponsible) update.responsible = newResponsible;
+    if (newResp2) { update.responsible = newResp2; update.responsibles = newResps2; }
     supabase.from("leads").update(update).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
   }, [leads, currentUserName]);

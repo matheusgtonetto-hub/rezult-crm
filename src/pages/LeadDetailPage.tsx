@@ -769,6 +769,7 @@ export default function LeadDetailPage() {
   };
 
   const respColor = memberColors[lead.responsible] || "#888888";
+  const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
   const initials = lead.name
     .split(" ")
     .map(n => n[0])
@@ -839,7 +840,7 @@ export default function LeadDetailPage() {
   const toggleSection = (k: string) =>
     setOpenSections(s => ({ ...s, [k]: !s[k] }));
 
-  const updateField = (field: string, value: string | number | undefined) =>
+  const updateField = (field: string, value: string | number | string[] | undefined) =>
     updateLead(lead.id, { [field]: value });
 
   const [showWonProductDialog, setShowWonProductDialog] = useState(false);
@@ -1063,60 +1064,71 @@ export default function LeadDetailPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
-                {lead.responsible && memberAvatars[lead.responsible] ? (
-                  <img
-                    src={memberAvatars[lead.responsible]}
-                    alt={lead.responsible}
-                    className="w-8 h-8 rounded-full object-cover shrink-0"
-                  />
+                {leadResps.length === 0 ? (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "#AAAAAA" }}>S</div>
                 ) : (
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                    style={{ background: lead.responsible ? respColor : "#AAAAAA" }}
-                  >
-                    {lead.responsible?.[0] ?? "S"}
+                  <div className="flex items-center shrink-0">
+                    {leadResps.slice(0, 3).map((name, idx) => {
+                      const av = memberAvatars[name];
+                      const cl = memberColors[name] ?? "#AAAAAA";
+                      return av ? (
+                        <img key={name} src={av} alt={name} className="rounded-full object-cover" style={{ width: 28, height: 28, marginLeft: idx > 0 ? -8 : 0, outline: "2px solid hsl(var(--background))" }} />
+                      ) : (
+                        <div key={name} className="rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ width: 28, height: 28, background: cl, marginLeft: idx > 0 ? -8 : 0, outline: "2px solid hsl(var(--background))" }}>{name[0]}</div>
+                      );
+                    })}
+                    {leadResps.length > 3 && (
+                      <div className="rounded-full flex items-center justify-center font-semibold text-[9px]" style={{ width: 28, height: 28, background: "#E5E5E5", color: "#555", marginLeft: -8, outline: "2px solid hsl(var(--background))" }}>+{leadResps.length - 3}</div>
+                    )}
                   </div>
                 )}
                 <div className="flex flex-col items-start leading-tight">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-foreground">{lead.responsible || "Sem responsável"}</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      {leadResps.length === 0 ? "Sem responsável" : leadResps.length === 1 ? leadResps[0] : `${leadResps.length} responsáveis`}
+                    </span>
                     <ChevronDown size={12} className="text-muted-foreground" />
                   </div>
-                  {memberEmails[lead.responsible] && (
-                    <span className="text-[10px] text-muted-foreground">{memberEmails[lead.responsible]}</span>
+                  {leadResps.length === 1 && memberEmails[leadResps[0]] && (
+                    <span className="text-[10px] text-muted-foreground">{memberEmails[leadResps[0]]}</span>
                   )}
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              {teamMembers.map(m => (
+            <DropdownMenuContent align="end" className="w-56 p-1">
+              {leadResps.length > 0 && (
+                <DropdownMenuItem
+                  onClick={() => updateField("responsibles", [])}
+                  className="flex items-center gap-2 text-muted-foreground text-xs mb-1"
+                >
+                  Limpar responsáveis
+                </DropdownMenuItem>
+              )}
+              {teamMembers.map(m => {
+                const selected = leadResps.includes(m);
+                return (
                 <DropdownMenuItem
                   key={m}
-                  onClick={() => updateField("responsible", m)}
+                  onClick={() => {
+                    const next = selected ? leadResps.filter(r => r !== m) : [...leadResps, m];
+                    updateField("responsibles", next);
+                  }}
                   className="flex items-center gap-2"
                 >
+                  <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: selected ? (memberColors[m] || "#128A68") : "transparent" }}>
+                    {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
                   {memberAvatars[m] ? (
-                    <img
-                      src={memberAvatars[m]}
-                      alt={m}
-                      className="w-6 h-6 rounded-full object-cover shrink-0"
-                    />
+                    <img src={memberAvatars[m]} alt={m} className="w-6 h-6 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                      style={{ background: memberColors[m] || "#888" }}
-                    >
-                      {m[0]}
-                    </div>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: memberColors[m] || "#888" }}>{m[0]}</div>
                   )}
                   <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-medium">{m}</span>
-                    {memberEmails[m] && (
-                      <span className="text-[10px] text-muted-foreground">{memberEmails[m]}</span>
-                    )}
+                    <span className="text-xs font-medium" style={{ fontWeight: selected ? 600 : 400 }}>{m}</span>
+                    {memberEmails[m] && <span className="text-[10px] text-muted-foreground">{memberEmails[m]}</span>}
                   </div>
                 </DropdownMenuItem>
-              ))}
+              )})}
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -1268,17 +1280,28 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Responsável</label>
-                        <Select value={lead.responsible} onValueChange={v => updateField("responsible", v)}>
-                          <SelectTrigger className="h-9 rounded-md text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teamMembers.map(m => (
-                              <SelectItem key={m} value={m}>{m}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Responsáveis</label>
+                        <div className="border rounded-md p-1.5 space-y-0.5 max-h-[110px] overflow-y-auto" style={{ borderColor: "hsl(var(--border))" }}>
+                          {teamMembers.map(m => {
+                            const sel = leadResps.includes(m);
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => {
+                                  const next = sel ? leadResps.filter(r => r !== m) : [...leadResps, m];
+                                  updateField("responsibles", next);
+                                }}
+                                className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left hover:bg-muted transition-colors"
+                              >
+                                <div className="flex items-center justify-center rounded shrink-0" style={{ width: 13, height: 13, border: sel ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: sel ? (memberColors[m] || "#128A68") : "transparent" }}>
+                                  {sel && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                </div>
+                                <span className="text-xs truncate" style={{ fontWeight: sel ? 600 : 400 }}>{m}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div>
                         <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
@@ -1736,7 +1759,7 @@ export default function LeadDetailPage() {
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
                             style={{ background: respColor }}
                           >
-                            {lead.responsible[0]}
+                            {lead.responsible?.[0] ?? "?"}
                           </div>
                           <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
@@ -1906,7 +1929,7 @@ export default function LeadDetailPage() {
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
                               style={{ background: respColor }}
                             >
-                              {lead.responsible[0]}
+                              {lead.responsible?.[0] ?? "?"}
                             </div>
                           )}
                           <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
@@ -2232,7 +2255,7 @@ export default function LeadDetailPage() {
                             <img src={memberAvatars[lead.responsible]} alt={lead.responsible} className="w-6 h-6 rounded-full object-cover shrink-0" />
                           ) : (
                             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: respColor }}>
-                              {lead.responsible[0]}
+                              {lead.responsible?.[0] ?? "?"}
                             </div>
                           )}
                           <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>

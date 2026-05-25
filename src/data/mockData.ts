@@ -61,6 +61,7 @@ export interface Lead {
   emails?: string[];
   value: number;
   responsible: string;
+  responsibles: string[];
   pipelineId: string;
   stage: string;
   priority: Priority;

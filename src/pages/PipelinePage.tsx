@@ -292,15 +292,15 @@ export default function PipelinePage() {
         if (dateTo) ids = ids.filter(id => leads[id].entryDate <= dateTo);
 
         // Visibilidade por responsável
+        const getResps = (l: typeof leads[string]) =>
+          l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
         if (!isAdmin) {
-          // Membro: vê apenas seus leads + leads sem responsável
           ids = ids.filter(id => {
-            const l = leads[id];
-            return !l.responsible || l.responsible === myName;
+            const resps = getResps(leads[id]);
+            return resps.length === 0 || resps.includes(myName);
           });
         } else if (viewAsUser !== null) {
-          // Admin visualizando um usuário específico
-          ids = ids.filter(id => leads[id].responsible === viewAsUser);
+          ids = ids.filter(id => getResps(leads[id]).includes(viewAsUser));
         }
 
         ids.sort((a, b) => {
@@ -714,6 +714,7 @@ export default function PipelinePage() {
                                   {col.filteredIds.map((leadId, index) => {
                                     const lead = leads[leadId];
                                     if (!lead) return null;
+                                    const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
                                     const respColor = memberColors[lead.responsible] || "#888888";
                                     return (
                                       <Draggable
@@ -762,7 +763,7 @@ export default function PipelinePage() {
                                               </div>
                                             </div>
 
-                                            {/* Responsible — clicável para alterar */}
+                                            {/* Responsáveis — multi-select via popover */}
                                             <Popover
                                               open={respPopoverLeadId === leadId}
                                               onOpenChange={open => setRespPopoverLeadId(open ? leadId : null)}
@@ -772,24 +773,40 @@ export default function PipelinePage() {
                                                   type="button"
                                                   onClick={e => e.stopPropagation()}
                                                   onMouseDown={e => e.stopPropagation()}
-                                                  className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors group"
+                                                  className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors"
                                                   style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}
                                                 >
-                                                  {lead.responsible && memberAvatars[lead.responsible] ? (
-                                                    <img
-                                                      src={memberAvatars[lead.responsible]}
-                                                      alt={lead.responsible}
-                                                      className="w-4 h-4 rounded-full object-cover shrink-0"
-                                                    />
+                                                  {leadResps.length === 0 ? (
+                                                    <>
+                                                      <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-white" style={{ fontSize: 8, fontWeight: 700, backgroundColor: "#AAAAAA" }}>S</div>
+                                                      <span>Sem responsável</span>
+                                                    </>
                                                   ) : (
-                                                    <div
-                                                      className="w-4 h-4 rounded-full flex items-center justify-center text-white shrink-0"
-                                                      style={{ fontSize: 8, fontWeight: 700, backgroundColor: lead.responsible ? respColor : "#AAAAAA" }}
-                                                    >
-                                                      {lead.responsible ? lead.responsible[0] : "S"}
-                                                    </div>
+                                                    <>
+                                                      {/* Avatares empilhados (máx 3) */}
+                                                      <div className="flex items-center shrink-0" style={{ gap: 0 }}>
+                                                        {leadResps.slice(0, 3).map((name, idx) => {
+                                                          const av = memberAvatars[name];
+                                                          const cl = memberColors[name] ?? "#AAAAAA";
+                                                          return av ? (
+                                                            <img key={name} src={av} alt={name} title={name} className="rounded-full object-cover" style={{ width: 16, height: 16, marginLeft: idx > 0 ? -4 : 0, outline: "1.5px solid hsl(var(--card))", zIndex: 3 - idx }} />
+                                                          ) : (
+                                                            <div key={name} title={name} className="rounded-full flex items-center justify-center text-white shrink-0" style={{ width: 16, height: 16, background: cl, fontSize: 7, fontWeight: 700, marginLeft: idx > 0 ? -4 : 0, outline: "1.5px solid hsl(var(--card))", zIndex: 3 - idx }}>
+                                                              {name[0].toUpperCase()}
+                                                            </div>
+                                                          );
+                                                        })}
+                                                        {leadResps.length > 3 && (
+                                                          <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 16, height: 16, background: "#E5E5E5", color: "#555", fontSize: 7, marginLeft: -4, outline: "1.5px solid hsl(var(--card))" }}>
+                                                            +{leadResps.length - 3}
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                      <span className="truncate flex-1">
+                                                        {leadResps.length === 1 ? leadResps[0] : `${leadResps.length} responsáveis`}
+                                                      </span>
+                                                    </>
                                                   )}
-                                                  <span className="truncate flex-1">{lead.responsible || "Sem responsável"}</span>
                                                 </button>
                                               </PopoverTrigger>
                                               <PopoverContent
@@ -800,27 +817,19 @@ export default function PipelinePage() {
                                                 onClick={e => e.stopPropagation()}
                                                 onMouseDown={e => e.stopPropagation()}
                                               >
-                                                <div className="px-3 py-2 border-b border-card-border">
-                                                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Responsável</span>
-                                                </div>
-                                                <button
-                                                  className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted transition-colors"
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    updateLead(leadId, { responsible: "" });
-                                                    setRespPopoverLeadId(null);
-                                                  }}
-                                                >
-                                                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#E5E5E5" }}>
-                                                    <span style={{ fontSize: 9, color: "#888", fontWeight: 700 }}>S</span>
-                                                  </div>
-                                                  <span className="text-xs text-muted-foreground" style={{ fontWeight: !lead.responsible ? 600 : 400 }}>Sem responsável</span>
-                                                  {!lead.responsible && (
-                                                    <svg className="ml-auto shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                <div className="px-3 py-2 border-b border-card-border flex items-center justify-between">
+                                                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Responsáveis</span>
+                                                  {leadResps.length > 0 && (
+                                                    <button
+                                                      className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                                                      onClick={e => { e.stopPropagation(); updateLead(leadId, { responsibles: [], responsible: "" }); setRespPopoverLeadId(null); }}
+                                                    >
+                                                      Limpar
+                                                    </button>
                                                   )}
-                                                </button>
+                                                </div>
                                                 {teamMembers.map(name => {
-                                                  const selected = lead.responsible === name;
+                                                  const selected = leadResps.includes(name);
                                                   const avatar = memberAvatars[name];
                                                   const color = memberColors[name] ?? "#AAAAAA";
                                                   return (
@@ -830,21 +839,21 @@ export default function PipelinePage() {
                                                       style={{ background: selected ? `${color}14` : undefined }}
                                                       onClick={e => {
                                                         e.stopPropagation();
-                                                        updateLead(leadId, { responsible: name });
-                                                        setRespPopoverLeadId(null);
+                                                        const next = selected
+                                                          ? leadResps.filter(r => r !== name)
+                                                          : [...leadResps, name];
+                                                        updateLead(leadId, { responsibles: next, responsible: next[0] ?? "" });
                                                       }}
                                                     >
+                                                      <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
+                                                        {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                                      </div>
                                                       {avatar ? (
                                                         <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 20, height: 20 }} />
                                                       ) : (
-                                                        <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>
-                                                          {name[0].toUpperCase()}
-                                                        </div>
+                                                        <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>{name[0].toUpperCase()}</div>
                                                       )}
                                                       <span className="text-xs truncate flex-1" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
-                                                      {selected && (
-                                                        <svg className="shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                                      )}
                                                     </button>
                                                   );
                                                 })}

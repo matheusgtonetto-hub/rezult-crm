@@ -41,6 +41,7 @@ const empty = {
   document: "",
   company: "",
   responsible: "",
+  responsibles: [] as string[],
   origin: "Outro" as string,
   birthDate: "",
   country: "Brasil",
@@ -95,6 +96,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         document:     editLead.document     ?? "",
         company:      editLead.company      ?? "",
         responsible:  editLead.responsible  ?? "",
+        responsibles: editLead.responsibles?.length ? editLead.responsibles : (editLead.responsible ? [editLead.responsible] : []),
         origin:       editLead.origin       ?? "Outro",
         birthDate:    editLead.birthDate    ?? "",
         country:      editLead.country      ?? "Brasil",
@@ -155,9 +157,10 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         email:        form.emails[0]  || undefined,
         site:         form.site       || undefined,
         document:     form.document   || undefined,
-        company:      form.company      || undefined,
-        responsible:  form.responsible  || "",
-        origin:       form.origin as Lead["origin"],
+        company:       form.company      || undefined,
+        responsibles:  form.responsibles,
+        responsible:   form.responsibles[0] ?? "",
+        origin:        form.origin as Lead["origin"],
         birthDate:    form.birthDate  || undefined,
         country:      form.country    || undefined,
         zipCode:      form.zipCode    || undefined,
@@ -273,17 +276,35 @@ export function LeadModal({ open, onClose, editLead }: Props) {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Responsável</label>
-              <Select value={form.responsible || "__none__"} onValueChange={v => set("responsible", v === "__none__" ? "" : v)}>
-                <SelectTrigger className="border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sem responsável</SelectItem>
-                  {teamMembers.map(name => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="border border-border rounded-lg p-2 space-y-1 max-h-[120px] overflow-y-auto">
+                {teamMembers.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-1">Nenhum membro no time.</p>
+                )}
+                {teamMembers.map(name => {
+                  const selected = form.responsibles.includes(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        const next = selected
+                          ? form.responsibles.filter(r => r !== name)
+                          : [...form.responsibles, name];
+                        set("responsibles", next);
+                      }}
+                      className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-left transition-colors hover:bg-muted"
+                    >
+                      <div
+                        className="flex items-center justify-center rounded shrink-0"
+                        style={{ width: 14, height: 14, border: selected ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: selected ? "hsl(var(--primary))" : "transparent" }}
+                      >
+                        {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                      </div>
+                      <span className="text-xs" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

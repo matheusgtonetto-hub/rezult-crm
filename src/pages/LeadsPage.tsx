@@ -46,7 +46,10 @@ export default function LeadsPage() {
   const allLeads = Object.values(leads);
   const filtered = allLeads.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterResp !== "all" && l.responsible !== filterResp) return false;
+    if (filterResp !== "all") {
+      const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+      if (!resps.includes(filterResp)) return false;
+    }
     if (filterStage !== "all" && l.stage !== filterStage) return false;
     return true;
   });
@@ -178,28 +181,35 @@ export default function LeadsPage() {
                 >
                   <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
                   <TableCell>
-                    {lead.responsible ? (
-                      <div className="flex items-center gap-2">
-                        {memberAvatars[lead.responsible] ? (
-                          <img
-                            src={memberAvatars[lead.responsible]}
-                            alt={lead.responsible}
-                            className="rounded-full object-cover shrink-0"
-                            style={{ width: 24, height: 24 }}
-                          />
-                        ) : (
-                          <div
-                            className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
-                            style={{ width: 24, height: 24, background: memberColors[lead.responsible] ?? "#AAAAAA", fontSize: 10 }}
-                          >
-                            {lead.responsible[0].toUpperCase()}
+                    {(() => {
+                      const resps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
+                      if (resps.length === 0) return <span className="text-sm text-muted-foreground">—</span>;
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center" style={{ gap: 0 }}>
+                            {resps.slice(0, 3).map((name, idx) => {
+                              const av = memberAvatars[name];
+                              const cl = memberColors[name] ?? "#AAAAAA";
+                              return av ? (
+                                <img key={name} src={av} alt={name} title={name} className="rounded-full object-cover" style={{ width: 22, height: 22, marginLeft: idx > 0 ? -6 : 0, outline: "2px solid hsl(var(--card))" }} />
+                              ) : (
+                                <div key={name} title={name} className="rounded-full flex items-center justify-center text-white font-semibold" style={{ width: 22, height: 22, background: cl, fontSize: 9, marginLeft: idx > 0 ? -6 : 0, outline: "2px solid hsl(var(--card))" }}>
+                                  {name[0].toUpperCase()}
+                                </div>
+                              );
+                            })}
+                            {resps.length > 3 && (
+                              <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: "#E5E5E5", color: "#555", fontSize: 9, marginLeft: -6, outline: "2px solid hsl(var(--card))" }}>
+                                +{resps.length - 3}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <span className="text-sm text-foreground">{lead.responsible}</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
+                          <span className="text-sm text-foreground">
+                            {resps.length === 1 ? resps[0] : `${resps.length} responsáveis`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
