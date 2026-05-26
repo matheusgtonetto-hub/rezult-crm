@@ -44,6 +44,7 @@ type ActionItem = {
   actionId: string;
   label: string;
   description: string;
+  config?: Record<string, string | boolean | number>;
 };
 
 type ActionCatItem = { id: string; label: string; description: string; icon: React.ElementType; warning?: boolean };
@@ -691,6 +692,13 @@ export default function AutomacoesPage() {
     setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, actionItems: (n.actionItems ?? []).filter(a => a.id !== itemId) } : n));
   };
 
+  const updateActionItem = (nodeId: string, itemId: string, config: Record<string, string | boolean | number>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, actionItems: (n.actionItems ?? []).map(a => a.id === itemId ? { ...a, config: { ...(a.config ?? {}), ...config } } : a) }
+      : n
+    ));
+  };
+
   // ─── SIDEBAR (shared) ────────────────────────────────────────────────────────
 
   const Sidebar = () => (
@@ -931,6 +939,7 @@ export default function AutomacoesPage() {
                   }}
                   removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
                   onOpenPicker={() => setAcoesPickerOpen(true)}
+                  updateActionItem={(itemId, config) => updateActionItem(nodePanel, itemId, config)}
                 />
               </div>
             </div>
@@ -1816,19 +1825,205 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   );
 }
 
+// ─── AcoesPanel helpers ───────────────────────────────────────────────────────
+
+function AcoesFieldInput({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", background: "#fff" }}
+      />
+      <button
+        onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
+        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+      ><Copy size={12} /></button>
+      <button
+        onClick={() => toast.info("Variáveis em breve")}
+        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+      >{"{}"}</button>
+    </div>
+  );
+}
+
+function AcoesSelect({ value, onChange, options, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: value ? "#111" : "#9CA3AF", background: "#fff", outline: "none", cursor: "pointer" }}
+    >
+      {placeholder && <option value="" disabled>{placeholder}</option>}
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+const ETAPA_OPTIONS = [
+  { value: "qualificado", label: "Qualificado" },
+  { value: "proposta", label: "Proposta" },
+  { value: "negociacao", label: "Negociação" },
+  { value: "fechado", label: "Fechado" },
+];
+
+const PRODUTO_OPTIONS = [
+  { value: "p1", label: "Produto 1" },
+  { value: "p2", label: "Produto 2" },
+];
+
+function NegociosConfigForm({ item, updateActionItem }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => (
+    <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>
+  );
+  const grp = (children: React.ReactNode) => (
+    <div style={{ marginBottom: 14 }}>{children}</div>
+  );
+
+  switch (item.actionId) {
+    case "criar_negocio":
+      return grp(<>{lbl("Informe em qual etapa o negócio será criado")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+
+    case "mover_etapa":
+      return grp(<>{lbl("Informe em qual etapa que o negócio será movido")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+
+    case "ganhar_negocio":
+    case "restaurar_negocio":
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+
+    case "perder_negocio":
+      return (
+        <>
+          {grp(<>{lbl("Selecione o motivo")}<AcoesSelect value={(cfg.motivo as string) ?? ""} onChange={v => set("motivo", v)} placeholder="Selecione o motivo..." options={[{ value: "preco", label: "Preço" }, { value: "concorrencia", label: "Concorrência" }, { value: "sem_interesse", label: "Sem interesse" }, { value: "outro", label: "Outro" }]} /></>)}
+          {grp(<>{lbl("Justificativa")}<textarea value={(cfg.justificativa as string) ?? ""} onChange={e => set("justificativa", e.target.value)} placeholder="Digite a justificativa..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} /></>)}
+        </>
+      );
+
+    case "transf_atend_neg":
+      return (
+        <>
+          {grp(<>{lbl("Selecione o atendente")}<AcoesSelect value={(cfg.atendente as string) ?? ""} onChange={v => set("atendente", v)} placeholder="Selecione o atendente..." options={[{ value: "qualquer", label: "Qualquer atendente disponível" }, { value: "responsavel", label: "Atendente responsável" }]} /></>)}
+          {grp(
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB" }}>
+              <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Transferir o mesmo atendente como atendente responsável do lead?</span>
+              <Switch checked={!!(cfg.transf_responsavel)} onCheckedChange={v => set("transf_responsavel", v)} />
+            </div>
+          )}
+        </>
+      );
+
+    case "duplicar_negocio":
+      return grp(<>{lbl("Em qual etapa o negócio será duplicado")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+
+    case "remover_atend_neg":
+      return grp(
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB" }}>
+          <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Remover o atendente responsável do lead?</span>
+          <Switch checked={!!(cfg.remover_responsavel)} onCheckedChange={v => set("remover_responsavel", v)} />
+        </div>
+      );
+
+    case "add_produto_neg":
+      return (
+        <>
+          {grp(<>{lbl("Selecione o produto")}<AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..." options={PRODUTO_OPTIONS} /></>)}
+          {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
+          {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
+          {grp(<>{lbl("Preço")}<AcoesFieldInput value={(cfg.preco as string) ?? ""} onChange={v => set("preco", v)} placeholder="Preço..." /></>)}
+        </>
+      );
+
+    case "rem_produto_neg":
+      return (
+        <>
+          {grp(<>{lbl("Selecione o produto")}<AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..." options={PRODUTO_OPTIONS} /></>)}
+          {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
+          {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
+        </>
+      );
+
+    case "descontos_neg":
+      return (
+        <>
+          {grp(<>{lbl("Desconto (%)")}<AcoesFieldInput value={(cfg.desconto as string) ?? ""} onChange={v => set("desconto", v)} placeholder="Ex: 10" /></>)}
+          {grp(<>{lbl("Acréscimo")}<AcoesFieldInput value={(cfg.acrescimo as string) ?? ""} onChange={v => set("acrescimo", v)} placeholder="Ex: 5.00" /></>)}
+          {grp(<>{lbl("Frete")}<AcoesFieldInput value={(cfg.frete as string) ?? ""} onChange={v => set("frete", v)} placeholder="Ex: 15.00" /></>)}
+          {grp(<>{lbl("Tipo de frete")}<AcoesFieldInput value={(cfg.tipo_frete as string) ?? ""} onChange={v => set("tipo_frete", v)} placeholder="Ex: PAC, SEDEX..." /></>)}
+          {grp(<>{lbl("Cupom")}<AcoesFieldInput value={(cfg.cupom as string) ?? ""} onChange={v => set("cupom", v)} placeholder="Código do cupom..." /></>)}
+        </>
+      );
+
+    case "remover_negocio":
+      return (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px" }}>Atenção</span>
+          </div>
+          <p style={{ fontSize: 12, color: "#92400E", margin: 0 }}>Esta ação removerá o negócio permanentemente. Esta operação não pode ser desfeita.</p>
+        </div>
+      );
+
+    default:
+      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+  }
+}
+
 // ─── AcoesPanel ──────────────────────────────────────────────────────────────
 
-function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, onOpenPicker }: {
+function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, onOpenPicker, updateActionItem }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   removeActionItem: (itemId: string) => void;
   onOpenPicker: () => void;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
 }) {
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const selectedItem = (node.actionItems ?? []).find(a => a.id === selectedItemId) ?? null;
+
+  if (selectedItemId && selectedItem) {
+    const catData = ACTION_CATEGORIES.find(c => c.id === selectedItem.categoryId);
+    const actData = catData?.actions.find(a => a.id === selectedItem.actionId);
+    const isWarning = actData?.warning;
+    return (
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+          <button
+            onClick={() => setSelectedItemId(null)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
+          >
+            <ArrowLeft size={15} />
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedItem.label}</span>
+            {isWarning && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+            )}
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+          <NegociosConfigForm item={selectedItem} updateActionItem={updateActionItem} />
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      {/* Header */}
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
@@ -1845,8 +2040,6 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
         </div>
         <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Execute ações no sistema</p>
       </div>
-
-      {/* Added action items */}
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {(node.actionItems ?? []).length === 0 ? (
           <div style={{ paddingTop: 8, fontSize: 12, color: "#9CA3AF" }}>Nenhuma ação adicionada ainda.</div>
@@ -1857,10 +2050,17 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
               const actData = catData?.actions.find(a => a.id === item.actionId);
               const AIcon = actData?.icon ?? Zap;
               return (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8 }}>
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedItemId(item.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#FFEDD5")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF7ED")}
+                >
                   <AIcon size={13} color="#F97316" />
                   <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{item.label}</span>
-                  <button onClick={() => removeActionItem(item.id)}
+                  <button
+                    onClick={e => { e.stopPropagation(); removeActionItem(item.id); }}
                     style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
@@ -1871,8 +2071,6 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           </div>
         )}
       </div>
-
-      {/* Add action button */}
       <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#F97316", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
