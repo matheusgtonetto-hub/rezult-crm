@@ -1049,6 +1049,7 @@ export default function AutomacoesPage() {
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
+                    removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                   />
                 );
               })}
@@ -1533,7 +1534,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -1543,6 +1544,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onDuplicate: () => void;
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
+  removeSubBlock?: (blockId: string) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -1714,7 +1716,18 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
               return (
                 <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                   <SBIcon size={12} color="#6B7280" />
-                  {b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}
+                  <span style={{ flex: 1 }}>{b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}</span>
+                  {removeSubBlock && (
+                    <button
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); removeSubBlock(b.id); }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "#9CA3AF", flexShrink: 0 }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
                 </div>
               );
             })}
