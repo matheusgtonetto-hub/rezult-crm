@@ -1050,6 +1050,7 @@ export default function AutomacoesPage() {
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
+                    removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                   />
                 );
               })}
@@ -1534,7 +1535,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -1545,6 +1546,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
   removeSubBlock?: (blockId: string) => void;
+  removeActionItem?: (itemId: string) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -1603,6 +1605,17 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
                   <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                     <AIcon size={12} color="#F97316" />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                    {removeActionItem && (
+                      <button
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); removeActionItem(item.id); }}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "#9CA3AF", flexShrink: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
                   </div>
                 );
               })}
