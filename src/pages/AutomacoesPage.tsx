@@ -49,6 +49,11 @@ type ActionItem = {
 
 type ActionCatItem = { id: string; label: string; description: string; icon: React.ElementType; warning?: boolean };
 
+type ConditionItem = { id: string; categoryId: string; conditionId: string; label: string; config?: Record<string, string | boolean | number> };
+type EsperaConfig = { type: "intervalo" | "fixo"; days: string[]; startTime: string; endTime: string; seconds?: number };
+type RandomBranch = { id: string; label: string; percentage: number };
+type ApiConfig = { method: string; url: string; headers: { key: string; value: string }[]; params: { key: string; value: string }[]; body: string };
+
 type CanvasNode = {
   id: string;
   type: "start" | "note" | ActionNodeType;
@@ -58,6 +63,10 @@ type CanvasNode = {
   parentId?: string | null;
   subBlocks?: SubBlock[];
   actionItems?: ActionItem[];
+  conditionItems?: ConditionItem[];
+  espera?: EsperaConfig;
+  randomBranches?: RandomBranch[];
+  apiConfig?: ApiConfig;
   noteText?: string;
   noteColorIndex?: number;
   width?: number;
@@ -248,6 +257,42 @@ const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; d
   },
 ];
 
+const CONDITION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; conditions: { id: string; label: string; description: string }[] }[] = [
+  { id: "negocios", label: "Negócios", icon: Briefcase, description: "Condições baseadas em negócios",
+    conditions: [
+      { id: "pos_atend",      label: "Possui atendentes",    description: "Negócio possui atendentes atribuídos" },
+      { id: "sem_atend",      label: "Sem atendentes",       description: "Negócio não possui atendentes" },
+      { id: "ganho",          label: "Está ganho",           description: "Negócio está marcado como ganho" },
+      { id: "perdido",        label: "Está perdido",         description: "Negócio está marcado como perdido" },
+      { id: "pendente",       label: "Está pendente",        description: "Negócio está com situação pendente" },
+      { id: "pos_produto",    label: "Possui produto",       description: "Negócio possui produto vinculado" },
+      { id: "com_id_externo", label: "Com ID externo",       description: "Negócio tem ID externo definido" },
+    ],
+  },
+  { id: "leads", label: "Leads", icon: User, description: "Condições baseadas em leads",
+    conditions: [
+      { id: "com_email",    label: "Com email",              description: "Lead possui email cadastrado" },
+      { id: "com_nome",     label: "Com nome",               description: "Lead possui nome cadastrado" },
+      { id: "com_telefone", label: "Com telefone",           description: "Lead possui telefone cadastrado" },
+      { id: "com_cpf",      label: "Com CPF",                description: "Lead possui CPF cadastrado" },
+      { id: "pos_tag",      label: "Possui tag",             description: "Lead possui uma tag específica" },
+      { id: "pos_campo",    label: "Possui campo adicional", description: "Lead possui campo adicional preenchido" },
+    ],
+  },
+  { id: "campos", label: "Campos", icon: LayoutGrid, description: "Condições baseadas em valores de campos",
+    conditions: [
+      { id: "campo_igual",  label: "Campo com valor igual",         description: "Verifica se um campo tem valor específico" },
+      { id: "campo_contem", label: "Campo contém valor",            description: "Verifica se um campo contém um valor" },
+      { id: "campo_entre",  label: "Campo possui valor entre dois", description: "Verifica se campo está entre dois valores" },
+    ],
+  },
+  { id: "tempo", label: "Tempo", icon: Clock, description: "Condições baseadas em data e hora",
+    conditions: [
+      { id: "intervalo_tempo", label: "Intervalo de horário", description: "Verifica se a hora atual está em um intervalo de dia/hora" },
+    ],
+  },
+];
+
 const MENSAGEM_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; items: { type: SubBlockType; label: string; description: string }[] }[] = [
   { id: "texto",     label: "Texto",     icon: AlignLeft,  description: "Envie mensagens de texto para o contato",         items: [{ type: "mensagem_texto",  label: "Mensagem de texto",    description: "Envie uma mensagem de texto simples para o contato" }] },
   { id: "interacao", label: "Interação", icon: HelpCircle, description: "Aguarde e capture respostas do usuário",           items: [{ type: "entrada_usuario", label: "Entrada do usuário",   description: "Aguarda uma resposta do usuário e armazena como variável" }] },
@@ -319,6 +364,8 @@ export default function AutomacoesPage() {
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
+  const [condicoesPickerOpen, setCondicoesPickerOpen] = useState(false);
+  const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -697,6 +744,48 @@ export default function AutomacoesPage() {
     ));
   };
 
+  const addConditionItem = (nodeId: string, item: Omit<ConditionItem, "id">) => {
+    const newItem: ConditionItem = { id: `ci${Date.now()}`, ...item };
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, conditionItems: [...(n.conditionItems ?? []), newItem] } : n));
+  };
+
+  const removeConditionItem = (nodeId: string, itemId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, conditionItems: (n.conditionItems ?? []).filter(c => c.id !== itemId) } : n));
+  };
+
+  const updateEspera = (nodeId: string, data: Partial<EsperaConfig>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, espera: { type: "intervalo", days: ["seg","ter","qua","qui","sex"], startTime: "08:00", endTime: "18:00", ...(n.espera ?? {}), ...data } }
+      : n
+    ));
+  };
+
+  const addRandomBranch = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    const idx = node?.randomBranches?.length ?? 4;
+    const label = String.fromCharCode(65 + idx);
+    const newBranch: RandomBranch = { id: `rb${Date.now()}`, label, percentage: 25 };
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, randomBranches: [...(n.randomBranches ?? [{ id:"a",label:"A",percentage:25},{ id:"b",label:"B",percentage:25},{ id:"c",label:"C",percentage:25},{ id:"d",label:"D",percentage:25}]), newBranch] } : n));
+  };
+
+  const removeRandomBranch = (nodeId: string, branchId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, randomBranches: (n.randomBranches ?? []).filter(b => b.id !== branchId) } : n));
+  };
+
+  const updateRandomBranch = (nodeId: string, branchId: string, data: Partial<RandomBranch>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, randomBranches: (n.randomBranches ?? []).map(b => b.id === branchId ? { ...b, ...data } : b) }
+      : n
+    ));
+  };
+
+  const updateApiConfig = (nodeId: string, config: Partial<ApiConfig>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, apiConfig: { method: "POST", url: "", headers: [], params: [], body: "", ...(n.apiConfig ?? {}), ...config } }
+      : n
+    ));
+  };
+
   // ─── SIDEBAR (shared) ────────────────────────────────────────────────────────
 
   const Sidebar = () => (
@@ -905,6 +994,36 @@ export default function AutomacoesPage() {
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
+          {/* Default: Blocos básicos (when no node selected) */}
+          {!nodePanel && (
+            <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
+                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {ACTION_TYPES.slice(0, 7).map(at => {
+                  const Icon = at.icon;
+                  return (
+                    <button key={at.id} onClick={() => {
+                      const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
+                      setNodes(prev => [...prev, newNode]);
+                    }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: 7, background: `${at.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Icon size={14} color={at.color} />
+                      </div>
+                      <span style={{ fontSize: 13, color: "#374151" }}>{at.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+          )}
+
           {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "mensagem" && (
             <MensagemPanel
               node={nodes.find(n => n.id === nodePanel)!}
@@ -932,6 +1051,58 @@ export default function AutomacoesPage() {
               removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
               onOpenPicker={() => setAcoesPickerOpen(true)}
               updateActionItem={(itemId, config) => updateActionItem(nodePanel, itemId, config)}
+            />
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "condicoes" && (
+            <CondicoesPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              removeConditionItem={(itemId) => removeConditionItem(nodePanel, itemId)}
+              onOpenPicker={() => setCondicoesPickerOpen(true)}
+            />
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "espera" && (
+            <EsperaPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              updateEspera={(data) => updateEspera(nodePanel, data)}
+            />
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "randomizador" && (
+            <RandomizadorPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              addBranch={() => addRandomBranch(nodePanel)}
+              removeBranch={(id) => removeRandomBranch(nodePanel, id)}
+              updateBranch={(id, data) => updateRandomBranch(nodePanel, id, data)}
+            />
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "api" && (
+            <ApiPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              updateApiConfig={(config) => updateApiConfig(nodePanel, config)}
+            />
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "campos" && (
+            <CamposPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
             />
           )}
 
@@ -1042,9 +1213,9 @@ export default function AutomacoesPage() {
                     key={n.id}
                     node={n}
                     selected={selectedNode === n.id}
-                    onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem" || n.type === "acoes") setNodePanel(n.id); }}
+                    onSelect={() => { setSelectedNode(n.id); setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
-                    onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem" || n.type === "acoes") setNodePanel(n.id); })}
+                    onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
@@ -1291,6 +1462,59 @@ export default function AutomacoesPage() {
         </DialogContent>
       </Dialog>
 
+
+      {/* Condições picker */}
+      <Dialog open={condicoesPickerOpen} onOpenChange={setCondicoesPickerOpen}>
+        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 480 }}>
+            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar condição</div>
+              {CONDITION_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const sel = selectedCondPickerCat === cat.id;
+                return (
+                  <button key={cat.id} onClick={() => setSelectedCondPickerCat(cat.id)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#F3F4FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #6366F1" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#6366F1" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    <Icon size={14} />{cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              {(() => {
+                const cat = CONDITION_CATEGORIES.find(c => c.id === selectedCondPickerCat)!;
+                return (
+                  <>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {cat.conditions.map(cond => (
+                        <button key={cond.id}
+                          onClick={() => {
+                            if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
+                            setCondicoesPickerOpen(false);
+                          }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <Filter size={14} color="#6366F1" />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{cond.label}</div>
+                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Rename modal */}
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
@@ -1661,6 +1885,102 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
     );
   }
 
+  if (node.type === "condicoes") {
+    const items = node.conditionItems ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#6366F1" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(99,102,241,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Filter size={15} color="#6366F1" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condições</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {items.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Adicione condições para ramificar o fluxo.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {items.map(item => {
+                const catData = CONDITION_CATEGORIES.find(c => c.id === item.categoryId);
+                const condData = catData?.conditions.find(c => c.id === item.conditionId);
+                return (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", background: "#F3F4FF", border: "0.5px solid #C7D2FE", borderRadius: 6, fontSize: 11, color: "#374151" }}>
+                    <Filter size={10} color="#6366F1" />
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "#6366F1", fontWeight: 500 }}>Próximo passo</span>
+            <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
+              style={{ width: 12, height: 12, borderRadius: "50%", background: "#C7D2FE", border: "2px solid #6366F1", flexShrink: 0, cursor: "crosshair" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "espera") {
+    const espera = node.espera;
+    return (
+      <div data-node onMouseDown={onDragStart}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Clock size={15} color="#3B82F6" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Espera</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {espera ? (
+            <div style={{ fontSize: 12, color: "#374151" }}>
+              {espera.seconds && espera.seconds > 0
+                ? `Aguarda ${espera.seconds}s`
+                : `${espera.days.length} dias, ${espera.startTime}–${espera.endTime}`}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#6B7280" }}>Adicione um tipo de espera.</div>
+          )}
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+            <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
+              style={{ width: 12, height: 12, borderRadius: "50%", background: "#BFDBFE", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "randomizador") {
+    const branches = node.randomBranches ?? DEFAULT_BRANCHES;
+    return (
+      <div data-node onMouseDown={onDragStart}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Shuffle size={15} color="#F97316" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {branches.map((b, i) => (
+              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6 }}>
+                <div style={{ width: 16, height: 16, borderRadius: 4, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
+                </div>
+                <span style={{ flex: 1, fontSize: 11, color: "#374151" }}>{b.label}</span>
+                <span style={{ fontSize: 11, color: "#F97316", fontWeight: 600 }}>{b.percentage}%</span>
+                <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={onPortDragStart}
+                  style={{ width: 10, height: 10, borderRadius: "50%", background: "#FED7AA", border: "2px solid #F97316", flexShrink: 0, cursor: "crosshair" }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (node.type !== "mensagem") {
     return (
       <div
@@ -1777,6 +2097,403 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
         <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
       </div>
     </div>
+  );
+}
+
+// ─── CondicoesPanel ──────────────────────────────────────────────────────────
+
+function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionItem, onOpenPicker }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  removeConditionItem: (itemId: string) => void;
+  onOpenPicker: () => void;
+}) {
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Condições
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Defina condições para ramificar o fluxo</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {(node.conditionItems ?? []).length === 0 ? (
+          <div style={{ paddingTop: 8, fontSize: 12, color: "#9CA3AF" }}>Nenhuma condição adicionada ainda.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {(node.conditionItems ?? []).map(item => {
+              const catData = CONDITION_CATEGORIES.find(c => c.id === item.categoryId);
+              const condData = catData?.conditions.find(c => c.id === item.conditionId);
+              return (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F3F4FF", border: "0.5px solid #C7D2FE", borderRadius: 8 }}>
+                  <Filter size={13} color="#6366F1" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>{condData?.label ?? item.label}</div>
+                    <div style={{ fontSize: 10, color: "#9CA3AF" }}>{catData?.label}</div>
+                  </div>
+                  <button onClick={() => removeConditionItem(item.id)}
+                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  ><X size={11} /></button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+        <button onClick={onOpenPicker}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#6366F1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#E0E7FF"; e.currentTarget.style.borderColor = "#6366F1"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#F3F4FF"; e.currentTarget.style.borderColor = "#C7D2FE"; }}
+        >
+          <Plus size={13} /> Adicionar condição
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ─── EsperaPanel ──────────────────────────────────────────────────────────────
+
+const DAYS_OF_WEEK = [
+  { id: "dom", label: "Dom" }, { id: "seg", label: "Seg" }, { id: "ter", label: "Ter" },
+  { id: "qua", label: "Qua" }, { id: "qui", label: "Qui" }, { id: "sex", label: "Sex" },
+  { id: "sab", label: "Sab" },
+];
+
+function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  updateEspera: (data: Partial<EsperaConfig>) => void;
+}) {
+  const espera = node.espera ?? { type: "intervalo" as const, days: ["seg","ter","qua","qui","sex"], startTime: "08:00", endTime: "18:00", seconds: 0 };
+  const toggleDay = (day: string) => {
+    const days = espera.days.includes(day) ? espera.days.filter(d => d !== day) : [...espera.days, day];
+    updateEspera({ days });
+  };
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Espera
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Aguarda um intervalo antes de continuar</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 10 }}>Espera de um intervalo de hora nos dias da semana</div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+            {DAYS_OF_WEEK.map(d => {
+              const sel = espera.days.includes(d.id);
+              return (
+                <button key={d.id} onClick={() => toggleDay(d.id)}
+                  style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${sel ? "#3B82F6" : "#E5E5E5"}`, background: sel ? "#DBEAFE" : "#FFFFFF", color: sel ? "#1D4ED8" : "#6B7280", fontSize: 12, fontWeight: sel ? 600 : 400, cursor: "pointer" }}>
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 4 }}>Início</label>
+              <input type="time" value={espera.startTime ?? "08:00"} onChange={e => updateEspera({ startTime: e.target.value })}
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 4 }}>Fim</label>
+              <input type="time" value={espera.endTime ?? "18:00"} onChange={e => updateEspera({ endTime: e.target.value })}
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ paddingTop: 16, borderTop: "0.5px solid #E5E5E5" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Espera por tempo fixo</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="number" min={0} value={espera.seconds ?? 0} onChange={e => updateEspera({ seconds: Number(e.target.value) })}
+              style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+            <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─── RandomizadorPanel ────────────────────────────────────────────────────────
+
+const BRANCH_COLORS = ["#3B82F6", "#22C55E", "#F97316", "#8B5CF6", "#EC4899"];
+const DEFAULT_BRANCHES: RandomBranch[] = [
+  { id: "a", label: "A", percentage: 25 }, { id: "b", label: "B", percentage: 25 },
+  { id: "c", label: "C", percentage: 25 }, { id: "d", label: "D", percentage: 25 },
+];
+
+function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, removeBranch, updateBranch }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  addBranch: () => void;
+  removeBranch: (id: string) => void;
+  updateBranch: (id: string, data: Partial<RandomBranch>) => void;
+}) {
+  const branches = node.randomBranches ?? DEFAULT_BRANCHES;
+  const total = branches.reduce((s, b) => s + b.percentage, 0);
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Randomizador
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Distribua o fluxo aleatoriamente entre ramificações</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {total !== 100 && (
+          <div style={{ padding: "8px 10px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 10 }}>
+            Total: {total}% (deve somar 100%)
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {branches.map((b, i) => (
+            <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 6, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{b.label}</span>
+              </div>
+              <input value={b.label} onChange={e => updateBranch(b.id, { label: e.target.value })}
+                style={{ flex: 1, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", background: "#FFF" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
+                  style={{ width: 52, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "right", background: "#FFF" }} />
+                <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
+              </div>
+              {branches.length > 2 && (
+                <button onClick={() => removeBranch(b.id)} style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                ><X size={11} /></button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+        <button onClick={addBranch}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+        >
+          <Plus size={13} /> Adicionar ramificação
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ─── ApiPanel ─────────────────────────────────────────────────────────────────
+
+function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  updateApiConfig: (config: Partial<ApiConfig>) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"headers" | "params" | "body">("headers");
+  const cfg = node.apiConfig ?? { method: "POST", url: "", headers: [], params: [], body: "" };
+  const addHeader = () => updateApiConfig({ headers: [...cfg.headers, { key: "", value: "" }] });
+  const removeHeader = (i: number) => updateApiConfig({ headers: cfg.headers.filter((_, idx) => idx !== i) });
+  const updateHeader = (i: number, key: string, value: string) => {
+    const headers = [...cfg.headers]; headers[i] = { key, value }; updateApiConfig({ headers });
+  };
+  const addParam = () => updateApiConfig({ params: [...cfg.params, { key: "", value: "" }] });
+  const removeParam = (i: number) => updateApiConfig({ params: cfg.params.filter((_, idx) => idx !== i) });
+  const updateParam = (i: number, key: string, value: string) => {
+    const params = [...cfg.params]; params[i] = { key, value }; updateApiConfig({ params });
+  };
+  return (
+    <aside style={{ width: 320, minWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> API
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas</p>
+      </div>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <select value={cfg.method} onChange={e => updateApiConfig({ method: e.target.value })}
+            style={{ width: 90, padding: "7px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", fontWeight: 600, color: "#3B82F6", cursor: "pointer" }}>
+            {["GET", "POST", "PUT", "DELETE", "PATCH"].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <input value={cfg.url} onChange={e => updateApiConfig({ url: e.target.value })}
+            placeholder="https://..."
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+        </div>
+      </div>
+      <div style={{ borderBottom: "0.5px solid #E5E5E5", flexShrink: 0, display: "flex" }}>
+        {(["headers", "params", "body"] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
+            {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : "Corpo"}
+          </button>
+        ))}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {activeTab !== "body" && (
+          <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {(activeTab === "headers" ? cfg.headers : cfg.params).map((h, i) => (
+                <div key={i} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <input value={h.key} onChange={e => activeTab === "headers" ? updateHeader(i, e.target.value, h.value) : updateParam(i, e.target.value, h.value)}
+                    placeholder="Chave" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <input value={h.value} onChange={e => activeTab === "headers" ? updateHeader(i, h.key, e.target.value) : updateParam(i, h.key, e.target.value)}
+                    placeholder="Valor" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <button onClick={() => activeTab === "headers" ? removeHeader(i) : removeParam(i)}
+                    style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  ><X size={11} /></button>
+                </div>
+              ))}
+            </div>
+            <button onClick={activeTab === "headers" ? addHeader : addParam}
+              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+              <Plus size={11} /> {activeTab === "headers" ? "Adicionar cabeçalho" : "Adicionar parâmetro"}
+            </button>
+          </div>
+        )}
+        {activeTab === "body" && (
+          <textarea value={cfg.body} onChange={e => updateApiConfig({ body: e.target.value })}
+            placeholder={'{"chave": "valor"}'}
+            style={{ width: "100%", minHeight: 200, padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 11, fontFamily: "monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ─── CamposPanel ──────────────────────────────────────────────────────────────
+
+function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+}) {
+  const [campo, setCampo] = useState("");
+  const [operacao, setOperacao] = useState("");
+  const [valor, setValor] = useState("");
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Operações de campos
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Manipule campos do lead ou negócio</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo</label>
+            <select value={campo} onChange={e => setCampo(e.target.value)}
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
+              <option value="">Selecione um campo...</option>
+              <option value="nome">Nome</option>
+              <option value="email">Email</option>
+              <option value="telefone">Telefone</option>
+              <option value="cpf">CPF</option>
+              <option value="empresa">Empresa</option>
+              <option value="tags">Tags</option>
+              <option value="observacoes">Observações</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Operação</label>
+            <select value={operacao} onChange={e => setOperacao(e.target.value)}
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
+              <option value="">Selecione a operação...</option>
+              <option value="definir">Definir valor</option>
+              <option value="limpar">Limpar valor</option>
+              <option value="incrementar">Incrementar</option>
+              <option value="decrementar">Decrementar</option>
+              <option value="concatenar">Concatenar</option>
+            </select>
+          </div>
+          {operacao && operacao !== "limpar" && (
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor</label>
+              <input value={valor} onChange={e => setValor(e.target.value)}
+                placeholder="Valor ou variável {{var}}..."
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+              <div style={{ marginTop: 4, fontSize: 10, color: "#9CA3AF" }}>Use {"{{variavel}}"} para inserir variáveis dinâmicas.</div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+        <button onClick={() => toast.info("Em breve: múltiplas operações de campo")}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+        >
+          <Plus size={13} /> Adicionar operação
+        </button>
+      </div>
+    </aside>
   );
 }
 
