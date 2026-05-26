@@ -37,13 +37,15 @@ type SubBlock = {
 
 type CanvasNode = {
   id: string;
-  type: "start" | ActionNodeType;
+  type: "start" | "note" | ActionNodeType;
   x: number; y: number;
   label: string;
   trigger?: TriggerConfig | null;
   parentId?: string | null;
   subBlocks?: SubBlock[];
-  note?: string;
+  noteText?: string;
+  width?: number;
+  height?: number;
 };
 
 type AutomationRecord = {
@@ -211,6 +213,7 @@ export default function AutomacoesPage() {
   const fileRef      = useRef<HTMLInputElement>(null);
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
   const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
+  const resizeDragRef = useRef<{ nodeId: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
   // Always-fresh refs to avoid stale closures in mouse event handlers
   const stateRef = useRef({ pan, zoom, nodes });
   stateRef.current = { pan, zoom, nodes };
@@ -287,10 +290,19 @@ export default function AutomacoesPage() {
 
   const onNodeDragStart = (e: React.MouseEvent, nodeId: string, onSelectFn: () => void) => {
     if ((e.target as HTMLElement).closest("[data-port]")) return;
+    if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
     e.stopPropagation();
     const node = stateRef.current.nodes.find(n => n.id === nodeId);
     if (!node) return;
     nodeDragRef.current = { nodeId, startX: e.clientX, startY: e.clientY, baseX: node.x, baseY: node.y, hasDragged: false, onSelect: onSelectFn };
+  };
+
+  const onNodeResizeStart = (e: React.MouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const node = stateRef.current.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    resizeDragRef.current = { nodeId, startX: e.clientX, startY: e.clientY, baseW: node.width ?? 220, baseH: node.height ?? 140 };
   };
 
   const handleAddNode = (type: string, label: string) => {
@@ -349,6 +361,17 @@ export default function AutomacoesPage() {
         }
         return;
       }
+      // Resize drag: resize a note node
+      if (resizeDragRef.current) {
+        const { zoom } = stateRef.current;
+        const dx = e.clientX - resizeDragRef.current.startX;
+        const dy = e.clientY - resizeDragRef.current.startY;
+        const nodeId = resizeDragRef.current.nodeId;
+        const newW = Math.max(160, resizeDragRef.current.baseW + dx / zoom);
+        const newH = Math.max(110, resizeDragRef.current.baseH + dy / zoom);
+        setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, width: newW, height: newH } : n));
+        return;
+      }
       // Node drag: move the node
       if (nodeDragRef.current) {
         const { zoom } = stateRef.current;
@@ -385,6 +408,11 @@ export default function AutomacoesPage() {
           const fromNode = nodes.find(n => n.id === fromNodeId);
           if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50 });
         }
+        return;
+      }
+      // Resize drag end
+      if (resizeDragRef.current) {
+        resizeDragRef.current = null;
         return;
       }
       // Node drag end: if no real drag occurred, treat as a click (select)
@@ -843,29 +871,43 @@ export default function AutomacoesPage() {
               </svg>
 
               {/* Nodes */}
-              {nodes.map(n => n.type === "start" ? (
-                <StartNode
-                  key={n.id}
-                  node={{ ...n, trigger: n.id === "n1" ? trigger : n.trigger }}
-                  selected={selectedNode === n.id}
-                  onSelect={() => setSelectedNode(n.id)}
-                  onAddTrigger={() => setTriggerOpen(true)}
-                  onPortDragStart={(e) => startPortDrag(e, n.id)}
-                  onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
-                />
-              ) : (
-                <ActionNode
-                  key={n.id}
-                  node={n}
-                  selected={selectedNode === n.id}
-                  onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
-                  onPortDragStart={(e) => startPortDrag(e, n.id)}
-                  onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); })}
-                  onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); }}
-                  onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
-                  onUpdateNote={(note) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, note } : x))}
-                />
-              ))}
+              {nodes.map(n => {
+                if (n.type === "start") return (
+                  <StartNode
+                    key={n.id}
+                    node={{ ...n, trigger: n.id === "n1" ? trigger : n.trigger }}
+                    selected={selectedNode === n.id}
+                    onSelect={() => setSelectedNode(n.id)}
+                    onAddTrigger={() => setTriggerOpen(true)}
+                    onPortDragStart={(e) => startPortDrag(e, n.id)}
+                    onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
+                  />
+                );
+                if (n.type === "note") return (
+                  <NoteNode
+                    key={n.id}
+                    node={n}
+                    selected={selectedNode === n.id}
+                    onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
+                    onResizeStart={(e) => onNodeResizeStart(e, n.id)}
+                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
+                    onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
+                  />
+                );
+                return (
+                  <ActionNode
+                    key={n.id}
+                    node={n}
+                    selected={selectedNode === n.id}
+                    onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
+                    onPortDragStart={(e) => startPortDrag(e, n.id)}
+                    onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); })}
+                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); }}
+                    onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
+                    onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
+                  />
+                );
+              })}
 
               {/* Add node popup — appears at drop position */}
               {addNodeMenu && (
@@ -1158,6 +1200,81 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, on
   );
 }
 
+// ─── NoteNode ─────────────────────────────────────────────────────────────────
+
+function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpdateText }: {
+  node: CanvasNode;
+  selected: boolean;
+  onDragStart: (e: React.MouseEvent) => void;
+  onResizeStart: (e: React.MouseEvent) => void;
+  onDelete: () => void;
+  onUpdateText: (text: string) => void;
+}) {
+  const w = node.width ?? 220;
+  const h = node.height ?? 140;
+  return (
+    <div
+      data-node
+      onMouseDown={onDragStart}
+      style={{
+        position: "absolute", left: node.x, top: node.y,
+        width: w, height: h,
+        background: "#FEFCE8",
+        border: `1.5px solid ${selected ? "#EAB308" : "#FDE047"}`,
+        borderRadius: 10,
+        boxShadow: selected ? "0 4px 16px rgba(234,179,8,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
+        display: "flex", flexDirection: "column", cursor: "grab", overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div style={{ padding: "6px 10px", borderBottom: "0.5px solid #FDE047", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: "#FEF08A" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <StickyNote size={12} color="#854D0E" />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#854D0E" }}>Anotação</span>
+        </div>
+        <button
+          data-action
+          onMouseDown={e => e.stopPropagation()}
+          onClick={onDelete}
+          title="Excluir anotação"
+          style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#92400E", padding: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.background = "#FDE04799")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          <X size={11} />
+        </button>
+      </div>
+
+      {/* Text area */}
+      <textarea
+        data-action
+        value={node.noteText ?? ""}
+        onChange={e => onUpdateText(e.target.value)}
+        placeholder="Digite uma anotação..."
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+        style={{
+          flex: 1, width: "100%", border: "none", background: "transparent",
+          fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit",
+          color: "#713F12", padding: "8px 10px", boxSizing: "border-box", lineHeight: 1.5,
+        }}
+      />
+
+      {/* Resize handle (bottom-right corner) */}
+      <div
+        data-resize-handle
+        onMouseDown={onResizeStart}
+        title="Redimensionar"
+        style={{ position: "absolute", right: 0, bottom: 0, width: 18, height: 18, cursor: "nwse-resize", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: 3 }}
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{ pointerEvents: "none" }}>
+          <path d="M2 10 L10 2 M6 10 L10 6" stroke="#C4A100" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 // ─── ActionNode ───────────────────────────────────────────────────────────────
 
 const SUB_BLOCK_ICONS: Record<SubBlockType, React.ElementType> = {
@@ -1178,7 +1295,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onUpdateNote }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -1186,56 +1303,30 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onDragStart: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  onUpdateNote: (note: string) => void;
+  onAddNote: () => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
-  const [noteOpen, setNoteOpen] = useState(false);
-
-  const toolbarButtons = [
-    { Ic: Trash2,     title: "Excluir",    action: onDelete,               hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
-    { Ic: Copy,       title: "Duplicar",   action: onDuplicate,            hoverBg: "#F3F4F6", hoverColor: "#374151" },
-    { Ic: StickyNote, title: "Anotações",  action: () => setNoteOpen(v => !v), hoverBg: "#FEF9C3", hoverColor: "#854D0E" },
-  ];
 
   const toolbar = (
-    <>
-      {noteOpen && (
-        <div
-          data-action
-          onMouseDown={e => e.stopPropagation()}
-          style={{
-            position: "absolute", top: -148, right: 0, width: 220,
-            background: "#FEFCE8", border: "1px solid #FDE047",
-            borderRadius: 10, padding: "10px 12px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50,
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#854D0E", marginBottom: 6 }}>Anotações</div>
-          <textarea
-            value={node.note ?? ""}
-            onChange={e => onUpdateNote(e.target.value)}
-            placeholder="Digite uma anotação..."
-            onClick={e => e.stopPropagation()}
-            style={{ width: "100%", minHeight: 90, border: "none", background: "transparent", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", color: "#713F12", boxSizing: "border-box" }}
-          />
-        </div>
-      )}
-      <div
-        data-action
-        onMouseDown={e => e.stopPropagation()}
-        style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
-      >
-        {toolbarButtons.map(({ Ic, title, action, hoverBg, hoverColor }, i) => (
-          <button key={i} title={title} onClick={action}
-            style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-            onMouseEnter={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = hoverColor; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280"; }}
-          ><Ic size={13} /></button>
-        ))}
-      </div>
-    </>
+    <div
+      data-action
+      onMouseDown={e => e.stopPropagation()}
+      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+    >
+      {([
+        { Ic: Trash2,     title: "Excluir",    action: onDelete,   hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
+        { Ic: Copy,       title: "Duplicar",   action: onDuplicate, hoverBg: "#F3F4F6", hoverColor: "#374151" },
+        { Ic: StickyNote, title: "Anotações",  action: onAddNote,  hoverBg: "#FEF9C3", hoverColor: "#854D0E" },
+      ] as const).map(({ Ic, title, action, hoverBg, hoverColor }, i) => (
+        <button key={i} title={title} onClick={action}
+          style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+          onMouseEnter={e => { e.currentTarget.style.background = hoverBg; (e.currentTarget.style as CSSStyleDeclaration).color = hoverColor; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280"; }}
+        ><Ic size={13} /></button>
+      ))}
+    </div>
   );
 
   if (node.type !== "mensagem") {
