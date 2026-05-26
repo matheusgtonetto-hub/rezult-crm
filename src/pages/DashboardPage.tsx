@@ -686,7 +686,7 @@ export default function DashboardPage() {
               if (l.pipelineId !== funnelPipeline!.id) return false;
               const d = parseEntryDate(l.entryDate);
               if (d === null || !inPeriod(d)) return false;
-              if (!funnelResponsible) return true;
+              if (funnelResponsible === "all") return true;
               const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
               return resps.includes(funnelResponsible);
             });
