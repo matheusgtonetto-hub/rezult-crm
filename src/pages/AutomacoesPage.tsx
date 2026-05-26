@@ -6,6 +6,9 @@ import {
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
   Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote, Palette,
+  ThumbsUp, ThumbsDown, RotateCcw, ArrowLeftRight, UserPlus, UserMinus, UserX,
+  Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
+  ShoppingCart, Bell,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -35,6 +38,16 @@ type SubBlock = {
   fileUrl?: string;
 };
 
+type ActionItem = {
+  id: string;
+  categoryId: string;
+  actionId: string;
+  label: string;
+  description: string;
+};
+
+type ActionCatItem = { id: string; label: string; description: string; icon: React.ElementType; warning?: boolean };
+
 type CanvasNode = {
   id: string;
   type: "start" | "note" | ActionNodeType;
@@ -43,6 +56,7 @@ type CanvasNode = {
   trigger?: TriggerConfig | null;
   parentId?: string | null;
   subBlocks?: SubBlock[];
+  actionItems?: ActionItem[];
   noteText?: string;
   noteColorIndex?: number;
   width?: number;
@@ -158,6 +172,80 @@ const ACTION_TYPES = [
   { id: "ia",           label: "IA",                   icon: Bot,           color: "#8B5CF6" },
   { id: "javascript",   label: "JavaScript",           icon: Code2,         color: "#3B82F6" },
 ] as const;
+
+const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; actions: ActionCatItem[] }[] = [
+  {
+    id: "negocios", label: "Negócios", icon: Briefcase,
+    description: "Adicione ações em seus negócios",
+    actions: [
+      { id: "criar_negocio",     label: "Criar negócio",                                            description: "Cria um novo negócio para o lead",                                                           icon: Briefcase },
+      { id: "mover_etapa",       label: "Mover negócio de etapa",                                   description: "Move um negócio para outra etapa (da mesma ou de outra pipeline)",                          icon: ArrowLeftRight },
+      { id: "ganhar_negocio",    label: "Ganhar negócio",                                           description: "Altere o negócio para ganho",                                                                icon: ThumbsUp },
+      { id: "restaurar_negocio", label: "Restaurar negócio",                                        description: "Restaurar status do negócio",                                                                icon: RotateCcw },
+      { id: "perder_negocio",    label: "Perder negócio",                                           description: "Altere o negócio para perdido",                                                              icon: ThumbsDown },
+      { id: "transf_atend_neg",  label: "Transferir um atendente ao negócio",                       description: "Transfere um atendente ao negócio (substitui o atual caso existir)",                        icon: UserPlus },
+      { id: "duplicar_negocio",  label: "Duplicar o negócio",                                       description: "Cria um novo negócio com as mesmas informações do negócio atual",                           icon: Copy },
+      { id: "remover_atend_neg", label: "Remover o atendente do negócio",                           description: "Remove o atendente do negócio",                                                              icon: UserMinus },
+      { id: "add_produto_neg",   label: "Adicionar um produto ao negócio",                          description: "Adiciona um produto ao negócio",                                                             icon: Package },
+      { id: "rem_produto_neg",   label: "Remover um produto do negócio",                            description: "Remove um produto do negócio ou reduz sua quantidade",                                       icon: Package },
+      { id: "descontos_neg",     label: "Adicionar descontos, acréscimo, frete e cupom do negócio", description: "Adicionar informações como desconto, acréscimo, frete e cupom ao negócio.",               icon: DollarSign },
+      { id: "remover_negocio",   label: "Remover negócio",                                          description: "Remove o negócio",                                                                           icon: Trash2, warning: true },
+    ],
+  },
+  {
+    id: "leads", label: "Leads", icon: User,
+    description: "Adicione ações em leads",
+    actions: [
+      { id: "criar_lead",          label: "Criar lead",                      description: "Cria o lead com as informações guardadas nos parâmetros da sessão. Caso o lead já existir, não será criado um novo lead", icon: User },
+      { id: "deletar_lead",        label: "Deletar lead",                    description: "Deleta o lead com as informações guardadas nos parâmetros da sessão. Caso não exista um lead, nenhuma ação será realizada",  icon: UserX, warning: true },
+      { id: "criar_tags",          label: "Criar tags",                      description: "Crie uma ou mais tags para serem usadas no lead",                                                                             icon: Tag },
+      { id: "adicionar_tags",      label: "Adicionar tags",                  description: "Adicione uma ou mais tags ao lead",                                                                                           icon: Tag },
+      { id: "remover_tags",        label: "Remover tags",                    description: "Remova uma ou mais tags ao lead",                                                                                             icon: Tag },
+      { id: "adicionar_listas",    label: "Adicionar listas",                description: "Adicione uma ou mais listas ao lead",                                                                                         icon: List },
+      { id: "remover_listas",      label: "Remover listas",                  description: "Remova uma ou mais listas do lead",                                                                                           icon: List },
+      { id: "criar_listas",        label: "Criar listas",                    description: "Crie uma ou mais listas para serem usadas no lead",                                                                           icon: List },
+      { id: "comentario_lead",     label: "Adicionar comentário no lead",    description: "Adiciona um comentário no lead",                                                                                              icon: MessageSquare },
+      { id: "transf_atend_lead",   label: "Transferir um atendente ao lead", description: "Transferir o atendente responsável do lead",                                                                                  icon: UserPlus },
+      { id: "remover_atend_lead",  label: "Remover atendente do lead",       description: "Remover o atendente responsável do lead",                                                                                     icon: UserMinus },
+    ],
+  },
+  {
+    id: "mensagens", label: "Mensagens", icon: MessageCircle,
+    description: "Adicione ações em mensagens",
+    actions: [
+      { id: "iniciar_atend",       label: "Iniciar o atendimento",                       description: "Inicia o atendimento da conversa",                             icon: Play },
+      { id: "finalizar_atend",     label: "Finalizar o atendimento",                     description: "Finaliza o atendimento da conversa",                           icon: CheckCircle2 },
+      { id: "sugestao_resposta",   label: "Adicionar sugestão de resposta",              description: "Adicione uma sugestão de resposta para a conversa",            icon: Sparkles },
+      { id: "transf_atend_conv",   label: "Transferir atendente da conversa",            description: "Transfere o atendente da conversa",                            icon: UserPlus },
+      { id: "transf_dep",          label: "Transferir departamento da conversa",         description: "Tranfere a conversa para um departamento",                     icon: Building2 },
+      { id: "desativar_auto_chat", label: "Desativar as automações de chat na conversa", description: "Desativa as automações de chat para a conversa",               icon: ToggleLeft },
+      { id: "ativar_auto_chat",    label: "Ativar as automações de chat na conversa",    description: "Ativa as automações de chat para a conversa",                  icon: ToggleRight },
+    ],
+  },
+  {
+    id: "produtos", label: "Produtos", icon: ShoppingCart,
+    description: "Adicione ações de produto",
+    actions: [
+      { id: "criar_produto", label: "Criar produto", description: "Cria um novo produto", icon: ShoppingCart },
+    ],
+  },
+  {
+    id: "sistema", label: "Sistema", icon: Settings,
+    description: "Adicione ações no sistema",
+    actions: [
+      { id: "retornar_resultado", label: "Retornar resultado da tool", description: "Define o conteúdo que será retornado como resultado da tool para o agente de IA", icon: Upload },
+      { id: "enviar_notificacao", label: "Enviar notificação",          description: "Envia uma notificação para os usuários",                                          icon: Bell },
+      { id: "iniciar_automacao",  label: "Iniciar outra automação",     description: "Permite iniciar outra automação passando parâmetros específicos da sessão.",     icon: Link2 },
+    ],
+  },
+  {
+    id: "atividades", label: "Atividades", icon: Calendar,
+    description: "Adicione ações para criar atividades",
+    actions: [
+      { id: "criar_atividade", label: "Criar atividade", description: "Cria uma atividade vinculada a um lead ou negócio", icon: Calendar },
+    ],
+  },
+];
 
 const NOTE_COLORS = [
   { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
@@ -579,6 +667,15 @@ export default function AutomacoesPage() {
     toast.success(`Gatilho "${t.label}" adicionado`);
   };
 
+  const addActionItem = (nodeId: string, item: Omit<ActionItem, "id">) => {
+    const newItem: ActionItem = { id: `ai${Date.now()}`, ...item };
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, actionItems: [...(n.actionItems ?? []), newItem] } : n));
+  };
+
+  const removeActionItem = (nodeId: string, itemId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, actionItems: (n.actionItems ?? []).filter(a => a.id !== itemId) } : n));
+  };
+
   // ─── SIDEBAR (shared) ────────────────────────────────────────────────────────
 
   const Sidebar = () => (
@@ -806,6 +903,24 @@ export default function AutomacoesPage() {
             </div>
           )}
 
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "acoes" && (
+            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
+              <div style={{ pointerEvents: "all" }}>
+                <AcoesPanel
+                  node={nodes.find(n => n.id === nodePanel)!}
+                  onClose={() => setNodePanel(null)}
+                  onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+                  onDuplicate={() => {
+                    const n = nodes.find(x => x.id === nodePanel);
+                    if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
+                  }}
+                  addActionItem={(item) => addActionItem(nodePanel, item)}
+                  removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
             {/* Active toggle */}
@@ -910,10 +1025,10 @@ export default function AutomacoesPage() {
                     key={n.id}
                     node={n}
                     selected={selectedNode === n.id}
-                    onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
+                    onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem" || n.type === "acoes") setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
-                    onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); })}
-                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); }}
+                    onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem" || n.type === "acoes") setNodePanel(n.id); })}
+                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                   />
@@ -1381,6 +1496,84 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
     </div>
   );
 
+  if (node.type === "acoes") {
+    const hasActions = (node.actionItems ?? []).length > 0;
+    return (
+      <div
+        data-node
+        onMouseDown={onDragStart}
+        style={{
+          position: "absolute", left: node.x, top: node.y, width: 270,
+          zIndex: 2,
+          background: "#FFFFFF",
+          border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`,
+          borderRadius: 12, cursor: "grab",
+          boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
+        }}
+      >
+        {selected && toolbar}
+        {/* Header */}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Zap size={16} color="#F97316" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Ação</span>
+        </div>
+        {/* Body */}
+        <div style={{ padding: "10px 14px" }}>
+          {hasActions ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {(node.actionItems ?? []).map(item => {
+                const catData = ACTION_CATEGORIES.find(c => c.id === item.categoryId);
+                const actData = catData?.actions.find(a => a.id === item.actionId);
+                const AIcon = actData?.icon ?? Zap;
+                return (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                    <AIcon size={12} color="#F97316" />
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>
+              Execute ações no sistema. Clique para adicionar ações:
+            </div>
+          )}
+          <button
+            data-action
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(); }}
+            style={{ width: "100%", border: "1px dashed #FED7AA", background: "#FFF7ED", color: "#F97316", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
+          >
+            <Plus size={13} /> Adicionar ação
+          </button>
+          {/* Output ports */}
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro na execução da ação</span>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <div
+                data-port data-from-node={node.id}
+                onMouseDown={onPortDragStart}
+                style={{ width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }}
+              />
+            </div>
+          </div>
+        </div>
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F97316" }}>Sucessos</div></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
+        </div>
+      </div>
+    );
+  }
+
   if (node.type !== "mensagem") {
     return (
       <div
@@ -1486,6 +1679,122 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
         <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
       </div>
     </div>
+  );
+}
+
+// ─── AcoesPanel ──────────────────────────────────────────────────────────────
+
+function AcoesPanel({ node, onClose, onDelete, onDuplicate, addActionItem, removeActionItem }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  addActionItem: (item: Omit<ActionItem, "id">) => void;
+  removeActionItem: (itemId: string) => void;
+}) {
+  const [selectedCat, setSelectedCat] = useState(ACTION_CATEGORIES[0].id);
+  const cat = ACTION_CATEGORIES.find(c => c.id === selectedCat)!;
+
+  return (
+    <aside style={{ width: 440, minWidth: 440, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Ações
+          </button>
+          <div style={{ display: "flex", gap: 2 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              ><Icon size={13} /></button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Execute ações no sistema</p>
+      </div>
+
+      {/* Added action items */}
+      {(node.actionItems ?? []).length > 0 && (
+        <div style={{ padding: "10px 16px", borderBottom: "0.5px solid #F0F0F0", maxHeight: 160, overflowY: "auto", flexShrink: 0 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Ações adicionadas</label>
+          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+            {(node.actionItems ?? []).map(item => {
+              const catData = ACTION_CATEGORIES.find(c => c.id === item.categoryId);
+              const actData = catData?.actions.find(a => a.id === item.actionId);
+              const AIcon = actData?.icon ?? Zap;
+              return (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8 }}>
+                  <AIcon size={13} color="#F97316" />
+                  <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{item.label}</span>
+                  <button
+                    onClick={() => removeActionItem(item.id)}
+                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  ><X size={11} /></button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Two-column action browser */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Left: categories */}
+        <div style={{ width: 130, borderRight: "0.5px solid #E5E5E5", overflowY: "auto", flexShrink: 0 }}>
+          {ACTION_CATEGORIES.map(c => {
+            const CIcon = c.icon;
+            const sel = selectedCat === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCat(c.id)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" as const }}
+              >
+                <CIcon size={14} />
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: actions list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px" }}>
+          <div style={{ marginBottom: 2, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
+          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 14 }}>{cat.description}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {cat.actions.map(action => {
+              const AIcon = action.icon;
+              return (
+                <button
+                  key={action.id}
+                  onClick={() => addActionItem({ categoryId: cat.id, actionId: action.id, label: action.label, description: action.description })}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left" as const }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <AIcon size={14} color="#F97316" />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{action.label}</span>
+                      {action.warning && (
+                        <span style={{ fontSize: 10, fontWeight: 600, background: "#FEF3C7", color: "#B45309", padding: "1px 6px", borderRadius: 4 }}>Atenção</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{action.description}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }
 
