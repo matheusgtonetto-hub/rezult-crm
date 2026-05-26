@@ -24,7 +24,7 @@ import { useCompany } from "@/context/CompanyContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TriggerConfig = { categoryId: string; triggerId: string; label: string; description: string };
+type TriggerConfig = { categoryId: string; triggerId: string; label: string; description: string; configData?: Record<string, string | boolean | number> };
 
 type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomizador" | "api" | "campos" | "ia" | "javascript";
 
@@ -366,6 +366,7 @@ export default function AutomacoesPage() {
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
   const [condicoesPickerOpen, setCondicoesPickerOpen] = useState(false);
   const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
+  const [triggerPanel, setTriggerPanel] = useState(false);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -499,6 +500,7 @@ export default function AutomacoesPage() {
     setSelectedNode(null);
     setAddNodeMenu(null);
     setNodePanel(null);
+    setTriggerPanel(false);
   };
 
   useEffect(() => {
@@ -725,6 +727,8 @@ export default function AutomacoesPage() {
     setTrigger(cfg);
     setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
     setTriggerOpen(false);
+    setTriggerPanel(true);
+    setNodePanel(null);
     toast.success(`Gatilho "${t.label}" adicionado`);
   };
 
@@ -784,6 +788,10 @@ export default function AutomacoesPage() {
       ? { ...n, apiConfig: { method: "POST", url: "", headers: [], params: [], body: "", ...(n.apiConfig ?? {}), ...config } }
       : n
     ));
+  };
+
+  const updateTriggerConfigData = (key: string, value: string | boolean | number) => {
+    setTrigger(prev => prev ? { ...prev, configData: { ...(prev.configData ?? {}), [key]: value } } : prev);
   };
 
   // ─── SIDEBAR (shared) ────────────────────────────────────────────────────────
@@ -994,8 +1002,18 @@ export default function AutomacoesPage() {
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
+          {/* Trigger config panel */}
+          {triggerPanel && !nodePanel && trigger && (
+            <TriggerConfigPanel
+              trigger={trigger}
+              onClose={() => setTriggerPanel(false)}
+              onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
+              updateConfig={updateTriggerConfigData}
+            />
+          )}
+
           {/* Default: Blocos básicos (when no node selected) */}
-          {!nodePanel && (
+          {!nodePanel && !triggerPanel && (
             <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
               <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
@@ -1192,6 +1210,7 @@ export default function AutomacoesPage() {
                     selected={selectedNode === n.id}
                     onSelect={() => setSelectedNode(n.id)}
                     onAddTrigger={() => setTriggerOpen(true)}
+                    onTriggerClick={() => { setTriggerPanel(true); setNodePanel(null); setSelectedNode(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                   />
@@ -1559,11 +1578,415 @@ const zoomBtn: React.CSSProperties = {
   color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, onDragStart }: {
+const tcpSelectStyle: React.CSSProperties = {
+  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", cursor: "pointer",
+};
+
+const tcpInputStyle: React.CSSProperties = {
+  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", boxSizing: "border-box",
+};
+
+const tcpWarning = (text: string) => (
+  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
+    <span style={{ fontWeight: 700 }}>⚠ </span>{text}
+  </div>
+);
+
+// ─── TriggerConfigPanel ────────────────────────────────────────────────────────
+
+function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig }: {
+  trigger: TriggerConfig;
+  onClose: () => void;
+  onChangeTrigger: () => void;
+  updateConfig: (key: string, value: string | boolean | number) => void;
+}) {
+  const cfg = trigger.configData ?? {};
+
+  const InstanceRow = ({ label }: { label: string }) => (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>{label}</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <select value={(cfg.instance as string) ?? ""} onChange={e => updateConfig("instance", e.target.value)} style={{ ...tcpSelectStyle, flex: 1 }}>
+          <option value="">Selecionar</option>
+        </select>
+        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <ArrowLeftRight size={13} color="#6B7280" />
+        </button>
+      </div>
+    </div>
+  );
+
+  const KeywordsBlock = () => (
+    <>
+      <div>
+        <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Tipo da comparação das palavras-chaves</div>
+        <select value={(cfg.keywordType as string) ?? "Contém"} onChange={e => updateConfig("keywordType", e.target.value)} style={tcpSelectStyle}>
+          <option value="Contém">Contém</option>
+          <option value="Igual a">Igual a</option>
+          <option value="Começa com">Começa com</option>
+          <option value="Termina com">Termina com</option>
+          <option value="Regex">Regex</option>
+        </select>
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 6 }}>
+          Palavras-chaves para iniciar a automação. Deixe em branco para iniciar a automação com qualquer mensagem.
+        </div>
+        <textarea
+          value={(cfg.keywords as string) ?? ""}
+          onChange={e => updateConfig("keywords", e.target.value)}
+          placeholder="Digite palavras-chave..."
+          rows={3}
+          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+        />
+      </div>
+      <div>
+        <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Indica as condições para iniciar uma nova sessão na automação</div>
+        <select value={(cfg.sessionCondition as string) ?? "not_in"} onChange={e => updateConfig("sessionCondition", e.target.value)} style={tcpSelectStyle}>
+          <option value="not_in">Iniciar apenas se o contato não estiver atualmente nesta automação</option>
+          <option value="always">Sempre iniciar uma nova sessão</option>
+          <option value="never">Não iniciar uma nova sessão</option>
+        </select>
+      </div>
+    </>
+  );
+
+  const SourceBadge = () => (
+    <div>
+      <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Fonte de dados</div>
+      <span style={{ display: "inline-block", background: "#3B82F6", color: "#FFFFFF", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>Api-request-1</span>
+    </div>
+  );
+
+  const MetricWarning = () => tcpWarning(
+    "O gatilho de métrica do lead é processado em background de forma assíncrona, podendo ser executado em horários imprevisíveis, inclusive horas após as alterações nos negócios do sistema. Recomendamos o uso de blocos com condições de espera para o envio de mensagens, garantindo que sejam disparadas no momento adequado."
+  );
+
+  const renderBody = () => {
+    switch (trigger.triggerId) {
+
+      case "neg_movido":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 2 }}>
+              Qual etapa irá iniciar a automação quando um negócio entrar nela?
+            </div>
+            <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
+              <option value="">Selecionar</option>
+            </select>
+          </div>
+        );
+
+      case "neg_criado":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 2 }}>
+              Em qual etapa o negócio será criado para iniciar a automação?
+            </div>
+            <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
+              <option value="">Selecionar</option>
+            </select>
+          </div>
+        );
+
+      case "atend_atribuido":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
+              Selecione o atendente que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um.
+            </div>
+            <select value={(cfg.atendente as string) ?? ""} onChange={e => updateConfig("atendente", e.target.value)} style={tcpSelectStyle}>
+              <option value="">Selecione um atendente</option>
+            </select>
+          </div>
+        );
+
+      case "atend_retirado":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
+              Selecione o atendente que deseja filtrar a retirada do negócio. Deixe em branco para considerar qualquer um.
+            </div>
+            <select value={(cfg.atendente as string) ?? ""} onChange={e => updateConfig("atendente", e.target.value)} style={tcpSelectStyle}>
+              <option value="">Selecione um atendente</option>
+            </select>
+          </div>
+        );
+
+      case "neg_ganho":
+      case "neg_perdido":
+      case "neg_restaurado": {
+        const verb = trigger.triggerId === "neg_ganho" ? "ganho" : trigger.triggerId === "neg_perdido" ? "perdido" : "restaurado";
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
+                Verifica se a automação será iniciada quando o negócio for {verb} na etapa ou na pipeline
+              </div>
+              <select value={(cfg.scope as string) ?? "Pipeline"} onChange={e => updateConfig("scope", e.target.value)} style={tcpSelectStyle}>
+                <option value="Pipeline">Pipeline</option>
+                <option value="Etapa">Etapa</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
+                Informe em qual pipeline que o negócio foi {verb} que irá iniciar a automação. Deixa em branco para qualquer pipeline
+              </div>
+              <select value={(cfg.pipeline as string) ?? ""} onChange={e => updateConfig("pipeline", e.target.value)} style={tcpSelectStyle}>
+                <option value="">Selecionar</option>
+              </select>
+            </div>
+            {trigger.triggerId === "neg_perdido" && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do negócio</span>
+                <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "tag_removida":
+      case "tag_adicionada":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
+              Quais as tags que, ao serem {trigger.triggerId === "tag_removida" ? "removidas" : "adicionadas"}, irão iniciar a automação?
+            </div>
+            <select value={(cfg.tags as string) ?? ""} onChange={e => updateConfig("tags", e.target.value)} style={tcpSelectStyle}>
+              <option value="">Selecione as tags</option>
+            </select>
+          </div>
+        );
+
+      case "lead_criado":
+      case "lead_manual":
+      case "atividade_exec":
+        return (
+          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+            Sem configurações adicionais para este gatilho.
+          </div>
+        );
+
+      case "lead_qtd_ganhos":
+      case "lead_valor_ganhos":
+      case "lead_sem_compra": {
+        const isQtd = trigger.triggerId === "lead_qtd_ganhos";
+        const isValor = trigger.triggerId === "lead_valor_ganhos";
+        const label = isQtd ? "Quantidade de negócios ganhos do lead" : isValor ? "Valor total dos negócios ganhos do lead" : "Quantidade de dias sem compras";
+        const key = isQtd ? "quantidade" : isValor ? "valor" : "dias";
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>{label}</div>
+              <input type="number" min={0} value={(cfg[key] as number) ?? 0}
+                onChange={e => updateConfig(key, Number(e.target.value))} style={tcpInputStyle} />
+            </div>
+            <MetricWarning />
+          </div>
+        );
+      }
+
+      case "msg_recebida":
+      case "msg_enviada":
+      case "atend_finalizado":
+      case "atend_iniciado": {
+        const isMsg = ["msg_recebida", "msg_enviada"].includes(trigger.triggerId);
+        const isSent = trigger.triggerId === "msg_enviada";
+        const instanceLabel = "Qual a instância que irá ouvir as mensagens e iniciar a automação?";
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <InstanceRow label={instanceLabel} />
+            {isMsg && <KeywordsBlock />}
+            {isMsg && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 12, color: "#374151" }}>
+                    {isSent ? "Monitorar mensagens enviadas em grupos" : "Ouvir mensagens enviadas em grupos"}
+                  </span>
+                  <Switch checked={!!(cfg.groupMessages)} onCheckedChange={v => updateConfig("groupMessages", v)} className="scale-75" />
+                </div>
+                {isSent && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "#374151" }}>Considerar mensagens agendadas</span>
+                    <Switch checked={!!(cfg.scheduledMessages)} onCheckedChange={v => updateConfig("scheduledMessages", v)} className="scale-75" />
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor da mensagem</span>
+                  <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
+                </div>
+              </>
+            )}
+          </div>
+        );
+      }
+
+      case "ig_comentario":
+      case "ig_live":
+      case "fb_comentario":
+      case "fb_live":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <InstanceRow label="Qual a instância que irá ouvir os comentários e iniciar a automação?" />
+            <KeywordsBlock />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do comentário</span>
+              <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
+            </div>
+          </div>
+        );
+
+      case "dep_alterado":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>Qual departamento será monitorado para alterações?</div>
+              <select value={(cfg.department as string) ?? ""} onChange={e => updateConfig("department", e.target.value)} style={tcpSelectStyle}>
+                <option value="">Selecionar</option>
+              </select>
+            </div>
+            <InstanceRow label="Qual a instância que irá ouvir as mensagens e iniciar a automação?" />
+          </div>
+        );
+
+      case "campo_alterado":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>Qual campo deseja monitorar?</div>
+              <select value={(cfg.field as string) ?? ""} onChange={e => updateConfig("field", e.target.value)} style={tcpSelectStyle}>
+                <option value="">Selecionar</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Modo de disparo</div>
+              <select value={(cfg.mode as string) ?? "any"} onChange={e => updateConfig("mode", e.target.value)} style={tcpSelectStyle}>
+                <option value="any">Qualquer alteração</option>
+                <option value="specific">Para um valor específico</option>
+              </select>
+            </div>
+          </div>
+        );
+
+      case "http_webhook":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Url do webhook</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                  {`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? "—"}`}
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? ""}`).then(() => toast.success("URL copiada"))}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  <Copy size={13} color="#6B7280" />
+                </button>
+              </div>
+            </div>
+            {tcpWarning("O webhook possui um limite de 60 requisições por minuto. Caso precisar aumentar o limite entre em contato com o suporte.")}
+            <SourceBadge />
+          </div>
+        );
+
+      case "outra_automacao":
+        return <SourceBadge />;
+
+      case "mcp_tool":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Nome da tool</div>
+              <input type="text" value={(cfg.toolName as string) ?? ""} onChange={e => updateConfig("toolName", e.target.value)} style={tcpInputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Descrição da tool</div>
+              <input type="text" value={(cfg.toolDesc as string) ?? ""} onChange={e => updateConfig("toolDesc", e.target.value)} style={tcpInputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Parâmetro de sessão</div>
+              <select value={(cfg.sessionParam as string) ?? "none"} onChange={e => updateConfig("sessionParam", e.target.value)} style={tcpSelectStyle}>
+                <option value="none">Nenhum</option>
+              </select>
+            </div>
+            <SourceBadge />
+            <button style={{ background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              Adicionar parâmetro
+            </button>
+          </div>
+        );
+
+      case "agendado":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Modo</div>
+              <select value={(cfg.mode as string) ?? "fixed"} onChange={e => updateConfig("mode", e.target.value)} style={tcpSelectStyle}>
+                <option value="fixed">Intervalo fixo</option>
+                <option value="cron">Expressão cron</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Intervalo em minutos</div>
+              <input type="number" min={15} value={(cfg.interval as number) ?? 60}
+                onChange={e => updateConfig("interval", Number(e.target.value))} style={tcpInputStyle} />
+            </div>
+            {tcpWarning("O intervalo mínimo é de 15 minutos.")}
+            <div style={{ background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 6 }}>
+                <Calendar size={12} /> Próxima execução
+              </div>
+              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Não agendado</div>
+            </div>
+          </div>
+        );
+
+      default:
+        return <div style={{ fontSize: 12, color: "#6B7280" }}>Sem configurações adicionais.</div>;
+    }
+  };
+
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+          <ArrowLeft size={14} color="#6B7280" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#111111", lineHeight: 1.3 }}>{trigger.label}</div>
+          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{trigger.description}</div>
+        </div>
+      </div>
+      {/* Body */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+        {renderBody()}
+      </div>
+      {/* Footer */}
+      <div style={{ padding: "10px 16px", borderTop: "0.5px solid #E5E5E5" }}>
+        <button
+          onClick={onChangeTrigger}
+          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#6B7280"; }}
+        >
+          Alterar gatilho
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onPortDragStart, onDragStart }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
+  onTriggerClick?: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
 }) {
@@ -1586,7 +2009,12 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, on
       </div>
       <div style={{ paddingTop: 10 }}>
         {node.trigger ? (
-          <div style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}>
+          <div
+            onClick={(e) => { e.stopPropagation(); onTriggerClick?.(); }}
+            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8, cursor: "pointer", transition: "background 0.1s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+          >
             <div style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>{node.trigger.label}</div>
             <div style={{ fontSize: 11, color: "#4ADE80", marginTop: 2 }}>{node.trigger.description}</div>
           </div>
