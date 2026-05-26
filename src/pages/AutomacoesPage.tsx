@@ -5,7 +5,7 @@ import {
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
-  Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote,
+  Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote, Palette,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -44,6 +44,7 @@ type CanvasNode = {
   parentId?: string | null;
   subBlocks?: SubBlock[];
   noteText?: string;
+  noteColorIndex?: number;
   width?: number;
   height?: number;
 };
@@ -157,6 +158,15 @@ const ACTION_TYPES = [
   { id: "ia",           label: "IA",                   icon: Bot,           color: "#8B5CF6" },
   { id: "javascript",   label: "JavaScript",           icon: Code2,         color: "#3B82F6" },
 ] as const;
+
+const NOTE_COLORS = [
+  { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
+  { bg: "#EFF6FF", header: "#BFDBFE", border: "#93C5FD", borderSel: "#3B82F6", text: "#1E40AF", headerText: "#1D4ED8" },
+  { bg: "#F0FDF4", header: "#BBF7D0", border: "#86EFAC", borderSel: "#22C55E", text: "#14532D", headerText: "#166534" },
+  { bg: "#FDF2F8", header: "#F9A8D4", border: "#F472B6", borderSel: "#EC4899", text: "#831843", headerText: "#9D174D" },
+  { bg: "#FFF7ED", header: "#FED7AA", border: "#FDBA74", borderSel: "#F97316", text: "#7C2D12", headerText: "#9A3412" },
+  { bg: "#FAF5FF", header: "#DDD6FE", border: "#C4B5FD", borderSel: "#8B5CF6", text: "#4C1D95", headerText: "#5B21B6" },
+];
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
@@ -892,6 +902,7 @@ export default function AutomacoesPage() {
                     onResizeStart={(e) => onNodeResizeStart(e, n.id)}
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
                     onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
+                    onUpdateColor={(colorIndex) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteColorIndex: colorIndex } : x))}
                   />
                 );
                 return (
@@ -1150,6 +1161,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, on
       onMouseDown={onDragStart}
       style={{
         position: "absolute", left: node.x, top: node.y, width: 260,
+        zIndex: 2,
         background: "#FFFFFF",
         border: `${selected ? 2 : 1.5}px dashed ${selected ? "hsl(var(--primary))" : "#CCCCCC"}`,
         borderRadius: 12, padding: 14, cursor: "grab",
@@ -1202,16 +1214,20 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, on
 
 // ─── NoteNode ─────────────────────────────────────────────────────────────────
 
-function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpdateText }: {
+function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpdateText, onUpdateColor }: {
   node: CanvasNode;
   selected: boolean;
   onDragStart: (e: React.MouseEvent) => void;
   onResizeStart: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onUpdateText: (text: string) => void;
+  onUpdateColor: (colorIndex: number) => void;
 }) {
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const w = node.width ?? 220;
   const h = node.height ?? 140;
+  const c = NOTE_COLORS[node.noteColorIndex ?? 0];
+
   return (
     <div
       data-node
@@ -1219,30 +1235,66 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       style={{
         position: "absolute", left: node.x, top: node.y,
         width: w, height: h,
-        background: "#FEFCE8",
-        border: `1.5px solid ${selected ? "#EAB308" : "#FDE047"}`,
+        zIndex: 1,
+        background: c.bg,
+        border: `1.5px solid ${selected ? c.borderSel : c.border}`,
         borderRadius: 10,
-        boxShadow: selected ? "0 4px 16px rgba(234,179,8,0.3)" : "0 2px 8px rgba(0,0,0,0.08)",
+        boxShadow: selected ? `0 4px 16px ${c.borderSel}44` : "0 2px 8px rgba(0,0,0,0.08)",
         display: "flex", flexDirection: "column", cursor: "grab", overflow: "hidden",
       }}
     >
       {/* Header */}
-      <div style={{ padding: "6px 10px", borderBottom: "0.5px solid #FDE047", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: "#FEF08A" }}>
+      <div style={{ padding: "6px 10px", borderBottom: `0.5px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <StickyNote size={12} color="#854D0E" />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#854D0E" }}>Anotação</span>
+          <StickyNote size={12} color={c.headerText} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: c.headerText }}>Anotação</span>
         </div>
-        <button
-          data-action
-          onMouseDown={e => e.stopPropagation()}
-          onClick={onDelete}
-          title="Excluir anotação"
-          style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#92400E", padding: 0 }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#FDE04799")}
-          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-        >
-          <X size={11} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {/* Color picker button */}
+          <div style={{ position: "relative" }}>
+            <button
+              data-action
+              onMouseDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); setColorPickerOpen(v => !v); }}
+              title="Alterar cor"
+              style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.background = `${c.border}99`)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              <Palette size={11} />
+            </button>
+            {colorPickerOpen && (
+              <div
+                data-action
+                onMouseDown={e => e.stopPropagation()}
+                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
+              >
+                {NOTE_COLORS.map((col, i) => (
+                  <button
+                    key={i}
+                    data-action
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onUpdateColor(i); setColorPickerOpen(false); }}
+                    title={`Cor ${i + 1}`}
+                    style={{ width: 18, height: 18, borderRadius: "50%", background: col.header, border: `2px solid ${(node.noteColorIndex ?? 0) === i ? col.borderSel : col.border}`, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Delete button */}
+          <button
+            data-action
+            onMouseDown={e => e.stopPropagation()}
+            onClick={onDelete}
+            title="Excluir anotação"
+            style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${c.border}99`)}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <X size={11} />
+          </button>
+        </div>
       </div>
 
       {/* Text area */}
@@ -1252,11 +1304,11 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
         onChange={e => onUpdateText(e.target.value)}
         placeholder="Digite uma anotação..."
         onMouseDown={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); setColorPickerOpen(false); }}
         style={{
           flex: 1, width: "100%", border: "none", background: "transparent",
           fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit",
-          color: "#713F12", padding: "8px 10px", boxSizing: "border-box", lineHeight: 1.5,
+          color: c.text, padding: "8px 10px", boxSizing: "border-box", lineHeight: 1.5,
         }}
       />
 
@@ -1268,7 +1320,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
         style={{ position: "absolute", right: 0, bottom: 0, width: 18, height: 18, cursor: "nwse-resize", display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: 3 }}
       >
         <svg width="10" height="10" viewBox="0 0 10 10" style={{ pointerEvents: "none" }}>
-          <path d="M2 10 L10 2 M6 10 L10 6" stroke="#C4A100" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M2 10 L10 2 M6 10 L10 6" stroke={c.borderSel} strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
     </div>
@@ -1336,6 +1388,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
         onMouseDown={onDragStart}
         style={{
           position: "absolute", left: node.x, top: node.y, width: 240,
+          zIndex: 2,
           background: "#FFFFFF",
           border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
           borderRadius: 12, padding: 14, cursor: "grab",
@@ -1367,6 +1420,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
       onMouseDown={onDragStart}
       style={{
         position: "absolute", left: node.x, top: node.y, width: 280,
+        zIndex: 2,
         background: "#FFFFFF",
         border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
         borderRadius: 12, cursor: "grab",
