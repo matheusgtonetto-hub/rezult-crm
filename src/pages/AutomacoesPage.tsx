@@ -794,36 +794,8 @@ export default function AutomacoesPage() {
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
-      {/* Left panel — sidebar OR node config panel */}
-      {view === "editor" && nodePanel && nodes.find(n => n.id === nodePanel)?.type === "mensagem" ? (
-        <MensagemPanel
-          node={nodes.find(n => n.id === nodePanel)!}
-          onClose={() => setNodePanel(null)}
-          onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
-          onDuplicate={() => {
-            const n = nodes.find(x => x.id === nodePanel);
-            if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
-          }}
-          removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
-          updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
-          onAddSubBlock={(type) => { addSubBlock(nodePanel, type); }}
-        />
-      ) : view === "editor" && nodePanel && nodes.find(n => n.id === nodePanel)?.type === "acoes" ? (
-        <AcoesPanel
-          node={nodes.find(n => n.id === nodePanel)!}
-          onClose={() => setNodePanel(null)}
-          onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
-          onDuplicate={() => {
-            const n = nodes.find(x => x.id === nodePanel);
-            if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
-          }}
-          removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
-          onOpenPicker={() => setAcoesPickerOpen(true)}
-          updateActionItem={(itemId, config) => updateActionItem(nodePanel, itemId, config)}
-        />
-      ) : (
-        <Sidebar />
-      )}
+      {/* Left sidebar — sempre visível */}
+      <Sidebar />
 
       {/* ── LIST VIEW ──────────────────────────────────────────────────────── */}
       {view === "list" && (
@@ -931,6 +903,45 @@ export default function AutomacoesPage() {
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
         <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "#F4F6F8", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+
+          {/* Painel de configuração — overlay sobre a borda esquerda do canvas */}
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "mensagem" && (
+            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
+              <div style={{ pointerEvents: "all" }}>
+                <MensagemPanel
+                  node={nodes.find(n => n.id === nodePanel)!}
+                  onClose={() => setNodePanel(null)}
+                  onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+                  onDuplicate={() => {
+                    const n = nodes.find(x => x.id === nodePanel);
+                    if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
+                  }}
+                  removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
+                  updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
+                  onAddSubBlock={(type) => { addSubBlock(nodePanel, type); }}
+                />
+              </div>
+            </div>
+          )}
+
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "acoes" && (
+            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
+              <div style={{ pointerEvents: "all" }}>
+                <AcoesPanel
+                  node={nodes.find(n => n.id === nodePanel)!}
+                  onClose={() => setNodePanel(null)}
+                  onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+                  onDuplicate={() => {
+                    const n = nodes.find(x => x.id === nodePanel);
+                    if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
+                  }}
+                  removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
+                  onOpenPicker={() => setAcoesPickerOpen(true)}
+                  updateActionItem={(itemId, config) => updateActionItem(nodePanel, itemId, config)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
@@ -2028,7 +2039,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
 }) {
   const hasSubBlocks = (node.subBlocks ?? []).length > 0;
   return (
-    <aside style={{ width: 340, minWidth: 340, maxWidth: 340, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+    <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
