@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
+import { useCRM } from "@/context/CRMContext";
+import type { Pipeline, Tag as CrmTagType, CustomFieldGroup } from "@/data/mockData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,6 +322,7 @@ const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "
 export default function AutomacoesPage() {
   const { user } = useAuth();
   const { company } = useCompany();
+  const { pipelines, crmTags, teamMembers, customFieldGroups } = useCRM();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -1009,6 +1012,10 @@ export default function AutomacoesPage() {
               onClose={() => setTriggerPanel(false)}
               onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
               updateConfig={updateTriggerConfigData}
+              pipelines={pipelines}
+              crmTags={crmTags}
+              teamMembers={teamMembers}
+              customFieldGroups={customFieldGroups}
             />
           )}
 
@@ -1596,11 +1603,15 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig }: {
+function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, teamMembers, customFieldGroups }: {
   trigger: TriggerConfig;
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
+  pipelines: Pipeline[];
+  crmTags: CrmTagType[];
+  teamMembers: string[];
+  customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};
 
@@ -1668,76 +1679,101 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig }:
     switch (trigger.triggerId) {
 
       case "neg_movido":
+      case "neg_criado": {
+        const stageQuestion = trigger.triggerId === "neg_movido"
+          ? "Qual etapa irá iniciar a automação quando um negócio entrar nela?"
+          : "Em qual etapa o negócio será criado para iniciar a automação?";
+        const selectedPipeline = pipelines.find(p => p.id === (cfg.pipeline as string));
+        const availableColumns = selectedPipeline
+          ? selectedPipeline.columns
+          : pipelines.flatMap(p => p.columns.map(c => ({ ...c, _pipelineName: p.name })));
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 2 }}>
-              Qual etapa irá iniciar a automação quando um negócio entrar nela?
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Pipeline (opcional)</div>
+              <select
+                value={(cfg.pipeline as string) ?? ""}
+                onChange={e => { updateConfig("pipeline", e.target.value); updateConfig("stage", ""); }}
+                style={tcpSelectStyle}
+              >
+                <option value="">Todas as pipelines</option>
+                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             </div>
-            <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
-              <option value="">Selecionar</option>
-            </select>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
+                {stageQuestion}
+              </div>
+              <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
+                <option value="">Selecionar</option>
+                {availableColumns.map((col) => (
+                  <option key={col.id} value={col.id}>
+                    {"_pipelineName" in col ? `${(col as { _pipelineName: string })._pipelineName} › ${col.title}` : col.title}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         );
-
-      case "neg_criado":
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 2 }}>
-              Em qual etapa o negócio será criado para iniciar a automação?
-            </div>
-            <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
-              <option value="">Selecionar</option>
-            </select>
-          </div>
-        );
+      }
 
       case "atend_atribuido":
+      case "atend_retirado": {
+        const atendLabel = trigger.triggerId === "atend_atribuido"
+          ? "Selecione o atendente que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um."
+          : "Selecione o atendente que deseja filtrar a retirada do negócio. Deixe em branco para considerar qualquer um.";
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
-              Selecione o atendente que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um.
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>{atendLabel}</div>
             <select value={(cfg.atendente as string) ?? ""} onChange={e => updateConfig("atendente", e.target.value)} style={tcpSelectStyle}>
-              <option value="">Selecione um atendente</option>
+              <option value="">Qualquer atendente</option>
+              {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
         );
-
-      case "atend_retirado":
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
-              Selecione o atendente que deseja filtrar a retirada do negócio. Deixe em branco para considerar qualquer um.
-            </div>
-            <select value={(cfg.atendente as string) ?? ""} onChange={e => updateConfig("atendente", e.target.value)} style={tcpSelectStyle}>
-              <option value="">Selecione um atendente</option>
-            </select>
-          </div>
-        );
+      }
 
       case "neg_ganho":
       case "neg_perdido":
       case "neg_restaurado": {
         const verb = trigger.triggerId === "neg_ganho" ? "ganho" : trigger.triggerId === "neg_perdido" ? "perdido" : "restaurado";
+        const scope = (cfg.scope as string) ?? "Pipeline";
+        const scopePipeline = pipelines.find(p => p.id === (cfg.pipeline as string));
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
                 Verifica se a automação será iniciada quando o negócio for {verb} na etapa ou na pipeline
               </div>
-              <select value={(cfg.scope as string) ?? "Pipeline"} onChange={e => updateConfig("scope", e.target.value)} style={tcpSelectStyle}>
+              <select value={scope} onChange={e => { updateConfig("scope", e.target.value); updateConfig("stage", ""); }} style={tcpSelectStyle}>
                 <option value="Pipeline">Pipeline</option>
                 <option value="Etapa">Etapa</option>
               </select>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
-                Informe em qual pipeline que o negócio foi {verb} que irá iniciar a automação. Deixa em branco para qualquer pipeline
+                Informe em qual pipeline que o negócio foi {verb} que irá iniciar a automação. Deixe em branco para qualquer pipeline
               </div>
-              <select value={(cfg.pipeline as string) ?? ""} onChange={e => updateConfig("pipeline", e.target.value)} style={tcpSelectStyle}>
-                <option value="">Selecionar</option>
+              <select value={(cfg.pipeline as string) ?? ""} onChange={e => { updateConfig("pipeline", e.target.value); updateConfig("stage", ""); }} style={tcpSelectStyle}>
+                <option value="">Qualquer pipeline</option>
+                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
+            {scope === "Etapa" && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>
+                  Qual etapa?
+                </div>
+                <select value={(cfg.stage as string) ?? ""} onChange={e => updateConfig("stage", e.target.value)} style={tcpSelectStyle}>
+                  <option value="">Qualquer etapa</option>
+                  {(scopePipeline ? scopePipeline.columns : pipelines.flatMap(p => p.columns.map(c => ({ ...c, _pn: p.name })))).map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {"_pn" in col ? `${(col as { _pn: string })._pn} › ${col.title}` : col.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {trigger.triggerId === "neg_perdido" && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do negócio</span>
@@ -1749,17 +1785,42 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig }:
       }
 
       case "tag_removida":
-      case "tag_adicionada":
+      case "tag_adicionada": {
+        const tagVerb = trigger.triggerId === "tag_removida" ? "removidas" : "adicionadas";
+        const selectedTagIds = ((cfg.tags as string) ?? "").split(",").filter(Boolean);
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
-              Quais as tags que, ao serem {trigger.triggerId === "tag_removida" ? "removidas" : "adicionadas"}, irão iniciar a automação?
+              Quais as tags que, ao serem {tagVerb}, irão iniciar a automação? Deixe em branco para qualquer tag.
             </div>
-            <select value={(cfg.tags as string) ?? ""} onChange={e => updateConfig("tags", e.target.value)} style={tcpSelectStyle}>
-              <option value="">Selecione as tags</option>
-            </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {crmTags.length === 0 && (
+                <div style={{ fontSize: 12, color: "#9CA3AF" }}>Nenhuma tag cadastrada.</div>
+              )}
+              {crmTags.map(tag => {
+                const checked = selectedTagIds.includes(tag.id);
+                return (
+                  <label key={tag.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? selectedTagIds.filter(id => id !== tag.id)
+                          : [...selectedTagIds, tag.id];
+                        updateConfig("tags", next.join(","));
+                      }}
+                      style={{ width: 14, height: 14, accentColor: tag.color || "hsl(var(--primary))", flexShrink: 0 }}
+                    />
+                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: tag.color || "#6B7280", flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "#374151" }}>{tag.name}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
         );
+      }
 
       case "lead_criado":
       case "lead_manual":
@@ -1859,6 +1920,9 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig }:
               <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>Qual campo deseja monitorar?</div>
               <select value={(cfg.field as string) ?? ""} onChange={e => updateConfig("field", e.target.value)} style={tcpSelectStyle}>
                 <option value="">Selecionar</option>
+                {customFieldGroups.flatMap(g => g.items.map(item => (
+                  <option key={item.id} value={item.id}>{g.name} › {item.label}</option>
+                )))}
               </select>
             </div>
             <div>
