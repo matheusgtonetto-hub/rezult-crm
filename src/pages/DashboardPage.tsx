@@ -46,7 +46,7 @@ export default function DashboardPage() {
   });
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
-  const [funnelResponsible, setFunnelResponsible] = useState<string>("");
+  const [funnelResponsible, setFunnelResponsible] = useState<string>("all");
 
   const allLeads = Object.values(leads);
   const wonLeads = allLeads.filter(l => l.dealStatus === "won");
@@ -218,7 +218,7 @@ export default function DashboardPage() {
     const stages = [...funnelPipeline.columns].sort((a, b) => a.position - b.position);
     const pipelineLeads = allLeads.filter(l => {
       if (l.pipelineId !== funnelPipeline.id) return false;
-      if (!funnelResponsible) return true;
+      if (funnelResponsible === "all") return true;
       const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
       return resps.includes(funnelResponsible);
     });
@@ -667,7 +667,7 @@ export default function DashboardPage() {
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os usuários</SelectItem>
+                    <SelectItem value="all">Todos os usuários</SelectItem>
                     {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
