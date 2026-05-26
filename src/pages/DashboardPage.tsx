@@ -37,7 +37,7 @@ const ORIGIN_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const {
-    leads, columns, pipelines, products, teamMembers, memberColors, tasks, lossReasons,
+    leads, columns, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons,
   } = useCRM();
 
   const [dateRange, setDateRange] = useState<DateRangeValue>({
@@ -46,6 +46,7 @@ export default function DashboardPage() {
   });
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
+  const [funnelResponsible, setFunnelResponsible] = useState<string>("");
 
   const allLeads = Object.values(leads);
   const wonLeads = allLeads.filter(l => l.dealStatus === "won");
@@ -215,7 +216,12 @@ export default function DashboardPage() {
   const funnelData = useMemo(() => {
     if (!funnelPipeline) return [];
     const stages = [...funnelPipeline.columns].sort((a, b) => a.position - b.position);
-    const pipelineLeads = allLeads.filter(l => l.pipelineId === funnelPipeline.id);
+    const pipelineLeads = allLeads.filter(l => {
+      if (l.pipelineId !== funnelPipeline.id) return false;
+      if (!funnelResponsible) return true;
+      const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+      return resps.includes(funnelResponsible);
+    });
     return stages.map((stage, i) => {
       const entered = new Set<string>();
       if (i === 0) pipelineLeads.forEach(l => { const d = parseEntryDate(l.entryDate); if (d !== null && d >= periodCutoff && d <= periodTo) entered.add(l.id); });
@@ -235,7 +241,7 @@ export default function DashboardPage() {
       const wonCount = [...entered].filter(id => leads[id]?.dealStatus === "won").length;
       return { stage, count: entered.size, wonCount, leadDetails };
     });
-  }, [funnelPipeline, allLeads, leads, dateRange]);
+  }, [funnelPipeline, allLeads, leads, dateRange, funnelResponsible]);
 
   const tooltip = {
     backgroundColor: "hsl(var(--card))",
@@ -653,6 +659,20 @@ export default function DashboardPage() {
                 {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            {teamMembers.length > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">Responsável:</span>
+                <Select value={funnelResponsible} onValueChange={setFunnelResponsible}>
+                  <SelectTrigger className="w-[180px] h-9 bg-card border-card-border rounded-lg">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos os usuários</SelectItem>
+                    {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
 
           {!funnelPipeline ? (
@@ -665,7 +685,10 @@ export default function DashboardPage() {
             const pLeads = allLeads.filter(l => {
               if (l.pipelineId !== funnelPipeline!.id) return false;
               const d = parseEntryDate(l.entryDate);
-              return d !== null && inPeriod(d);
+              if (d === null || !inPeriod(d)) return false;
+              if (!funnelResponsible) return true;
+              const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+              return resps.includes(funnelResponsible);
             });
             const pWon   = pLeads.filter(l => l.dealStatus === "won");
             const pLost  = pLeads.filter(l => l.dealStatus === "lost");
