@@ -5,7 +5,7 @@ import {
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
-  Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle,
+  Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -43,6 +43,7 @@ type CanvasNode = {
   trigger?: TriggerConfig | null;
   parentId?: string | null;
   subBlocks?: SubBlock[];
+  note?: string;
 };
 
 type AutomationRecord = {
@@ -860,6 +861,9 @@ export default function AutomacoesPage() {
                   onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
                   onPortDragStart={(e) => startPortDrag(e, n.id)}
                   onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); })}
+                  onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); }}
+                  onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
+                  onUpdateNote={(note) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, note } : x))}
                 />
               ))}
 
@@ -1174,16 +1178,65 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onUpdateNote }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onUpdateNote: (note: string) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
+  const [noteOpen, setNoteOpen] = useState(false);
+
+  const toolbarButtons = [
+    { Ic: Trash2,     title: "Excluir",    action: onDelete,               hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
+    { Ic: Copy,       title: "Duplicar",   action: onDuplicate,            hoverBg: "#F3F4F6", hoverColor: "#374151" },
+    { Ic: StickyNote, title: "Anotações",  action: () => setNoteOpen(v => !v), hoverBg: "#FEF9C3", hoverColor: "#854D0E" },
+  ];
+
+  const toolbar = (
+    <>
+      {noteOpen && (
+        <div
+          data-action
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: "absolute", top: -148, right: 0, width: 220,
+            background: "#FEFCE8", border: "1px solid #FDE047",
+            borderRadius: 10, padding: "10px 12px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50,
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#854D0E", marginBottom: 6 }}>Anotações</div>
+          <textarea
+            value={node.note ?? ""}
+            onChange={e => onUpdateNote(e.target.value)}
+            placeholder="Digite uma anotação..."
+            onClick={e => e.stopPropagation()}
+            style={{ width: "100%", minHeight: 90, border: "none", background: "transparent", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", color: "#713F12", boxSizing: "border-box" }}
+          />
+        </div>
+      )}
+      <div
+        data-action
+        onMouseDown={e => e.stopPropagation()}
+        style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+      >
+        {toolbarButtons.map(({ Ic, title, action, hoverBg, hoverColor }, i) => (
+          <button key={i} title={title} onClick={action}
+            style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+            onMouseEnter={e => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = hoverColor; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280"; }}
+          ><Ic size={13} /></button>
+        ))}
+      </div>
+    </>
+  );
 
   if (node.type !== "mensagem") {
     return (
@@ -1198,6 +1251,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart }: 
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
       >
+        {selected && toolbar}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon size={15} color={at?.color ?? "#6B7280"} />
@@ -1229,16 +1283,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart }: 
       }}
     >
       {/* Toolbar above node (shown when selected) */}
-      {selected && (
-        <div style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-          {[Trash2, Copy, Download].map((Ic, i) => (
-            <button key={i} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
-              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-            ><Ic size={13} /></button>
-          ))}
-        </div>
-      )}
+      {selected && toolbar}
 
       {/* Header */}
       <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
