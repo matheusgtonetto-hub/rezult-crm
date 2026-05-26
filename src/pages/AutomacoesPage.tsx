@@ -209,6 +209,7 @@ export default function AutomacoesPage() {
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const fileRef      = useRef<HTMLInputElement>(null);
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
+  const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
   // Always-fresh refs to avoid stale closures in mouse event handlers
   const stateRef = useRef({ pan, zoom, nodes });
   stateRef.current = { pan, zoom, nodes };
@@ -283,6 +284,14 @@ export default function AutomacoesPage() {
     portDragRef.current = { fromNodeId, startX: e.clientX, startY: e.clientY };
   };
 
+  const onNodeDragStart = (e: React.MouseEvent, nodeId: string, onSelectFn: () => void) => {
+    if ((e.target as HTMLElement).closest("[data-port]")) return;
+    e.stopPropagation();
+    const node = stateRef.current.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    nodeDragRef.current = { nodeId, startX: e.clientX, startY: e.clientY, baseX: node.x, baseY: node.y, hasDragged: false, onSelect: onSelectFn };
+  };
+
   const handleAddNode = (type: string, label: string) => {
     if (!addNodeMenu) return;
     const newNode: CanvasNode = {
@@ -339,6 +348,20 @@ export default function AutomacoesPage() {
         }
         return;
       }
+      // Node drag: move the node
+      if (nodeDragRef.current) {
+        const { zoom } = stateRef.current;
+        const dx = e.clientX - nodeDragRef.current.startX;
+        const dy = e.clientY - nodeDragRef.current.startY;
+        if (Math.sqrt(dx * dx + dy * dy) > 4) {
+          nodeDragRef.current.hasDragged = true;
+          const nodeId = nodeDragRef.current.nodeId;
+          const newX = nodeDragRef.current.baseX + dx / zoom;
+          const newY = nodeDragRef.current.baseY + dy / zoom;
+          setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, x: newX, y: newY } : n));
+        }
+        return;
+      }
       if (!panRef.current) return;
       setPan({ x: panRef.current.baseX + e.clientX - panRef.current.startX, y: panRef.current.baseY + e.clientY - panRef.current.startY });
     };
@@ -361,6 +384,13 @@ export default function AutomacoesPage() {
           const fromNode = nodes.find(n => n.id === fromNodeId);
           if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50 });
         }
+        return;
+      }
+      // Node drag end: if no real drag occurred, treat as a click (select)
+      if (nodeDragRef.current) {
+        const { hasDragged, onSelect } = nodeDragRef.current;
+        nodeDragRef.current = null;
+        if (!hasDragged) onSelect();
         return;
       }
       panRef.current = null;
@@ -820,6 +850,7 @@ export default function AutomacoesPage() {
                   onSelect={() => setSelectedNode(n.id)}
                   onAddTrigger={() => setTriggerOpen(true)}
                   onPortDragStart={(e) => startPortDrag(e, n.id)}
+                  onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                 />
               ) : (
                 <ActionNode
@@ -828,6 +859,7 @@ export default function AutomacoesPage() {
                   selected={selectedNode === n.id}
                   onSelect={() => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); }}
                   onPortDragStart={(e) => startPortDrag(e, n.id)}
+                  onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); if (n.type === "mensagem") setNodePanel(n.id); })}
                 />
               ))}
 
@@ -1058,22 +1090,23 @@ const zoomBtn: React.CSSProperties = {
   color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onPortDragStart, onDragStart }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
+  onDragStart: (e: React.MouseEvent) => void;
 }) {
   return (
     <div
       data-node
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onMouseDown={onDragStart}
       style={{
         position: "absolute", left: node.x, top: node.y, width: 260,
         background: "#FFFFFF",
         border: `${selected ? 2 : 1.5}px dashed ${selected ? "hsl(var(--primary))" : "#CCCCCC"}`,
-        borderRadius: 12, padding: 14, cursor: "pointer",
+        borderRadius: 12, padding: 14, cursor: "grab",
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
@@ -1141,11 +1174,12 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
+  onDragStart: (e: React.MouseEvent) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -1155,12 +1189,12 @@ function ActionNode({ node, selected, onSelect, onPortDragStart }: {
     return (
       <div
         data-node
-        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        onMouseDown={onDragStart}
         style={{
           position: "absolute", left: node.x, top: node.y, width: 240,
           background: "#FFFFFF",
           border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
-          borderRadius: 12, padding: 14, cursor: "pointer",
+          borderRadius: 12, padding: 14, cursor: "grab",
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
       >
@@ -1185,12 +1219,12 @@ function ActionNode({ node, selected, onSelect, onPortDragStart }: {
   return (
     <div
       data-node
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onMouseDown={onDragStart}
       style={{
         position: "absolute", left: node.x, top: node.y, width: 280,
         background: "#FFFFFF",
         border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
-        borderRadius: 12, cursor: "pointer",
+        borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
     >
