@@ -87,9 +87,10 @@ export function AppSidebar() {
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
-    import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
-      checkGoogleConnection().then(conn => setGoogleConnected(!!conn));
-    });
+    import("@/lib/googleOAuth")
+      .then(({ checkGoogleConnection }) => checkGoogleConnection())
+      .then(conn => setGoogleConnected(!!conn))
+      .catch(() => setGoogleConnected(true));
   }, []);
 
   const notifications: SidebarNotif[] = [];
