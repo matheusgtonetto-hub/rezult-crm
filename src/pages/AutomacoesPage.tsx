@@ -318,9 +318,7 @@ export default function AutomacoesPage() {
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
-  const [mensagemPickerOpen, setMensagemPickerOpen] = useState(false);
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
-  const [selectedMensagemPickerCat, setSelectedMensagemPickerCat] = useState(MENSAGEM_CATEGORIES[0].id);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -808,7 +806,7 @@ export default function AutomacoesPage() {
           }}
           removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
           updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
-          onOpenPicker={() => setMensagemPickerOpen(true)}
+          onAddSubBlock={(type) => { addSubBlock(nodePanel, type); }}
         />
       ) : view === "editor" && nodePanel && nodes.find(n => n.id === nodePanel)?.type === "acoes" ? (
         <AcoesPanel
@@ -1284,59 +1282,6 @@ export default function AutomacoesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Mensagem picker */}
-      <Dialog open={mensagemPickerOpen} onOpenChange={setMensagemPickerOpen}>
-        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
-          <div style={{ display: "flex", height: 440 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar mensagem</div>
-              {MENSAGEM_CATEGORIES.map(cat => {
-                const Icon = cat.icon;
-                const sel = selectedMensagemPickerCat === cat.id;
-                return (
-                  <button key={cat.id} onClick={() => setSelectedMensagemPickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}
-                  >
-                    <Icon size={14} />{cat.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
-              {(() => {
-                const cat = MENSAGEM_CATEGORIES.find(c => c.id === selectedMensagemPickerCat)!;
-                return (
-                  <>
-                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {cat.items.map(item => {
-                        const ItemIcon = SUB_BLOCK_ICONS[item.type];
-                        return (
-                          <button key={item.type}
-                            onClick={() => { if (nodePanel) addSubBlock(nodePanel, item.type); setMensagemPickerOpen(false); }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                          >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                              <ItemIcon size={14} color="#3B82F6" />
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{item.label}</div>
-                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{item.description}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Rename modal */}
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
@@ -2072,15 +2017,16 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onOpenPicker }: {
+function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   removeSubBlock: (blockId: string) => void;
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
-  onOpenPicker: () => void;
+  onAddSubBlock: (type: SubBlockType) => void;
 }) {
+  const hasSubBlocks = (node.subBlocks ?? []).length > 0;
   return (
     <aside style={{ width: 340, minWidth: 340, maxWidth: 340, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
@@ -2102,7 +2048,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Conexão */}
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0" }}>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <select style={{ flex: 1, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
@@ -2114,97 +2060,120 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
       </div>
 
-      {/* Added sub-blocks */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
-        {(node.subBlocks ?? []).map(b => {
-          const SBIcon = SUB_BLOCK_ICONS[b.type];
-          return (
-            <div key={b.id} style={{ marginBottom: 8, border: "0.5px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
-              {/* Sub-block toolbar */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
-                <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                ><Trash2 size={11} /></button>
-              </div>
-              {/* Sub-block content */}
-              <div style={{ padding: "10px 12px" }}>
-                {b.type === "mensagem_texto" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
-                    <textarea
-                      value={b.text ?? ""}
-                      onChange={e => updateSubBlock(b.id, { text: e.target.value })}
-                      placeholder="Digite a mensagem..."
-                      style={{ width: "100%", minHeight: 80, border: "0.5px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
-                    />
-                  </div>
-                )}
-                {b.type === "entrada_usuario" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-                    <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
-                  </div>
-                )}
-                {b.type === "atraso_tempo" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
-                      <input
-                        type="number" min={0}
-                        value={b.delaySeconds ?? 0}
-                        onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
-                        style={{ width: 64, padding: "5px 8px", border: "0.5px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
+      {/* Body: list de tipos disponíveis (estado vazio) OU sub-blocos configurados */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {!hasSubBlocks ? (
+          <div>
+            {MENSAGEM_SUB_BLOCKS.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.type}>
+                  <button
+                    onClick={() => onAddSubBlock(item.type)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <Icon size={15} color={item.color} />
+                    <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
+                  </button>
+                  {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
+                    <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 16px" }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ padding: "10px 16px" }}>
+            {(node.subBlocks ?? []).map(b => (
+              <div key={b.id} style={{ marginBottom: 8, border: "0.5px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
+                {/* Sub-block toolbar */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
+                  <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  ><Trash2 size={11} /></button>
+                </div>
+                {/* Sub-block content */}
+                <div style={{ padding: "10px 12px" }}>
+                  {b.type === "mensagem_texto" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
+                      <textarea
+                        value={b.text ?? ""}
+                        onChange={e => updateSubBlock(b.id, { text: e.target.value })}
+                        placeholder="Digite a mensagem..."
+                        style={{ width: "100%", minHeight: 80, border: "0.5px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                       />
-                      <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
                     </div>
-                  </div>
-                )}
-                {b.type === "mensagem_audio" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-                    <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
-                      <button style={{ padding: "6px 14px", border: "0.5px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
-                        <Mic size={12} /> Iniciar gravação
-                      </button>
+                  )}
+                  {b.type === "entrada_usuario" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
+                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
                     </div>
-                  </div>
-                )}
-                {b.type === "arquivo_anexo" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-                    <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
-                      <Upload size={20} color="#D1D5DB" />
-                      Selecionar arquivo
-                      <input type="file" style={{ display: "none" }} />
-                    </label>
-                  </div>
-                )}
-                {b.type === "arquivo_url" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
-                    <input
-                      type="url"
-                      value={b.fileUrl ?? ""}
-                      onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
-                      placeholder="URL do arquivo"
-                      style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
-                    />
-                    {b.fileUrl && !b.fileUrl.startsWith("http") && (
-                      <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
-                    )}
-                  </div>
-                )}
+                  )}
+                  {b.type === "atraso_tempo" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
+                        <input
+                          type="number" min={0}
+                          value={b.delaySeconds ?? 0}
+                          onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
+                          style={{ width: 64, padding: "5px 8px", border: "0.5px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
+                        />
+                        <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+                      </div>
+                    </div>
+                  )}
+                  {b.type === "mensagem_audio" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
+                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
+                        <button style={{ padding: "6px 14px", border: "0.5px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
+                          <Mic size={12} /> Iniciar gravação
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {b.type === "arquivo_anexo" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
+                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
+                        <Upload size={20} color="#D1D5DB" />
+                        Selecionar arquivo
+                        <input type="file" style={{ display: "none" }} />
+                      </label>
+                    </div>
+                  )}
+                  {b.type === "arquivo_url" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
+                      <input
+                        type="url"
+                        value={b.fileUrl ?? ""}
+                        onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
+                        placeholder="URL do arquivo"
+                        style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                      />
+                      {b.fileUrl && !b.fileUrl.startsWith("http") && (
+                        <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Add message button */}
+      {/* Rodapé */}
       <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
-        <button onClick={onOpenPicker}
+        <button onClick={() => onAddSubBlock("mensagem_texto")}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
