@@ -1234,12 +1234,6 @@ export default function AutomacoesPage() {
                 );
               })()}
             </div>
-            <button
-              onClick={() => setTriggerOpen(false)}
-              style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-            >
-              <X size={16} />
-            </button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1297,9 +1291,6 @@ export default function AutomacoesPage() {
                 );
               })()}
             </div>
-            <button onClick={() => setAcoesPickerOpen(false)}
-              style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-            ><X size={16} /></button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1354,9 +1345,6 @@ export default function AutomacoesPage() {
                 );
               })()}
             </div>
-            <button onClick={() => setMensagemPickerOpen(false)}
-              style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-            ><X size={16} /></button>
           </div>
         </DialogContent>
       </Dialog>
