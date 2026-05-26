@@ -1,4 +1,5 @@
-import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -19,8 +20,10 @@ import {
   BrainCircuit,
   Wallet,
   CalendarDays,
+  ChevronRight,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,14 +71,37 @@ const ICON_ACTIVE = "#FFFFFF";
 const HOVER_BG = "rgba(255,255,255,0.1)";
 const ACTIVE_BG = "rgba(255,255,255,0.15)";
 
+type SidebarNotif = { id: string; title: string; desc: string; to: string };
+
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { company, availableCompanies, setSelectedCompany } = useCompany();
   const { can, canAny } = usePermissions();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
+      checkGoogleConnection().then(conn => setGoogleConnected(!!conn));
+    });
+  }, []);
+
+  const notifications: SidebarNotif[] = [];
+  if (googleConnected === false) {
+    notifications.push({
+      id: "google-cal",
+      title: "Vincule seu Google Calendar",
+      desc: "Conecte sua agenda para sincronizar eventos e atividades com o CRM.",
+      to: "/configuracoes/conexoes",
+    });
+  }
+  const notifCount = notifications.length;
 
   const navItems: NavItem[] = [
     { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
@@ -327,19 +353,56 @@ export function AppSidebar() {
             <TooltipContent side="right" className="bg-[#111111] text-white border-0">Rezult Pay · Em breve</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
+          <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+            <PopoverTrigger asChild>
               <button
-                className={itemBase}
-                style={{ ...itemSize, color: ICON_INACTIVE }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
+                className={`${itemBase} relative`}
+                style={{ ...itemSize, color: notifOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: notifOpen ? HOVER_BG : "transparent" }}
+                onMouseEnter={(e) => { if (!notifOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
+                onMouseLeave={(e) => { if (!notifOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
+                aria-label="Notificações"
               >
                 <Bell size={18} strokeWidth={1.75} />
+                {notifCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full font-bold leading-none"
+                    style={{ width: 14, height: 14, fontSize: 8, background: "#EF4444", color: "#fff" }}
+                  >
+                    {notifCount}
+                  </span>
+                )}
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Notificações</TooltipContent>
-          </Tooltip>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="end"
+              sideOffset={8}
+              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-card-border">
+                <p className="text-sm font-semibold text-foreground">Notificações</p>
+                {notifCount === 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Nenhuma notificação no momento.</p>
+                )}
+              </div>
+              {notifications.map(n => (
+                <button
+                  key={n.id}
+                  onClick={() => { setNotifOpen(false); navigate(n.to); }}
+                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors text-left"
+                >
+                  <div className="mt-0.5 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <CalendarDays size={14} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-snug">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.desc}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground mt-1 shrink-0" />
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
             <TooltipTrigger asChild>
