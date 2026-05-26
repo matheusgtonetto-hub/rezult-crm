@@ -908,7 +908,7 @@ export default function AutomacoesPage() {
 
           {/* Edit panel overlay — aparece sobre o canvas, à direita do sidebar */}
           {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "mensagem" && (
-            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
+            <div style={{ position: "absolute", right: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
               <div style={{ pointerEvents: "all" }}>
                 <MensagemPanel
                   node={nodes.find(n => n.id === nodePanel)!}
@@ -927,7 +927,7 @@ export default function AutomacoesPage() {
           )}
 
           {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "acoes" && (
-            <div style={{ position: "absolute", left: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
+            <div style={{ position: "absolute", right: 0, top: 0, height: "100%", zIndex: 25, display: "flex", pointerEvents: "none" }}>
               <div style={{ pointerEvents: "all" }}>
                 <AcoesPanel
                   node={nodes.find(n => n.id === nodePanel)!}
@@ -1056,7 +1056,6 @@ export default function AutomacoesPage() {
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
-                    onOpenMensagemPicker={n.type === "mensagem" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setMensagemPickerOpen(true); } : undefined}
                   />
                 );
               })}
@@ -1593,7 +1592,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenMensagemPicker }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -1603,7 +1602,6 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onDuplicate: () => void;
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
-  onOpenMensagemPicker?: () => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -1781,17 +1779,6 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
             })}
           </div>
         )}
-
-        <button
-          data-action
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onOpenMensagemPicker?.(); }}
-          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
-        >
-          <Plus size={13} /> Adicionar mensagem
-        </button>
 
         {/* Output ports */}
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
