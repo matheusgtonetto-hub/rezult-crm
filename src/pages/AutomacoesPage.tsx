@@ -322,7 +322,7 @@ const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "
 export default function AutomacoesPage() {
   const { user } = useAuth();
   const { company } = useCompany();
-  const { pipelines, crmTags, teamMembers, customFieldGroups } = useCRM();
+  const { pipelines, crmTags, addTag, teamMembers, customFieldGroups } = useCRM();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -1014,6 +1014,7 @@ export default function AutomacoesPage() {
               updateConfig={updateTriggerConfigData}
               pipelines={pipelines}
               crmTags={crmTags}
+              addTag={addTag}
               teamMembers={teamMembers}
               customFieldGroups={customFieldGroups}
             />
@@ -1603,17 +1604,37 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, teamMembers, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, customFieldGroups }: {
   trigger: TriggerConfig;
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
   pipelines: Pipeline[];
   crmTags: CrmTagType[];
+  addTag: (name: string, description: string, color: string) => Promise<boolean>;
   teamMembers: string[];
   customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};
+  const [tagDropOpen, setTagDropOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagCreateMode, setTagCreateMode] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#3B82F6");
+  const [creatingTag, setCreatingTag] = useState(false);
+  const tagDropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!tagDropOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (tagDropRef.current && !tagDropRef.current.contains(e.target as Node)) {
+        setTagDropOpen(false);
+        setTagCreateMode(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [tagDropOpen]);
 
   const InstanceRow = ({ label }: { label: string }) => (
     <div>
@@ -1788,35 +1809,165 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
       case "tag_adicionada": {
         const tagVerb = trigger.triggerId === "tag_removida" ? "removidas" : "adicionadas";
         const selectedTagIds = ((cfg.tags as string) ?? "").split(",").filter(Boolean);
+        const filteredTags = crmTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()));
+        const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
-              Quais as tags que, ao serem {tagVerb}, irão iniciar a automação? Deixe em branco para qualquer tag.
+              Quais as tags que, ao serem {tagVerb}, irão iniciar a automação?
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {crmTags.length === 0 && (
-                <div style={{ fontSize: 12, color: "#9CA3AF" }}>Nenhuma tag cadastrada.</div>
+
+            {/* Selected tag pills */}
+            {selectedTagIds.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {selectedTagIds.map(id => {
+                  const tag = crmTags.find(t => t.id === id);
+                  if (!tag) return null;
+                  return (
+                    <span key={id} style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      background: tag.color ? tag.color + "28" : "#E5E7EB",
+                      color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`,
+                      borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: 500,
+                    }}>
+                      {tag.name}
+                      <button onClick={() => { const next = selectedTagIds.filter(i => i !== id); updateConfig("tags", next.join(",")); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "inherit", opacity: 0.7 }}>
+                        <X size={10} />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Dropdown */}
+            <div style={{ position: "relative" }} ref={tagDropRef}>
+              <button
+                onClick={() => { setTagDropOpen(v => !v); setTagCreateMode(false); setTagSearch(""); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6,
+                  padding: "7px 10px", fontSize: 12, cursor: "pointer",
+                  color: selectedTagIds.length === 0 ? "#9CA3AF" : "#374151",
+                }}
+              >
+                <span>
+                  {selectedTagIds.length === 0
+                    ? "Selecione as tags"
+                    : `${selectedTagIds.length} tag${selectedTagIds.length > 1 ? "s" : ""} selecionada${selectedTagIds.length > 1 ? "s" : ""}`}
+                </span>
+                <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
+              </button>
+
+              {tagDropOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50,
+                  background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column",
+                  maxHeight: 260,
+                }}>
+                  {/* Search */}
+                  {!tagCreateMode && (
+                    <div style={{ padding: "8px 8px 4px" }}>
+                      <input
+                        type="text" placeholder="Pesquisar..." value={tagSearch}
+                        onChange={e => setTagSearch(e.target.value)}
+                        style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {/* Tag list */}
+                  {!tagCreateMode && (
+                    <div style={{ overflowY: "auto", flex: 1, padding: "4px 0" }}>
+                      {filteredTags.length === 0 && (
+                        <div style={{ padding: "8px 12px", fontSize: 11, color: "#9CA3AF" }}>Nenhuma tag encontrada.</div>
+                      )}
+                      {filteredTags.map(tag => {
+                        const checked = selectedTagIds.includes(tag.id);
+                        return (
+                          <div
+                            key={tag.id}
+                            onClick={() => {
+                              const next = checked
+                                ? selectedTagIds.filter(id => id !== tag.id)
+                                : [...selectedTagIds, tag.id];
+                              updateConfig("tags", next.join(","));
+                            }}
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              padding: "5px 12px", cursor: "pointer",
+                              background: checked ? "#EFF6FF" : "transparent",
+                            }}
+                          >
+                            <span style={{
+                              display: "inline-flex", alignItems: "center",
+                              background: tag.color ? tag.color + "28" : "#E5E7EB",
+                              color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`,
+                              borderRadius: 12, padding: "2px 10px", fontSize: 11, fontWeight: 500,
+                            }}>
+                              {tag.name}
+                            </span>
+                            {checked && <CheckCircle2 size={12} style={{ color: "#3B82F6" }} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Create form */}
+                  {tagCreateMode && (
+                    <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <input
+                        type="text" placeholder="Nome da tag..." value={newTagName}
+                        onChange={e => setNewTagName(e.target.value)}
+                        style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus
+                        onKeyDown={e => { if (e.key === "Escape") setTagCreateMode(false); }}
+                      />
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {TAG_COLORS.map(c => (
+                          <button key={c} onClick={() => setNewTagColor(c)} style={{
+                            width: 18, height: 18, borderRadius: "50%", background: c, flexShrink: 0,
+                            border: newTagColor === c ? "2px solid #111" : "1.5px solid transparent", cursor: "pointer",
+                          }} />
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <button onClick={() => setTagCreateMode(false)}
+                          style={{ fontSize: 11, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>
+                          Cancelar
+                        </button>
+                        <button
+                          disabled={!newTagName.trim() || creatingTag}
+                          onClick={async () => {
+                            if (!newTagName.trim() || creatingTag) return;
+                            setCreatingTag(true);
+                            const ok = await addTag(newTagName.trim(), "", newTagColor);
+                            setCreatingTag(false);
+                            if (ok) { setNewTagName(""); setTagCreateMode(false); }
+                          }}
+                          style={{
+                            fontSize: 11, background: "#3B82F6", color: "#FFF", border: "none",
+                            borderRadius: 4, padding: "3px 10px", cursor: "pointer",
+                            opacity: !newTagName.trim() || creatingTag ? 0.5 : 1,
+                          }}
+                        >{creatingTag ? "Criando..." : "Criar"}</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  {!tagCreateMode && (
+                    <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => { setTagCreateMode(true); setTagSearch(""); setNewTagName(""); setNewTagColor("#3B82F6"); }}
+                        style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}
+                      >Criar</button>
+                    </div>
+                  )}
+                </div>
               )}
-              {crmTags.map(tag => {
-                const checked = selectedTagIds.includes(tag.id);
-                return (
-                  <label key={tag.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        const next = checked
-                          ? selectedTagIds.filter(id => id !== tag.id)
-                          : [...selectedTagIds, tag.id];
-                        updateConfig("tags", next.join(","));
-                      }}
-                      style={{ width: 14, height: 14, accentColor: tag.color || "hsl(var(--primary))", flexShrink: 0 }}
-                    />
-                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: tag.color || "#6B7280", flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: "#374151" }}>{tag.name}</span>
-                  </label>
-                );
-              })}
             </div>
           </div>
         );
