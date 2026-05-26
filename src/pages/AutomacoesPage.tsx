@@ -247,6 +247,17 @@ const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; d
   },
 ];
 
+const MENSAGEM_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; items: { type: SubBlockType; label: string; description: string }[] }[] = [
+  { id: "texto",     label: "Texto",     icon: AlignLeft,  description: "Envie mensagens de texto para o contato",         items: [{ type: "mensagem_texto",  label: "Mensagem de texto",    description: "Envie uma mensagem de texto simples para o contato" }] },
+  { id: "interacao", label: "Interação", icon: HelpCircle, description: "Aguarde e capture respostas do usuário",           items: [{ type: "entrada_usuario", label: "Entrada do usuário",   description: "Aguarda uma resposta do usuário e armazena como variável" }] },
+  { id: "fluxo",     label: "Fluxo",     icon: Clock,      description: "Controle o timing da conversa",                   items: [{ type: "atraso_tempo",    label: "Atraso de tempo",      description: "Adiciona um delay antes do próximo bloco ser executado" }] },
+  { id: "midia",     label: "Mídia",     icon: Paperclip,  description: "Envie arquivos e conteúdo de mídia",              items: [
+    { type: "mensagem_audio", label: "Mensagem de áudio",    description: "Envie um áudio gravado para o contato" },
+    { type: "arquivo_anexo",  label: "Arquivo anexo",         description: "Envie um arquivo anexo para o contato" },
+    { type: "arquivo_url",    label: "Arquivo URL Dinâmica",  description: "Envie um arquivo a partir de uma URL dinâmica" },
+  ]},
+];
+
 const NOTE_COLORS = [
   { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
   { bg: "#EFF6FF", header: "#BFDBFE", border: "#93C5FD", borderSel: "#3B82F6", text: "#1E40AF", headerText: "#1D4ED8" },
@@ -305,6 +316,10 @@ export default function AutomacoesPage() {
   const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
+  const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
+  const [mensagemPickerOpen, setMensagemPickerOpen] = useState(false);
+  const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
+  const [selectedMensagemPickerCat, setSelectedMensagemPickerCat] = useState(MENSAGEM_CATEGORIES[0].id);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -895,9 +910,9 @@ export default function AutomacoesPage() {
                     const n = nodes.find(x => x.id === nodePanel);
                     if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
                   }}
-                  addSubBlock={(type) => addSubBlock(nodePanel, type)}
                   removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
                   updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
+                  onOpenPicker={() => setMensagemPickerOpen(true)}
                 />
               </div>
             </div>
@@ -914,8 +929,8 @@ export default function AutomacoesPage() {
                     const n = nodes.find(x => x.id === nodePanel);
                     if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]);
                   }}
-                  addActionItem={(item) => addActionItem(nodePanel, item)}
                   removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
+                  onOpenPicker={() => setAcoesPickerOpen(true)}
                 />
               </div>
             </div>
@@ -1031,6 +1046,7 @@ export default function AutomacoesPage() {
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
+                    onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                   />
                 );
               })}
@@ -1215,6 +1231,123 @@ export default function AutomacoesPage() {
             >
               <X size={16} />
             </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ações picker */}
+      <Dialog open={acoesPickerOpen} onOpenChange={setAcoesPickerOpen}>
+        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 480 }}>
+            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação</div>
+              {ACTION_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const sel = selectedActionPickerCat === cat.id;
+                return (
+                  <button key={cat.id} onClick={() => setSelectedActionPickerCat(cat.id)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}
+                  >
+                    <Icon size={14} />{cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              {(() => {
+                const cat = ACTION_CATEGORIES.find(c => c.id === selectedActionPickerCat)!;
+                return (
+                  <>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {cat.actions.map(action => {
+                        const AIcon = action.icon;
+                        return (
+                          <button key={action.id}
+                            onClick={() => { if (nodePanel) addActionItem(nodePanel, { categoryId: cat.id, actionId: action.id, label: action.label, description: action.description }); setAcoesPickerOpen(false); }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                          >
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                              <AIcon size={14} color="#F97316" />
+                            </div>
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{action.label}</span>
+                                {action.warning && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEF3C7", color: "#B45309", padding: "1px 6px", borderRadius: 4 }}>Atenção</span>}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{action.description}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            <button onClick={() => setAcoesPickerOpen(false)}
+              style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+            ><X size={16} /></button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mensagem picker */}
+      <Dialog open={mensagemPickerOpen} onOpenChange={setMensagemPickerOpen}>
+        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 440 }}>
+            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar mensagem</div>
+              {MENSAGEM_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const sel = selectedMensagemPickerCat === cat.id;
+                return (
+                  <button key={cat.id} onClick={() => setSelectedMensagemPickerCat(cat.id)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}
+                  >
+                    <Icon size={14} />{cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              {(() => {
+                const cat = MENSAGEM_CATEGORIES.find(c => c.id === selectedMensagemPickerCat)!;
+                return (
+                  <>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {cat.items.map(item => {
+                        const ItemIcon = SUB_BLOCK_ICONS[item.type];
+                        return (
+                          <button key={item.type}
+                            onClick={() => { if (nodePanel) addSubBlock(nodePanel, item.type); setMensagemPickerOpen(false); }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                          >
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                              <ItemIcon size={14} color="#3B82F6" />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{item.label}</div>
+                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{item.description}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            <button onClick={() => setMensagemPickerOpen(false)}
+              style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+            ><X size={16} /></button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1462,7 +1595,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -1471,6 +1604,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onDelete: () => void;
   onDuplicate: () => void;
   onAddNote: () => void;
+  onOpenAcoesPicker?: () => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -1541,7 +1675,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
           <button
             data-action
             onMouseDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onSelect(); }}
+            onClick={e => { e.stopPropagation(); onOpenAcoesPicker?.(); }}
             style={{ width: "100%", border: "1px dashed #FED7AA", background: "#FFF7ED", color: "#F97316", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
@@ -1684,19 +1818,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
 
 // ─── AcoesPanel ──────────────────────────────────────────────────────────────
 
-function AcoesPanel({ node, onClose, onDelete, onDuplicate, addActionItem, removeActionItem }: {
+function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, onOpenPicker }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  addActionItem: (item: Omit<ActionItem, "id">) => void;
   removeActionItem: (itemId: string) => void;
+  onOpenPicker: () => void;
 }) {
-  const [selectedCat, setSelectedCat] = useState(ACTION_CATEGORIES[0].id);
-  const cat = ACTION_CATEGORIES.find(c => c.id === selectedCat)!;
-
   return (
-    <aside style={{ width: 440, minWidth: 440, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1716,20 +1847,20 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, addActionItem, remov
       </div>
 
       {/* Added action items */}
-      {(node.actionItems ?? []).length > 0 && (
-        <div style={{ padding: "10px 16px", borderBottom: "0.5px solid #F0F0F0", maxHeight: 160, overflowY: "auto", flexShrink: 0 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: 0.5 }}>Ações adicionadas</label>
-          <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {(node.actionItems ?? []).length === 0 ? (
+          <div style={{ paddingTop: 8, fontSize: 12, color: "#9CA3AF" }}>Nenhuma ação adicionada ainda.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {(node.actionItems ?? []).map(item => {
               const catData = ACTION_CATEGORIES.find(c => c.id === item.categoryId);
               const actData = catData?.actions.find(a => a.id === item.actionId);
               const AIcon = actData?.icon ?? Zap;
               return (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8 }}>
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8 }}>
                   <AIcon size={13} color="#F97316" />
                   <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{item.label}</span>
-                  <button
-                    onClick={() => removeActionItem(item.id)}
+                  <button onClick={() => removeActionItem(item.id)}
                     style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
@@ -1738,61 +1869,18 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, addActionItem, remov
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Two-column action browser */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Left: categories */}
-        <div style={{ width: 130, borderRight: "0.5px solid #E5E5E5", overflowY: "auto", flexShrink: 0 }}>
-          {ACTION_CATEGORIES.map(c => {
-            const CIcon = c.icon;
-            const sel = selectedCat === c.id;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCat(c.id)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" as const }}
-              >
-                <CIcon size={14} />
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Right: actions list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px" }}>
-          <div style={{ marginBottom: 2, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 14 }}>{cat.description}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {cat.actions.map(action => {
-              const AIcon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  onClick={() => addActionItem({ categoryId: cat.id, actionId: action.id, label: action.label, description: action.description })}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left" as const }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                >
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                    <AIcon size={14} color="#F97316" />
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{action.label}</span>
-                      {action.warning && (
-                        <span style={{ fontSize: 10, fontWeight: 600, background: "#FEF3C7", color: "#B45309", padding: "1px 6px", borderRadius: 4 }}>Atenção</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{action.description}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* Add action button */}
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+        <button onClick={onOpenPicker}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#F97316", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
+        >
+          <Plus size={13} /> Adicionar ação
+        </button>
       </div>
     </aside>
   );
@@ -1809,14 +1897,14 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-function MensagemPanel({ node, onClose, onDelete, onDuplicate, addSubBlock, removeSubBlock, updateSubBlock }: {
+function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onOpenPicker }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  addSubBlock: (type: SubBlockType) => void;
   removeSubBlock: (blockId: string) => void;
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
+  onOpenPicker: () => void;
 }) {
   return (
     <aside style={{ width: 340, minWidth: 340, maxWidth: 340, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
@@ -1939,20 +2027,15 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, addSubBlock, remo
         })}
       </div>
 
-      {/* Sub-block type buttons */}
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "8px 0" }}>
-        {MENSAGEM_SUB_BLOCKS.map(({ type, icon: Icon, color }) => (
-          <button
-            key={type}
-            onClick={() => addSubBlock(type)}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: "transparent", border: "none", cursor: "pointer", fontSize: 12, color: "#111111", textAlign: "left" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-          >
-            <Icon size={15} color={color} />
-            {SUB_BLOCK_LABELS[type]}
-          </button>
-        ))}
+      {/* Add message button */}
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+        <button onClick={onOpenPicker}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
+        >
+          <Plus size={13} /> Adicionar mensagem
+        </button>
       </div>
     </aside>
   );
