@@ -9,7 +9,7 @@ import {
   MessageCircle, Trophy, XCircle, StickyNote, ArrowRightLeft,
   PlusCircle, CheckSquare, CalendarDays, Phone, Mail, RefreshCw,
   Briefcase, ChevronRight, ExternalLink, Pencil,
-  FileText, Image, Download, Loader2,
+  FileText, Image, Download, Loader2, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ActivityType, LeadOrigin } from "@/data/mockData";
@@ -166,6 +166,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [convs, setConvs]           = useState<WaConv[]>([]);
   const [convsLoading, setConvsLoading] = useState(false);
 
+  // Executar automação manualmente
+  const [manualAutoOpen, setManualAutoOpen]   = useState(false);
+  const [manualAutoList, setManualAutoList]   = useState<{ id: string; name: string }[]>([]);
+  const [manualAutoLoading, setManualAutoLoading] = useState(false);
+
   // Deriva lead ANTES dos hooks restantes (sem early return ainda)
   const lead = leadId ? leads[leadId] : null;
   const leadPhone = lead?.whatsapp ?? "";
@@ -256,6 +261,27 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     setNewDealPipeline("");
     setNewDealStage("");
     setNewDealCreating(false);
+  };
+
+  const openManualAuto = async () => {
+    setManualAutoLoading(true);
+    setManualAutoOpen(true);
+    const { data } = await supabase
+      .from("automations")
+      .select("id, name, flow")
+      .eq("owner_id", user!.id)
+      .eq("active", true);
+    const manualOnes = (data ?? []).filter((a: any) => a.flow?.trigger?.triggerId === "lead_manual");
+    setManualAutoList(manualOnes.map((a: any) => ({ id: a.id, name: a.name })));
+    setManualAutoLoading(false);
+  };
+
+  const runManualAuto = async (autoId: string) => {
+    setManualAutoOpen(false);
+    const { error } = await supabase.rpc("trigger_manual_automation", { p_lead_id: leadId });
+    if (error) { toast.error("Erro ao executar automação"); return; }
+    toast.success("Automação disparada com sucesso!");
+    void autoId;
   };
 
   const downloadFile = async (f: LeadFile) => {
@@ -360,12 +386,45 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                   <ExternalLink size={11} /> Ver completo
                 </button>
                 <button
+                  onClick={openManualAuto}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#6B21A8", border: "1px solid #6B21A830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                >
+                  <Zap size={11} /> Automação
+                </button>
+                <button
                   onClick={() => { markLeadWon(leadId); toast.success("Negócio ganho!"); onClose(); }}
                   style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#FFF", border: "none", borderRadius: 8, padding: "7px 0", background: "#128A68", cursor: "pointer" }}
                 >
                   ✓ Ganho
                 </button>
               </div>
+
+              {/* Manual automation picker */}
+              {manualAutoOpen && (
+                <div style={{ marginTop: 8, border: "1px solid #E5E5E5", borderRadius: 8, overflow: "hidden", background: "#FFF" }}>
+                  <div style={{ padding: "8px 12px", background: "#F9FAFB", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>Executar automação</span>
+                    <button onClick={() => setManualAutoOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 14, lineHeight: 1 }}>✕</button>
+                  </div>
+                  {manualAutoLoading ? (
+                    <div style={{ padding: 12, textAlign: "center", color: "#AAA" }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /></div>
+                  ) : manualAutoList.length === 0 ? (
+                    <div style={{ padding: 12, fontSize: 12, color: "#9CA3AF", textAlign: "center" }}>Nenhuma automação com gatilho manual ativa</div>
+                  ) : (
+                    manualAutoList.map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => runManualAuto(a.id)}
+                        style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", fontSize: 12, color: "#111", display: "flex", alignItems: "center", gap: 6 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                      >
+                        <Zap size={11} color="#6B21A8" /> {a.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Notes */}

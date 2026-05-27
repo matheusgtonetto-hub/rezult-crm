@@ -246,6 +246,102 @@ CREATE TRIGGER leads_automation_trigger
   FOR EACH ROW
   EXECUTE FUNCTION public.leads_automation_trigger_fn();
 
+-- ── 5. Trigger na tabela activities (atividade_exec) ─────────────────────────
+
+CREATE OR REPLACE FUNCTION public.activities_automation_trigger_fn()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_company_id uuid;
+BEGIN
+  IF NEW.lead_id IS NULL OR NEW.owner_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT id INTO v_company_id
+  FROM public.companies
+  WHERE owner_id = NEW.owner_id
+  LIMIT 1;
+
+  IF v_company_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM public.dispatch_automation_event(
+    'atividade_exec', v_company_id, NEW.lead_id,
+    jsonb_build_object('activity_type', COALESCE(NEW.type, ''))
+  );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'activities_automation_trigger_fn falhou: %', SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS activities_automation_trigger ON public.activities;
+
+CREATE TRIGGER activities_automation_trigger
+  AFTER INSERT ON public.activities
+  FOR EACH ROW
+  EXECUTE FUNCTION public.activities_automation_trigger_fn();
+
+-- ── 6. RPC para execução manual (lead_manual) ─────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.trigger_manual_automation(p_lead_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_company_id uuid;
+  v_lead_owner uuid;
+BEGIN
+  SELECT owner_id INTO v_lead_owner FROM public.leads WHERE id = p_lead_id;
+
+  IF v_lead_owner IS NULL OR v_lead_owner <> auth.uid() THEN
+    RAISE EXCEPTION 'Lead não encontrado ou acesso negado';
+  END IF;
+
+  SELECT id INTO v_company_id FROM public.companies WHERE owner_id = auth.uid() LIMIT 1;
+
+  IF v_company_id IS NULL THEN
+    RAISE EXCEPTION 'Empresa não encontrada';
+  END IF;
+
+  PERFORM public.dispatch_automation_event('lead_manual', v_company_id, p_lead_id, '{}');
+END;
+$$;
+
+-- ── 7. Execução agendada via pg_cron (agendado) ───────────────────────────────
+-- Dispara o gatilho 'agendado' para TODOS os leads ativos de cada empresa,
+-- a cada hora. As automações filtram por si mesmas via configData.interval.
+
+SELECT cron.schedule(
+  'automation-agendado-hourly',
+  '0 * * * *',
+  $$
+  DO $$
+  DECLARE
+    r RECORD;
+  BEGIN
+    FOR r IN
+      SELECT DISTINCT l.id AS lead_id, c.id AS company_id
+      FROM public.leads l
+      JOIN public.companies c ON c.owner_id = l.owner_id
+      WHERE l.status = 'open'
+    LOOP
+      PERFORM public.dispatch_automation_event('agendado', r.company_id, r.lead_id, '{}');
+    END LOOP;
+  END;
+  $$
+  $$
+);
+
 -- ── Verificação ───────────────────────────────────────────────────────────────
 -- Execute para confirmar que o setup foi aplicado:
 --
