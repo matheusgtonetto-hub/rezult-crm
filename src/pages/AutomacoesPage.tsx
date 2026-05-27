@@ -1016,6 +1016,8 @@ export default function AutomacoesPage() {
               crmTags={crmTags}
               addTag={addTag}
               teamMembers={teamMembers}
+              products={products}
+              lossReasons={lossReasons}
               customFieldGroups={customFieldGroups}
             />
           )}
@@ -1613,7 +1615,7 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
   trigger: TriggerConfig;
   onClose: () => void;
   onChangeTrigger: () => void;
@@ -1622,6 +1624,8 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   crmTags: CrmTagType[];
   addTag: (name: string, description: string, color: string) => Promise<boolean>;
   teamMembers: string[];
+  products: Product[];
+  lossReasons: LossReason[];
   customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};
@@ -1967,18 +1971,120 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
                 <option value="specific">Para um valor específico</option>
               </select>
             </div>
-            {(cfg.mode as string) === "specific" && (
-              <div>
-                <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Valor esperado</div>
-                <input
-                  type="text"
-                  placeholder="Digite o valor..."
-                  value={(cfg.value as string) ?? ""}
-                  onChange={e => updateConfig("value", e.target.value)}
-                  style={tcpSelectStyle}
-                />
-              </div>
-            )}
+            {(cfg.mode as string) === "specific" && (() => {
+              const field = (cfg.field as string) ?? "";
+              const val = (cfg.value as string) ?? "";
+              const BR_STATES = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+              const ORIGINS: string[] = ["Instagram","Facebook Ads","Google Ads","Meta Ads","TikTok Ads","LinkedIn Ads","YouTube Ads","Email Marketing","Orgânico","WhatsApp","Evento","Indicação","Site","Outro"];
+              const customItem = customFieldGroups.flatMap(g => g.items).find(i => i.id === field);
+
+              let input: React.ReactNode;
+
+              if (["entry_date","next_follow_up","birth_date"].includes(field) || customItem?.fieldType === "date") {
+                input = <input type="date" value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle} />;
+              } else if (field === "value") {
+                input = <input type="number" min={0} step={0.01} placeholder="0,00" value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle} />;
+              } else if (field === "document") {
+                input = <input type="text" placeholder="000.000.000-00" maxLength={14} value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle} />;
+              } else if (field === "zip_code") {
+                input = <input type="text" placeholder="00000-000" maxLength={9} value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle} />;
+              } else if (field === "origin") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {ORIGINS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                );
+              } else if (field === "priority") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Média">Média</option>
+                    <option value="Baixa">Baixa</option>
+                  </select>
+                );
+              } else if (field === "status") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    <option value="open">Aberto</option>
+                    <option value="won">Ganho</option>
+                    <option value="lost">Perdido</option>
+                  </select>
+                );
+              } else if (field === "pipeline_id") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                );
+              } else if (field === "column_id") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {pipelines.map(p => (
+                      <optgroup key={p.id} label={p.name}>
+                        {p.columns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                );
+              } else if (field === "responsible") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                );
+              } else if (field === "tags") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {crmTags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  </select>
+                );
+              } else if (field === "product_id") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                );
+              } else if (field === "loss_reason_id") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {lossReasons.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                );
+              } else if (field === "state") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    {BR_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                );
+              } else if (customItem?.fieldType === "boolean") {
+                input = (
+                  <select value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle}>
+                    <option value="">Selecionar</option>
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                );
+              } else {
+                input = <input type="text" placeholder="Digite o valor..." value={val} onChange={e => updateConfig("value", e.target.value)} style={tcpSelectStyle} />;
+              }
+
+              return (
+                <div>
+                  <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Valor esperado</div>
+                  {input}
+                </div>
+              );
+            })()}
           </div>
         );
 
