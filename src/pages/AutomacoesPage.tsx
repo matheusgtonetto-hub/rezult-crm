@@ -663,7 +663,12 @@ export default function AutomacoesPage() {
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
           setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
         } else {
-          const fromNode = nodes.find(n => n.id === realNodeId);
+          let fromNode = nodes.find(n => n.id === realNodeId);
+          if (!fromNode) {
+            // Compound port (e.g. nodeId_condId) — strip suffix to find the real node
+            const lastUnder = realNodeId.lastIndexOf("_");
+            if (lastUnder > 0) fromNode = nodes.find(n => n.id === realNodeId.substring(0, lastUnder));
+          }
           if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50, isError: isErrorPort });
         }
         return;
@@ -1341,12 +1346,29 @@ export default function AutomacoesPage() {
               {/* SVG connection lines */}
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible", pointerEvents: "none" }}>
                 {nodes.filter(n => n.parentId).map(n => {
-                  const parent = nodes.find(p => p.id === n.parentId);
-                  if (!parent) return null;
-                  const x1 = parent.type === "start" ? parent.x + 244 : parent.x + 248;
-                  const y1 = parent.type === "start" ? parent.y + 158 : parent.y + 110;
+                  const parentId = n.parentId!;
+                  const parent = nodes.find(p => p.id === parentId);
+                  let x1: number, y1: number, stroke = "#CCCCCC";
+                  if (parent) {
+                    x1 = parent.type === "start" ? parent.x + 244 : parent.x + 248;
+                    y1 = parent.type === "start" ? parent.y + 158 : parent.y + 110;
+                  } else {
+                    // Compound port: nodeId_condId
+                    const lastUnder = parentId.lastIndexOf("_");
+                    if (lastUnder <= 0) return null;
+                    const realParentId = parentId.substring(0, lastUnder);
+                    const condId = parentId.substring(lastUnder + 1);
+                    const realParent = nodes.find(p => p.id === realParentId);
+                    if (!realParent || realParent.type !== "condicoes") return null;
+                    const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === condId);
+                    if (condIdx === -1) return null;
+                    // Port position: header ~38px, content padding 10px, each item ~55px, port at bottom of item
+                    x1 = realParent.x + 258;
+                    y1 = realParent.y + 38 + 10 + condIdx * 55 + 44;
+                    stroke = "#06B6D4";
+                  }
                   const x2 = n.x, y2 = n.y + 40;
-                  return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#CCCCCC" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                  return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke={stroke} strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
                 })}
                 {/* Error connection lines */}
                 {nodes.filter(n => n.errorParentId).map(n => {
@@ -1403,6 +1425,7 @@ export default function AutomacoesPage() {
                     onSelect={() => { setSelectedNode(n.id); setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onErrorPortDragStart={(e) => startPortDrag(e, `${n.id}__error`)}
+                    onConditionPortDragStart={(e, condId) => startPortDrag(e, `${n.id}_${condId}`)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
@@ -2724,12 +2747,13 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats, onStatClick }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats, onStatClick }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onErrorPortDragStart?: (e: React.MouseEvent) => void;
+  onConditionPortDragStart?: (e: React.MouseEvent, condId: string) => void;
   onDragStart: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -2877,33 +2901,83 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const items = node.conditionItems ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#6366F1" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(99,102,241,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
-          <Filter size={15} color="#6366F1" />
+          <Filter size={15} color="#8B5CF6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condições</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {items.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Adicione condições para ramificar o fluxo.</div>
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Faça filtros para seguir caminhos diferentes.<br />Clique para adicionar uma condição:</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {items.map(item => {
                 const catData = CONDITION_CATEGORIES.find(c => c.id === item.categoryId);
                 const condData = catData?.conditions.find(c => c.id === item.conditionId);
                 return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", background: "#F3F4FF", border: "0.5px solid #C7D2FE", borderRadius: 6, fontSize: 11, color: "#374151" }}>
-                    <Filter size={10} color="#6366F1" />
-                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</span>
+                  <div key={item.id}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
+                      <Filter size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div style={{ flex: 1, overflow: "hidden" }}>
+                        <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
+                        {condData?.description && <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData.description}</div>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 3, paddingRight: 2 }}>
+                      <span style={{ fontSize: 10, color: "#6B7280" }}>Se esta condição for verdadeira</span>
+                      <div data-port data-from-node={`${node.id}_${item.id}`} onMouseDown={e => onConditionPortDragStart?.(e, item.id)}
+                        style={{ width: 10, height: 10, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", flexShrink: 0, cursor: "crosshair" }} />
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-          <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "#6366F1", fontWeight: 500 }}>Próximo passo</span>
-            <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
-              style={{ width: 12, height: 12, borderRadius: "50%", background: "#C7D2FE", border: "2px solid #6366F1", flexShrink: 0, cursor: "crosshair" }} />
+
+          {/* Add condition button */}
+          <button
+            data-action
+            onMouseDown={e => e.stopPropagation()}
+            onClick={onSelect}
+            style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed #DDD6FE", borderRadius: 7, fontSize: 12, color: "#8B5CF6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#F5F3FF")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <Plus size={12} /> Adicionar condição
+          </button>
+
+          {/* Bottom ports */}
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+              <span style={{ fontSize: 10, color: "#6B7280" }}>Todas as condições forem verdadeiras</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
+                style={{ width: 10, height: 10, borderRadius: "50%", background: "#DDD6FE", border: "2px solid #8B5CF6", flexShrink: 0, cursor: "crosshair" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+              <span style={{ fontSize: 10, color: "#EF4444" }}>Quando não atender a nenhuma condição</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={e => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
+                style={{ width: 10, height: 10, borderRadius: "50%", background: "#FEE2E2", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }} />
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "0.5px solid #F3F4F6", fontSize: 11 }}>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
+              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default" }}
+              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
+              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default" }}
+              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
+              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default" }}
+              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
           </div>
         </div>
       </div>
