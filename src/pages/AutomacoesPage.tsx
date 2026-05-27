@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -8,7 +9,7 @@ import {
   Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote, Palette,
   ThumbsUp, ThumbsDown, RotateCcw, ArrowLeftRight, UserPlus, UserMinus, UserX,
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
-  ShoppingCart, Bell,
+  ShoppingCart, Bell, ExternalLink,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -324,6 +325,7 @@ export default function AutomacoesPage() {
   const { user } = useAuth();
   const { company } = useCompany();
   const { pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups } = useCRM();
+  const navigate = useNavigate();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -372,6 +374,9 @@ export default function AutomacoesPage() {
   const [condicoesPickerOpen, setCondicoesPickerOpen] = useState(false);
   const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
   const [triggerPanel, setTriggerPanel] = useState(false);
+  const [logsDialog, setLogsDialog] = useState<{ nodeId: string; status: "success" | "alert" | "error" } | null>(null);
+  const [logsDialogLeads, setLogsDialogLeads] = useState<{ id: string; name: string }[]>([]);
+  const [logsDialogLoading, setLogsDialogLoading] = useState(false);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -734,6 +739,27 @@ export default function AutomacoesPage() {
     a.href = url; a.download = `${selectedAutomation.name}.json`; a.click();
     URL.revokeObjectURL(url);
   };
+
+  const handleStatClick = useCallback(async (nodeId: string, status: "success" | "alert" | "error") => {
+    if (!selectedId) return;
+    setLogsDialog({ nodeId, status });
+    setLogsDialogLoading(true);
+    setLogsDialogLeads([]);
+    const { data: logRows } = await supabase
+      .from("automation_logs")
+      .select("lead_id")
+      .eq("automation_id", selectedId)
+      .eq("node_id", nodeId)
+      .eq("status", status);
+    if (!logRows || logRows.length === 0) { setLogsDialogLoading(false); return; }
+    const leadIds = [...new Set((logRows as { lead_id: string }[]).map(r => r.lead_id))];
+    const { data: leadsData } = await supabase
+      .from("leads")
+      .select("id, name")
+      .in("id", leadIds);
+    setLogsDialogLeads((leadsData ?? []) as { id: string; name: string }[]);
+    setLogsDialogLoading(false);
+  }, [selectedId]);
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1271,6 +1297,7 @@ export default function AutomacoesPage() {
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                     stats={nodeStats[n.id]}
+                    onStatClick={(status) => handleStatClick(n.id, status)}
                   />
                 );
                 if (n.type === "note") return (
@@ -1301,6 +1328,7 @@ export default function AutomacoesPage() {
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                     stats={nodeStats[n.id]}
+                    onStatClick={(status) => handleStatClick(n.id, status)}
                   />
                 );
               })}
@@ -1627,6 +1655,48 @@ export default function AutomacoesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Logs dialog — leads que passaram pelo nó */}
+      <Dialog open={!!logsDialog} onOpenChange={(open) => { if (!open) setLogsDialog(null); }}>
+        <DialogContent style={{ maxWidth: 480 }}>
+          <DialogHeader>
+            <DialogTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {logsDialog?.status === "success" && <span style={{ color: "hsl(var(--primary))" }}>Sucessos</span>}
+              {logsDialog?.status === "alert"   && <span style={{ color: "#F59E0B" }}>Alertas</span>}
+              {logsDialog?.status === "error"   && <span style={{ color: "#EF4444" }}>Erros</span>}
+              {!logsDialogLoading && (
+                <span style={{ fontSize: 13, fontWeight: 400, color: "#6B7280" }}>
+                  — {logsDialogLeads.length} lead{logsDialogLeads.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div style={{ maxHeight: 360, overflowY: "auto", marginTop: 4 }}>
+            {logsDialogLoading ? (
+              <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
+            ) : logsDialogLeads.length === 0 ? (
+              <div style={{ padding: "32px 0", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
+                Nenhum lead encontrado para este status
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {logsDialogLeads.map(lead => (
+                  <button
+                    key={lead.id}
+                    onClick={() => { setLogsDialog(null); navigate(`/pipeline/lead/${lead.id}`); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#111111" }}>{lead.name}</span>
+                    <ExternalLink size={13} color="#9CA3AF" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2239,7 +2309,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   );
 }
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart, stats }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart, stats, onStatClick }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
@@ -2249,6 +2319,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
   stats?: { s: number; a: number; e: number };
+  onStatClick?: (status: "success" | "alert" | "error") => void;
 }) {
   return (
     <div
@@ -2317,9 +2388,27 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       </div>
       {/* Metrics */}
       <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-        <span style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>{stats?.s ?? 0} Sucessos</span>
-        <span style={{ color: "#F59E0B", fontWeight: 600 }}>{stats?.a ?? 0} Alertas</span>
-        <span style={{ color: "#EF4444", fontWeight: 600 }}>{stats?.e ?? 0} Erros</span>
+        <button
+          data-action
+          onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
+          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+          onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+        >{stats?.s ?? 0} Sucessos</button>
+        <button
+          data-action
+          onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
+          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+          onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+        >{stats?.a ?? 0} Alertas</button>
+        <button
+          data-action
+          onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
+          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+          onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+        >{stats?.e ?? 0} Erros</button>
       </div>
     </div>
   );
@@ -2460,7 +2549,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats, onStatClick }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -2474,6 +2563,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   stats?: { s: number; a: number; e: number };
+  onStatClick?: (status: "success" | "alert" | "error") => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -2586,9 +2676,23 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         </div>
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.s ?? 0}</div><div style={{ color: "#F97316" }}>Sucessos</div></div>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.a ?? 0}</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.e ?? 0}</div><div style={{ color: "#EF4444" }}>Erros</div></div>
+          {([
+            { key: "success" as const, count: stats?.s ?? 0, color: "#F97316", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+          ]).map(({ key, count, color, label }) => (
+            <button
+              key={key}
+              data-action
+              onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+              style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -2807,9 +2911,23 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
 
       {/* Footer metrics */}
       <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.s ?? 0}</div><div style={{ color: "#3B82F6" }}>Sucessos</div></div>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.a ?? 0}</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.e ?? 0}</div><div style={{ color: "#EF4444" }}>Erros</div></div>
+        {([
+          { key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+        ]).map(({ key, count, color, label }) => (
+          <button
+            key={key}
+            data-action
+            onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+            style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+            <div style={{ color }}>{label}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
