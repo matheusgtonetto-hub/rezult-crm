@@ -28,8 +28,8 @@ ALTER TABLE public.automation_runner_config ENABLE ROW LEVEL SECURITY;
 
 -- Insere/atualiza os valores — PREENCHA ANTES DE EXECUTAR
 INSERT INTO public.automation_runner_config (key, value) VALUES
-  ('supabase_url',      'REPLACE_WITH_YOUR_SUPABASE_URL'),
-  ('automation_secret', 'REPLACE_WITH_A_RANDOM_SECRET')
+  ('supabase_url',      'https://adhjmwkgyxrpsohufqob.supabase.co'),
+  ('automation_secret', '13e8ba16d9a9a703a0c5a08ae89584ac5d64c808deab325232de1321ac852cec')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- ── 2. Função dispatcher (chama a Edge Function via pg_net) ───────────────────
