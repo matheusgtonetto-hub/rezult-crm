@@ -321,10 +321,18 @@ $$;
 -- Dispara o gatilho 'agendado' para TODOS os leads ativos de cada empresa,
 -- a cada hora. As automações filtram por si mesmas via configData.interval.
 
+-- Remove o job anterior se existir (idempotente)
+DO $safe$
+BEGIN
+  PERFORM cron.unschedule('automation-agendado-hourly');
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+$safe$;
+
 SELECT cron.schedule(
   'automation-agendado-hourly',
   '0 * * * *',
-  $$
+  $cron$
   DO $$
   DECLARE
     r RECORD;
@@ -339,7 +347,7 @@ SELECT cron.schedule(
     END LOOP;
   END;
   $$
-  $$
+  $cron$
 );
 
 -- ── Verificação ───────────────────────────────────────────────────────────────
