@@ -1465,8 +1465,10 @@ export default function AutomacoesPage() {
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
+                    onOpenCondicoesPicker={n.type === "condicoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setCondicoesPickerOpen(true); } : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
+                    removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
                     stats={nodeStats[n.id]}
                     onStatClick={(status) => handleStatClick(n.id, status)}
                   />
@@ -2787,7 +2789,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats, onStatClick }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -2799,8 +2801,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onDuplicate: () => void;
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
+  onOpenCondicoesPicker?: () => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
+  removeConditionItem?: (itemId: string) => void;
   stats?: { s: number; a: number; e: number };
   onStatClick?: (status: "success" | "alert" | "error") => void;
 }) {
@@ -2955,14 +2959,23 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               {items.map(item => {
                 const catData = CONDITION_CATEGORIES.find(c => c.id === item.categoryId);
                 const condData = catData?.conditions.find(c => c.id === item.conditionId);
+                const CondIcon = condData?.icon ?? Filter;
                 return (
                   <div key={item.id}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
-                      <Filter size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <CondIcon size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
                         {condData?.description && <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData.description}</div>}
                       </div>
+                      <button
+                        data-action
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); removeConditionItem?.(item.id); }}
+                        style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "#C4B5FD")}
+                      ><X size={10} /></button>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 3, paddingRight: 2 }}>
                       <span style={{ fontSize: 10, color: "#6B7280" }}>Se esta condição for verdadeira</span>
@@ -2979,7 +2992,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <button
             data-action
             onMouseDown={e => e.stopPropagation()}
-            onClick={onSelect}
+            onClick={e => { e.stopPropagation(); onSelect(); onOpenCondicoesPicker?.(); }}
             style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed #DDD6FE", borderRadius: 7, fontSize: 12, color: "#8B5CF6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
             onMouseEnter={e => (e.currentTarget.style.background = "#F5F3FF")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
