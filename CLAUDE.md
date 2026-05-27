@@ -115,6 +115,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `tags` | Tags de leads |
 | `activities` | Histórico de atividades de um lead |
 | `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
+| `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
@@ -131,6 +132,50 @@ Todas as tabelas têm RLS habilitado. Políticas padrão: `auth.uid() = owner_id
 - Status de task: `"Pendente" | "Concluída"`
 - Origens de lead: `"Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro"`
 - Tema: salvo em `profiles.theme` (`"light" | "dark" | "system"`), aplicado via classe no `<html>`
+
+## Motor de Automações
+
+Automações são salvas em `automations.flow` (JSONB) e **executadas de verdade** por uma Supabase Edge Function.
+
+### Arquitetura
+
+```
+leads (INSERT/UPDATE)
+  → PostgreSQL trigger leads_automation_trigger
+    → pg_net → POST /functions/v1/automation-runner
+      → filtra automações ativas da empresa
+      → confere configData do gatilho (tag específica, etapa, atendente…)
+      → executa actionItems dos nós "acoes" em sequência
+```
+
+### Arquivo da Edge Function
+`supabase/functions/automation-runner/index.ts`
+
+### SQL Migration
+`supabase/migrations/automation_engine_setup.sql`
+
+### Setup (uma vez por projeto Supabase)
+
+1. **Deploy da Edge Function**
+   - No painel Supabase → Edge Functions → New Function → nome: `automation-runner`
+   - Cole o conteúdo de `supabase/functions/automation-runner/index.ts`
+   - Em Secrets, adicione: `AUTOMATION_SECRET=<valor-aleatorio>` (openssl rand -hex 32)
+
+2. **SQL Migration**
+   - Abra `supabase/migrations/automation_engine_setup.sql`
+   - Preencha `REPLACE_WITH_YOUR_SUPABASE_URL` e `REPLACE_WITH_A_RANDOM_SECRET` (mesmo valor do secret acima)
+   - Execute no SQL Editor do Supabase
+
+3. **Verificar extensão pg_net**
+   - Dashboard → Database → Extensions → pg_net (deve estar habilitado por padrão no Supabase)
+
+### Gatilhos implementados (disparam do PostgreSQL)
+`lead_criado`, `neg_criado`, `neg_movido`, `neg_ganho`, `neg_perdido`, `neg_restaurado`, `atend_atribuido`, `atend_retirado`, `tag_adicionada`, `tag_removida`
+
+### Ações implementadas (executam no banco via service role)
+`mover_etapa`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `iniciar_automacao`
+
+---
 
 ## Regras de Desenvolvimento
 
