@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useBlocker } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -816,13 +816,6 @@ export default function AutomacoesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, trigger]);
 
-  // Block React Router navigation (main sidebar, browser back button)
-  const blocker = useBlocker(isDirty && view === "editor");
-
-  useEffect(() => {
-    if (blocker.state === "blocked") setUnsavedOpen(true);
-  }, [blocker.state]);
-
   // Block browser refresh / tab close
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -832,10 +825,8 @@ export default function AutomacoesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
 
-  // Called when dialog closes without choosing (Escape / click outside) → cancel the blocked navigation
   const handleUnsavedOpenChange = (open: boolean) => {
     setUnsavedOpen(open);
-    if (!open && blocker.state === "blocked") blocker.reset();
     if (!open) { pendingLeaveRef.current = null; }
   };
 
@@ -851,23 +842,12 @@ export default function AutomacoesPage() {
   const handleLeaveWithoutSaving = () => {
     setIsDirty(false);
     setUnsavedOpen(false);
-    if (blocker.state === "blocked") {
-      blocker.proceed();
-    } else {
-      pendingLeaveRef.current?.();
-      pendingLeaveRef.current = null;
-    }
+    pendingLeaveRef.current?.();
+    pendingLeaveRef.current = null;
   };
 
   const handleSaveAndLeave = async () => {
     setUnsavedOpen(false);
-    if (blocker.state === "blocked") {
-      // Proceed first (router navigation), then save in background
-      blocker.proceed();
-      handleSave();
-      return;
-    }
-    // Local navigation (requestLeave): save first, then navigate
     await handleSave();
     pendingLeaveRef.current?.();
     pendingLeaveRef.current = null;
