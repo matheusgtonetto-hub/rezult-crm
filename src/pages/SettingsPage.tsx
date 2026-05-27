@@ -3891,35 +3891,165 @@ function McpSection() {
 
 /* ---------------- ARMAZENAMENTO ---------------- */
 function ArmazenamentoSection() {
-  const breakdown = [
-    { label: "Arquivos de leads", size: "1.2 GB", pct: 12 },
-    { label: "Gravações de calls", size: "890 MB", pct: 9 },
-    { label: "Materiais de agentes", size: "310 MB", pct: 3 },
+  const { company } = useCompany();
+  const navigate = useNavigate();
+
+  const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
+    free:      { bytes: 500  * 1024 * 1024,         label: "500 MB" },
+    starter:   { bytes: 2   * 1024 * 1024 * 1024,   label: "2 GB"   },
+    essential: { bytes: 5   * 1024 * 1024 * 1024,   label: "5 GB"   },
+    pro:       { bytes: 20  * 1024 * 1024 * 1024,   label: "20 GB"  },
+  };
+
+  const plan = company?.plan ?? "free";
+  const planLimit = PLAN_STORAGE[plan] ?? PLAN_STORAGE.free;
+  const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+
+  const [loading, setLoading] = useState(true);
+  const [filesBytes, setFilesBytes] = useState(0);
+  const [leadsBytes, setLeadsBytes] = useState(0);
+  const [activitiesBytes, setActivitiesBytes] = useState(0);
+  const [tasksBytes, setTasksBytes] = useState(0);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [filesRes, leadsRes, activitiesRes, tasksRes] = await Promise.all([
+          supabase.from("lead_files").select("size"),
+          supabase.from("leads").select("*", { count: "exact", head: true }),
+          supabase.from("activities").select("*", { count: "exact", head: true }),
+          supabase.from("tasks").select("*", { count: "exact", head: true }),
+        ]);
+        setFilesBytes((filesRes.data ?? []).reduce((acc: number, f: any) => acc + (f.size ?? 0), 0));
+        setLeadsBytes((leadsRes.count ?? 0) * 3 * 1024);
+        setActivitiesBytes((activitiesRes.count ?? 0) * 1024);
+        setTasksBytes((tasksRes.count ?? 0) * 512);
+      } catch {
+        // silencioso — mantém zeros
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const fmtGB = (b: number) => {
+    if (b === 0) return "0 GB";
+    const gb = b / (1024 ** 3);
+    return gb < 0.001 ? "< 0.001 GB" : `${gb.toFixed(3)} GB`;
+  };
+
+  const categories = [
+    { label: "Arquivos de leads",  color: "#3B82F6", bytes: filesBytes      },
+    { label: "Leads e negócios",   color: "#8B5CF6", bytes: leadsBytes      },
+    { label: "Atividades",         color: "#10B981", bytes: activitiesBytes },
+    { label: "Tarefas",            color: "#F59E0B", bytes: tasksBytes      },
   ];
+
+  const totalBytes = filesBytes + leadsBytes + activitiesBytes + tasksBytes;
+
   return (
     <>
-      <h1 className="text-xl font-semibold text-[#111111] mb-6">Armazenamento</h1>
-      <Card>
-        <SectionTitle title="Uso de armazenamento" subtitle="Acompanhe o consumo do seu plano" />
-        <div className="flex items-baseline justify-between mb-2">
-          <p className="text-2xl font-semibold text-[#111111]">2.4 GB <span className="text-sm text-[#AAAAAA] font-normal">de 10 GB</span></p>
-          <p className="text-sm text-[#128A68] font-medium">24%</p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-[#111111]">Armazenamento</h1>
+          <p className="text-xs text-[#AAAAAA] mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
         </div>
-        <Progress value={24} className="h-2 [&>div]:bg-[#128A68]" />
-        <div className="mt-6 space-y-3">
-          {breakdown.map(b => (
-            <div key={b.label}>
-              <div className="flex justify-between text-[13px] mb-1">
-                <span className="text-[#111111]">{b.label}</span>
-                <span className="text-[#535353]">{b.size}</span>
+        <Button variant="outline" className="text-sm border-[#EEEEEE] shrink-0 ml-4" onClick={() => navigate("/configuracoes/planos")}>
+          Gerenciar planos e uso
+        </Button>
+      </div>
+
+      {/* Resumo do plano */}
+      <Card>
+        <div className="flex items-center gap-2 mb-5">
+          <span className="text-sm text-[#535353]">Total de armazenamento</span>
+          <span className="text-base font-bold text-[#128A68]">{planLimit.label}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-6 border-t border-[#F5F5F5] pt-5">
+          <div>
+            <p className="text-xs font-semibold text-[#111111] mb-3">Armazenamento do plano</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-[#AAAAAA]">Plano contratado</p>
+                <p className="text-sm font-semibold text-[#111111] mt-1">{planName}</p>
               </div>
-              <div className="h-1 bg-[#F5F5F5] rounded-full overflow-hidden">
-                <div className="h-full bg-[#128A68]" style={{ width: `${b.pct * 4}%` }} />
+              <div>
+                <p className="text-xs text-[#AAAAAA]">Limite do plano</p>
+                <p className="text-sm font-semibold text-[#111111] mt-1">{planLimit.label}</p>
               </div>
             </div>
-          ))}
+          </div>
+          <div className="border-l border-[#F5F5F5] pl-6">
+            <p className="text-xs font-semibold text-[#111111] mb-3">Armazenamento adicional</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-[#AAAAAA]">Adicional contratado</p>
+                <p className="text-sm font-semibold text-[#111111] mt-1">0 GB</p>
+              </div>
+              <div>
+                <p className="text-xs text-[#AAAAAA]">Frequência</p>
+                <p className="text-sm font-semibold text-[#111111] mt-1">—</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <Button variant="outline" className="mt-5 border-[#EEEEEE]">Liberar espaço</Button>
+      </Card>
+
+      {/* Consumo por categoria */}
+      <Card>
+        <div className="flex items-baseline justify-between mb-4">
+          <p className="text-sm font-semibold text-[#111111]">Consumo por categoria</p>
+          <p className="text-sm text-[#535353]">
+            <span className="font-semibold text-[#111111]">{fmtGB(totalBytes)}</span>
+            {" / "}{planLimit.label}
+          </p>
+        </div>
+
+        {/* Barra segmentada */}
+        <div className="h-4 bg-[#F5F5F5] rounded-full overflow-hidden flex">
+          {loading ? null : categories.map((cat, i) => {
+            const pct = planLimit.bytes > 0 ? Math.min(100, (cat.bytes / planLimit.bytes) * 100) : 0;
+            if (pct < 0.01) return null;
+            const isFirst = categories.findIndex(c => (planLimit.bytes > 0 ? c.bytes / planLimit.bytes * 100 : 0) >= 0.01) === i;
+            const lastIdx = [...categories].reverse().findIndex(c => (planLimit.bytes > 0 ? c.bytes / planLimit.bytes * 100 : 0) >= 0.01);
+            const isLast = lastIdx >= 0 && categories.length - 1 - lastIdx === i;
+            return (
+              <div
+                key={cat.label}
+                style={{
+                  width: `${pct}%`,
+                  background: cat.color,
+                  borderRadius: isFirst && isLast ? "9999px" : isFirst ? "9999px 0 0 9999px" : isLast ? "0 9999px 9999px 0" : undefined,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Lista de categorias */}
+        <div className="mt-4 divide-y divide-[#F5F5F5]">
+          {categories.map(cat => {
+            const pct = planLimit.bytes > 0 ? (cat.bytes / planLimit.bytes) * 100 : 0;
+            return (
+              <div key={cat.label} className="flex items-center justify-between py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cat.color }} />
+                  <span className="text-sm text-[#111111]">{cat.label}</span>
+                </div>
+                <div className="flex items-center gap-6">
+                  <span className="text-sm text-[#535353]">{fmtGB(cat.bytes)}</span>
+                  <span className="text-sm text-[#AAAAAA] w-14 text-right">{pct.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-[#AAAAAA] mt-4 flex items-center gap-1.5">
+          <span className="text-[#AAAAAA]">ⓘ</span>
+          Em breve você poderá gerenciar o armazenamento e efetuar a limpeza.
+        </p>
       </Card>
     </>
   );
