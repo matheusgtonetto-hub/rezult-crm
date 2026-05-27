@@ -159,9 +159,9 @@ export default function PlanosPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-12" style={{ background: "#F0F4F8" }}>
+    <div className="min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "#F0F4F8" }}>
       {/* Header */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-10">
+      <div className="w-full max-w-7xl flex items-center justify-between mb-8">
         <Logo size="md" showIcon />
         <button
           type="button"
@@ -216,7 +216,7 @@ export default function PlanosPage() {
       </div>
 
       {/* Plan cards */}
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
         {PLAN_INFO.map((plan) => {
           const isCurrentPlan = isActive && activePlan === plan.key;
           const isLoading = loadingPlan === plan.key;
@@ -225,7 +225,7 @@ export default function PlanosPage() {
             <div
               key={plan.key}
               className={cn(
-                "relative flex flex-col rounded-2xl border-2 p-6 bg-card transition-all",
+                "relative flex flex-col rounded-2xl border-2 p-8 bg-card transition-all",
                 plan.badge
                   ? "border-primary shadow-md shadow-primary/10"
                   : "border-border"
@@ -279,7 +279,7 @@ export default function PlanosPage() {
               {/* Features */}
               <ul className="space-y-2 flex-1 mb-6">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Check
                       size={13}
                       className={cn(
