@@ -3962,7 +3962,12 @@ function ArmazenamentoSection() {
   const fmtGB = (b: number) => {
     if (b === 0) return "0 GB";
     const gb = b / (1024 ** 3);
-    return gb < 0.001 ? "< 0.001 GB" : `${gb.toFixed(3)} GB`;
+    return `${gb.toFixed(3)} GB`;
+  };
+
+  const fmtCat = (bytes: number, pct: number) => {
+    if (bytes === 0) return "0 GB • 0%";
+    return `${fmtGB(bytes)} • ${pct.toFixed(1)}%`;
   };
 
   const categories = [
@@ -4067,10 +4072,7 @@ function ArmazenamentoSection() {
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cat.color }} />
                   <span className="text-sm text-[#111111]">{cat.label}</span>
                 </div>
-                <div className="flex items-center gap-6">
-                  <span className="text-sm text-[#535353]">{fmtGB(cat.bytes)}</span>
-                  <span className="text-sm text-[#AAAAAA] w-14 text-right">{pct.toFixed(1)}%</span>
-                </div>
+                <span className="text-sm text-[#535353] tabular-nums">{fmtCat(cat.bytes, pct)}</span>
               </div>
             );
           })}
