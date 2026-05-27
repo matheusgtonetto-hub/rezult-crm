@@ -3892,7 +3892,6 @@ function McpSection() {
 /* ---------------- ARMAZENAMENTO ---------------- */
 function ArmazenamentoSection() {
   const { company } = useCompany();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
@@ -3917,16 +3916,21 @@ function ArmazenamentoSection() {
   const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
-    if (!company?.owner_id || !user?.id) return;
-    const oid = company.owner_id; // CRM data: leads, atividades, etc.
-    const uid = user.id;          // WhatsApp data: mensagens, conversas (por agente)
+    if (!company?.owner_id || !company?.id) return;
+    const oid = company.owner_id;
 
     async function load() {
       try {
         const qCRM = (table: string) =>
           supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+
+        // Busca IDs de todos os membros da empresa para agregar WhatsApp
+        const { data: membersData } = await supabase.rpc("get_company_members", { p_company_id: company.id });
+        const memberIds: string[] = (membersData ?? []).map((m: any) => m.id as string);
         const qWA = (table: string) =>
-          supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", uid);
+          memberIds.length > 0
+            ? supabase.from(table).select("*", { count: "exact", head: true }).in("owner_id", memberIds)
+            : supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
 
         const [
           filesRes, msgsRes, convsRes, leadsRes,
@@ -3967,7 +3971,7 @@ function ArmazenamentoSection() {
       }
     }
     load();
-  }, [company?.owner_id, user?.id]);
+  }, [company?.owner_id, company?.id]);
 
   const fmtGB = (b: number) => {
     if (b === 0) return "0 GB";
