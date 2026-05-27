@@ -40,6 +40,7 @@ interface PlanInfo {
   name: string;
   badge?: string;
   prices: { monthly: string; semiannual: string; annual: string };
+  monthlyEquiv: { semiannual: string; annual: string };
   features: string[];
 }
 
@@ -47,7 +48,8 @@ const PLAN_INFO: PlanInfo[] = [
   {
     key: "starter",
     name: "Starter",
-    prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
+    prices:       { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
+    monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
     features: [
       "Até 5 pipelines com até 8 etapas",
       "Negócios e produtos",
@@ -62,7 +64,8 @@ const PLAN_INFO: PlanInfo[] = [
     key: "essential",
     name: "Essential",
     badge: "Mais popular",
-    prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
+    prices:       { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
+    monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
     features: [
       "Até 20 pipelines com até 15 etapas",
       "Negócios e produtos",
@@ -78,7 +81,8 @@ const PLAN_INFO: PlanInfo[] = [
   {
     key: "pro",
     name: "Pro",
-    prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
+    prices:       { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
+    monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
     features: [
       "Pipelines ilimitadas com até 25 etapas",
       "Leads ilimitados",
@@ -238,7 +242,7 @@ export default function PlanosPage() {
               <h3 className="text-base font-bold text-foreground">{plan.name}</h3>
 
               {/* Price */}
-              <div className="mt-4 mb-1">
+              <div className="mt-4 mb-0.5">
                 <span className="text-3xl font-bold text-foreground">
                   {plan.prices[billingPeriod]}
                 </span>
@@ -246,8 +250,20 @@ export default function PlanosPage() {
                   <span className="text-xs text-muted-foreground ml-1">/mês</span>
                 )}
               </div>
-              {billingPeriod !== "monthly" && (
-                <p className="text-xs text-muted-foreground mb-1">cobrado de uma vez</p>
+              {billingPeriod === "monthly" && (
+                <p className="text-xs font-medium text-emerald-600 mb-1">
+                  cobrança mensal recorrente
+                </p>
+              )}
+              {billingPeriod === "semiannual" && (
+                <p className="text-xs font-medium text-emerald-600 mb-1">
+                  cobrança semestral · equivale {plan.monthlyEquiv.semiannual}/mês
+                </p>
+              )}
+              {billingPeriod === "annual" && (
+                <p className="text-xs font-medium text-emerald-600 mb-1">
+                  cobrança anual · equivale {plan.monthlyEquiv.annual}/mês
+                </p>
               )}
 
               {/* Discount badge */}
