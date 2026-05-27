@@ -20,6 +20,7 @@ interface TriggerPayload {
     new_responsible?: string;
     loss_reason_id?: string;
     parent_automation_id?: string;
+    changed_fields?: Record<string, unknown>;
   };
 }
 
@@ -159,6 +160,27 @@ async function matchesTriggerConfig(
       const cfgAtend = cfg.atendente as string;
       if (!cfgAtend) return true;
       return payload.context.old_responsible === cfgAtend;
+    }
+    case "campo_alterado": {
+      const field = cfg.field as string;
+      if (!field) return true;
+      const changedFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+
+      let fieldChanged = field in changedFields;
+      let newValue: unknown = changedFields[field];
+
+      if (!fieldChanged) {
+        // Campos customizados ficam dentro de custom_field_values
+        const customVals = (changedFields["custom_field_values"] ?? {}) as Record<string, unknown>;
+        if (field in customVals) {
+          fieldChanged = true;
+          newValue = customVals[field];
+        }
+      }
+
+      if (!fieldChanged) return false;
+      if ((cfg.mode as string) !== "specific") return true;
+      return String(newValue ?? "") === String(cfg.value ?? "");
     }
     default:
       return true;
