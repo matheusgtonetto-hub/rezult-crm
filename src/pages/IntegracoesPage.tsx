@@ -219,7 +219,7 @@ export default function IntegracoesPage() {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return Object.keys(parsed);
       if (Array.isArray(parsed) && parsed[0] && typeof parsed[0] === "object") return Object.keys(parsed[0]);
-    } catch {}
+    } catch { /* ignore parse errors */ }
     return [];
   };
 

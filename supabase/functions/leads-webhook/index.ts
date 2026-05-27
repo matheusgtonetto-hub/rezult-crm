@@ -43,7 +43,7 @@ function extractFields(payload: Record<string, unknown>) {
 
   // Formato Facebook via Make/n8n (entry[].changes[].value com field_data)
   // Tenta desempacotar o envelope do Facebook
-  const entries = payload.entry as any[];
+  const entries = payload.entry as { changes?: { value?: { field_data?: { name: string; values: string[] }[] } }[] }[];
   if (Array.isArray(entries)) {
     for (const entry of entries) {
       for (const change of (entry.changes ?? [])) {
@@ -129,7 +129,7 @@ serve(async (req) => {
       .order("created_at", { ascending: true })
       .limit(1);
 
-    const first = pipelines?.[0] as any;
+    const first = pipelines?.[0] as { id: string; pipeline_columns?: { id: string }[] } | undefined;
     if (!first) return json({ error: "no pipeline found for this company" }, 422);
     if (!pipelineId) pipelineId = first.id;
     if (!stageId) {
@@ -148,7 +148,7 @@ serve(async (req) => {
     .limit(1)
     .maybeSingle();
 
-  const dealNumber = ((maxRow as any)?.deal_number ?? 1000) + 1;
+  const dealNumber = ((maxRow as { deal_number?: number } | null)?.deal_number ?? 1000) + 1;
 
   const { name: rawName, phone: rawPhone, email: rawEmail } = extractFields(payload);
 
@@ -194,5 +194,5 @@ serve(async (req) => {
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", keyRow.id);
 
-  return json({ success: true, lead_id: (lead as any).id, deal_number: (lead as any).deal_number }, 201);
+  return json({ success: true, lead_id: (lead as { id: string; deal_number: number }).id, deal_number: (lead as { id: string; deal_number: number }).deal_number }, 201);
 });

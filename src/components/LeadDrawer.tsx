@@ -189,11 +189,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
           .order("momment", { ascending: false }).limit(50);
       })(),
     ]);
-    setLeadFiles((fData ?? []).map((r: any) => ({
+    setLeadFiles((fData ?? []).map((r: { id: string; name: string; size: number; mime_type: string; storage_path: string; uploaded_by: string; created_at: string }) => ({
       id: r.id, name: r.name, size: r.size, mimeType: r.mime_type,
       storagePath: r.storage_path, uploadedBy: r.uploaded_by, createdAt: r.created_at,
     })));
-    setWaFiles((wData ?? []).map((r: any) => ({
+    setWaFiles((wData ?? []).map((r: { id: string; body: string | null; type: string; from_me: boolean; sender_name: string | null; created_at: string | null; momment: number | null }) => ({
       id: r.id, name: r.body ?? "arquivo", type: r.type,
       fromMe: r.from_me, senderName: r.sender_name, createdAt: r.created_at ?? String(r.momment),
       body: r.body ?? "",
@@ -271,8 +271,9 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       .select("id, name, flow")
       .eq("owner_id", user!.id)
       .eq("active", true);
-    const manualOnes = (data ?? []).filter((a: any) => a.flow?.trigger?.triggerId === "lead_manual");
-    setManualAutoList(manualOnes.map((a: any) => ({ id: a.id, name: a.name })));
+    type AutoRow = { id: string; name: string; flow: { trigger?: { triggerId?: string } | null } | null };
+    const manualOnes = (data ?? [] as AutoRow[]).filter((a: AutoRow) => a.flow?.trigger?.triggerId === "lead_manual");
+    setManualAutoList(manualOnes.map((a: AutoRow) => ({ id: a.id, name: a.name })));
     setManualAutoLoading(false);
   };
 
@@ -459,7 +460,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                 <InlineField label="Empresa"   value={lead.company}   onSave={v => updateLead(leadId, { company: v })} />
                 <InlineField label="E-mail"    value={lead.email}     onSave={v => updateLead(leadId, { email: v })} type="email" />
                 <InlineField label="Telefone"  value={lead.whatsapp}  onSave={v => updateLead(leadId, { whatsapp: v })} type="tel" />
-                <InlineField label="Documento" value={lead.document}  onSave={v => updateLead(leadId, { document: v } as any)} />
+                <InlineField label="Documento" value={lead.document}  onSave={v => updateLead(leadId, { document: v })} />
                 <InlineField label="Origem"    value={lead.origin}    onSave={v => updateLead(leadId, { origin: v as LeadOrigin })} options={ORIGINS} />
                 <InlineField label="Site"      value={lead.site}      onSave={v => updateLead(leadId, { site: v })} />
               </>}

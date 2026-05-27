@@ -112,7 +112,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=eq.${cleanPhone}` },
         (payload) => {
-          const m = payload.new as Record<string, any>;
+          const m = payload.new as { from_me: boolean; chat_name?: string; body?: string; momment?: number; created_at?: string };
           if (m.from_me) return;
           setMessages(prev => [...prev, {
             from:   "lead",

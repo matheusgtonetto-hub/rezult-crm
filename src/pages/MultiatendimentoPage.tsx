@@ -12,6 +12,7 @@ import {
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
   MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
@@ -173,7 +174,7 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
   );
 }
 
-function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: any; count: number | null; isActive: boolean; onClick: () => void; label?: string }) {
+function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string }) {
   const [hovered, setHovered] = useState(false);
   const bg     = isActive ? "#E1F5EE" : "#F5F5F5";
   const fg     = isActive ? "#128A68" : "#535353";
@@ -205,7 +206,7 @@ function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: any; coun
   );
 }
 
-function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onClick?: () => void }) {
+function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick?: () => void }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -416,7 +417,8 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     if (!user) return;
 
-    const mapRow = (r: any): Conversation => ({
+    type DbConvRow = { id: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string };
+    const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       channel: r.channel as Channel, tags: r.tags ?? [],
@@ -425,7 +427,8 @@ export default function MultiatendimentoPage() {
       pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
     });
 
-    const mapState = (r: any): ConvState => ({
+    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean };
+    const mapState = (r: DbStateRow): ConvState => ({
       messages: [],
       stageIdx: r.stage_idx ?? 0,
       meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
@@ -471,14 +474,15 @@ export default function MultiatendimentoPage() {
         if (!msgs?.length) return;
 
         // Agrupa por telefone, pega a mensagem mais recente por contato
-        const phoneMap = new Map<string, any>();
+        type WaMsgRow = { phone: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
+        const phoneMap = new Map<string, WaMsgRow>();
         for (const m of msgs) {
-          if (!phoneMap.has(m.phone)) phoneMap.set(m.phone, m);
+          if (!phoneMap.has(m.phone)) phoneMap.set(m.phone, m as WaMsgRow);
         }
 
         const newConvs: Conversation[] = [];
         const newStates: Record<string, ConvState> = {};
-        const dbRows: any[] = [];
+        const dbRows: DbConvRow[] = [];
 
         for (const [phone, m] of phoneMap) {
           const id = crypto.randomUUID();
@@ -559,7 +563,7 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as Record<string, any>;
+          const m = payload.new as { from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
           if (m.from_me) return; // enviadas já são adicionadas otimisticamente
 
           const msgPhone = (m.phone ?? "") as string;
@@ -1556,7 +1560,7 @@ export default function MultiatendimentoPage() {
                         ) : (
                           <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
                             <FolderOpen size={14} color="#128A68" />
-                            <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as any).filename}</span>
+                            <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as { filename: string }).filename}</span>
                           </div>
                         )
                       ))}
@@ -1582,7 +1586,7 @@ export default function MultiatendimentoPage() {
                 <span title="Emoji" onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                   <Smile size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
                 </span>
-                <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { recording ? stopRecording() : startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { if (recording) stopRecording(); else startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                   <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")} />
                 </span>
                 <button

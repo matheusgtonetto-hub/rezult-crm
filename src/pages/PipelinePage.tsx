@@ -147,7 +147,7 @@ export default function PipelinePage() {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => {
       const next = !prev;
-      try { localStorage.setItem("pipeline-sidebar-open", String(next)); } catch {}
+      try { localStorage.setItem("pipeline-sidebar-open", String(next)); } catch { /* ignore */ }
       return next;
     });
   }, []);

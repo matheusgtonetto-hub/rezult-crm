@@ -564,7 +564,7 @@ export default function LeadDetailPage() {
     if (!lead?.id || !user) return;
     // Arquivos uploadados manualmente
     supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false })
-      .then(({ data }) => setUploadedFiles((data ?? []).map((r: any) => ({
+      .then(({ data }) => setUploadedFiles((data ?? []).map((r: { id: string; name: string; size: number; mime_type: string; storage_path: string; uploaded_by: string; created_at: string }) => ({
         id: r.id, name: r.name, size: r.size ?? 0, mimeType: r.mime_type ?? "",
         storagePath: r.storage_path, uploadedBy: r.uploaded_by ?? "", createdAt: r.created_at,
       }))));
@@ -579,7 +579,7 @@ export default function LeadDetailPage() {
         .or(`phone.eq.${phone},phone.eq.${phoneAlt}`)
         .order("created_at", { ascending: false })
         .limit(100)
-        .then(({ data }) => setWaFiles((data ?? []).map((r: any) => ({
+        .then(({ data }) => setWaFiles((data ?? []).map((r: { id: string; body: string | null; type: string; from_me: boolean; sender_name: string | null; created_at: string | null; momment: number }) => ({
           id: r.id, name: r.body ?? "arquivo",
           type: r.type as "image" | "document",
           fromMe: !!r.from_me,
@@ -621,7 +621,7 @@ export default function LeadDetailPage() {
       }
       // Refresh list
       const { data } = await supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false });
-      setUploadedFiles((data ?? []).map((r: any) => ({
+      setUploadedFiles((data ?? []).map((r: { id: string; name: string; size: number; mime_type: string; storage_path: string; uploaded_by: string; created_at: string }) => ({
         id: r.id, name: r.name, size: r.size ?? 0, mimeType: r.mime_type ?? "",
         storagePath: r.storage_path, uploadedBy: r.uploaded_by ?? "", createdAt: r.created_at,
       })));
@@ -689,7 +689,7 @@ export default function LeadDetailPage() {
     newRange.setStart(textNode, atIndex);
     newRange.setEnd(textNode, range.startOffset);
     newRange.deleteContents();
-    const node = document.createTextNode(`@${name} `);
+    const node = document.createTextNode(`@${name} `);
     newRange.insertNode(node);
     const finalRange = document.createRange();
     finalRange.setStartAfter(node);
@@ -734,6 +734,15 @@ export default function LeadDetailPage() {
   useEffect(() => {
     if (lead?.customFieldValues) setLocalCustomValues(lead.customFieldValues);
   }, [lead?.id]);
+
+  const [showWonProductDialog, setShowWonProductDialog] = useState(false);
+  const [wonProductId, setWonProductId] = useState<string>("none");
+  const [wonTransferPipelineId, setWonTransferPipelineId] = useState<string>("none");
+  const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
+  const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [recoveryPipelineId, setRecoveryPipelineId] = useState<string>("");
+  const [recoveryColumnId, setRecoveryColumnId] = useState<string>("");
 
   if (!lead) {
     return (
@@ -842,16 +851,6 @@ export default function LeadDetailPage() {
 
   const updateField = (field: string, value: string | number | string[] | undefined) =>
     updateLead(lead.id, { [field]: value });
-
-  const [showWonProductDialog, setShowWonProductDialog] = useState(false);
-  const [wonProductId, setWonProductId] = useState<string>("none");
-  const [wonTransferPipelineId, setWonTransferPipelineId] = useState<string>("none");
-  const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
-  const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
-  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
-  const [recoveryPipelineId, setRecoveryPipelineId] = useState<string>("");
-  const [recoveryColumnId, setRecoveryColumnId] = useState<string>("");
-
 
   const handleWon = () => {
     setWonProductId("none");
@@ -1390,7 +1389,7 @@ export default function LeadDetailPage() {
                           </button>
                         )}
                       </div>
-                      <EditableField label="CPF/CNPJ" value={(lead as any).document} display={v => v ? formatDocument(v) : ""} onSave={v => updateField("document" as any, v)} />
+                      <EditableField label="CPF/CNPJ" value={lead.document} display={v => v ? formatDocument(v) : ""} onSave={v => updateField("document", v)} />
                       <CityField value={lead.city} onSave={v => updateField("city", v)} />
                     </div>
                   )}
@@ -1512,7 +1511,7 @@ export default function LeadDetailPage() {
                                   onClick={() => {
                                     const cur = lead.tags || [];
                                     const next = has ? cur.filter(x => x !== t.name) : [...cur, t.name];
-                                    updateField("tags" as any, next as any);
+                                    updateField("tags", next);
                                   }}
                                 >
                                   <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ background: t.color }} />

@@ -761,7 +761,7 @@ export default function DashboardPage() {
                       },
                     ];
 
-                    const renderTick = (props: any) => {
+                    const renderTick = (props: { x: number; y: number; payload?: { value: unknown }; index: number }) => {
                       const { x, y, payload, index } = props;
                       const entry = chartData[index];
                       const countLabel = entry?.isGanhos ? pWon.length : (funnelData[index]?.count ?? 0);
@@ -778,7 +778,7 @@ export default function DashboardPage() {
                       );
                     };
 
-                    const renderConvLabel = (props: any) => {
+                    const renderConvLabel = (props: { x: number; y: number; width: number; height: number; value: number }) => {
                       const { x, y, width, height, value } = props;
                       if (!value || Number(height) < 26) return null;
                       return (

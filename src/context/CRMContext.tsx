@@ -450,7 +450,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         color: (r.color as string) ?? "#128A68",
       }));
 
-      let groupsList: PipelineGroup[] = dbGroupsList.map(r => ({
+      const groupsList: PipelineGroup[] = dbGroupsList.map(r => ({
         id: r.id as string,
         name: r.name as string,
         createdBy: (r.created_by as string) ?? "",

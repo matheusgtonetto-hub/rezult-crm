@@ -16,7 +16,7 @@ serve(async (req) => {
     return new Response("method not allowed", { status: 405 });
   }
 
-  let payload: Record<string, any>;
+  let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -25,6 +25,7 @@ import {
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
   Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays,
+  type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { PLANS } from "@/data/plans";
@@ -36,7 +37,7 @@ type SectionId =
   | "departamentos" | "horarios" | "atividades" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
-const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
+const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: "perfil",  label: "Meu perfil",          icon: User },
   { id: "planos",  label: "Planos e pagamentos", icon: CreditCard },
   { id: "empresa", label: "Empresa",             icon: Building2 },
@@ -55,7 +56,7 @@ const SECTIONS: { id: SectionId; label: string; icon: any }[] = [
   { id: "armazenamento", label: "Armazenamento", icon: HardDrive },
 ];
 
-const Card = ({ children, className = "" }: any) => (
+const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
   <div className={`bg-white border-[0.5px] border-[#EEEEEE] rounded-xl p-6 mb-5 ${className}`}>{children}</div>
 );
 
@@ -156,7 +157,7 @@ export default function SettingsPage() {
 }
 
 /* ---------------- PERFIL ---------------- */
-function PerfilSection({ setPwOpen }: any) {
+function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
   const { profile, updateProfile, uploadAvatar, updateTheme } = useProfile();
   const { user, signOut } = useAuth();
   const { company } = useCompany();
@@ -3453,7 +3454,7 @@ function ApiSection() {
   };
 
   const toggleVisible = (id: string) =>
-    setVisibleKeys(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setVisibleKeys(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
 
   const fmtDate = (iso: string | null) => {
     if (!iso) return "—";
