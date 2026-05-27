@@ -264,9 +264,13 @@ async function executeAction(
     case "adicionar_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
+      // leads.tags stores names, not UUIDs — resolve before merging
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
+      if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
       const current = (lead?.tags as string[]) ?? [];
-      const merged = [...new Set([...current, ...tagIds])];
+      const merged = [...new Set([...current, ...tagNames])];
       await supabase.from("leads").update({ tags: merged }).eq("id", lead_id);
       break;
     }
@@ -274,10 +278,14 @@ async function executeAction(
     case "remover_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
+      // leads.tags stores names, not UUIDs — resolve before filtering
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
+      if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
       const current = (lead?.tags as string[]) ?? [];
       await supabase.from("leads").update({
-        tags: current.filter((t) => !tagIds.includes(t)),
+        tags: current.filter((t) => !tagNames.includes(t)),
       }).eq("id", lead_id);
       break;
     }
