@@ -3892,6 +3892,7 @@ function McpSection() {
 /* ---------------- ARMAZENAMENTO ---------------- */
 function ArmazenamentoSection() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
@@ -3916,13 +3917,16 @@ function ArmazenamentoSection() {
   const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
-    if (!company?.owner_id) return;
-    const oid = company.owner_id;
+    if (!company?.owner_id || !user?.id) return;
+    const oid = company.owner_id; // CRM data: leads, atividades, etc.
+    const uid = user.id;          // WhatsApp data: mensagens, conversas (por agente)
 
     async function load() {
       try {
-        const q = (table: string) =>
+        const qCRM = (table: string) =>
           supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+        const qWA = (table: string) =>
+          supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", uid);
 
         const [
           filesRes, msgsRes, convsRes, leadsRes,
@@ -3930,17 +3934,17 @@ function ArmazenamentoSection() {
           tagsRes, productsRes, listsRes, cfRes,
         ] = await Promise.all([
           supabase.from("lead_files").select("size, leads!inner(owner_id)").eq("leads.owner_id", oid),
-          q("whatsapp_messages"),
-          q("whatsapp_conversations"),
-          q("leads"),
-          q("activities"),
-          q("automations"),
-          q("automation_logs"),
-          q("tasks"),
-          q("tags"),
-          q("products"),
-          q("lists"),
-          q("custom_field_items"),
+          qWA("whatsapp_messages"),
+          qWA("whatsapp_conversations"),
+          qCRM("leads"),
+          qCRM("activities"),
+          qCRM("automations"),
+          qCRM("automation_logs"),
+          qCRM("tasks"),
+          qCRM("tags"),
+          qCRM("products"),
+          qCRM("lists"),
+          qCRM("custom_field_items"),
         ]);
 
         setFilesBytes((filesRes.data ?? []).reduce((acc: number, f: any) => acc + (f.size ?? 0), 0));
@@ -3963,7 +3967,7 @@ function ArmazenamentoSection() {
       }
     }
     load();
-  }, [company?.owner_id]);
+  }, [company?.owner_id, user?.id]);
 
   const fmtGB = (b: number) => {
     if (b === 0) return "0 GB";
@@ -4086,7 +4090,7 @@ function ArmazenamentoSection() {
 
         <p className="text-xs text-[#AAAAAA] mt-4 flex items-center gap-1.5">
           <span className="text-[#AAAAAA]">ⓘ</span>
-          Em breve você poderá gerenciar o armazenamento e efetuar a limpeza.
+          Arquivos de leads são medidos em tamanho real. Registros de banco (leads, mensagens, atividades) são estimativas por contagem de registros.
         </p>
       </Card>
     </>
