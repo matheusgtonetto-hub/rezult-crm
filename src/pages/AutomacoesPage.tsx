@@ -1230,6 +1230,7 @@ export default function AutomacoesPage() {
                     onSelect={() => setSelectedNode(n.id)}
                     onAddTrigger={() => setTriggerOpen(true)}
                     onTriggerClick={() => { setTriggerPanel(true); setNodePanel(null); setSelectedNode(n.id); }}
+                    onRemoveTrigger={() => { setTrigger(null); setTriggerPanel(false); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                   />
@@ -2198,12 +2199,13 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   );
 }
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onPortDragStart, onDragStart }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
   onTriggerClick?: () => void;
+  onRemoveTrigger?: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
 }) {
@@ -2227,13 +2229,26 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onP
       <div style={{ paddingTop: 10 }}>
         {node.trigger ? (
           <div
-            onClick={(e) => { e.stopPropagation(); onTriggerClick?.(); }}
-            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8, cursor: "pointer", transition: "background 0.1s" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
-            onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
           >
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>{node.trigger.label}</div>
-            <div style={{ fontSize: 11, color: "#4ADE80", marginTop: 2 }}>{node.trigger.description}</div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onTriggerClick?.(); }}
+                style={{ flex: 1, cursor: "pointer" }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>{node.trigger.label}</div>
+                <div style={{ fontSize: 11, color: "#4ADE80", marginTop: 2 }}>{node.trigger.description}</div>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveTrigger?.(); }}
+                title="Remover gatilho"
+                style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, color: "#86EFAC", borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center" }}
+                onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; e.currentTarget.style.background = "#FEE2E2"; }}
+                onMouseLeave={e => { e.currentTarget.style.color = "#86EFAC"; e.currentTarget.style.background = "transparent"; }}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 8, lineHeight: 1.5 }}>
