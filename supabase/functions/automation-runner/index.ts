@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
     if (!await matchesTriggerConfig(supabase, trigger, payload)) continue;
 
     try {
-      await executeFlow(supabase, flow, payload);
+      await executeFlow(supabase, flow, payload, automation.id);
       results.push({ id: automation.id, name: automation.name, status: "ok" });
     } catch (err) {
       console.error(`Automation ${automation.id} (${automation.name}) failed:`, err);
@@ -209,12 +209,50 @@ async function executeFlow(
   supabase: SupabaseClient,
   flow: AutomationFlow,
   payload: TriggerPayload,
+  automationId: string,
 ) {
-  // Execute action nodes in canvas order
+  const { company_id, lead_id } = payload;
+
+  // Log trigger on the start node
+  const startNode = flow.nodes?.find((n) => n.type === "start");
+  if (startNode) {
+    await supabase.from("automation_logs").insert({
+      automation_id: automationId,
+      company_id,
+      lead_id,
+      node_id: startNode.id,
+      status: "success",
+    });
+  }
+
+  // Execute action nodes in canvas order, logging per-node results
   const actionNodes = (flow.nodes ?? []).filter((n) => n.type === "acoes");
   for (const node of actionNodes) {
+    let successCount = 0;
+    const errorMessages: string[] = [];
+
     for (const item of (node.actionItems ?? [])) {
-      await executeAction(supabase, item, payload);
+      try {
+        await executeAction(supabase, item, payload);
+        successCount++;
+      } catch (err) {
+        errorMessages.push(String(err));
+        console.error(`[node ${node.id}] action ${item.actionId} failed:`, err);
+      }
+    }
+
+    if (successCount > 0 || errorMessages.length > 0) {
+      const status = errorMessages.length > 0
+        ? (successCount > 0 ? "alert" : "error")
+        : "success";
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId,
+        company_id,
+        lead_id,
+        node_id: node.id,
+        status,
+        error_message: errorMessages.length > 0 ? errorMessages.join("; ") : null,
+      });
     }
   }
 }
@@ -406,7 +444,7 @@ async function executeAction(
         .single();
       if (targetAuto) {
         console.log(`Iniciando sub-automação: ${(targetAuto as AutomationRecord).name}`);
-        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, payload);
+        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, payload, (targetAuto as AutomationRecord).id);
       }
       break;
     }

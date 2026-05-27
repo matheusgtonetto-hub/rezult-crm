@@ -63,6 +63,7 @@ type CanvasNode = {
   label: string;
   trigger?: TriggerConfig | null;
   parentId?: string | null;
+  errorParentId?: string | null;
   subBlocks?: SubBlock[];
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
@@ -362,8 +363,9 @@ export default function AutomacoesPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
   const [saving, setSaving]             = useState(false);
-  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number } | null>(null);
-  const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean } | null>(null);
+  const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
+  const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
@@ -440,7 +442,25 @@ export default function AutomacoesPage() {
     setPan({ x: 0, y: 0 });
     setSelectedNode(null);
     setSelectedId(id);
+    setNodeStats({});
     setView("editor");
+    // Load execution stats for this automation
+    supabase
+      .from("automation_logs")
+      .select("node_id, status")
+      .eq("automation_id", id)
+      .limit(5000)
+      .then(({ data }) => {
+        if (!data) return;
+        const stats: Record<string, { s: number; a: number; e: number }> = {};
+        for (const row of data) {
+          if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
+          if (row.status === "success") stats[row.node_id].s++;
+          else if (row.status === "alert") stats[row.node_id].a++;
+          else if (row.status === "error") stats[row.node_id].e++;
+        }
+        setNodeStats(stats);
+      });
   }, [automations]);
 
   // ── Canvas interactions ───────────────────────────────────────────────────
@@ -470,13 +490,18 @@ export default function AutomacoesPage() {
 
   const handleAddNode = (type: string, label: string) => {
     if (!addNodeMenu) return;
+    const isError = addNodeMenu.isError ?? false;
+    const actualParentId = isError
+      ? addNodeMenu.fromNodeId.replace(/__error$/, "")
+      : addNodeMenu.fromNodeId;
     const newNode: CanvasNode = {
       id: `n${Date.now()}`,
       type: type as ActionNodeType,
       x: addNodeMenu.x,
       y: addNodeMenu.y,
       label,
-      parentId: addNodeMenu.fromNodeId,
+      parentId: isError ? null : actualParentId,
+      errorParentId: isError ? actualParentId : null,
       subBlocks: [],
     };
     setNodes(prev => [...prev, newNode]);
@@ -521,7 +546,8 @@ export default function AutomacoesPage() {
           const y1 = (portRect.top + portRect.height / 2 - rect.top - pan.y) / zoom;
           const x2 = (e.clientX - rect.left - pan.x) / zoom;
           const y2 = (e.clientY - rect.top - pan.y) / zoom;
-          setPortDragLine({ x1, y1, x2, y2 });
+          const isError = portDragRef.current.fromNodeId.endsWith("__error");
+          setPortDragLine({ x1, y1, x2, y2, isError });
         }
         return;
       }
@@ -562,15 +588,17 @@ export default function AutomacoesPage() {
         const dy = e.clientY - portDragRef.current.startY;
         const isDrag = Math.sqrt(dx * dx + dy * dy) > 30;
         const fromNodeId = portDragRef.current.fromNodeId;
+        const isErrorPort = fromNodeId.endsWith("__error");
+        const realNodeId = isErrorPort ? fromNodeId.replace(/__error$/, "") : fromNodeId;
         portDragRef.current = null;
         setPortDragLine(null);
         if (isDrag) {
           const dropX = (e.clientX - rect.left - pan.x) / zoom;
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
-          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY });
+          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
         } else {
-          const fromNode = nodes.find(n => n.id === fromNodeId);
-          if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50 });
+          const fromNode = nodes.find(n => n.id === realNodeId);
+          if (fromNode) setAddNodeMenu({ fromNodeId, x: fromNode.x + 322, y: fromNode.y + 50, isError: isErrorPort });
         }
         return;
       }
@@ -1211,11 +1239,20 @@ export default function AutomacoesPage() {
                   const x2 = n.x, y2 = n.y + 40;
                   return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#CCCCCC" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
                 })}
+                {/* Error connection lines */}
+                {nodes.filter(n => n.errorParentId).map(n => {
+                  const parent = nodes.find(p => p.id === n.errorParentId);
+                  if (!parent) return null;
+                  const x1 = parent.x + 256;
+                  const y1 = parent.y + 93;
+                  const x2 = n.x, y2 = n.y + 40;
+                  return <path key={`err_${n.id}`} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
                     d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
-                    stroke="#378ADD" strokeWidth={2} fill="none" strokeDasharray="5,4"
+                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2} fill="none" strokeDasharray="5,4"
                   />
                 )}
               </svg>
@@ -1233,6 +1270,7 @@ export default function AutomacoesPage() {
                     onRemoveTrigger={() => { setTrigger(null); setTriggerPanel(false); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
+                    stats={nodeStats[n.id]}
                   />
                 );
                 if (n.type === "note") return (
@@ -1254,6 +1292,7 @@ export default function AutomacoesPage() {
                     selected={selectedNode === n.id}
                     onSelect={() => { setSelectedNode(n.id); setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
+                    onErrorPortDragStart={(e) => startPortDrag(e, `${n.id}__error`)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
@@ -1261,6 +1300,7 @@ export default function AutomacoesPage() {
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
+                    stats={nodeStats[n.id]}
                   />
                 );
               })}
@@ -2199,7 +2239,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   );
 }
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart }: {
+function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart, stats }: {
   node: CanvasNode & { trigger?: TriggerConfig | null };
   selected: boolean;
   onSelect: () => void;
@@ -2208,6 +2248,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
   onRemoveTrigger?: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
+  stats?: { s: number; a: number; e: number };
 }) {
   return (
     <div
@@ -2276,9 +2317,9 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       </div>
       {/* Metrics */}
       <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-        <span style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>0 Sucessos</span>
-        <span style={{ color: "#F59E0B", fontWeight: 600 }}>0 Alertas</span>
-        <span style={{ color: "#EF4444", fontWeight: 600 }}>0 Erros</span>
+        <span style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>{stats?.s ?? 0} Sucessos</span>
+        <span style={{ color: "#F59E0B", fontWeight: 600 }}>{stats?.a ?? 0} Alertas</span>
+        <span style={{ color: "#EF4444", fontWeight: 600 }}>{stats?.e ?? 0} Erros</span>
       </div>
     </div>
   );
@@ -2419,11 +2460,12 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, removeSubBlock, removeActionItem, stats }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
+  onErrorPortDragStart?: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -2431,6 +2473,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
   onOpenAcoesPicker?: () => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
+  stats?: { s: number; a: number; e: number };
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -2523,7 +2566,13 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
               <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro na execução da ação</span>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+              <div
+                data-port
+                data-from-node={`${node.id}__error`}
+                onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
+                title="Arraste para tratar o erro"
+                style={{ width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }}
+              />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
               <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
@@ -2537,9 +2586,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
         </div>
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F97316" }}>Sucessos</div></div>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
-          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.s ?? 0}</div><div style={{ color: "#F97316" }}>Sucessos</div></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.a ?? 0}</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.e ?? 0}</div><div style={{ color: "#EF4444" }}>Erros</div></div>
         </div>
       </div>
     );
@@ -2737,7 +2786,13 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
             <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+            <div
+              data-port
+              data-from-node={`${node.id}__error`}
+              onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
+              title="Arraste para tratar o erro"
+              style={{ width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }}
+            />
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
@@ -2752,9 +2807,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onDragStart, on
 
       {/* Footer metrics */}
       <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#3B82F6" }}>Sucessos</div></div>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
-        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0</div><div style={{ color: "#EF4444" }}>Erros</div></div>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.s ?? 0}</div><div style={{ color: "#3B82F6" }}>Sucessos</div></div>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.a ?? 0}</div><div style={{ color: "#F59E0B" }}>Alertas</div></div>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.e ?? 0}</div><div style={{ color: "#EF4444" }}>Erros</div></div>
       </div>
     </div>
   );
