@@ -1912,9 +1912,52 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
               <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>Qual campo deseja monitorar?</div>
               <select value={(cfg.field as string) ?? ""} onChange={e => updateConfig("field", e.target.value)} style={tcpSelectStyle}>
                 <option value="">Selecionar</option>
-                {customFieldGroups.flatMap(g => g.items.map(item => (
-                  <option key={item.id} value={item.id}>{g.name} › {item.label}</option>
-                )))}
+                <optgroup label="── Negócio ──">
+                  <option value="name">Nome</option>
+                  <option value="value">Valor</option>
+                  <option value="column_id">Etapa</option>
+                  <option value="pipeline_id">Pipeline</option>
+                  <option value="responsible">Atendente responsável</option>
+                  <option value="status">Status (aberto / ganho / perdido)</option>
+                  <option value="origin">Origem</option>
+                  <option value="priority">Prioridade</option>
+                  <option value="product_id">Produto</option>
+                  <option value="tags">Tags</option>
+                  <option value="entry_date">Data de entrada</option>
+                  <option value="next_follow_up">Próximo follow-up</option>
+                  <option value="loss_reason_id">Motivo de perda</option>
+                  <option value="notes">Observações</option>
+                </optgroup>
+                <optgroup label="── Lead / Contato ──">
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">E-mail</option>
+                  <option value="site">Site</option>
+                  <option value="company">Empresa</option>
+                  <option value="document">CPF / Documento</option>
+                  <option value="birth_date">Data de nascimento</option>
+                  <option value="country">País</option>
+                  <option value="zip_code">CEP</option>
+                  <option value="address">Endereço</option>
+                  <option value="addr_number">Número</option>
+                  <option value="complement">Complemento</option>
+                  <option value="neighborhood">Bairro</option>
+                  <option value="city">Cidade</option>
+                  <option value="state">Estado</option>
+                </optgroup>
+                <optgroup label="── UTMs ──">
+                  <option value="utm_source">UTM Source</option>
+                  <option value="utm_medium">UTM Medium</option>
+                  <option value="utm_campaign">UTM Campaign</option>
+                  <option value="utm_term">UTM Term</option>
+                  <option value="utm_content">UTM Content</option>
+                </optgroup>
+                {customFieldGroups.length > 0 && customFieldGroups.map(g => (
+                  <optgroup key={g.id} label={`── ${g.name} ──`}>
+                    {g.items.map(item => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
             </div>
             <div>
