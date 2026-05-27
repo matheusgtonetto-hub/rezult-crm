@@ -1967,6 +1967,18 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
                 <option value="specific">Para um valor específico</option>
               </select>
             </div>
+            {(cfg.mode as string) === "specific" && (
+              <div>
+                <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Valor esperado</div>
+                <input
+                  type="text"
+                  placeholder="Digite o valor..."
+                  value={(cfg.value as string) ?? ""}
+                  onChange={e => updateConfig("value", e.target.value)}
+                  style={tcpSelectStyle}
+                />
+              </div>
+            )}
           </div>
         );
 
