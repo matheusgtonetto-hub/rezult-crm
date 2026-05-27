@@ -118,7 +118,7 @@ export default function SettingsPage() {
                 className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2.5 transition-colors ${
                   isActive
                     ? "bg-[#E1F5EE] text-[#128A68] border-l-[3px] border-[#128A68] font-medium pl-[13px]"
-                    : "text-[#535353] hover:bg-[#F5F5F5]"
+                    : "text-[#000000] hover:bg-[#F5F5F5]"
                 }`}
               >
                 <s.icon size={14} />
