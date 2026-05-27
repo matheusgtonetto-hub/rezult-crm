@@ -1416,6 +1416,33 @@ export default function AutomacoesPage() {
                 );
               })}
 
+              {/* ── Path overlay chips — mostra o caminho do lead no canvas ── */}
+              {logsPanelPath.length > 0 && logsPanelPath.map((entry, i) => {
+                const nd = nodes.find(n => n.id === entry.node_id);
+                if (!nd) return null;
+                const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
+                const statusLabel = entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco");
+                return (
+                  <div key={`chip_${i}`} style={{
+                    position: "absolute", left: nd.x, top: nd.y - 56,
+                    width: 260, background: "#FFFFFF",
+                    border: "0.5px solid #E5E5E5",
+                    borderLeft: `3px solid ${sColor}`,
+                    borderRadius: 8,
+                    padding: "6px 10px 6px 8px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+                    pointerEvents: "none", zIndex: 6,
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: sColor, flexShrink: 0, minWidth: 22, textAlign: "center" }}>{i + 1}°</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: "#374151", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtDate(entry.created_at)}</div>
+                      <div style={{ fontSize: 10, color: "#6B7280", marginTop: 1 }}>{statusLabel}</div>
+                    </div>
+                  </div>
+                );
+              })}
+
               {/* Add node popup — appears at drop position */}
               {addNodeMenu && (
                 <div
@@ -1481,120 +1508,87 @@ export default function AutomacoesPage() {
                 ><X size={14} /></button>
               </div>
 
-              {logsPanelSelectedEntry ? (
-                /* ── Visão do caminho do lead ── */
-                <>
-                  <div style={{ padding: "10px 14px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                    <button onClick={() => setLogsPanelSelectedEntry(null)}
-                      style={{ display: "flex", alignItems: "center", gap: 4, background: "transparent", border: "none", cursor: "pointer", fontSize: 12, color: "hsl(var(--primary))", padding: 0 }}
-                    ><ChevronLeft size={13} /> Voltar</button>
-                    <span style={{ fontSize: 12, color: "#374151", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {logsPanelSelectedEntry.leadName}
-                    </span>
-                  </div>
-                  <div style={{ flex: 1, overflowY: "auto" }}>
-                    {logsPanelPathLoading ? (
-                      <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
-                    ) : logsPanelPath.length === 0 ? (
-                      <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum bloco encontrado</div>
-                    ) : logsPanelPath.map((entry, i) => {
-                      const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
-                      const SIcon = entry.status === "success" ? CheckCircle2 : entry.status === "alert" ? Bell : X;
-                      const atType = ACTION_TYPES.find(at => at.id === entry.node_type);
-                      const NodeIcon = atType ? atType.icon : Play;
-                      const nodeColor = atType ? atType.color : "hsl(var(--primary))";
-                      return (
-                        <div key={i} style={{ padding: "11px 14px", borderBottom: "0.5px solid #F5F5F5", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${sColor}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <SIcon size={13} color={sColor} />
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 5 }}>
-                              <NodeIcon size={11} color={nodeColor} />
-                              {entry.node_label}
-                            </div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmtDateShort(entry.created_at)}</div>
-                            {entry.error_message && (
-                              <div style={{ fontSize: 11, color: sColor, marginTop: 2, wordBreak: "break-word" }}>{entry.error_message}</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                /* ── Lista de logs ── */
-                <>
-                  {/* Tabs */}
-                  <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
-                    {([
-                      { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
-                      { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
-                      { id: "alert" as const, label: "Alertas", count: logsPanelTabCounts.alert },
-                      { id: "error" as const, label: "Erros", count: logsPanelTabCounts.error },
-                    ] as const).map(tab => {
-                      const sel = logsPanelTab === tab.id;
-                      return (
-                        <button key={tab.id} onClick={() => setLogsPanelTab(tab.id)}
-                          style={{ flex: 1, padding: "9px 4px", background: "transparent", border: "none", borderBottom: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", color: sel ? "hsl(var(--primary))" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer" }}
-                        >{tab.label}</button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Filtros */}
-                  <div style={{ padding: "8px 12px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                    <div style={{ flex: 1, position: "relative" }}>
-                      <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-                      <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
-                        style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
-                      >
-                        <option value="">Selecionar lead</option>
-                        {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                      </select>
-                    </div>
-                    <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
-                      style={{ border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
-                    >
-                      <option value="week">Última semana</option>
-                      <option value="month">Último mês</option>
-                      <option value="all">Todos</option>
-                    </select>
-                  </div>
-
-                  {/* Lista */}
-                  <div style={{ flex: 1, overflowY: "auto" }}>
-                    {logsPanelLoading ? (
-                      <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
-                    ) : logsPanelFilteredEntries.length === 0 ? (
-                      <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum registro encontrado</div>
-                    ) : logsPanelFilteredEntries.map((entry, i) => {
-                      const isEntraram = logsPanelTab === "entraram";
-                      const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
-                      const EntIcon = isEntraram ? Info : (entry.status === "success" ? CheckCircle2 : entry.status === "alert" ? Bell : X);
-                      const entColor = isEntraram ? "#3B82F6" : sColor;
-                      const desc = isEntraram
-                        ? "Entrou no bloco"
-                        : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
-                      return (
-                        <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
-                          style={{ width: "100%", padding: "11px 14px", background: "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <EntIcon size={15} color={entColor} style={{ flexShrink: 0, marginTop: 1 }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, color: "#374151" }}>{fmtDate(entry.created_at)}</div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{desc}</div>
-                          </div>
-                          {i === 0 && <RotateCcw size={13} color="#9CA3AF" style={{ flexShrink: 0, marginTop: 2 }} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
+              {/* Banner: lead com caminho ativo no canvas */}
+              {logsPanelSelectedEntry && (
+                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <User size={12} color="#3B82F6" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {logsPanelSelectedEntry.leadName}
+                  </span>
+                  <button onClick={() => { setLogsPanelSelectedEntry(null); setLogsPanelPath([]); }}
+                    style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, color: "#3B82F6", display: "flex", alignItems: "center" }}
+                  ><X size={12} /></button>
+                </div>
               )}
+
+              {/* Tabs */}
+              <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+                {([
+                  { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
+                  { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
+                  { id: "alert" as const, label: "Alertas", count: logsPanelTabCounts.alert },
+                  { id: "error" as const, label: "Erros", count: logsPanelTabCounts.error },
+                ] as const).map(tab => {
+                  const sel = logsPanelTab === tab.id;
+                  return (
+                    <button key={tab.id} onClick={() => setLogsPanelTab(tab.id)}
+                      style={{ flex: 1, padding: "9px 4px", background: "transparent", border: "none", borderBottom: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", color: sel ? "hsl(var(--primary))" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer" }}
+                    >{tab.label}</button>
+                  );
+                })}
+              </div>
+
+              {/* Filtros */}
+              <div style={{ padding: "8px 12px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ flex: 1, position: "relative" }}>
+                  <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
+                    style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
+                  >
+                    <option value="">Selecionar lead</option>
+                    {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
+                  style={{ border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
+                >
+                  <option value="week">Última semana</option>
+                  <option value="month">Último mês</option>
+                  <option value="all">Todos</option>
+                </select>
+              </div>
+
+              {/* Lista */}
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {logsPanelLoading ? (
+                  <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
+                ) : logsPanelFilteredEntries.length === 0 ? (
+                  <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum registro encontrado</div>
+                ) : logsPanelFilteredEntries.map((entry, i) => {
+                  const isActive = logsPanelSelectedEntry?.leadId === entry.lead_id;
+                  const isEntraram = logsPanelTab === "entraram";
+                  const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
+                  const EntIcon = isEntraram ? Info : (entry.status === "success" ? CheckCircle2 : entry.status === "alert" ? Bell : X);
+                  const entColor = isEntraram ? "#3B82F6" : sColor;
+                  const desc = isEntraram
+                    ? "Entrou no bloco"
+                    : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
+                  return (
+                    <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
+                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <EntIcon size={15} color={entColor} style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: "#374151" }}>{fmtDate(entry.created_at)}</div>
+                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{desc}</div>
+                      </div>
+                      {i === 0 && <RotateCcw size={13} color="#9CA3AF" style={{ flexShrink: 0, marginTop: 2 }} />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           </section>
