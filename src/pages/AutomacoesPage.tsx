@@ -9,8 +9,10 @@ import {
   Clock, Shuffle, Bot, Code2, Sliders, Mic, Paperclip, Link2, AlignLeft, HelpCircle, StickyNote, Palette,
   ThumbsUp, ThumbsDown, RotateCcw, ArrowLeftRight, UserPlus, UserMinus, UserX,
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
-  ShoppingCart, Bell, ExternalLink,
+  ShoppingCart, Bell, ExternalLink, Info,
 } from "lucide-react";
+import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -75,6 +77,24 @@ type CanvasNode = {
   noteColorIndex?: number;
   width?: number;
   height?: number;
+};
+
+type LogEntry = {
+  id: string;
+  lead_id: string;
+  lead_name: string;
+  status: "success" | "alert" | "error";
+  created_at: string;
+  error_message: string | null;
+};
+
+type PathEntry = {
+  node_id: string;
+  node_label: string;
+  node_type: string;
+  status: "success" | "alert" | "error";
+  created_at: string;
+  error_message: string | null;
 };
 
 type AutomationRecord = {
@@ -319,6 +339,16 @@ const NOTE_COLORS = [
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
+function fmtDate(iso: string) {
+  try { return format(parseISO(iso), "d 'de' MMMM 'de' yyyy HH:mm", { locale: ptBR }); }
+  catch { return iso; }
+}
+
+function fmtDateShort(iso: string) {
+  try { return format(parseISO(iso), "d MMM HH:mm", { locale: ptBR }); }
+  catch { return iso; }
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function AutomacoesPage() {
@@ -374,9 +404,15 @@ export default function AutomacoesPage() {
   const [condicoesPickerOpen, setCondicoesPickerOpen] = useState(false);
   const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
   const [triggerPanel, setTriggerPanel] = useState(false);
-  const [logsDialog, setLogsDialog] = useState<{ nodeId: string; status: "success" | "alert" | "error" } | null>(null);
-  const [logsDialogLeads, setLogsDialogLeads] = useState<{ id: string; name: string }[]>([]);
-  const [logsDialogLoading, setLogsDialogLoading] = useState(false);
+  const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
+  const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
+  const [logsPanelEntries, setLogsPanelEntries] = useState<LogEntry[]>([]);
+  const [logsPanelLoading, setLogsPanelLoading] = useState(false);
+  const [logsPanelLeadFilter, setLogsPanelLeadFilter] = useState("");
+  const [logsPanelPeriod, setLogsPanelPeriod] = useState("week");
+  const [logsPanelSelectedEntry, setLogsPanelSelectedEntry] = useState<{ leadId: string; leadName: string } | null>(null);
+  const [logsPanelPath, setLogsPanelPath] = useState<PathEntry[]>([]);
+  const [logsPanelPathLoading, setLogsPanelPathLoading] = useState(false);
 
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
@@ -431,6 +467,31 @@ export default function AutomacoesPage() {
   const filteredAutomations = useMemo(() =>
     automations.filter(a => a.name.toLowerCase().includes(listSearch.toLowerCase())),
   [automations, listSearch]);
+
+  const logsPanelNode = logsPanel ? nodes.find(n => n.id === logsPanel.nodeId) ?? null : null;
+
+  const logsPanelLeads = useMemo(() => {
+    const seen = new Set<string>();
+    return logsPanelEntries.filter(e => { if (seen.has(e.lead_id)) return false; seen.add(e.lead_id); return true; }).map(e => ({ id: e.lead_id, name: e.lead_name }));
+  }, [logsPanelEntries]);
+
+  const logsPanelFilteredEntries = useMemo(() => {
+    let entries = logsPanelEntries;
+    if (logsPanelPeriod !== "all") {
+      const cutoff = logsPanelPeriod === "week" ? subWeeks(new Date(), 1) : subDays(new Date(), 30);
+      entries = entries.filter(e => { try { return isAfter(parseISO(e.created_at), cutoff); } catch { return true; } });
+    }
+    if (logsPanelLeadFilter) entries = entries.filter(e => e.lead_id === logsPanelLeadFilter);
+    if (logsPanelTab !== "entraram") entries = entries.filter(e => e.status === logsPanelTab);
+    return entries;
+  }, [logsPanelEntries, logsPanelPeriod, logsPanelLeadFilter, logsPanelTab]);
+
+  const logsPanelTabCounts = useMemo(() => ({
+    entraram: logsPanelEntries.length,
+    success: logsPanelEntries.filter(e => e.status === "success").length,
+    alert: logsPanelEntries.filter(e => e.status === "alert").length,
+    error: logsPanelEntries.filter(e => e.status === "error").length,
+  }), [logsPanelEntries]);
 
   const selectedAutomation = automations.find(a => a.id === selectedId) ?? null;
 
@@ -742,24 +803,46 @@ export default function AutomacoesPage() {
 
   const handleStatClick = useCallback(async (nodeId: string, status: "success" | "alert" | "error") => {
     if (!selectedId) return;
-    setLogsDialog({ nodeId, status });
-    setLogsDialogLoading(true);
-    setLogsDialogLeads([]);
+    setLogsPanel({ nodeId });
+    setLogsPanelTab(status);
+    setLogsPanelLoading(true);
+    setLogsPanelEntries([]);
+    setLogsPanelSelectedEntry(null);
+    setLogsPanelLeadFilter("");
+
     const { data: logRows } = await supabase
       .from("automation_logs")
-      .select("lead_id")
+      .select("id, lead_id, status, created_at, error_message")
       .eq("automation_id", selectedId)
       .eq("node_id", nodeId)
-      .eq("status", status);
-    if (!logRows || logRows.length === 0) { setLogsDialogLoading(false); return; }
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (!logRows || logRows.length === 0) { setLogsPanelLoading(false); return; }
     const leadIds = [...new Set((logRows as { lead_id: string }[]).map(r => r.lead_id))];
-    const { data: leadsData } = await supabase
-      .from("leads")
-      .select("id, name")
-      .in("id", leadIds);
-    setLogsDialogLeads((leadsData ?? []) as { id: string; name: string }[]);
-    setLogsDialogLoading(false);
+    const { data: leadsData } = await supabase.from("leads").select("id, name").in("id", leadIds);
+    const leadMap = Object.fromEntries(((leadsData ?? []) as { id: string; name: string }[]).map(l => [l.id, l.name]));
+    setLogsPanelEntries((logRows as Omit<LogEntry, "lead_name">[]).map(r => ({ ...r, lead_name: leadMap[r.lead_id] ?? "Lead desconhecido" })));
+    setLogsPanelLoading(false);
   }, [selectedId]);
+
+  const loadEntryPath = useCallback(async (leadId: string, leadName: string) => {
+    if (!selectedId) return;
+    setLogsPanelSelectedEntry({ leadId, leadName });
+    setLogsPanelPathLoading(true);
+    const { data } = await supabase
+      .from("automation_logs")
+      .select("node_id, status, created_at, error_message")
+      .eq("automation_id", selectedId)
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: true });
+    const path = ((data ?? []) as { node_id: string; status: "success" | "alert" | "error"; created_at: string; error_message: string | null }[]).map(r => {
+      const nd = nodes.find(n => n.id === r.node_id);
+      return { ...r, node_label: nd?.label ?? r.node_id, node_type: nd?.type ?? "acoes" };
+    });
+    setLogsPanelPath(path);
+    setLogsPanelPathLoading(false);
+  }, [selectedId, nodes]);
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1375,6 +1458,145 @@ export default function AutomacoesPage() {
 
           {/* Hidden file input for import */}
           <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleImportFile} />
+
+          {/* ── Logs Panel — painel lateral direito ──────────────────────── */}
+          {logsPanel && (
+            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "0.5px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
+
+              {/* Header */}
+              <div style={{ padding: "12px 14px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5 }}>Logs do bloco</span>
+                  {logsPanelNode && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <Play size={11} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{logsPanelNode.label}</span>
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
+                  style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                ><X size={14} /></button>
+              </div>
+
+              {logsPanelSelectedEntry ? (
+                /* ── Visão do caminho do lead ── */
+                <>
+                  <div style={{ padding: "10px 14px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => setLogsPanelSelectedEntry(null)}
+                      style={{ display: "flex", alignItems: "center", gap: 4, background: "transparent", border: "none", cursor: "pointer", fontSize: 12, color: "hsl(var(--primary))", padding: 0 }}
+                    ><ChevronLeft size={13} /> Voltar</button>
+                    <span style={{ fontSize: 12, color: "#374151", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {logsPanelSelectedEntry.leadName}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto" }}>
+                    {logsPanelPathLoading ? (
+                      <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
+                    ) : logsPanelPath.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum bloco encontrado</div>
+                    ) : logsPanelPath.map((entry, i) => {
+                      const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
+                      const SIcon = entry.status === "success" ? CheckCircle2 : entry.status === "alert" ? Bell : X;
+                      const atType = ACTION_TYPES.find(at => at.id === entry.node_type);
+                      const NodeIcon = atType ? atType.icon : Play;
+                      const nodeColor = atType ? atType.color : "hsl(var(--primary))";
+                      return (
+                        <div key={i} style={{ padding: "11px 14px", borderBottom: "0.5px solid #F5F5F5", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${sColor}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <SIcon size={13} color={sColor} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 5 }}>
+                              <NodeIcon size={11} color={nodeColor} />
+                              {entry.node_label}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{fmtDateShort(entry.created_at)}</div>
+                            {entry.error_message && (
+                              <div style={{ fontSize: 11, color: sColor, marginTop: 2, wordBreak: "break-word" }}>{entry.error_message}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                /* ── Lista de logs ── */
+                <>
+                  {/* Tabs */}
+                  <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+                    {([
+                      { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
+                      { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
+                      { id: "alert" as const, label: "Alertas", count: logsPanelTabCounts.alert },
+                      { id: "error" as const, label: "Erros", count: logsPanelTabCounts.error },
+                    ] as const).map(tab => {
+                      const sel = logsPanelTab === tab.id;
+                      return (
+                        <button key={tab.id} onClick={() => setLogsPanelTab(tab.id)}
+                          style={{ flex: 1, padding: "9px 4px", background: "transparent", border: "none", borderBottom: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", color: sel ? "hsl(var(--primary))" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer" }}
+                        >{tab.label}</button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Filtros */}
+                  <div style={{ padding: "8px 12px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <div style={{ flex: 1, position: "relative" }}>
+                      <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                      <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
+                        style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
+                      >
+                        <option value="">Selecionar lead</option>
+                        {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    </div>
+                    <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
+                      style={{ border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
+                    >
+                      <option value="week">Última semana</option>
+                      <option value="month">Último mês</option>
+                      <option value="all">Todos</option>
+                    </select>
+                  </div>
+
+                  {/* Lista */}
+                  <div style={{ flex: 1, overflowY: "auto" }}>
+                    {logsPanelLoading ? (
+                      <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
+                    ) : logsPanelFilteredEntries.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum registro encontrado</div>
+                    ) : logsPanelFilteredEntries.map((entry, i) => {
+                      const isEntraram = logsPanelTab === "entraram";
+                      const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
+                      const EntIcon = isEntraram ? Info : (entry.status === "success" ? CheckCircle2 : entry.status === "alert" ? Bell : X);
+                      const entColor = isEntraram ? "#3B82F6" : sColor;
+                      const desc = isEntraram
+                        ? "Entrou no bloco"
+                        : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
+                      return (
+                        <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
+                          style={{ width: "100%", padding: "11px 14px", background: "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <EntIcon size={15} color={entColor} style={{ flexShrink: 0, marginTop: 1 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: "#374151" }}>{fmtDate(entry.created_at)}</div>
+                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{desc}</div>
+                          </div>
+                          {i === 0 && <RotateCcw size={13} color="#9CA3AF" style={{ flexShrink: 0, marginTop: 2 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           </section>
         </div>
       )}
@@ -1656,47 +1878,6 @@ export default function AutomacoesPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Logs dialog — leads que passaram pelo nó */}
-      <Dialog open={!!logsDialog} onOpenChange={(open) => { if (!open) setLogsDialog(null); }}>
-        <DialogContent style={{ maxWidth: 480 }}>
-          <DialogHeader>
-            <DialogTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {logsDialog?.status === "success" && <span style={{ color: "hsl(var(--primary))" }}>Sucessos</span>}
-              {logsDialog?.status === "alert"   && <span style={{ color: "#F59E0B" }}>Alertas</span>}
-              {logsDialog?.status === "error"   && <span style={{ color: "#EF4444" }}>Erros</span>}
-              {!logsDialogLoading && (
-                <span style={{ fontSize: 13, fontWeight: 400, color: "#6B7280" }}>
-                  — {logsDialogLeads.length} lead{logsDialogLeads.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div style={{ maxHeight: 360, overflowY: "auto", marginTop: 4 }}>
-            {logsDialogLoading ? (
-              <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
-            ) : logsDialogLeads.length === 0 ? (
-              <div style={{ padding: "32px 0", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-                Nenhum lead encontrado para este status
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {logsDialogLeads.map(lead => (
-                  <button
-                    key={lead.id}
-                    onClick={() => { setLogsDialog(null); navigate(`/pipeline/lead/${lead.id}`); }}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#111111" }}>{lead.name}</span>
-                    <ExternalLink size={13} color="#9CA3AF" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
