@@ -57,16 +57,16 @@ BEGIN
 
   PERFORM net.http_post(
     url     := v_url || '/functions/v1/automation-runner',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || v_secret
-    ),
     body    := jsonb_build_object(
       'trigger_type', p_trigger_type,
       'company_id',   p_company_id::text,
       'lead_id',      p_lead_id::text,
       'context',      p_context
-    )::text
+    ),
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'Authorization', 'Bearer ' || v_secret
+    )
   );
 EXCEPTION WHEN OTHERS THEN
   -- Nunca bloqueia a transação principal
