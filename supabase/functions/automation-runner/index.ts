@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
     const flow = automation.flow;
     const trigger = flow?.trigger;
     if (!trigger || trigger.triggerId !== trigger_type) continue;
-    if (!matchesTriggerConfig(trigger, payload)) continue;
+    if (!await matchesTriggerConfig(supabase, trigger, payload)) continue;
 
     try {
       await executeFlow(supabase, flow, payload);
@@ -118,23 +118,36 @@ Deno.serve(async (req: Request) => {
 
 // ─── Trigger filter matching ──────────────────────────────────────────────────
 
-function matchesTriggerConfig(trigger: TriggerConfig, payload: TriggerPayload): boolean {
+async function matchesTriggerConfig(
+  supabase: SupabaseClient,
+  trigger: TriggerConfig,
+  payload: TriggerPayload,
+): Promise<boolean> {
   const cfg = trigger.configData ?? {};
 
   switch (trigger.triggerId) {
     case "tag_adicionada": {
-      const cfgTags = splitIds(cfg.tags as string);
-      if (!cfgTags.length) return true; // fires for any tag
-      return cfgTags.some((t) => (payload.context.tag_ids_added ?? []).includes(t));
+      const cfgTagIds = splitIds(cfg.tags as string);
+      if (!cfgTagIds.length) return true;
+      const tagsAdded = payload.context.tag_ids_added ?? [];
+      if (cfgTagIds.some((t) => tagsAdded.includes(t))) return true;
+      // leads.tags stores names — resolve IDs to names and compare
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const names = (rows ?? []).map((r: { name: string }) => r.name);
+      return names.some((n: string) => tagsAdded.includes(n));
     }
     case "tag_removida": {
-      const cfgTags = splitIds(cfg.tags as string);
-      if (!cfgTags.length) return true;
-      return cfgTags.some((t) => (payload.context.tag_ids_removed ?? []).includes(t));
+      const cfgTagIds = splitIds(cfg.tags as string);
+      if (!cfgTagIds.length) return true;
+      const tagsRemoved = payload.context.tag_ids_removed ?? [];
+      if (cfgTagIds.some((t) => tagsRemoved.includes(t))) return true;
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const names = (rows ?? []).map((r: { name: string }) => r.name);
+      return names.some((n: string) => tagsRemoved.includes(n));
     }
     case "neg_movido": {
       const cfgStage = cfg.stage as string;
-      if (!cfgStage) return true; // fires for any move
+      if (!cfgStage) return true;
       return payload.context.new_column_id === cfgStage;
     }
     case "atend_atribuido": {
