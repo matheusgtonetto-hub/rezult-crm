@@ -427,6 +427,12 @@ export default function AutomacoesPage() {
   const [triggerPanel, setTriggerPanel] = useState(false);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
   const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
+
+  // Unsaved changes guard
+  const [isDirty, setIsDirty]         = useState(false);
+  const [unsavedOpen, setUnsavedOpen] = useState(false);
+  const pendingLeaveRef  = useRef<(() => void) | null>(null);
+  const skipDirtyRef     = useRef(false);
   const [logsPanelEntries, setLogsPanelEntries] = useState<LogEntry[]>([]);
   const [logsPanelLoading, setLogsPanelLoading] = useState(false);
   const [logsPanelLeadFilter, setLogsPanelLeadFilter] = useState("");
@@ -523,6 +529,7 @@ export default function AutomacoesPage() {
     if (!auto) return;
     const flow = auto.flow ?? { nodes: [START_NODE], trigger: null };
     const n = flow.nodes?.length ? flow.nodes : [START_NODE];
+    skipDirtyRef.current = true;
     setNodes(n);
     setTrigger(flow.trigger ?? null);
     setZoom(1);
@@ -530,6 +537,7 @@ export default function AutomacoesPage() {
     setSelectedNode(null);
     setSelectedId(id);
     setNodeStats({});
+    setIsDirty(false);
     setView("editor");
     // Load execution stats for this automation
     supabase
@@ -764,6 +772,7 @@ export default function AutomacoesPage() {
         .eq("id", selectedId);
       if (error) throw error;
       setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, flow: { nodes: updatedNodes, trigger } } : a));
+      setIsDirty(false);
       toast.success("Automação salva");
     } catch {
       toast.error("Erro ao salvar");
@@ -797,6 +806,45 @@ export default function AutomacoesPage() {
     setView("list");
     setSelectedId(null);
     toast.success("Automação excluída");
+  };
+
+  // ── Unsaved changes guard ─────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (skipDirtyRef.current) { skipDirtyRef.current = false; return; }
+    if (view === "editor" && selectedId) setIsDirty(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, trigger]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty && view === "editor") { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty, view]);
+
+  const requestLeave = (action: () => void) => {
+    if (isDirty && view === "editor") {
+      pendingLeaveRef.current = action;
+      setUnsavedOpen(true);
+    } else {
+      action();
+    }
+  };
+
+  const handleLeaveWithoutSaving = () => {
+    setIsDirty(false);
+    setUnsavedOpen(false);
+    pendingLeaveRef.current?.();
+    pendingLeaveRef.current = null;
+  };
+
+  const handleSaveAndLeave = async () => {
+    await handleSave();
+    setUnsavedOpen(false);
+    pendingLeaveRef.current?.();
+    pendingLeaveRef.current = null;
   };
 
   const handleDuplicate = async () => {
@@ -1020,7 +1068,7 @@ export default function AutomacoesPage() {
                     return (
                       <div
                         key={item.id}
-                        onClick={() => openEditor(item.id)}
+                        onClick={() => requestLeave(() => openEditor(item.id))}
                         className="group"
                         style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: sel ? "#F0FDF4" : "transparent", borderLeft: sel ? "3px solid hsl(var(--primary))" : "3px solid transparent", cursor: "pointer" }}
                       >
@@ -1538,7 +1586,7 @@ export default function AutomacoesPage() {
 
           {/* Nav arrows */}
           <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
-            <button onClick={() => setView("list")} style={zoomBtn} title="Voltar à lista"><ArrowLeft size={14} /></button>
+            <button onClick={() => requestLeave(() => setView("list"))} style={zoomBtn} title="Voltar à lista"><ArrowLeft size={14} /></button>
             <button style={zoomBtn}><ArrowRight size={14} /></button>
           </div>
 
@@ -1918,6 +1966,22 @@ export default function AutomacoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unsaved changes guard */}
+      <AlertDialog open={unsavedOpen} onOpenChange={setUnsavedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem alterações não publicadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja sair sem salvar ou salvar antes de sair?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleLeaveWithoutSaving}>Sair sem salvar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndLeave}>Salvar e sair</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
