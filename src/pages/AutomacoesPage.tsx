@@ -22,7 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useCRM } from "@/context/CRMContext";
-import type { Pipeline, Tag as CrmTagType, CustomFieldGroup } from "@/data/mockData";
+import type { Pipeline, Tag as CrmTagType, CustomFieldGroup, Product as ProductType, LossReason as LossReasonType, CrmList as CrmListType } from "@/data/mockData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -322,7 +322,7 @@ const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "
 export default function AutomacoesPage() {
   const { user } = useAuth();
   const { company } = useCompany();
-  const { pipelines, crmTags, addTag, teamMembers, customFieldGroups } = useCRM();
+  const { pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups } = useCRM();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -1077,6 +1077,15 @@ export default function AutomacoesPage() {
               removeActionItem={(itemId) => removeActionItem(nodePanel, itemId)}
               onOpenPicker={() => setAcoesPickerOpen(true)}
               updateActionItem={(itemId, config) => updateActionItem(nodePanel, itemId, config)}
+              pipelines={pipelines}
+              crmTags={crmTags}
+              addTag={addTag}
+              crmLists={crmLists}
+              teamMembers={teamMembers}
+              products={products}
+              lossReasons={lossReasons}
+              customFieldGroups={customFieldGroups}
+              automations={automations}
             />
           )}
 
@@ -1616,25 +1625,6 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};
-  const [tagDropOpen, setTagDropOpen] = useState(false);
-  const [tagSearch, setTagSearch] = useState("");
-  const [tagCreateMode, setTagCreateMode] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#3B82F6");
-  const [creatingTag, setCreatingTag] = useState(false);
-  const tagDropRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!tagDropOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (tagDropRef.current && !tagDropRef.current.contains(e.target as Node)) {
-        setTagDropOpen(false);
-        setTagCreateMode(false);
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [tagDropOpen]);
 
   const InstanceRow = ({ label }: { label: string }) => (
     <div>
@@ -1809,166 +1799,17 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
       case "tag_adicionada": {
         const tagVerb = trigger.triggerId === "tag_removida" ? "removidas" : "adicionadas";
         const selectedTagIds = ((cfg.tags as string) ?? "").split(",").filter(Boolean);
-        const filteredTags = crmTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()));
-        const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>
               Quais as tags que, ao serem {tagVerb}, irão iniciar a automação?
             </div>
-
-            {/* Selected tag pills */}
-            {selectedTagIds.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {selectedTagIds.map(id => {
-                  const tag = crmTags.find(t => t.id === id);
-                  if (!tag) return null;
-                  return (
-                    <span key={id} style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                      background: tag.color ? tag.color + "28" : "#E5E7EB",
-                      color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`,
-                      borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: 500,
-                    }}>
-                      {tag.name}
-                      <button onClick={() => { const next = selectedTagIds.filter(i => i !== id); updateConfig("tags", next.join(",")); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "inherit", opacity: 0.7 }}>
-                        <X size={10} />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Dropdown */}
-            <div style={{ position: "relative" }} ref={tagDropRef}>
-              <button
-                onClick={() => { setTagDropOpen(v => !v); setTagCreateMode(false); setTagSearch(""); }}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                  background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6,
-                  padding: "7px 10px", fontSize: 12, cursor: "pointer",
-                  color: selectedTagIds.length === 0 ? "#9CA3AF" : "#374151",
-                }}
-              >
-                <span>
-                  {selectedTagIds.length === 0
-                    ? "Selecione as tags"
-                    : `${selectedTagIds.length} tag${selectedTagIds.length > 1 ? "s" : ""} selecionada${selectedTagIds.length > 1 ? "s" : ""}`}
-                </span>
-                <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
-              </button>
-
-              {tagDropOpen && (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50,
-                  background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column",
-                  maxHeight: 260,
-                }}>
-                  {/* Search */}
-                  {!tagCreateMode && (
-                    <div style={{ padding: "8px 8px 4px" }}>
-                      <input
-                        type="text" placeholder="Pesquisar..." value={tagSearch}
-                        onChange={e => setTagSearch(e.target.value)}
-                        style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus
-                      />
-                    </div>
-                  )}
-
-                  {/* Tag list */}
-                  {!tagCreateMode && (
-                    <div style={{ overflowY: "auto", flex: 1, padding: "4px 0" }}>
-                      {filteredTags.length === 0 && (
-                        <div style={{ padding: "8px 12px", fontSize: 11, color: "#9CA3AF" }}>Nenhuma tag encontrada.</div>
-                      )}
-                      {filteredTags.map(tag => {
-                        const checked = selectedTagIds.includes(tag.id);
-                        return (
-                          <div
-                            key={tag.id}
-                            onClick={() => {
-                              const next = checked
-                                ? selectedTagIds.filter(id => id !== tag.id)
-                                : [...selectedTagIds, tag.id];
-                              updateConfig("tags", next.join(","));
-                            }}
-                            style={{
-                              display: "flex", alignItems: "center", justifyContent: "space-between",
-                              padding: "5px 12px", cursor: "pointer",
-                              background: checked ? "#EFF6FF" : "transparent",
-                            }}
-                          >
-                            <span style={{
-                              display: "inline-flex", alignItems: "center",
-                              background: tag.color ? tag.color + "28" : "#E5E7EB",
-                              color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`,
-                              borderRadius: 12, padding: "2px 10px", fontSize: 11, fontWeight: 500,
-                            }}>
-                              {tag.name}
-                            </span>
-                            {checked && <CheckCircle2 size={12} style={{ color: "#3B82F6" }} />}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Create form */}
-                  {tagCreateMode && (
-                    <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <input
-                        type="text" placeholder="Nome da tag..." value={newTagName}
-                        onChange={e => setNewTagName(e.target.value)}
-                        style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus
-                        onKeyDown={e => { if (e.key === "Escape") setTagCreateMode(false); }}
-                      />
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {TAG_COLORS.map(c => (
-                          <button key={c} onClick={() => setNewTagColor(c)} style={{
-                            width: 18, height: 18, borderRadius: "50%", background: c, flexShrink: 0,
-                            border: newTagColor === c ? "2px solid #111" : "1.5px solid transparent", cursor: "pointer",
-                          }} />
-                        ))}
-                      </div>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button onClick={() => setTagCreateMode(false)}
-                          style={{ fontSize: 11, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>
-                          Cancelar
-                        </button>
-                        <button
-                          disabled={!newTagName.trim() || creatingTag}
-                          onClick={async () => {
-                            if (!newTagName.trim() || creatingTag) return;
-                            setCreatingTag(true);
-                            const ok = await addTag(newTagName.trim(), "", newTagColor);
-                            setCreatingTag(false);
-                            if (ok) { setNewTagName(""); setTagCreateMode(false); }
-                          }}
-                          style={{
-                            fontSize: 11, background: "#3B82F6", color: "#FFF", border: "none",
-                            borderRadius: 4, padding: "3px 10px", cursor: "pointer",
-                            opacity: !newTagName.trim() || creatingTag ? 0.5 : 1,
-                          }}
-                        >{creatingTag ? "Criando..." : "Criar"}</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  {!tagCreateMode && (
-                    <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={() => { setTagCreateMode(true); setTagSearch(""); setNewTagName(""); setNewTagColor("#3B82F6"); }}
-                        style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}
-                      >Criar</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <TagMultiSelect
+              selectedIds={selectedTagIds}
+              onChange={ids => updateConfig("tags", ids.join(","))}
+              crmTags={crmTags}
+              addTag={addTag}
+            />
           </div>
         );
       }
@@ -3067,6 +2908,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
   onDelete: () => void;
   onDuplicate: () => void;
 }) {
+  const { customFieldGroups } = useCRM();
   const [campo, setCampo] = useState("");
   const [operacao, setOperacao] = useState("");
   const [valor, setValor] = useState("");
@@ -3102,6 +2944,10 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
               <option value="empresa">Empresa</option>
               <option value="tags">Tags</option>
               <option value="observacoes">Observações</option>
+              {customFieldGroups.flatMap(g => g.items.map(item => (
+                <option key={item.id} value={item.id}>{g.name} › {item.label}</option>
+              )))}
+
             </select>
           </div>
           <div>
@@ -3185,21 +3031,120 @@ function AcoesSelect({ value, onChange, options, placeholder }: {
   );
 }
 
-const ETAPA_OPTIONS = [
-  { value: "qualificado", label: "Qualificado" },
-  { value: "proposta", label: "Proposta" },
-  { value: "negociacao", label: "Negociação" },
-  { value: "fechado", label: "Fechado" },
-];
+// ─── TagMultiSelect ───────────────────────────────────────────────────────────
 
-const PRODUTO_OPTIONS = [
-  { value: "p1", label: "Produto 1" },
-  { value: "p2", label: "Produto 2" },
-];
+function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  crmTags: CrmTagType[];
+  addTag: (name: string, description: string, color: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [createMode, setCreateMode] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState("#3B82F6");
+  const [creating, setCreating] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
+  const filtered = crmTags.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
-function NegociosConfigForm({ item, updateActionItem }: {
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setCreateMode(false); }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  return (
+    <div style={{ position: "relative" }} ref={ref}>
+      {selectedIds.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+          {selectedIds.map(id => {
+            const tag = crmTags.find(t => t.id === id);
+            if (!tag) return null;
+            return (
+              <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: tag.color ? tag.color + "28" : "#E5E7EB", color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: 500 }}>
+                {tag.name}
+                <button onClick={() => onChange(selectedIds.filter(i => i !== id))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "inherit", opacity: 0.7 }}>
+                  <X size={10} />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <button onClick={() => { setOpen(v => !v); setCreateMode(false); setSearch(""); }}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
+        <span>{selectedIds.length === 0 ? "Selecione as tags" : `${selectedIds.length} tag${selectedIds.length > 1 ? "s" : ""} selecionada${selectedIds.length > 1 ? "s" : ""}`}</span>
+        <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
+          {!createMode && (
+            <div style={{ padding: "8px 8px 4px" }}>
+              <input type="text" placeholder="Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus />
+            </div>
+          )}
+          {!createMode && (
+            <div style={{ overflowY: "auto", flex: 1, padding: "4px 0" }}>
+              {filtered.length === 0 && <div style={{ padding: "8px 12px", fontSize: 11, color: "#9CA3AF" }}>Nenhuma tag encontrada.</div>}
+              {filtered.map(tag => {
+                const checked = selectedIds.includes(tag.id);
+                return (
+                  <div key={tag.id} onClick={() => onChange(checked ? selectedIds.filter(i => i !== tag.id) : [...selectedIds, tag.id])}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px", cursor: "pointer", background: checked ? "#EFF6FF" : "transparent" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", background: tag.color ? tag.color + "28" : "#E5E7EB", color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`, borderRadius: 12, padding: "2px 10px", fontSize: 11, fontWeight: 500 }}>
+                      {tag.name}
+                    </span>
+                    {checked && <CheckCircle2 size={12} style={{ color: "#3B82F6" }} />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {createMode && (
+            <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <input type="text" placeholder="Nome da tag..." value={newName} onChange={e => setNewName(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus onKeyDown={e => { if (e.key === "Escape") setCreateMode(false); }} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {TAG_COLORS.map(c => (
+                  <button key={c} onClick={() => setNewColor(c)} style={{ width: 18, height: 18, borderRadius: "50%", background: c, flexShrink: 0, border: newColor === c ? "2px solid #111" : "1.5px solid transparent", cursor: "pointer" }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <button onClick={() => setCreateMode(false)} style={{ fontSize: 11, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
+                <button disabled={!newName.trim() || creating} onClick={async () => {
+                  if (!newName.trim() || creating) return;
+                  setCreating(true);
+                  const ok = await addTag(newName.trim(), "", newColor);
+                  setCreating(false);
+                  if (ok) { setNewName(""); setCreateMode(false); }
+                }} style={{ fontSize: 11, background: "#3B82F6", color: "#FFF", border: "none", borderRadius: 4, padding: "3px 10px", cursor: "pointer", opacity: !newName.trim() || creating ? 0.5 : 1 }}>
+                  {creating ? "Criando..." : "Criar"}
+                </button>
+              </div>
+            </div>
+          )}
+          {!createMode && (
+            <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, products, lossReasons }: {
   item: ActionItem;
   updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+  pipelines: Pipeline[];
+  teamMembers: string[];
+  products: ProductType[];
+  lossReasons: LossReasonType[];
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
@@ -3210,12 +3155,33 @@ function NegociosConfigForm({ item, updateActionItem }: {
     <div style={{ marginBottom: 14 }}>{children}</div>
   );
 
+  const PipelineStageSelect = ({ verbAction }: { verbAction: string }) => {
+    const selPipeline = pipelines.find(p => p.id === (cfg.pipeline as string));
+    const stageOpts = selPipeline
+      ? selPipeline.columns.map(c => ({ value: c.id, label: c.title }))
+      : pipelines.flatMap(p => p.columns.map(c => ({ value: c.id, label: `${p.name} › ${c.title}` })));
+    return (
+      <>
+        {grp(<>{lbl("Pipeline (opcional)")}
+          <AcoesSelect value={(cfg.pipeline as string) ?? ""} onChange={v => { set("pipeline", v); set("etapa", ""); }}
+            options={[{ value: "", label: "Todas as pipelines" }, ...pipelines.map(p => ({ value: p.id, label: p.name }))]}
+          />
+        </>)}
+        {grp(<>{lbl(`Etapa em que o negócio será ${verbAction}`)}
+          <AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)}
+            placeholder="Selecione a etapa..." options={stageOpts}
+          />
+        </>)}
+      </>
+    );
+  };
+
   switch (item.actionId) {
     case "criar_negocio":
-      return grp(<>{lbl("Informe em qual etapa o negócio será criado")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+      return <PipelineStageSelect verbAction="criado" />;
 
     case "mover_etapa":
-      return grp(<>{lbl("Informe em qual etapa que o negócio será movido")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+      return <PipelineStageSelect verbAction="movido" />;
 
     case "ganhar_negocio":
     case "restaurar_negocio":
@@ -3224,7 +3190,11 @@ function NegociosConfigForm({ item, updateActionItem }: {
     case "perder_negocio":
       return (
         <>
-          {grp(<>{lbl("Selecione o motivo")}<AcoesSelect value={(cfg.motivo as string) ?? ""} onChange={v => set("motivo", v)} placeholder="Selecione o motivo..." options={[{ value: "preco", label: "Preço" }, { value: "concorrencia", label: "Concorrência" }, { value: "sem_interesse", label: "Sem interesse" }, { value: "outro", label: "Outro" }]} /></>)}
+          {grp(<>{lbl("Selecione o motivo")}
+            <AcoesSelect value={(cfg.motivo as string) ?? ""} onChange={v => set("motivo", v)} placeholder="Selecione o motivo..."
+              options={[...lossReasons.map(lr => ({ value: lr.id, label: lr.name })), { value: "outro", label: "Outro" }]}
+            />
+          </>)}
           {grp(<>{lbl("Justificativa")}<textarea value={(cfg.justificativa as string) ?? ""} onChange={e => set("justificativa", e.target.value)} placeholder="Digite a justificativa..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} /></>)}
         </>
       );
@@ -3232,10 +3202,14 @@ function NegociosConfigForm({ item, updateActionItem }: {
     case "transf_atend_neg":
       return (
         <>
-          {grp(<>{lbl("Selecione o atendente")}<AcoesSelect value={(cfg.atendente as string) ?? ""} onChange={v => set("atendente", v)} placeholder="Selecione o atendente..." options={[{ value: "qualquer", label: "Qualquer atendente disponível" }, { value: "responsavel", label: "Atendente responsável" }]} /></>)}
+          {grp(<>{lbl("Selecione o atendente")}
+            <AcoesSelect value={(cfg.atendente as string) ?? ""} onChange={v => set("atendente", v)} placeholder="Selecione o atendente..."
+              options={[{ value: "", label: "Qualquer atendente disponível" }, ...teamMembers.map(m => ({ value: m, label: m }))]}
+            />
+          </>)}
           {grp(
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB" }}>
-              <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Transferir o mesmo atendente como atendente responsável do lead?</span>
+              <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Transferir o mesmo atendente como responsável do lead?</span>
               <Switch checked={!!(cfg.transf_responsavel)} onCheckedChange={v => set("transf_responsavel", v)} />
             </div>
           )}
@@ -3243,7 +3217,7 @@ function NegociosConfigForm({ item, updateActionItem }: {
       );
 
     case "duplicar_negocio":
-      return grp(<>{lbl("Em qual etapa o negócio será duplicado")}<AcoesSelect value={(cfg.etapa as string) ?? ""} onChange={v => set("etapa", v)} placeholder="Selecione a etapa..." options={ETAPA_OPTIONS} /></>);
+      return <PipelineStageSelect verbAction="duplicado" />;
 
     case "remover_atend_neg":
       return grp(
@@ -3256,7 +3230,11 @@ function NegociosConfigForm({ item, updateActionItem }: {
     case "add_produto_neg":
       return (
         <>
-          {grp(<>{lbl("Selecione o produto")}<AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..." options={PRODUTO_OPTIONS} /></>)}
+          {grp(<>{lbl("Selecione o produto")}
+            <AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..."
+              options={products.map(p => ({ value: p.id, label: p.name }))}
+            />
+          </>)}
           {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
           {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
           {grp(<>{lbl("Preço")}<AcoesFieldInput value={(cfg.preco as string) ?? ""} onChange={v => set("preco", v)} placeholder="Preço..." /></>)}
@@ -3266,7 +3244,11 @@ function NegociosConfigForm({ item, updateActionItem }: {
     case "rem_produto_neg":
       return (
         <>
-          {grp(<>{lbl("Selecione o produto")}<AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..." options={PRODUTO_OPTIONS} /></>)}
+          {grp(<>{lbl("Selecione o produto")}
+            <AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..."
+              options={products.map(p => ({ value: p.id, label: p.name }))}
+            />
+          </>)}
           {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
           {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
         </>
@@ -3298,9 +3280,215 @@ function NegociosConfigForm({ item, updateActionItem }: {
   }
 }
 
+// ─── LeadsConfigForm ──────────────────────────────────────────────────────────
+
+function LeadsConfigForm({ item, updateActionItem, crmTags, addTag, crmLists, teamMembers }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+  crmTags: CrmTagType[];
+  addTag: (name: string, description: string, color: string) => Promise<boolean>;
+  crmLists: CrmListType[];
+  teamMembers: string[];
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+  const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
+
+  switch (item.actionId) {
+    case "adicionar_tags":
+    case "remover_tags": {
+      const selectedTagIds = ((cfg.tags as string) ?? "").split(",").filter(Boolean);
+      const verb = item.actionId === "adicionar_tags" ? "adicionar" : "remover";
+      return grp(<>
+        {lbl(`Tags para ${verb} ao lead`)}
+        <TagMultiSelect selectedIds={selectedTagIds} onChange={ids => set("tags", ids.join(","))} crmTags={crmTags} addTag={addTag} />
+      </>);
+    }
+
+    case "criar_tags": {
+      const colorVal = (cfg.cor as string) ?? "#3B82F6";
+      return (
+        <>
+          {grp(<>{lbl("Nome da tag")}<AcoesFieldInput value={(cfg.nome as string) ?? ""} onChange={v => set("nome", v)} placeholder="Nome da nova tag..." /></>)}
+          {grp(<>
+            {lbl("Cor da tag")}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {TAG_COLORS.map(c => (
+                <button key={c} onClick={() => set("cor", c)} style={{ width: 22, height: 22, borderRadius: "50%", background: c, border: colorVal === c ? "2px solid #111" : "1.5px solid transparent", cursor: "pointer", flexShrink: 0 }} />
+              ))}
+            </div>
+          </>)}
+        </>
+      );
+    }
+
+    case "adicionar_listas":
+    case "remover_listas": {
+      const verb = item.actionId === "adicionar_listas" ? "adicionar" : "remover";
+      return grp(<>
+        {lbl(`Lista para ${verb} ao lead`)}
+        <AcoesSelect value={(cfg.lista as string) ?? ""} onChange={v => set("lista", v)} placeholder="Selecione a lista..."
+          options={crmLists.map(l => ({ value: l.id, label: l.name }))}
+        />
+      </>);
+    }
+
+    case "criar_listas":
+      return grp(<>{lbl("Nome da lista")}<AcoesFieldInput value={(cfg.nome as string) ?? ""} onChange={v => set("nome", v)} placeholder="Nome da nova lista..." /></>);
+
+    case "comentario_lead":
+      return grp(<>
+        {lbl("Comentário")}
+        <textarea value={(cfg.comentario as string) ?? ""} onChange={e => set("comentario", e.target.value)} placeholder="Digite o comentário..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+      </>);
+
+    case "transf_atend_lead":
+      return grp(<>
+        {lbl("Selecione o atendente")}
+        <AcoesSelect value={(cfg.atendente as string) ?? ""} onChange={v => set("atendente", v)} placeholder="Selecione o atendente..."
+          options={[{ value: "", label: "Qualquer atendente disponível" }, ...teamMembers.map(m => ({ value: m, label: m }))]}
+        />
+      </>);
+
+    case "criar_lead":
+    case "deletar_lead":
+    case "remover_atend_lead":
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+
+    default:
+      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+  }
+}
+
+// ─── MensagensConfigForm ──────────────────────────────────────────────────────
+
+function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+  teamMembers: string[];
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+
+  switch (item.actionId) {
+    case "transf_atend_conv":
+      return grp(<>
+        {lbl("Selecione o atendente")}
+        <AcoesSelect value={(cfg.atendente as string) ?? ""} onChange={v => set("atendente", v)} placeholder="Selecione o atendente..."
+          options={[{ value: "", label: "Qualquer atendente disponível" }, ...teamMembers.map(m => ({ value: m, label: m }))]}
+        />
+      </>);
+
+    case "sugestao_resposta":
+      return grp(<>
+        {lbl("Texto da sugestão")}
+        <textarea value={(cfg.sugestao as string) ?? ""} onChange={e => set("sugestao", e.target.value)} placeholder="Digite a sugestão de resposta..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+      </>);
+
+    case "transf_dep":
+      return grp(<>{lbl("Departamento")}<AcoesFieldInput value={(cfg.departamento as string) ?? ""} onChange={v => set("departamento", v)} placeholder="Nome do departamento..." /></>);
+
+    case "iniciar_atend":
+    case "finalizar_atend":
+    case "desativar_auto_chat":
+    case "ativar_auto_chat":
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+
+    default:
+      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+  }
+}
+
+// ─── ProdutosConfigForm ───────────────────────────────────────────────────────
+
+function ProdutosConfigForm({ item, updateActionItem }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+  return (
+    <>
+      {grp(<>{lbl("Nome do produto")}<AcoesFieldInput value={(cfg.nome as string) ?? ""} onChange={v => set("nome", v)} placeholder="Nome do produto..." /></>)}
+      {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
+      {grp(<>{lbl("Valor padrão")}<AcoesFieldInput value={(cfg.valor as string) ?? ""} onChange={v => set("valor", v)} placeholder="Ex: 99.90" /></>)}
+    </>
+  );
+}
+
+// ─── SistemaConfigForm ────────────────────────────────────────────────────────
+
+function SistemaConfigForm({ item, updateActionItem, automations }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+  automations: AutomationRecord[];
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+
+  switch (item.actionId) {
+    case "iniciar_automacao":
+      return grp(<>
+        {lbl("Selecione a automação")}
+        <AcoesSelect value={(cfg.automacao_id as string) ?? ""} onChange={v => set("automacao_id", v)} placeholder="Selecione a automação..."
+          options={automations.map(a => ({ value: a.id, label: a.name }))}
+        />
+      </>);
+
+    case "retornar_resultado":
+      return grp(<>
+        {lbl("Conteúdo do resultado")}
+        <textarea value={(cfg.resultado as string) ?? ""} onChange={e => set("resultado", e.target.value)} placeholder="Digite o conteúdo ou use {{variavel}}..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+      </>);
+
+    case "enviar_notificacao":
+      return grp(<>
+        {lbl("Mensagem da notificação")}
+        <textarea value={(cfg.mensagem as string) ?? ""} onChange={e => set("mensagem", e.target.value)} placeholder="Digite a mensagem da notificação..." rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+      </>);
+
+    default:
+      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+  }
+}
+
+// ─── AtividadesConfigForm ─────────────────────────────────────────────────────
+
+function AtividadesConfigForm({ item, updateActionItem }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+  return (
+    <>
+      {grp(<>{lbl("Título da atividade")}<AcoesFieldInput value={(cfg.titulo as string) ?? ""} onChange={v => set("titulo", v)} placeholder="Título da atividade..." /></>)}
+      {grp(<>{lbl("Tipo")}
+        <AcoesSelect value={(cfg.tipo as string) ?? ""} onChange={v => set("tipo", v)} placeholder="Selecione o tipo..."
+          options={[{ value: "reuniao", label: "Reunião" }, { value: "ligacao", label: "Ligação" }, { value: "email", label: "Email" }, { value: "tarefa", label: "Tarefa" }, { value: "outro", label: "Outro" }]}
+        />
+      </>)}
+      {grp(<>
+        {lbl("Descrição")}
+        <textarea value={(cfg.descricao as string) ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="Descreva a atividade..." rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+      </>)}
+    </>
+  );
+}
+
 // ─── AcoesPanel ──────────────────────────────────────────────────────────────
 
-function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, onOpenPicker, updateActionItem }: {
+function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, onOpenPicker, updateActionItem, pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups, automations }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
@@ -3308,6 +3496,15 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
   removeActionItem: (itemId: string) => void;
   onOpenPicker: () => void;
   updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+  pipelines: Pipeline[];
+  crmTags: CrmTagType[];
+  addTag: (name: string, description: string, color: string) => Promise<boolean>;
+  crmLists: CrmListType[];
+  teamMembers: string[];
+  products: ProductType[];
+  lossReasons: LossReasonType[];
+  customFieldGroups: CustomFieldGroup[];
+  automations: AutomationRecord[];
 }) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const selectedItem = (node.actionItems ?? []).find(a => a.id === selectedItemId) ?? null;
@@ -3331,7 +3528,15 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           </button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-          <NegociosConfigForm item={selectedItem} updateActionItem={updateActionItem} />
+          {selectedItem.categoryId === "negocios" && <NegociosConfigForm item={selectedItem} updateActionItem={updateActionItem} pipelines={pipelines} teamMembers={teamMembers} products={products} lossReasons={lossReasons} />}
+          {selectedItem.categoryId === "leads" && <LeadsConfigForm item={selectedItem} updateActionItem={updateActionItem} crmTags={crmTags} addTag={addTag} crmLists={crmLists} teamMembers={teamMembers} />}
+          {selectedItem.categoryId === "mensagens" && <MensagensConfigForm item={selectedItem} updateActionItem={updateActionItem} teamMembers={teamMembers} />}
+          {selectedItem.categoryId === "produtos" && <ProdutosConfigForm item={selectedItem} updateActionItem={updateActionItem} />}
+          {selectedItem.categoryId === "sistema" && <SistemaConfigForm item={selectedItem} updateActionItem={updateActionItem} automations={automations} />}
+          {selectedItem.categoryId === "atividades" && <AtividadesConfigForm item={selectedItem} updateActionItem={updateActionItem} />}
+          {!["negocios","leads","mensagens","produtos","sistema","atividades"].includes(selectedItem.categoryId) && (
+            <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>
+          )}
         </div>
       </aside>
     );
