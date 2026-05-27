@@ -10,6 +10,7 @@ import {
   ThumbsUp, ThumbsDown, RotateCcw, ArrowLeftRight, UserPlus, UserMinus, UserX,
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
+  Mail, Phone, UserCheck, Equal, CreditCard,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -281,38 +282,58 @@ const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; d
   },
 ];
 
-const CONDITION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; conditions: { id: string; label: string; description: string }[] }[] = [
+const CONDITION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; conditions: { id: string; label: string; description: string; icon: React.ElementType; warning?: boolean }[] }[] = [
   { id: "negocios", label: "Negócios", icon: Briefcase, description: "Condições baseadas em negócios",
     conditions: [
-      { id: "pos_atend",      label: "Possui atendentes",    description: "Negócio possui atendentes atribuídos" },
-      { id: "sem_atend",      label: "Sem atendentes",       description: "Negócio não possui atendentes" },
-      { id: "ganho",          label: "Está ganho",           description: "Negócio está marcado como ganho" },
-      { id: "perdido",        label: "Está perdido",         description: "Negócio está marcado como perdido" },
-      { id: "pendente",       label: "Está pendente",        description: "Negócio está com situação pendente" },
-      { id: "pos_produto",    label: "Possui produto",       description: "Negócio possui produto vinculado" },
-      { id: "com_id_externo", label: "Com ID externo",       description: "Negócio tem ID externo definido" },
+      { id: "pos_atend",       label: "Negócio possui atendentes",                           description: "Verifica se o negócio possui atendentes",                            icon: UserCheck },
+      { id: "sem_atend",       label: "Negócio sem atendentes",                              description: "Verifica se o negócio não possui atendentes",                        icon: UserX },
+      { id: "ganho",           label: "Negócio está ganho",                                  description: "Verifica se o negócio está ganho",                                   icon: ThumbsUp },
+      { id: "perdido",         label: "Negócio está perdido",                                description: "Verifica se o negócio está perdido",                                 icon: ThumbsDown },
+      { id: "pendente",        label: "Negócio está pendente",                               description: "Verifica se o negócio está pendente",                                icon: Clock },
+      { id: "pos_produto",     label: "Negócio possui o produto",                            description: "Verifica se o negócio possui um produto",                            icon: Package },
+      { id: "com_id_externo",  label: "Negócio com ID externo existente",                    description: "Verifica se o negócio com o ID externo informado existe",            icon: ExternalLink },
+      { id: "campo_adicional", label: "Procura se existe um negócio com um campo adicional", description: "Verifica/procura um negócio com o campo adicional informado",        icon: AlignLeft, warning: true },
     ],
   },
   { id: "leads", label: "Leads", icon: User, description: "Condições baseadas em leads",
     conditions: [
-      { id: "com_email",    label: "Com email",              description: "Lead possui email cadastrado" },
-      { id: "com_nome",     label: "Com nome",               description: "Lead possui nome cadastrado" },
-      { id: "com_telefone", label: "Com telefone",           description: "Lead possui telefone cadastrado" },
-      { id: "com_cpf",      label: "Com CPF",                description: "Lead possui CPF cadastrado" },
-      { id: "pos_tag",      label: "Possui tag",             description: "Lead possui uma tag específica" },
-      { id: "pos_campo",    label: "Possui campo adicional", description: "Lead possui campo adicional preenchido" },
+      { id: "existente",       label: "Lead existente",                                      description: "Verifica se o lead já está cadastrado",                              icon: User },
+      { id: "neg_pipeline",    label: "Lead possui negócio na pipeline",                     description: "Verifica se o lead possui um negócio na pipeline",                   icon: Briefcase },
+      { id: "neg_etapa",       label: "Lead possui negócio na etapa",                        description: "Verifica se o lead possui um negócio em uma etapa",                  icon: Briefcase },
+      { id: "com_email",       label: "Lead com email existente",                            description: "Verifica se o lead já está cadastrado com um email",                 icon: Mail },
+      { id: "com_nome",        label: "Lead com nome existente",                             description: "Verifica se o lead já está cadastrado com um nome",                  icon: User },
+      { id: "com_telefone",    label: "Lead com telefone existente",                         description: "Verifica se o lead já está cadastrado com um telefone",              icon: Phone },
+      { id: "com_cpf",         label: "Lead com CPF existente",                              description: "Verifica se o lead já está cadastrado com um CPF",                   icon: CreditCard },
+      { id: "pos_tag",         label: "Verifica se o lead possui uma tag",                   description: "Verifica se o lead possui uma das tags informadas",                  icon: Tag },
+      { id: "pos_atend",       label: "Lead possuir atendente responsável",                  description: "Verifica se o lead possui atendente responsável",                    icon: UserCheck },
+      { id: "campo_adicional", label: "Procura se existe um lead com um campo adicional",    description: "Verifica/procura um lead com o campo adicional informado",           icon: AlignLeft, warning: true },
     ],
   },
   { id: "campos", label: "Campos", icon: LayoutGrid, description: "Condições baseadas em valores de campos",
     conditions: [
-      { id: "campo_igual",  label: "Campo com valor igual",         description: "Verifica se um campo tem valor específico" },
-      { id: "campo_contem", label: "Campo contém valor",            description: "Verifica se um campo contém um valor" },
-      { id: "campo_entre",  label: "Campo possui valor entre dois", description: "Verifica se campo está entre dois valores" },
+      { id: "campo_igual",     label: "Campo com valor igual",                               description: "Verifica se um campo possui um valor exatamente igual a um valor específico", icon: Equal },
+      { id: "campo_contem",    label: "Campo contém valor",                                  description: "Verifica se um campo contém um valor específico",                    icon: Sliders },
+      { id: "campo_pos_valor", label: "Campo possui valor",                                  description: "Verifica se um campo possui um valor",                               icon: CheckCircle2 },
+      { id: "campo_entre",     label: "Campo possui um valor entre dois valores",            description: "Verifica se um campo numérico está entre dois valores específicos",   icon: Sliders },
     ],
   },
   { id: "tempo", label: "Tempo", icon: Clock, description: "Condições baseadas em data e hora",
     conditions: [
-      { id: "intervalo_tempo", label: "Intervalo de horário", description: "Verifica se a hora atual está em um intervalo de dia/hora" },
+      { id: "intervalo_tempo", label: "Verifica se a hora atual está em um intervalo de dia/hora", description: "Verifica se a hora atual está dentro dos dias da semana e horários selecionados", icon: Clock },
+    ],
+  },
+  { id: "conversas", label: "Conversas", icon: MessageCircle, description: "Condições baseadas em conversas",
+    conditions: [
+      { id: "conv_atend",        label: "Conversa possuir atendente responsável",            description: "Verifica se a conversa possui atendente responsável",               icon: UserCheck },
+      { id: "conv_finalizada",   label: "Conversa finalizada",                               description: "Verifica se a conversa foi finalizada",                             icon: CheckCircle2 },
+      { id: "auto_chat",         label: "Automações de chat estão habilitadas",              description: "Verifica se as automações de chat estão habilitadas para a conversa atual", icon: ToggleRight },
+      { id: "conv_departamento", label: "Conversa em departamento",                          description: "Verifica se a conversa está atribuída a um departamento específico", icon: Building2 },
+      { id: "janela_aberta",     label: "Janela de conversa está aberta",                    description: "Verifica se a última mensagem recebida está dentro da janela de tempo configurada", icon: Clock },
+    ],
+  },
+  { id: "instagram", label: "Instagram", icon: Instagram, description: "Condições baseadas no Instagram",
+    conditions: [
+      { id: "ig_seguidor", label: "Seguidor do Instagram", description: "Verifica se o contato é um seguidor do Instagram", icon: Instagram },
     ],
   },
 ];
@@ -902,6 +923,13 @@ export default function AutomacoesPage() {
     setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, conditionItems: (n.conditionItems ?? []).filter(c => c.id !== itemId) } : n));
   };
 
+  const updateConditionItem = (nodeId: string, itemId: string, config: Record<string, string | boolean | number>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, conditionItems: (n.conditionItems ?? []).map(c => c.id === itemId ? { ...c, config: { ...(c.config ?? {}), ...config } } : c) }
+      : n
+    ));
+  };
+
   const updateEspera = (nodeId: string, data: Partial<EsperaConfig>) => {
     setNodes(prev => prev.map(n => n.id === nodeId
       ? { ...n, espera: { type: "intervalo", days: ["seg","ter","qua","qui","sex"], startTime: "08:00", endTime: "18:00", ...(n.espera ?? {}), ...data } }
@@ -1240,7 +1268,13 @@ export default function AutomacoesPage() {
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
               removeConditionItem={(itemId) => removeConditionItem(nodePanel, itemId)}
+              updateConditionItem={(itemId, config) => updateConditionItem(nodePanel, itemId, config)}
               onOpenPicker={() => setCondicoesPickerOpen(true)}
+              pipelines={pipelines}
+              crmTags={crmTags}
+              teamMembers={teamMembers}
+              products={products}
+              customFieldGroups={customFieldGroups}
             />
           )}
 
@@ -1834,25 +1868,31 @@ export default function AutomacoesPage() {
                     <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
                     <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {cat.conditions.map(cond => (
-                        <button key={cond.id}
-                          onClick={() => {
-                            if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
-                            setCondicoesPickerOpen(false);
-                          }}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                        >
-                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                            <Filter size={14} color="#6366F1" />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{cond.label}</div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
-                          </div>
-                        </button>
-                      ))}
+                      {cat.conditions.map(cond => {
+                        const CondIcon = cond.icon ?? Filter;
+                        return (
+                          <button key={cond.id}
+                            onClick={() => {
+                              if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
+                              setCondicoesPickerOpen(false);
+                            }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                          >
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                              <CondIcon size={14} color="#6366F1" />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 6 }}>
+                                {cond.label}
+                                {cond.warning && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "1px 6px" }}>Atenção</span>}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 );
@@ -3184,14 +3224,58 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
 
 // ─── CondicoesPanel ──────────────────────────────────────────────────────────
 
-function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionItem, onOpenPicker }: {
+function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionItem, updateConditionItem, onOpenPicker, pipelines, crmTags, teamMembers, products, customFieldGroups }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   removeConditionItem: (itemId: string) => void;
+  updateConditionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
   onOpenPicker: () => void;
+  pipelines: Pipeline[];
+  crmTags: CrmTagType[];
+  teamMembers: string[];
+  products: ProductType[];
+  customFieldGroups: CustomFieldGroup[];
 }) {
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const selectedItem = (node.conditionItems ?? []).find(c => c.id === selectedItemId) ?? null;
+
+  if (selectedItemId && selectedItem) {
+    const catData = CONDITION_CATEGORIES.find(c => c.id === selectedItem.categoryId);
+    const condData = catData?.conditions.find(c => c.id === selectedItem.conditionId);
+    return (
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+          <button
+            onClick={() => setSelectedItemId(null)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
+          >
+            <ArrowLeft size={15} />
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? selectedItem.label}</span>
+            {condData?.warning && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+            )}
+          </button>
+          {condData?.description && (
+            <p style={{ fontSize: 12, color: "#6B7280", margin: "6px 0 0", paddingLeft: 21 }}>{condData.description}</p>
+          )}
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+          <CondicoesConfigContent
+            item={selectedItem}
+            updateItem={(config) => updateConditionItem(selectedItem.id, config)}
+            pipelines={pipelines}
+            crmTags={crmTags}
+            teamMembers={teamMembers}
+            products={products}
+            customFieldGroups={customFieldGroups}
+          />
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
@@ -3218,15 +3302,23 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
             {(node.conditionItems ?? []).map(item => {
               const catData = CONDITION_CATEGORIES.find(c => c.id === item.categoryId);
               const condData = catData?.conditions.find(c => c.id === item.conditionId);
+              const Icon = condData?.icon ?? Filter;
               return (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F3F4FF", border: "0.5px solid #C7D2FE", borderRadius: 8 }}>
-                  <Filter size={13} color="#6366F1" />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>{condData?.label ?? item.label}</div>
-                    <div style={{ fontSize: 10, color: "#9CA3AF" }}>{catData?.label}</div>
+                <div key={item.id}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
+                  onClick={() => setSelectedItemId(item.id)}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}
+                >
+                  <Icon size={13} color="#8B5CF6" style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1, overflow: "hidden" }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
+                    <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.description}</div>
                   </div>
-                  <button onClick={() => removeConditionItem(item.id)}
-                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
+                  <ChevronRight size={12} color="#9CA3AF" style={{ flexShrink: 0 }} />
+                  <button
+                    onClick={e => { e.stopPropagation(); removeConditionItem(item.id); }}
+                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", flexShrink: 0 }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
                   ><X size={11} /></button>
@@ -3247,6 +3339,193 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
       </div>
     </aside>
   );
+}
+
+// ─── CondicoesConfigContent ──────────────────────────────────────────────────
+
+function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMembers, products, customFieldGroups }: {
+  item: ConditionItem;
+  updateItem: (config: Record<string, string | boolean | number>) => void;
+  pipelines: Pipeline[];
+  crmTags: CrmTagType[];
+  teamMembers: string[];
+  products: ProductType[];
+  customFieldGroups: CustomFieldGroup[];
+}) {
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateItem({ [key]: val });
+
+  const lbl = (text: string) => (
+    <label style={{ fontSize: 11, fontWeight: 600, color: "#8B5CF6", display: "block", marginBottom: 4, lineHeight: 1.4 }}>{text}</label>
+  );
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 16 }}>{children}</div>;
+
+  const textInp = (placeholder: string, key: string) => (
+    <input type="text" value={String(cfg[key] ?? "")} onChange={e => set(key, e.target.value)} placeholder={placeholder}
+      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+  );
+
+  const numInp = (placeholder: string, key: string, min?: number) => (
+    <input type="number" value={String(cfg[key] ?? "")} onChange={e => set(key, Number(e.target.value))} placeholder={placeholder} min={min}
+      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+  );
+
+  const selInp = (key: string, opts: { value: string; label: string }[], placeholder = "Selecionar") => (
+    <select value={String(cfg[key] ?? "")} onChange={e => set(key, e.target.value)}
+      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFF", boxSizing: "border-box" as const }}>
+      <option value="">{placeholder}</option>
+      {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+
+  const noConfig = <div style={{ fontSize: 12, color: "#9CA3AF", padding: "8px 0" }}>Esta condição não requer configuração.</div>;
+
+  const warningBox = (text: string) => (
+    <div style={{ padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 16, display: "flex", gap: 8, alignItems: "flex-start" }}>
+      <Info size={14} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} /><span style={{ lineHeight: 1.5 }}>{text}</span>
+    </div>
+  );
+
+  const attendantSel = (key: string, hint: string) => (
+    <>{lbl(hint)}{selInp(key, teamMembers.map(m => ({ value: m, label: m })))}</>
+  );
+
+  const customFields = customFieldGroups.flatMap(g => g.items.map(f => ({ value: f.id, label: `${g.name} — ${f.label}` })));
+  const campoAdicionalBlock = (entity: string) => (
+    <>
+      {warningBox(`Este bloco procura o primeiro ${entity} encontrado com esse valor de campo adicional — se houver mais de um com o mesmo valor, somente o primeiro será retornado. Para verificar o campo do ${entity} atual, utilize as condições de campo.`)}
+      {grp(<>{lbl(`Campo adicional para procurar o ${entity}`)}{selInp("campo_id", customFields)}</>)}
+      {grp(<>{lbl("Tipo de comparação")}{selInp("tipo_comparacao", [{ value: "igual", label: "Igual" }, { value: "contem", label: "Contém" }])}</>)}
+      {grp(<>{lbl(`Valor para comparar no campo adicional`)}{textInp("", "valor")}</>)}
+    </>
+  );
+
+  const { conditionId: id, categoryId: catId } = item;
+
+  // ── Negócios ──────────────────────────────────────────────────────────────
+  if (catId === "negocios") {
+    if (id === "pos_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um.")}</>)}</>;
+    if (id === "sem_atend" || id === "ganho" || id === "perdido" || id === "pendente") return noConfig;
+    if (id === "pos_produto") return (
+      <>
+        {grp(<>{lbl("Selecione o produto que será verificado no negócio. Deixe em branco para utilizar a busca pelo SKU")}{selInp("produto_id", products.map(p => ({ value: p.id, label: p.name })))}</>)}
+        {grp(<>{lbl("Informe o SKU para verificar se o produto existe no negócio")}{textInp("", "sku")}</>)}
+      </>
+    );
+    if (id === "com_id_externo") return <>{grp(<>{lbl("ID externo para procurar o negócio")}{textInp("", "id_externo")}</>)}</>;
+    if (id === "campo_adicional") return <>{campoAdicionalBlock("negócio")}</>;
+  }
+
+  // ── Leads ─────────────────────────────────────────────────────────────────
+  if (catId === "leads") {
+    if (id === "existente") return noConfig;
+    if (id === "neg_pipeline") return <>{grp(<>{lbl("Informe em qual pipeline que será procurado pelo negócio do lead")}{selInp("pipeline_id", pipelines.map(p => ({ value: p.id, label: p.name })))}</>)}</>;
+    if (id === "neg_etapa") {
+      const stages = pipelines.flatMap(p => (p.columns ?? []).map(c => ({ value: c.id, label: `${p.name} → ${c.title}` })));
+      return <>{grp(<>{lbl("Informe em qual etapa que será procurado pelo negócio do lead")}{selInp("etapa_id", stages)}</>)}</>;
+    }
+    if (id === "com_email") return <>{grp(<>{lbl("Email")}{textInp("", "email")}</>)}</>;
+    if (id === "com_nome") return <>{grp(<>{lbl("Nome")}{textInp("", "nome")}</>)}</>;
+    if (id === "com_telefone") return <>{grp(<>{lbl("Telefone")}{textInp("", "telefone")}</>)}</>;
+    if (id === "com_cpf") return <>{grp(<>{lbl("CPF")}{textInp("", "cpf")}</>)}</>;
+    if (id === "pos_tag") return (
+      <>
+        {grp(<>
+          {lbl("Selecione as tags para verificar se existem no lead")}
+          {selInp("tag_ids", crmTags.map(t => ({ value: t.id, label: t.name })), "Selecione as tags")}
+        </>)}
+        <p style={{ fontSize: 11, color: "#6B7280", marginTop: -8, lineHeight: 1.4 }}>Será verdadeiro se o lead possuir pelo menos uma das tags informadas</p>
+      </>
+    );
+    if (id === "pos_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja verificar se são os atendentes responsáveis do lead. Deixe em branco para considerar qualquer um.")}</>)}</>;
+    if (id === "campo_adicional") return <>{campoAdicionalBlock("lead")}</>;
+    if (id === "pos_campo") return <>{grp(<>{lbl("Campo")}{textInp("Nome do campo", "campo")}</>)}</>;
+  }
+
+  // ── Campos ────────────────────────────────────────────────────────────────
+  if (catId === "campos") {
+    const paramOpts = [
+      { value: "lead.id",         label: "ID do lead" },
+      { value: "lead.name",       label: "Nome do lead" },
+      { value: "lead.email",      label: "Email do lead" },
+      { value: "lead.phone",      label: "Telefone do lead" },
+      { value: "lead.cpf",        label: "CPF do lead" },
+      { value: "lead.source",     label: "Origem do lead" },
+      { value: "negocio.id",      label: "ID do negócio" },
+      { value: "negocio.name",    label: "Nome do negócio" },
+      { value: "negocio.value",   label: "Valor do negócio" },
+      { value: "negocio.status",  label: "Status do negócio" },
+      ...customFieldGroups.flatMap(g => g.items.map(f => ({ value: `custom.${f.id}`, label: `${g.name}: ${f.label}` }))),
+    ];
+    const paramField = grp(<>{lbl("Qual parâmetro será utilizado na condicional?")}{selInp("parametro", paramOpts)}</>);
+
+    if (id === "campo_igual") return <>{paramField}{grp(<>{lbl("O valor é igual a")}{textInp("", "valor")}</>)}</>;
+    if (id === "campo_contem") return <>{paramField}{grp(<>{lbl("O valor contém")}{textInp("", "valor")}</>)}</>;
+    if (id === "campo_pos_valor") return <>{paramField}</>;
+    if (id === "campo_entre") return (
+      <>
+        {paramField}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "end", marginBottom: 8 }}>
+          <div>{lbl("está entre")}{numInp("0", "valor_min")}</div>
+          <span style={{ fontSize: 12, color: "#6B7280", paddingBottom: 9 }}>e</span>
+          <div>{lbl(" ")}{numInp("9999", "valor_max")}</div>
+        </div>
+        <p style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>valores iguais são considerados como verdadeiros</p>
+      </>
+    );
+  }
+
+  // ── Tempo ─────────────────────────────────────────────────────────────────
+  if (catId === "tempo" && id === "intervalo_tempo") {
+    const DAYS_CFG = [
+      { id: "dom", short: "D" }, { id: "seg", short: "S" }, { id: "ter", short: "T" },
+      { id: "qua", short: "Q" }, { id: "qui", short: "Q" }, { id: "sex", short: "S" }, { id: "sab", short: "S" },
+    ];
+    const selDays = String(cfg["dias"] ?? "seg,ter,qua,qui,sex").split(",").filter(Boolean);
+    const toggleDay = (d: string) => {
+      const next = selDays.includes(d) ? selDays.filter(x => x !== d) : [...selDays, d];
+      set("dias", next.join(","));
+    };
+    const tzOpts = ["America/Sao_Paulo","America/Manaus","America/Fortaleza","America/Recife","America/Belem","America/Porto_Velho","America/Noronha","UTC"]
+      .map(tz => ({ value: tz, label: `${tz.replace("America/", "").replace("_", " ")} (${tz === "UTC" ? "UTC" : tz === "America/Sao_Paulo" ? "BRT" : tz === "America/Manaus" ? "AMT" : tz === "America/Noronha" ? "FNT" : "BR"})` }));
+    return (
+      <>
+        {grp(<>
+          {lbl("Dias da semana a serem considerados")}
+          <div style={{ display: "flex", gap: 4 }}>
+            {DAYS_CFG.map(d => {
+              const sel = selDays.includes(d.id);
+              return (
+                <button key={d.id} onClick={() => toggleDay(d.id)}
+                  style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${sel ? "#3B82F6" : "#E5E7EB"}`, background: sel ? "#3B82F6" : "#FFF", color: sel ? "#FFF" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  {d.short}
+                </button>
+              );
+            })}
+          </div>
+        </>)}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "end", marginBottom: 16 }}>
+          <div>{lbl("Intervalo de horas entre")}<input type="time" value={String(cfg["hora_inicio"] ?? "00:00")} onChange={e => set("hora_inicio", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
+          <span style={{ fontSize: 12, color: "#6B7280", paddingBottom: 9 }}>e</span>
+          <div>{lbl(" ")}<input type="time" value={String(cfg["hora_fim"] ?? "23:59")} onChange={e => set("hora_fim", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
+        </div>
+        {grp(<>{lbl("Fuso horário")}{selInp("timezone", tzOpts, "America/Sao_Paulo (BRT)")}</>)}
+      </>
+    );
+  }
+
+  // ── Conversas ─────────────────────────────────────────────────────────────
+  if (catId === "conversas") {
+    if (id === "conv_finalizada" || id === "auto_chat") return noConfig;
+    if (id === "conv_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja verificar se são os atendentes responsáveis da conversa. Deixe em branco para considerar qualquer um.")}</>)}</>;
+    if (id === "conv_departamento") return <>{grp(<>{lbl("Selecione os departamentos que deseja verificar se estão atribuídos à conversa. Deixe em branco para considerar qualquer um.")}{textInp("Selecionar", "departamento")}</>)}</>;
+    if (id === "janela_aberta") return <>{grp(<>{lbl("Janela de tempo em horas (padrão: 24)")}{numInp("24", "janela_horas", 1)}</>)}</>;
+  }
+
+  // ── Instagram ─────────────────────────────────────────────────────────────
+  if (catId === "instagram") return noConfig;
+
+  return noConfig;
 }
 
 // ─── EsperaPanel ──────────────────────────────────────────────────────────────
