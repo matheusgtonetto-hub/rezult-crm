@@ -102,11 +102,11 @@ BEGIN
   IF TG_OP = 'INSERT' THEN
     PERFORM public.dispatch_automation_event(
       'lead_criado', v_company_id, NEW.id,
-      jsonb_build_object('pipeline_id', NEW.pipeline_id, 'column_id', NEW.column_id)
+      jsonb_build_object('pipeline_id', NEW.pipeline_id, 'new_column_id', NEW.column_id)
     );
     PERFORM public.dispatch_automation_event(
       'neg_criado', v_company_id, NEW.id,
-      jsonb_build_object('pipeline_id', NEW.pipeline_id, 'column_id', NEW.column_id)
+      jsonb_build_object('pipeline_id', NEW.pipeline_id, 'new_column_id', NEW.column_id)
     );
     RETURN NEW;
   END IF;
@@ -128,14 +128,20 @@ BEGIN
   -- Status do negócio alterado (ganho / perdido / restaurado)
   IF NEW.status IS DISTINCT FROM OLD.status THEN
     IF NEW.status = 'won' THEN
-      PERFORM public.dispatch_automation_event('neg_ganho', v_company_id, NEW.id, '{}');
+      PERFORM public.dispatch_automation_event(
+        'neg_ganho', v_company_id, NEW.id,
+        jsonb_build_object('pipeline_id', NEW.pipeline_id, 'new_column_id', NEW.column_id)
+      );
     ELSIF NEW.status = 'lost' THEN
       PERFORM public.dispatch_automation_event(
         'neg_perdido', v_company_id, NEW.id,
-        jsonb_build_object('loss_reason_id', NEW.loss_reason_id)
+        jsonb_build_object('pipeline_id', NEW.pipeline_id, 'new_column_id', NEW.column_id, 'loss_reason_id', NEW.loss_reason_id)
       );
     ELSIF NEW.status = 'open' AND OLD.status IN ('won', 'lost') THEN
-      PERFORM public.dispatch_automation_event('neg_restaurado', v_company_id, NEW.id, '{}');
+      PERFORM public.dispatch_automation_event(
+        'neg_restaurado', v_company_id, NEW.id,
+        jsonb_build_object('pipeline_id', NEW.pipeline_id, 'new_column_id', NEW.column_id)
+      );
     END IF;
   END IF;
 

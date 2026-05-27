@@ -127,6 +127,27 @@ async function matchesTriggerConfig(
   const cfg = trigger.configData ?? {};
 
   switch (trigger.triggerId) {
+    case "neg_criado": {
+      if (cfg.pipeline && payload.context.pipeline_id !== cfg.pipeline) return false;
+      if (cfg.stage && payload.context.new_column_id !== cfg.stage) return false;
+      return true;
+    }
+    case "neg_movido": {
+      if (cfg.pipeline && payload.context.pipeline_id !== cfg.pipeline) return false;
+      if (cfg.stage && payload.context.new_column_id !== cfg.stage) return false;
+      return true;
+    }
+    case "neg_ganho":
+    case "neg_restaurado": {
+      if (cfg.pipeline && payload.context.pipeline_id !== cfg.pipeline) return false;
+      if ((cfg.scope as string) === "Etapa" && cfg.stage && payload.context.new_column_id !== cfg.stage) return false;
+      return true;
+    }
+    case "neg_perdido": {
+      if (cfg.pipeline && payload.context.pipeline_id !== cfg.pipeline) return false;
+      if ((cfg.scope as string) === "Etapa" && cfg.stage && payload.context.new_column_id !== cfg.stage) return false;
+      return true;
+    }
     case "tag_adicionada": {
       const cfgTagIds = splitIds(cfg.tags as string);
       if (!cfgTagIds.length) return true;
@@ -145,11 +166,6 @@ async function matchesTriggerConfig(
       const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsRemoved.includes(n));
-    }
-    case "neg_movido": {
-      const cfgStage = cfg.stage as string;
-      if (!cfgStage) return true;
-      return payload.context.new_column_id === cfgStage;
     }
     case "atend_atribuido": {
       const cfgAtend = cfg.atendente as string;
