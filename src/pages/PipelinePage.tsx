@@ -958,11 +958,12 @@ export default function PipelinePage() {
                                                 <div className="flex flex-wrap gap-1 flex-1 min-w-0">
                                                   {(lead.tags || []).map(tagName => {
                                                     const t = crmTags.find(x => x.name === tagName);
+                                                    if (!t) return null;
                                                     return (
                                                       <span
                                                         key={tagName}
                                                         className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
-                                                        style={{ background: t?.color || "#888" }}
+                                                        style={{ background: t.color || "#888" }}
                                                       >
                                                         {tagName}
                                                       </span>
