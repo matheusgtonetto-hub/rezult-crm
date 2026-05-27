@@ -3906,24 +3906,50 @@ function ArmazenamentoSection() {
   const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
 
   const [loading, setLoading] = useState(true);
-  const [filesBytes, setFilesBytes] = useState(0);
-  const [leadsBytes, setLeadsBytes] = useState(0);
+  const [filesBytes, setFilesBytes]         = useState(0);
+  const [msgsBytes, setMsgsBytes]           = useState(0);
+  const [convsBytes, setConvsBytes]         = useState(0);
+  const [leadsBytes, setLeadsBytes]         = useState(0);
   const [activitiesBytes, setActivitiesBytes] = useState(0);
-  const [tasksBytes, setTasksBytes] = useState(0);
+  const [automsBytes, setAutomsBytes]       = useState(0);
+  const [tasksBytes, setTasksBytes]         = useState(0);
+  const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
     async function load() {
       try {
-        const [filesRes, leadsRes, activitiesRes, tasksRes] = await Promise.all([
+        const [
+          filesRes, msgsRes, convsRes, leadsRes,
+          activitiesRes, automsRes, autoLogsRes, tasksRes,
+          tagsRes, productsRes, listsRes, cfRes,
+        ] = await Promise.all([
           supabase.from("lead_files").select("size"),
+          supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }),
+          supabase.from("whatsapp_conversations").select("*", { count: "exact", head: true }),
           supabase.from("leads").select("*", { count: "exact", head: true }),
           supabase.from("activities").select("*", { count: "exact", head: true }),
+          supabase.from("automations").select("*", { count: "exact", head: true }),
+          supabase.from("automation_logs").select("*", { count: "exact", head: true }),
           supabase.from("tasks").select("*", { count: "exact", head: true }),
+          supabase.from("tags").select("*", { count: "exact", head: true }),
+          supabase.from("products").select("*", { count: "exact", head: true }),
+          supabase.from("lists").select("*", { count: "exact", head: true }),
+          supabase.from("custom_field_items").select("*", { count: "exact", head: true }),
         ]);
+
         setFilesBytes((filesRes.data ?? []).reduce((acc: number, f: any) => acc + (f.size ?? 0), 0));
+        setMsgsBytes((msgsRes.count ?? 0) * 512);
+        setConvsBytes((convsRes.count ?? 0) * 1024);
         setLeadsBytes((leadsRes.count ?? 0) * 3 * 1024);
         setActivitiesBytes((activitiesRes.count ?? 0) * 1024);
+        setAutomsBytes((automsRes.count ?? 0) * 5 * 1024 + (autoLogsRes.count ?? 0) * 512);
         setTasksBytes((tasksRes.count ?? 0) * 512);
+        setOthersBytes(
+          (tagsRes.count ?? 0) * 256 +
+          (productsRes.count ?? 0) * 512 +
+          (listsRes.count ?? 0) * 256 +
+          (cfRes.count ?? 0) * 512
+        );
       } catch {
         // silencioso — mantém zeros
       } finally {
@@ -3940,13 +3966,17 @@ function ArmazenamentoSection() {
   };
 
   const categories = [
-    { label: "Arquivos de leads",  color: "#3B82F6", bytes: filesBytes      },
-    { label: "Leads e negócios",   color: "#8B5CF6", bytes: leadsBytes      },
-    { label: "Atividades",         color: "#10B981", bytes: activitiesBytes },
-    { label: "Tarefas",            color: "#F59E0B", bytes: tasksBytes      },
+    { label: "Mensagens",          color: "#3B82F6", bytes: msgsBytes        },
+    { label: "Conversas",          color: "#06B6D4", bytes: convsBytes       },
+    { label: "Arquivos de leads",  color: "#8B5CF6", bytes: filesBytes       },
+    { label: "Leads e negócios",   color: "#F97316", bytes: leadsBytes       },
+    { label: "Atividades",         color: "#10B981", bytes: activitiesBytes  },
+    { label: "Automações",         color: "#EF4444", bytes: automsBytes      },
+    { label: "Tarefas",            color: "#F59E0B", bytes: tasksBytes       },
+    { label: "Outros registros",   color: "#94A3B8", bytes: othersBytes      },
   ];
 
-  const totalBytes = filesBytes + leadsBytes + activitiesBytes + tasksBytes;
+  const totalBytes = categories.reduce((s, c) => s + c.bytes, 0);
 
   return (
     <>
