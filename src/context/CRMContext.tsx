@@ -491,6 +491,57 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       console.error("[CRMContext] loadAll crash:", err);
       setCrmLoading(false);
     });
+
+    // Real-time subscription — keeps leads in sync when automations update them externally
+    const channel = supabase
+      .channel(`leads-rt-${ownerId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads", filter: `owner_id=eq.${ownerId}` },
+        (payload) => {
+          if (payload.eventType === "UPDATE") {
+            const row = payload.new as Record<string, unknown>;
+            const leadId = row.id as string;
+            const newColId = (row.column_id as string) ?? null;
+
+            setLeads(prev => {
+              if (!prev[leadId]) return prev;
+              return { ...prev, [leadId]: dbToLead(row, prev[leadId].activities) };
+            });
+
+            setPipelines(prev => {
+              let currentColId: string | null = null;
+              for (const p of prev) {
+                for (const c of p.columns) {
+                  if (c.leadIds.includes(leadId)) { currentColId = c.id; break; }
+                }
+                if (currentColId) break;
+              }
+              if (currentColId === newColId) return prev;
+              return prev.map(p => ({
+                ...p,
+                columns: p.columns.map(c => {
+                  if (c.id === currentColId) return { ...c, leadIds: c.leadIds.filter(id => id !== leadId) };
+                  if (c.id === newColId && newColId && !c.leadIds.includes(leadId)) return { ...c, leadIds: [...c.leadIds, leadId] };
+                  return c;
+                }),
+              }));
+            });
+          } else if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Record<string, unknown>;
+            const leadId = oldRow.id as string;
+            if (!leadId) return;
+            setLeads(prev => { const n = { ...prev }; delete n[leadId]; return n; });
+            setPipelines(prev => prev.map(p => ({
+              ...p,
+              columns: p.columns.map(c => ({ ...c, leadIds: c.leadIds.filter(id => id !== leadId) })),
+            })));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, company?.id]);
 
