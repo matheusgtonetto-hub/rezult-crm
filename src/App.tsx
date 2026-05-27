@@ -29,6 +29,8 @@ import SetupPage from "./pages/SetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import GoogleOAuthCallback from "./pages/configuracoes/GoogleOAuthCallback";
+import PlanosPage from "./pages/Planos";
+import CheckoutSuccessPage from "./pages/CheckoutSuccess";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,8 @@ function AppRoutes() {
           <Route path="/login" element={<Navigate to="/dashboard" replace />} />
           <Route path="/company-register" element={<CompanyRegisterPage />} />
           <Route path="/setup" element={<SetupPage />} />
+          <Route path="/planos" element={<PlanosPage />} />
+          <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/configuracoes/email/callback" element={<GoogleOAuthCallback />} />
           <Route element={<AppLayout />}>
