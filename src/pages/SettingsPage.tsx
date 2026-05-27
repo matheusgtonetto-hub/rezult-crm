@@ -3916,25 +3916,31 @@ function ArmazenamentoSection() {
   const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
+    if (!company?.owner_id) return;
+    const oid = company.owner_id;
+
     async function load() {
       try {
+        const q = (table: string) =>
+          supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+
         const [
           filesRes, msgsRes, convsRes, leadsRes,
           activitiesRes, automsRes, autoLogsRes, tasksRes,
           tagsRes, productsRes, listsRes, cfRes,
         ] = await Promise.all([
-          supabase.from("lead_files").select("size"),
-          supabase.from("whatsapp_messages").select("*", { count: "exact", head: true }),
-          supabase.from("whatsapp_conversations").select("*", { count: "exact", head: true }),
-          supabase.from("leads").select("*", { count: "exact", head: true }),
-          supabase.from("activities").select("*", { count: "exact", head: true }),
-          supabase.from("automations").select("*", { count: "exact", head: true }),
-          supabase.from("automation_logs").select("*", { count: "exact", head: true }),
-          supabase.from("tasks").select("*", { count: "exact", head: true }),
-          supabase.from("tags").select("*", { count: "exact", head: true }),
-          supabase.from("products").select("*", { count: "exact", head: true }),
-          supabase.from("lists").select("*", { count: "exact", head: true }),
-          supabase.from("custom_field_items").select("*", { count: "exact", head: true }),
+          supabase.from("lead_files").select("size, leads!inner(owner_id)").eq("leads.owner_id", oid),
+          q("whatsapp_messages"),
+          q("whatsapp_conversations"),
+          q("leads"),
+          q("activities"),
+          q("automations"),
+          q("automation_logs"),
+          q("tasks"),
+          q("tags"),
+          q("products"),
+          q("lists"),
+          q("custom_field_items"),
         ]);
 
         setFilesBytes((filesRes.data ?? []).reduce((acc: number, f: any) => acc + (f.size ?? 0), 0));
@@ -3957,7 +3963,7 @@ function ArmazenamentoSection() {
       }
     }
     load();
-  }, []);
+  }, [company?.owner_id]);
 
   const fmtGB = (b: number) => {
     if (b === 0) return "0 GB";
