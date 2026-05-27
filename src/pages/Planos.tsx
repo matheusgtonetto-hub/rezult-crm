@@ -47,7 +47,7 @@ const PLAN_INFO: PlanInfo[] = [
   {
     key: "starter",
     name: "Starter",
-    prices: { monthly: "R$ 237", semiannual: "R$ 201", annual: "R$ 166" },
+    prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     features: [
       "Até 5 pipelines com até 8 etapas",
       "Negócios e produtos",
@@ -62,7 +62,7 @@ const PLAN_INFO: PlanInfo[] = [
     key: "essential",
     name: "Essential",
     badge: "Mais popular",
-    prices: { monthly: "R$ 399", semiannual: "R$ 339", annual: "R$ 279" },
+    prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     features: [
       "Até 20 pipelines com até 15 etapas",
       "Negócios e produtos",
@@ -78,7 +78,7 @@ const PLAN_INFO: PlanInfo[] = [
   {
     key: "pro",
     name: "Pro",
-    prices: { monthly: "R$ 747", semiannual: "R$ 635", annual: "R$ 523" },
+    prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     features: [
       "Pipelines ilimitadas com até 25 etapas",
       "Leads ilimitados",
@@ -103,11 +103,6 @@ const PERIOD_DISCOUNT: Record<BillingPeriod, string | null> = {
   annual:     "-30%",
 };
 
-const PERIOD_SUFFIX: Record<BillingPeriod, string> = {
-  monthly:    "/mês",
-  semiannual: "/mês · cobrado semestralmente",
-  annual:     "/mês · cobrado anualmente",
-};
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -247,10 +242,13 @@ export default function PlanosPage() {
                 <span className="text-3xl font-bold text-foreground">
                   {plan.prices[billingPeriod]}
                 </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                  {PERIOD_SUFFIX[billingPeriod]}
-                </span>
+                {billingPeriod === "monthly" && (
+                  <span className="text-xs text-muted-foreground ml-1">/mês</span>
+                )}
               </div>
+              {billingPeriod !== "monthly" && (
+                <p className="text-xs text-muted-foreground mb-1">cobrado de uma vez</p>
+              )}
 
               {/* Discount badge */}
               {PERIOD_DISCOUNT[billingPeriod] ? (
