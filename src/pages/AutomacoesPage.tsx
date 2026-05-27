@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -816,6 +816,14 @@ export default function AutomacoesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, trigger]);
 
+  // Block React Router navigation (main sidebar, browser back button)
+  const blocker = useBlocker(isDirty && view === "editor");
+
+  useEffect(() => {
+    if (blocker.state === "blocked") setUnsavedOpen(true);
+  }, [blocker.state]);
+
+  // Block browser refresh / tab close
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty && view === "editor") { e.preventDefault(); e.returnValue = ""; }
@@ -823,6 +831,13 @@ export default function AutomacoesPage() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
+
+  // Called when dialog closes without choosing (Escape / click outside) → cancel the blocked navigation
+  const handleUnsavedOpenChange = (open: boolean) => {
+    setUnsavedOpen(open);
+    if (!open && blocker.state === "blocked") blocker.reset();
+    if (!open) { pendingLeaveRef.current = null; }
+  };
 
   const requestLeave = (action: () => void) => {
     if (isDirty && view === "editor") {
@@ -836,13 +851,24 @@ export default function AutomacoesPage() {
   const handleLeaveWithoutSaving = () => {
     setIsDirty(false);
     setUnsavedOpen(false);
-    pendingLeaveRef.current?.();
-    pendingLeaveRef.current = null;
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else {
+      pendingLeaveRef.current?.();
+      pendingLeaveRef.current = null;
+    }
   };
 
   const handleSaveAndLeave = async () => {
-    await handleSave();
     setUnsavedOpen(false);
+    if (blocker.state === "blocked") {
+      // Proceed first (router navigation), then save in background
+      blocker.proceed();
+      handleSave();
+      return;
+    }
+    // Local navigation (requestLeave): save first, then navigate
+    await handleSave();
     pendingLeaveRef.current?.();
     pendingLeaveRef.current = null;
   };
@@ -1968,7 +1994,7 @@ export default function AutomacoesPage() {
       </Dialog>
 
       {/* Unsaved changes guard */}
-      <AlertDialog open={unsavedOpen} onOpenChange={setUnsavedOpen}>
+      <AlertDialog open={unsavedOpen} onOpenChange={handleUnsavedOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem alterações não publicadas</AlertDialogTitle>
