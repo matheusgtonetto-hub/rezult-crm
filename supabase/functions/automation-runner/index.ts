@@ -40,11 +40,22 @@ interface ActionItem {
   config?: Record<string, string | boolean | number>;
 }
 
+interface ConditionItem {
+  id: string;
+  categoryId: string;
+  conditionId: string;
+  label: string;
+  config?: Record<string, string | boolean | number>;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
   trigger?: TriggerConfig | null;
   actionItems?: ActionItem[];
+  conditionItems?: ConditionItem[];
+  parentId?: string | null;
+  errorParentId?: string | null;
 }
 
 interface AutomationFlow {
@@ -203,7 +214,7 @@ async function matchesTriggerConfig(
   }
 }
 
-// ─── Flow execution ───────────────────────────────────────────────────────────
+// ─── Flow execution (graph traversal) ────────────────────────────────────────
 
 async function executeFlow(
   supabase: SupabaseClient,
@@ -212,9 +223,10 @@ async function executeFlow(
   automationId: string,
 ) {
   const { company_id, lead_id } = payload;
+  const allNodes: CanvasNode[] = flow.nodes ?? [];
 
-  // Log trigger on the start node
-  const startNode = flow.nodes?.find((n) => n.type === "start");
+  // Log start node
+  const startNode = allNodes.find((n) => n.type === "start");
   if (startNode) {
     await supabase.from("automation_logs").insert({
       automation_id: automationId,
@@ -225,36 +237,323 @@ async function executeFlow(
     });
   }
 
-  // Execute action nodes in canvas order, logging per-node results
-  const actionNodes = (flow.nodes ?? []).filter((n) => n.type === "acoes");
-  for (const node of actionNodes) {
-    let successCount = 0;
-    const errorMessages: string[] = [];
+  // Build parent→children maps from the canvas graph.
+  // children[parentId] = nodes connected via the blue/normal output port
+  // errorChildren[parentId] = nodes connected via the red/error output port
+  // compound key "${nodeId}_${condItemId}" = per-condition individual true path
+  const children = new Map<string, CanvasNode[]>();
+  const errorChildren = new Map<string, CanvasNode[]>();
 
-    for (const item of (node.actionItems ?? [])) {
-      try {
-        await executeAction(supabase, item, payload);
-        successCount++;
-      } catch (err) {
-        errorMessages.push(String(err));
-        console.error(`[node ${node.id}] action ${item.actionId} failed:`, err);
-      }
+  for (const n of allNodes) {
+    if (n.parentId) {
+      const arr = children.get(n.parentId) ?? [];
+      arr.push(n);
+      children.set(n.parentId, arr);
     }
+    if (n.errorParentId) {
+      const arr = errorChildren.get(n.errorParentId) ?? [];
+      arr.push(n);
+      errorChildren.set(n.errorParentId, arr);
+    }
+  }
 
-    if (successCount > 0 || errorMessages.length > 0) {
-      const status = errorMessages.length > 0
-        ? (successCount > 0 ? "alert" : "error")
-        : "success";
+  // BFS traversal starting from start node's children
+  const queue: CanvasNode[] = [...(children.get(startNode?.id ?? "") ?? [])];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+
+    // Guard against cycles
+    if (visited.has(node.id)) continue;
+    visited.add(node.id);
+
+    if (node.type === "note" || node.type === "start") continue;
+
+    if (node.type === "acoes") {
+      let successCount = 0;
+      const errorMessages: string[] = [];
+
+      for (const item of (node.actionItems ?? [])) {
+        try {
+          await executeAction(supabase, item, payload);
+          successCount++;
+        } catch (err) {
+          errorMessages.push(String(err));
+          console.error(`[node ${node.id}] action ${item.actionId} failed:`, err);
+        }
+      }
+
+      if (successCount > 0 || errorMessages.length > 0) {
+        const status = errorMessages.length > 0
+          ? (successCount > 0 ? "alert" : "error")
+          : "success";
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId,
+          company_id,
+          lead_id,
+          node_id: node.id,
+          status,
+          error_message: errorMessages.length > 0 ? errorMessages.join("; ") : null,
+        });
+      }
+
+      // Follow error branch when execution failed, normal branch otherwise
+      if (errorMessages.length > 0) {
+        const errNext = errorChildren.get(node.id) ?? [];
+        if (errNext.length > 0) {
+          queue.push(...errNext);
+          continue;
+        }
+      }
+      queue.push(...(children.get(node.id) ?? []));
+
+    } else if (node.type === "condicoes") {
+      const { allPassed, passedCondIds } = await evaluateConditionNode(supabase, node, payload);
+
       await supabase.from("automation_logs").insert({
         automation_id: automationId,
         company_id,
         lead_id,
         node_id: node.id,
-        status,
-        error_message: errorMessages.length > 0 ? errorMessages.join("; ") : null,
+        status: "success",
       });
+
+      // Individual per-condition true paths (compound port key: nodeId_condItemId)
+      for (const condId of passedCondIds) {
+        const individualNext = children.get(`${node.id}_${condId}`) ?? [];
+        queue.push(...individualNext);
+      }
+
+      // All-conditions path vs. none-met path
+      if (allPassed) {
+        queue.push(...(children.get(node.id) ?? []));
+      } else {
+        queue.push(...(errorChildren.get(node.id) ?? []));
+      }
+
+    } else {
+      // Other node types (espera, mensagem, etc.) — just follow normal path
+      queue.push(...(children.get(node.id) ?? []));
     }
   }
+}
+
+// ─── Condition node evaluation ────────────────────────────────────────────────
+
+async function evaluateConditionNode(
+  supabase: SupabaseClient,
+  condNode: CanvasNode,
+  payload: TriggerPayload,
+): Promise<{ allPassed: boolean; passedCondIds: string[] }> {
+  const conditions = condNode.conditionItems ?? [];
+
+  // No conditions configured → treat as always true
+  if (!conditions.length) return { allPassed: true, passedCondIds: [] };
+
+  // Fetch lead once for all conditions in this node
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", payload.lead_id)
+    .single();
+
+  if (!lead) return { allPassed: false, passedCondIds: [] };
+
+  let allPassed = true;
+  const passedCondIds: string[] = [];
+
+  for (const cond of conditions) {
+    const passed = await checkCondition(supabase, cond, lead as Record<string, unknown>, payload);
+    if (passed) {
+      passedCondIds.push(cond.id);
+    } else {
+      allPassed = false;
+    }
+  }
+
+  return { allPassed, passedCondIds };
+}
+
+async function checkCondition(
+  supabase: SupabaseClient,
+  cond: ConditionItem,
+  lead: Record<string, unknown>,
+  payload: TriggerPayload,
+): Promise<boolean> {
+  const cfg = cond.config ?? {};
+  const { conditionId: id, categoryId: cat } = cond;
+
+  // ── Negócios ──────────────────────────────────────────────────────────────
+  if (cat === "negocios") {
+    switch (id) {
+      case "pos_atend": {
+        const atend = cfg.atendente as string;
+        if (!atend) return !!(lead.responsible || (lead.responsibles as string[] ?? []).length > 0);
+        return lead.responsible === atend || ((lead.responsibles as string[]) ?? []).includes(atend);
+      }
+      case "sem_atend":
+        return !lead.responsible && ((lead.responsibles as string[]) ?? []).length === 0;
+      case "ganho":
+        return lead.status === "won";
+      case "perdido":
+        return lead.status === "lost";
+      case "pendente":
+        return lead.status === "open";
+      case "pos_produto": {
+        const prodId = cfg.produto_id as string;
+        const sku = cfg.sku as string;
+        if (prodId) return lead.product_id === prodId;
+        if (sku) {
+          const { data: prod } = await supabase
+            .from("products").select("id").eq("sku", sku).eq("company_id", payload.company_id).maybeSingle();
+          return !!(prod && lead.product_id === (prod as Record<string, unknown>).id);
+        }
+        return !!lead.product_id;
+      }
+      case "com_id_externo": {
+        const extId = cfg.id_externo as string;
+        if (!extId) return !!lead.external_id;
+        return lead.external_id === extId;
+      }
+      case "campo_adicional": {
+        const campoId = cfg.campo_id as string;
+        const tipo = cfg.tipo_comparacao as string;
+        const valor = String(cfg.valor ?? "");
+        const customVals = ((lead.custom_field_values ?? {}) as Record<string, unknown>);
+        const fieldVal = String(customVals[campoId] ?? "");
+        if (tipo === "contem") return fieldVal.toLowerCase().includes(valor.toLowerCase());
+        return fieldVal === valor;
+      }
+      default: return true;
+    }
+  }
+
+  // ── Leads ─────────────────────────────────────────────────────────────────
+  if (cat === "leads") {
+    switch (id) {
+      case "existente": return true;
+      case "neg_pipeline": {
+        const pipelineId = cfg.pipeline_id as string;
+        if (!pipelineId) return !!(lead.pipeline_id);
+        return lead.pipeline_id === pipelineId;
+      }
+      case "neg_etapa": {
+        const etapaId = cfg.etapa_id as string;
+        if (!etapaId) return !!(lead.column_id);
+        return lead.column_id === etapaId;
+      }
+      case "com_email": {
+        const email = cfg.email as string;
+        if (!email) return !!(lead.email);
+        return lead.email === email;
+      }
+      case "com_nome": {
+        const nome = cfg.nome as string;
+        const leadName = String(lead.title ?? lead.name ?? "");
+        if (!nome) return !!leadName;
+        return leadName === nome;
+      }
+      case "com_telefone": {
+        const tel = cfg.telefone as string;
+        if (!tel) return !!(lead.phone);
+        return lead.phone === tel;
+      }
+      case "com_cpf": {
+        const cpf = cfg.cpf as string;
+        if (!cpf) return !!(lead.cpf);
+        return lead.cpf === cpf;
+      }
+      case "pos_tag": {
+        const tagIds = splitIds(cfg.tag_ids as string);
+        const leadTags = (lead.tags as string[]) ?? [];
+        if (!tagIds.length) return leadTags.length > 0;
+        // leads.tags stores names — resolve IDs to names
+        const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+        const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
+        return tagNames.some((n: string) => leadTags.includes(n));
+      }
+      case "pos_atend": {
+        const atend = cfg.atendente as string;
+        if (!atend) return !!(lead.responsible || ((lead.responsibles as string[]) ?? []).length > 0);
+        return lead.responsible === atend || ((lead.responsibles as string[]) ?? []).includes(atend);
+      }
+      case "campo_adicional": {
+        const campoId = cfg.campo_id as string;
+        const tipo = cfg.tipo_comparacao as string;
+        const valor = String(cfg.valor ?? "");
+        const customVals = ((lead.custom_field_values ?? {}) as Record<string, unknown>);
+        const fieldVal = String(customVals[campoId] ?? "");
+        if (tipo === "contem") return fieldVal.toLowerCase().includes(valor.toLowerCase());
+        return fieldVal === valor;
+      }
+      default: return true;
+    }
+  }
+
+  // ── Campos ────────────────────────────────────────────────────────────────
+  if (cat === "campos") {
+    const parametro = cfg.parametro as string;
+    const valor = String(cfg.valor ?? "");
+    let fieldVal = "";
+
+    if (parametro === "lead.id") fieldVal = String(lead.id ?? "");
+    else if (parametro === "lead.name") fieldVal = String(lead.title ?? lead.name ?? "");
+    else if (parametro === "lead.email") fieldVal = String(lead.email ?? "");
+    else if (parametro === "lead.phone") fieldVal = String(lead.phone ?? "");
+    else if (parametro === "lead.cpf") fieldVal = String(lead.cpf ?? "");
+    else if (parametro === "lead.source") fieldVal = String(lead.source ?? "");
+    else if (parametro === "negocio.id") fieldVal = String(lead.id ?? "");
+    else if (parametro === "negocio.name") fieldVal = String(lead.title ?? lead.name ?? "");
+    else if (parametro === "negocio.value") fieldVal = String(lead.value ?? "");
+    else if (parametro === "negocio.status") fieldVal = String(lead.status ?? "");
+    else if (parametro?.startsWith("custom.")) {
+      const customId = parametro.substring(7);
+      const customVals = ((lead.custom_field_values ?? {}) as Record<string, unknown>);
+      fieldVal = String(customVals[customId] ?? "");
+    }
+
+    switch (id) {
+      case "campo_igual": return fieldVal === valor;
+      case "campo_contem": return fieldVal.toLowerCase().includes(valor.toLowerCase());
+      case "campo_pos_valor": return fieldVal !== "" && fieldVal !== "null" && fieldVal !== "undefined";
+      case "campo_entre": {
+        const num = parseFloat(fieldVal);
+        const min = parseFloat(String(cfg.valor_min ?? ""));
+        const max = parseFloat(String(cfg.valor_max ?? ""));
+        if (isNaN(num) || isNaN(min) || isNaN(max)) return false;
+        return num >= min && num <= max;
+      }
+      default: return true;
+    }
+  }
+
+  // ── Tempo ─────────────────────────────────────────────────────────────────
+  if (cat === "tempo" && id === "intervalo_tempo") {
+    const timezone = String(cfg.timezone ?? "America/Sao_Paulo");
+    const dias = String(cfg.dias ?? "seg,ter,qua,qui,sex").split(",").filter(Boolean);
+    const horaInicio = String(cfg.hora_inicio ?? "00:00");
+    const horaFim = String(cfg.hora_fim ?? "23:59");
+
+    try {
+      const nowInTz = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+      const DAY_NAMES = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+      const dayName = DAY_NAMES[nowInTz.getDay()];
+      if (!dias.includes(dayName)) return false;
+
+      const [startH, startM] = horaInicio.split(":").map(Number);
+      const [endH, endM] = horaFim.split(":").map(Number);
+      const currentMinutes = nowInTz.getHours() * 60 + nowInTz.getMinutes();
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    } catch {
+      return true;
+    }
+  }
+
+  // Condições não suportadas (conversas, instagram) — permissivo
+  return true;
 }
 
 // ─── Action execution ─────────────────────────────────────────────────────────
