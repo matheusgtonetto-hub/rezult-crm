@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useNavigate, useBlocker } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -418,6 +418,8 @@ export default function AutomacoesPage() {
   const [saving, setSaving]             = useState(false);
   const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
+  const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
+  const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -644,6 +646,10 @@ export default function AutomacoesPage() {
           const isError = portDragRef.current.fromNodeId.endsWith("__error");
           setPortDragLine({ x1, y1, x2, y2, isError });
         }
+        // Detectar hover sobre porta de entrada de nó existente
+        const overEl = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+        const inputPortEl = overEl?.closest("[data-input-port]") as HTMLElement | null;
+        setHoveredInputPort(inputPortEl?.getAttribute("data-node-id") ?? null);
         return;
       }
       // Resize drag: resize a note node
@@ -687,7 +693,20 @@ export default function AutomacoesPage() {
         const realNodeId = isErrorPort ? fromNodeId.replace(/__error$/, "") : fromNodeId;
         portDragRef.current = null;
         setPortDragLine(null);
+        setHoveredInputPort(null);
         if (isDrag) {
+          // Verificar se o drop foi sobre uma porta de entrada de nó existente
+          const overEl = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+          const inputPortEl = overEl?.closest("[data-input-port]") as HTMLElement | null;
+          const targetNodeId = inputPortEl?.getAttribute("data-node-id");
+          if (targetNodeId && targetNodeId !== realNodeId) {
+            if (isErrorPort) {
+              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, errorParentId: realNodeId } : n));
+            } else {
+              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, parentId: fromNodeId } : n));
+            }
+            return;
+          }
           const dropX = (e.clientX - rect.left - pan.x) / zoom;
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
           setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
@@ -816,6 +835,13 @@ export default function AutomacoesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, trigger]);
 
+  // Block React Router navigation (main sidebar, browser back button)
+  const blocker = useBlocker(isDirty && view === "editor");
+
+  useEffect(() => {
+    if (blocker.state === "blocked") setUnsavedOpen(true);
+  }, [blocker.state]);
+
   // Block browser refresh / tab close
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -825,8 +851,33 @@ export default function AutomacoesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
 
+  // Rastrear posições das portas de saída para linhas SVG precisas
+  useLayoutEffect(() => {
+    if (!canvasRef.current) return;
+    const newMap: Record<string, { x: number; y: number }> = {};
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    canvasRef.current.querySelectorAll("[data-port]").forEach(el => {
+      const key = (el as HTMLElement).getAttribute("data-from-node") ?? "";
+      const r = el.getBoundingClientRect();
+      newMap[key] = {
+        x: (r.left + r.width / 2 - canvasRect.left - pan.x) / zoom,
+        y: (r.top  + r.height / 2 - canvasRect.top  - pan.y) / zoom,
+      };
+    });
+    setPortPosMap(prev => {
+      for (const k of Object.keys(newMap)) {
+        const p = prev[k];
+        if (!p || Math.abs(p.x - newMap[k].x) > 0.5 || Math.abs(p.y - newMap[k].y) > 0.5) return newMap;
+      }
+      if (Object.keys(newMap).length !== Object.keys(prev).length) return newMap;
+      return prev;
+    });
+  }, [nodes, zoom, pan.x, pan.y]);
+
+  // Called when dialog closes without choosing (Escape / click outside) → cancel the blocked navigation
   const handleUnsavedOpenChange = (open: boolean) => {
     setUnsavedOpen(open);
+    if (!open && blocker.state === "blocked") blocker.reset();
     if (!open) { pendingLeaveRef.current = null; }
   };
 
@@ -842,12 +893,23 @@ export default function AutomacoesPage() {
   const handleLeaveWithoutSaving = () => {
     setIsDirty(false);
     setUnsavedOpen(false);
-    pendingLeaveRef.current?.();
-    pendingLeaveRef.current = null;
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else {
+      pendingLeaveRef.current?.();
+      pendingLeaveRef.current = null;
+    }
   };
 
   const handleSaveAndLeave = async () => {
     setUnsavedOpen(false);
+    if (blocker.state === "blocked") {
+      // Proceed first (router navigation), then save in background
+      blocker.proceed();
+      handleSave();
+      return;
+    }
+    // Local navigation (requestLeave): save first, then navigate
     await handleSave();
     pendingLeaveRef.current?.();
     pendingLeaveRef.current = null;
@@ -1438,8 +1500,9 @@ export default function AutomacoesPage() {
                   const parent = nodes.find(p => p.id === parentId);
                   let x1: number, y1: number, stroke = "#CCCCCC";
                   if (parent) {
-                    x1 = parent.type === "start" ? parent.x + 244 : parent.x + 248;
-                    y1 = parent.type === "start" ? parent.y + 158 : parent.y + 110;
+                    const pp = portPosMap[parentId];
+                    x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
+                    y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
                     // Compound port: nodeId_condId
                     const lastUnder = parentId.lastIndexOf("_");
@@ -1448,11 +1511,11 @@ export default function AutomacoesPage() {
                     const condId = parentId.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === realParentId);
                     if (!realParent || realParent.type !== "condicoes") return null;
+                    const pp = portPosMap[parentId];
                     const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === condId);
                     if (condIdx === -1) return null;
-                    // Port position: header ~38px, content padding 10px, each item ~55px, port at bottom of item
-                    x1 = realParent.x + 258;
-                    y1 = realParent.y + 38 + 10 + condIdx * 55 + 44;
+                    x1 = pp?.x ?? realParent.x + 258;
+                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
                     stroke = "#06B6D4";
                   }
                   const x2 = n.x, y2 = n.y + 40;
@@ -1462,8 +1525,10 @@ export default function AutomacoesPage() {
                 {nodes.filter(n => n.errorParentId).map(n => {
                   const parent = nodes.find(p => p.id === n.errorParentId);
                   if (!parent) return null;
-                  const x1 = parent.x + 256;
-                  const y1 = parent.y + 93;
+                  const errKey = `${n.errorParentId}__error`;
+                  const pp = portPosMap[errKey];
+                  const x1 = pp?.x ?? parent.x + 260;
+                  const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
                   return <path key={`err_${n.id}`} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
                 })}
@@ -1525,6 +1590,8 @@ export default function AutomacoesPage() {
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
                     stats={nodeStats[n.id]}
                     onStatClick={(status) => handleStatClick(n.id, status)}
+                    portDragging={portDragLine != null ? (portDragLine.isError ? "error" : "normal") : null}
+                    portHovered={hoveredInputPort === n.id}
                   />
                 );
               })}
@@ -2859,7 +2926,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -2877,10 +2944,36 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   removeConditionItem?: (itemId: string) => void;
   stats?: { s: number; a: number; e: number };
   onStatClick?: (status: "success" | "alert" | "error") => void;
+  portDragging?: "normal" | "error" | null;
+  portHovered?: boolean;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
+
+  // Porta de entrada: visível apenas quando há um drag de porta ativo
+  const inputPort = portDragging != null ? (
+    <div
+      data-input-port
+      data-node-id={node.id}
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        left: -7, top: 33,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
+        width: 14, height: 14,
+        borderRadius: "50%",
+        background: portDragging === "error" ? "#FCA5A5" : "#93C5FD",
+        border: `2.5px solid ${portDragging === "error" ? "#EF4444" : "#3B82F6"}`,
+        boxShadow: portHovered
+          ? `0 0 0 5px ${portDragging === "error" ? "rgba(239,68,68,0.25)" : "rgba(55,138,221,0.25)"}`
+          : "none",
+        cursor: "crosshair",
+        zIndex: 10,
+        transition: "box-shadow 0.1s",
+        pointerEvents: "all",
+      }}
+    />
+  ) : null;
 
   const toolbar = (
     <div
@@ -2917,6 +3010,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
+        {inputPort}
         {selected && toolbar}
         {/* Header */}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -3016,6 +3110,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Filter size={15} color="#8B5CF6" />
@@ -3112,6 +3207,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Clock size={15} color="#3B82F6" />
@@ -3142,6 +3238,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Shuffle size={15} color="#F97316" />
@@ -3180,6 +3277,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
       >
+        {inputPort}
         {selected && toolbar}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -3212,6 +3310,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
     >
+      {inputPort}
       {/* Toolbar above node (shown when selected) */}
       {selected && toolbar}
 
