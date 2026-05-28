@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
@@ -418,6 +418,9 @@ export default function AutomacoesPage() {
   const [saving, setSaving]             = useState(false);
   const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
+  const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
+  const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
+  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" } | null>(null);
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -619,11 +622,22 @@ export default function AutomacoesPage() {
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-port]")) return;
     if ((e.target as HTMLElement).closest("[data-node]")) return;
+    if ((e.target as HTMLElement).closest("[data-conn-line]")) return;
+    setSelectedConn(null);
     panRef.current = { startX: e.clientX, startY: e.clientY, baseX: pan.x, baseY: pan.y };
     setSelectedNode(null);
     setAddNodeMenu(null);
     setNodePanel(null);
     setTriggerPanel(false);
+  };
+
+  const disconnectNode = (nodeId: string, type: "parent" | "error") => {
+    setNodes(prev => prev.map(n =>
+      n.id === nodeId
+        ? type === "parent" ? { ...n, parentId: null } : { ...n, errorParentId: null }
+        : n
+    ));
+    setSelectedConn(null);
   };
 
   useEffect(() => {
@@ -644,6 +658,10 @@ export default function AutomacoesPage() {
           const isError = portDragRef.current.fromNodeId.endsWith("__error");
           setPortDragLine({ x1, y1, x2, y2, isError });
         }
+        // Detectar hover sobre porta de entrada de nó existente
+        const overEl = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+        const inputPortEl = overEl?.closest("[data-input-port]") as HTMLElement | null;
+        setHoveredInputPort(inputPortEl?.getAttribute("data-node-id") ?? null);
         return;
       }
       // Resize drag: resize a note node
@@ -687,7 +705,20 @@ export default function AutomacoesPage() {
         const realNodeId = isErrorPort ? fromNodeId.replace(/__error$/, "") : fromNodeId;
         portDragRef.current = null;
         setPortDragLine(null);
+        setHoveredInputPort(null);
         if (isDrag) {
+          // Verificar se o drop foi sobre uma porta de entrada de nó existente
+          const overEl = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+          const inputPortEl = overEl?.closest("[data-input-port]") as HTMLElement | null;
+          const targetNodeId = inputPortEl?.getAttribute("data-node-id");
+          if (targetNodeId && targetNodeId !== realNodeId) {
+            if (isErrorPort) {
+              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, errorParentId: realNodeId } : n));
+            } else {
+              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, parentId: fromNodeId } : n));
+            }
+            return;
+          }
           const dropX = (e.clientX - rect.left - pan.x) / zoom;
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
           setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
@@ -824,6 +855,29 @@ export default function AutomacoesPage() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
+
+  // Rastrear posições das portas de saída para linhas SVG precisas
+  useLayoutEffect(() => {
+    if (!canvasRef.current) return;
+    const newMap: Record<string, { x: number; y: number }> = {};
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    canvasRef.current.querySelectorAll("[data-port]").forEach(el => {
+      const key = (el as HTMLElement).getAttribute("data-from-node") ?? "";
+      const r = el.getBoundingClientRect();
+      newMap[key] = {
+        x: (r.left + r.width / 2 - canvasRect.left - pan.x) / zoom,
+        y: (r.top  + r.height / 2 - canvasRect.top  - pan.y) / zoom,
+      };
+    });
+    setPortPosMap(prev => {
+      for (const k of Object.keys(newMap)) {
+        const p = prev[k];
+        if (!p || Math.abs(p.x - newMap[k].x) > 0.5 || Math.abs(p.y - newMap[k].y) > 0.5) return newMap;
+      }
+      if (Object.keys(newMap).length !== Object.keys(prev).length) return newMap;
+      return prev;
+    });
+  }, [nodes, zoom, pan.x, pan.y]);
 
   const handleUnsavedOpenChange = (open: boolean) => {
     setUnsavedOpen(open);
@@ -1432,14 +1486,15 @@ export default function AutomacoesPage() {
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
               {/* SVG connection lines */}
-              <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible", pointerEvents: "none" }}>
+              <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
                 {nodes.filter(n => n.parentId).map(n => {
                   const parentId = n.parentId!;
                   const parent = nodes.find(p => p.id === parentId);
                   let x1: number, y1: number, stroke = "#CCCCCC";
                   if (parent) {
-                    x1 = parent.type === "start" ? parent.x + 244 : parent.x + 248;
-                    y1 = parent.type === "start" ? parent.y + 158 : parent.y + 110;
+                    const pp = portPosMap[parentId];
+                    x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
+                    y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
                     // Compound port: nodeId_condId
                     const lastUnder = parentId.lastIndexOf("_");
@@ -1448,33 +1503,113 @@ export default function AutomacoesPage() {
                     const condId = parentId.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === realParentId);
                     if (!realParent || realParent.type !== "condicoes") return null;
+                    const pp = portPosMap[parentId];
                     const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === condId);
                     if (condIdx === -1) return null;
-                    // Port position: header ~38px, content padding 10px, each item ~55px, port at bottom of item
-                    x1 = realParent.x + 258;
-                    y1 = realParent.y + 38 + 10 + condIdx * 55 + 44;
+                    x1 = pp?.x ?? realParent.x + 258;
+                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
                     stroke = "#06B6D4";
                   }
                   const x2 = n.x, y2 = n.y + 40;
-                  return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke={stroke} strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent";
+                  return (
+                    <g
+                      key={n.id}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent" }); }}
+                    >
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" style={{ pointerEvents: "stroke" }} />
+                    </g>
+                  );
                 })}
                 {/* Error connection lines */}
                 {nodes.filter(n => n.errorParentId).map(n => {
                   const parent = nodes.find(p => p.id === n.errorParentId);
                   if (!parent) return null;
-                  const x1 = parent.x + 256;
-                  const y1 = parent.y + 93;
+                  const errKey = `${n.errorParentId}__error`;
+                  const pp = portPosMap[errKey];
+                  const x1 = pp?.x ?? parent.x + 260;
+                  const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
-                  return <path key={`err_${n.id}`} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error";
+                  return (
+                    <g
+                      key={`err_${n.id}`}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error" }); }}
+                    >
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} style={{ pointerEvents: "stroke" }} />
+                    </g>
+                  );
                 })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
                     d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
                     stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2} fill="none" strokeDasharray="5,4"
+                    style={{ pointerEvents: "none" }}
                   />
                 )}
               </svg>
+
+              {/* Delete button for selected connection */}
+              {selectedConn && (() => {
+                const n = nodes.find(nd => nd.id === selectedConn.nodeId);
+                if (!n) return null;
+                let x1: number, y1: number;
+                const x2 = n.x, y2 = n.y + 40;
+                if (selectedConn.type === "parent") {
+                  const parentId = n.parentId!;
+                  const parent = nodes.find(p => p.id === parentId);
+                  if (parent) {
+                    const pp = portPosMap[parentId];
+                    x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
+                    y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
+                  } else {
+                    const lastUnder = parentId.lastIndexOf("_");
+                    if (lastUnder <= 0) return null;
+                    const realParent = nodes.find(p => p.id === parentId.substring(0, lastUnder));
+                    if (!realParent) return null;
+                    const pp = portPosMap[parentId];
+                    const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === parentId.substring(lastUnder + 1));
+                    x1 = pp?.x ?? realParent.x + 258;
+                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
+                  }
+                } else {
+                  const parent = nodes.find(p => p.id === n.errorParentId);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${n.errorParentId}__error`];
+                  x1 = pp?.x ?? parent.x + 260;
+                  y1 = pp?.y ?? parent.y + 93;
+                }
+                const cx1 = x1 + 60, cy1 = y1, cx2 = x2 - 60, cy2 = y2;
+                const mx = (x1 + 3 * cx1 + 3 * cx2 + x2) / 8;
+                const my = (y1 + 3 * cy1 + 3 * cy2 + y2) / 8;
+                return (
+                  <div
+                    key={`del_${selectedConn.nodeId}_${selectedConn.type}`}
+                    data-conn-line
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ position: "absolute", left: mx - 16, top: my - 16, zIndex: 15, pointerEvents: "all" }}
+                  >
+                    <button
+                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type); }}
+                      style={{ width: 32, height: 32, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      title="Desconectar"
+                    >
+                      <Trash2 size={13} color="#EF4444" />
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Nodes */}
               {nodes.map(n => {
@@ -1525,6 +1660,8 @@ export default function AutomacoesPage() {
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
                     stats={nodeStats[n.id]}
                     onStatClick={(status) => handleStatClick(n.id, status)}
+                    portDragging={portDragLine != null ? (portDragLine.isError ? "error" : "normal") : null}
+                    portHovered={hoveredInputPort === n.id}
                   />
                 );
               })}
@@ -2859,7 +2996,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -2877,10 +3014,36 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   removeConditionItem?: (itemId: string) => void;
   stats?: { s: number; a: number; e: number };
   onStatClick?: (status: "success" | "alert" | "error") => void;
+  portDragging?: "normal" | "error" | null;
+  portHovered?: boolean;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
+
+  // Porta de entrada: sempre visível, muda de cor durante drag ativo
+  const inputPort = (
+    <div
+      data-input-port
+      data-node-id={node.id}
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        left: -8, top: 32,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
+        width: 16, height: 16,
+        borderRadius: "50%",
+        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "#FFFFFF",
+        border: `2px solid ${portDragging === "error" ? "#EF4444" : portDragging === "normal" ? "#3B82F6" : "#9CA3AF"}`,
+        boxShadow: portDragging != null && portHovered
+          ? `0 0 0 5px ${portDragging === "error" ? "rgba(239,68,68,0.25)" : "rgba(55,138,221,0.25)"}`
+          : "0 1px 3px rgba(0,0,0,0.15)",
+        cursor: "crosshair",
+        zIndex: 10,
+        transition: "background 0.1s, border-color 0.1s, box-shadow 0.1s",
+        pointerEvents: "all",
+      }}
+    />
+  );
 
   const toolbar = (
     <div
@@ -2917,6 +3080,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
+        {inputPort}
         {selected && toolbar}
         {/* Header */}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -3016,6 +3180,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Filter size={15} color="#8B5CF6" />
@@ -3112,6 +3277,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Clock size={15} color="#3B82F6" />
@@ -3142,6 +3308,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     return (
       <div data-node onMouseDown={onDragStart}
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Shuffle size={15} color="#F97316" />
@@ -3180,6 +3347,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
       >
+        {inputPort}
         {selected && toolbar}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -3212,6 +3380,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
     >
+      {inputPort}
       {/* Toolbar above node (shown when selected) */}
       {selected && toolbar}
 
