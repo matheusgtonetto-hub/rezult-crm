@@ -24,11 +24,13 @@ import {
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
-  Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays,
+  Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays, Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/data/plans";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
 
@@ -1339,19 +1341,173 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   );
 }
 
+// ── Dados dos planos para o dialog de upgrade ────────────────────────────────
+
+const UPGRADE_PRICES = {
+  starter:   { monthly: "price_1Tbp3sHLGbQg56rmYk9RbtKj", semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK", annual: "price_1Tbp3sHLGbQg56rmuvxhNhoQ" },
+  essential: { monthly: "price_1Tbp7lHLGbQg56rmxz4NpynU", semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a", annual: "price_1Tbp7lHLGbQg56rmJcvQ4GY5" },
+  pro:       { monthly: "price_1TbpAAHLGbQg56rmh1i1HdvY", semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL", annual: "price_1TbpAAHLGbQg56rmYRFZlZ3I" },
+} as const;
+
+type UpgradePlanKey = keyof typeof UPGRADE_PRICES;
+type UpgradePeriod  = "monthly" | "semiannual" | "annual";
+
+const UPGRADE_PLAN_INFO = [
+  {
+    key: "starter" as UpgradePlanKey,
+    name: "Starter",
+    prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
+    monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
+    features: ["Até 5 pipelines", "Até 5 mil leads", "4 membros", "8 automações"],
+  },
+  {
+    key: "essential" as UpgradePlanKey,
+    name: "Essential",
+    badge: "Mais popular",
+    prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
+    monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
+    features: ["Até 20 pipelines", "Até 100 mil leads", "15 membros", "20 automações", "API"],
+  },
+  {
+    key: "pro" as UpgradePlanKey,
+    name: "Pro",
+    prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
+    monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
+    features: ["Pipelines ilimitadas", "Leads ilimitados", "Membros ilimitados", "Automações ilimitadas"],
+  },
+];
+
+const UPGRADE_PERIOD_LABELS: Record<UpgradePeriod, string> = {
+  monthly: "Mensal", semiannual: "Semestral", annual: "Anual",
+};
+
+const UPGRADE_PERIOD_DISCOUNT: Record<UpgradePeriod, string | null> = {
+  monthly: null, semiannual: "-15%", annual: "-30%",
+};
+
+// ── PlanosSection ─────────────────────────────────────────────────────────────
+
 function PlanosSection() {
   const { company } = useCompany();
+  const { user }    = useAuth();
   const { leads, pipelines, teamMembers } = useCRM();
+  const { subscription } = useSubscription();
 
   const planKey = company?.plan ?? "free";
   const planDef = PLANS.find(p => p.key === planKey);
   const limits  = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.free;
 
-  const leadsCount    = Object.keys(leads).length;
+  const leadsCount     = Object.keys(leads).length;
   const pipelinesCount = pipelines.length;
-  const membersCount  = teamMembers.length;
+  const membersCount   = teamMembers.length;
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
+
+  // ── Gerenciar plano (Stripe Customer Portal) ──────────────────────────────
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const handleManagePlan = async () => {
+    if (!company) {
+      toast.error("Empresa não encontrada.");
+      return;
+    }
+    setPortalLoading(true);
+    try {
+      // Query direta — não depende do cache do useSubscription
+      const { data: subRow, error: subErr } = await supabase
+        .from("subscriptions")
+        .select("stripe_customer_id, status")
+        .eq("company_id", company.id)
+        .not("stripe_customer_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subErr) {
+        console.error("[portal] erro ao buscar subscription:", subErr);
+        throw new Error(`Erro ao buscar assinatura: ${subErr.message}`);
+      }
+
+      console.log("[portal] subscription encontrada:", subRow);
+
+      const customerId = subRow?.stripe_customer_id as string | null;
+      if (!customerId) {
+        throw new Error(
+          "Nenhuma assinatura Stripe encontrada. Conclua um checkout antes de gerenciar o plano."
+        );
+      }
+
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+
+      console.log("[portal] chamando create-portal-session, customerId:", customerId);
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-portal-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+        },
+        body: JSON.stringify({ customerId }),
+      });
+
+      let responseData: { url?: string; error?: string };
+      try {
+        responseData = await res.json();
+      } catch {
+        throw new Error(`Resposta inválida da edge function (HTTP ${res.status})`);
+      }
+
+      console.log("[portal] resposta create-portal-session:", res.status, responseData);
+
+      if (!res.ok || !responseData.url) {
+        throw new Error(responseData.error ?? `Erro HTTP ${res.status} ao abrir portal.`);
+      }
+
+      window.location.href = responseData.url;
+    } catch (err) {
+      console.error("[portal] erro final:", err);
+      toast.error(err instanceof Error ? err.message : "Erro ao abrir portal de pagamento.");
+      setPortalLoading(false);
+    }
+  };
+
+  // ── Upgrade dialog ────────────────────────────────────────────────────────
+  const [upgradeOpen,    setUpgradeOpen]    = useState(false);
+  const [upgradePeriod,  setUpgradePeriod]  = useState<UpgradePeriod>("monthly");
+  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+
+  const handleSelectPlan = async (planKey: UpgradePlanKey) => {
+    if (!user)    { toast.error("Você precisa estar logado."); return; }
+    if (!company) { toast.error("Nenhuma empresa encontrada."); return; }
+    const priceId = UPGRADE_PRICES[planKey][upgradePeriod];
+    setUpgradeLoading(planKey);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          priceId,
+          companyId:     company.id,
+          userId:        user.id,
+          userEmail:     user.email ?? "",
+          planName:      planKey,
+          billingPeriod: upgradePeriod,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
+      window.location.href = data.url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
+      setUpgradeLoading(null);
+    }
+  };
 
   return (
     <>
@@ -1390,17 +1546,28 @@ function PlanosSection() {
             <p className="text-2xl font-bold text-[#128A68]">{PLAN_LABELS[planKey] ?? planKey}</p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="border-[#EEEEEE] text-[#535353]">
-              Gerenciar plano
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-[#EEEEEE] text-[#535353]"
+              disabled={portalLoading || !company}
+              onClick={handleManagePlan}
+            >
+              {portalLoading
+                ? <><Loader2 size={13} className="animate-spin mr-1.5" />Abrindo...</>
+                : "Gerenciar plano"}
             </Button>
-            <Button size="sm" className="bg-[#128A68] hover:bg-[#128A68]/90">
+            <Button
+              size="sm"
+              className="bg-[#128A68] hover:bg-[#128A68]/90"
+              onClick={() => setUpgradeOpen(true)}
+            >
               Upgrade
             </Button>
           </div>
         </div>
 
         <div className="flex items-stretch gap-0 border border-[#EEEEEE] rounded-xl overflow-hidden">
-          {/* Renova em */}
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-[#AAAAAA] mb-1">Renova em</p>
             <p className="text-[13px] font-semibold text-[#111111]">
@@ -1408,7 +1575,6 @@ function PlanosSection() {
             </p>
           </div>
           <div className="w-px bg-[#EEEEEE] self-stretch" />
-          {/* Valor */}
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-[#AAAAAA] mb-1">Valor</p>
             <p className="text-[13px] font-semibold text-[#111111]">
@@ -1416,21 +1582,20 @@ function PlanosSection() {
             </p>
           </div>
           <div className="w-px bg-[#EEEEEE] self-stretch" />
-          {/* Frequência */}
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-[#AAAAAA] mb-1">Frequência</p>
-            <p className="text-[13px] font-semibold text-[#111111]">Mensal</p>
+            <p className="text-[13px] font-semibold text-[#111111]">
+              {subscription?.billing_period === "semiannual" ? "Semestral"
+               : subscription?.billing_period === "annual" ? "Anual"
+               : "Mensal"}
+            </p>
           </div>
           <div className="w-px bg-[#EEEEEE] self-stretch" />
-          {/* Método de pagamento */}
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-[#AAAAAA] mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-[#535353] shrink-0" />
-              <div>
-                <p className="text-[13px] font-semibold text-[#111111] leading-none">Cartão de crédito</p>
-                <p className="text-[11px] text-[#AAAAAA] mt-0.5">**** **** **** 5432</p>
-              </div>
+              <p className="text-[13px] font-semibold text-[#111111]">Cartão de crédito</p>
             </div>
           </div>
         </div>
@@ -1456,13 +1621,142 @@ function PlanosSection() {
       {/* Cards de uso */}
       <p className="text-base font-semibold text-[#111111] mb-3">Uso do plano</p>
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <UsageCard label="Leads" current={leadsCount} limit={limits.leads} icon={<Users size={14} className="text-[#128A68]" />} />
-        <UsageCard label="Membros" current={membersCount} limit={limits.members} icon={<Users size={14} className="text-[#128A68]" />} />
-        <UsageCard label="Pipelines" current={pipelinesCount} limit={limits.pipelines} icon={<Zap size={14} className="text-[#128A68]" />} />
-        <UsageCard label="Conexões" current={0} limit={limits.connections} icon={<Link2 size={14} className="text-[#128A68]" />} />
-        <UsageCard label="Automações" current={0} limit={limits.automations} icon={<Zap size={14} className="text-[#128A68]" />} />
-        <UsageCard label="Integrações" current={0} limit={3} icon={<Plug size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Leads"      current={leadsCount}     limit={limits.leads}       icon={<Users size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Membros"    current={membersCount}   limit={limits.members}     icon={<Users size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Pipelines"  current={pipelinesCount} limit={limits.pipelines}   icon={<Zap   size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Conexões"   current={0}              limit={limits.connections} icon={<Link2 size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Automações" current={0}              limit={limits.automations} icon={<Zap   size={14} className="text-[#128A68]" />} />
+        <UsageCard label="Integrações" current={0}             limit={3}                  icon={<Plug  size={14} className="text-[#128A68]" />} />
       </div>
+
+      {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="text-lg font-bold text-[#111111]">Escolha seu plano</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-0.5">Todos os planos incluem 7 dias grátis.</p>
+          </DialogHeader>
+
+          {/* Toggle de período */}
+          <div className="px-6 pt-4 pb-2 flex gap-1 p-1">
+            <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
+              {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
+                const disc = UPGRADE_PERIOD_DISCOUNT[period];
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setUpgradePeriod(period)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      upgradePeriod === period
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {UPGRADE_PERIOD_LABELS[period]}
+                    {disc && (
+                      <span className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                        upgradePeriod === period ? "bg-emerald-100 text-emerald-700" : "bg-emerald-100 text-emerald-700"
+                      )}>
+                        {disc}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cards dos planos */}
+          <div className="grid grid-cols-3 gap-4 px-6 pb-6">
+            {UPGRADE_PLAN_INFO.map((plan) => {
+              const isCurrent  = planKey === plan.key;
+              const isLoading  = upgradeLoading === plan.key;
+
+              return (
+                <div
+                  key={plan.key}
+                  className={cn(
+                    "relative flex flex-col rounded-xl border-2 p-5 transition-all",
+                    isCurrent
+                      ? "border-[#128A68] bg-[#F0FAF6]"
+                      : plan.badge
+                        ? "border-primary bg-primary/[0.02]"
+                        : "border-[#EEEEEE] bg-white"
+                  )}
+                >
+                  {/* Badge Mais popular */}
+                  {plan.badge && !isCurrent && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                      {plan.badge}
+                    </span>
+                  )}
+                  {/* Badge Plano atual */}
+                  {isCurrent && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#128A68] text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                      Plano atual
+                    </span>
+                  )}
+
+                  <p className="text-sm font-bold text-[#111111]">{plan.name}</p>
+
+                  {/* Preço */}
+                  <div className="mt-3 mb-0.5">
+                    <span className="text-2xl font-bold text-[#111111]">
+                      {plan.prices[upgradePeriod]}
+                    </span>
+                    {upgradePeriod === "monthly" && (
+                      <span className="text-xs text-[#AAAAAA] ml-1">/mês</span>
+                    )}
+                  </div>
+                  {upgradePeriod === "monthly" && (
+                    <p className="text-[11px] font-medium text-emerald-600 mb-3">cobrança mensal recorrente</p>
+                  )}
+                  {upgradePeriod === "semiannual" && (
+                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
+                      semestral · equiv. {plan.monthlyEquiv.semiannual}/mês
+                    </p>
+                  )}
+                  {upgradePeriod === "annual" && (
+                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
+                      anual · equiv. {plan.monthlyEquiv.annual}/mês
+                    </p>
+                  )}
+
+                  {/* Features */}
+                  <ul className="space-y-1.5 flex-1 mb-4">
+                    {plan.features.map(f => (
+                      <li key={f} className="flex items-start gap-1.5 text-xs text-[#535353]">
+                        <Check size={11} className={cn("mt-0.5 shrink-0", isCurrent ? "text-[#128A68]" : "text-emerald-600")} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {isCurrent ? (
+                    <Button size="sm" variant="outline" className="w-full border-[#128A68] text-[#128A68]" disabled>
+                      Plano atual
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className={cn("w-full", plan.badge ? "" : "bg-[#128A68] hover:bg-[#128A68]/90")}
+                      disabled={upgradeLoading !== null}
+                      onClick={() => handleSelectPlan(plan.key)}
+                    >
+                      {isLoading
+                        ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</>
+                        : "Começar 7 dias grátis"}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

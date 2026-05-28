@@ -38,24 +38,29 @@ export function useSubscription(): UseSubscriptionResult {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetch = async () => {
+  const fetchSubscription = async () => {
     if (!company) { setSubscription(null); setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("company_id", company.id)
-      .in("status", ["trialing", "active", "past_due"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setSubscription(data as Subscription | null);
-    setLoading(false);
+    try {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("company_id", company.id)
+        .in("status", ["trialing", "active", "past_due"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setSubscription(data as Subscription | null);
+    } catch {
+      setSubscription(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     if (companyLoading) return;
-    fetch();
+    fetchSubscription();
   }, [company?.id, companyLoading]);
 
   const status = subscription?.status ?? null;
@@ -70,6 +75,6 @@ export function useSubscription(): UseSubscriptionResult {
     isCanceled:  status === "canceled",
     isPastDue:   status === "past_due",
     trialEndsAt: subscription?.trial_ends_at ? new Date(subscription.trial_ends_at) : null,
-    refetch:     fetch,
+    refetch:     fetchSubscription,
   };
 }
