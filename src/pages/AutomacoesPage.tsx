@@ -420,6 +420,7 @@ export default function AutomacoesPage() {
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
   const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
   const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
+  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" } | null>(null);
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -621,11 +622,22 @@ export default function AutomacoesPage() {
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-port]")) return;
     if ((e.target as HTMLElement).closest("[data-node]")) return;
+    if ((e.target as HTMLElement).closest("[data-conn-line]")) return;
+    setSelectedConn(null);
     panRef.current = { startX: e.clientX, startY: e.clientY, baseX: pan.x, baseY: pan.y };
     setSelectedNode(null);
     setAddNodeMenu(null);
     setNodePanel(null);
     setTriggerPanel(false);
+  };
+
+  const disconnectNode = (nodeId: string, type: "parent" | "error") => {
+    setNodes(prev => prev.map(n =>
+      n.id === nodeId
+        ? type === "parent" ? { ...n, parentId: null } : { ...n, errorParentId: null }
+        : n
+    ));
+    setSelectedConn(null);
   };
 
   useEffect(() => {
@@ -1474,7 +1486,7 @@ export default function AutomacoesPage() {
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
               {/* SVG connection lines */}
-              <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible", pointerEvents: "none" }}>
+              <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
                 {nodes.filter(n => n.parentId).map(n => {
                   const parentId = n.parentId!;
                   const parent = nodes.find(p => p.id === parentId);
@@ -1499,7 +1511,20 @@ export default function AutomacoesPage() {
                     stroke = "#06B6D4";
                   }
                   const x2 = n.x, y2 = n.y + 40;
-                  return <path key={n.id} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke={stroke} strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent";
+                  return (
+                    <g
+                      key={n.id}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent" }); }}
+                    >
+                      <path d={pathD} stroke="transparent" strokeWidth={12} fill="none" />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" />
+                    </g>
+                  );
                 })}
                 {/* Error connection lines */}
                 {nodes.filter(n => n.errorParentId).map(n => {
@@ -1510,16 +1535,81 @@ export default function AutomacoesPage() {
                   const x1 = pp?.x ?? parent.x + 260;
                   const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
-                  return <path key={`err_${n.id}`} d={`M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`} stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="5,4" />;
+                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error";
+                  return (
+                    <g
+                      key={`err_${n.id}`}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error" }); }}
+                    >
+                      <path d={pathD} stroke="transparent" strokeWidth={12} fill="none" />
+                      <path d={pathD} stroke={isSel ? "#EF4444" : "#EF4444"} strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} />
+                    </g>
+                  );
                 })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
                     d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
                     stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2} fill="none" strokeDasharray="5,4"
+                    style={{ pointerEvents: "none" }}
                   />
                 )}
               </svg>
+
+              {/* Delete button for selected connection */}
+              {selectedConn && (() => {
+                const n = nodes.find(nd => nd.id === selectedConn.nodeId);
+                if (!n) return null;
+                let x1: number, y1: number;
+                const x2 = n.x, y2 = n.y + 40;
+                if (selectedConn.type === "parent") {
+                  const parentId = n.parentId!;
+                  const parent = nodes.find(p => p.id === parentId);
+                  if (parent) {
+                    const pp = portPosMap[parentId];
+                    x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
+                    y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
+                  } else {
+                    const lastUnder = parentId.lastIndexOf("_");
+                    if (lastUnder <= 0) return null;
+                    const realParent = nodes.find(p => p.id === parentId.substring(0, lastUnder));
+                    if (!realParent) return null;
+                    const pp = portPosMap[parentId];
+                    const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === parentId.substring(lastUnder + 1));
+                    x1 = pp?.x ?? realParent.x + 258;
+                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
+                  }
+                } else {
+                  const parent = nodes.find(p => p.id === n.errorParentId);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${n.errorParentId}__error`];
+                  x1 = pp?.x ?? parent.x + 260;
+                  y1 = pp?.y ?? parent.y + 93;
+                }
+                const cx1 = x1 + 60, cy1 = y1, cx2 = x2 - 60, cy2 = y2;
+                const mx = (x1 + 3 * cx1 + 3 * cx2 + x2) / 8;
+                const my = (y1 + 3 * cy1 + 3 * cy2 + y2) / 8;
+                return (
+                  <div
+                    key={`del_${selectedConn.nodeId}_${selectedConn.type}`}
+                    data-conn-line
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ position: "absolute", left: mx - 16, top: my - 16, zIndex: 15, pointerEvents: "all" }}
+                  >
+                    <button
+                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type); }}
+                      style={{ width: 32, height: 32, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      title="Desconectar"
+                    >
+                      <Trash2 size={13} color="#EF4444" />
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Nodes */}
               {nodes.map(n => {
@@ -2931,8 +3021,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
 
-  // Porta de entrada: visível apenas quando há um drag de porta ativo
-  const inputPort = portDragging != null ? (
+  // Porta de entrada: sempre visível (cinza), muda de cor durante drag ativo
+  const inputPort = (
     <div
       data-input-port
       data-node-id={node.id}
@@ -2942,18 +3032,18 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         left: -7, top: 33,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
         width: 14, height: 14,
         borderRadius: "50%",
-        background: portDragging === "error" ? "#FCA5A5" : "#93C5FD",
-        border: `2.5px solid ${portDragging === "error" ? "#EF4444" : "#3B82F6"}`,
+        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "#D1D5DB",
+        border: `2.5px solid ${portDragging === "error" ? "#EF4444" : portDragging === "normal" ? "#3B82F6" : "#9CA3AF"}`,
         boxShadow: portHovered
           ? `0 0 0 5px ${portDragging === "error" ? "rgba(239,68,68,0.25)" : "rgba(55,138,221,0.25)"}`
           : "none",
         cursor: "crosshair",
         zIndex: 10,
-        transition: "box-shadow 0.1s",
+        transition: "background 0.1s, border-color 0.1s, box-shadow 0.1s",
         pointerEvents: "all",
       }}
     />
-  ) : null;
+  );
 
   const toolbar = (
     <div
