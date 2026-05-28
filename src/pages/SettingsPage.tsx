@@ -1407,15 +1407,41 @@ function PlanosSection() {
   const [portalLoading, setPortalLoading] = useState(false);
 
   const handleManagePlan = async () => {
-    const customerId = subscription?.stripe_customer_id;
-    if (!customerId) {
-      toast.error("Nenhuma assinatura ativa encontrada.");
+    if (!company) {
+      toast.error("Empresa não encontrada.");
       return;
     }
     setPortalLoading(true);
     try {
+      // Query direta — não depende do cache do useSubscription
+      const { data: subRow, error: subErr } = await supabase
+        .from("subscriptions")
+        .select("stripe_customer_id, status")
+        .eq("company_id", company.id)
+        .not("stripe_customer_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subErr) {
+        console.error("[portal] erro ao buscar subscription:", subErr);
+        throw new Error(`Erro ao buscar assinatura: ${subErr.message}`);
+      }
+
+      console.log("[portal] subscription encontrada:", subRow);
+
+      const customerId = subRow?.stripe_customer_id as string | null;
+      if (!customerId) {
+        throw new Error(
+          "Nenhuma assinatura Stripe encontrada. Conclua um checkout antes de gerenciar o plano."
+        );
+      }
+
       const { data: { session: authSession } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+
+      console.log("[portal] chamando create-portal-session, customerId:", customerId);
+
       const res = await fetch(`${supabaseUrl}/functions/v1/create-portal-session`, {
         method: "POST",
         headers: {
@@ -1424,10 +1450,23 @@ function PlanosSection() {
         },
         body: JSON.stringify({ customerId }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao abrir portal.");
-      window.location.href = data.url;
+
+      let responseData: { url?: string; error?: string };
+      try {
+        responseData = await res.json();
+      } catch {
+        throw new Error(`Resposta inválida da edge function (HTTP ${res.status})`);
+      }
+
+      console.log("[portal] resposta create-portal-session:", res.status, responseData);
+
+      if (!res.ok || !responseData.url) {
+        throw new Error(responseData.error ?? `Erro HTTP ${res.status} ao abrir portal.`);
+      }
+
+      window.location.href = responseData.url;
     } catch (err) {
+      console.error("[portal] erro final:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao abrir portal de pagamento.");
       setPortalLoading(false);
     }
@@ -1511,7 +1550,7 @@ function PlanosSection() {
               variant="outline"
               size="sm"
               className="border-[#EEEEEE] text-[#535353]"
-              disabled={portalLoading || !subscription?.stripe_customer_id}
+              disabled={portalLoading || !company}
               onClick={handleManagePlan}
             >
               {portalLoading
