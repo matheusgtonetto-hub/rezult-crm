@@ -1,0 +1,41 @@
+name: Sync dev branches
+
+on:
+  push:
+    branches:
+      - dev
+      - dev-geomar
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Evita loop infinito: ignora pushes feitos pelo próprio workflow
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync dev → dev-geomar
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          git checkout dev-geomar
+          git merge origin/dev --no-edit
+          git push origin dev-geomar
+
+      - name: Sync dev-geomar → dev
+        if: github.ref == 'refs/heads/dev-geomar'
+        run: |
+          git checkout dev
+          git merge origin/dev-geomar --no-edit
+          git push origin dev

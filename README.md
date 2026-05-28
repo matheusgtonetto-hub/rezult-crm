@@ -15,34 +15,55 @@ CRM de vendas B2B brasileiro. SaaS multi-tenant com pipelines, automações e mu
 | Branch | Finalidade | Deploy |
 |--------|-----------|--------|
 | `main` | Código em produção | `app.rezultcrm.com` (produção) |
-| `dev`  | Desenvolvimento ativo | URL de preview Vercel |
+| `dev`  | Desenvolvimento do proprietário | URL de preview Vercel |
+| `dev-geomar` | Desenvolvimento do Geomar | URL de preview Vercel |
 
 ### Regras
 
-- **Todo desenvolvimento novo acontece na branch `dev`**
-- **Para ir a produção:** abrir PR de `dev → main` e fazer merge
+- **`dev` e `dev-geomar` devem permanecer sempre sincronizadas** — ao receber mudanças em uma, mergear na outra
+- **Para ir a produção:** merge da branch desejada (`dev` ou `dev-geomar`) em `main`
 - **Nunca commitar diretamente na `main`**
+- Cada desenvolvedor trabalha na sua branch; sincroniza com a outra antes de começar novas tarefas
 
-### Fluxo padrão
+### Fluxo padrão (Geomar)
 
 ```bash
-# 1. Certifique-se de estar na dev e atualizada
-git checkout dev
-git pull origin dev
+# 1. Atualizar dev-geomar com o que está em dev
+git checkout dev-geomar
+git pull origin dev-geomar
+git merge origin/dev
 
-# 2. Desenvolva e commite na dev
+# 2. Desenvolver e commitar
 git add <arquivos>
 git commit -m "feat: descrição da mudança"
+git push origin dev-geomar
+
+# 3. Sincronizar de volta para dev
+git checkout dev
+git pull origin dev
+git merge origin/dev-geomar
 git push origin dev
 
-# 3. Quando pronto para produção: abra PR no GitHub
-#    dev → main
-#    Após merge, o Vercel deploya automaticamente em produção
+# 4. Quando pronto para produção (apenas mudanças do Geomar):
+#    Solicitar merge de dev-geomar → main
 ```
 
-### Preview da branch dev
+### Fluxo padrão (Proprietário)
 
-Cada push na `dev` gera um deploy de preview automático no Vercel. A URL aparece nos checks do PR e na aba "Deployments" do repositório GitHub.
+```bash
+# Trabalha na branch dev normalmente
+git checkout dev
+git pull origin dev
+# ... desenvolve ...
+git push origin dev
+
+# Para ir a produção:
+# Solicitar merge de dev → main
+```
+
+### Preview das branches
+
+Cada push em `dev` ou `dev-geomar` gera um deploy de preview automático no Vercel. A URL aparece nos checks do PR e na aba "Deployments" do repositório GitHub.
 
 ---
 

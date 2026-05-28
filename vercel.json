@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "main": true,
-      "dev": true
+      "dev": true,
+      "dev-geomar": true
     }
   }
 }
