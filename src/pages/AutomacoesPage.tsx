@@ -1521,8 +1521,8 @@ export default function AutomacoesPage() {
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent" }); }}
                     >
-                      <path d={pathD} stroke="transparent" strokeWidth={12} fill="none" />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -1545,8 +1545,8 @@ export default function AutomacoesPage() {
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error" }); }}
                     >
-                      <path d={pathD} stroke="transparent" strokeWidth={12} fill="none" />
-                      <path d={pathD} stroke={isSel ? "#EF4444" : "#EF4444"} strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -3021,7 +3021,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   const Icon = at?.icon ?? Zap;
   const hasUserInput = node.subBlocks?.some(b => b.type === "entrada_usuario");
 
-  // Porta de entrada: sempre visível (cinza), muda de cor durante drag ativo
+  // Porta de entrada: sempre visível, muda de cor durante drag ativo
   const inputPort = (
     <div
       data-input-port
@@ -3029,14 +3029,14 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       onMouseDown={e => e.stopPropagation()}
       style={{
         position: "absolute",
-        left: -7, top: 33,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
-        width: 14, height: 14,
+        left: -8, top: 32,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
+        width: 16, height: 16,
         borderRadius: "50%",
-        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "#D1D5DB",
-        border: `2.5px solid ${portDragging === "error" ? "#EF4444" : portDragging === "normal" ? "#3B82F6" : "#9CA3AF"}`,
-        boxShadow: portHovered
+        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "#FFFFFF",
+        border: `2px solid ${portDragging === "error" ? "#EF4444" : portDragging === "normal" ? "#3B82F6" : "#9CA3AF"}`,
+        boxShadow: portDragging != null && portHovered
           ? `0 0 0 5px ${portDragging === "error" ? "rgba(239,68,68,0.25)" : "rgba(55,138,221,0.25)"}`
-          : "none",
+          : "0 1px 3px rgba(0,0,0,0.15)",
         cursor: "crosshair",
         zIndex: 10,
         transition: "background 0.1s, border-color 0.1s, box-shadow 0.1s",
