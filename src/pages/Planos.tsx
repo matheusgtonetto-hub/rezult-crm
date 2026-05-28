@@ -113,8 +113,8 @@ const PERIOD_DISCOUNT: Record<BillingPeriod, string | null> = {
 export default function PlanosPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { company } = useCompany();
-  const { subscription, isActive, plan: activePlan } = useSubscription();
+  const { company, companyLoading } = useCompany();
+  const { isActive, plan: activePlan, loading: subLoading } = useSubscription();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
@@ -157,6 +157,14 @@ export default function PlanosPage() {
       setLoadingPlan(null);
     }
   };
+
+  if (companyLoading || subLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F0F4F8" }}>
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "#F0F4F8" }}>
