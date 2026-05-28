@@ -1659,14 +1659,14 @@ function PlanosSection() {
 
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-        <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="text-lg font-bold text-[#111111]">Escolha seu plano</DialogTitle>
-            <p className="text-sm text-[#AAAAAA] mt-0.5">Todos os planos incluem 7 dias grátis.</p>
+        <DialogContent className="max-w-5xl rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          <DialogHeader className="px-8 pt-7 pb-0 text-center">
+            <DialogTitle className="text-xl font-bold text-[#111111]">Planos Rezult CRM</DialogTitle>
+            <p className="text-sm text-[#AAAAAA] mt-1">Encontre o plano que atende às suas necessidades!</p>
           </DialogHeader>
 
           {/* Toggle de período */}
-          <div className="px-6 pt-4 pb-2 flex gap-1 p-1">
+          <div className="px-8 pt-5 pb-2 flex justify-center">
             <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
               {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
                 const disc = UPGRADE_PERIOD_DISCOUNT[period];
@@ -1698,7 +1698,8 @@ function PlanosSection() {
           </div>
 
           {/* Cards dos planos */}
-          <div className="grid grid-cols-3 gap-4 px-6 pb-6">
+          <div className="overflow-y-auto flex-1">
+          <div className="grid grid-cols-3 gap-4 px-8 pb-8 pt-2">
             {UPGRADE_PLAN_INFO.map((plan) => {
               const isCurrent  = planKey === plan.key;
               const isLoading  = upgradeLoading === plan.key;
@@ -1782,6 +1783,7 @@ function PlanosSection() {
                 </div>
               );
             })}
+          </div>
           </div>
         </DialogContent>
       </Dialog>
