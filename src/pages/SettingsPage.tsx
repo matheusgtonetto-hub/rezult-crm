@@ -30,6 +30,7 @@ import {
 import { useCompany } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS } from "@/data/plans";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
 
