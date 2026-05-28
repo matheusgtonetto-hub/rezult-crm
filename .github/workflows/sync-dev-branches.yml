@@ -6,6 +6,9 @@ on:
       - dev
       - dev-geomar
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
