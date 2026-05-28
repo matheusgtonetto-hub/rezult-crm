@@ -35,7 +35,7 @@ serve(async (req) => {
   try {
     const session = await stripe.billingPortal.sessions.create({
       customer:   customerId,
-      return_url: returnUrl ?? "https://app.rezultcrm.com/configuracoes/planos",
+      return_url: returnUrl ?? "https://app.rezultcrm.com/configuracoes",
     });
     return json({ url: session.url });
   } catch (err) {
