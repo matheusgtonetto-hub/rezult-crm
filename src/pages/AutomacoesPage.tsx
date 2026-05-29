@@ -56,7 +56,18 @@ type ActionItem = {
 type ActionCatItem = { id: string; label: string; description: string; icon: React.ElementType; warning?: boolean };
 
 type ConditionItem = { id: string; categoryId: string; conditionId: string; label: string; config?: Record<string, string | boolean | number> };
-type EsperaConfig = { type: "intervalo" | "fixo"; days: string[]; startTime: string; endTime: string; seconds?: number };
+type EsperaConfig = {
+  type: "intervalo_semana" | "minutos" | "dias" | "horas" | "segundos" | "dia_horario" | "usuario_parou";
+  days?: string[];
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  amount?: number;
+  dateField?: string;
+  dateStartTime?: string;
+  dateEndTime?: string;
+  dateTimezone?: string;
+};
 type RandomBranch = { id: string; label: string; percentage: number };
 type ApiConfig = { method: string; url: string; headers: { key: string; value: string }[]; params: { key: string; value: string }[]; body: string };
 
@@ -427,6 +438,8 @@ export default function AutomacoesPage() {
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
   const [condicoesPickerOpen, setCondicoesPickerOpen] = useState(false);
   const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
+  const [espePickerOpen, setEspePickerOpen] = useState(false);
+  const [selectedEspePickerCat, setSelectedEspePickerCat] = useState("tempo");
   const [triggerPanel, setTriggerPanel] = useState(false);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
   const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
@@ -1040,7 +1053,7 @@ export default function AutomacoesPage() {
 
   const updateEspera = (nodeId: string, data: Partial<EsperaConfig>) => {
     setNodes(prev => prev.map(n => n.id === nodeId
-      ? { ...n, espera: { type: "intervalo", days: ["seg","ter","qua","qui","sex"], startTime: "08:00", endTime: "18:00", ...(n.espera ?? {}), ...data } }
+      ? { ...n, espera: { ...(n.espera ?? {} as EsperaConfig), ...data } as EsperaConfig }
       : n
     ));
   };
@@ -1393,6 +1406,7 @@ export default function AutomacoesPage() {
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
               updateEspera={(data) => updateEspera(nodePanel, data)}
+              onOpenPicker={() => setEspePickerOpen(true)}
             />
           )}
 
@@ -2086,6 +2100,67 @@ export default function AutomacoesPage() {
                           </button>
                         );
                       })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Espera picker */}
+      <Dialog open={espePickerOpen} onOpenChange={setEspePickerOpen}>
+        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 480 }}>
+            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              {ESPERA_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const sel = selectedEspePickerCat === cat.id;
+                return (
+                  <button key={cat.id} onClick={() => setSelectedEspePickerCat(cat.id)}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    <Icon size={14} />{cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              {(() => {
+                const cat = ESPERA_CATEGORIES.find(c => c.id === selectedEspePickerCat)!;
+                return (
+                  <>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {cat.items.map(item => (
+                        <button key={item.id}
+                          onClick={() => {
+                            if (nodePanel) {
+                              const defaults: EsperaConfig = item.id === "intervalo_semana"
+                                ? { type: "intervalo_semana", days: ["seg","ter","qua","qui","sex"], startTime: "00:00", endTime: "23:59", timezone: "America/Sao_Paulo (BRT)" }
+                                : item.id === "dia_horario"
+                                ? { type: "dia_horario", dateField: "", dateStartTime: "00:00", dateEndTime: "23:59", dateTimezone: "America/Sao_Paulo (BRT)" }
+                                : item.id === "dias"
+                                ? { type: "dias", amount: 1 }
+                                : { type: item.id as EsperaConfig["type"], amount: 5 };
+                              updateEspera(nodePanel, defaults);
+                            }
+                            setEspePickerOpen(false);
+                          }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            {item.id === "usuario_parou" ? <MessageCircle size={14} color="#3B82F6" /> : <Clock size={14} color="#3B82F6" />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{item.label}</div>
+                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{item.description}</div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </>
                 );
@@ -3284,14 +3359,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Espera</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
-          {espera ? (
-            <div style={{ fontSize: 12, color: "#374151" }}>
-              {espera.seconds && espera.seconds > 0
-                ? `Aguarda ${espera.seconds}s`
-                : `${espera.days.length} dias, ${espera.startTime}–${espera.endTime}`}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12, color: "#6B7280" }}>Adicione um tipo de espera.</div>
+          {espera ? (() => {
+            const allItems = ESPERA_CATEGORIES.flatMap(c => c.items);
+            const item = allItems.find(i => i.id === espera.type);
+            if (!item) return null;
+            const ItemIcon = espera.type === "usuario_parou" ? MessageCircle : Clock;
+            return (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7 }}>
+                <ItemIcon size={13} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</div>
+                </div>
+              </div>
+            );
+          })() : (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Espera um determinado tempo para continuar a execução. Adicione um tipo de espera:</div>
           )}
           <div style={{ position: "relative", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
@@ -3782,32 +3865,81 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
 
 // ─── EsperaPanel ──────────────────────────────────────────────────────────────
 
+const ESPERA_CATEGORIES = [
+  {
+    id: "tempo",
+    label: "Tempo",
+    description: "Adicione espera com base em intervalos de horas",
+    icon: Clock,
+    items: [
+      { id: "intervalo_semana", label: "Espera de um intervalo de hora nos dias da semana", description: "Espera um intervalo de hora nos dias da semana selecionados para continuar a execução." },
+      { id: "minutos",          label: "Espera de alguns minutos",                          description: "Espera uma quantidade informada de minutos para continuar a execução" },
+      { id: "dias",             label: "Espera de alguns dias",                             description: "Espera uma quantidade informada de dias para continuar a execução" },
+      { id: "horas",            label: "Espera de algumas horas",                           description: "Espera uma quantidade informada de horas para continuar a execução" },
+      { id: "segundos",         label: "Espera de alguns segundos",                         description: "Espera uma quantidade informada de segundos para continuar a execução" },
+      { id: "dia_horario",      label: "Espera o dia/horário",                              description: "Espera um dia e horário para continuar a execução" },
+    ],
+  },
+  {
+    id: "mensagens",
+    label: "Mensagens",
+    description: "Adicione espera com base em mensagens",
+    icon: MessageCircle,
+    items: [
+      { id: "usuario_parou", label: "Usuário parou de responder", description: "Quando o usuário parar de responder" },
+    ],
+  },
+];
+
+const TIMEZONES = [
+  "America/Sao_Paulo (BRT)",
+  "America/Manaus (AMT)",
+  "America/Belem (BRT)",
+  "America/Fortaleza (BRT)",
+  "America/Recife (BRT)",
+  "America/Maceio (BRT)",
+  "America/Bahia (BRT)",
+  "America/Cuiaba (AMT)",
+  "America/Porto_Velho (AMT)",
+  "America/Boa_Vista (AMT)",
+  "America/Rio_Branco (ACT)",
+  "America/Noronha (FNT)",
+];
+
 const DAYS_OF_WEEK = [
   { id: "dom", label: "Dom" }, { id: "seg", label: "Seg" }, { id: "ter", label: "Ter" },
   { id: "qua", label: "Qua" }, { id: "qui", label: "Qui" }, { id: "sex", label: "Sex" },
   { id: "sab", label: "Sab" },
 ];
 
-function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera }: {
+function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpenPicker }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   updateEspera: (data: Partial<EsperaConfig>) => void;
+  onOpenPicker: () => void;
 }) {
-  const espera = node.espera ?? { type: "intervalo" as const, days: ["seg","ter","qua","qui","sex"], startTime: "08:00", endTime: "18:00", seconds: 0 };
+  const espera = node.espera;
+  const allItems = ESPERA_CATEGORIES.flatMap(c => c.items);
+  const currentItem = espera ? allItems.find(i => i.id === espera.type) : null;
+
   const toggleDay = (day: string) => {
-    const days = espera.days.includes(day) ? espera.days.filter(d => d !== day) : [...espera.days, day];
+    const days = (espera?.days ?? []).includes(day)
+      ? (espera?.days ?? []).filter(d => d !== day)
+      : [...(espera?.days ?? []), day];
     updateEspera({ days });
   };
+
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
-            <ArrowLeft size={16} /> Espera
+          <button onClick={espera ? onOpenPicker : onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, maxWidth: 200, overflow: "hidden" }}>
+            <ArrowLeft size={16} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentItem ? currentItem.label : "Espera"}</span>
           </button>
-          <div style={{ display: "flex", gap: 2 }}>
+          <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
             {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
@@ -3816,43 +3948,164 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera }: {
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Aguarda um intervalo antes de continuar</p>
+        {currentItem && <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>{currentItem.description}</p>}
       </div>
+
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 10 }}>Espera de um intervalo de hora nos dias da semana</div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
-            {DAYS_OF_WEEK.map(d => {
-              const sel = espera.days.includes(d.id);
-              return (
-                <button key={d.id} onClick={() => toggleDay(d.id)}
-                  style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${sel ? "#3B82F6" : "#E5E5E5"}`, background: sel ? "#DBEAFE" : "#FFFFFF", color: sel ? "#1D4ED8" : "#6B7280", fontSize: 12, fontWeight: sel ? 600 : 400, cursor: "pointer" }}>
-                  {d.label}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        {/* No type selected — show picker trigger */}
+        {!espera && (
+          <button onClick={onOpenPicker}
+            style={{ width: "100%", padding: "40px 0", border: "1.5px dashed #BFDBFE", borderRadius: 8, background: "#F0F9FF", color: "#3B82F6", fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "background 0.1s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")}
+            onMouseLeave={e => (e.currentTarget.style.background = "#F0F9FF")}
+          >
+            <Plus size={20} />
+            <span>Adicionar tipo de espera</span>
+          </button>
+        )}
+
+        {/* intervalo_semana */}
+        {espera?.type === "intervalo_semana" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 4 }}>Início</label>
-              <input type="time" value={espera.startTime ?? "08:00"} onChange={e => updateEspera({ startTime: e.target.value })}
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Dias da semana que poderá continuar a execução</label>
+              <div style={{ display: "flex", gap: 4 }}>
+                {DAYS_OF_WEEK.map(d => {
+                  const sel = (espera.days ?? []).includes(d.id);
+                  return (
+                    <button key={d.id} onClick={() => toggleDay(d.id)}
+                      style={{ width: 30, height: 30, borderRadius: "50%", border: `1.5px solid ${sel ? "#3B82F6" : "#E5E5E5"}`, background: sel ? "#3B82F6" : "#FFFFFF", color: sel ? "#FFFFFF" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
+                      {d.label[0]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 4 }}>Fim</label>
-              <input type="time" value={espera.endTime ?? "18:00"} onChange={e => updateEspera({ endTime: e.target.value })}
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Intervalo de horas</label>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>entre</div>
+                  <input type="time" value={espera.startTime ?? "00:00"} onChange={e => updateEspera({ startTime: e.target.value })}
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>e</div>
+                  <input type="time" value={espera.endTime ?? "23:59"} onChange={e => updateEspera({ endTime: e.target.value })}
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fuso horário</label>
+              <select value={espera.timezone ?? "America/Sao_Paulo (BRT)"} onChange={e => updateEspera({ timezone: e.target.value })}
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFFFFF", cursor: "pointer" }}>
+                {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+              </select>
             </div>
           </div>
-        </div>
-        <div style={{ paddingTop: 16, borderTop: "0.5px solid #E5E5E5" }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Espera por tempo fixo</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="number" min={0} value={espera.seconds ?? 0} onChange={e => updateEspera({ seconds: Number(e.target.value) })}
-              style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-            <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+        )}
+
+        {/* minutos */}
+        {espera?.type === "minutos" && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos minutos esperar para continuar a execução?</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
+                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>minutos</span>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* dias */}
+        {espera?.type === "dias" && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos dias esperar para continuar a execução?</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={espera.amount ?? 1} onChange={e => updateEspera({ amount: Number(e.target.value) })}
+                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>dias</span>
+            </div>
+          </div>
+        )}
+
+        {/* horas */}
+        {espera?.type === "horas" && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantas horas esperar para continuar a execução?</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
+                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>horas</span>
+            </div>
+          </div>
+        )}
+
+        {/* segundos */}
+        {espera?.type === "segundos" && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos segundos esperar para continuar a execução?</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
+                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+            </div>
+          </div>
+        )}
+
+        {/* dia_horario */}
+        {espera?.type === "dia_horario" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Data para seguir a automação</label>
+              <div style={{ position: "relative" }}>
+                <input type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
+                  style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+                <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
+                  <button title="Copiar" style={{ width: 22, height: 22, border: "0.5px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
+                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>entre</div>
+                  <input type="time" value={espera.dateStartTime ?? "00:00"} onChange={e => updateEspera({ dateStartTime: e.target.value })}
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>e</div>
+                  <input type="time" value={espera.dateEndTime ?? "23:59"} onChange={e => updateEspera({ dateEndTime: e.target.value })}
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fuso horário</label>
+              <select value={espera.dateTimezone ?? "America/Sao_Paulo (BRT)"} onChange={e => updateEspera({ dateTimezone: e.target.value })}
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFFFFF", cursor: "pointer" }}>
+                {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* usuario_parou */}
+        {espera?.type === "usuario_parou" && (
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Tempo em segundos que o usuário parou de responder</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
+                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
