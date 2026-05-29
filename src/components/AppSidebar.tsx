@@ -168,6 +168,11 @@ export function AppSidebar() {
               background: active ? ACTIVE_BG : "transparent",
               color: active ? ICON_ACTIVE : ICON_INACTIVE,
             }}
+            onClick={(e) => {
+              const navEvent = new CustomEvent("app-navigate", { cancelable: true, detail: { to: item.to } });
+              window.dispatchEvent(navEvent);
+              if (navEvent.defaultPrevented) e.preventDefault();
+            }}
             onMouseEnter={(e) => {
               if (!active) {
                 e.currentTarget.style.background = HOVER_BG;

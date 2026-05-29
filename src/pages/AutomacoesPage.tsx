@@ -869,6 +869,19 @@ export default function AutomacoesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
 
+  // Intercepta navegação via sidebar (RouterNavLink) quando há alterações não salvas
+  useEffect(() => {
+    if (!isDirty || view !== "editor") return;
+    const handler = (e: Event) => {
+      const to = (e as CustomEvent<{ to: string }>).detail?.to;
+      if (!to) return;
+      e.preventDefault();
+      pendingLeaveRef.current = () => navigate(to);
+      setUnsavedOpen(true);
+    };
+    window.addEventListener("app-navigate", handler);
+    return () => window.removeEventListener("app-navigate", handler);
+  }, [isDirty, view, navigate]);
 
   // Rastrear posições das portas de saída para linhas SVG precisas
   useLayoutEffect(() => {
@@ -1068,7 +1081,7 @@ export default function AutomacoesPage() {
   };
 
   const removeRandomBranch = (nodeId: string, branchId: string) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, randomBranches: (n.randomBranches ?? []).filter(b => b.id !== branchId) } : n));
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, randomBranches: (n.randomBranches ?? DEFAULT_BRANCHES).filter(b => b.id !== branchId) } : n));
   };
 
   const updateRandomBranch = (nodeId: string, branchId: string, data: Partial<RandomBranch>) => {
@@ -3412,7 +3425,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 </div>
                 <span style={{ flex: 1, fontSize: 11, color: "#374151", fontWeight: 500 }}>{b.label}</span>
                 <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{b.percentage}%</span>
-                {branches.length > 2 && (
+                {branches.length > 1 && (
                   <button
                     data-action
                     onMouseDown={e => e.stopPropagation()}
