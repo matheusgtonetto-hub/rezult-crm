@@ -651,66 +651,42 @@ export function ActivityDialog({
             )}
           </div>
 
-          {/* Google Meet link */}
+          {/* Link da reunião */}
           {type === "meeting" && (
-            <div className="space-y-1.5">
-              {!readOnly && (
-                <div className="relative group">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted-foreground">Link da reunião</label>
+                {!readOnly && googleConnected && (
                   <button
                     type="button"
                     onClick={handleGenerateMeetLink}
-                    disabled={!googleConnected || generatingMeet || !!meetLink}
-                    title={!googleConnected ? "Conecte o Google Calendar nas Configurações" : undefined}
-                    className={`flex items-center gap-2 w-full h-8 px-3 border text-xs font-medium transition-all ${
-                      meetLink
-                        ? "border-blue-200 bg-blue-50 text-blue-700 cursor-default"
-                        : googleConnected
-                        ? "border-card-border bg-background text-foreground hover:border-blue-400 hover:text-blue-600"
-                        : "border-card-border bg-background text-muted-foreground cursor-not-allowed opacity-60"
-                    }`}
-                    style={{ borderRadius: 15 }}
+                    disabled={generatingMeet}
+                    className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 hover:underline transition-colors disabled:opacity-50"
                   >
                     {generatingMeet
-                      ? <Loader2 size={13} className="animate-spin shrink-0 text-blue-500" />
-                      : <Video size={13} className={meetLink ? "text-blue-500 shrink-0" : "text-muted-foreground shrink-0"} />
-                    }
-                    <span>
-                      {generatingMeet
-                        ? "Gerando link..."
-                        : meetLink
-                        ? "Link do Google Meet criado"
-                        : "Criar link do Google Meet"}
-                    </span>
-                    {!googleConnected && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">Conectar Google</span>
-                    )}
+                      ? <Loader2 size={10} className="animate-spin" />
+                      : <Video size={10} />}
+                    {generatingMeet ? "Gerando..." : "Criar link do Google Meet"}
                   </button>
-                </div>
-              )}
-              {meetLink && (
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100"
+                )}
+              </div>
+              {readOnly ? (
+                meetLink ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100" style={{ borderRadius: 15 }}>
+                    <Video size={12} className="text-blue-500 shrink-0" />
+                    <a href={meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex-1">
+                      {meetLink}
+                    </a>
+                  </div>
+                ) : null
+              ) : (
+                <Input
+                  value={meetLink}
+                  onChange={e => setMeetLink(e.target.value)}
+                  placeholder="Cole ou gere o link da reunião (Zoom, Meet, Teams...)"
+                  className="h-8 text-xs border-card-border bg-background"
                   style={{ borderRadius: 15 }}
-                >
-                  <Video size={12} className="text-blue-500 shrink-0" />
-                  <a
-                    href={meetLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline truncate flex-1"
-                  >
-                    {meetLink}
-                  </a>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => { setMeetLink(""); setMeetEventCreated(false); }}
-                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                    >
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
+                />
               )}
             </div>
           )}
