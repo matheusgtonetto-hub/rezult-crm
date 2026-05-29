@@ -115,8 +115,8 @@ export function AppSidebar() {
       ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare }] : []),
-    { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },
-    { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const, locked: true },
+    { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const },
+    { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const },
   ];
 
   const itemBase =
