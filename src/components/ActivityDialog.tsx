@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,6 +6,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,7 +117,7 @@ export function ActivityDialog({
   const [meetEventCreated, setMeetEventCreated] = useState(false);
   const [meetGcalEventId, setMeetGcalEventId] = useState<string | undefined>();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -416,32 +418,38 @@ export function ActivityDialog({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Data</label>
-              <button
-                type="button"
-                onClick={() => {
-                  if (readOnly) return;
-                  const el = dateInputRef.current;
-                  if (!el) return;
-                  if (typeof el.showPicker === "function") el.showPicker();
-                  else el.click();
-                }}
-                className="flex items-center gap-1.5 h-8 px-2 border border-card-border bg-background w-full text-left hover:border-primary/50 transition-colors"
-                style={{ borderRadius: 15, cursor: readOnly ? "default" : undefined }}
-              >
-                <CalendarDays size={12} className="text-muted-foreground shrink-0" />
-                <span className="text-xs truncate" style={{ color: date ? "#000000" : undefined }}>
-                  {date
-                    ? new Date(date + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
-                    : <span className="text-muted-foreground text-[10px]">Selecionar</span>}
-                </span>
-              </button>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="sr-only"
-              />
+              <Popover open={datePopoverOpen} onOpenChange={v => { if (!readOnly) setDatePopoverOpen(v); }}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    className="flex items-center gap-1.5 h-8 px-2 border border-card-border bg-background w-full text-left hover:border-primary/50 transition-colors"
+                    style={{ borderRadius: 15 }}
+                  >
+                    <CalendarDays size={12} className="text-muted-foreground shrink-0" />
+                    <span className="text-xs truncate" style={{ color: date ? "#000000" : undefined }}>
+                      {date
+                        ? new Date(date + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+                        : <span className="text-muted-foreground text-[10px]">Selecionar</span>}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date ? new Date(date + "T12:00") : undefined}
+                    onSelect={d => {
+                      if (!d) return;
+                      const yr = d.getFullYear();
+                      const mo = String(d.getMonth() + 1).padStart(2, "0");
+                      const dy = String(d.getDate()).padStart(2, "0");
+                      setDate(`${yr}-${mo}-${dy}`);
+                      setDatePopoverOpen(false);
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Horário</label>
