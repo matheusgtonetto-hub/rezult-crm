@@ -1660,14 +1660,14 @@ function PlanosSection() {
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
         <DialogContent className="max-w-5xl rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
-          <DialogHeader className="px-8 pt-7 pb-0 text-center">
-            <DialogTitle className="text-xl font-bold text-[#111111]">Planos Rezult CRM</DialogTitle>
+          <div className="px-8 pt-7 pb-0 flex flex-col items-center text-center">
+            <p className="text-xl font-bold text-[#111111]">Planos Rezult CRM</p>
             <p className="text-sm text-[#AAAAAA] mt-1">Encontre o plano que atende às suas necessidades!</p>
-          </DialogHeader>
+          </div>
 
           {/* Toggle de período */}
-          <div className="px-8 pt-5 pb-2 flex justify-center">
-            <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
+          <div className="px-8 pt-4 pb-2 flex justify-center">
+            <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
               {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
                 const disc = UPGRADE_PERIOD_DISCOUNT[period];
                 return (
@@ -1676,7 +1676,7 @@ function PlanosSection() {
                     type="button"
                     onClick={() => setUpgradePeriod(period)}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
                       upgradePeriod === period
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -1684,10 +1684,7 @@ function PlanosSection() {
                   >
                     {UPGRADE_PERIOD_LABELS[period]}
                     {disc && (
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                        upgradePeriod === period ? "bg-emerald-100 text-emerald-700" : "bg-emerald-100 text-emerald-700"
-                      )}>
+                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                         {disc}
                       </span>
                     )}
