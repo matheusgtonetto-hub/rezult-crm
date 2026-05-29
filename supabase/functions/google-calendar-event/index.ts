@@ -26,10 +26,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
-    let body: { title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[] };
+    let body: { title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { title, description, start_datetime, duration_minutes = 60, attendees = [] } = body;
+    const { title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
@@ -87,7 +87,7 @@ serve(async (req) => {
       }
     }
 
-    // Cria evento no Google Calendar com Google Meet
+    // Cria evento no Google Calendar (com Meet apenas se solicitado)
     const event = {
       summary: title,
       description: description ?? "",
@@ -96,16 +96,18 @@ serve(async (req) => {
       ...(attendees.length > 0 && {
         attendees: attendees.map(email => ({ email })),
       }),
-      conferenceData: {
-        createRequest: {
-          requestId: crypto.randomUUID(),
-          conferenceSolutionKey: { type: "hangoutsMeet" },
+      ...(create_meet && {
+        conferenceData: {
+          createRequest: {
+            requestId: crypto.randomUUID(),
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
         },
-      },
+      }),
     };
 
     const calRes = await fetch(
-      "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1",
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events${create_meet ? "?conferenceDataVersion=1" : ""}`,
       {
         method:  "POST",
         headers: {

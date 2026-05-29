@@ -227,11 +227,11 @@ export function ActivityDialog({
 
     // Cria evento no Google Calendar se ainda não foi criado via Meet link
     console.log("[ActivityDialog] handleSubmit - type:", type, "addToCalendar:", addToCalendar, "googleConnected:", googleConnected, "meetEventCreated:", meetEventCreated, "meetGcalEventId:", meetGcalEventId);
-    if (type === "meeting" && addToCalendar && googleConnected && !meetEventCreated) {
+    if (addToCalendar && googleConnected && !meetEventCreated) {
       const startDt = `${date}T${time}:00`;
       try {
         const { data, error } = await supabase.functions.invoke("google-calendar-event", {
-          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
+          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, create_meet: type === "meeting" },
         });
         console.log("[ActivityDialog] google-calendar-event response - data:", data, "error:", error);
         if (!error && data && !data.error) {
@@ -396,8 +396,8 @@ export function ActivityDialog({
             </div>
           </div>
 
-          {/* Google Calendar — só aparece para Reunião quando conectado e sem Meet link já criado */}
-          {type === "meeting" && googleConnected && !readOnly && !meetEventCreated && (
+          {/* Google Calendar — aparece para todos os tipos quando conectado */}
+          {googleConnected && !readOnly && !meetEventCreated && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <div
                 onClick={() => setAddToCalendar(p => !p)}
