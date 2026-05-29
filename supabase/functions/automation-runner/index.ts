@@ -48,14 +48,38 @@ interface ConditionItem {
   config?: Record<string, string | boolean | number>;
 }
 
+interface EsperaConfig {
+  type: "intervalo_semana" | "minutos" | "dias" | "horas" | "segundos" | "dia_horario" | "usuario_parou";
+  days?: string[];
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  amount?: number;
+  dateField?: string;
+  dateStartTime?: string;
+  dateEndTime?: string;
+  dateTimezone?: string;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
   trigger?: TriggerConfig | null;
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
+  espera?: EsperaConfig;
   parentId?: string | null;
   errorParentId?: string | null;
+}
+
+interface PendingRecord {
+  id: string;
+  company_id: string;
+  automation_id: string;
+  lead_id: string;
+  node_ids: string[];
+  trigger_payload: TriggerPayload;
+  resume_after: string;
 }
 
 interface AutomationFlow {
@@ -79,22 +103,29 @@ Deno.serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  let payload: TriggerPayload;
+  let body: Record<string, unknown>;
   try {
-    payload = (await req.json()) as TriggerPayload;
+    body = (await req.json()) as Record<string, unknown>;
   } catch {
     return new Response("Bad request", { status: 400 });
-  }
-
-  const { trigger_type, company_id, lead_id } = payload;
-  if (!trigger_type || !company_id || !lead_id) {
-    return new Response("Missing required fields", { status: 400 });
   }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // ── Resume mode: chamado pelo pg_cron para continuar automações pausadas ──
+  if (body.resume === true) {
+    return await handleResume(supabase);
+  }
+
+  // ── Trigger mode normal ────────────────────────────────────────────────────
+  const payload = body as unknown as TriggerPayload;
+  const { trigger_type, company_id, lead_id } = payload;
+  if (!trigger_type || !company_id || !lead_id) {
+    return new Response("Missing required fields", { status: 400 });
+  }
 
   const { data: automations, error } = await supabase
     .from("automations")
@@ -127,6 +158,64 @@ Deno.serve(async (req: Request) => {
   console.log(`[${trigger_type}] lead=${lead_id} matched=${results.length}`);
   return Response.json({ trigger_type, lead_id, matched: results.length, results });
 });
+
+// ─── Resume handler ───────────────────────────────────────────────────────────
+
+async function handleResume(supabase: SupabaseClient): Promise<Response> {
+  const now = new Date().toISOString();
+
+  const { data: pending, error } = await supabase
+    .from("automation_pending")
+    .select("*")
+    .lte("resume_after", now);
+
+  if (error) {
+    console.error("Failed to load pending automations:", error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!pending || pending.length === 0) {
+    return Response.json({ resumed: 0 });
+  }
+
+  // Deleta primeiro para evitar dupla execução caso o job rode em paralelo
+  const ids = (pending as PendingRecord[]).map((p) => p.id);
+  await supabase.from("automation_pending").delete().in("id", ids);
+
+  const results: { id: string; status: string; error?: string }[] = [];
+
+  for (const item of pending as PendingRecord[]) {
+    try {
+      const { data: automation } = await supabase
+        .from("automations")
+        .select("id, name, flow")
+        .eq("id", item.automation_id)
+        .eq("company_id", item.company_id)
+        .eq("active", true)
+        .single();
+
+      if (!automation) {
+        results.push({ id: item.id, status: "skipped", error: "Automation not found or inactive" });
+        continue;
+      }
+
+      await executeFlow(
+        supabase,
+        (automation as AutomationRecord).flow,
+        item.trigger_payload,
+        automation.id,
+        item.node_ids,
+      );
+      results.push({ id: item.id, status: "ok" });
+    } catch (err) {
+      console.error(`Failed to resume pending ${item.id}:`, err);
+      results.push({ id: item.id, status: "error", error: String(err) });
+    }
+  }
+
+  console.log(`[resume] processed=${pending.length}`);
+  return Response.json({ resumed: pending.length, results });
+}
 
 // ─── Trigger filter matching ──────────────────────────────────────────────────
 
@@ -164,7 +253,6 @@ async function matchesTriggerConfig(
       if (!cfgTagIds.length) return true;
       const tagsAdded = payload.context.tag_ids_added ?? [];
       if (cfgTagIds.some((t) => tagsAdded.includes(t))) return true;
-      // leads.tags stores names — resolve IDs to names and compare
       const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsAdded.includes(n));
@@ -197,7 +285,6 @@ async function matchesTriggerConfig(
       let newValue: unknown = changedFields[field];
 
       if (!fieldChanged) {
-        // Campos customizados ficam dentro de custom_field_values
         const customVals = (changedFields["custom_field_values"] ?? {}) as Record<string, unknown>;
         if (field in customVals) {
           fieldChanged = true;
@@ -214,33 +301,18 @@ async function matchesTriggerConfig(
   }
 }
 
-// ─── Flow execution (graph traversal) ────────────────────────────────────────
+// ─── Flow execution (BFS) ─────────────────────────────────────────────────────
 
 async function executeFlow(
   supabase: SupabaseClient,
   flow: AutomationFlow,
   payload: TriggerPayload,
   automationId: string,
+  startNodeIds?: string[], // fornecido ao retomar de automation_pending
 ) {
   const { company_id, lead_id } = payload;
   const allNodes: CanvasNode[] = flow.nodes ?? [];
 
-  // Log start node
-  const startNode = allNodes.find((n) => n.type === "start");
-  if (startNode) {
-    await supabase.from("automation_logs").insert({
-      automation_id: automationId,
-      company_id,
-      lead_id,
-      node_id: startNode.id,
-      status: "success",
-    });
-  }
-
-  // Build parent→children maps from the canvas graph.
-  // children[parentId] = nodes connected via the blue/normal output port
-  // errorChildren[parentId] = nodes connected via the red/error output port
-  // compound key "${nodeId}_${condItemId}" = per-condition individual true path
   const children = new Map<string, CanvasNode[]>();
   const errorChildren = new Map<string, CanvasNode[]>();
 
@@ -257,19 +329,38 @@ async function executeFlow(
     }
   }
 
-  // BFS traversal starting from start node's children
-  const queue: CanvasNode[] = [...(children.get(startNode?.id ?? "") ?? [])];
+  let initialQueue: CanvasNode[];
+
+  if (startNodeIds && startNodeIds.length > 0) {
+    // Retomando de um nó de espera — pular start
+    initialQueue = allNodes.filter((n) => startNodeIds.includes(n.id));
+  } else {
+    // Início normal — logar start node
+    const startNode = allNodes.find((n) => n.type === "start");
+    if (startNode) {
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId,
+        company_id,
+        lead_id,
+        node_id: startNode.id,
+        status: "success",
+      });
+    }
+    initialQueue = [...(children.get(startNode?.id ?? "") ?? [])];
+  }
+
+  const queue: CanvasNode[] = [...initialQueue];
   const visited = new Set<string>();
 
   while (queue.length > 0) {
     const node = queue.shift()!;
 
-    // Guard against cycles
     if (visited.has(node.id)) continue;
     visited.add(node.id);
 
     if (node.type === "note" || node.type === "start") continue;
 
+    // ── Ações ──────────────────────────────────────────────────────────────
     if (node.type === "acoes") {
       let successCount = 0;
       const errorMessages: string[] = [];
@@ -298,7 +389,6 @@ async function executeFlow(
         });
       }
 
-      // Follow error branch when execution failed, normal branch otherwise
       if (errorMessages.length > 0) {
         const errNext = errorChildren.get(node.id) ?? [];
         if (errNext.length > 0) {
@@ -308,6 +398,7 @@ async function executeFlow(
       }
       queue.push(...(children.get(node.id) ?? []));
 
+    // ── Condições ──────────────────────────────────────────────────────────
     } else if (node.type === "condicoes") {
       const { allPassed, passedCondIds } = await evaluateConditionNode(supabase, node, payload);
 
@@ -319,23 +410,161 @@ async function executeFlow(
         status: "success",
       });
 
-      // Individual per-condition true paths (compound port key: nodeId_condItemId)
       for (const condId of passedCondIds) {
         const individualNext = children.get(`${node.id}_${condId}`) ?? [];
         queue.push(...individualNext);
       }
 
-      // All-conditions path vs. none-met path
       if (allPassed) {
         queue.push(...(children.get(node.id) ?? []));
       } else {
         queue.push(...(errorChildren.get(node.id) ?? []));
       }
 
+    // ── Espera ─────────────────────────────────────────────────────────────
+    } else if (node.type === "espera") {
+      const esp = node.espera;
+      const nextNodes = children.get(node.id) ?? [];
+
+      if (esp) {
+        const delay = getEsperaDelay(esp);
+
+        if (delay.type === "inline") {
+          // Curto o suficiente para esperar inline (≤ 90 s)
+          await new Promise<void>((r) => setTimeout(r, delay.ms));
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "success",
+          });
+          queue.push(...nextNodes);
+
+        } else if (delay.type === "scheduled" && nextNodes.length > 0) {
+          // Insere na fila de pendentes — pg_cron retomará depois
+          const { error: insErr } = await supabase.from("automation_pending").insert({
+            company_id,
+            automation_id: automationId,
+            lead_id,
+            node_ids: nextNodes.map((n) => n.id),
+            trigger_payload: payload,
+            resume_after: delay.resumeAfter.toISOString(),
+          });
+          if (insErr) {
+            console.error(`[node ${node.id}] failed to schedule wait:`, insErr);
+            // Em caso de falha ao agendar, continua normalmente
+            queue.push(...nextNodes);
+          }
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "success",
+          });
+          // NÃO enfileira filhos — serão processados quando retomado
+
+        } else {
+          // "immediate" (já está na janela) ou nenhum filho
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "success",
+          });
+          queue.push(...nextNodes);
+        }
+      } else {
+        // Nó sem config de espera — passa direto
+        queue.push(...nextNodes);
+      }
+
+    // ── Outros ─────────────────────────────────────────────────────────────
     } else {
-      // Other node types (espera, mensagem, etc.) — just follow normal path
       queue.push(...(children.get(node.id) ?? []));
     }
+  }
+}
+
+// ─── Espera delay calculator ──────────────────────────────────────────────────
+
+type EsperaDelay =
+  | { type: "inline"; ms: number }      // esperar inline com setTimeout
+  | { type: "scheduled"; resumeAfter: Date } // agendar via automation_pending
+  | { type: "immediate" };              // já está na janela — executa imediatamente
+
+function getEsperaDelay(espera: EsperaConfig): EsperaDelay {
+  const now = new Date();
+
+  switch (espera.type) {
+    case "segundos": {
+      const ms = (espera.amount ?? 5) * 1000;
+      // ≤ 90 s: espera inline dentro da Edge Function
+      if (ms <= 90_000) return { type: "inline", ms };
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + ms) };
+    }
+
+    case "minutos":
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + (espera.amount ?? 5) * 60_000) };
+
+    case "horas":
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + (espera.amount ?? 1) * 3_600_000) };
+
+    case "dias":
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + (espera.amount ?? 1) * 86_400_000) };
+
+    case "intervalo_semana": {
+      const days = espera.days ?? ["seg", "ter", "qua", "qui", "sex"];
+      const startTime = espera.startTime ?? "00:00";
+      const endTime = espera.endTime ?? "23:59";
+      const tzName = (espera.timezone ?? "America/Sao_Paulo (BRT)").split(" ")[0];
+      const DAY_NAMES = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+
+      const isInWindow = (d: Date): boolean => {
+        try {
+          const inTz = new Date(d.toLocaleString("en-US", { timeZone: tzName }));
+          const dayName = DAY_NAMES[inTz.getDay()];
+          if (!days.includes(dayName)) return false;
+          const [sh, sm] = startTime.split(":").map(Number);
+          const [eh, em] = endTime.split(":").map(Number);
+          const mins = inTz.getHours() * 60 + inTz.getMinutes();
+          return mins >= sh * 60 + sm && mins <= eh * 60 + em;
+        } catch { return false; }
+      };
+
+      if (isInWindow(now)) return { type: "immediate" };
+
+      // Procura próxima janela válida (minuto a minuto, até 7 dias)
+      const check = new Date(now.getTime() + 60_000);
+      for (let i = 0; i < 7 * 24 * 60; i++) {
+        if (isInWindow(check)) return { type: "scheduled", resumeAfter: new Date(check) };
+        check.setTime(check.getTime() + 60_000);
+      }
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + 3_600_000) };
+    }
+
+    case "dia_horario": {
+      const tzName = (espera.dateTimezone ?? "America/Sao_Paulo (BRT)").split(" ")[0];
+      const startTime = espera.dateStartTime ?? "00:00";
+
+      if (espera.dateField) {
+        try {
+          const [h, m] = startTime.split(":").map(Number);
+          // Tenta interpretar dateField como data ISO (YYYY-MM-DD ou ISO completo)
+          const base = new Date(espera.dateField.trim());
+          if (!isNaN(base.getTime())) {
+            // Ajusta para meia-noite no fuso e aplica o horário configurado
+            const dateStr = base.toLocaleDateString("en-CA", { timeZone: tzName }); // YYYY-MM-DD
+            const target = new Date(`${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
+            if (!isNaN(target.getTime()) && target > now) {
+              return { type: "scheduled", resumeAfter: target };
+            }
+          }
+        } catch { /* fall through */ }
+      }
+      // Data inválida ou no passado → executa imediatamente
+      return { type: "immediate" };
+    }
+
+    case "usuario_parou":
+      // Espera N segundos de inatividade — usa amount como duração
+      return { type: "scheduled", resumeAfter: new Date(now.getTime() + (espera.amount ?? 30) * 1000) };
+
+    default:
+      return { type: "immediate" };
   }
 }
 
@@ -348,10 +577,8 @@ async function evaluateConditionNode(
 ): Promise<{ allPassed: boolean; passedCondIds: string[] }> {
   const conditions = condNode.conditionItems ?? [];
 
-  // No conditions configured → treat as always true
   if (!conditions.length) return { allPassed: true, passedCondIds: [] };
 
-  // Fetch lead once for all conditions in this node
   const { data: lead } = await supabase
     .from("leads")
     .select("*")
@@ -468,7 +695,6 @@ async function checkCondition(
         const tagIds = splitIds(cfg.tag_ids as string);
         const leadTags = (lead.tags as string[]) ?? [];
         if (!tagIds.length) return leadTags.length > 0;
-        // leads.tags stores names — resolve IDs to names
         const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
         const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
         return tagNames.some((n: string) => leadTags.includes(n));
@@ -552,7 +778,6 @@ async function checkCondition(
     }
   }
 
-  // Condições não suportadas (conversas, instagram) — permissivo
   return true;
 }
 
@@ -567,8 +792,6 @@ async function executeAction(
   const { lead_id, company_id } = payload;
 
   switch (item.actionId) {
-    // ── Negócios ──────────────────────────────────────────────────────────────
-
     case "mover_etapa":
     case "criar_negocio":
     case "duplicar_negocio": {
@@ -634,12 +857,9 @@ async function executeAction(
       break;
     }
 
-    // ── Leads ─────────────────────────────────────────────────────────────────
-
     case "adicionar_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      // leads.tags stores names, not UUIDs — resolve before merging
       const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
@@ -653,7 +873,6 @@ async function executeAction(
     case "remover_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      // leads.tags stores names, not UUIDs — resolve before filtering
       const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
@@ -703,8 +922,6 @@ async function executeAction(
       break;
     }
 
-    // ── Atividades ────────────────────────────────────────────────────────────
-
     case "criar_atividade": {
       const titulo = cfg.titulo as string;
       if (!titulo) return;
@@ -728,12 +945,9 @@ async function executeAction(
       break;
     }
 
-    // ── Sistema ───────────────────────────────────────────────────────────────
-
     case "iniciar_automacao": {
       const automacaoId = cfg.automacao_id as string;
       if (!automacaoId) return;
-      // Load and execute the target automation directly (no HTTP round-trip)
       const { data: targetAuto } = await supabase
         .from("automations")
         .select("id, name, flow")

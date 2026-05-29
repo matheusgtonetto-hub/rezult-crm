@@ -117,6 +117,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
 | `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
+| `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
@@ -169,6 +170,23 @@ leads (INSERT/UPDATE)
 
 3. **Verificar extensão pg_net**
    - Dashboard → Database → Extensions → pg_net (deve estar habilitado por padrão no Supabase)
+
+4. **Bloco Espera — setup adicional (uma vez)**
+   - Execute `supabase/migrations/20260529000001_automation_pending.sql` no SQL Editor do Supabase
+   - Isso cria a tabela `automation_pending` e um job pg_cron que chama a Edge Function a cada minuto para retomar automações pausadas
+   - Pré-requisito: `automation_runner_config` já deve ter `supabase_url` e `automation_secret` (feito na migration principal)
+   - Verifique pg_cron: Dashboard → Database → Extensions → pg_cron
+
+### Como funciona o bloco Espera na execução
+
+| Tipo | Comportamento no runner |
+|------|------------------------|
+| `segundos` ≤ 90s | `setTimeout` inline — a Edge Function aguarda antes de continuar |
+| `segundos` > 90s | Insere em `automation_pending`, pg_cron retoma após o delay |
+| `minutos`, `horas`, `dias` | Insere em `automation_pending`, pg_cron retoma após o delay |
+| `intervalo_semana` | Se já dentro da janela: continua imediatamente; senão, agenda para o próximo início de janela |
+| `dia_horario` | Agenda para a data/hora configurada (se no futuro); se inválida, continua imediatamente |
+| `usuario_parou` | Agenda para `now() + amount segundos` |
 
 ### Gatilhos implementados (disparam do PostgreSQL)
 `lead_criado`, `neg_criado`, `neg_movido`, `neg_ganho`, `neg_perdido`, `neg_restaurado`, `atend_atribuido`, `atend_retirado`, `tag_adicionada`, `tag_removida`
