@@ -199,8 +199,19 @@ export function ActivityDialog({
       } else {
         toast.error("Link do Meet não retornado. Verifique se o Google Calendar está conectado.");
       }
-    } catch {
-      toast.error("Erro ao gerar link do Google Meet.");
+    } catch (err) {
+      let errorCode: string | null = null;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const body = await (err as any)?.context?.json?.();
+        errorCode = body?.error ?? null;
+      } catch { /* ignora */ }
+
+      if (errorCode === "token_refresh_failed" || errorCode === "google_not_connected") {
+        toast.error("Sua conexão com o Google expirou. Reconecte em Configurações > Conexões.");
+      } else {
+        toast.error("Erro ao gerar link do Google Meet. Tente reconectar o Google Calendar nas Configurações.");
+      }
     } finally {
       setGeneratingMeet(false);
     }
