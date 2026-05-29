@@ -1081,7 +1081,14 @@ export default function AutomacoesPage() {
   };
 
   const removeRandomBranch = (nodeId: string, branchId: string) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, randomBranches: (n.randomBranches ?? DEFAULT_BRANCHES).filter(b => b.id !== branchId) } : n));
+    const portKey = `${nodeId}_${branchId}`;
+    setNodes(prev => {
+      const withBranchRemoved = prev.map(n => n.id === nodeId
+        ? { ...n, randomBranches: (n.randomBranches ?? DEFAULT_BRANCHES).filter(b => b.id !== branchId) }
+        : n
+      );
+      return withBranchRemoved.map(n => n.parentId === portKey ? { ...n, parentId: null } : n);
+    });
   };
 
   const updateRandomBranch = (nodeId: string, branchId: string, data: Partial<RandomBranch>) => {
@@ -1524,19 +1531,30 @@ export default function AutomacoesPage() {
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
                     y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
-                    // Compound port: nodeId_condId
+                    // Compound port: nodeId_condId or nodeId_branchId
                     const lastUnder = parentId.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
                     const realParentId = parentId.substring(0, lastUnder);
-                    const condId = parentId.substring(lastUnder + 1);
+                    const suffix = parentId.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === realParentId);
-                    if (!realParent || realParent.type !== "condicoes") return null;
+                    if (!realParent) return null;
                     const pp = portPosMap[parentId];
-                    const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === condId);
-                    if (condIdx === -1) return null;
-                    x1 = pp?.x ?? realParent.x + 258;
-                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
-                    stroke = "#06B6D4";
+                    if (realParent.type === "condicoes") {
+                      const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
+                      if (condIdx === -1) return null;
+                      x1 = pp?.x ?? realParent.x + 258;
+                      y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
+                      stroke = "#06B6D4";
+                    } else if (realParent.type === "randomizador") {
+                      const branches = realParent.randomBranches ?? DEFAULT_BRANCHES;
+                      const branchIdx = branches.findIndex(b => b.id === suffix);
+                      if (branchIdx === -1) return null;
+                      x1 = pp?.x ?? realParent.x + 290;
+                      y1 = pp?.y ?? realParent.y + 110 + branchIdx * 31;
+                      stroke = BRANCH_COLORS[branchIdx % BRANCH_COLORS.length];
+                    } else {
+                      return null;
+                    }
                   }
                   const x2 = n.x, y2 = n.y + 40;
                   const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
@@ -1604,12 +1622,22 @@ export default function AutomacoesPage() {
                   } else {
                     const lastUnder = parentId.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
+                    const suffix = parentId.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === parentId.substring(0, lastUnder));
                     if (!realParent) return null;
                     const pp = portPosMap[parentId];
-                    const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === parentId.substring(lastUnder + 1));
-                    x1 = pp?.x ?? realParent.x + 258;
-                    y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
+                    if (realParent.type === "condicoes") {
+                      const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
+                      x1 = pp?.x ?? realParent.x + 258;
+                      y1 = pp?.y ?? realParent.y + 38 + 10 + condIdx * 55 + 44;
+                    } else if (realParent.type === "randomizador") {
+                      const branches = realParent.randomBranches ?? DEFAULT_BRANCHES;
+                      const branchIdx = branches.findIndex(b => b.id === suffix);
+                      x1 = pp?.x ?? realParent.x + 290;
+                      y1 = pp?.y ?? realParent.y + 110 + branchIdx * 31;
+                    } else {
+                      return null;
+                    }
                   }
                 } else {
                   const parent = nodes.find(p => p.id === n.errorParentId);
