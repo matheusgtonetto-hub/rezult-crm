@@ -376,20 +376,20 @@ export function ActivityDialog({
           {/* Tarefa */}
           <div>
             <label className="text-[11px] text-muted-foreground mb-1 block">Tarefa</label>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {SCHED_TYPES.map(({ type: t, icon: Icon, label }) => (
                 <button
                   key={t}
                   onClick={() => !readOnly && setType(t)}
                   disabled={readOnly && type !== t}
-                  className={`flex items-center justify-center gap-0.5 px-1.5 py-1.5 border text-[10px] font-medium transition-all whitespace-nowrap flex-1 ${
+                  className={`flex items-center justify-center gap-1 px-2 py-1 border text-[10px] transition-all whitespace-nowrap flex-1 bg-background ${
                     type === t
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "text-muted-foreground border-card-border hover:border-primary/50 hover:text-foreground bg-background"
+                      ? "border-green-500 text-green-600"
+                      : "border-card-border text-muted-foreground hover:border-green-400 hover:text-green-500"
                   } ${readOnly ? "cursor-default" : ""}`}
                   style={{ borderRadius: 8 }}
                 >
-                  <Icon size={11} />
+                  <Icon size={10} />
                   <span>{label}</span>
                 </button>
               ))}
