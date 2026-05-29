@@ -297,7 +297,7 @@ export function ActivityDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="bg-card border-card-border sm:max-w-sm p-5" style={{ borderRadius: 15 }}>
+      <DialogContent className="bg-card border-card-border sm:max-w-lg p-5" style={{ borderRadius: 15 }}>
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm text-foreground">
             {readOnly ? "Detalhes da atividade" : isEditing ? "Editar atividade" : "Nova atividade"}
