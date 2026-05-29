@@ -3390,7 +3390,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const branches = node.randomBranches ?? DEFAULT_BRANCHES;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 290, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -3398,18 +3398,45 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
+          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {branches.map((b, i) => (
-              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", paddingRight: 16, background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6 }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6 }}>
+                <div style={{ width: 20, height: 20, borderRadius: 5, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
                 </div>
-                <span style={{ flex: 1, fontSize: 11, color: "#374151" }}>{b.label}</span>
-                <span style={{ fontSize: 11, color: "#F97316", fontWeight: 600 }}>{b.percentage}%</span>
+                <span style={{ flex: 1, fontSize: 11, color: "#374151", fontWeight: 500 }}>{b.label}</span>
+                <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{b.percentage}%</span>
                 <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={onPortDragStart}
-                  style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#FED7AA", border: "2px solid #F97316", cursor: "crosshair", zIndex: 3 }} />
+                  style={{ position: "absolute", right: -18, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: BRANCH_COLORS[i % BRANCH_COLORS.length] + "33", border: `2px solid ${BRANCH_COLORS[i % BRANCH_COLORS.length]}`, cursor: "crosshair", zIndex: 3 }} />
               </div>
             ))}
+          </div>
+          <button
+            data-action
+            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 8, padding: "7px 0", border: "1px dashed #E5E5E5", borderRadius: 7, background: "transparent", color: "#6B7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+          >
+            <Plus size={11} /> Adicionar ramificação
+          </button>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
+              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
+              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
+            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
+              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
+              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
           </div>
         </div>
       </div>
@@ -4146,7 +4173,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Distribua o fluxo aleatoriamente entre ramificações</p>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Modifique as ramificações e seus percentuais</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {total !== 100 && (
@@ -4154,27 +4181,31 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
             Total: {total}% (deve somar 100%)
           </div>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {branches.map((b, i) => (
-            <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 6, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{b.label}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {branches.map((b, i) => {
+            const color = BRANCH_COLORS[i % BRANCH_COLORS.length];
+            return (
+              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", minWidth: 16, textAlign: "center" }}>{b.label}</span>
+                <input
+                  type="range" min={0} max={100} value={b.percentage}
+                  onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
+                  style={{ flex: 1, height: 6, accentColor: color, cursor: "pointer" }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
+                    style={{ width: 46, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
+                  <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
+                </div>
+                {branches.length > 2 && (
+                  <button onClick={() => removeBranch(b.id)} style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", flexShrink: 0 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  ><X size={11} /></button>
+                )}
               </div>
-              <input value={b.label} onChange={e => updateBranch(b.id, { label: e.target.value })}
-                style={{ flex: 1, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", background: "#FFF" }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
-                  style={{ width: 52, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "right", background: "#FFF" }} />
-                <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
-              </div>
-              {branches.length > 2 && (
-                <button onClick={() => removeBranch(b.id)} style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                ><X size={11} /></button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
