@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
-import { useNavigate, useBlocker } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -449,10 +449,6 @@ export default function AutomacoesPage() {
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const pendingLeaveRef  = useRef<(() => void) | null>(null);
   const skipDirtyRef     = useRef(false);
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty && view === "editor" && currentLocation.pathname !== nextLocation.pathname
-  );
   const [logsPanelEntries, setLogsPanelEntries] = useState<LogEntry[]>([]);
   const [logsPanelLoading, setLogsPanelLoading] = useState(false);
   const [logsPanelLeadFilter, setLogsPanelLeadFilter] = useState("");
@@ -873,14 +869,6 @@ export default function AutomacoesPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty, view]);
 
-  // Block React Router navigation (sidebar, back button) when dirty
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      pendingLeaveRef.current = () => blocker.proceed();
-      setUnsavedOpen(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocker.state]);
 
   // Rastrear posições das portas de saída para linhas SVG precisas
   useLayoutEffect(() => {
@@ -907,10 +895,7 @@ export default function AutomacoesPage() {
 
   const handleUnsavedOpenChange = (open: boolean) => {
     setUnsavedOpen(open);
-    if (!open) {
-      pendingLeaveRef.current = null;
-      if (blocker.state === "blocked") blocker.reset();
-    }
+    if (!open) { pendingLeaveRef.current = null; }
   };
 
   const requestLeave = (action: () => void) => {
