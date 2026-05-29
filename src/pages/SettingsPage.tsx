@@ -1358,7 +1358,15 @@ const UPGRADE_PLAN_INFO = [
     name: "Starter",
     prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
-    features: ["Até 5 pipelines", "Até 5 mil leads", "4 membros", "8 automações"],
+    features: [
+      "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
+      "Criação e gerenciamento de negócios e produtos.",
+      "Gerenciamento de até 5 mil leads com controle de tags.",
+      "Cadastro de 4 membros na empresa.",
+      "8 automações para otimizar interações com leads.",
+      "Multiatendimento com até 3 conexões (WhatsApp, Instagram e outros).",
+      "3 integrações com Webhooks para conectar outras ferramentas.",
+    ],
   },
   {
     key: "essential" as UpgradePlanKey,
@@ -1366,14 +1374,34 @@ const UPGRADE_PLAN_INFO = [
     badge: "Mais popular",
     prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
-    features: ["Até 20 pipelines", "Até 100 mil leads", "15 membros", "20 automações", "API"],
+    features: [
+      "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
+      "Criação e gerenciamento de negócios e produtos.",
+      "Gerenciamento de até 100 mil leads com controle de tags.",
+      "Cadastro de 15 membros na empresa.",
+      "20 automações para otimizar interações com leads.",
+      "Multiatendimento com até 10 conexões (WhatsApp, Instagram e outros).",
+      "15 integrações com Webhooks para conectar outras ferramentas.",
+      "Dashboards de negócios das pipelines.",
+      "Acesso à API para integração com outras ferramentas.",
+    ],
   },
   {
     key: "pro" as UpgradePlanKey,
     name: "Pro",
     prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
-    features: ["Pipelines ilimitadas", "Leads ilimitados", "Membros ilimitados", "Automações ilimitadas"],
+    features: [
+      "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
+      "Gerenciamento ilimitado de leads com controle de tags.",
+      "Criação e gerenciamento de negócios e produtos.",
+      "Cadastro ilimitado de membros na empresa.",
+      "Automações ilimitadas para otimizar interações com leads.",
+      "Multiatendimento com conexões ilimitadas (WhatsApp, Instagram e outros).",
+      "Integrações com Webhooks ilimitadas para conectar outras ferramentas.",
+      "Dashboards de negócios das pipelines.",
+      "Acesso à API para integração com outras ferramentas.",
+    ],
   },
 ];
 
@@ -1631,15 +1659,15 @@ function PlanosSection() {
 
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-        <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="text-lg font-bold text-[#111111]">Escolha seu plano</DialogTitle>
-            <p className="text-sm text-[#AAAAAA] mt-0.5">Todos os planos incluem 7 dias grátis.</p>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="px-8 pt-7 pb-0 flex flex-col items-center text-center">
+            <p className="text-xl font-bold text-[#111111]">Planos Rezult CRM</p>
+            <p className="text-sm text-[#AAAAAA] mt-1">Encontre o plano que atende às suas necessidades!</p>
+          </div>
 
           {/* Toggle de período */}
-          <div className="px-6 pt-4 pb-2 flex gap-1 p-1">
-            <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
+          <div className="px-8 pt-4 pb-2 flex justify-center">
+            <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
               {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
                 const disc = UPGRADE_PERIOD_DISCOUNT[period];
                 return (
@@ -1648,7 +1676,7 @@ function PlanosSection() {
                     type="button"
                     onClick={() => setUpgradePeriod(period)}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
                       upgradePeriod === period
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -1656,10 +1684,7 @@ function PlanosSection() {
                   >
                     {UPGRADE_PERIOD_LABELS[period]}
                     {disc && (
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                        upgradePeriod === period ? "bg-emerald-100 text-emerald-700" : "bg-emerald-100 text-emerald-700"
-                      )}>
+                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                         {disc}
                       </span>
                     )}
@@ -1670,7 +1695,8 @@ function PlanosSection() {
           </div>
 
           {/* Cards dos planos */}
-          <div className="grid grid-cols-3 gap-4 px-6 pb-6">
+          <div className="overflow-y-auto flex-1">
+          <div className="grid grid-cols-3 gap-4 px-8 pb-8 pt-2">
             {UPGRADE_PLAN_INFO.map((plan) => {
               const isCurrent  = planKey === plan.key;
               const isLoading  = upgradeLoading === plan.key;
@@ -1754,6 +1780,7 @@ function PlanosSection() {
                 </div>
               );
             })}
+          </div>
           </div>
         </DialogContent>
       </Dialog>
