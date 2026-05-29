@@ -1676,6 +1676,7 @@ export default function AutomacoesPage() {
                     onStatClick={(status) => handleStatClick(n.id, status)}
                     portDragging={portDragLine != null ? (portDragLine.isError ? "error" : "normal") : null}
                     portHovered={hoveredInputPort === n.id}
+                    onAddRandomBranch={n.type === "randomizador" ? () => addRandomBranch(n.id) : undefined}
                   />
                 );
               })}
@@ -3071,7 +3072,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -3091,6 +3092,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onStatClick?: (status: "success" | "alert" | "error") => void;
   portDragging?: "normal" | "error" | null;
   portHovered?: boolean;
+  onAddRandomBranch?: () => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -3414,7 +3416,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
           <button
             data-action
-            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            onClick={(e) => { e.stopPropagation(); onAddRandomBranch?.(); onSelect(); }}
             style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 8, padding: "7px 0", border: "1px dashed #E5E5E5", borderRadius: 7, background: "transparent", color: "#6B7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
