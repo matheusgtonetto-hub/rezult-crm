@@ -858,7 +858,7 @@ export default function AutomacoesPage() {
 
   // Rastrear posições das portas de saída para linhas SVG precisas
   useLayoutEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || view !== "editor") return;
     const newMap: Record<string, { x: number; y: number }> = {};
     const canvasRect = canvasRef.current.getBoundingClientRect();
     canvasRef.current.querySelectorAll("[data-port]").forEach(el => {
@@ -877,7 +877,7 @@ export default function AutomacoesPage() {
       if (Object.keys(newMap).length !== Object.keys(prev).length) return newMap;
       return prev;
     });
-  }, [nodes, zoom, pan.x, pan.y]);
+  }, [nodes, zoom, pan.x, pan.y, view]);
 
   const handleUnsavedOpenChange = (open: boolean) => {
     setUnsavedOpen(open);
@@ -2822,14 +2822,14 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         >
           {node.trigger ? "Alterar gatilho" : "+ Adicionar gatilho"}
         </button>
-        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ position: "relative", fontSize: 11, color: "#6B7280", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 8 }}>
           <span>Quando o evento ocorrer, então</span>
           <div
             data-port
             data-from-node={node.id}
             title="Arraste para adicionar próximo passo"
             onMouseDown={onPortDragStart}
-            style={{ width: 12, height: 12, borderRadius: "50%", background: "#378ADD", border: "2px solid #FFFFFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", flexShrink: 0 }}
+            style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#378ADD", border: "2px solid #FFFFFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 3 }}
           />
         </div>
       </div>
@@ -3131,22 +3131,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </button>
           {/* Output ports */}
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
               <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro na execução da ação</span>
               <div
                 data-port
                 data-from-node={`${node.id}__error`}
                 onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
                 title="Arraste para tratar o erro"
-                style={{ width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }}
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
               />
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
               <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
               <div
                 data-port data-from-node={node.id}
                 onMouseDown={onPortDragStart}
-                style={{ width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }}
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }}
               />
             </div>
           </div>
@@ -3212,10 +3212,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                         onMouseLeave={e => (e.currentTarget.style.color = "#C4B5FD")}
                       ><X size={10} /></button>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 3, paddingRight: 2 }}>
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 3, paddingRight: 8 }}>
                       <span style={{ fontSize: 10, color: "#6B7280" }}>Se esta condição for verdadeira</span>
                       <div data-port data-from-node={`${node.id}_${item.id}`} onMouseDown={e => onConditionPortDragStart?.(e, item.id)}
-                        style={{ width: 10, height: 10, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", flexShrink: 0, cursor: "crosshair" }} />
+                        style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
                     </div>
                   </div>
                 );
@@ -3237,15 +3237,15 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
 
           {/* Bottom ports */}
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
               <span style={{ fontSize: 10, color: "#6B7280" }}>Todas as condições forem verdadeiras</span>
               <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
-                style={{ width: 10, height: 10, borderRadius: "50%", background: "#DDD6FE", border: "2px solid #8B5CF6", flexShrink: 0, cursor: "crosshair" }} />
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#DDD6FE", border: "2px solid #8B5CF6", cursor: "crosshair", zIndex: 3 }} />
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
               <span style={{ fontSize: 10, color: "#EF4444" }}>Quando não atender a nenhuma condição</span>
               <div data-port data-from-node={`${node.id}__error`} onMouseDown={e => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
-                style={{ width: 10, height: 10, borderRadius: "50%", background: "#FEE2E2", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }} />
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#FEE2E2", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
             </div>
           </div>
 
@@ -3293,10 +3293,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           ) : (
             <div style={{ fontSize: 12, color: "#6B7280" }}>Adicione um tipo de espera.</div>
           )}
-          <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+          <div style={{ position: "relative", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
             <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
-              style={{ width: 12, height: 12, borderRadius: "50%", background: "#BFDBFE", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }} />
+              style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#BFDBFE", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
           </div>
         </div>
       </div>
@@ -3317,14 +3317,14 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         <div style={{ padding: "10px 14px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {branches.map((b, i) => (
-              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6 }}>
+              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", paddingRight: 16, background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6 }}>
                 <div style={{ width: 16, height: 16, borderRadius: 4, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
                 </div>
                 <span style={{ flex: 1, fontSize: 11, color: "#374151" }}>{b.label}</span>
                 <span style={{ fontSize: 11, color: "#F97316", fontWeight: 600 }}>{b.percentage}%</span>
                 <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={onPortDragStart}
-                  style={{ width: 10, height: 10, borderRadius: "50%", background: "#FED7AA", border: "2px solid #F97316", flexShrink: 0, cursor: "crosshair" }} />
+                  style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#FED7AA", border: "2px solid #F97316", cursor: "crosshair", zIndex: 3 }} />
               </div>
             ))}
           </div>
@@ -3429,22 +3429,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
             <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
             <div
               data-port
               data-from-node={`${node.id}__error`}
               onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
               title="Arraste para tratar o erro"
-              style={{ width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", flexShrink: 0, cursor: "crosshair" }}
+              style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
             <div
               data-port data-from-node={node.id}
               onMouseDown={onPortDragStart}
-              style={{ width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", flexShrink: 0, cursor: "crosshair" }}
+              style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }}
             />
           </div>
         </div>
