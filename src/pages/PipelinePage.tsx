@@ -672,7 +672,7 @@ export default function PipelinePage() {
                                       <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
                                         {col.title}
                                       </h3>
-                                      <p className="mt-0.5" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+                                      <p className="mt-0.5 whitespace-nowrap" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
                                         {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
                                         {col.filteredIds.length === 1 ? "negócio" : "negócios"}
                                       </p>
