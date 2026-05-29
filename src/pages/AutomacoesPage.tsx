@@ -1677,6 +1677,7 @@ export default function AutomacoesPage() {
                     portDragging={portDragLine != null ? (portDragLine.isError ? "error" : "normal") : null}
                     portHovered={hoveredInputPort === n.id}
                     onAddRandomBranch={n.type === "randomizador" ? () => addRandomBranch(n.id) : undefined}
+                    onRemoveRandomBranch={n.type === "randomizador" ? (branchId) => removeRandomBranch(n.id, branchId) : undefined}
                   />
                 );
               })}
@@ -3093,6 +3094,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   portDragging?: "normal" | "error" | null;
   portHovered?: boolean;
   onAddRandomBranch?: () => void;
+  onRemoveRandomBranch?: (branchId: string) => void;
 }) {
   const at = ACTION_TYPES.find(a => a.id === node.type);
   const Icon = at?.icon ?? Zap;
@@ -3409,6 +3411,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 </div>
                 <span style={{ flex: 1, fontSize: 11, color: "#374151", fontWeight: 500 }}>{b.label}</span>
                 <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{b.percentage}%</span>
+                {branches.length > 2 && (
+                  <button
+                    data-action
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onRemoveRandomBranch?.(b.id); }}
+                    style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D1D5DB", flexShrink: 0, padding: 0, marginRight: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#D1D5DB")}
+                  ><X size={10} /></button>
+                )}
                 <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={onPortDragStart}
                   style={{ position: "absolute", right: -18, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: BRANCH_COLORS[i % BRANCH_COLORS.length] + "33", border: `2px solid ${BRANCH_COLORS[i % BRANCH_COLORS.length]}`, cursor: "crosshair", zIndex: 3 }} />
               </div>
