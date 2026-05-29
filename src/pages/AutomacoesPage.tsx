@@ -1705,6 +1705,7 @@ export default function AutomacoesPage() {
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onErrorPortDragStart={(e) => startPortDrag(e, `${n.id}__error`)}
                     onConditionPortDragStart={(e, condId) => startPortDrag(e, `${n.id}_${condId}`)}
+                    onBranchPortDragStart={(e, branchId) => startPortDrag(e, `${n.id}_${branchId}`)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
                     onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); if (nodePanel === n.id) setNodePanel(null); if (selectedNode === n.id) setSelectedNode(null); }}
                     onDuplicate={() => setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }])}
@@ -3115,13 +3116,14 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onErrorPortDragStart?: (e: React.MouseEvent) => void;
   onConditionPortDragStart?: (e: React.MouseEvent, condId: string) => void;
+  onBranchPortDragStart?: (e: React.MouseEvent, branchId: string) => void;
   onDragStart: (e: React.MouseEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -3463,7 +3465,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                     onMouseLeave={e => (e.currentTarget.style.color = "#D1D5DB")}
                   ><X size={10} /></button>
                 )}
-                <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={onPortDragStart}
+                <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={e => onBranchPortDragStart?.(e, b.id)}
                   style={{ position: "absolute", right: -18, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: BRANCH_COLORS[i % BRANCH_COLORS.length] + "33", border: `2px solid ${BRANCH_COLORS[i % BRANCH_COLORS.length]}`, cursor: "crosshair", zIndex: 3 }} />
               </div>
             ))}
