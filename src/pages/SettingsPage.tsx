@@ -101,7 +101,7 @@ export default function SettingsPage() {
   }, [section, navigate]);
 
   return (
-    <div className="flex h-screen bg-muted/50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-[200px] bg-card border-r-[0.5px] border-card-border flex flex-col shrink-0">
         <button
