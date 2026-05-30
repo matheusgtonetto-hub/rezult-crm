@@ -307,7 +307,7 @@ export default function DashboardPage() {
                 color: "text-primary",
               },
             ].map(c => (
-              <div key={c.label} className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+              <div key={c.label} className="bg-card rounded-xl p-4 border border-card-border">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
                   <c.icon size={15} className={c.color} />
