@@ -103,10 +103,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-[200px] bg-card border-r-[0.5px] border-card-border flex flex-col shrink-0">
+      <aside className="w-[200px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b-[0.5px] border-card-border"
+          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -378,7 +378,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
       {company && (
         <Card>
           <SectionTitle title="Empresa" subtitle="Empresa vinculada à sua conta" />
-          <div className="border-[0.5px] border-card-border rounded-lg overflow-hidden">
+          <div className="border border-card-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold">
@@ -1083,7 +1083,7 @@ function EquipeSection() {
               return (
                 <div
                   key={m.id}
-                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold shrink-0 overflow-hidden">
                     {m.avatar_url
@@ -1166,7 +1166,7 @@ function EquipeSection() {
               {pendingInvites.map(inv => (
                 <div
                   key={inv.id}
-                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg bg-muted/50"
+                  className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg bg-muted/50"
                 >
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Mail size={14} className="text-muted-foreground" />
@@ -1323,7 +1323,7 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
   const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
   return (
-    <div className="bg-white border-[0.5px] border-card-border rounded-xl p-4">
+    <div className="bg-white border border-card-border rounded-xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
@@ -1848,7 +1848,7 @@ function TagsSection() {
         ) : (
           <div className="space-y-2">
             {crmTags.map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
+              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
                 <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] text-foreground font-medium leading-tight">{t.name}</p>
@@ -1993,7 +1993,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-white border-[0.5px] border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2147,7 +2147,7 @@ function MotivosSection() {
         ) : (
           <div className="space-y-2">
             {lossReasons.map(r => (
-              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
+              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
                 <p className="flex-1 text-[13px] text-foreground">{r.name}</p>
                 <button onClick={() => openEdit(r.id, r.name)} className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
                 <button onClick={() => setDeletingId(r.id)} className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
@@ -2288,7 +2288,7 @@ function ListasSection() {
         ) : (
           <div className="space-y-2">
             {crmLists.map(l => (
-              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg group">
+              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg group">
                 <List size={16} className="text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] text-foreground font-medium truncate">{l.name}</p>
@@ -2337,7 +2337,7 @@ function ListasSection() {
             ) : (
               <div className="space-y-2">
                 {viewLeads.map(lead => (
-                  <div key={lead.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border-[0.5px] border-card-border">
+                  <div key={lead.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-card-border">
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                       style={{ background: `hsl(${Math.abs(lead.name.split("").reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % 360} 55% 45%)` }}
@@ -2446,13 +2446,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-white border-[0.5px] border-card-border rounded-xl px-4 py-10 text-center">
+          <div className="bg-white border border-card-border rounded-xl px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-white border-[0.5px] border-card-border rounded-xl overflow-hidden">
+          <div key={g.id} className="bg-white border border-card-border rounded-xl overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -2631,7 +2631,7 @@ function DepartamentosSection() {
       <Card>
         <div className="space-y-2">
           {deps.map(d => (
-            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
+            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
               <Building2 size={16} className="text-primary" />
               <p className="flex-1 text-[13px] text-foreground font-medium">{d.name}</p>
               <span className="text-xs text-muted-foreground">{d.count} membros</span>
@@ -2700,7 +2700,7 @@ function AtividadesSection() {
       <Card>
         <div className="space-y-2">
           {tipos.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
+            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <t.icon size={14} className="text-primary" />
               </div>
@@ -4201,7 +4201,7 @@ function McpSection() {
       <h1 className="text-xl font-semibold text-foreground mb-6">Servidor MCP</h1>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-muted border-[0.5px] border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>

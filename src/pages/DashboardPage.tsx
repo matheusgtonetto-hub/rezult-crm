@@ -245,7 +245,7 @@ export default function DashboardPage() {
 
   const tooltip = {
     backgroundColor: "hsl(var(--card))",
-    border: "0.5px solid hsl(var(--card-border))",
+    border: "1px solid hsl(var(--card-border))",
     borderRadius: 8,
     color: "hsl(var(--foreground))",
     fontSize: 12,
@@ -696,7 +696,7 @@ export default function DashboardPage() {
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de negócios</span>
                       <DollarSign size={15} className="text-primary" />
@@ -704,7 +704,7 @@ export default function DashboardPage() {
                     <p className="text-[28px] leading-none font-bold text-foreground">{pLeads.length}</p>
                     <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLeads.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de ganhos</span>
                       <Trophy size={15} className="text-success" />
@@ -712,7 +712,7 @@ export default function DashboardPage() {
                     <p className="text-[28px] leading-none font-bold text-foreground">{pWon.length}</p>
                     <p className="text-[12px] text-muted-foreground mt-2">{fmt(pWon.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total perdidos</span>
                       <TrendingUp size={15} className="text-destructive" />
@@ -720,7 +720,7 @@ export default function DashboardPage() {
                     <p className="text-[28px] leading-none font-bold text-foreground">{pLost.length}</p>
                     <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLost.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total em aberto</span>
                       <Clock size={15} className="text-primary" />
@@ -728,7 +728,7 @@ export default function DashboardPage() {
                     <p className="text-[28px] leading-none font-bold text-foreground">{pOpen.length}</p>
                     <p className="text-[12px] text-muted-foreground mt-2">{fmt(pOpen.reduce((s, l) => s + l.value, 0))}</p>
                   </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "0.5px solid hsl(var(--card-border))" }}>
+                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Conversão do funil</span>
                       <TrendingUp size={15} className="text-success" />

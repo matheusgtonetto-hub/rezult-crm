@@ -1115,14 +1115,14 @@ export default function AutomacoesPage() {
     <>
       {!leftCollapsed ? (
         <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
-          <div style={{ padding: 12, borderBottom: "0.5px solid #E5E5E5" }}>
+          <div style={{ padding: 12, borderBottom: "1px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar automação..."
-                style={{ width: "100%", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
               />
               <Power
                 size={14}
@@ -1186,7 +1186,7 @@ export default function AutomacoesPage() {
 
           <button
             onClick={() => setLeftCollapsed(true)}
-            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
           >
             <ChevronLeft size={14} color="#6B7280" />
           </button>
@@ -1194,7 +1194,7 @@ export default function AutomacoesPage() {
       ) : (
         <button
           onClick={() => setLeftCollapsed(false)}
-          style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "1px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
         >
           <ChevronRight size={14} color="#6B7280" />
         </button>
@@ -1227,7 +1227,7 @@ export default function AutomacoesPage() {
                   value={listSearch}
                   onChange={e => setListSearch(e.target.value)}
                   placeholder="Pesquisar..."
-                  style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
+                  style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
                 />
               </div>
             </div>
@@ -1242,7 +1242,7 @@ export default function AutomacoesPage() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
                 {/* Create card */}
-                <div style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>Criar nova automação</div>
                     <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4, lineHeight: 1.5 }}>
@@ -1254,7 +1254,7 @@ export default function AutomacoesPage() {
                       <button
                         key={g.name}
                         onClick={() => { setNewGroup(g.name); setCreateOpen(true); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "#FFFFFF", color: i === 0 ? "#FFFFFF" : "#374151", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "#FFFFFF", color: i === 0 ? "#FFFFFF" : "#374151", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
                       >
                         <Zap size={13} color={i === 0 ? "#FFFFFF" : "hsl(var(--primary))"} />
                         {g.name}
@@ -1263,7 +1263,7 @@ export default function AutomacoesPage() {
                   </div>
                   <button
                     onClick={() => setCreateOpen(true)}
-                    style={{ marginTop: "auto", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                   >
                     <Plus size={14} /> Criar nova automação
                   </button>
@@ -1271,9 +1271,9 @@ export default function AutomacoesPage() {
 
                 {/* Automation cards */}
                 {filteredAutomations.map(auto => (
-                  <div key={auto.id} style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
+                  <div key={auto.id} style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
                     {/* Mini canvas preview */}
-                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
                       <div style={{ opacity: 0.15, fontSize: 10, color: "#374151", transform: "scale(0.35)", transformOrigin: "center", pointerEvents: "none", userSelect: "none" }}>
                         <div style={{ background: "#FFFFFF", border: "1px dashed #CCCCCC", borderRadius: 8, padding: "8px 12px", width: 200 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -1297,7 +1297,7 @@ export default function AutomacoesPage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{auto.name}</div>
                       <button
                         onClick={() => openEditor(auto.id)}
-                        style={{ marginTop: "auto", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#374151", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                        style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#374151", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#374151"; }}
                       >
@@ -1337,7 +1337,7 @@ export default function AutomacoesPage() {
           {/* Default: Blocos básicos (when no node selected) */}
           {!nodePanel && !triggerPanel && (
             <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
               </div>
@@ -1349,7 +1349,7 @@ export default function AutomacoesPage() {
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "1px solid #F5F5F5" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
@@ -1735,7 +1735,7 @@ export default function AutomacoesPage() {
                   <div key={`chip_${i}`} style={{
                     position: "absolute", left: nd.x, top: nd.y - 56,
                     width: 260, background: "#FFFFFF",
-                    border: "0.5px solid #E5E5E5",
+                    border: "1px solid #E5E5E5",
                     borderLeft: `3px solid ${sColor}`,
                     borderRadius: 8,
                     padding: "6px 10px 6px 8px",
@@ -1756,7 +1756,7 @@ export default function AutomacoesPage() {
               {addNodeMenu && (
                 <div
                   data-node
-                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
+                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
                   onClick={e => e.stopPropagation()}
                 >
                   {ACTION_TYPES.map(at => {
@@ -1780,14 +1780,14 @@ export default function AutomacoesPage() {
           </div>
 
           {/* Zoom controls */}
-          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
             <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} style={zoomBtn}><Minus size={14} /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtn}><Maximize2 size={14} /></button>
           </div>
 
           {/* Nav arrows */}
-          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => requestLeave(() => setView("list"))} style={zoomBtn} title="Voltar à lista"><ArrowLeft size={14} /></button>
             <button style={zoomBtn}><ArrowRight size={14} /></button>
           </div>
@@ -1797,10 +1797,10 @@ export default function AutomacoesPage() {
 
           {/* ── Logs Panel — painel lateral direito ──────────────────────── */}
           {logsPanel && (
-            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "0.5px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "1px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
 
               {/* Header */}
-              <div style={{ padding: "12px 14px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5 }}>Logs do bloco</span>
                   {logsPanelNode && (
@@ -1819,7 +1819,7 @@ export default function AutomacoesPage() {
 
               {/* Banner: lead com caminho ativo no canvas */}
               {logsPanelSelectedEntry && (
-                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "1px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <User size={12} color="#3B82F6" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {logsPanelSelectedEntry.leadName}
@@ -1831,7 +1831,7 @@ export default function AutomacoesPage() {
               )}
 
               {/* Tabs */}
-              <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+              <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
                 {([
                   { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
                   { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
@@ -1848,18 +1848,18 @@ export default function AutomacoesPage() {
               </div>
 
               {/* Filtros */}
-              <div style={{ padding: "8px 12px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div style={{ flex: 1, position: "relative" }}>
                   <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
-                    style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
+                    style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
                   >
                     <option value="">Selecionar lead</option>
                     {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
                 <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
-                  style={{ border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
+                  style={{ border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
                 >
                   <option value="week">Última semana</option>
                   <option value="month">Último mês</option>
@@ -1884,7 +1884,7 @@ export default function AutomacoesPage() {
                     : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
                   return (
                     <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
-                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "1px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                     >
@@ -1982,7 +1982,7 @@ export default function AutomacoesPage() {
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
             {/* Category list */}
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar gatilho</div>
               {TRIGGER_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2008,7 +2008,7 @@ export default function AutomacoesPage() {
                     <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
                     <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
                     {trigger && trigger.categoryId === cat.id && (
-                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, fontSize: 11, color: "#15803D", display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, fontSize: 11, color: "#15803D", display: "flex", alignItems: "center", gap: 6 }}>
                         <CheckCircle2 size={12} /> Gatilho atual: {trigger.label}
                       </div>
                     )}
@@ -2017,7 +2017,7 @@ export default function AutomacoesPage() {
                         <button
                           key={t.id}
                           onClick={() => handleSelectTrigger(cat, t)}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                         >
@@ -2041,7 +2041,7 @@ export default function AutomacoesPage() {
       <Dialog open={acoesPickerOpen} onOpenChange={setAcoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação</div>
               {ACTION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2068,11 +2068,11 @@ export default function AutomacoesPage() {
                         return (
                           <button key={action.id}
                             onClick={() => { if (nodePanel) addActionItem(nodePanel, { categoryId: cat.id, actionId: action.id, label: action.label, description: action.description }); setAcoesPickerOpen(false); }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "1px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <AIcon size={14} color="#F97316" />
                             </div>
                             <div>
@@ -2099,7 +2099,7 @@ export default function AutomacoesPage() {
       <Dialog open={condicoesPickerOpen} onOpenChange={setCondicoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar condição</div>
               {CONDITION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2128,11 +2128,11 @@ export default function AutomacoesPage() {
                               if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
                               setCondicoesPickerOpen(false);
                             }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "1px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <CondIcon size={14} color="#6366F1" />
                             </div>
                             <div style={{ flex: 1 }}>
@@ -2158,7 +2158,7 @@ export default function AutomacoesPage() {
       <Dialog open={espePickerOpen} onOpenChange={setEspePickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               {ESPERA_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedEspePickerCat === cat.id;
@@ -2193,11 +2193,11 @@ export default function AutomacoesPage() {
                             }
                             setEspePickerOpen(false);
                           }}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                         >
-                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {item.id === "usuario_parou" ? <MessageCircle size={14} color="#3B82F6" /> : <Clock size={14} color="#3B82F6" />}
                           </div>
                           <div>
@@ -2276,17 +2276,17 @@ const zoomBtn: React.CSSProperties = {
 };
 
 const tcpSelectStyle: React.CSSProperties = {
-  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
   padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", cursor: "pointer",
 };
 
 const tcpInputStyle: React.CSSProperties = {
-  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
   padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", boxSizing: "border-box",
 };
 
 const tcpWarning = (text: string) => (
-  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
+  <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
     <span style={{ fontWeight: 700 }}>⚠ </span>{text}
   </div>
 );
@@ -2315,7 +2315,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
         <select value={(cfg.instance as string) ?? ""} onChange={e => updateConfig("instance", e.target.value)} style={{ ...tcpSelectStyle, flex: 1 }}>
           <option value="">Selecionar</option>
         </select>
-        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <ArrowLeftRight size={13} color="#6B7280" />
         </button>
       </div>
@@ -2343,7 +2343,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
           onChange={e => updateConfig("keywords", e.target.value)}
           placeholder="Digite palavras-chave..."
           rows={3}
-          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
         />
       </div>
       <div>
@@ -2772,12 +2772,12 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
             <div>
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Url do webhook</div>
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
                   {`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? "—"}`}
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? ""}`).then(() => toast.success("URL copiada"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 >
                   <Copy size={13} color="#6B7280" />
                 </button>
@@ -2831,7 +2831,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
                 onChange={e => updateConfig("interval", Number(e.target.value))} style={tcpInputStyle} />
             </div>
             {tcpWarning("O intervalo mínimo é de 15 minutos.")}
-            <div style={{ background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 6 }}>
                 <Calendar size={12} /> Próxima execução
               </div>
@@ -2848,7 +2848,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
           <ArrowLeft size={14} color="#6B7280" />
         </button>
@@ -2862,10 +2862,10 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
         {renderBody()}
       </div>
       {/* Footer */}
-      <div style={{ padding: "10px 16px", borderTop: "0.5px solid #E5E5E5" }}>
+      <div style={{ padding: "10px 16px", borderTop: "1px solid #E5E5E5" }}>
         <button
           onClick={onChangeTrigger}
-          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
+          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#6B7280"; }}
         >
@@ -2901,14 +2901,14 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #E5E5E5" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "1px solid #E5E5E5" }}>
         <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
       <div style={{ paddingTop: 10 }}>
         {node.trigger ? (
           <div
-            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
+            style={{ padding: "8px 10px", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
               <div
@@ -2954,7 +2954,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         <button
           data-action
           onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
@@ -3013,7 +3013,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       }}
     >
       {/* Header */}
-      <div style={{ padding: "6px 10px", borderBottom: `0.5px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
+      <div style={{ padding: "6px 10px", borderBottom: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <StickyNote size={12} color={c.headerText} />
           <span style={{ fontSize: 11, fontWeight: 700, color: c.headerText }}>Anotação</span>
@@ -3036,7 +3036,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
               <div
                 data-action
                 onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
+                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
               >
                 {NOTE_COLORS.map((col, i) => (
                   <button
@@ -3172,7 +3172,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     <div
       data-action
       onMouseDown={e => e.stopPropagation()}
-      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
     >
       {([
         { Ic: Trash2,     title: "Excluir",    action: onDelete,   hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
@@ -3206,7 +3206,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {inputPort}
         {selected && toolbar}
         {/* Header */}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Zap size={16} color="#F97316" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Ação</span>
         </div>
@@ -3219,7 +3219,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const actData = catData?.actions.find(a => a.id === item.actionId);
                 const AIcon = actData?.icon ?? Zap;
                 return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                     <AIcon size={12} color="#F97316" />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                     {removeActionItem && (
@@ -3275,7 +3275,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
         </div>
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([
             { key: "success" as const, count: stats?.s ?? 0, color: "#F97316", label: "Sucessos" },
             { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
@@ -3305,7 +3305,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Filter size={15} color="#8B5CF6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condições</span>
         </div>
@@ -3320,7 +3320,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const CondIcon = condData?.icon ?? Filter;
                 return (
                   <div key={item.id}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
                       <CondIcon size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
@@ -3373,7 +3373,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "0.5px solid #F3F4F6", fontSize: 11 }}>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "1px solid #F3F4F6", fontSize: 11 }}>
             <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
               style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default" }}
               onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
@@ -3402,7 +3402,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Clock size={15} color="#3B82F6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Espera</span>
         </div>
@@ -3413,7 +3413,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             if (!item) return null;
             const ItemIcon = espera.type === "usuario_parou" ? MessageCircle : Clock;
             return (
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 7 }}>
                 <ItemIcon size={13} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
@@ -3441,7 +3441,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 290, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Shuffle size={15} color="#F97316" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
         </div>
@@ -3449,7 +3449,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {branches.map((b, i) => (
-              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6 }}>
+              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6 }}>
                 <div style={{ width: 20, height: 20, borderRadius: 5, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
                 </div>
@@ -3479,7 +3479,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           >
             <Plus size={11} /> Adicionar ramificação
           </button>
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
             <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
               style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
               onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
@@ -3553,7 +3553,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       {selected && toolbar}
 
       {/* Header */}
-      <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
         <MessageCircle size={16} color="#3B82F6" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Mensagem</span>
       </div>
@@ -3569,7 +3569,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             {node.subBlocks.map(b => {
               const SBIcon = SUB_BLOCK_ICONS[b.type];
               return (
-                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                   <SBIcon size={12} color="#6B7280" />
                   <span style={{ flex: 1 }}>{b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}</span>
                   {removeSubBlock && (
@@ -3619,7 +3619,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       </div>
 
       {/* Footer metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         {([
           { key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" },
           { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
@@ -3666,7 +3666,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
     const condData = catData?.conditions.find(c => c.id === selectedItem.conditionId);
     return (
       <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
@@ -3698,7 +3698,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Condições
@@ -3725,7 +3725,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
               const Icon = condData?.icon ?? Filter;
               return (
                 <div key={item.id}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
                   onClick={() => setSelectedItemId(item.id)}
                   onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}
@@ -3748,7 +3748,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
           </div>
         )}
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#6366F1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#E0E7FF"; e.currentTarget.style.borderColor = "#6366F1"; }}
@@ -4018,7 +4018,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={espera ? onOpenPicker : onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, maxWidth: 200, overflow: "hidden" }}>
             <ArrowLeft size={16} style={{ flexShrink: 0 }} />
@@ -4149,8 +4149,8 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                 <input type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
                   style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
-                  <button title="Copiar" style={{ width: 22, height: 22, border: "0.5px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
-                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
+                  <button title="Copiar" style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
+                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
                 </div>
               </div>
               <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
@@ -4217,7 +4217,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
   const total = branches.reduce((s, b) => s + b.percentage, 0);
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Randomizador
@@ -4252,7 +4252,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
-                    style={{ width: 46, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
+                    style={{ width: 46, border: "1px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
                   <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
                 </div>
                 {branches.length > 2 && (
@@ -4266,7 +4266,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
           })}
         </div>
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={addBranch}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
@@ -4302,7 +4302,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
   };
   return (
     <aside style={{ width: 320, minWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> API
@@ -4318,7 +4318,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
         </div>
         <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas</p>
       </div>
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 6 }}>
           <select value={cfg.method} onChange={e => updateApiConfig({ method: e.target.value })}
             style={{ width: 90, padding: "7px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", fontWeight: 600, color: "#3B82F6", cursor: "pointer" }}>
@@ -4329,7 +4329,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
             style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
         </div>
       </div>
-      <div style={{ borderBottom: "0.5px solid #E5E5E5", flexShrink: 0, display: "flex" }}>
+      <div style={{ borderBottom: "1px solid #E5E5E5", flexShrink: 0, display: "flex" }}>
         {(["headers", "params", "body"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
@@ -4356,7 +4356,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
               ))}
             </div>
             <button onClick={activeTab === "headers" ? addHeader : addParam}
-              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "1px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
               <Plus size={11} /> {activeTab === "headers" ? "Adicionar cabeçalho" : "Adicionar parâmetro"}
             </button>
           </div>
@@ -4385,7 +4385,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
   const [valor, setValor] = useState("");
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Operações de campos
@@ -4444,7 +4444,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
           )}
         </div>
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={() => toast.info("Em breve: múltiplas operações de campo")}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
@@ -4548,12 +4548,12 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
         </div>
       )}
       <button onClick={() => { setOpen(v => !v); setCreateMode(false); setSearch(""); }}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
         <span>{selectedIds.length === 0 ? "Selecione as tags" : `${selectedIds.length} tag${selectedIds.length > 1 ? "s" : ""} selecionada${selectedIds.length > 1 ? "s" : ""}`}</span>
         <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
           {!createMode && (
             <div style={{ padding: "8px 8px 4px" }}>
               <input type="text" placeholder="Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus />
@@ -4599,7 +4599,7 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
             </div>
           )}
           {!createMode && (
-            <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ padding: "6px 8px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
               <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
             </div>
           )}
@@ -4986,7 +4986,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
     const isWarning = actData?.warning;
     return (
       <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
@@ -5015,7 +5015,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Ações
@@ -5044,7 +5044,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
                 <div
                   key={item.id}
                   onClick={() => setSelectedItemId(item.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#FFEDD5")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#FFF7ED")}
                 >
@@ -5062,7 +5062,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           </div>
         )}
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#F97316", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
@@ -5099,7 +5099,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
   return (
     <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Mensagens
@@ -5117,14 +5117,14 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Conexão */}
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", flexShrink: 0 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <select style={{ flex: 1, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
+          <select style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
             <option>Selecionar</option>
           </select>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></button>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Settings size={12} /></button>
+          <button style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></button>
+          <button style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Settings size={12} /></button>
         </div>
         <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
       </div>
@@ -5147,7 +5147,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                     <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
                   </button>
                   {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
-                    <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 16px" }} />
+                    <div style={{ height: "1px", background: "#F0F0F0", margin: "0 16px" }} />
                   )}
                 </div>
               );
@@ -5156,9 +5156,9 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         ) : (
           <div style={{ padding: "10px 16px" }}>
             {(node.subBlocks ?? []).map(b => (
-              <div key={b.id} style={{ marginBottom: 8, border: "0.5px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
+              <div key={b.id} style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
                 {/* Sub-block toolbar */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "1px solid #F0F0F0", background: "#F9FAFB" }}>
                   <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
@@ -5173,14 +5173,14 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                         value={b.text ?? ""}
                         onChange={e => updateSubBlock(b.id, { text: e.target.value })}
                         placeholder="Digite a mensagem..."
-                        style={{ width: "100%", minHeight: 80, border: "0.5px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                        style={{ width: "100%", minHeight: 80, border: "1px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                       />
                     </div>
                   )}
                   {b.type === "entrada_usuario" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
+                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
                     </div>
                   )}
                   {b.type === "atraso_tempo" && (
@@ -5192,7 +5192,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                           type="number" min={0}
                           value={b.delaySeconds ?? 0}
                           onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
-                          style={{ width: 64, padding: "5px 8px", border: "0.5px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
+                          style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
                         />
                         <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
                       </div>
@@ -5201,8 +5201,8 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   {b.type === "mensagem_audio" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
-                        <button style={{ padding: "6px 14px", border: "0.5px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
+                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "1px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
+                        <button style={{ padding: "6px 14px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
                           <Mic size={12} /> Iniciar gravação
                         </button>
                       </div>
@@ -5211,7 +5211,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   {b.type === "arquivo_anexo" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
+                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "1px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
                         <Upload size={20} color="#D1D5DB" />
                         Selecionar arquivo
                         <input type="file" style={{ display: "none" }} />
@@ -5226,7 +5226,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                         value={b.fileUrl ?? ""}
                         onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
                         placeholder="URL do arquivo"
-                        style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "7px 10px", border: `1px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
                       />
                       {b.fileUrl && !b.fileUrl.startsWith("http") && (
                         <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
@@ -5241,7 +5241,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Rodapé */}
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={() => onAddSubBlock("mensagem_texto")}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}

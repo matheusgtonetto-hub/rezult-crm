@@ -390,7 +390,7 @@ function UtmSection({ lead, updateField }: { lead: import("@/data/mockData").Lea
   const hasAny = !!(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.utmTerm || lead.utmContent);
   return (
     <>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
       <button
         onClick={() => setOpen(v => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: "2px 0" }}
@@ -988,7 +988,7 @@ export default function LeadDetailPage() {
           paddingTop: 16,
           paddingBottom: 16,
           background: "#FFFFFF",
-          borderBottom: "0.5px solid #EEEEEE",
+          borderBottom: "1px solid #EEEEEE",
           position: "sticky",
           top: 0,
           zIndex: 30,
@@ -1152,7 +1152,7 @@ export default function LeadDetailPage() {
         style={{
           height: 52,
           background: "#FFFFFF",
-          borderBottom: "0.5px solid #E5E5E5",
+          borderBottom: "1px solid #E5E5E5",
           paddingLeft: 16,
           paddingRight: 16,
         }}
@@ -1465,7 +1465,7 @@ export default function LeadDetailPage() {
 
                       <UtmSection lead={lead} updateField={updateField} />
 
-                      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+                      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
 
                       <div className="space-y-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
@@ -1644,7 +1644,7 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div
                   style={{
-                    border: `0.5px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
+                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
                     borderRadius: 10,
                     background: "#FAFAFA",
                     padding: 12,
@@ -1748,7 +1748,7 @@ export default function LeadDetailPage() {
                       <div
                         style={{
                           background: n.pinned ? "#FFFBEB" : "#FAFAF7",
-                          border: n.pinned ? "0.5px solid #FCD34D" : "0.5px solid #E5E5E5",
+                          border: n.pinned ? "1px solid #FCD34D" : "1px solid #E5E5E5",
                           borderRadius: 10,
                           padding: 15,
                         }}
@@ -1904,7 +1904,7 @@ export default function LeadDetailPage() {
                         style={{
                           background: item.pinned ? "#FFFBEB" : "#FAFAF7",
                           border: item.pinned
-                            ? "0.5px solid #FCD34D"
+                            ? "1px solid #FCD34D"
                             : isCompleted
                             ? "1.5px solid #128A68"
                             : isNoShow
@@ -2238,7 +2238,7 @@ export default function LeadDetailPage() {
                         style={{
                           background: act.pinned ? "#FFFBEB" : "#FAFAF7",
                           border: act.pinned
-                            ? "0.5px solid #FCD34D"
+                            ? "1px solid #FCD34D"
                             : isCompleted
                             ? "1.5px solid #128A68"
                             : isNoShow
@@ -2447,7 +2447,7 @@ export default function LeadDetailPage() {
                       <div
                         key={t.id}
                         className="flex items-center gap-3 p-3 rounded-lg"
-                        style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}
+                        style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
                       >
                         <Checkbox
                           checked={done}
@@ -2516,7 +2516,7 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enviados manualmente</p>
                     <div className="space-y-2">
                       {uploadedFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
                           <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "#128A68" }}>
                             {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
@@ -2544,7 +2544,7 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Via WhatsApp</p>
                     <div className="space-y-2">
                       {waFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
                           <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "#F0FDF4", color: "#25D366" }}>
                             {f.type === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>

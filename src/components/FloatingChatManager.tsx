@@ -41,7 +41,7 @@ export function FloatingChatManager() {
                 className="flex items-center cursor-pointer transition-shadow hover:shadow-md"
                 style={{
                   background: "#FFFFFF",
-                  border: "0.5px solid #E5E5E5",
+                  border: "1px solid #E5E5E5",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                   borderRadius: 100,
                   padding: "6px 12px 6px 6px",
