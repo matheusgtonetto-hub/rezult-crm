@@ -331,7 +331,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     <Sheet open={open} onOpenChange={() => onClose()}>
       <SheetContent
         side="right"
-        className="p-0 border-l border-[#E8E8E8] overflow-hidden"
+        className="p-0 border-l border-card-border overflow-hidden"
         style={{ width: "min(95vw, 1020px)", maxWidth: "none", boxShadow: "-4px 0 40px rgba(0,0,0,0.08)" }}
       >
         <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#FFF" }}>

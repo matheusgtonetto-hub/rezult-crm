@@ -144,7 +144,7 @@ export function PipelineSidebar() {
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
                         active
                           ? "bg-sidebar-accent border-l-[3px] border-primary"
-                          : "text-foreground hover:bg-[#F8F9FA]"
+                          : "text-foreground hover:bg-muted/50"
                       }`}
                     >
                       <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
@@ -172,7 +172,7 @@ export function PipelineSidebar() {
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
                       active
                         ? "bg-sidebar-accent border-l-[3px] border-primary"
-                        : "text-foreground hover:bg-[#F8F9FA]"
+                        : "text-foreground hover:bg-muted/50"
                     }`}
                   >
                     <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />

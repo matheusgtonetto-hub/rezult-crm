@@ -202,8 +202,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           {/* Upload zone */}
           <div
             className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-              isDragging ? "border-[#128A68] bg-[#E1F5EE]"
-                        : "border-[#EEEEEE] hover:border-[#128A68] hover:bg-[#F8FDFB]"
+              isDragging ? "border-primary bg-primary/10"
+                        : "border-card-border hover:border-primary hover:bg-primary/5"
             }`}
             onClick={() => inputRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -217,26 +217,26 @@ export function ImportLeadsModal({ open, onClose }: Props) {
             />
             {!file ? (
               <>
-                <Upload size={28} className="mx-auto mb-2 text-[#128A68]" />
-                <p className="text-sm font-medium text-[#333]">Arraste o arquivo aqui ou clique para selecionar</p>
-                <p className="text-xs text-[#AAAAAA] mt-1">Suporta .xlsx, .xls e .csv</p>
+                <Upload size={28} className="mx-auto mb-2 text-primary" />
+                <p className="text-sm font-medium text-foreground">Arraste o arquivo aqui ou clique para selecionar</p>
+                <p className="text-xs text-muted-foreground mt-1">Suporta .xlsx, .xls e .csv</p>
               </>
             ) : parseError ? (
               <>
                 <AlertCircle size={28} className="mx-auto mb-2 text-red-500" />
                 <p className="text-sm font-medium text-red-600">{parseError}</p>
-                <p className="text-xs text-[#AAAAAA] mt-1">{file.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{file.name}</p>
               </>
             ) : (
               <>
                 <div className="flex items-center justify-center gap-2 mb-1">
-                  <FileSpreadsheet size={22} className="text-[#128A68]" />
-                  <CheckCircle2 size={18} className="text-[#128A68]" />
+                  <FileSpreadsheet size={22} className="text-primary" />
+                  <CheckCircle2 size={18} className="text-primary" />
                 </div>
-                <p className="text-sm font-semibold text-[#128A68]">
+                <p className="text-sm font-semibold text-primary">
                   {rows.length} linha{rows.length !== 1 ? "s" : ""} encontrada{rows.length !== 1 ? "s" : ""}
                 </p>
-                <p className="text-xs text-[#AAAAAA] mt-0.5">{file.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{file.name}</p>
               </>
             )}
           </div>
@@ -244,9 +244,9 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           {/* Column mapping */}
           {headers.length > 0 && (
             <div className="space-y-3">
-              <p className="text-xs font-medium text-[#333]">
+              <p className="text-xs font-medium text-foreground">
                 Mapeamento de colunas
-                <span className="text-[#AAAAAA] font-normal ml-1">— confirme ou ajuste a detecção automática</span>
+                <span className="text-muted-foreground font-normal ml-1">— confirme ou ajuste a detecção automática</span>
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -255,7 +255,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                   { label: "E-mail", value: emailCol,  set: setEmailCol },
                 ].map(({ label, value, set }) => (
                   <div key={label} className="space-y-1">
-                    <label className="text-[11px] font-medium text-[#666]">{label}</label>
+                    <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
                     <Select value={value} onValueChange={set}>
                       <SelectTrigger className="h-8 text-xs rounded-lg">
                         <SelectValue />
@@ -270,20 +270,20 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
           {/* Preview */}
           {rows.length > 0 && (
-            <div className="rounded-lg border border-[#EEEEEE] overflow-hidden">
-              <div className="bg-[#F8F8F8] px-3 py-2 text-xs font-medium text-[#555] border-b border-[#EEEEEE]">
+            <div className="rounded-lg border border-card-border overflow-hidden">
+              <div className="bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-card-border">
                 Pré-visualização
               </div>
-              <div className="divide-y divide-[#F0F0F0]">
+              <div className="divide-y divide-muted">
                 {previewLeads.map((l, i) => (
-                  <div key={i} className="px-3 py-2 text-xs text-[#444] flex gap-3">
-                    <span className="font-medium truncate flex-1 min-w-0">{l.name || <span className="text-[#CCC]">—</span>}</span>
-                    <span className="text-[#888] shrink-0 w-28">{l.phone || <span className="text-[#CCC]">—</span>}</span>
-                    <span className="text-[#888] truncate max-w-[120px]">{l.email || <span className="text-[#CCC]">—</span>}</span>
+                  <div key={i} className="px-3 py-2 text-xs text-foreground flex gap-3">
+                    <span className="font-medium truncate flex-1 min-w-0">{l.name || <span className="text-muted-foreground/50">—</span>}</span>
+                    <span className="text-muted-foreground shrink-0 w-28">{l.phone || <span className="text-muted-foreground/50">—</span>}</span>
+                    <span className="text-muted-foreground truncate max-w-[120px]">{l.email || <span className="text-muted-foreground/50">—</span>}</span>
                   </div>
                 ))}
                 {rows.length > 3 && (
-                  <div className="px-3 py-1.5 text-xs text-[#AAAAAA]">
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground">
                     + {rows.length - 3} linha{rows.length - 3 !== 1 ? "s" : ""} a mais...
                   </div>
                 )}
@@ -295,7 +295,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           {rows.length > 0 && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#333]">Pipeline</label>
+                <label className="text-xs font-medium text-foreground">Pipeline</label>
                 <Select
                   value={pipelineId}
                   onValueChange={id => {
@@ -317,7 +317,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
               {selectedPipeline && selectedPipeline.columns.length > 0 && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[#333]">Etapa</label>
+                  <label className="text-xs font-medium text-foreground">Etapa</label>
                   <Select value={stageId} onValueChange={setStageId}>
                     <SelectTrigger className="h-9 text-sm rounded-lg">
                       <SelectValue placeholder="Selecione a etapa" />
@@ -333,8 +333,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
               {crmTags.length > 0 && (
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-[#333]">
-                    Tags <span className="text-[#AAAAAA] font-normal">(opcional)</span>
+                  <label className="text-xs font-medium text-foreground">
+                    Tags <span className="text-muted-foreground font-normal">(opcional)</span>
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {crmTags.map(tag => {
@@ -362,10 +362,10 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
               {teamMembers.length > 0 && (
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-[#333]">
-                    Responsáveis <span className="text-[#AAAAAA] font-normal">(opcional)</span>
+                  <label className="text-xs font-medium text-foreground">
+                    Responsáveis <span className="text-muted-foreground font-normal">(opcional)</span>
                   </label>
-                  <div className="border border-[#EEEEEE] rounded-lg p-2 space-y-0.5 max-h-[130px] overflow-y-auto">
+                  <div className="border border-card-border rounded-lg p-2 space-y-0.5 max-h-[130px] overflow-y-auto">
                     {teamMembers.map(name => {
                       const selected = selectedResponsibles.includes(name);
                       const avatar = memberAvatars[name];
@@ -379,7 +379,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                               prev.includes(name) ? prev.filter(r => r !== name) : [...prev, name]
                             )
                           }
-                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left transition-colors hover:bg-[#F5F5F5]"
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left transition-colors hover:bg-muted"
                         >
                           <div
                             className="flex items-center justify-center rounded shrink-0"
@@ -408,7 +408,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                     })}
                   </div>
                   {selectedResponsibles.length > 0 && (
-                    <p className="text-[11px] text-[#AAAAAA]">
+                    <p className="text-[11px] text-muted-foreground">
                       {selectedResponsibles.length === 1
                         ? `1 responsável selecionado`
                         : `${selectedResponsibles.length} responsáveis selecionados`}
@@ -426,7 +426,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           <Button
             onClick={handleImport}
             disabled={!rows.length || importing || !pipelineId || !stageId}
-            className="bg-[#128A68] hover:bg-[#128A68]/90 min-w-[140px]"
+            className="bg-primary hover:bg-primary/90 min-w-[140px]"
           >
             {importing
               ? "Importando..."
