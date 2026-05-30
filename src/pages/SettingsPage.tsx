@@ -59,7 +59,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
 ];
 
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-card border-[0.5px] border-card-border rounded-xl p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-card border border-card-border rounded-xl p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
