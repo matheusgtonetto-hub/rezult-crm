@@ -51,7 +51,7 @@ export const PLANS: PlanDefinition[] = [
       "Acesso à API para integração com outras ferramentas.",
     ],
     pricing: {
-      mensal:        "R$ 460,00",
+      mensal:        "R$ 399,00",
       semestral:     "R$ 402,00",
       semestralSave: "R$ 348,00",
       anual:         "R$ 344,00",
@@ -73,7 +73,7 @@ export const PLANS: PlanDefinition[] = [
       "Acesso à API para integração com outras ferramentas.",
     ],
     pricing: {
-      mensal:        "R$ 807,00",
+      mensal:        "R$ 747,00",
       semestral:     "R$ 750,00",
       semestralSave: "R$ 342,00",
       anual:         "R$ 692,00",
