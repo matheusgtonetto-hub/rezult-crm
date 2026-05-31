@@ -28,11 +28,11 @@ export const PLANS: PlanDefinition[] = [
       "3 integrações com Webhooks para conectar outras ferramentas.",
     ],
     pricing: {
-      mensal:        "R$ 297,00",
-      semestral:     "R$ 226,50",
-      semestralSave: "R$ 423,00",
-      anual:         "R$ 183,25",
-      anualSave:     "R$ 1.365,00",
+      mensal:        "R$ 237,00",
+      semestral:     "R$ 201,50",   // R$1.209,00 / 6
+      semestralSave: "R$ 213,00",   // economia total vs mensal
+      anual:         "R$ 165,75",   // R$1.989,00 / 12
+      anualSave:     "R$ 855,00",   // economia total vs mensal
     },
   },
   {
@@ -52,10 +52,10 @@ export const PLANS: PlanDefinition[] = [
     ],
     pricing: {
       mensal:        "R$ 399,00",
-      semestral:     "R$ 402,00",
-      semestralSave: "R$ 348,00",
-      anual:         "R$ 344,00",
-      anualSave:     "R$ 1.392,00",
+      semestral:     "R$ 339,17",   // R$2.035,00 / 6
+      semestralSave: "R$ 359,00",   // economia total vs mensal
+      anual:         "R$ 279,33",   // R$3.352,00 / 12
+      anualSave:     "R$ 1.436,00", // economia total vs mensal
     },
   },
   {
@@ -74,10 +74,10 @@ export const PLANS: PlanDefinition[] = [
     ],
     pricing: {
       mensal:        "R$ 747,00",
-      semestral:     "R$ 750,00",
-      semestralSave: "R$ 342,00",
-      anual:         "R$ 692,00",
-      anualSave:     "R$ 1.380,00",
+      semestral:     "R$ 635,00",   // R$3.810,00 / 6
+      semestralSave: "R$ 672,00",   // economia total vs mensal
+      anual:         "R$ 522,67",   // R$6.272,00 / 12
+      anualSave:     "R$ 2.692,00", // economia total vs mensal
     },
   },
 ];
