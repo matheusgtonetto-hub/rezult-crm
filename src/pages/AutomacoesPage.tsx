@@ -11,6 +11,7 @@ import {
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
+  Braces, FileDown,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -69,7 +70,15 @@ type EsperaConfig = {
   dateTimezone?: string;
 };
 type RandomBranch = { id: string; label: string; percentage: number };
-type ApiConfig = { method: string; url: string; headers: { key: string; value: string }[]; params: { key: string; value: string }[]; body: string };
+type ApiRequest = {
+  id: string; name: string; type: "json" | "file";
+  method: string; url: string;
+  headers: { key: string; value: string }[];
+  params: { key: string; value: string }[];
+  body: string;
+  responseHeaders: { key: string; value: string }[];
+};
+type ApiConfig = { requests: ApiRequest[] };
 
 type CanvasNode = {
   id: string;
@@ -1126,9 +1135,21 @@ export default function AutomacoesPage() {
     ));
   };
 
-  const updateApiConfig = (nodeId: string, config: Partial<ApiConfig>) => {
+  const addApiRequest = (nodeId: string, req: ApiRequest) => {
     setNodes(prev => prev.map(n => n.id === nodeId
-      ? { ...n, apiConfig: { method: "POST", url: "", headers: [], params: [], body: "", ...(n.apiConfig ?? {}), ...config } }
+      ? { ...n, apiConfig: { requests: [...(n.apiConfig?.requests ?? []), req] } }
+      : n
+    ));
+  };
+  const removeApiRequest = (nodeId: string, reqId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, apiConfig: { requests: (n.apiConfig?.requests ?? []).filter(r => r.id !== reqId) } }
+      : n
+    ));
+  };
+  const updateApiRequest = (nodeId: string, reqId: string, data: Partial<ApiRequest>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, apiConfig: { requests: (n.apiConfig?.requests ?? []).map(r => r.id === reqId ? { ...r, ...data } : r) } }
       : n
     ));
   };
@@ -1503,7 +1524,10 @@ export default function AutomacoesPage() {
               onClose={() => setNodePanel(null)}
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
-              updateApiConfig={(config) => updateApiConfig(nodePanel, config)}
+              addApiRequest={(req) => addApiRequest(nodePanel, req)}
+              removeApiRequest={(reqId) => removeApiRequest(nodePanel, reqId)}
+              updateApiRequest={(reqId, data) => updateApiRequest(nodePanel, reqId, data)}
+              customFieldGroups={customFieldGroups}
             />
           )}
 
@@ -1766,6 +1790,7 @@ export default function AutomacoesPage() {
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     onOpenCondicoesPicker={n.type === "condicoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setCondicoesPickerOpen(true); } : undefined}
+                    onOpenApiPicker={n.type === "api" ? () => { setSelectedNode(n.id); setNodePanel(n.id); } : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
@@ -3250,7 +3275,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -3264,6 +3289,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
   onOpenCondicoesPicker?: () => void;
+  onOpenApiPicker?: () => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   removeConditionItem?: (itemId: string) => void;
@@ -3630,6 +3656,65 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "api") {
+    const apiRequests = node.apiConfig?.requests ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart} onClick={onSelect}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Braces size={15} color="#3B82F6" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>API</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {apiRequests.length === 0 && (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços. Clique para adicionar uma chamada de API:</div>
+          )}
+          {apiRequests.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {apiRequests.map(req => (
+                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7, fontSize: 11 }}>
+                  {req.type === "json" ? <Braces size={12} color="#3B82F6" /> : <FileDown size={12} color="#3B82F6" />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.label ?? req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}</div>
+                    <div style={{ color: "#3B82F6", fontSize: 10 }}>{req.method}</div>
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            data-action onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(); onOpenApiPicker?.(); }}
+            style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}
+          ><Plus size={13} /> Adicionar API</button>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -4333,6 +4418,49 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
 // ─── RandomizadorPanel ────────────────────────────────────────────────────────
 
 const BRANCH_COLORS = ["#3B82F6", "#22C55E", "#F97316", "#8B5CF6", "#EC4899"];
+
+const API_REQUEST_TYPES = [
+  { id: "json" as const, label: "Requisição HTTP com comunicação via JSON", description: "Realiza uma requisição HTTP para um endpoint externo, utilizando comunicação em formato JSON", defaultMethod: "POST" },
+  { id: "file" as const, label: "Requisição de arquivo HTTP", description: "Realiza uma requisição HTTP para um endpoint externo que retorna um arquivo", defaultMethod: "GET" },
+];
+
+const VARIABLE_CATEGORIES = [
+  { id: "lead", label: "Campos do lead", fields: [
+    { key: "lead.id", label: "ID do lead", icon: "#" }, { key: "lead.nome", label: "Nome do lead", icon: "T" },
+    { key: "lead.primeiro_nome", label: "Primeiro nome do lead", icon: "T" }, { key: "lead.cep", label: "CEP do lead", icon: "T" },
+    { key: "lead.endereco", label: "Endereço do lead", icon: "T" }, { key: "lead.bairro", label: "Bairro do lead", icon: "T" },
+    { key: "lead.numero", label: "Número de residência do lead", icon: "T" }, { key: "lead.cidade", label: "Cidade do lead", icon: "T" },
+    { key: "lead.complemento", label: "Complemento do lead", icon: "T" }, { key: "lead.estado", label: "Estado do lead", icon: "T" },
+    { key: "lead.email", label: "E-mail do lead", icon: "T" }, { key: "lead.telefone", label: "Telefone do lead", icon: "T" },
+    { key: "lead.origem", label: "Origem do lead", icon: "T" },
+  ]},
+  { id: "negocio", label: "Campos do negócio", fields: [
+    { key: "neg.id", label: "ID do negócio", icon: "#" }, { key: "neg.titulo", label: "Título do negócio", icon: "T" },
+    { key: "neg.valor", label: "Valor do negócio", icon: "#" }, { key: "neg.etapa", label: "Etapa do negócio", icon: "T" },
+    { key: "neg.pipeline", label: "Pipeline do negócio", icon: "T" }, { key: "neg.status", label: "Status do negócio", icon: "T" },
+    { key: "neg.data_criacao", label: "Data de criação do negócio", icon: "T" },
+  ]},
+  { id: "produto", label: "Campos do produto", fields: [
+    { key: "prod.nome", label: "Nome do produto", icon: "T" }, { key: "prod.preco", label: "Preço do produto", icon: "#" },
+    { key: "prod.descricao", label: "Descrição do produto", icon: "T" },
+  ]},
+  { id: "conversa", label: "Campos da conversa", fields: [
+    { key: "conv.mensagem", label: "Última mensagem", icon: "T" }, { key: "conv.canal", label: "Canal", icon: "T" },
+  ]},
+  { id: "campos_lead", label: "Campos adicionais do lead", fields: [] as { key: string; label: string; icon: string }[] },
+  { id: "campos_neg", label: "Campos adicionais do negócio", fields: [] as { key: string; label: string; icon: string }[] },
+  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [] as { key: string; label: string; icon: string }[] },
+  { id: "sistema", label: "Campos do sistema", fields: [
+    { key: "sys.empresa_nome", label: "Nome da empresa", icon: "T" }, { key: "sys.data_hoje", label: "Data de hoje", icon: "T" },
+    { key: "sys.hora_agora", label: "Hora atual", icon: "T" }, { key: "sys.timestamp", label: "Timestamp", icon: "#" },
+  ]},
+  { id: "ia", label: "Campos de IA", fields: [
+    { key: "ia.resposta", label: "Resposta da IA", icon: "T" }, { key: "ia.resumo", label: "Resumo da IA", icon: "T" },
+  ]},
+  { id: "entrada", label: "Entrada de dados", fields: [
+    { key: "entrada.payload", label: "Payload do gatilho", icon: "T" }, { key: "entrada.trigger", label: "Dados do gatilho", icon: "T" },
+  ]},
+];
 const DEFAULT_BRANCHES: RandomBranch[] = [
   { id: "a", label: "A", percentage: 25 }, { id: "b", label: "B", percentage: 25 },
   { id: "c", label: "C", percentage: 25 }, { id: "d", label: "D", percentage: 25 },
@@ -4415,93 +4543,345 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
-function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
+function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
+  const [cat, setCat] = useState("lead");
+  const [search, setSearch] = useState("");
+  const activeCat = VARIABLE_CATEGORIES.find(c => c.id === cat) ?? VARIABLE_CATEGORIES[0];
+  const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div style={{ position: "absolute", bottom: "calc(100% + 4px)", right: 0, zIndex: 100, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden" }}>
+      <div style={{ width: 200, borderRight: "1px solid #E5E7EB", overflowY: "auto", maxHeight: 320 }}>
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB" }}>
+          <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+        </div>
+        {VARIABLE_CATEGORIES.map(c => (
+          <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", maxHeight: 320 }}>
+        {fields.length === 0 ? (
+          <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>Nenhum campo disponível</div>
+        ) : fields.map(f => (
+          <button key={f.key} onClick={() => { onInsert(`{{${f.key}}}`); onClose(); }}
+            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: f.icon === "#" ? "#F97316" : "#6B7280", background: f.icon === "#" ? "#FFF7ED" : "#F3F4F6", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{f.icon}</span>
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MethodDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const methods = ["POST", "GET", "PUT", "PATCH", "DELETE"].filter(m => m.includes(search.toUpperCase()));
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#fff", cursor: "pointer", minWidth: 90 }}>
+        {value} <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", minWidth: 130, overflow: "hidden" }}>
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid #E5E7EB" }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "4px 6px", border: "1px solid #E5E7EB", borderRadius: 4, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          {methods.map(m => (
+            <button key={m} onClick={() => { onChange(m); setOpen(false); setSearch(""); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: m === value ? "#3B82F6" : "#374151", fontWeight: m === value ? 600 : 400, textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              {m === value && <span style={{ color: "#3B82F6", fontSize: 10 }}>✓</span>}
+              {m !== value && <span style={{ display: "inline-block", width: 14 }} />}
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const lines = value.split("\n");
+  const insertVar = (v: string) => {
+    const ta = taRef.current; if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+  return (
+    <div style={{ position: "relative", border: "1px solid #E5E7EB", borderRadius: 6, overflow: "hidden", background: "#FAFAFA" }}>
+      <div style={{ display: "flex", maxHeight: 260 }}>
+        <div style={{ padding: "8px 6px", background: "#F3F4F6", borderRight: "1px solid #E5E7EB", minWidth: 28, textAlign: "right", userSelect: "none", overflowY: "hidden" }}>
+          {lines.map((_, i) => <div key={i} style={{ fontSize: 11, lineHeight: "20px", color: "#9CA3AF", fontFamily: "monospace" }}>{i + 1}</div>)}
+        </div>
+        <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
+          style={{ flex: 1, padding: "8px 10px", border: "none", outline: "none", resize: "none", fontSize: 12, fontFamily: "monospace", lineHeight: "20px", background: "transparent", minHeight: 120, maxHeight: 260, overflowY: "auto" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid #E5E7EB", position: "relative" }}>
+        <button onClick={() => setVarOpen(o => !o)} title="Inserir variável"
+          style={{ width: 24, height: 24, borderRadius: 5, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {"{"}
+        </button>
+        {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+      </div>
+    </div>
+  );
+}
+
+function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeApiRequest, updateApiRequest, customFieldGroups: _cfgs }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  updateApiConfig: (config: Partial<ApiConfig>) => void;
+  addApiRequest: (req: ApiRequest) => void;
+  removeApiRequest: (reqId: string) => void;
+  updateApiRequest: (reqId: string, data: Partial<ApiRequest>) => void;
+  customFieldGroups: CustomFieldGroup[];
 }) {
-  const [activeTab, setActiveTab] = useState<"headers" | "params" | "body">("headers");
-  const cfg = node.apiConfig ?? { method: "POST", url: "", headers: [], params: [], body: "" };
-  const addHeader = () => updateApiConfig({ headers: [...cfg.headers, { key: "", value: "" }] });
-  const removeHeader = (i: number) => updateApiConfig({ headers: cfg.headers.filter((_, idx) => idx !== i) });
-  const updateHeader = (i: number, key: string, value: string) => {
-    const headers = [...cfg.headers]; headers[i] = { key, value }; updateApiConfig({ headers });
+  const requests = node.apiConfig?.requests ?? [];
+  const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advTab, setAdvTab] = useState<"headers" | "params" | "body" | "responseHeaders">("headers");
+  const [urlVarOpen, setUrlVarOpen] = useState(false);
+
+  const selectedReq = requests.find(r => r.id === selectedReqId) ?? null;
+
+  const handleAddRequest = (type: "json" | "file") => {
+    const idx = requests.length + 1;
+    const req: ApiRequest = {
+      id: `req${Date.now()}`, name: `Api-request-${idx}`, type,
+      method: type === "json" ? "POST" : "GET", url: "",
+      headers: [], params: [], body: type === "json" ? "{\n\n}" : "",
+      responseHeaders: [],
+    };
+    addApiRequest(req);
+    setSelectedReqId(req.id);
+    setShowTypePicker(false);
   };
-  const addParam = () => updateApiConfig({ params: [...cfg.params, { key: "", value: "" }] });
-  const removeParam = (i: number) => updateApiConfig({ params: cfg.params.filter((_, idx) => idx !== i) });
-  const updateParam = (i: number, key: string, value: string) => {
-    const params = [...cfg.params]; params[i] = { key, value }; updateApiConfig({ params });
+
+  const upd = (data: Partial<ApiRequest>) => { if (selectedReqId) updateApiRequest(selectedReqId, data); };
+
+  const addKV = (field: "headers" | "params" | "responseHeaders") => {
+    if (!selectedReq) return;
+    upd({ [field]: [...selectedReq[field], { key: "", value: "" }] });
   };
-  return (
-    <aside style={{ width: 320, minWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+  const removeKV = (field: "headers" | "params" | "responseHeaders", i: number) => {
+    if (!selectedReq) return;
+    upd({ [field]: selectedReq[field].filter((_, idx) => idx !== i) });
+  };
+  const updateKV = (field: "headers" | "params" | "responseHeaders", i: number, key: string, value: string) => {
+    if (!selectedReq) return;
+    const arr = [...selectedReq[field]]; arr[i] = { key, value }; upd({ [field]: arr });
+  };
+
+  const insertUrlVar = (v: string) => { if (!selectedReq) return; upd({ url: selectedReq.url + v }); };
+
+  // ── Left config panel ───────────────────────────────────────────────────────
+  const leftPanel = selectedReq ? (
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "0.5px solid #E5E5E5" : "none", height: "100%" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <button onClick={() => { setSelectedReqId(null); setShowAdvanced(false); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111", padding: 0, marginBottom: 4 }}>
+          <ArrowLeft size={15} />{selectedReq.type === "json" ? "Requisição HTTP com comunicação via JSON" : "Requisição de arquivo HTTP"}
+        </button>
+        <p style={{ fontSize: 11, color: "#6B7280", margin: 0, paddingLeft: 21 }}>{API_REQUEST_TYPES.find(t => t.id === selectedReq.type)?.description}</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Fonte de dados</div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#EFF6FF", borderRadius: 5, padding: "3px 10px" }}>{selectedReq.name}</span>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Método</div>
+          <select value={selectedReq.method} onChange={e => upd({ method: e.target.value })}
+            style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
+            {["POST", "GET", "PUT", "PATCH", "DELETE"].map(m => <option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Url da requisição</div>
+          <div style={{ position: "relative" }}>
+            <textarea value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..." rows={3}
+              style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "none", boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4, position: "relative" }}>
+              <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
+                style={{ width: 24, height: 24, border: "1px solid #E5E7EB", borderRadius: 4, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
+                <Copy size={12} />
+              </button>
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
+                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 11, fontWeight: 700 }}>
+                  {"{"}
+                </button>
+                {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
+              </div>
+            </div>
+          </div>
+        </div>
+        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 12, fontWeight: 500, padding: 0 }}>
+          Configurações avançadas <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111", padding: 0 }}>
             <ArrowLeft size={16} /> API
           </button>
           <div style={{ display: "flex", gap: 2 }}>
             {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
-                onMouseEnter={e => (e.currentTarget.style.background = hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              ><Icon size={13} /></button>
+                onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}><Icon size={13} /></button>
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas</p>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços.</p>
       </div>
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          <select value={cfg.method} onChange={e => updateApiConfig({ method: e.target.value })}
-            style={{ width: 90, padding: "7px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", fontWeight: 600, color: "#3B82F6", cursor: "pointer" }}>
-            {["GET", "POST", "PUT", "DELETE", "PATCH"].map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <input value={cfg.url} onChange={e => updateApiConfig({ url: e.target.value })}
-            placeholder="https://..."
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+        {requests.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+            {requests.map(req => (
+              <div key={req.id} onClick={() => { setSelectedReqId(req.id); setShowAdvanced(false); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid #BFDBFE", borderRadius: 7, cursor: "pointer", background: "#EFF6FF" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")} onMouseLeave={e => (e.currentTarget.style.background = "#EFF6FF")}>
+                {req.type === "json" ? <Braces size={14} color="#3B82F6" /> : <FileDown size={14} color="#3B82F6" />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#3B82F6" }}>{req.method}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
+                <button onClick={e => { e.stopPropagation(); removeApiRequest(req.id); }}
+                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowTypePicker(true)}
+          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "8px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }} onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}>
+          <Plus size={13} /> Adicionar API
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Advanced config panel ───────────────────────────────────────────────────
+  const tabs = selectedReq?.type === "file"
+    ? (["headers", "params", "body", "responseHeaders"] as const)
+    : (["headers", "params", "body"] as const);
+
+  const advPanel = selectedReq && showAdvanced ? (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Configurações avançadas</div>
+      </div>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
+        <MethodDropdown value={selectedReq.method} onChange={v => upd({ method: v })} />
+        <div style={{ flex: 1, position: "relative", display: "flex", gap: 4 }}>
+          <input value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..."
             style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+          <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
+            style={{ width: 28, height: 28, border: "1px solid #E5E7EB", borderRadius: 5, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}>
+            <Copy size={12} />
+          </button>
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
+              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 5, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 12, fontWeight: 700 }}>
+              {"{"}
+            </button>
+            {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
+          </div>
         </div>
       </div>
-      <div style={{ borderBottom: "0.5px solid #E5E5E5", flexShrink: 0, display: "flex" }}>
-        {(["headers", "params", "body"] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
-            {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : "Corpo"}
+      <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        {tabs.map(tab => (
+          <button key={tab} onClick={() => setAdvTab(tab as typeof advTab)}
+            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${advTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: advTab === tab ? 600 : 400, color: advTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
+            {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : tab === "body" ? "Corpo" : "Resposta do Cabeçalho"}
           </button>
         ))}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
-        {activeTab !== "body" && (
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+        {advTab === "body" ? (
+          <BodyEditor value={selectedReq.body} onChange={v => upd({ body: v })} />
+        ) : (
           <div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {(activeTab === "headers" ? cfg.headers : cfg.params).map((h, i) => (
+              {(advTab === "headers" ? selectedReq.headers : advTab === "params" ? selectedReq.params : selectedReq.responseHeaders).map((h, i) => (
                 <div key={i} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input value={h.key} onChange={e => activeTab === "headers" ? updateHeader(i, e.target.value, h.value) : updateParam(i, e.target.value, h.value)}
-                    placeholder="Chave" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
-                  <input value={h.value} onChange={e => activeTab === "headers" ? updateHeader(i, h.key, e.target.value) : updateParam(i, h.key, e.target.value)}
-                    placeholder="Valor" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
-                  <button onClick={() => activeTab === "headers" ? removeHeader(i) : removeParam(i)}
+                  <input value={h.key} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, e.target.value, h.value)} placeholder="Chave"
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <input value={h.value} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, h.key, e.target.value)} placeholder="Valor"
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <button onClick={() => removeKV(advTab as "headers" | "params" | "responseHeaders", i)}
                     style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                  ><X size={11} /></button>
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}><X size={11} /></button>
                 </div>
               ))}
             </div>
-            <button onClick={activeTab === "headers" ? addHeader : addParam}
+            <button onClick={() => addKV(advTab as "headers" | "params" | "responseHeaders")}
               style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
-              <Plus size={11} /> {activeTab === "headers" ? "Adicionar cabeçalho" : "Adicionar parâmetro"}
+              <Plus size={11} /> Adicionar
             </button>
           </div>
         )}
-        {activeTab === "body" && (
-          <textarea value={cfg.body} onChange={e => updateApiConfig({ body: e.target.value })}
-            placeholder={'{"chave": "valor"}'}
-            style={{ width: "100%", minHeight: 200, padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 11, fontFamily: "monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
-        )}
       </div>
-    </aside>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <aside style={{ width: selectedReq && showAdvanced ? 820 : 300, minWidth: selectedReq && showAdvanced ? 820 : 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "row", flexShrink: 0, overflow: "hidden" }}>
+        {leftPanel}
+        {advPanel}
+      </aside>
+      {/* Type picker dialog */}
+      <Dialog open={showTypePicker} onOpenChange={setShowTypePicker}>
+        <DialogContent style={{ maxWidth: 480, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 280 }}>
+            <div style={{ width: 140, borderRight: "0.5px solid #E5E5E5", padding: "16px 0" }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111" }}>Adicionar API</div>
+              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#3B82F6", fontWeight: 600 }}>
+                <Globe size={14} /> HTTP
+              </button>
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {API_REQUEST_TYPES.map(t => (
+                <button key={t.id} onClick={() => handleAddRequest(t.id)}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid #E5E7EB", borderRadius: 8, cursor: "pointer", background: "#fff", textAlign: "left" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#3B82F6")} onMouseLeave={e => (e.currentTarget.style.borderColor = "#E5E7EB")}>
+                  <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {t.id === "json" ? <Braces size={15} color="#3B82F6" /> : <FileDown size={15} color="#3B82F6" />}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>{t.label}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{t.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
