@@ -422,6 +422,10 @@ export default function AutomacoesPage() {
   // Rename form
   const [renameName, setRenameName]     = useState("");
 
+  // Rename group inline
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  const [renameGroupVal, setRenameGroupVal] = useState("");
+
   // Canvas (editor)
   const [nodes, setNodes]               = useState<CanvasNode[]>([START_NODE]);
   const [trigger, setTrigger]           = useState<TriggerConfig | null>(null);
@@ -845,6 +849,25 @@ export default function AutomacoesPage() {
     toast.success("Nome atualizado");
   };
 
+  const handleRenameGroup = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    setRenamingGroup(null);
+    if (!trimmed || trimmed === oldName) return;
+    const { error } = await supabase
+      .from("automations")
+      .update({ group_name: trimmed })
+      .eq("group_name", oldName)
+      .eq("company_id", company?.id);
+    if (error) { toast.error("Erro ao renomear grupo"); return; }
+    setAutomations(prev => prev.map(a => a.group_name === oldName ? { ...a, group_name: trimmed } : a));
+    setOpenGroups(prev => {
+      const next = { ...prev };
+      if (oldName in next) { next[trimmed] = next[oldName]; delete next[oldName]; }
+      return next;
+    });
+    toast.success("Grupo renomeado");
+  };
+
   const handleDelete = async () => {
     if (!selectedId) return;
     const { error } = await supabase.from("automations").delete().eq("id", selectedId);
@@ -1152,16 +1175,42 @@ export default function AutomacoesPage() {
               const open = openGroups[g.name] ?? false;
               return (
                 <div key={g.name}>
-                  <button
-                    onClick={() => setOpenGroups(s => ({ ...s, [g.name]: !open }))}
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                  <div
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                    onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                       {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      {g.name}
+                      {renamingGroup === g.name ? (
+                        <input
+                          autoFocus
+                          value={renameGroupVal}
+                          onChange={e => setRenameGroupVal(e.target.value)}
+                          onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") { e.currentTarget.blur(); }
+                            else if (e.key === "Escape") { setRenamingGroup(null); }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
+                            color: "#6B7280", background: "transparent", border: "none",
+                            borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
+                            padding: "0 2px", width: "100%",
+                          }}
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
+                          title="Duplo clique para renomear"
+                          style={{ cursor: "text" }}
+                        >
+                          {g.name}
+                        </span>
+                      )}
                     </span>
                     <span style={{ fontSize: 10, color: "#9CA3AF" }}>{g.items.length}</span>
-                  </button>
+                  </div>
                   {open && g.items.map(item => {
                     const sel = selectedId === item.id;
                     return (
