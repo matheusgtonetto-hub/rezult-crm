@@ -412,9 +412,12 @@ export default function AutomacoesPage() {
   // Create form
   const [newName, setNewName]           = useState("");
   const [newDesc, setNewDesc]           = useState("");
-  const [newGroup, setNewGroup]         = useState("Automação");
+  const [newGroup, setNewGroup]         = useState("");
   const [startType, setStartType]       = useState<"blank" | "import" | "model">("blank");
   const [creating, setCreating]         = useState(false);
+  const [groupDropOpen, setGroupDropOpen] = useState(false);
+  const [groupNewInput, setGroupNewInput] = useState("");
+  const [groupCreating, setGroupCreating] = useState(false);
 
   // Rename form
   const [renameName, setRenameName]     = useState("");
@@ -795,7 +798,8 @@ export default function AutomacoesPage() {
       const rec = data as AutomationRecord;
       setAutomations(prev => [rec, ...prev]);
       setCreateOpen(false);
-      setNewName(""); setNewDesc(""); setNewGroup("Automação"); setStartType("blank");
+      setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank");
+      setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput("");
       toast.success("Automação criada");
       openEditor(rec.id);
     } catch {
@@ -1908,7 +1912,7 @@ export default function AutomacoesPage() {
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
 
       {/* Create modal */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={v => { setCreateOpen(v); if (!v) { setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank"); setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput(""); } }}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Criar nova automação</DialogTitle>
@@ -1935,14 +1939,94 @@ export default function AutomacoesPage() {
                 rows={2}
               />
             </div>
-            <div>
+            <div style={{ position: "relative" }}>
               <Label className="text-xs font-medium">Grupo</Label>
-              <Input
-                value={newGroup}
-                onChange={e => setNewGroup(e.target.value)}
-                placeholder="Ex: Automação"
-                className="mt-1"
-              />
+              <button
+                type="button"
+                onClick={() => { setGroupDropOpen(o => !o); setGroupCreating(false); setGroupNewInput(""); }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13,
+                  border: "1px solid hsl(var(--border))", borderRadius: 6,
+                  background: "hsl(var(--background))", color: newGroup ? "hsl(var(--foreground))" : "#9CA3AF",
+                  cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <span>{newGroup || "Selecione ou crie um grupo"}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "#6B7280", flexShrink: 0 }}><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              {groupDropOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
+                  background: "hsl(var(--background))", border: "1px solid hsl(var(--border))",
+                  borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", overflow: "hidden",
+                }}>
+                  {groups.map(g => (
+                    <button
+                      key={g.name}
+                      type="button"
+                      onClick={() => { setNewGroup(g.name); setGroupDropOpen(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, width: "100%",
+                        padding: "9px 14px", fontSize: 13, border: "none", cursor: "pointer",
+                        background: newGroup === g.name ? "hsl(var(--accent))" : "transparent",
+                        color: "hsl(var(--foreground))", textAlign: "left",
+                      }}
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                  {groupCreating ? (
+                    <div style={{ padding: "8px 10px", borderTop: groups.length > 0 ? "1px solid hsl(var(--border))" : "none", display: "flex", gap: 6 }}>
+                      <input
+                        autoFocus
+                        value={groupNewInput}
+                        onChange={e => setGroupNewInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && groupNewInput.trim()) {
+                            setNewGroup(groupNewInput.trim());
+                            setGroupDropOpen(false);
+                            setGroupCreating(false);
+                          } else if (e.key === "Escape") {
+                            setGroupCreating(false);
+                          }
+                        }}
+                        placeholder="Nome do grupo..."
+                        style={{
+                          flex: 1, padding: "5px 8px", fontSize: 12,
+                          border: "1px solid hsl(var(--border))", borderRadius: 5,
+                          background: "hsl(var(--background))", color: "hsl(var(--foreground))", outline: "none",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (groupNewInput.trim()) {
+                            setNewGroup(groupNewInput.trim());
+                            setGroupDropOpen(false);
+                            setGroupCreating(false);
+                          }
+                        }}
+                        style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, border: "none", borderRadius: 5, background: "hsl(var(--primary))", color: "#fff", cursor: "pointer" }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setGroupCreating(true)}
+                      style={{
+                        display: "block", width: "100%", padding: "9px 14px", fontSize: 13, fontWeight: 600,
+                        border: "none", borderTop: groups.length > 0 ? "1px solid hsl(var(--border))" : "none",
+                        cursor: "pointer", background: "transparent", color: "hsl(var(--primary))", textAlign: "right",
+                      }}
+                    >
+                      Criar
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-xs font-medium mb-2 block">Como você deseja começar?</Label>
