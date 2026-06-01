@@ -1261,7 +1261,7 @@ export default function AutomacoesPage() {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
       {/* Left sidebar — sempre visível */}
-      <Sidebar />
+      {Sidebar()}
 
       {/* ── LIST VIEW ──────────────────────────────────────────────────────── */}
       {view === "list" && (
