@@ -457,6 +457,7 @@ export default function AutomacoesPage() {
   const [espePickerOpen, setEspePickerOpen] = useState(false);
   const [selectedEspePickerCat, setSelectedEspePickerCat] = useState("tempo");
   const [triggerPanel, setTriggerPanel] = useState(false);
+  const [apiPickerTrigger, setApiPickerTrigger] = useState(0);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
   const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
 
@@ -1528,6 +1529,7 @@ export default function AutomacoesPage() {
               removeApiRequest={(reqId) => removeApiRequest(nodePanel, reqId)}
               updateApiRequest={(reqId, data) => updateApiRequest(nodePanel, reqId, data)}
               customFieldGroups={customFieldGroups}
+              openPickerTrigger={apiPickerTrigger}
             />
           )}
 
@@ -1790,7 +1792,8 @@ export default function AutomacoesPage() {
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     onOpenCondicoesPicker={n.type === "condicoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setCondicoesPickerOpen(true); } : undefined}
-                    onOpenApiPicker={n.type === "api" ? () => { setSelectedNode(n.id); setNodePanel(n.id); } : undefined}
+                    onOpenApiPicker={n.type === "api" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setApiPickerTrigger(t => t + 1); } : undefined}
+                    onRemoveApiRequest={n.type === "api" ? (reqId) => removeApiRequest(n.id, reqId) : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
@@ -3275,7 +3278,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -3290,6 +3293,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onOpenAcoesPicker?: () => void;
   onOpenCondicoesPicker?: () => void;
   onOpenApiPicker?: () => void;
+  onRemoveApiRequest?: (reqId: string) => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   removeConditionItem?: (itemId: string) => void;
@@ -3682,10 +3686,19 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7, fontSize: 11 }}>
                   {req.type === "json" ? <Braces size={12} color="#3B82F6" /> : <FileDown size={12} color="#3B82F6" />}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.label ?? req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}</div>
-                    <div style={{ color: "#3B82F6", fontSize: 10 }}>{req.method}</div>
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.type === "json" ? "Requisição HTTP via JSON" : "Requisição de arquivo HTTP"}</div>
+                    <div style={{ color: "#3B82F6", fontSize: 10 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
                   </div>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
+                  <button
+                    data-action
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onRemoveApiRequest?.(req.id); }}
+                    title="Remover"
+                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                  ><X size={11} /></button>
                 </div>
               ))}
             </div>
@@ -4639,7 +4652,7 @@ function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
-function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeApiRequest, updateApiRequest, customFieldGroups: _cfgs }: {
+function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeApiRequest, updateApiRequest, customFieldGroups: _cfgs, openPickerTrigger }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
@@ -4648,10 +4661,18 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
   removeApiRequest: (reqId: string) => void;
   updateApiRequest: (reqId: string, data: Partial<ApiRequest>) => void;
   customFieldGroups: CustomFieldGroup[];
+  openPickerTrigger?: number;
 }) {
   const requests = node.apiConfig?.requests ?? [];
   const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
   const [showTypePicker, setShowTypePicker] = useState(false);
+
+  useEffect(() => {
+    if (openPickerTrigger && openPickerTrigger > 0) {
+      setShowTypePicker(true);
+      setSelectedReqId(null);
+    }
+  }, [openPickerTrigger]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advTab, setAdvTab] = useState<"headers" | "params" | "body" | "responseHeaders">("headers");
   const [urlVarOpen, setUrlVarOpen] = useState(false);
