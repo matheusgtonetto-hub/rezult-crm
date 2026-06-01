@@ -928,10 +928,11 @@ export default function AutomacoesPage() {
   };
 
   const handleSaveAndLeave = async () => {
+    const action = pendingLeaveRef.current;
+    pendingLeaveRef.current = null;
     setUnsavedOpen(false);
     await handleSave();
-    pendingLeaveRef.current?.();
-    pendingLeaveRef.current = null;
+    action?.();
   };
 
   const handleDuplicate = async () => {
