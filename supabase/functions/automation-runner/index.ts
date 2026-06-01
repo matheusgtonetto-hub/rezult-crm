@@ -61,6 +61,22 @@ interface EsperaConfig {
   dateTimezone?: string;
 }
 
+interface ApiRequest {
+  id: string;
+  name: string;
+  type: "json" | "file";
+  method: string;
+  url: string;
+  headers: { key: string; value: string }[];
+  params: { key: string; value: string }[];
+  body: string;
+  responseHeaders: { key: string; value: string }[];
+}
+
+interface ApiConfig {
+  requests: ApiRequest[];
+}
+
 interface CanvasNode {
   id: string;
   type: string;
@@ -68,6 +84,7 @@ interface CanvasNode {
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
   espera?: EsperaConfig;
+  apiConfig?: ApiConfig;
   parentId?: string | null;
   errorParentId?: string | null;
 }
@@ -472,6 +489,73 @@ async function executeFlow(
         queue.push(...nextNodes);
       }
 
+    // ── API ────────────────────────────────────────────────────────────────
+    } else if (node.type === "api") {
+      const requests = node.apiConfig?.requests ?? [];
+
+      if (requests.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+      } else {
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const vars = buildApiVarContext(leadData as Record<string, unknown> | null, payload);
+
+        let allSuccess = true;
+        const errors: string[] = [];
+
+        for (const req of requests) {
+          try {
+            const rawUrl = interpolate(req.url, vars);
+            if (!rawUrl) { errors.push(`${req.name}: URL vazia`); allSuccess = false; continue; }
+
+            const urlObj = new URL(rawUrl);
+            for (const { key, value } of (req.params ?? [])) {
+              if (key) urlObj.searchParams.set(interpolate(key, vars), interpolate(value, vars));
+            }
+
+            const hdrs: Record<string, string> = {};
+            for (const { key, value } of (req.headers ?? [])) {
+              if (key) hdrs[interpolate(key, vars)] = interpolate(value, vars);
+            }
+
+            let body: BodyInit | undefined;
+            if (req.type === "json" && req.body && ["POST", "PUT", "PATCH"].includes(req.method)) {
+              body = interpolate(req.body, vars);
+              if (!hdrs["Content-Type"] && !hdrs["content-type"]) {
+                hdrs["Content-Type"] = "application/json";
+              }
+            }
+
+            const resp = await fetch(urlObj.toString(), { method: req.method, headers: hdrs, body });
+            if (!resp.ok) {
+              errors.push(`${req.name}: HTTP ${resp.status} ${resp.statusText}`);
+              allSuccess = false;
+            }
+          } catch (err) {
+            errors.push(`${req.name}: ${String(err)}`);
+            allSuccess = false;
+          }
+        }
+
+        if (allSuccess) {
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "success",
+          });
+          queue.push(...(children.get(node.id) ?? []));
+        } else {
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "error",
+            error_message: errors.join("; "),
+          });
+          queue.push(...(errorChildren.get(node.id) ?? []));
+        }
+      }
+
     // ── Outros ─────────────────────────────────────────────────────────────
     } else {
       queue.push(...(children.get(node.id) ?? []));
@@ -479,12 +563,32 @@ async function executeFlow(
   }
 }
 
+// ─── API helpers ─────────────────────────────────────────────────────────────
+
+function interpolate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? "");
+}
+
+function buildApiVarContext(lead: Record<string, unknown> | null, payload: TriggerPayload): Record<string, string> {
+  const ctx: Record<string, string> = {};
+  if (lead) {
+    for (const [k, v] of Object.entries(lead)) {
+      ctx[`campo.${k}`] = String(v ?? "");
+      ctx[`lead.${k}`] = String(v ?? "");
+    }
+  }
+  ctx["gatilho.tipo"] = payload.trigger_type;
+  ctx["gatilho.lead_id"] = payload.lead_id;
+  ctx["gatilho.empresa_id"] = payload.company_id;
+  return ctx;
+}
+
 // ─── Espera delay calculator ──────────────────────────────────────────────────
 
 type EsperaDelay =
-  | { type: "inline"; ms: number }      // esperar inline com setTimeout
-  | { type: "scheduled"; resumeAfter: Date } // agendar via automation_pending
-  | { type: "immediate" };              // já está na janela — executa imediatamente
+  | { type: "inline"; ms: number }
+  | { type: "scheduled"; resumeAfter: Date }
+  | { type: "immediate" };
 
 function getEsperaDelay(espera: EsperaConfig): EsperaDelay {
   const now = new Date();
