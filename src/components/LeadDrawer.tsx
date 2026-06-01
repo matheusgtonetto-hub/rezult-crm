@@ -141,7 +141,6 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     tasks: allTasks,
     markLeadWon,
     customFieldGroups,
-    addLead, nextDealNumber,
   } = useCRM();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -242,21 +241,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const createDeal = async () => {
     if (!newDealPipeline || !newDealStage) return;
     setNewDealCreating(true);
-    await addLead({
-      ...lead,
-      id: undefined as unknown as string,
-      dealNumber: nextDealNumber(),
-      pipelineId: newDealPipeline,
-      stage: newDealStage,
-      dealStatus: "open",
-      activities: [{
-        id: `a-${Date.now()}`,
-        date: new Date().toISOString(),
-        type: "created",
-        description: `Negócio criado a partir do contato ${lead.name}.`,
-      }],
-    });
-    toast.success("Negócio criado com sucesso!");
+    await updateLead(leadId, { pipelineId: newDealPipeline, stage: newDealStage });
+    toast.success("Lead movido para o pipeline!");
     setShowNewDeal(false);
     setNewDealPipeline("");
     setNewDealStage("");

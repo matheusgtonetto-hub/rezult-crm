@@ -19,7 +19,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, updateLead } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -79,20 +79,8 @@ export default function LeadsPage() {
 
   const confirmDeal = async () => {
     if (!dealTarget || !dealPipeline || !dealStage) return;
-    await addLead({
-      ...dealTarget,
-      id: undefined as unknown as string,
-      dealNumber: nextDealNumber(),
-      pipelineId: dealPipeline,
-      stage: dealStage,
-      activities: [{
-        id: `a-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        type: "created",
-        description: `Negócio criado a partir do lead ${dealTarget.name}.`,
-      }],
-    });
-    toast.success("Negócio criado!");
+    await updateLead(dealTarget.id, { pipelineId: dealPipeline, stage: dealStage });
+    toast.success("Lead movido para o pipeline!");
     setDealTarget(null);
   };
 
