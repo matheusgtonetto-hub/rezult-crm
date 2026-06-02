@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, createContext, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
@@ -127,6 +127,10 @@ type AutomationRecord = {
   flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
   created_at: string;
 };
+
+// ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
+
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[] }>({ nodes: [], customFieldGroups: [] });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -1390,6 +1394,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -1984,6 +1989,7 @@ export default function AutomacoesPage() {
           )}
           </section>
         </div>
+        </VarPickerCtx.Provider>
       )}
 
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
@@ -4437,42 +4443,65 @@ const API_REQUEST_TYPES = [
   { id: "file" as const, label: "Requisição de arquivo HTTP", description: "Realiza uma requisição HTTP para um endpoint externo que retorna um arquivo", defaultMethod: "GET" },
 ];
 
-const VARIABLE_CATEGORIES = [
+type VarField = { key: string; label: string; icon: string; isApiSource?: boolean; sourceName?: string };
+type VarCategory = { id: string; label: string; fields: VarField[]; isAdditional?: boolean };
+
+const STATIC_VARIABLE_CATEGORIES: VarCategory[] = [
   { id: "lead", label: "Campos do lead", fields: [
-    { key: "lead.id", label: "ID do lead", icon: "#" }, { key: "lead.nome", label: "Nome do lead", icon: "T" },
-    { key: "lead.primeiro_nome", label: "Primeiro nome do lead", icon: "T" }, { key: "lead.cep", label: "CEP do lead", icon: "T" },
-    { key: "lead.endereco", label: "Endereço do lead", icon: "T" }, { key: "lead.bairro", label: "Bairro do lead", icon: "T" },
-    { key: "lead.numero", label: "Número de residência do lead", icon: "T" }, { key: "lead.cidade", label: "Cidade do lead", icon: "T" },
-    { key: "lead.complemento", label: "Complemento do lead", icon: "T" }, { key: "lead.estado", label: "Estado do lead", icon: "T" },
-    { key: "lead.email", label: "E-mail do lead", icon: "T" }, { key: "lead.telefone", label: "Telefone do lead", icon: "T" },
+    { key: "lead.id", label: "ID do lead", icon: "#" },
+    { key: "lead.nome", label: "Nome do lead", icon: "T" },
+    { key: "lead.primeiro_nome", label: "Primeiro nome do lead", icon: "T" },
+    { key: "lead.cep", label: "CEP do lead", icon: "T" },
+    { key: "lead.endereco", label: "Endereço do lead", icon: "T" },
+    { key: "lead.bairro", label: "Bairro do lead", icon: "T" },
+    { key: "lead.numero", label: "Número de residência do lead", icon: "T" },
+    { key: "lead.cidade", label: "Cidade do lead", icon: "T" },
+    { key: "lead.complemento", label: "Complemento do lead", icon: "T" },
+    { key: "lead.estado", label: "Estado do lead", icon: "T" },
+    { key: "lead.empresa", label: "Empresa do lead", icon: "T" },
+    { key: "lead.email", label: "Email do lead", icon: "T" },
+    { key: "lead.telefone", label: "Telefone do lead", icon: "T" },
+    { key: "lead.cpf_cnpj", label: "CPF/CNPJ do lead", icon: "T" },
+    { key: "lead.site", label: "Site do lead", icon: "T" },
+    { key: "lead.referral_source_id", label: "Referral Source Id", icon: "T" },
+    { key: "lead.referral_source_url", label: "Referral Source Url", icon: "T" },
+    { key: "lead.referral_ctwa_id", label: "Referral Ctwa Id", icon: "T" },
+    { key: "lead.notas", label: "Notas do lead", icon: "T" },
+    { key: "lead.atendente", label: "Atendente do lead", icon: "T" },
+    { key: "lead.instagram_nome", label: "Nome do Instagram", icon: "T" },
     { key: "lead.origem", label: "Origem do lead", icon: "T" },
+    { key: "lead.data_nascimento", label: "Data de nascimento", icon: "📅" },
   ]},
   { id: "negocio", label: "Campos do negócio", fields: [
-    { key: "neg.id", label: "ID do negócio", icon: "#" }, { key: "neg.titulo", label: "Título do negócio", icon: "T" },
-    { key: "neg.valor", label: "Valor do negócio", icon: "#" }, { key: "neg.etapa", label: "Etapa do negócio", icon: "T" },
-    { key: "neg.pipeline", label: "Pipeline do negócio", icon: "T" }, { key: "neg.status", label: "Status do negócio", icon: "T" },
-    { key: "neg.data_criacao", label: "Data de criação do negócio", icon: "T" },
+    { key: "neg.id", label: "ID do negócio", icon: "#" },
+    { key: "neg.total", label: "Total do negócio", icon: "#" },
+    { key: "neg.codigo", label: "Código do negócio", icon: "#" },
+    { key: "neg.id_externo", label: "ID externo do negócio", icon: "T" },
+    { key: "neg.atendente", label: "Atendente do negócio", icon: "T" },
+    { key: "neg.produtos_json", label: "JSON de produtos do negócio", icon: "T" },
   ]},
   { id: "produto", label: "Campos do produto", fields: [
-    { key: "prod.nome", label: "Nome do produto", icon: "T" }, { key: "prod.preco", label: "Preço do produto", icon: "#" },
-    { key: "prod.descricao", label: "Descrição do produto", icon: "T" },
+    { key: "prod.nome", label: "Nome do produto", icon: "T" },
+    { key: "prod.sku", label: "SKU do produto", icon: "T" },
+    { key: "prod.preco", label: "Preço do produto", icon: "#" },
   ]},
   { id: "conversa", label: "Campos da conversa", fields: [
-    { key: "conv.mensagem", label: "Última mensagem", icon: "T" }, { key: "conv.canal", label: "Canal", icon: "T" },
+    { key: "conv.id", label: "ID da conversa", icon: "#" },
+    { key: "conv.atendente", label: "Atendente da conversa", icon: "T" },
+    { key: "conv.codigo", label: "Código da conversa", icon: "#" },
+    { key: "conv.departamento", label: "Departamento", icon: "T" },
   ]},
-  { id: "campos_lead", label: "Campos adicionais do lead", fields: [] as { key: string; label: string; icon: string }[] },
-  { id: "campos_neg", label: "Campos adicionais do negócio", fields: [] as { key: string; label: string; icon: string }[] },
-  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [] as { key: string; label: string; icon: string }[] },
+  { id: "campos_lead", label: "Campos adicionais do lead", fields: [], isAdditional: true },
+  { id: "campos_neg", label: "Campos adicionais do negócio", fields: [], isAdditional: true },
+  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [], isAdditional: true },
   { id: "sistema", label: "Campos do sistema", fields: [
-    { key: "sys.empresa_nome", label: "Nome da empresa", icon: "T" }, { key: "sys.data_hoje", label: "Data de hoje", icon: "T" },
-    { key: "sys.hora_agora", label: "Hora atual", icon: "T" }, { key: "sys.timestamp", label: "Timestamp", icon: "#" },
+    { key: "sys.ultimo_resultado_ia", label: "Último resultado da IA", icon: "T" },
+    { key: "sys.total_tokens", label: "Total de tokens consumidos", icon: "T" },
+    { key: "sys.codigo_erro", label: "Código do último erro", icon: "T" },
+    { key: "sys.mensagem_erro", label: "Mensagem do último erro", icon: "T" },
   ]},
-  { id: "ia", label: "Campos de IA", fields: [
-    { key: "ia.resposta", label: "Resposta da IA", icon: "T" }, { key: "ia.resumo", label: "Resumo da IA", icon: "T" },
-  ]},
-  { id: "entrada", label: "Entrada de dados", fields: [
-    { key: "entrada.payload", label: "Payload do gatilho", icon: "T" }, { key: "entrada.trigger", label: "Dados do gatilho", icon: "T" },
-  ]},
+  { id: "ia", label: "Campos de IA", fields: [] },
+  { id: "entrada", label: "Entrada de dados", fields: [] },
 ];
 const DEFAULT_BRANCHES: RandomBranch[] = [
   { id: "a", label: "A", percentage: 25 }, { id: "b", label: "B", percentage: 25 },
@@ -4557,37 +4586,160 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
+  const { nodes, customFieldGroups } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
-  const activeCat = VARIABLE_CATEGORIES.find(c => c.id === cat) ?? VARIABLE_CATEGORIES[0];
+  const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
+  const [apiPath, setApiPath] = useState("");
+
+  // Build dynamic categories from context
+  const categories = useMemo((): VarCategory[] => {
+    return STATIC_VARIABLE_CATEGORIES.map(c => {
+      if (c.id === "campos_lead") {
+        const fields: VarField[] = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_lead.${i.id}`, label: i.label, icon: i.fieldType === "date" ? "📅" : i.fieldType === "boolean" ? "☑" : "T" }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_neg") {
+        return { ...c, fields: [] as VarField[] };
+      }
+      if (c.id === "campos_empresa") {
+        return { ...c, fields: [] as VarField[] };
+      }
+      if (c.id === "ia") {
+        const iaNodes = nodes.filter(n => n.type === "ia");
+        const fields: VarField[] = iaNodes.flatMap(n => [
+          { key: `ia.${n.id}.resposta`, label: `${n.label} — resposta`, icon: "T" },
+          { key: `ia.${n.id}.tokens`, label: `${n.label} — tokens`, icon: "#" },
+        ]);
+        return { ...c, fields };
+      }
+      if (c.id === "entrada") {
+        const apiNodes = nodes.filter(n => n.type === "api");
+        const fields: VarField[] = apiNodes.flatMap(n =>
+          (n.apiConfig?.requests ?? []).map(r => ({
+            key: `${r.name}`,
+            label: r.name,
+            icon: "{}",
+            isApiSource: true,
+            sourceName: r.name,
+          }))
+        );
+        return { ...c, fields };
+      }
+      return c;
+    });
+  }, [nodes, customFieldGroups]);
+
+  const activeCat = categories.find(c => c.id === cat) ?? categories[0];
   const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
+
+  const handleFieldClick = (f: VarField) => {
+    if (f.isApiSource) {
+      setApiModal({ sourceName: f.sourceName! });
+      setApiPath("");
+    } else {
+      onInsert(`{{${f.key}}}`);
+      onClose();
+    }
+  };
+
+  const confirmApiPath = () => {
+    if (!apiModal) return;
+    const val = apiPath.trim() ? `{{${apiModal.sourceName}.${apiPath.trim()}}}` : `{{${apiModal.sourceName}}}`;
+    onInsert(val);
+    onClose();
+  };
+
   return (
-    <div style={{ position: "absolute", bottom: "calc(100% + 4px)", right: 0, zIndex: 100, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden" }}>
-      <div style={{ width: 200, borderRight: "1px solid #E5E7EB", overflowY: "auto", maxHeight: 320 }}>
-        <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB" }}>
-          <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+    <>
+      <div style={{ position: "absolute", bottom: "calc(100% + 4px)", right: 0, zIndex: 100, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden" }}>
+        <div style={{ width: 210, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 340 }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
+              style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {categories.map(c => (
+              <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
-        {VARIABLE_CATEGORIES.map(c => (
-          <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
-            {c.label}
-          </button>
-        ))}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 340, position: "relative" }}>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {fields.length === 0 ? (
+              <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>Nenhum campo disponível</div>
+            ) : fields.map(f => (
+              <button key={f.key} onClick={() => handleFieldClick(f)}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <span style={{
+                  fontSize: f.icon.length > 1 ? 12 : 10,
+                  fontWeight: 700,
+                  color: f.icon === "#" ? "#F97316" : f.icon === "{}" ? "#3B82F6" : "#6B7280",
+                  background: f.icon === "#" ? "#FFF7ED" : f.icon === "{}" ? "#EFF6FF" : "#F3F4F6",
+                  borderRadius: 3, padding: "1px 5px", flexShrink: 0,
+                }}>{f.icon}</span>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {activeCat.isAdditional && fields.length === 0 && (
+            <div style={{ padding: "8px 14px", borderTop: "1px solid #E5E7EB", textAlign: "right", flexShrink: 0 }}>
+              <button
+                onClick={() => { onClose(); window.location.hash = "/configuracoes"; toast.info("Acesse Configurações → Campos adicionais para criar campos"); }}
+                style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                Criar campo
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", maxHeight: 320 }}>
-        {fields.length === 0 ? (
-          <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>Nenhum campo disponível</div>
-        ) : fields.map(f => (
-          <button key={f.key} onClick={() => { onInsert(`{{${f.key}}}`); onClose(); }}
-            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: f.icon === "#" ? "#F97316" : "#6B7280", background: f.icon === "#" ? "#FFF7ED" : "#F3F4F6", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{f.icon}</span>
-            {f.label}
-          </button>
-        ))}
-      </div>
-    </div>
+
+      {/* Sub-modal: Dado de entrada da api */}
+      {apiModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}
+          onClick={() => setApiModal(null)}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 420, boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Dado de entrada da api</div>
+              <button onClick={() => setApiModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280" }}><X size={16} /></button>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
+                Valor selecionado
+              </div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 6 }}>Escreva ou selecione um valor do json</div>
+              <input
+                autoFocus
+                value={apiPath}
+                onChange={e => setApiPath(e.target.value)}
+                placeholder="Ex: data.name"
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #3B82F6", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                onKeyDown={e => { if (e.key === "Enter") confirmApiPath(); }}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Dados recebidos</div>
+              <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>{"{}"}</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={confirmApiPath}
+                style={{ padding: "8px 20px", background: "#3B82F6", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -4999,9 +5151,21 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const [varOpen, setVarOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const insertVar = (v: string) => {
+    const el = inputRef.current;
+    if (!el) { onChange(value + v); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
   return (
-    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 4, alignItems: "center", position: "relative" }}>
       <input
+        ref={inputRef}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
@@ -5011,10 +5175,13 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
         onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
         style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
       ><Copy size={12} /></button>
-      <button
-        onClick={() => toast.info("Variáveis em breve")}
-        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
-      >{"{}"}</button>
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={() => setVarOpen(o => !o)}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+        >{"{}"}</button>
+        {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+      </div>
     </div>
   );
 }
