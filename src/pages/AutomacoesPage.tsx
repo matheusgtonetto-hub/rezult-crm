@@ -4591,6 +4591,23 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
   const [apiPath, setApiPath] = useState("");
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = pickerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const W = 580, H = 340, GAP = 4, MARGIN = 8;
+    let left = rect.right - W;
+    if (left < MARGIN) left = MARGIN;
+    if (left + W > window.innerWidth - MARGIN) left = window.innerWidth - W - MARGIN;
+    let top = rect.top - H - GAP;
+    if (top < MARGIN) top = rect.bottom + GAP;
+    setPos({ top, left, ready: true });
+  }, []);
 
   // Build dynamic categories from context
   const categories = useMemo((): VarCategory[] => {
@@ -4654,7 +4671,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
 
   return (
     <>
-      <div style={{ position: "absolute", bottom: "calc(100% + 4px)", right: 0, zIndex: 100, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden" }}>
+      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
         <div style={{ width: 210, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 340 }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
             <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
