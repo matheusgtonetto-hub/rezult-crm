@@ -77,6 +77,14 @@ interface ApiConfig {
   requests: ApiRequest[];
 }
 
+interface FieldOperation {
+  id: string;
+  type: "mapeamento";
+  fieldKey: string;
+  fieldLabel: string;
+  value: string;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
@@ -85,6 +93,7 @@ interface CanvasNode {
   conditionItems?: ConditionItem[];
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
+  fieldOps?: FieldOperation[];
   parentId?: string | null;
   errorParentId?: string | null;
 }
@@ -554,6 +563,63 @@ async function executeFlow(
           });
           queue.push(...(errorChildren.get(node.id) ?? []));
         }
+      }
+
+    // ── Campos ─────────────────────────────────────────────────────────────
+    } else if (node.type === "campos") {
+      const ops = node.fieldOps ?? [];
+
+      if (ops.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+      } else {
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
+
+        const leadUpdate: Record<string, unknown> = {};
+        const customUpdate: Record<string, unknown> = {};
+        const errors: string[] = [];
+
+        for (const op of ops) {
+          try {
+            const resolved = interpolate(op.value, vars);
+            if (op.fieldKey.startsWith("lead.")) {
+              const col = op.fieldKey.substring(5);
+              leadUpdate[col] = resolved;
+            } else if (op.fieldKey.startsWith("campo_lead.")) {
+              const fieldId = op.fieldKey.substring(11);
+              customUpdate[fieldId] = resolved;
+            }
+          } catch (err) {
+            errors.push(`${op.fieldLabel}: ${String(err)}`);
+          }
+        }
+
+        if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
+          const updateData: Record<string, unknown> = { ...leadUpdate };
+          if (Object.keys(customUpdate).length > 0) {
+            const existing = ((leadData as Record<string, unknown>)?.custom_field_values ?? {}) as Record<string, unknown>;
+            updateData.custom_field_values = { ...existing, ...customUpdate };
+          }
+          const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", lead_id);
+          if (updateErr) errors.push(updateErr.message);
+        }
+
+        const status = errors.length > 0 ? "error" : "success";
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status,
+          error_message: errors.length > 0 ? errors.join("; ") : null,
+        });
+
+        if (errors.length > 0) {
+          const errNext = errorChildren.get(node.id) ?? [];
+          if (errNext.length > 0) { queue.push(...errNext); continue; }
+        }
+        queue.push(...(children.get(node.id) ?? []));
       }
 
     // ── Outros ─────────────────────────────────────────────────────────────

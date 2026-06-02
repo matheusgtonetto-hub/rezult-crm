@@ -80,6 +80,14 @@ type ApiRequest = {
 };
 type ApiConfig = { requests: ApiRequest[] };
 
+type FieldOperation = {
+  id: string;
+  type: "mapeamento";
+  fieldKey: string;
+  fieldLabel: string;
+  value: string;
+};
+
 type CanvasNode = {
   id: string;
   type: "start" | "note" | ActionNodeType;
@@ -94,6 +102,7 @@ type CanvasNode = {
   espera?: EsperaConfig;
   randomBranches?: RandomBranch[];
   apiConfig?: ApiConfig;
+  fieldOps?: FieldOperation[];
   noteText?: string;
   noteColorIndex?: number;
   width?: number;
@@ -1159,6 +1168,16 @@ export default function AutomacoesPage() {
     ));
   };
 
+  const addFieldOp = (nodeId: string, op: FieldOperation) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: [...(n.fieldOps ?? []), op] } : n));
+  };
+  const removeFieldOp = (nodeId: string, opId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).filter(o => o.id !== opId) } : n));
+  };
+  const updateFieldOp = (nodeId: string, opId: string, data: Partial<FieldOperation>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).map(o => o.id === opId ? { ...o, ...data } : o) } : n));
+  };
+
   const updateTriggerConfigData = (key: string, value: string | boolean | number) => {
     setTrigger(prev => prev ? { ...prev, configData: { ...(prev.configData ?? {}), [key]: value } } : prev);
   };
@@ -1544,6 +1563,10 @@ export default function AutomacoesPage() {
               onClose={() => setNodePanel(null)}
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              addFieldOp={(op) => addFieldOp(nodePanel, op)}
+              removeFieldOp={(opId) => removeFieldOp(nodePanel, opId)}
+              updateFieldOp={(opId, data) => updateFieldOp(nodePanel, opId, data)}
+              customFieldGroups={customFieldGroups}
             />
           )}
 
@@ -3739,6 +3762,65 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     );
   }
 
+  if (node.type === "campos") {
+    const ops = node.fieldOps ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart} onClick={onSelect}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 270, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Sliders size={15} color="#22C55E" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Operações de campos</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {ops.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>
+              Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {ops.map(op => (
+                <div key={op.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 7, fontSize: 11 }}>
+                  <ArrowLeftRight size={11} color="#22C55E" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.fieldLabel || "Campo não selecionado"}</div>
+                    {op.value && <div style={{ color: "#22C55E", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>= {op.value}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            data-action onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(); }}
+            style={{ width: "100%", border: "1px dashed #86EFAC", background: "#F0FDF4", color: "#22C55E", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DCFCE7"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#F0FDF4"; }}
+          ><Plus size={13} /> Adicionar mapeamento de campo</button>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#22C55E", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (node.type !== "mensagem") {
     return (
       <div
@@ -4502,6 +4584,44 @@ const STATIC_VARIABLE_CATEGORIES: VarCategory[] = [
   { id: "ia",      label: "Campos de IA",      fields: [] },
   { id: "entrada", label: "Entrada de dados",  fields: [] },
 ];
+
+// Campos de DESTINO (somente graváveis)
+type DestCategory = { id: string; label: string; fields: { key: string; label: string }[]; isAdditional?: boolean };
+const DEST_FIELD_CATEGORIES: DestCategory[] = [
+  { id: "lead", label: "Campos do lead", fields: [
+    { key: "lead.name",         label: "Nome do lead" },
+    { key: "lead.company",      label: "Empresa" },
+    { key: "lead.email",        label: "E-mail" },
+    { key: "lead.whatsapp",     label: "Telefone" },
+    { key: "lead.document",     label: "CPF/CNPJ" },
+    { key: "lead.birth_date",   label: "Data de nascimento" },
+    { key: "lead.origin",       label: "Origem" },
+    { key: "lead.notes",        label: "Notas" },
+    { key: "lead.responsible",  label: "Atendente responsável" },
+    { key: "lead.site",         label: "Site" },
+    { key: "lead.country",      label: "País" },
+    { key: "lead.zip_code",     label: "CEP" },
+    { key: "lead.address",      label: "Endereço" },
+    { key: "lead.addr_number",  label: "Número" },
+    { key: "lead.complement",   label: "Complemento" },
+    { key: "lead.neighborhood", label: "Bairro" },
+    { key: "lead.city",         label: "Cidade" },
+    { key: "lead.state",        label: "Estado" },
+  ]},
+  { id: "negocio", label: "Campos do negócio", fields: [
+    { key: "lead.value",          label: "Valor do negócio" },
+    { key: "lead.status",         label: "Status (aberto/ganho/perdido)" },
+    { key: "lead.priority",       label: "Prioridade" },
+    { key: "lead.next_follow_up", label: "Próximo follow-up" },
+    { key: "lead.utm_source",     label: "UTM Source" },
+    { key: "lead.utm_medium",     label: "UTM Medium" },
+    { key: "lead.utm_campaign",   label: "UTM Campaign" },
+    { key: "lead.utm_term",       label: "UTM Term" },
+    { key: "lead.utm_content",    label: "UTM Content" },
+  ]},
+  { id: "campos_lead", label: "Campos adicionais do lead", fields: [], isAdditional: true },
+];
+
 const DEFAULT_BRANCHES: RandomBranch[] = [
   { id: "a", label: "A", percentage: 25 }, { id: "b", label: "B", percentage: 25 },
   { id: "c", label: "C", percentage: 25 }, { id: "d", label: "D", percentage: 25 },
@@ -5076,84 +5196,283 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
 // ─── CamposPanel ──────────────────────────────────────────────────────────────
 
-function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
+// ─── CamposValueInput ────────────────────────────────────────────────────────
+
+function CamposValueInput({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertVar = (v: string) => {
+    const el = taRef.current;
+    if (!el) { onChange(value + v); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <textarea
+        ref={taRef}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "vertical", boxSizing: "border-box" as const, fontFamily: "inherit", lineHeight: 1.5 }}
+      />
+      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4 }}>
+        <button
+          onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+        ><Copy size={12} /></button>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setVarOpen(o => !o)}
+            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+          >{"{}"}</button>
+          {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FieldDestPicker ─────────────────────────────────────────────────────────
+
+function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
+  onSelect: (fieldKey: string, fieldLabel: string) => void;
+  onClose: () => void;
+  customFieldGroups: import("@/data/mockData").CustomFieldGroup[];
+}) {
+  const [cat, setCat] = useState("lead");
+  const [search, setSearch] = useState("");
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = pickerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const W = 480, H = 300, GAP = 4, MARGIN = 8;
+    let left = rect.left;
+    if (left + W > window.innerWidth - MARGIN) left = window.innerWidth - W - MARGIN;
+    if (left < MARGIN) left = MARGIN;
+    let top = rect.bottom + GAP;
+    if (top + H > window.innerHeight - MARGIN) top = rect.top - H - GAP;
+    setPos({ top, left, ready: true });
+  }, []);
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [onClose]);
+
+  const categories = useMemo((): DestCategory[] => {
+    return DEST_FIELD_CATEGORIES.map(c => {
+      if (c.id === "campos_lead") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_lead.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      return c;
+    });
+  }, [customFieldGroups]);
+
+  const activeCat = categories.find(c => c.id === cat) ?? categories[0];
+  const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 480, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+      <div style={{ width: 180, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 300 }}>
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+          <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
+            style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {categories.map(c => (
+            <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#F0FDF4" : "transparent", color: cat === c.id ? "#16A34A" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 300 }}>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {fields.length === 0 ? (
+            <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>
+              {activeCat.isAdditional ? "Nenhum campo adicional criado." : "Nenhum campo disponível"}
+            </div>
+          ) : fields.map(f => (
+            <button key={f.key} onClick={() => { onSelect(f.key, f.label); onClose(); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", background: "#F0FDF4", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>T</span>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CamposPanel ─────────────────────────────────────────────────────────────
+
+function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeFieldOp, updateFieldOp, customFieldGroups }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  addFieldOp: (op: FieldOperation) => void;
+  removeFieldOp: (opId: string) => void;
+  updateFieldOp: (opId: string, data: Partial<FieldOperation>) => void;
+  customFieldGroups: import("@/data/mockData").CustomFieldGroup[];
 }) {
-  const { customFieldGroups } = useCRM();
-  const [campo, setCampo] = useState("");
-  const [operacao, setOperacao] = useState("");
-  const [valor, setValor] = useState("");
+  const [selectedOpId, setSelectedOpId] = useState<string | null>(null);
+  const [destPickerOpen, setDestPickerOpen] = useState(false);
+  const fieldOps = node.fieldOps ?? [];
+  const selectedOp = fieldOps.find(o => o.id === selectedOpId) ?? null;
+
+  const handleAddOp = () => {
+    const op: FieldOperation = { id: `fo${Date.now()}`, type: "mapeamento", fieldKey: "", fieldLabel: "", value: "" };
+    addFieldOp(op);
+    setSelectedOpId(op.id);
+  };
+
+  const panelHeader = (title: string, subtitle: string, onBack: () => void) => (
+    <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <ArrowLeft size={16} /> {title}
+        </button>
+        <div style={{ display: "flex", gap: 2 }}>
+          {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+              onMouseEnter={e => (e.currentTarget.style.background = hover)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            ><Icon size={13} /></button>
+          ))}
+        </div>
+      </div>
+      <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>{subtitle}</p>
+    </div>
+  );
+
+  // ── Detail view ─────────────────────────────────────────────────────────────
+  if (selectedOpId && selectedOp) {
+    return (
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+          <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Mapeamento de campo
+          </button>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Campo de destino */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo de destino</label>
+              <div style={{ position: "relative" }}>
+                <button
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: selectedOp.fieldKey ? "#111" : "#9CA3AF" }}
+                  onClick={() => setDestPickerOpen(v => !v)}
+                >
+                  <span>{selectedOp.fieldLabel || "Selecionar"}</span>
+                  <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                </button>
+                {destPickerOpen && (
+                  <FieldDestPicker
+                    customFieldGroups={customFieldGroups}
+                    onSelect={(key, label) => { updateFieldOp(selectedOp.id, { fieldKey: key, fieldLabel: label }); setDestPickerOpen(false); }}
+                    onClose={() => setDestPickerOpen(false)}
+                  />
+                )}
+              </div>
+            </div>
+            {/* Valor */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
+              <CamposValueInput
+                value={selectedOp.value}
+                onChange={v => updateFieldOp(selectedOp.id, { value: v })}
+                placeholder="Digite um valor ou use {{variável}}..."
+              />
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // ── List view ────────────────────────────────────────────────────────────────
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
-            <ArrowLeft size={16} /> Operações de campos
-          </button>
-          <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
-              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
-                onMouseEnter={e => (e.currentTarget.style.background = hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              ><Icon size={13} /></button>
+      {panelHeader("Operações de campos", "Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:", onClose)}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {fieldOps.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+            {fieldOps.map(op => (
+              <div key={op.id}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, cursor: "pointer" }}
+                onClick={() => setSelectedOpId(op.id)}
+                onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+              >
+                <ArrowLeftRight size={13} color="#22C55E" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {op.fieldLabel || "Selecionar campo"}
+                  </div>
+                  {op.value && (
+                    <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                      = {op.value}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); removeFieldOp(op.id); }}
+                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                ><X size={11} /></button>
+              </div>
             ))}
           </div>
-        </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Manipule campos do lead ou negócio</p>
+        )}
+        {fieldOps.length === 0 && (
+          <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 4, lineHeight: 1.5 }}>Nenhuma operação adicionada ainda.</div>
+        )}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo</label>
-            <select value={campo} onChange={e => setCampo(e.target.value)}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
-              <option value="">Selecione um campo...</option>
-              <option value="nome">Nome</option>
-              <option value="email">Email</option>
-              <option value="telefone">Telefone</option>
-              <option value="cpf">CPF</option>
-              <option value="empresa">Empresa</option>
-              <option value="tags">Tags</option>
-              <option value="observacoes">Observações</option>
-              {customFieldGroups.flatMap(g => g.items.map(item => (
-                <option key={item.id} value={item.id}>{g.name} › {item.label}</option>
-              )))}
-
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Operação</label>
-            <select value={operacao} onChange={e => setOperacao(e.target.value)}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
-              <option value="">Selecione a operação...</option>
-              <option value="definir">Definir valor</option>
-              <option value="limpar">Limpar valor</option>
-              <option value="incrementar">Incrementar</option>
-              <option value="decrementar">Decrementar</option>
-              <option value="concatenar">Concatenar</option>
-            </select>
-          </div>
-          {operacao && operacao !== "limpar" && (
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor</label>
-              <input value={valor} onChange={e => setValor(e.target.value)}
-                placeholder="Valor ou variável {{var}}..."
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
-              <div style={{ marginTop: 4, fontSize: 10, color: "#9CA3AF" }}>Use {"{{variavel}}"} para inserir variáveis dinâmicas.</div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
-        <button onClick={() => toast.info("Em breve: múltiplas operações de campo")}
+      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+        <button onClick={handleAddOp}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #86EFAC", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; }}
+        >
+          <Plus size={13} /> Adicionar mapeamento de campo
+        </button>
+        <button onClick={handleAddOp}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
         >
-          <Plus size={13} /> Adicionar operação
+          <Plus size={13} /> Adicionar outra operação de campo
         </button>
       </div>
     </aside>
