@@ -19,7 +19,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, updateLead } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -43,7 +43,16 @@ export default function LeadsPage() {
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
 
-  const allLeads = Object.values(leads);
+  const allLeadsSorted = Object.values(leads).sort((a, b) => a.dealNumber - b.dealNumber);
+  const seenPhones = new Set<string>();
+  const allLeads = allLeadsSorted.filter(l => {
+    const phone = l.whatsapp?.replace(/\D/g, "") ?? "";
+    if (!phone) return true;
+    const norm = phone.startsWith("55") ? phone : `55${phone}`;
+    if (seenPhones.has(norm)) return false;
+    seenPhones.add(norm);
+    return true;
+  });
   const filtered = allLeads.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterResp !== "all") {
@@ -79,8 +88,20 @@ export default function LeadsPage() {
 
   const confirmDeal = async () => {
     if (!dealTarget || !dealPipeline || !dealStage) return;
-    await updateLead(dealTarget.id, { pipelineId: dealPipeline, stage: dealStage });
-    toast.success("Lead movido para o pipeline!");
+    await addLead({
+      ...dealTarget,
+      id: undefined as unknown as string,
+      dealNumber: nextDealNumber(),
+      pipelineId: dealPipeline,
+      stage: dealStage,
+      activities: [{
+        id: `a-${Date.now()}`,
+        date: new Date().toISOString().split("T")[0],
+        type: "created",
+        description: `Negócio criado a partir do lead ${dealTarget.name}.`,
+      }],
+    });
+    toast.success("Negócio criado!");
     setDealTarget(null);
   };
 
