@@ -4619,7 +4619,14 @@ const DEST_FIELD_CATEGORIES: DestCategory[] = [
     { key: "lead.utm_term",       label: "UTM Term" },
     { key: "lead.utm_content",    label: "UTM Content" },
   ]},
-  { id: "campos_lead", label: "Campos adicionais do lead", fields: [], isAdditional: true },
+  { id: "produto", label: "Campos do produto", fields: [
+    { key: "prod.name",          label: "Nome do produto" },
+    { key: "prod.sku",           label: "SKU" },
+    { key: "prod.default_value", label: "Preço padrão" },
+  ]},
+  { id: "campos_lead",    label: "Campos adicionais do lead",    fields: [], isAdditional: true },
+  { id: "campos_neg",     label: "Campos adicionais do negócio", fields: [], isAdditional: true },
+  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [], isAdditional: true },
 ];
 
 const DEFAULT_BRANCHES: RandomBranch[] = [
@@ -5283,6 +5290,18 @@ function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
       if (c.id === "campos_lead") {
         const fields = customFieldGroups.flatMap(g =>
           g.items.map(i => ({ key: `campo_lead.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_neg") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_neg.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_empresa") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_empresa.${i.id}`, label: `${g.name}: ${i.label}` }))
         );
         return { ...c, fields };
       }

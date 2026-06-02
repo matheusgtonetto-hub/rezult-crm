@@ -581,17 +581,20 @@ async function executeFlow(
 
         const leadUpdate: Record<string, unknown> = {};
         const customUpdate: Record<string, unknown> = {};
+        const prodUpdate: Record<string, unknown> = {};
         const errors: string[] = [];
 
         for (const op of ops) {
           try {
             const resolved = interpolate(op.value, vars);
             if (op.fieldKey.startsWith("lead.")) {
-              const col = op.fieldKey.substring(5);
-              leadUpdate[col] = resolved;
-            } else if (op.fieldKey.startsWith("campo_lead.")) {
-              const fieldId = op.fieldKey.substring(11);
-              customUpdate[fieldId] = resolved;
+              leadUpdate[op.fieldKey.substring(5)] = resolved;
+            } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
+              // todos escrevem em custom_field_values do lead (negócio = lead neste CRM)
+              const dotIdx = op.fieldKey.indexOf(".");
+              customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
+            } else if (op.fieldKey.startsWith("prod.")) {
+              prodUpdate[op.fieldKey.substring(5)] = resolved;
             }
           } catch (err) {
             errors.push(`${op.fieldLabel}: ${String(err)}`);
@@ -606,6 +609,14 @@ async function executeFlow(
           }
           const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", lead_id);
           if (updateErr) errors.push(updateErr.message);
+        }
+
+        if (Object.keys(prodUpdate).length > 0) {
+          const productId = (leadData as Record<string, unknown>)?.product_id;
+          if (productId) {
+            const { error: prodErr } = await supabase.from("products").update(prodUpdate).eq("id", productId);
+            if (prodErr) errors.push(prodErr.message);
+          }
         }
 
         const status = errors.length > 0 ? "error" : "success";
