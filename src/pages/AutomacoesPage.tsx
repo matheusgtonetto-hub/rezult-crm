@@ -4805,7 +4805,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
 
   return (
     <>
-      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: apiModal ? "none" : "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
         <div style={{ width: 210, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 340 }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
             <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
