@@ -2987,17 +2987,6 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
                 </div>
               )}
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>Identificar lead por</div>
-              <select value={(cfg.leadIdentifier as string) ?? "lead_id"} onChange={e => updateConfig("leadIdentifier", e.target.value)} style={tcpSelectStyle}>
-                <option value="lead_id">ID do lead (lead_id no body)</option>
-                <option value="email">E-mail (email no body)</option>
-                <option value="whatsapp">WhatsApp (whatsapp no body)</option>
-              </select>
-              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>
-                O body da requisição deve conter o campo selecionado para identificar o lead.
-              </div>
-            </div>
             {tcpWarning("O webhook possui um limite de 60 requisições por minuto. Caso precisar aumentar o limite entre em contato com o suporte.")}
             <SourceBadge />
           </div>
