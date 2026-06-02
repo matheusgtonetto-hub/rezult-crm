@@ -139,7 +139,7 @@ type AutomationRecord = {
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[] }>({ nodes: [], customFieldGroups: [] });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null }>({ nodes: [], customFieldGroups: [], trigger: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -1415,7 +1415,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
-        <VarPickerCtx.Provider value={{ nodes, customFieldGroups }}>
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -2961,8 +2961,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
 
       case "http_webhook": {
         const webhookId = cfg.webhookId as string;
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-        const webhookUrl = `${supabaseUrl}/functions/v1/automation-runner/webhook/${webhookId}`;
+        const webhookUrl = `https://api.rezultcrm.com/webhook/${webhookId}`;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
@@ -4718,7 +4717,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
-  const { nodes, customFieldGroups } = useContext(VarPickerCtx);
+  const { nodes, customFieldGroups, trigger } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
@@ -4765,8 +4764,11 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         return { ...c, fields };
       }
       if (c.id === "entrada") {
+        const webhookFields: VarField[] = trigger?.triggerId === "http_webhook"
+          ? [{ key: "webhook", label: "Api-request-1", icon: "{}", isApiSource: true, sourceName: "webhook" }]
+          : [];
         const apiNodes = nodes.filter(n => n.type === "api");
-        const fields: VarField[] = apiNodes.flatMap(n =>
+        const apiFields: VarField[] = apiNodes.flatMap(n =>
           (n.apiConfig?.requests ?? []).map(r => ({
             key: `${r.name}`,
             label: r.name,
@@ -4775,7 +4777,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             sourceName: r.name,
           }))
         );
-        return { ...c, fields };
+        return { ...c, fields: [...webhookFields, ...apiFields] };
       }
       return c;
     });
