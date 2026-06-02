@@ -215,11 +215,11 @@ async function handleWebhook(
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
-  // Busca a automação pelo webhookId armazenado no flow (JSONB)
+  // O webhookId é o próprio id da automação
   const { data: automation, error: autoErr } = await supabase
     .from("automations")
     .select("id, name, flow, company_id")
-    .contains("flow", { trigger: { configData: { webhookId } } })
+    .eq("id", webhookId)
     .eq("active", true)
     .single();
 

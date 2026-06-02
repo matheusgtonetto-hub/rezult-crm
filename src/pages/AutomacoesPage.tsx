@@ -1094,7 +1094,7 @@ export default function AutomacoesPage() {
 
   const handleSelectTrigger = (cat: typeof TRIGGER_CATEGORIES[0], t: typeof TRIGGER_CATEGORIES[0]["triggers"][0]) => {
     const configData: Record<string, string | boolean | number> = {};
-    if (t.id === "http_webhook") configData.webhookId = crypto.randomUUID();
+    if (t.id === "http_webhook") configData.webhookId = selectedId ?? crypto.randomUUID();
     const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
     setTrigger(cfg);
     setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
@@ -1441,6 +1441,7 @@ export default function AutomacoesPage() {
           {triggerPanel && !nodePanel && trigger && (
             <TriggerConfigPanel
               trigger={trigger}
+              automationId={selectedId ?? undefined}
               onClose={() => setTriggerPanel(false)}
               onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
               updateConfig={updateTriggerConfigData}
@@ -2504,8 +2505,9 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
   trigger: TriggerConfig;
+  automationId?: string;
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
@@ -2978,8 +2980,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
         );
 
       case "http_webhook": {
-        const webhookId = cfg.webhookId as string;
-        const webhookUrl = `https://api.rezultcrm.com/webhook/${webhookId}`;
+        const webhookUrl = `https://api.rezultcrm.com/webhook/${automationId ?? (cfg.webhookId as string)}`;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
