@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, createContext, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -410,6 +410,7 @@ export default function AutomacoesPage() {
   const { company } = useCompany();
   const { pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups } = useCRM();
   const navigate = useNavigate();
+  const { id: urlId } = useParams<{ id: string }>();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -518,6 +519,23 @@ export default function AutomacoesPage() {
   }, [company?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Sync URL with editor state (replaceState to avoid remounting the component)
+  useEffect(() => {
+    if (view === "editor" && selectedId) {
+      window.history.replaceState(null, "", `/automacoes/${selectedId}`);
+    } else if (view === "list") {
+      window.history.replaceState(null, "", "/automacoes");
+    }
+  }, [view, selectedId]);
+
+  // Deep-link: open automation when page is loaded directly at /automacoes/:id
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (!urlId || deepLinkHandledRef.current || automations.length === 0) return;
+    deepLinkHandledRef.current = true;
+    openEditor(urlId);
+  }, [urlId, automations]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
