@@ -199,7 +199,7 @@ Deno.serve(async (req: Request) => {
 async function handleWebhook(
   supabase: SupabaseClient,
   req: Request,
-  automationId: string,
+  webhookId: string,
 ): Promise<Response> {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -215,23 +215,20 @@ async function handleWebhook(
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
-  // Carrega a automação pelo ID
+  // Busca a automação pelo webhookId armazenado no flow (JSONB)
   const { data: automation, error: autoErr } = await supabase
     .from("automations")
     .select("id, name, flow, company_id")
-    .eq("id", automationId)
+    .contains("flow", { trigger: { configData: { webhookId } } })
     .eq("active", true)
     .single();
 
   if (autoErr || !automation) {
-    return Response.json({ error: "Automation not found or inactive" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Webhook not found or automation inactive" }, { status: 404, headers: corsHeaders });
   }
 
   const flow = (automation as AutomationRecord).flow;
-  const trigger = flow?.trigger;
-  if (!trigger || trigger.triggerId !== "http_webhook") {
-    return Response.json({ error: "Automation does not use http_webhook trigger" }, { status: 400, headers: corsHeaders });
-  }
+  const automationId = (automation as AutomationRecord).id;
 
   // Lê o body da requisição
   let webhookBody: Record<string, unknown> = {};
@@ -239,13 +236,12 @@ async function handleWebhook(
     webhookBody = (await req.json()) as Record<string, unknown>;
   } catch { /* body vazio ou não-JSON é aceito */ }
 
-  // Identifica o lead conforme configuração do gatilho
-  const identifier = (trigger.configData?.leadIdentifier as string) ?? "lead_id";
+  // Tenta identificar o lead pelo body (lead_id, email ou whatsapp)
   let lead_id: string | null = null;
 
-  if (identifier === "lead_id" && webhookBody.lead_id) {
+  if (webhookBody.lead_id) {
     lead_id = String(webhookBody.lead_id);
-  } else if (identifier === "email" && webhookBody.email) {
+  } else if (webhookBody.email) {
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
@@ -253,7 +249,7 @@ async function handleWebhook(
       .eq("email", String(webhookBody.email))
       .maybeSingle();
     lead_id = lead?.id ?? null;
-  } else if (identifier === "whatsapp" && webhookBody.whatsapp) {
+  } else if (webhookBody.whatsapp) {
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
@@ -265,7 +261,7 @@ async function handleWebhook(
 
   if (!lead_id) {
     return Response.json(
-      { error: `Lead não encontrado. Envie o campo "${identifier}" no body.` },
+      { error: "Lead não encontrado. Envie lead_id, email ou whatsapp no body." },
       { status: 422, headers: corsHeaders },
     );
   }

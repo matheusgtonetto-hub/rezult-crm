@@ -1076,7 +1076,7 @@ export default function AutomacoesPage() {
 
   const handleSelectTrigger = (cat: typeof TRIGGER_CATEGORIES[0], t: typeof TRIGGER_CATEGORIES[0]["triggers"][0]) => {
     const configData: Record<string, string | boolean | number> = {};
-    if (t.id === "http_webhook" && selectedId) configData.webhookId = selectedId;
+    if (t.id === "http_webhook") configData.webhookId = crypto.randomUUID();
     const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
     setTrigger(cfg);
     setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
@@ -2960,32 +2960,24 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
         );
 
       case "http_webhook": {
-        const webhookId = cfg.webhookId as string | undefined;
+        const webhookId = cfg.webhookId as string;
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-        const webhookUrl = webhookId
-          ? `${supabaseUrl}/functions/v1/automation-runner/webhook/${webhookId}`
-          : null;
+        const webhookUrl = `${supabaseUrl}/functions/v1/automation-runner/webhook/${webhookId}`;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>URL do webhook</div>
-              {webhookUrl ? (
-                <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                  <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
-                    {webhookUrl}
-                  </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
-                    style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                  >
-                    <Copy size={13} color="#6B7280" />
-                  </button>
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                  {webhookUrl}
                 </div>
-              ) : (
-                <div style={{ fontSize: 12, color: "#9CA3AF", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px" }}>
-                  Salve a automação para gerar a URL
-                </div>
-              )}
+                <button
+                  onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  <Copy size={13} color="#6B7280" />
+                </button>
+              </div>
             </div>
             {tcpWarning("O webhook possui um limite de 60 requisições por minuto. Caso precisar aumentar o limite entre em contato com o suporte.")}
             <SourceBadge />
