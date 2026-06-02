@@ -116,12 +116,26 @@ interface AutomationFlow {
 interface AutomationRecord {
   id: string;
   name: string;
+  company_id: string;
   flow: AutomationFlow;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── Webhook mode: POST /automation-runner/webhook/<automationId> ──────────
+  const url = new URL(req.url);
+  const webhookMatch = url.pathname.match(/\/webhook\/([a-f0-9-]{36})$/i);
+  if (webhookMatch) {
+    return await handleWebhook(supabase, req, webhookMatch[1]);
+  }
+
+  // ── Modo normal: requer autenticação ─────────────────────────────────────
   const secret = Deno.env.get("AUTOMATION_SECRET");
   const auth = req.headers.get("Authorization");
 
@@ -135,11 +149,6 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response("Bad request", { status: 400 });
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   // ── Resume mode: chamado pelo pg_cron para continuar automações pausadas ──
   if (body.resume === true) {
@@ -184,6 +193,98 @@ Deno.serve(async (req: Request) => {
   console.log(`[${trigger_type}] lead=${lead_id} matched=${results.length}`);
   return Response.json({ trigger_type, lead_id, matched: results.length, results });
 });
+
+// ─── Webhook handler ──────────────────────────────────────────────────────────
+
+async function handleWebhook(
+  supabase: SupabaseClient,
+  req: Request,
+  automationId: string,
+): Promise<Response> {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
+  // Carrega a automação pelo ID
+  const { data: automation, error: autoErr } = await supabase
+    .from("automations")
+    .select("id, name, flow, company_id")
+    .eq("id", automationId)
+    .eq("active", true)
+    .single();
+
+  if (autoErr || !automation) {
+    return Response.json({ error: "Automation not found or inactive" }, { status: 404, headers: corsHeaders });
+  }
+
+  const flow = (automation as AutomationRecord).flow;
+  const trigger = flow?.trigger;
+  if (!trigger || trigger.triggerId !== "http_webhook") {
+    return Response.json({ error: "Automation does not use http_webhook trigger" }, { status: 400, headers: corsHeaders });
+  }
+
+  // Lê o body da requisição
+  let webhookBody: Record<string, unknown> = {};
+  try {
+    webhookBody = (await req.json()) as Record<string, unknown>;
+  } catch { /* body vazio ou não-JSON é aceito */ }
+
+  // Identifica o lead conforme configuração do gatilho
+  const identifier = (trigger.configData?.leadIdentifier as string) ?? "lead_id";
+  let lead_id: string | null = null;
+
+  if (identifier === "lead_id" && webhookBody.lead_id) {
+    lead_id = String(webhookBody.lead_id);
+  } else if (identifier === "email" && webhookBody.email) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("email", String(webhookBody.email))
+      .maybeSingle();
+    lead_id = lead?.id ?? null;
+  } else if (identifier === "whatsapp" && webhookBody.whatsapp) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("whatsapp", String(webhookBody.whatsapp))
+      .maybeSingle();
+    lead_id = lead?.id ?? null;
+  }
+
+  if (!lead_id) {
+    return Response.json(
+      { error: `Lead não encontrado. Envie o campo "${identifier}" no body.` },
+      { status: 422, headers: corsHeaders },
+    );
+  }
+
+  const payload: TriggerPayload = {
+    trigger_type: "http_webhook",
+    company_id: (automation as AutomationRecord).company_id,
+    lead_id,
+    context: { changed_fields: webhookBody },
+  };
+
+  try {
+    await executeFlow(supabase, flow, payload, automationId);
+    return Response.json({ ok: true, lead_id, automation_id: automationId }, { headers: corsHeaders });
+  } catch (err) {
+    console.error(`Webhook automation ${automationId} failed:`, err);
+    return Response.json({ error: String(err) }, { status: 500, headers: corsHeaders });
+  }
+}
 
 // ─── Resume handler ───────────────────────────────────────────────────────────
 

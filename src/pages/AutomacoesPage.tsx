@@ -1075,7 +1075,9 @@ export default function AutomacoesPage() {
   };
 
   const handleSelectTrigger = (cat: typeof TRIGGER_CATEGORIES[0], t: typeof TRIGGER_CATEGORIES[0]["triggers"][0]) => {
-    const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description };
+    const configData: Record<string, string | boolean | number> = {};
+    if (t.id === "http_webhook" && selectedId) configData.webhookId = selectedId;
+    const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
     setTrigger(cfg);
     setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
     setTriggerOpen(false);
@@ -2957,27 +2959,50 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
           </div>
         );
 
-      case "http_webhook":
+      case "http_webhook": {
+        const webhookId = cfg.webhookId as string | undefined;
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const webhookUrl = webhookId
+          ? `${supabaseUrl}/functions/v1/automation-runner/webhook/${webhookId}`
+          : null;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Url do webhook</div>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
-                  {`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? "—"}`}
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>URL do webhook</div>
+              {webhookUrl ? (
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                    {webhookUrl}
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
+                    style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    <Copy size={13} color="#6B7280" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? ""}`).then(() => toast.success("URL copiada"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                >
-                  <Copy size={13} color="#6B7280" />
-                </button>
+              ) : (
+                <div style={{ fontSize: 12, color: "#9CA3AF", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px" }}>
+                  Salve a automação para gerar a URL
+                </div>
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>Identificar lead por</div>
+              <select value={(cfg.leadIdentifier as string) ?? "lead_id"} onChange={e => updateConfig("leadIdentifier", e.target.value)} style={tcpSelectStyle}>
+                <option value="lead_id">ID do lead (lead_id no body)</option>
+                <option value="email">E-mail (email no body)</option>
+                <option value="whatsapp">WhatsApp (whatsapp no body)</option>
+              </select>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>
+                O body da requisição deve conter o campo selecionado para identificar o lead.
               </div>
             </div>
             {tcpWarning("O webhook possui um limite de 60 requisições por minuto. Caso precisar aumentar o limite entre em contato com o suporte.")}
             <SourceBadge />
           </div>
         );
+      }
 
       case "outra_automacao":
         return <SourceBadge />;
