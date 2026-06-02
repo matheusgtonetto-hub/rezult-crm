@@ -501,7 +501,7 @@ async function executeFlow(
         queue.push(...(children.get(node.id) ?? []));
       } else {
         const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
-        const vars = buildApiVarContext(leadData as Record<string, unknown> | null, payload);
+        const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
 
         let allSuccess = true;
         const errors: string[] = [];
@@ -569,6 +569,45 @@ function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? "");
 }
 
+async function buildVarContext(
+  supabase: SupabaseClient,
+  lead: Record<string, unknown> | null,
+  payload: TriggerPayload,
+): Promise<Record<string, string>> {
+  const ctx: Record<string, string> = {};
+  if (lead) {
+    for (const [k, v] of Object.entries(lead)) {
+      ctx[`campo.${k}`] = String(v ?? "");
+      ctx[`lead.${k}`] = String(v ?? "");
+    }
+    // Produto vinculado ao lead
+    const productId = lead.product_id as string | null;
+    if (productId) {
+      const { data: prod } = await supabase
+        .from("products")
+        .select("name, sku, default_value")
+        .eq("id", productId)
+        .single();
+      if (prod) {
+        const p = prod as Record<string, unknown>;
+        ctx["prod.name"]          = String(p.name          ?? "");
+        ctx["prod.sku"]           = String(p.sku           ?? "");
+        ctx["prod.default_value"] = String(p.default_value ?? "");
+      }
+    }
+    // Campos adicionais (custom_field_values)
+    const cfv = (lead.custom_field_values ?? {}) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(cfv)) {
+      ctx[`campo_lead.${k}`] = String(v ?? "");
+    }
+  }
+  ctx["gatilho.tipo"]       = payload.trigger_type;
+  ctx["gatilho.lead_id"]    = payload.lead_id;
+  ctx["gatilho.empresa_id"] = payload.company_id;
+  return ctx;
+}
+
+// Mantido por compatibilidade com chamadas síncronas internas
 function buildApiVarContext(lead: Record<string, unknown> | null, payload: TriggerPayload): Record<string, string> {
   const ctx: Record<string, string> = {};
   if (lead) {
@@ -577,8 +616,8 @@ function buildApiVarContext(lead: Record<string, unknown> | null, payload: Trigg
       ctx[`lead.${k}`] = String(v ?? "");
     }
   }
-  ctx["gatilho.tipo"] = payload.trigger_type;
-  ctx["gatilho.lead_id"] = payload.lead_id;
+  ctx["gatilho.tipo"]       = payload.trigger_type;
+  ctx["gatilho.lead_id"]    = payload.lead_id;
   ctx["gatilho.empresa_id"] = payload.company_id;
   return ctx;
 }
@@ -892,8 +931,16 @@ async function executeAction(
   item: ActionItem,
   payload: TriggerPayload,
 ) {
-  const cfg = item.config ?? {};
   const { lead_id, company_id } = payload;
+
+  // Resolve variáveis {{...}} em todos os campos de config string
+  const { data: leadDataForVars } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+  const vars = await buildVarContext(supabase, leadDataForVars as Record<string, unknown> | null, payload);
+  const rawCfg = item.config ?? {};
+  const cfg: Record<string, string | boolean | number> = {};
+  for (const [k, v] of Object.entries(rawCfg)) {
+    cfg[k] = typeof v === "string" ? interpolate(v, vars) : v;
+  }
 
   switch (item.actionId) {
     case "mover_etapa":
