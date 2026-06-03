@@ -434,6 +434,8 @@ async function executeFlow(
   startNodeIds?: string[], // fornecido ao retomar de automation_pending
 ) {
   const { company_id, lead_id } = payload;
+  // lead_id pode ser "" quando disparado por webhook sem lead — normaliza para null nos logs
+  const logLeadId = lead_id || null;
   const allNodes: CanvasNode[] = flow.nodes ?? [];
 
   const children = new Map<string, CanvasNode[]>();
@@ -464,7 +466,7 @@ async function executeFlow(
       await supabase.from("automation_logs").insert({
         automation_id: automationId,
         company_id,
-        lead_id,
+        lead_id: logLeadId,
         node_id: startNode.id,
         status: "success",
       });
@@ -505,7 +507,7 @@ async function executeFlow(
         await supabase.from("automation_logs").insert({
           automation_id: automationId,
           company_id,
-          lead_id,
+          lead_id: logLeadId,
           node_id: node.id,
           status,
           error_message: errorMessages.length > 0 ? errorMessages.join("; ") : null,
@@ -528,7 +530,7 @@ async function executeFlow(
       await supabase.from("automation_logs").insert({
         automation_id: automationId,
         company_id,
-        lead_id,
+        lead_id: logLeadId,
         node_id: node.id,
         status: "success",
       });
@@ -556,7 +558,7 @@ async function executeFlow(
           // Curto o suficiente para esperar inline (≤ 90 s)
           await new Promise<void>((r) => setTimeout(r, delay.ms));
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id,
+            automation_id: automationId, company_id, lead_id: logLeadId,
             node_id: node.id, status: "success",
           });
           queue.push(...nextNodes);
@@ -577,7 +579,7 @@ async function executeFlow(
             queue.push(...nextNodes);
           }
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id,
+            automation_id: automationId, company_id, lead_id: logLeadId,
             node_id: node.id, status: "success",
           });
           // NÃO enfileira filhos — serão processados quando retomado
@@ -585,7 +587,7 @@ async function executeFlow(
         } else {
           // "immediate" (já está na janela) ou nenhum filho
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id,
+            automation_id: automationId, company_id, lead_id: logLeadId,
             node_id: node.id, status: "success",
           });
           queue.push(...nextNodes);
@@ -601,7 +603,7 @@ async function executeFlow(
 
       if (requests.length === 0) {
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id,
+          automation_id: automationId, company_id, lead_id: logLeadId,
           node_id: node.id, status: "success",
         });
         queue.push(...(children.get(node.id) ?? []));
@@ -648,13 +650,13 @@ async function executeFlow(
 
         if (allSuccess) {
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id,
+            automation_id: automationId, company_id, lead_id: logLeadId,
             node_id: node.id, status: "success",
           });
           queue.push(...(children.get(node.id) ?? []));
         } else {
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id,
+            automation_id: automationId, company_id, lead_id: logLeadId,
             node_id: node.id, status: "error",
             error_message: errors.join("; "),
           });
@@ -668,7 +670,7 @@ async function executeFlow(
 
       if (ops.length === 0) {
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id,
+          automation_id: automationId, company_id, lead_id: logLeadId,
           node_id: node.id, status: "success",
         });
         queue.push(...(children.get(node.id) ?? []));
@@ -718,7 +720,7 @@ async function executeFlow(
 
         const status = errors.length > 0 ? "error" : "success";
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id,
+          automation_id: automationId, company_id, lead_id: logLeadId,
           node_id: node.id, status,
           error_message: errors.length > 0 ? errors.join("; ") : null,
         });
