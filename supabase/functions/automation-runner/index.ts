@@ -117,6 +117,7 @@ interface AutomationRecord {
   id: string;
   name: string;
   company_id: string;
+  owner_id: string;
   flow: AutomationFlow;
 }
 
@@ -218,7 +219,7 @@ async function handleWebhook(
   // O webhookId é o próprio id da automação
   const { data: automation, error: autoErr } = await supabase
     .from("automations")
-    .select("id, name, flow, company_id")
+    .select("id, name, flow, company_id, owner_id")
     .eq("id", webhookId)
     .eq("active", true)
     .single();
@@ -229,6 +230,8 @@ async function handleWebhook(
 
   const flow = (automation as AutomationRecord).flow;
   const automationId = (automation as AutomationRecord).id;
+  const companyId = (automation as AutomationRecord).company_id;
+  const ownerId = (automation as AutomationRecord).owner_id;
 
   // Lê o body da requisição
   let webhookBody: Record<string, unknown> = {};
@@ -245,7 +248,7 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("company_id", companyId)
       .eq("email", String(webhookBody.email))
       .maybeSingle();
     lead_id = lead?.id ?? null;
@@ -253,23 +256,20 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("company_id", companyId)
       .eq("whatsapp", String(webhookBody.whatsapp))
       .maybeSingle();
     lead_id = lead?.id ?? null;
   }
 
-  if (!lead_id) {
-    return Response.json(
-      { error: "Lead não encontrado. Envie lead_id, email ou whatsapp no body." },
-      { status: 422, headers: corsHeaders },
-    );
-  }
+  // Se não há lead, o fluxo ainda roda — dados do formulário ficam disponíveis
+  // como variáveis {{gatilho.CAMPO}} (ex: {{gatilho.email}}, {{gatilho.nome}})
+  const resolvedLeadId = lead_id ?? "";
 
   const payload: TriggerPayload = {
     trigger_type: "http_webhook",
-    company_id: (automation as AutomationRecord).company_id,
-    lead_id,
+    company_id: companyId,
+    lead_id: resolvedLeadId,
     context: { changed_fields: webhookBody },
   };
 
@@ -778,6 +778,11 @@ async function buildVarContext(
   ctx["gatilho.tipo"]       = payload.trigger_type;
   ctx["gatilho.lead_id"]    = payload.lead_id;
   ctx["gatilho.empresa_id"] = payload.company_id;
+  // Campos do body do webhook disponíveis como {{gatilho.CAMPO}} (ex: {{gatilho.email}})
+  const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(bodyFields)) {
+    ctx[`gatilho.${k}`] = String(v ?? "");
+  }
   return ctx;
 }
 
