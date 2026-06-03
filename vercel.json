@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/webhook/:id", "destination": "/api/webhook/:id" },
+    { "source": "/webhook/:id", "destination": "/api/automation-webhook/:id" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "git": {
