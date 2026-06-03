@@ -251,7 +251,7 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", companyId)
+      .eq("owner_id", ownerId)
       .eq("email", String(webhookBody.email))
       .maybeSingle();
     lead_id = lead?.id ?? null;
@@ -259,7 +259,7 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", companyId)
+      .eq("owner_id", ownerId)
       .eq("whatsapp", String(webhookBody.whatsapp))
       .maybeSingle();
     lead_id = lead?.id ?? null;
@@ -1167,7 +1167,6 @@ async function executeAction(
 
         const insertData: Record<string, unknown> = {
           ...staged,
-          company_id,
           owner_id: ownerIdForNew,
           status: "open",
         };
