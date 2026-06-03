@@ -1148,6 +1148,41 @@ async function executeAction(
       break;
     }
 
+    case "criar_lead": {
+      // Se já existe lead, não cria novo (comportamento descrito no bloco)
+      if (lead_id) return;
+
+      const ctxLead = payload.context as Record<string, unknown>;
+      const stagedLead = (ctxLead.staged_lead_data as Record<string, unknown>) ?? {};
+
+      const { data: companyRowLead } = await supabase
+        .from("companies")
+        .select("owner_id")
+        .eq("id", company_id)
+        .single();
+      const ownerIdLead = (companyRowLead as Record<string, unknown> | null)?.owner_id as string | null ?? null;
+
+      const insertLead: Record<string, unknown> = {
+        ...stagedLead,
+        owner_id: ownerIdLead,
+        status: "open",
+      };
+      if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
+
+      console.log("[criar_lead] Inserindo:", JSON.stringify(insertLead));
+      const { data: createdLead, error: createLeadErr } = await supabase
+        .from("leads")
+        .insert(insertLead)
+        .select("id")
+        .single();
+      if (createLeadErr) {
+        console.error("[criar_lead] Erro:", createLeadErr.message);
+        throw new Error(createLeadErr.message);
+      }
+      if (createdLead) payload.lead_id = (createdLead as { id: string }).id;
+      return;
+    }
+
     case "criar_negocio": {
       const columnId = cfg.etapa as string;
       const pipelineId = cfg.pipeline as string;
