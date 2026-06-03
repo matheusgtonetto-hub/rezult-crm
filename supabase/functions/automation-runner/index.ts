@@ -61,6 +61,30 @@ interface EsperaConfig {
   dateTimezone?: string;
 }
 
+interface ApiRequest {
+  id: string;
+  name: string;
+  type: "json" | "file";
+  method: string;
+  url: string;
+  headers: { key: string; value: string }[];
+  params: { key: string; value: string }[];
+  body: string;
+  responseHeaders: { key: string; value: string }[];
+}
+
+interface ApiConfig {
+  requests: ApiRequest[];
+}
+
+interface FieldOperation {
+  id: string;
+  type: "mapeamento";
+  fieldKey: string;
+  fieldLabel: string;
+  value: string;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
@@ -68,6 +92,8 @@ interface CanvasNode {
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
   espera?: EsperaConfig;
+  apiConfig?: ApiConfig;
+  fieldOps?: FieldOperation[];
   parentId?: string | null;
   errorParentId?: string | null;
 }
@@ -90,12 +116,26 @@ interface AutomationFlow {
 interface AutomationRecord {
   id: string;
   name: string;
+  company_id: string;
   flow: AutomationFlow;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── Webhook mode: POST /automation-runner/webhook/<automationId> ──────────
+  const url = new URL(req.url);
+  const webhookMatch = url.pathname.match(/\/webhook\/([a-f0-9-]{36})$/i);
+  if (webhookMatch) {
+    return await handleWebhook(supabase, req, webhookMatch[1]);
+  }
+
+  // ── Modo normal: requer autenticação ─────────────────────────────────────
   const secret = Deno.env.get("AUTOMATION_SECRET");
   const auth = req.headers.get("Authorization");
 
@@ -109,11 +149,6 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response("Bad request", { status: 400 });
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
 
   // ── Resume mode: chamado pelo pg_cron para continuar automações pausadas ──
   if (body.resume === true) {
@@ -158,6 +193,94 @@ Deno.serve(async (req: Request) => {
   console.log(`[${trigger_type}] lead=${lead_id} matched=${results.length}`);
   return Response.json({ trigger_type, lead_id, matched: results.length, results });
 });
+
+// ─── Webhook handler ──────────────────────────────────────────────────────────
+
+async function handleWebhook(
+  supabase: SupabaseClient,
+  req: Request,
+  webhookId: string,
+): Promise<Response> {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
+  // O webhookId é o próprio id da automação
+  const { data: automation, error: autoErr } = await supabase
+    .from("automations")
+    .select("id, name, flow, company_id")
+    .eq("id", webhookId)
+    .eq("active", true)
+    .single();
+
+  if (autoErr || !automation) {
+    return Response.json({ error: "Webhook not found or automation inactive" }, { status: 404, headers: corsHeaders });
+  }
+
+  const flow = (automation as AutomationRecord).flow;
+  const automationId = (automation as AutomationRecord).id;
+
+  // Lê o body da requisição
+  let webhookBody: Record<string, unknown> = {};
+  try {
+    webhookBody = (await req.json()) as Record<string, unknown>;
+  } catch { /* body vazio ou não-JSON é aceito */ }
+
+  // Tenta identificar o lead pelo body (lead_id, email ou whatsapp)
+  let lead_id: string | null = null;
+
+  if (webhookBody.lead_id) {
+    lead_id = String(webhookBody.lead_id);
+  } else if (webhookBody.email) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("email", String(webhookBody.email))
+      .maybeSingle();
+    lead_id = lead?.id ?? null;
+  } else if (webhookBody.whatsapp) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("company_id", (automation as AutomationRecord).company_id)
+      .eq("whatsapp", String(webhookBody.whatsapp))
+      .maybeSingle();
+    lead_id = lead?.id ?? null;
+  }
+
+  if (!lead_id) {
+    return Response.json(
+      { error: "Lead não encontrado. Envie lead_id, email ou whatsapp no body." },
+      { status: 422, headers: corsHeaders },
+    );
+  }
+
+  const payload: TriggerPayload = {
+    trigger_type: "http_webhook",
+    company_id: (automation as AutomationRecord).company_id,
+    lead_id,
+    context: { changed_fields: webhookBody },
+  };
+
+  try {
+    await executeFlow(supabase, flow, payload, automationId);
+    return Response.json({ ok: true, lead_id, automation_id: automationId }, { headers: corsHeaders });
+  } catch (err) {
+    console.error(`Webhook automation ${automationId} failed:`, err);
+    return Response.json({ error: String(err) }, { status: 500, headers: corsHeaders });
+  }
+}
 
 // ─── Resume handler ───────────────────────────────────────────────────────────
 
@@ -472,6 +595,141 @@ async function executeFlow(
         queue.push(...nextNodes);
       }
 
+    // ── API ────────────────────────────────────────────────────────────────
+    } else if (node.type === "api") {
+      const requests = node.apiConfig?.requests ?? [];
+
+      if (requests.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+      } else {
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
+
+        let allSuccess = true;
+        const errors: string[] = [];
+
+        for (const req of requests) {
+          try {
+            const rawUrl = interpolate(req.url, vars);
+            if (!rawUrl) { errors.push(`${req.name}: URL vazia`); allSuccess = false; continue; }
+
+            const urlObj = new URL(rawUrl);
+            for (const { key, value } of (req.params ?? [])) {
+              if (key) urlObj.searchParams.set(interpolate(key, vars), interpolate(value, vars));
+            }
+
+            const hdrs: Record<string, string> = {};
+            for (const { key, value } of (req.headers ?? [])) {
+              if (key) hdrs[interpolate(key, vars)] = interpolate(value, vars);
+            }
+
+            let body: BodyInit | undefined;
+            if (req.type === "json" && req.body && ["POST", "PUT", "PATCH"].includes(req.method)) {
+              body = interpolate(req.body, vars);
+              if (!hdrs["Content-Type"] && !hdrs["content-type"]) {
+                hdrs["Content-Type"] = "application/json";
+              }
+            }
+
+            const resp = await fetch(urlObj.toString(), { method: req.method, headers: hdrs, body });
+            if (!resp.ok) {
+              errors.push(`${req.name}: HTTP ${resp.status} ${resp.statusText}`);
+              allSuccess = false;
+            }
+          } catch (err) {
+            errors.push(`${req.name}: ${String(err)}`);
+            allSuccess = false;
+          }
+        }
+
+        if (allSuccess) {
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "success",
+          });
+          queue.push(...(children.get(node.id) ?? []));
+        } else {
+          await supabase.from("automation_logs").insert({
+            automation_id: automationId, company_id, lead_id,
+            node_id: node.id, status: "error",
+            error_message: errors.join("; "),
+          });
+          queue.push(...(errorChildren.get(node.id) ?? []));
+        }
+      }
+
+    // ── Campos ─────────────────────────────────────────────────────────────
+    } else if (node.type === "campos") {
+      const ops = node.fieldOps ?? [];
+
+      if (ops.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+      } else {
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
+
+        const leadUpdate: Record<string, unknown> = {};
+        const customUpdate: Record<string, unknown> = {};
+        const prodUpdate: Record<string, unknown> = {};
+        const errors: string[] = [];
+
+        for (const op of ops) {
+          try {
+            const resolved = interpolate(op.value, vars);
+            if (op.fieldKey.startsWith("lead.")) {
+              leadUpdate[op.fieldKey.substring(5)] = resolved;
+            } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
+              // todos escrevem em custom_field_values do lead (negócio = lead neste CRM)
+              const dotIdx = op.fieldKey.indexOf(".");
+              customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
+            } else if (op.fieldKey.startsWith("prod.")) {
+              prodUpdate[op.fieldKey.substring(5)] = resolved;
+            }
+          } catch (err) {
+            errors.push(`${op.fieldLabel}: ${String(err)}`);
+          }
+        }
+
+        if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
+          const updateData: Record<string, unknown> = { ...leadUpdate };
+          if (Object.keys(customUpdate).length > 0) {
+            const existing = ((leadData as Record<string, unknown>)?.custom_field_values ?? {}) as Record<string, unknown>;
+            updateData.custom_field_values = { ...existing, ...customUpdate };
+          }
+          const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", lead_id);
+          if (updateErr) errors.push(updateErr.message);
+        }
+
+        if (Object.keys(prodUpdate).length > 0) {
+          const productId = (leadData as Record<string, unknown>)?.product_id;
+          if (productId) {
+            const { error: prodErr } = await supabase.from("products").update(prodUpdate).eq("id", productId);
+            if (prodErr) errors.push(prodErr.message);
+          }
+        }
+
+        const status = errors.length > 0 ? "error" : "success";
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id,
+          node_id: node.id, status,
+          error_message: errors.length > 0 ? errors.join("; ") : null,
+        });
+
+        if (errors.length > 0) {
+          const errNext = errorChildren.get(node.id) ?? [];
+          if (errNext.length > 0) { queue.push(...errNext); continue; }
+        }
+        queue.push(...(children.get(node.id) ?? []));
+      }
+
     // ── Outros ─────────────────────────────────────────────────────────────
     } else {
       queue.push(...(children.get(node.id) ?? []));
@@ -479,12 +737,71 @@ async function executeFlow(
   }
 }
 
+// ─── API helpers ─────────────────────────────────────────────────────────────
+
+function interpolate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? "");
+}
+
+async function buildVarContext(
+  supabase: SupabaseClient,
+  lead: Record<string, unknown> | null,
+  payload: TriggerPayload,
+): Promise<Record<string, string>> {
+  const ctx: Record<string, string> = {};
+  if (lead) {
+    for (const [k, v] of Object.entries(lead)) {
+      ctx[`campo.${k}`] = String(v ?? "");
+      ctx[`lead.${k}`] = String(v ?? "");
+    }
+    // Produto vinculado ao lead
+    const productId = lead.product_id as string | null;
+    if (productId) {
+      const { data: prod } = await supabase
+        .from("products")
+        .select("name, sku, default_value")
+        .eq("id", productId)
+        .single();
+      if (prod) {
+        const p = prod as Record<string, unknown>;
+        ctx["prod.name"]          = String(p.name          ?? "");
+        ctx["prod.sku"]           = String(p.sku           ?? "");
+        ctx["prod.default_value"] = String(p.default_value ?? "");
+      }
+    }
+    // Campos adicionais (custom_field_values)
+    const cfv = (lead.custom_field_values ?? {}) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(cfv)) {
+      ctx[`campo_lead.${k}`] = String(v ?? "");
+    }
+  }
+  ctx["gatilho.tipo"]       = payload.trigger_type;
+  ctx["gatilho.lead_id"]    = payload.lead_id;
+  ctx["gatilho.empresa_id"] = payload.company_id;
+  return ctx;
+}
+
+// Mantido por compatibilidade com chamadas síncronas internas
+function buildApiVarContext(lead: Record<string, unknown> | null, payload: TriggerPayload): Record<string, string> {
+  const ctx: Record<string, string> = {};
+  if (lead) {
+    for (const [k, v] of Object.entries(lead)) {
+      ctx[`campo.${k}`] = String(v ?? "");
+      ctx[`lead.${k}`] = String(v ?? "");
+    }
+  }
+  ctx["gatilho.tipo"]       = payload.trigger_type;
+  ctx["gatilho.lead_id"]    = payload.lead_id;
+  ctx["gatilho.empresa_id"] = payload.company_id;
+  return ctx;
+}
+
 // ─── Espera delay calculator ──────────────────────────────────────────────────
 
 type EsperaDelay =
-  | { type: "inline"; ms: number }      // esperar inline com setTimeout
-  | { type: "scheduled"; resumeAfter: Date } // agendar via automation_pending
-  | { type: "immediate" };              // já está na janela — executa imediatamente
+  | { type: "inline"; ms: number }
+  | { type: "scheduled"; resumeAfter: Date }
+  | { type: "immediate" };
 
 function getEsperaDelay(espera: EsperaConfig): EsperaDelay {
   const now = new Date();
@@ -788,8 +1105,16 @@ async function executeAction(
   item: ActionItem,
   payload: TriggerPayload,
 ) {
-  const cfg = item.config ?? {};
   const { lead_id, company_id } = payload;
+
+  // Resolve variáveis {{...}} em todos os campos de config string
+  const { data: leadDataForVars } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+  const vars = await buildVarContext(supabase, leadDataForVars as Record<string, unknown> | null, payload);
+  const rawCfg = item.config ?? {};
+  const cfg: Record<string, string | boolean | number> = {};
+  for (const [k, v] of Object.entries(rawCfg)) {
+    cfg[k] = typeof v === "string" ? interpolate(v, vars) : v;
+  }
 
   switch (item.actionId) {
     case "mover_etapa":

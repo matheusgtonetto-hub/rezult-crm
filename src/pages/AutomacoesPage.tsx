@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, createContext, useContext } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
@@ -11,6 +11,7 @@ import {
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
+  Braces, FileDown,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -69,7 +70,23 @@ type EsperaConfig = {
   dateTimezone?: string;
 };
 type RandomBranch = { id: string; label: string; percentage: number };
-type ApiConfig = { method: string; url: string; headers: { key: string; value: string }[]; params: { key: string; value: string }[]; body: string };
+type ApiRequest = {
+  id: string; name: string; type: "json" | "file";
+  method: string; url: string;
+  headers: { key: string; value: string }[];
+  params: { key: string; value: string }[];
+  body: string;
+  responseHeaders: { key: string; value: string }[];
+};
+type ApiConfig = { requests: ApiRequest[] };
+
+type FieldOperation = {
+  id: string;
+  type: "mapeamento";
+  fieldKey: string;
+  fieldLabel: string;
+  value: string;
+};
 
 type CanvasNode = {
   id: string;
@@ -85,6 +102,7 @@ type CanvasNode = {
   espera?: EsperaConfig;
   randomBranches?: RandomBranch[];
   apiConfig?: ApiConfig;
+  fieldOps?: FieldOperation[];
   noteText?: string;
   noteColorIndex?: number;
   width?: number;
@@ -118,6 +136,10 @@ type AutomationRecord = {
   flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
   created_at: string;
 };
+
+// ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
+
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null }>({ nodes: [], customFieldGroups: [], trigger: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -388,6 +410,7 @@ export default function AutomacoesPage() {
   const { company } = useCompany();
   const { pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups } = useCRM();
   const navigate = useNavigate();
+  const { id: urlId } = useParams<{ id: string }>();
 
   // Navigation
   const [view, setView]         = useState<"list" | "editor">("list");
@@ -412,12 +435,19 @@ export default function AutomacoesPage() {
   // Create form
   const [newName, setNewName]           = useState("");
   const [newDesc, setNewDesc]           = useState("");
-  const [newGroup, setNewGroup]         = useState("Automação");
+  const [newGroup, setNewGroup]         = useState("");
   const [startType, setStartType]       = useState<"blank" | "import" | "model">("blank");
   const [creating, setCreating]         = useState(false);
+  const [groupDropOpen, setGroupDropOpen] = useState(false);
+  const [groupNewInput, setGroupNewInput] = useState("");
+  const [groupCreating, setGroupCreating] = useState(false);
 
   // Rename form
   const [renameName, setRenameName]     = useState("");
+
+  // Rename group inline
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+  const [renameGroupVal, setRenameGroupVal] = useState("");
 
   // Canvas (editor)
   const [nodes, setNodes]               = useState<CanvasNode[]>([START_NODE]);
@@ -441,6 +471,7 @@ export default function AutomacoesPage() {
   const [espePickerOpen, setEspePickerOpen] = useState(false);
   const [selectedEspePickerCat, setSelectedEspePickerCat] = useState("tempo");
   const [triggerPanel, setTriggerPanel] = useState(false);
+  const [apiPickerTrigger, setApiPickerTrigger] = useState(0);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
   const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
 
@@ -488,6 +519,23 @@ export default function AutomacoesPage() {
   }, [company?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Sync URL with editor state (replaceState to avoid remounting the component)
+  useEffect(() => {
+    if (view === "editor" && selectedId) {
+      window.history.replaceState(null, "", `/automacoes/${selectedId}`);
+    } else if (view === "list") {
+      window.history.replaceState(null, "", "/automacoes");
+    }
+  }, [view, selectedId]);
+
+  // Deep-link: open automation when page is loaded directly at /automacoes/:id
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (!urlId || deepLinkHandledRef.current || automations.length === 0) return;
+    deepLinkHandledRef.current = true;
+    openEditor(urlId);
+  }, [urlId, automations]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -795,7 +843,8 @@ export default function AutomacoesPage() {
       const rec = data as AutomationRecord;
       setAutomations(prev => [rec, ...prev]);
       setCreateOpen(false);
-      setNewName(""); setNewDesc(""); setNewGroup("Automação"); setStartType("blank");
+      setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank");
+      setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput("");
       toast.success("Automação criada");
       openEditor(rec.id);
     } catch {
@@ -839,6 +888,25 @@ export default function AutomacoesPage() {
     setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, name: renameName.trim() } : a));
     setRenameOpen(false);
     toast.success("Nome atualizado");
+  };
+
+  const handleRenameGroup = async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    setRenamingGroup(null);
+    if (!trimmed || trimmed === oldName) return;
+    const { error } = await supabase
+      .from("automations")
+      .update({ group_name: trimmed })
+      .eq("group_name", oldName)
+      .eq("company_id", company?.id);
+    if (error) { toast.error("Erro ao renomear grupo"); return; }
+    setAutomations(prev => prev.map(a => a.group_name === oldName ? { ...a, group_name: trimmed } : a));
+    setOpenGroups(prev => {
+      const next = { ...prev };
+      if (oldName in next) { next[trimmed] = next[oldName]; delete next[oldName]; }
+      return next;
+    });
+    toast.success("Grupo renomeado");
   };
 
   const handleDelete = async () => {
@@ -928,10 +996,11 @@ export default function AutomacoesPage() {
   };
 
   const handleSaveAndLeave = async () => {
+    const action = pendingLeaveRef.current;
+    pendingLeaveRef.current = null;
     setUnsavedOpen(false);
     await handleSave();
-    pendingLeaveRef.current?.();
-    pendingLeaveRef.current = null;
+    action?.();
   };
 
   const handleDuplicate = async () => {
@@ -1024,7 +1093,9 @@ export default function AutomacoesPage() {
   };
 
   const handleSelectTrigger = (cat: typeof TRIGGER_CATEGORIES[0], t: typeof TRIGGER_CATEGORIES[0]["triggers"][0]) => {
-    const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description };
+    const configData: Record<string, string | boolean | number> = {};
+    if (t.id === "http_webhook") configData.webhookId = selectedId ?? crypto.randomUUID();
+    const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
     setTrigger(cfg);
     setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
     setTriggerOpen(false);
@@ -1098,11 +1169,33 @@ export default function AutomacoesPage() {
     ));
   };
 
-  const updateApiConfig = (nodeId: string, config: Partial<ApiConfig>) => {
+  const addApiRequest = (nodeId: string, req: ApiRequest) => {
     setNodes(prev => prev.map(n => n.id === nodeId
-      ? { ...n, apiConfig: { method: "POST", url: "", headers: [], params: [], body: "", ...(n.apiConfig ?? {}), ...config } }
+      ? { ...n, apiConfig: { requests: [...(n.apiConfig?.requests ?? []), req] } }
       : n
     ));
+  };
+  const removeApiRequest = (nodeId: string, reqId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, apiConfig: { requests: (n.apiConfig?.requests ?? []).filter(r => r.id !== reqId) } }
+      : n
+    ));
+  };
+  const updateApiRequest = (nodeId: string, reqId: string, data: Partial<ApiRequest>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, apiConfig: { requests: (n.apiConfig?.requests ?? []).map(r => r.id === reqId ? { ...r, ...data } : r) } }
+      : n
+    ));
+  };
+
+  const addFieldOp = (nodeId: string, op: FieldOperation) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: [...(n.fieldOps ?? []), op] } : n));
+  };
+  const removeFieldOp = (nodeId: string, opId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).filter(o => o.id !== opId) } : n));
+  };
+  const updateFieldOp = (nodeId: string, opId: string, data: Partial<FieldOperation>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).map(o => o.id === opId ? { ...o, ...data } : o) } : n));
   };
 
   const updateTriggerConfigData = (key: string, value: string | boolean | number) => {
@@ -1147,16 +1240,42 @@ export default function AutomacoesPage() {
               const open = openGroups[g.name] ?? false;
               return (
                 <div key={g.name}>
-                  <button
-                    onClick={() => setOpenGroups(s => ({ ...s, [g.name]: !open }))}
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                  <div
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                    onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                       {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      {g.name}
+                      {renamingGroup === g.name ? (
+                        <input
+                          autoFocus
+                          value={renameGroupVal}
+                          onChange={e => setRenameGroupVal(e.target.value)}
+                          onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") { e.currentTarget.blur(); }
+                            else if (e.key === "Escape") { setRenamingGroup(null); }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
+                            color: "#6B7280", background: "transparent", border: "none",
+                            borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
+                            padding: "0 2px", width: "100%",
+                          }}
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
+                          title="Duplo clique para renomear"
+                          style={{ cursor: "text" }}
+                        >
+                          {g.name}
+                        </span>
+                      )}
                     </span>
                     <span style={{ fontSize: 10, color: "#9CA3AF" }}>{g.items.length}</span>
-                  </button>
+                  </div>
                   {open && g.items.map(item => {
                     const sel = selectedId === item.id;
                     return (
@@ -1207,7 +1326,7 @@ export default function AutomacoesPage() {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
       {/* Left sidebar — sempre visível */}
-      <Sidebar />
+      {Sidebar()}
 
       {/* ── LIST VIEW ──────────────────────────────────────────────────────── */}
       {view === "list" && (
@@ -1314,6 +1433,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -1321,6 +1441,7 @@ export default function AutomacoesPage() {
           {triggerPanel && !nodePanel && trigger && (
             <TriggerConfigPanel
               trigger={trigger}
+              automationId={selectedId ?? undefined}
               onClose={() => setTriggerPanel(false)}
               onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
               updateConfig={updateTriggerConfigData}
@@ -1349,7 +1470,7 @@ export default function AutomacoesPage() {
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "1px solid #F5F5F5" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
@@ -1449,7 +1570,11 @@ export default function AutomacoesPage() {
               onClose={() => setNodePanel(null)}
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
-              updateApiConfig={(config) => updateApiConfig(nodePanel, config)}
+              addApiRequest={(req) => addApiRequest(nodePanel, req)}
+              removeApiRequest={(reqId) => removeApiRequest(nodePanel, reqId)}
+              updateApiRequest={(reqId, data) => updateApiRequest(nodePanel, reqId, data)}
+              customFieldGroups={customFieldGroups}
+              openPickerTrigger={apiPickerTrigger}
             />
           )}
 
@@ -1459,6 +1584,10 @@ export default function AutomacoesPage() {
               onClose={() => setNodePanel(null)}
               onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
               onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              addFieldOp={(op) => addFieldOp(nodePanel, op)}
+              removeFieldOp={(opId) => removeFieldOp(nodePanel, opId)}
+              updateFieldOp={(opId, data) => updateFieldOp(nodePanel, opId, data)}
+              customFieldGroups={customFieldGroups}
             />
           )}
 
@@ -1712,6 +1841,8 @@ export default function AutomacoesPage() {
                     onAddNote={() => setNodes(prev => [...prev, { id: `note${Date.now()}`, type: "note", x: n.x + 300, y: n.y, label: "Anotação", noteText: "", width: 220, height: 140 }])}
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     onOpenCondicoesPicker={n.type === "condicoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setCondicoesPickerOpen(true); } : undefined}
+                    onOpenApiPicker={n.type === "api" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setApiPickerTrigger(t => t + 1); } : undefined}
+                    onRemoveApiRequest={n.type === "api" ? (reqId) => removeApiRequest(n.id, reqId) : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
@@ -1819,7 +1950,7 @@ export default function AutomacoesPage() {
 
               {/* Banner: lead com caminho ativo no canvas */}
               {logsPanelSelectedEntry && (
-                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "1px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <User size={12} color="#3B82F6" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {logsPanelSelectedEntry.leadName}
@@ -1884,7 +2015,7 @@ export default function AutomacoesPage() {
                     : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
                   return (
                     <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
-                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "1px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                     >
@@ -1902,12 +2033,13 @@ export default function AutomacoesPage() {
           )}
           </section>
         </div>
+        </VarPickerCtx.Provider>
       )}
 
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
 
       {/* Create modal */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={v => { setCreateOpen(v); if (!v) { setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank"); setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput(""); } }}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Criar nova automação</DialogTitle>
@@ -1934,14 +2066,94 @@ export default function AutomacoesPage() {
                 rows={2}
               />
             </div>
-            <div>
+            <div style={{ position: "relative" }}>
               <Label className="text-xs font-medium">Grupo</Label>
-              <Input
-                value={newGroup}
-                onChange={e => setNewGroup(e.target.value)}
-                placeholder="Ex: Automação"
-                className="mt-1"
-              />
+              <button
+                type="button"
+                onClick={() => { setGroupDropOpen(o => !o); setGroupCreating(false); setGroupNewInput(""); }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13,
+                  border: "1px solid hsl(var(--border))", borderRadius: 6,
+                  background: "hsl(var(--background))", color: newGroup ? "hsl(var(--foreground))" : "#9CA3AF",
+                  cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <span>{newGroup || "Selecione ou crie um grupo"}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "#6B7280", flexShrink: 0 }}><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              {groupDropOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
+                  background: "hsl(var(--background))", border: "1px solid hsl(var(--border))",
+                  borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", overflow: "hidden",
+                }}>
+                  {groups.map(g => (
+                    <button
+                      key={g.name}
+                      type="button"
+                      onClick={() => { setNewGroup(g.name); setGroupDropOpen(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, width: "100%",
+                        padding: "9px 14px", fontSize: 13, border: "none", cursor: "pointer",
+                        background: newGroup === g.name ? "hsl(var(--accent))" : "transparent",
+                        color: "hsl(var(--foreground))", textAlign: "left",
+                      }}
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                  {groupCreating ? (
+                    <div style={{ padding: "8px 10px", borderTop: groups.length > 0 ? "1px solid hsl(var(--border))" : "none", display: "flex", gap: 6 }}>
+                      <input
+                        autoFocus
+                        value={groupNewInput}
+                        onChange={e => setGroupNewInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && groupNewInput.trim()) {
+                            setNewGroup(groupNewInput.trim());
+                            setGroupDropOpen(false);
+                            setGroupCreating(false);
+                          } else if (e.key === "Escape") {
+                            setGroupCreating(false);
+                          }
+                        }}
+                        placeholder="Nome do grupo..."
+                        style={{
+                          flex: 1, padding: "5px 8px", fontSize: 12,
+                          border: "1px solid hsl(var(--border))", borderRadius: 5,
+                          background: "hsl(var(--background))", color: "hsl(var(--foreground))", outline: "none",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (groupNewInput.trim()) {
+                            setNewGroup(groupNewInput.trim());
+                            setGroupDropOpen(false);
+                            setGroupCreating(false);
+                          }
+                        }}
+                        style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, border: "none", borderRadius: 5, background: "hsl(var(--primary))", color: "#fff", cursor: "pointer" }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setGroupCreating(true)}
+                      style={{
+                        display: "block", width: "100%", padding: "9px 14px", fontSize: 13, fontWeight: 600,
+                        border: "none", borderTop: groups.length > 0 ? "1px solid hsl(var(--border))" : "none",
+                        cursor: "pointer", background: "transparent", color: "hsl(var(--primary))", textAlign: "right",
+                      }}
+                    >
+                      Criar
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-xs font-medium mb-2 block">Como você deseja começar?</Label>
@@ -2008,7 +2220,7 @@ export default function AutomacoesPage() {
                     <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
                     <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
                     {trigger && trigger.categoryId === cat.id && (
-                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, fontSize: 11, color: "#15803D", display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, fontSize: 11, color: "#15803D", display: "flex", alignItems: "center", gap: 6 }}>
                         <CheckCircle2 size={12} /> Gatilho atual: {trigger.label}
                       </div>
                     )}
@@ -2072,7 +2284,7 @@ export default function AutomacoesPage() {
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "1px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <AIcon size={14} color="#F97316" />
                             </div>
                             <div>
@@ -2132,7 +2344,7 @@ export default function AutomacoesPage() {
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "1px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <CondIcon size={14} color="#6366F1" />
                             </div>
                             <div style={{ flex: 1 }}>
@@ -2197,7 +2409,7 @@ export default function AutomacoesPage() {
                           onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                         >
-                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "1px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {item.id === "usuario_parou" ? <MessageCircle size={14} color="#3B82F6" /> : <Clock size={14} color="#3B82F6" />}
                           </div>
                           <div>
@@ -2286,15 +2498,16 @@ const tcpInputStyle: React.CSSProperties = {
 };
 
 const tcpWarning = (text: string) => (
-  <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
+  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
     <span style={{ fontWeight: 700 }}>⚠ </span>{text}
   </div>
 );
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
   trigger: TriggerConfig;
+  automationId?: string;
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
@@ -2766,17 +2979,18 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
           </div>
         );
 
-      case "http_webhook":
+      case "http_webhook": {
+        const webhookUrl = `https://api.rezultcrm.com/webhook/${automationId ?? (cfg.webhookId as string)}`;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Url do webhook</div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>URL do webhook</div>
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
                 <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
-                  {`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? "—"}`}
+                  {webhookUrl}
                 </div>
                 <button
-                  onClick={() => navigator.clipboard.writeText(`https://api.rezultcrm.com/v1/automations/webhook/${cfg.webhookId ?? ""}`).then(() => toast.success("URL copiada"))}
+                  onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
                   style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 >
                   <Copy size={13} color="#6B7280" />
@@ -2787,6 +3001,7 @@ function TriggerConfigPanel({ trigger, onClose, onChangeTrigger, updateConfig, p
             <SourceBadge />
           </div>
         );
+      }
 
       case "outra_automacao":
         return <SourceBadge />;
@@ -2908,7 +3123,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       <div style={{ paddingTop: 10 }}>
         {node.trigger ? (
           <div
-            style={{ padding: "8px 10px", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
+            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
               <div
@@ -3013,7 +3228,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       }}
     >
       {/* Header */}
-      <div style={{ padding: "6px 10px", borderBottom: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
+      <div style={{ padding: "6px 10px", borderBottom: `0.5px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <StickyNote size={12} color={c.headerText} />
           <span style={{ fontSize: 11, fontWeight: 700, color: c.headerText }}>Anotação</span>
@@ -3116,7 +3331,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -3130,6 +3345,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onAddNote: () => void;
   onOpenAcoesPicker?: () => void;
   onOpenCondicoesPicker?: () => void;
+  onOpenApiPicker?: () => void;
+  onRemoveApiRequest?: (reqId: string) => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   removeConditionItem?: (itemId: string) => void;
@@ -3219,7 +3436,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const actData = catData?.actions.find(a => a.id === item.actionId);
                 const AIcon = actData?.icon ?? Zap;
                 return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                     <AIcon size={12} color="#F97316" />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                     {removeActionItem && (
@@ -3320,7 +3537,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const CondIcon = condData?.icon ?? Filter;
                 return (
                   <div key={item.id}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
                       <CondIcon size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
@@ -3373,7 +3590,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "1px solid #F3F4F6", fontSize: 11 }}>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "0.5px solid #F3F4F6", fontSize: 11 }}>
             <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
               style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default" }}
               onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
@@ -3413,7 +3630,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             if (!item) return null;
             const ItemIcon = espera.type === "usuario_parou" ? MessageCircle : Clock;
             return (
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 7 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7 }}>
                 <ItemIcon size={13} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
@@ -3496,6 +3713,133 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "api") {
+    const apiRequests = node.apiConfig?.requests ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart} onClick={onSelect}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Braces size={15} color="#3B82F6" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>API</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {apiRequests.length === 0 && (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços. Clique para adicionar uma chamada de API:</div>
+          )}
+          {apiRequests.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {apiRequests.map(req => (
+                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7, fontSize: 11 }}>
+                  {req.type === "json" ? <Braces size={12} color="#3B82F6" /> : <FileDown size={12} color="#3B82F6" />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.type === "json" ? "Requisição HTTP via JSON" : "Requisição de arquivo HTTP"}</div>
+                    <div style={{ color: "#3B82F6", fontSize: 10 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
+                  <button
+                    data-action
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onRemoveApiRequest?.(req.id); }}
+                    title="Remover"
+                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                  ><X size={11} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            data-action onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(); onOpenApiPicker?.(); }}
+            style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}
+          ><Plus size={13} /> Adicionar API</button>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "campos") {
+    const ops = node.fieldOps ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart} onClick={onSelect}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 270, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Sliders size={15} color="#22C55E" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Operações de campos</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {ops.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>
+              Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              {ops.map(op => (
+                <div key={op.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 7, fontSize: 11 }}>
+                  <ArrowLeftRight size={11} color="#22C55E" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.fieldLabel || "Campo não selecionado"}</div>
+                    {op.value && <div style={{ color: "#22C55E", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>= {op.value}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            data-action onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelect(); }}
+            style={{ width: "100%", border: "1px dashed #86EFAC", background: "#F0FDF4", color: "#22C55E", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#DCFCE7"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#F0FDF4"; }}
+          ><Plus size={13} /> Adicionar mapeamento de campo</button>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#22C55E", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -3725,7 +4069,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
               const Icon = condData?.icon ?? Filter;
               return (
                 <div key={item.id}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
                   onClick={() => setSelectedItemId(item.id)}
                   onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}
@@ -4150,7 +4494,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                   style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
                   <button title="Copiar" style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
-                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
+                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
                 </div>
               </div>
               <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
@@ -4199,6 +4543,116 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
 // ─── RandomizadorPanel ────────────────────────────────────────────────────────
 
 const BRANCH_COLORS = ["#3B82F6", "#22C55E", "#F97316", "#8B5CF6", "#EC4899"];
+
+const API_REQUEST_TYPES = [
+  { id: "json" as const, label: "Requisição HTTP com comunicação via JSON", description: "Realiza uma requisição HTTP para um endpoint externo, utilizando comunicação em formato JSON", defaultMethod: "POST" },
+  { id: "file" as const, label: "Requisição de arquivo HTTP", description: "Realiza uma requisição HTTP para um endpoint externo que retorna um arquivo", defaultMethod: "GET" },
+];
+
+type VarField = { key: string; label: string; icon: string; isApiSource?: boolean; sourceName?: string };
+type VarCategory = { id: string; label: string; fields: VarField[]; isAdditional?: boolean };
+
+const STATIC_VARIABLE_CATEGORIES: VarCategory[] = [
+  { id: "lead", label: "Campos do lead", fields: [
+    { key: "lead.id",           label: "ID do lead",           icon: "#" },
+    { key: "lead.name",         label: "Nome do lead",         icon: "T" },
+    { key: "lead.company",      label: "Empresa do lead",      icon: "T" },
+    { key: "lead.email",        label: "E-mail do lead",       icon: "T" },
+    { key: "lead.whatsapp",     label: "Telefone do lead",     icon: "T" },
+    { key: "lead.document",     label: "CPF/CNPJ do lead",     icon: "T" },
+    { key: "lead.birth_date",   label: "Data de nascimento",   icon: "📅" },
+    { key: "lead.origin",       label: "Origem do lead",       icon: "T" },
+    { key: "lead.notes",        label: "Notas do lead",        icon: "T" },
+    { key: "lead.responsible",  label: "Atendente do lead",    icon: "T" },
+    { key: "lead.site",         label: "Site do lead",         icon: "T" },
+    { key: "lead.country",      label: "País",                 icon: "T" },
+    { key: "lead.zip_code",     label: "CEP",                  icon: "T" },
+    { key: "lead.address",      label: "Endereço",             icon: "T" },
+    { key: "lead.addr_number",  label: "Número",               icon: "T" },
+    { key: "lead.complement",   label: "Complemento",          icon: "T" },
+    { key: "lead.neighborhood", label: "Bairro",               icon: "T" },
+    { key: "lead.city",         label: "Cidade",               icon: "T" },
+    { key: "lead.state",        label: "Estado",               icon: "T" },
+    { key: "lead.created_at",   label: "Data de criação",      icon: "📅" },
+    { key: "lead.entry_date",   label: "Data de entrada",      icon: "📅" },
+  ]},
+  { id: "negocio", label: "Campos do negócio", fields: [
+    { key: "lead.deal_number",   label: "Código do negócio",        icon: "#" },
+    { key: "lead.value",         label: "Valor do negócio",         icon: "#" },
+    { key: "lead.status",        label: "Status (aberto/ganho/perdido)", icon: "T" },
+    { key: "lead.priority",      label: "Prioridade",               icon: "T" },
+    { key: "lead.pipeline_id",   label: "ID do pipeline",           icon: "T" },
+    { key: "lead.column_id",     label: "ID da etapa",              icon: "T" },
+    { key: "lead.next_follow_up",label: "Próximo follow-up",        icon: "📅" },
+    { key: "lead.tags",          label: "Tags do negócio",          icon: "T" },
+    { key: "lead.product_id",    label: "ID do produto vinculado",  icon: "#" },
+    { key: "lead.utm_source",    label: "UTM Source",               icon: "T" },
+    { key: "lead.utm_medium",    label: "UTM Medium",               icon: "T" },
+    { key: "lead.utm_campaign",  label: "UTM Campaign",             icon: "T" },
+    { key: "lead.utm_term",      label: "UTM Term",                 icon: "T" },
+    { key: "lead.utm_content",   label: "UTM Content",              icon: "T" },
+  ]},
+  { id: "produto", label: "Campos do produto", fields: [
+    { key: "prod.name",          label: "Nome do produto",  icon: "T" },
+    { key: "prod.sku",           label: "SKU do produto",   icon: "T" },
+    { key: "prod.default_value", label: "Preço do produto", icon: "#" },
+  ]},
+  { id: "campos_lead",    label: "Campos adicionais do lead",    fields: [], isAdditional: true },
+  { id: "campos_neg",     label: "Campos adicionais do negócio", fields: [], isAdditional: true },
+  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [], isAdditional: true },
+  { id: "sistema", label: "Campos do sistema", fields: [
+    { key: "gatilho.tipo",       label: "Tipo do gatilho",    icon: "T" },
+    { key: "gatilho.lead_id",    label: "ID do lead (gatilho)", icon: "#" },
+    { key: "gatilho.empresa_id", label: "ID da empresa",      icon: "#" },
+  ]},
+  { id: "ia",      label: "Campos de IA",      fields: [] },
+  { id: "entrada", label: "Entrada de dados",  fields: [] },
+];
+
+// Campos de DESTINO (somente graváveis)
+type DestCategory = { id: string; label: string; fields: { key: string; label: string }[]; isAdditional?: boolean };
+const DEST_FIELD_CATEGORIES: DestCategory[] = [
+  { id: "lead", label: "Campos do lead", fields: [
+    { key: "lead.name",         label: "Nome do lead" },
+    { key: "lead.company",      label: "Empresa" },
+    { key: "lead.email",        label: "E-mail" },
+    { key: "lead.whatsapp",     label: "Telefone" },
+    { key: "lead.document",     label: "CPF/CNPJ" },
+    { key: "lead.birth_date",   label: "Data de nascimento" },
+    { key: "lead.origin",       label: "Origem" },
+    { key: "lead.notes",        label: "Notas" },
+    { key: "lead.responsible",  label: "Atendente responsável" },
+    { key: "lead.site",         label: "Site" },
+    { key: "lead.country",      label: "País" },
+    { key: "lead.zip_code",     label: "CEP" },
+    { key: "lead.address",      label: "Endereço" },
+    { key: "lead.addr_number",  label: "Número" },
+    { key: "lead.complement",   label: "Complemento" },
+    { key: "lead.neighborhood", label: "Bairro" },
+    { key: "lead.city",         label: "Cidade" },
+    { key: "lead.state",        label: "Estado" },
+  ]},
+  { id: "negocio", label: "Campos do negócio", fields: [
+    { key: "lead.value",          label: "Valor do negócio" },
+    { key: "lead.status",         label: "Status (aberto/ganho/perdido)" },
+    { key: "lead.priority",       label: "Prioridade" },
+    { key: "lead.next_follow_up", label: "Próximo follow-up" },
+    { key: "lead.utm_source",     label: "UTM Source" },
+    { key: "lead.utm_medium",     label: "UTM Medium" },
+    { key: "lead.utm_campaign",   label: "UTM Campaign" },
+    { key: "lead.utm_term",       label: "UTM Term" },
+    { key: "lead.utm_content",    label: "UTM Content" },
+  ]},
+  { id: "produto", label: "Campos do produto", fields: [
+    { key: "prod.name",          label: "Nome do produto" },
+    { key: "prod.sku",           label: "SKU" },
+    { key: "prod.default_value", label: "Preço padrão" },
+  ]},
+  { id: "campos_lead",    label: "Campos adicionais do lead",    fields: [], isAdditional: true },
+  { id: "campos_neg",     label: "Campos adicionais do negócio", fields: [], isAdditional: true },
+  { id: "campos_empresa", label: "Campos adicionais da empresa", fields: [], isAdditional: true },
+];
+
 const DEFAULT_BRANCHES: RandomBranch[] = [
   { id: "a", label: "A", percentage: 25 }, { id: "b", label: "B", percentage: 25 },
   { id: "c", label: "C", percentage: 25 }, { id: "d", label: "D", percentage: 25 },
@@ -4281,176 +4735,790 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
-function ApiPanel({ node, onClose, onDelete, onDuplicate, updateApiConfig }: {
+function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
+  const { nodes, customFieldGroups, trigger } = useContext(VarPickerCtx);
+  const [cat, setCat] = useState("lead");
+  const [search, setSearch] = useState("");
+  const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
+  const [apiPath, setApiPath] = useState("");
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = pickerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const W = 580, H = 340, GAP = 4, MARGIN = 8;
+    let left = rect.right - W;
+    if (left < MARGIN) left = MARGIN;
+    if (left + W > window.innerWidth - MARGIN) left = window.innerWidth - W - MARGIN;
+    let top = rect.top - H - GAP;
+    if (top < MARGIN) top = rect.bottom + GAP;
+    setPos({ top, left, ready: true });
+  }, []);
+
+  // Build dynamic categories from context
+  const categories = useMemo((): VarCategory[] => {
+    return STATIC_VARIABLE_CATEGORIES.map(c => {
+      if (c.id === "campos_lead") {
+        const fields: VarField[] = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_lead.${i.id}`, label: i.label, icon: i.fieldType === "date" ? "📅" : i.fieldType === "boolean" ? "☑" : "T" }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_neg") {
+        return { ...c, fields: [] as VarField[] };
+      }
+      if (c.id === "campos_empresa") {
+        return { ...c, fields: [] as VarField[] };
+      }
+      if (c.id === "ia") {
+        const iaNodes = nodes.filter(n => n.type === "ia");
+        const fields: VarField[] = iaNodes.flatMap(n => [
+          { key: `ia.${n.id}.resposta`, label: `${n.label} — resposta`, icon: "T" },
+          { key: `ia.${n.id}.tokens`, label: `${n.label} — tokens`, icon: "#" },
+        ]);
+        return { ...c, fields };
+      }
+      if (c.id === "entrada") {
+        const webhookFields: VarField[] = trigger?.triggerId === "http_webhook"
+          ? [{ key: "webhook", label: "Api-request-1", icon: "{}", isApiSource: true, sourceName: "webhook" }]
+          : [];
+        const apiNodes = nodes.filter(n => n.type === "api");
+        const apiFields: VarField[] = apiNodes.flatMap(n =>
+          (n.apiConfig?.requests ?? []).map(r => ({
+            key: `${r.name}`,
+            label: r.name,
+            icon: "{}",
+            isApiSource: true,
+            sourceName: r.name,
+          }))
+        );
+        return { ...c, fields: [...webhookFields, ...apiFields] };
+      }
+      return c;
+    });
+  }, [nodes, customFieldGroups]);
+
+  const activeCat = categories.find(c => c.id === cat) ?? categories[0];
+  const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
+
+  const handleFieldClick = (f: VarField) => {
+    if (f.isApiSource) {
+      setApiModal({ sourceName: f.sourceName! });
+      setApiPath("");
+    } else {
+      onInsert(`{{${f.key}}}`);
+      onClose();
+    }
+  };
+
+  const confirmApiPath = () => {
+    if (!apiModal) return;
+    const val = apiPath.trim() ? `{{${apiModal.sourceName}.${apiPath.trim()}}}` : `{{${apiModal.sourceName}}}`;
+    onInsert(val);
+    onClose();
+  };
+
+  return (
+    <>
+      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: apiModal ? "none" : "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+        <div style={{ width: 210, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 340 }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
+              style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {categories.map(c => (
+              <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 340, position: "relative" }}>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {fields.length === 0 ? (
+              <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>Nenhum campo disponível</div>
+            ) : fields.map(f => (
+              <button key={f.key} onClick={() => handleFieldClick(f)}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <span style={{
+                  fontSize: f.icon.length > 1 ? 12 : 10,
+                  fontWeight: 700,
+                  color: f.icon === "#" ? "#F97316" : f.icon === "{}" ? "#3B82F6" : "#6B7280",
+                  background: f.icon === "#" ? "#FFF7ED" : f.icon === "{}" ? "#EFF6FF" : "#F3F4F6",
+                  borderRadius: 3, padding: "1px 5px", flexShrink: 0,
+                }}>{f.icon}</span>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {activeCat.isAdditional && fields.length === 0 && (
+            <div style={{ padding: "8px 14px", borderTop: "1px solid #E5E7EB", textAlign: "right", flexShrink: 0 }}>
+              <button
+                onClick={() => { onClose(); window.location.hash = "/configuracoes"; toast.info("Acesse Configurações → Campos adicionais para criar campos"); }}
+                style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                Criar campo
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sub-modal: Dado de entrada da api */}
+      {apiModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}
+          onClick={() => setApiModal(null)}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 420, boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Dado de entrada da api</div>
+              <button onClick={() => setApiModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280" }}><X size={16} /></button>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
+                Valor selecionado
+              </div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 6 }}>Escreva ou selecione um valor do json</div>
+              <input
+                autoFocus
+                value={apiPath}
+                onChange={e => setApiPath(e.target.value)}
+                placeholder="Ex: data.name"
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #3B82F6", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                onKeyDown={e => { if (e.key === "Enter") confirmApiPath(); }}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Dados recebidos</div>
+              <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>{"{}"}</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={confirmApiPath}
+                style={{ padding: "8px 20px", background: "#3B82F6", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MethodDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const methods = ["POST", "GET", "PUT", "PATCH", "DELETE"].filter(m => m.includes(search.toUpperCase()));
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#fff", cursor: "pointer", minWidth: 90 }}>
+        {value} <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", minWidth: 130, overflow: "hidden" }}>
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid #E5E7EB" }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "4px 6px", border: "1px solid #E5E7EB", borderRadius: 4, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          {methods.map(m => (
+            <button key={m} onClick={() => { onChange(m); setOpen(false); setSearch(""); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: m === value ? "#3B82F6" : "#374151", fontWeight: m === value ? 600 : 400, textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              {m === value && <span style={{ color: "#3B82F6", fontSize: 10 }}>✓</span>}
+              {m !== value && <span style={{ display: "inline-block", width: 14 }} />}
+              {m}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const lines = value.split("\n");
+  const insertVar = (v: string) => {
+    const ta = taRef.current; if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+  return (
+    <div style={{ position: "relative", border: "1px solid #E5E7EB", borderRadius: 6, overflow: "hidden", background: "#FAFAFA" }}>
+      <div style={{ display: "flex", maxHeight: 260 }}>
+        <div style={{ padding: "8px 6px", background: "#F3F4F6", borderRight: "1px solid #E5E7EB", minWidth: 28, textAlign: "right", userSelect: "none", overflowY: "hidden" }}>
+          {lines.map((_, i) => <div key={i} style={{ fontSize: 11, lineHeight: "20px", color: "#9CA3AF", fontFamily: "monospace" }}>{i + 1}</div>)}
+        </div>
+        <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
+          style={{ flex: 1, padding: "8px 10px", border: "none", outline: "none", resize: "none", fontSize: 12, fontFamily: "monospace", lineHeight: "20px", background: "transparent", minHeight: 120, maxHeight: 260, overflowY: "auto" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid #E5E7EB", position: "relative" }}>
+        <button onClick={() => setVarOpen(o => !o)} title="Inserir variável"
+          style={{ width: 24, height: 24, borderRadius: 5, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {"{"}
+        </button>
+        {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+      </div>
+    </div>
+  );
+}
+
+function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeApiRequest, updateApiRequest, customFieldGroups: _cfgs, openPickerTrigger }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  updateApiConfig: (config: Partial<ApiConfig>) => void;
+  addApiRequest: (req: ApiRequest) => void;
+  removeApiRequest: (reqId: string) => void;
+  updateApiRequest: (reqId: string, data: Partial<ApiRequest>) => void;
+  customFieldGroups: CustomFieldGroup[];
+  openPickerTrigger?: number;
 }) {
-  const [activeTab, setActiveTab] = useState<"headers" | "params" | "body">("headers");
-  const cfg = node.apiConfig ?? { method: "POST", url: "", headers: [], params: [], body: "" };
-  const addHeader = () => updateApiConfig({ headers: [...cfg.headers, { key: "", value: "" }] });
-  const removeHeader = (i: number) => updateApiConfig({ headers: cfg.headers.filter((_, idx) => idx !== i) });
-  const updateHeader = (i: number, key: string, value: string) => {
-    const headers = [...cfg.headers]; headers[i] = { key, value }; updateApiConfig({ headers });
+  const requests = node.apiConfig?.requests ?? [];
+  const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+
+  useEffect(() => {
+    if (openPickerTrigger && openPickerTrigger > 0) {
+      setShowTypePicker(true);
+      setSelectedReqId(null);
+    }
+  }, [openPickerTrigger]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advTab, setAdvTab] = useState<"headers" | "params" | "body" | "responseHeaders">("headers");
+  const [urlVarOpen, setUrlVarOpen] = useState(false);
+
+  const selectedReq = requests.find(r => r.id === selectedReqId) ?? null;
+
+  const handleAddRequest = (type: "json" | "file") => {
+    const idx = requests.length + 1;
+    const req: ApiRequest = {
+      id: `req${Date.now()}`, name: `Api-request-${idx}`, type,
+      method: type === "json" ? "POST" : "GET", url: "",
+      headers: [], params: [], body: type === "json" ? "{\n\n}" : "",
+      responseHeaders: [],
+    };
+    addApiRequest(req);
+    setSelectedReqId(req.id);
+    setShowTypePicker(false);
   };
-  const addParam = () => updateApiConfig({ params: [...cfg.params, { key: "", value: "" }] });
-  const removeParam = (i: number) => updateApiConfig({ params: cfg.params.filter((_, idx) => idx !== i) });
-  const updateParam = (i: number, key: string, value: string) => {
-    const params = [...cfg.params]; params[i] = { key, value }; updateApiConfig({ params });
+
+  const upd = (data: Partial<ApiRequest>) => { if (selectedReqId) updateApiRequest(selectedReqId, data); };
+
+  const addKV = (field: "headers" | "params" | "responseHeaders") => {
+    if (!selectedReq) return;
+    upd({ [field]: [...selectedReq[field], { key: "", value: "" }] });
   };
-  return (
-    <aside style={{ width: 320, minWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+  const removeKV = (field: "headers" | "params" | "responseHeaders", i: number) => {
+    if (!selectedReq) return;
+    upd({ [field]: selectedReq[field].filter((_, idx) => idx !== i) });
+  };
+  const updateKV = (field: "headers" | "params" | "responseHeaders", i: number, key: string, value: string) => {
+    if (!selectedReq) return;
+    const arr = [...selectedReq[field]]; arr[i] = { key, value }; upd({ [field]: arr });
+  };
+
+  const insertUrlVar = (v: string) => { if (!selectedReq) return; upd({ url: selectedReq.url + v }); };
+
+  // ── Left config panel ───────────────────────────────────────────────────────
+  const leftPanel = selectedReq ? (
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "1px solid #E5E5E5" : "none", height: "100%" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+        <button onClick={() => { setSelectedReqId(null); setShowAdvanced(false); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111", padding: 0, marginBottom: 4 }}>
+          <ArrowLeft size={15} />{selectedReq.type === "json" ? "Requisição HTTP com comunicação via JSON" : "Requisição de arquivo HTTP"}
+        </button>
+        <p style={{ fontSize: 11, color: "#6B7280", margin: 0, paddingLeft: 21 }}>{API_REQUEST_TYPES.find(t => t.id === selectedReq.type)?.description}</p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Fonte de dados</div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#EFF6FF", borderRadius: 5, padding: "3px 10px" }}>{selectedReq.name}</span>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Método</div>
+          <select value={selectedReq.method} onChange={e => upd({ method: e.target.value })}
+            style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
+            {["POST", "GET", "PUT", "PATCH", "DELETE"].map(m => <option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Url da requisição</div>
+          <div style={{ position: "relative" }}>
+            <textarea value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..." rows={3}
+              style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "none", boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4, position: "relative" }}>
+              <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
+                style={{ width: 24, height: 24, border: "1px solid #E5E7EB", borderRadius: 4, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
+                <Copy size={12} />
+              </button>
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
+                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 11, fontWeight: 700 }}>
+                  {"{"}
+                </button>
+                {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
+              </div>
+            </div>
+          </div>
+        </div>
+        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 12, fontWeight: 500, padding: 0 }}>
+          Configurações avançadas <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111", padding: 0 }}>
             <ArrowLeft size={16} /> API
           </button>
           <div style={{ display: "flex", gap: 2 }}>
             {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
-                onMouseEnter={e => (e.currentTarget.style.background = hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              ><Icon size={13} /></button>
+                onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}><Icon size={13} /></button>
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas</p>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços.</p>
       </div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          <select value={cfg.method} onChange={e => updateApiConfig({ method: e.target.value })}
-            style={{ width: 90, padding: "7px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", fontWeight: 600, color: "#3B82F6", cursor: "pointer" }}>
-            {["GET", "POST", "PUT", "DELETE", "PATCH"].map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <input value={cfg.url} onChange={e => updateApiConfig({ url: e.target.value })}
-            placeholder="https://..."
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+        {requests.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+            {requests.map(req => (
+              <div key={req.id} onClick={() => { setSelectedReqId(req.id); setShowAdvanced(false); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid #BFDBFE", borderRadius: 7, cursor: "pointer", background: "#EFF6FF" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")} onMouseLeave={e => (e.currentTarget.style.background = "#EFF6FF")}>
+                {req.type === "json" ? <Braces size={14} color="#3B82F6" /> : <FileDown size={14} color="#3B82F6" />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#3B82F6" }}>{req.method}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
+                <button onClick={e => { e.stopPropagation(); removeApiRequest(req.id); }}
+                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowTypePicker(true)}
+          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "8px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }} onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}>
+          <Plus size={13} /> Adicionar API
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Advanced config panel ───────────────────────────────────────────────────
+  const tabs = selectedReq?.type === "file"
+    ? (["headers", "params", "body", "responseHeaders"] as const)
+    : (["headers", "params", "body"] as const);
+
+  const advPanel = selectedReq && showAdvanced ? (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Configurações avançadas</div>
+      </div>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
+        <MethodDropdown value={selectedReq.method} onChange={v => upd({ method: v })} />
+        <div style={{ flex: 1, position: "relative", display: "flex", gap: 4 }}>
+          <input value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..."
             style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+          <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
+            style={{ width: 28, height: 28, border: "1px solid #E5E7EB", borderRadius: 5, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}>
+            <Copy size={12} />
+          </button>
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
+              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 5, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 12, fontWeight: 700 }}>
+              {"{"}
+            </button>
+            {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
+          </div>
         </div>
       </div>
-      <div style={{ borderBottom: "1px solid #E5E5E5", flexShrink: 0, display: "flex" }}>
-        {(["headers", "params", "body"] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: activeTab === tab ? 600 : 400, color: activeTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
-            {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : "Corpo"}
+      <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+        {tabs.map(tab => (
+          <button key={tab} onClick={() => setAdvTab(tab as typeof advTab)}
+            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${advTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: advTab === tab ? 600 : 400, color: advTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
+            {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : tab === "body" ? "Corpo" : "Resposta do Cabeçalho"}
           </button>
         ))}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
-        {activeTab !== "body" && (
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+        {advTab === "body" ? (
+          <BodyEditor value={selectedReq.body} onChange={v => upd({ body: v })} />
+        ) : (
           <div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {(activeTab === "headers" ? cfg.headers : cfg.params).map((h, i) => (
+              {(advTab === "headers" ? selectedReq.headers : advTab === "params" ? selectedReq.params : selectedReq.responseHeaders).map((h, i) => (
                 <div key={i} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <input value={h.key} onChange={e => activeTab === "headers" ? updateHeader(i, e.target.value, h.value) : updateParam(i, e.target.value, h.value)}
-                    placeholder="Chave" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
-                  <input value={h.value} onChange={e => activeTab === "headers" ? updateHeader(i, h.key, e.target.value) : updateParam(i, h.key, e.target.value)}
-                    placeholder="Valor" style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
-                  <button onClick={() => activeTab === "headers" ? removeHeader(i) : removeParam(i)}
+                  <input value={h.key} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, e.target.value, h.value)} placeholder="Chave"
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <input value={h.value} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, h.key, e.target.value)} placeholder="Valor"
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                  <button onClick={() => removeKV(advTab as "headers" | "params" | "responseHeaders", i)}
                     style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                  ><X size={11} /></button>
+                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}><X size={11} /></button>
                 </div>
               ))}
             </div>
-            <button onClick={activeTab === "headers" ? addHeader : addParam}
-              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "1px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
-              <Plus size={11} /> {activeTab === "headers" ? "Adicionar cabeçalho" : "Adicionar parâmetro"}
+            <button onClick={() => addKV(advTab as "headers" | "params" | "responseHeaders")}
+              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+              <Plus size={11} /> Adicionar
             </button>
           </div>
         )}
-        {activeTab === "body" && (
-          <textarea value={cfg.body} onChange={e => updateApiConfig({ body: e.target.value })}
-            placeholder={'{"chave": "valor"}'}
-            style={{ width: "100%", minHeight: 200, padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 11, fontFamily: "monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
-        )}
       </div>
-    </aside>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <aside style={{ width: selectedReq && showAdvanced ? 820 : 300, minWidth: selectedReq && showAdvanced ? 820 : 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "row", flexShrink: 0, overflow: "hidden" }}>
+        {leftPanel}
+        {advPanel}
+      </aside>
+      {/* Type picker dialog */}
+      <Dialog open={showTypePicker} onOpenChange={setShowTypePicker}>
+        <DialogContent style={{ maxWidth: 480, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 280 }}>
+            <div style={{ width: 140, borderRight: "1px solid #E5E5E5", padding: "16px 0" }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111" }}>Adicionar API</div>
+              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#3B82F6", fontWeight: 600 }}>
+                <Globe size={14} /> HTTP
+              </button>
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {API_REQUEST_TYPES.map(t => (
+                <button key={t.id} onClick={() => handleAddRequest(t.id)}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid #E5E7EB", borderRadius: 8, cursor: "pointer", background: "#fff", textAlign: "left" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#3B82F6")} onMouseLeave={e => (e.currentTarget.style.borderColor = "#E5E7EB")}>
+                  <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {t.id === "json" ? <Braces size={15} color="#3B82F6" /> : <FileDown size={15} color="#3B82F6" />}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>{t.label}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{t.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 // ─── CamposPanel ──────────────────────────────────────────────────────────────
 
-function CamposPanel({ node, onClose, onDelete, onDuplicate }: {
+// ─── CamposValueInput ────────────────────────────────────────────────────────
+
+function CamposValueInput({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertVar = (v: string) => {
+    const el = taRef.current;
+    if (!el) { onChange(value + v); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <textarea
+        ref={taRef}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "vertical", boxSizing: "border-box" as const, fontFamily: "inherit", lineHeight: 1.5 }}
+      />
+      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4 }}>
+        <button
+          onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+        ><Copy size={12} /></button>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setVarOpen(o => !o)}
+            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+          >{"{}"}</button>
+          {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FieldDestPicker ─────────────────────────────────────────────────────────
+
+function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
+  onSelect: (fieldKey: string, fieldLabel: string) => void;
+  onClose: () => void;
+  customFieldGroups: import("@/data/mockData").CustomFieldGroup[];
+}) {
+  const [cat, setCat] = useState("lead");
+  const [search, setSearch] = useState("");
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = pickerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const W = 480, H = 300, GAP = 4, MARGIN = 8;
+    let left = rect.left;
+    if (left + W > window.innerWidth - MARGIN) left = window.innerWidth - W - MARGIN;
+    if (left < MARGIN) left = MARGIN;
+    let top = rect.bottom + GAP;
+    if (top + H > window.innerHeight - MARGIN) top = rect.top - H - GAP;
+    setPos({ top, left, ready: true });
+  }, []);
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [onClose]);
+
+  const categories = useMemo((): DestCategory[] => {
+    return DEST_FIELD_CATEGORIES.map(c => {
+      if (c.id === "campos_lead") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_lead.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_neg") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_neg.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      if (c.id === "campos_empresa") {
+        const fields = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_empresa.${i.id}`, label: `${g.name}: ${i.label}` }))
+        );
+        return { ...c, fields };
+      }
+      return c;
+    });
+  }, [customFieldGroups]);
+
+  const activeCat = categories.find(c => c.id === cat) ?? categories[0];
+  const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 480, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+      <div style={{ width: 180, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 300 }}>
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+          <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
+            style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {categories.map(c => (
+            <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#F0FDF4" : "transparent", color: cat === c.id ? "#16A34A" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 300 }}>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {fields.length === 0 ? (
+            <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>
+              {activeCat.isAdditional ? "Nenhum campo adicional criado." : "Nenhum campo disponível"}
+            </div>
+          ) : fields.map(f => (
+            <button key={f.key} onClick={() => { onSelect(f.key, f.label); onClose(); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", background: "#F0FDF4", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>T</span>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CamposPanel ─────────────────────────────────────────────────────────────
+
+function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeFieldOp, updateFieldOp, customFieldGroups }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  addFieldOp: (op: FieldOperation) => void;
+  removeFieldOp: (opId: string) => void;
+  updateFieldOp: (opId: string, data: Partial<FieldOperation>) => void;
+  customFieldGroups: import("@/data/mockData").CustomFieldGroup[];
 }) {
-  const { customFieldGroups } = useCRM();
-  const [campo, setCampo] = useState("");
-  const [operacao, setOperacao] = useState("");
-  const [valor, setValor] = useState("");
+  const [selectedOpId, setSelectedOpId] = useState<string | null>(null);
+  const [destPickerOpen, setDestPickerOpen] = useState(false);
+  const fieldOps = node.fieldOps ?? [];
+  const selectedOp = fieldOps.find(o => o.id === selectedOpId) ?? null;
+
+  const handleAddOp = () => {
+    const op: FieldOperation = { id: `fo${Date.now()}`, type: "mapeamento", fieldKey: "", fieldLabel: "", value: "" };
+    addFieldOp(op);
+    setSelectedOpId(op.id);
+  };
+
+  const panelHeader = (title: string, subtitle: string, onBack: () => void) => (
+    <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <ArrowLeft size={16} /> {title}
+        </button>
+        <div style={{ display: "flex", gap: 2 }}>
+          {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+              onMouseEnter={e => (e.currentTarget.style.background = hover)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            ><Icon size={13} /></button>
+          ))}
+        </div>
+      </div>
+      <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>{subtitle}</p>
+    </div>
+  );
+
+  // ── Detail view ─────────────────────────────────────────────────────────────
+  if (selectedOpId && selectedOp) {
+    return (
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+          <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} /> Mapeamento de campo
+          </button>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Campo de destino */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo de destino</label>
+              <div style={{ position: "relative" }}>
+                <button
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: selectedOp.fieldKey ? "#111" : "#9CA3AF" }}
+                  onClick={() => setDestPickerOpen(v => !v)}
+                >
+                  <span>{selectedOp.fieldLabel || "Selecionar"}</span>
+                  <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                </button>
+                {destPickerOpen && (
+                  <FieldDestPicker
+                    customFieldGroups={customFieldGroups}
+                    onSelect={(key, label) => { updateFieldOp(selectedOp.id, { fieldKey: key, fieldLabel: label }); setDestPickerOpen(false); }}
+                    onClose={() => setDestPickerOpen(false)}
+                  />
+                )}
+              </div>
+            </div>
+            {/* Valor */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
+              <CamposValueInput
+                value={selectedOp.value}
+                onChange={v => updateFieldOp(selectedOp.id, { value: v })}
+                placeholder="Digite um valor ou use {{variável}}..."
+              />
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // ── List view ────────────────────────────────────────────────────────────────
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
-            <ArrowLeft size={16} /> Operações de campos
-          </button>
-          <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
-              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
-                onMouseEnter={e => (e.currentTarget.style.background = hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              ><Icon size={13} /></button>
+      {panelHeader("Operações de campos", "Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:", onClose)}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
+        {fieldOps.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+            {fieldOps.map(op => (
+              <div key={op.id}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, cursor: "pointer" }}
+                onClick={() => setSelectedOpId(op.id)}
+                onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+              >
+                <ArrowLeftRight size={13} color="#22C55E" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {op.fieldLabel || "Selecionar campo"}
+                  </div>
+                  {op.value && (
+                    <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                      = {op.value}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); removeFieldOp(op.id); }}
+                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                ><X size={11} /></button>
+              </div>
             ))}
           </div>
-        </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Manipule campos do lead ou negócio</p>
+        )}
+        {fieldOps.length === 0 && (
+          <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 4, lineHeight: 1.5 }}>Nenhuma operação adicionada ainda.</div>
+        )}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo</label>
-            <select value={campo} onChange={e => setCampo(e.target.value)}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
-              <option value="">Selecione um campo...</option>
-              <option value="nome">Nome</option>
-              <option value="email">Email</option>
-              <option value="telefone">Telefone</option>
-              <option value="cpf">CPF</option>
-              <option value="empresa">Empresa</option>
-              <option value="tags">Tags</option>
-              <option value="observacoes">Observações</option>
-              {customFieldGroups.flatMap(g => g.items.map(item => (
-                <option key={item.id} value={item.id}>{g.name} › {item.label}</option>
-              )))}
-
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Operação</label>
-            <select value={operacao} onChange={e => setOperacao(e.target.value)}
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
-              <option value="">Selecione a operação...</option>
-              <option value="definir">Definir valor</option>
-              <option value="limpar">Limpar valor</option>
-              <option value="incrementar">Incrementar</option>
-              <option value="decrementar">Decrementar</option>
-              <option value="concatenar">Concatenar</option>
-            </select>
-          </div>
-          {operacao && operacao !== "limpar" && (
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor</label>
-              <input value={valor} onChange={e => setValor(e.target.value)}
-                placeholder="Valor ou variável {{var}}..."
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
-              <div style={{ marginTop: 4, fontSize: 10, color: "#9CA3AF" }}>Use {"{{variavel}}"} para inserir variáveis dinâmicas.</div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
-        <button onClick={() => toast.info("Em breve: múltiplas operações de campo")}
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+        <button onClick={handleAddOp}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #86EFAC", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; }}
+        >
+          <Plus size={13} /> Adicionar mapeamento de campo
+        </button>
+        <button onClick={handleAddOp}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
         >
-          <Plus size={13} /> Adicionar operação
+          <Plus size={13} /> Adicionar outra operação de campo
         </button>
       </div>
     </aside>
@@ -4464,9 +5532,21 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const [varOpen, setVarOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const insertVar = (v: string) => {
+    const el = inputRef.current;
+    if (!el) { onChange(value + v); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
   return (
-    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 4, alignItems: "center", position: "relative" }}>
       <input
+        ref={inputRef}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
@@ -4476,10 +5556,13 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
         onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
         style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
       ><Copy size={12} /></button>
-      <button
-        onClick={() => toast.info("Variáveis em breve")}
-        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
-      >{"{}"}</button>
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={() => setVarOpen(o => !o)}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+        >{"{}"}</button>
+        {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+      </div>
     </div>
   );
 }
@@ -4599,7 +5682,7 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
             </div>
           )}
           {!createMode && (
-            <div style={{ padding: "6px 8px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
               <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
             </div>
           )}
@@ -5044,7 +6127,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
                 <div
                   key={item.id}
                   onClick={() => setSelectedItemId(item.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#FFEDD5")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#FFF7ED")}
                 >
@@ -5117,7 +6200,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Conexão */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", flexShrink: 0 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <select style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
@@ -5147,7 +6230,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                     <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
                   </button>
                   {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
-                    <div style={{ height: "1px", background: "#F0F0F0", margin: "0 16px" }} />
+                    <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 16px" }} />
                   )}
                 </div>
               );
@@ -5158,7 +6241,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
             {(node.subBlocks ?? []).map(b => (
               <div key={b.id} style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
                 {/* Sub-block toolbar */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "1px solid #F0F0F0", background: "#F9FAFB" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
                   <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
@@ -5180,7 +6263,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   {b.type === "entrada_usuario" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
+                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
                     </div>
                   )}
                   {b.type === "atraso_tempo" && (
@@ -5201,7 +6284,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   {b.type === "mensagem_audio" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "1px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
+                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
                         <button style={{ padding: "6px 14px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
                           <Mic size={12} /> Iniciar gravação
                         </button>
@@ -5211,7 +6294,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   {b.type === "arquivo_anexo" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "1px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
+                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
                         <Upload size={20} color="#D1D5DB" />
                         Selecionar arquivo
                         <input type="file" style={{ display: "none" }} />
@@ -5226,7 +6309,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                         value={b.fileUrl ?? ""}
                         onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
                         placeholder="URL do arquivo"
-                        style={{ width: "100%", padding: "7px 10px", border: `1px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
                       />
                       {b.fileUrl && !b.fileUrl.startsWith("http") && (
                         <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>

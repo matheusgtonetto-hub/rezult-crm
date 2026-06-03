@@ -90,6 +90,7 @@ function AppRoutes() {
             <Route path="/rezult-pay" element={<RezultPayPage />} />
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />
+            <Route path="/automacoes/:id" element={<AutomacoesPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="/configuracoes/:section" element={<SettingsPage />} />

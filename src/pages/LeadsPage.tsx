@@ -43,7 +43,16 @@ export default function LeadsPage() {
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
 
-  const allLeads = Object.values(leads);
+  const allLeadsSorted = Object.values(leads).sort((a, b) => a.dealNumber - b.dealNumber);
+  const seenPhones = new Set<string>();
+  const allLeads = allLeadsSorted.filter(l => {
+    const phone = l.whatsapp?.replace(/\D/g, "") ?? "";
+    if (!phone) return true;
+    const norm = phone.startsWith("55") ? phone : `55${phone}`;
+    if (seenPhones.has(norm)) return false;
+    seenPhones.add(norm);
+    return true;
+  });
   const filtered = allLeads.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterResp !== "all") {

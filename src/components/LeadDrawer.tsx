@@ -10,6 +10,7 @@ import {
   PlusCircle, CheckSquare, CalendarDays, Phone, Mail, RefreshCw,
   Briefcase, ChevronRight, ExternalLink, Pencil,
   FileText, Image, Download, Loader2, Zap,
+  MoreHorizontal, ArrowLeftRight, CalendarPlus, ShoppingCart, MessageSquare, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ActivityType, LeadOrigin } from "@/data/mockData";
@@ -141,7 +142,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     tasks: allTasks,
     markLeadWon,
     customFieldGroups,
-    addLead, nextDealNumber,
+    addLead, nextDealNumber, deleteLead, products,
   } = useCRM();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -156,6 +157,16 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [newDealPipeline, setNewDealPipeline] = useState("");
   const [newDealStage, setNewDealStage]       = useState("");
   const [newDealCreating, setNewDealCreating] = useState(false);
+
+  // Ações dos cards de negócio
+  const [dealMenuId,          setDealMenuId]          = useState<string | null>(null);
+  const [moveDealId,          setMoveDealId]          = useState<string | null>(null);
+  const [movePipeline,        setMovePipeline]        = useState("");
+  const [moveStage,           setMoveStage]           = useState("");
+  const [actDealId,           setActDealId]           = useState<string | null>(null);
+  const [actTitle,            setActTitle]            = useState("");
+  const [prodDealId,          setProdDealId]          = useState<string | null>(null);
+  const [confirmDelDealId,    setConfirmDelDealId]    = useState<string | null>(null);
 
   // Arquivos
   const [leadFiles, setLeadFiles]   = useState<LeadFile[]>([]);
@@ -243,7 +254,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     if (!newDealPipeline || !newDealStage) return;
     setNewDealCreating(true);
     await addLead({
-      ...lead,
+      ...lead!,
       id: undefined as unknown as string,
       dealNumber: nextDealNumber(),
       pipelineId: newDealPipeline,
@@ -253,7 +264,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
         id: `a-${Date.now()}`,
         date: new Date().toISOString(),
         type: "created",
-        description: `Negócio criado a partir do contato ${lead.name}.`,
+        description: `Negócio criado a partir do contato ${lead!.name}.`,
       }],
     });
     toast.success("Negócio criado com sucesso!");
@@ -682,46 +693,120 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     const statusColor = isWon ? "#22C55E" : isLost ? "#EF4444" : "#128A68";
                     const statusBg    = isWon ? "#DCFCE7" : isLost ? "#FEE2E2" : "#E6F5F0";
                     const statusLabel = isWon ? "Ganho" : isLost ? "Perdido" : "Em aberto";
+                    const movePipelineObj = pipelines.find(p => p.id === movePipeline);
                     return (
                       <div
                         key={l.id}
-                        onClick={() => { onClose(); navigate(`/pipeline/lead/${l.id}`); }}
-                        style={{ border: "1px solid #F0F0F0", borderRadius: 12, padding: "14px 16px", marginBottom: 10, cursor: "pointer", background: l.id === leadId ? "#F9FFF9" : "#FAFAFA", borderLeft: l.id === leadId ? "3px solid #128A68" : "1px solid #F0F0F0", transition: "background 0.15s" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#F0F9F6")}
-                        onMouseLeave={e => (e.currentTarget.style.background = l.id === leadId ? "#F9FFF9" : "#FAFAFA")}
+                        style={{ position: "relative", border: "1px solid #F0F0F0", borderRadius: 12, padding: "14px 16px", marginBottom: 10, background: l.id === leadId ? "#F9FFF9" : "#FAFAFA", borderLeft: l.id === leadId ? "3px solid #128A68" : "1px solid #F0F0F0" }}
+                        onClick={() => { if (dealMenuId === l.id || moveDealId === l.id || actDealId === l.id || prodDealId === l.id || confirmDelDealId === l.id) return; onClose(); navigate(`/pipeline/lead/${l.id}`); }}
                       >
+                        {/* Header */}
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                          <div style={{ flex: 1 }}>
+                          <div style={{ flex: 1, cursor: "pointer" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                               <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68" }}>#{l.dealNumber}</span>
                               <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{l.name}</span>
                               {l.id === leadId && <span style={{ fontSize: 9, fontWeight: 700, color: "#888", background: "#F0F0F0", padding: "1px 6px", borderRadius: 100 }}>ESTE</span>}
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                              {lPipeline && (
-                                <span style={{ fontSize: 11, color: "#555", background: "#F5F5F5", padding: "2px 8px", borderRadius: 100 }}>
-                                  {lPipeline.name}
-                                </span>
-                              )}
-                              {lStage && (
-                                <span style={{ fontSize: 11, color: "#555", background: lStage.color + "20", padding: "2px 8px", borderRadius: 100 }}>
-                                  {lStage.title}
-                                </span>
-                              )}
+                              {lPipeline && <span style={{ fontSize: 11, color: "#555", background: "#F5F5F5", padding: "2px 8px", borderRadius: 100 }}>{lPipeline.name}</span>}
+                              {lStage && <span style={{ fontSize: 11, color: "#555", background: lStage.color + "20", padding: "2px 8px", borderRadius: 100 }}>{lStage.title}</span>}
                             </div>
                           </div>
-                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            {!!l.value && <p style={{ fontSize: 13, fontWeight: 700, color: "#128A68" }}>{formatBRL(l.value)}</p>}
-                            <span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusBg, padding: "2px 8px", borderRadius: 100, display: "inline-block", marginTop: 4 }}>{statusLabel}</span>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flexShrink: 0 }}>
+                            <div style={{ textAlign: "right" }}>
+                              {!!l.value && <p style={{ fontSize: 13, fontWeight: 700, color: "#128A68" }}>{formatBRL(l.value)}</p>}
+                              <span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusBg, padding: "2px 8px", borderRadius: 100, display: "inline-block", marginTop: 4 }}>{statusLabel}</span>
+                            </div>
+                            {/* ··· menu button */}
+                            <button
+                              onMouseDown={e => e.stopPropagation()}
+                              onClick={e => { e.stopPropagation(); setDealMenuId(dealMenuId === l.id ? null : l.id); setMoveDealId(null); setActDealId(null); setProdDealId(null); setConfirmDelDealId(null); }}
+                              style={{ width: 26, height: 26, border: "1px solid #E5E7EB", borderRadius: 6, background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0, marginTop: 2 }}
+                            ><MoreHorizontal size={14} /></button>
                           </div>
                         </div>
+
                         {l.responsible && (
                           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0F0F0" }}>
-                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: colorFromName(l.responsible), color: "#FFF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              {l.responsible[0]}
-                            </div>
+                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: colorFromName(l.responsible), color: "#FFF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{l.responsible[0]}</div>
                             <span style={{ fontSize: 11, color: "#666" }}>{l.responsible}</span>
                             {l.entryDate && <span style={{ fontSize: 11, color: "#AAA", marginLeft: "auto" }}>{new Date(l.entryDate).toLocaleDateString("pt-BR")}</span>}
+                          </div>
+                        )}
+
+                        {/* Dropdown menu */}
+                        {dealMenuId === l.id && (
+                          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: 42, right: 16, zIndex: 50, background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: "4px 0", minWidth: 200 }}>
+                            {[
+                              { icon: <ArrowLeftRight size={14} />, label: "Mover negócio", action: () => { setMoveDealId(l.id); const p = lPipeline ?? pipelines[0]; setMovePipeline(p?.id ?? ""); setMoveStage(l.stage ?? p?.columns[0]?.id ?? ""); setDealMenuId(null); } },
+                              { icon: <CalendarPlus size={14} />,  label: "Criar atividade",  action: () => { setActDealId(l.id); setActTitle(""); setDealMenuId(null); } },
+                              { icon: <ShoppingCart size={14} />, label: "Produtos",          action: () => { setProdDealId(l.id); setDealMenuId(null); } },
+                              { icon: <MessageSquare size={14} />, label: "Abrir Chat",       action: () => { setDealMenuId(null); navigate(`/multiatendimento`); } },
+                              { icon: <Trash2 size={14} />,        label: "Excluir",          action: () => { setConfirmDelDealId(l.id); setDealMenuId(null); }, danger: true },
+                            ].map(item => (
+                              <button key={item.label} onClick={e => { e.stopPropagation(); item.action(); }}
+                                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: (item as { danger?: boolean }).danger ? "#EF4444" : "#374151", textAlign: "left" }}
+                                onMouseEnter={e => (e.currentTarget.style.background = (item as { danger?: boolean }).danger ? "#FEF2F2" : "#F9FAFB")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                              >{item.icon}{item.label}</button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Mover negócio */}
+                        {moveDealId === l.id && (
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Mover negócio</p>
+                            <select value={movePipeline} onChange={e => { setMovePipeline(e.target.value); const p = pipelines.find(p2 => p2.id === e.target.value); setMoveStage(p?.columns[0]?.id ?? ""); }} style={{ width: "100%", marginBottom: 6, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                              {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            <select value={moveStage} onChange={e => setMoveStage(e.target.value)} style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                              {(movePipelineObj?.columns ?? []).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            </select>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={async e => { e.stopPropagation(); await updateLead(l.id, { pipelineId: movePipeline, stage: moveStage }); setMoveDealId(null); toast.success("Negócio movido!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
+                              <button onClick={e => { e.stopPropagation(); setMoveDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Criar atividade */}
+                        {actDealId === l.id && (
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Criar atividade</p>
+                            <input value={actTitle} onChange={e => setActTitle(e.target.value)} placeholder="Título da atividade" style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }} />
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={async e => { e.stopPropagation(); if (!actTitle.trim()) return; await addActivity(l.id, { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "note", description: actTitle.trim() }); setActDealId(null); toast.success("Atividade criada!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Criar</button>
+                              <button onClick={e => { e.stopPropagation(); setActDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Produtos */}
+                        {prodDealId === l.id && (
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Produto do negócio</p>
+                            <select defaultValue={l.productId ?? ""} id={`prod-sel-${l.id}`} style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                              <option value="">Sem produto</option>
+                              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={async e => { e.stopPropagation(); const sel = (document.getElementById(`prod-sel-${l.id}`) as HTMLSelectElement)?.value ?? ""; await updateLead(l.id, { productId: sel || undefined }); setProdDealId(null); toast.success("Produto atualizado!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
+                              <button onClick={e => { e.stopPropagation(); setProdDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Confirmar exclusão */}
+                        {confirmDelDealId === l.id && (
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", marginBottom: 8 }}>Excluir negócio #{l.dealNumber}?</p>
+                            <p style={{ fontSize: 11, color: "#6B7280", marginBottom: 10 }}>Esta ação não pode ser desfeita.</p>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={e => { e.stopPropagation(); deleteLead(l.id); setConfirmDelDealId(null); toast.success("Negócio excluído!"); }} style={{ flex: 1, padding: "7px", background: "#EF4444", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Excluir</button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDelDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                            </div>
                           </div>
                         )}
                       </div>
