@@ -4741,6 +4741,8 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
   const [apiPath, setApiPath] = useState("");
+  const [apiTestResponses, setApiTestResponses] = useState<Record<string, unknown>>({});
+  const [apiTestLoading, setApiTestLoading] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
 
@@ -4822,6 +4824,51 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
     onClose();
   };
 
+  const findApiRequestConfig = (sourceName: string): ApiRequest | null => {
+    for (const node of nodes) {
+      if (node.type === "api") {
+        const req = (node.apiConfig?.requests ?? []).find(r => r.name === sourceName);
+        if (req) return req;
+      }
+    }
+    return null;
+  };
+
+  const testApiRequest = async () => {
+    if (!apiModal) return;
+    const req = findApiRequestConfig(apiModal.sourceName);
+    if (!req) {
+      setApiTestResponses(prev => ({ ...prev, [apiModal.sourceName]: { erro: "Configuração não encontrada" } }));
+      return;
+    }
+    setApiTestLoading(true);
+    try {
+      const cleanUrl = req.url.replace(/\{\{[^}]+\}\}/g, "");
+      const urlObj = new URL(cleanUrl);
+      for (const { key, value } of (req.params ?? [])) {
+        if (key) urlObj.searchParams.set(key, value.replace(/\{\{[^}]+\}\}/g, ""));
+      }
+      const headers: Record<string, string> = {};
+      for (const { key, value } of (req.headers ?? [])) {
+        if (key) headers[key] = value.replace(/\{\{[^}]+\}\}/g, "");
+      }
+      let body: string | undefined;
+      if (req.type === "json" && req.body && ["POST", "PUT", "PATCH"].includes(req.method)) {
+        body = req.body.replace(/\{\{[^}]+\}\}/g, "");
+        if (!headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
+      }
+      const resp = await fetch(urlObj.toString(), { method: req.method, headers, body });
+      const text = await resp.text();
+      let data: unknown;
+      try { data = JSON.parse(text); } catch { data = { resposta: text }; }
+      setApiTestResponses(prev => ({ ...prev, [apiModal.sourceName]: data }));
+    } catch (err) {
+      setApiTestResponses(prev => ({ ...prev, [apiModal.sourceName]: { erro: String(err) } }));
+    } finally {
+      setApiTestLoading(false);
+    }
+  };
+
   return (
     <>
       <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: apiModal ? "none" : "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
@@ -4897,8 +4944,26 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
               />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Dados recebidos</div>
-              <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>{"{}"}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Dados recebidos</span>
+                {apiModal.sourceName !== "webhook" && (
+                  <button onClick={testApiRequest} disabled={apiTestLoading}
+                    style={{ fontSize: 11, padding: "3px 10px", background: apiTestLoading ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: apiTestLoading ? "default" : "pointer", fontWeight: 600 }}>
+                    {apiTestLoading ? "Testando…" : "Testar"}
+                  </button>
+                )}
+              </div>
+              {apiModal.sourceName === "webhook" ? (
+                <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
+                  Os campos recebidos pelo webhook estarão disponíveis como <strong>{"{{gatilho.CAMPO}}"}</strong> (ex: <strong>{"{{gatilho.email}}"}</strong>).
+                </div>
+              ) : (
+                <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 11, color: apiTestResponses[apiModal.sourceName] ? "#374151" : "#9CA3AF", fontFamily: "monospace", maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                  {apiTestResponses[apiModal.sourceName]
+                    ? JSON.stringify(apiTestResponses[apiModal.sourceName], null, 2)
+                    : "Clique em \"Testar\" para ver o retorno da API"}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button onClick={confirmApiPath}
