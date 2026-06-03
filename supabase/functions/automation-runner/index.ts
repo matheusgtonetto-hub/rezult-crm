@@ -1173,13 +1173,19 @@ async function executeAction(
         };
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
+        // Garante nome mínimo para satisfazer possível constraint NOT NULL
+        if (!insertData.name) insertData.name = "Novo lead (webhook)";
 
+        console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
         const { data: created, error: createErr } = await supabase
           .from("leads")
           .insert(insertData)
           .select("id")
           .single();
-        if (createErr) throw new Error(createErr.message);
+        if (createErr) {
+          console.error("[criar_negocio] Erro ao criar lead:", createErr.message);
+          throw new Error(createErr.message);
+        }
         if (created) payload.lead_id = (created as { id: string }).id;
         return;
       }
