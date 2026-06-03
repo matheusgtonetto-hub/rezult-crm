@@ -1169,6 +1169,31 @@ async function executeAction(
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
 
+      // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
+      if (!insertLead.pipeline_id && ownerIdLead) {
+        const { data: firstPipeline } = await supabase
+          .from("pipelines")
+          .select("id")
+          .eq("owner_id", ownerIdLead)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .single();
+        if (firstPipeline) {
+          insertLead.pipeline_id = (firstPipeline as { id: string }).id;
+          // column_id também pode ser NOT NULL — busca a primeira etapa do pipeline
+          if (!insertLead.column_id) {
+            const { data: firstColumn } = await supabase
+              .from("pipeline_columns")
+              .select("id")
+              .eq("pipeline_id", insertLead.pipeline_id as string)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .single();
+            if (firstColumn) insertLead.column_id = (firstColumn as { id: string }).id;
+          }
+        }
+      }
+
       console.log("[criar_lead] Inserindo:", JSON.stringify(insertLead));
       const { data: createdLead, error: createLeadErr } = await supabase
         .from("leads")
