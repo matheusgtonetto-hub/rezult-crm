@@ -273,7 +273,7 @@ async function handleWebhook(
     trigger_type: "http_webhook",
     company_id: companyId,
     lead_id: resolvedLeadId,
-    context: { changed_fields: webhookBody },
+    context: { changed_fields: webhookBody, webhook_owner_id: ownerId },
   };
 
   try {
@@ -678,8 +678,11 @@ async function executeFlow(
         });
         queue.push(...(children.get(node.id) ?? []));
       } else {
-        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
-        const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
+        const currentLeadId = payload.lead_id;
+        const leadData = currentLeadId
+          ? ((await supabase.from("leads").select("*").eq("id", currentLeadId).single()).data as Record<string, unknown> | null)
+          : null;
+        const vars = await buildVarContext(supabase, leadData, payload);
 
         const leadUpdate: Record<string, unknown> = {};
         const customUpdate: Record<string, unknown> = {};
@@ -692,7 +695,6 @@ async function executeFlow(
             if (op.fieldKey.startsWith("lead.")) {
               leadUpdate[op.fieldKey.substring(5)] = resolved;
             } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
-              // todos escrevem em custom_field_values do lead (negócio = lead neste CRM)
               const dotIdx = op.fieldKey.indexOf(".");
               customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
             } else if (op.fieldKey.startsWith("prod.")) {
@@ -706,24 +708,43 @@ async function executeFlow(
         if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
           const updateData: Record<string, unknown> = { ...leadUpdate };
           if (Object.keys(customUpdate).length > 0) {
-            const existing = ((leadData as Record<string, unknown>)?.custom_field_values ?? {}) as Record<string, unknown>;
+            const existing = (leadData?.custom_field_values ?? {}) as Record<string, unknown>;
             updateData.custom_field_values = { ...existing, ...customUpdate };
           }
-          const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", lead_id);
-          if (updateErr) errors.push(updateErr.message);
+
+          if (currentLeadId) {
+            // Lead existente — atualiza
+            const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", currentLeadId);
+            if (updateErr) errors.push(updateErr.message);
+          } else {
+            // Sem lead (webhook sem match) — cria novo lead com os campos mapeados
+            const ownerIdForNew = ((payload.context as Record<string, unknown>).webhook_owner_id as string | null) ?? null;
+            const { data: created, error: createErr } = await supabase
+              .from("leads")
+              .insert({ ...updateData, company_id, owner_id: ownerIdForNew, status: "open" })
+              .select("id")
+              .single();
+            if (createErr) {
+              errors.push(createErr.message);
+            } else if (created) {
+              // Atualiza payload.lead_id para que blocos subsequentes usem o lead criado
+              payload.lead_id = (created as { id: string }).id;
+            }
+          }
         }
 
         if (Object.keys(prodUpdate).length > 0) {
-          const productId = (leadData as Record<string, unknown>)?.product_id;
+          const productId = leadData?.product_id;
           if (productId) {
-            const { error: prodErr } = await supabase.from("products").update(prodUpdate).eq("id", productId);
+            const { error: prodErr } = await supabase.from("products").update(prodUpdate).eq("id", productId as string);
             if (prodErr) errors.push(prodErr.message);
           }
         }
 
+        const newLogLeadId = payload.lead_id || null;
         const status = errors.length > 0 ? "error" : "success";
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id: logLeadId,
+          automation_id: automationId, company_id, lead_id: newLogLeadId,
           node_id: node.id, status,
           error_message: errors.length > 0 ? errors.join("; ") : null,
         });
