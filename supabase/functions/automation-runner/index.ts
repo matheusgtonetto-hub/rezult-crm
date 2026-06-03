@@ -251,7 +251,7 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", companyId)
+      .eq("owner_id", ownerId)
       .eq("email", String(webhookBody.email))
       .maybeSingle();
     lead_id = lead?.id ?? null;
@@ -259,7 +259,7 @@ async function handleWebhook(
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
-      .eq("company_id", companyId)
+      .eq("owner_id", ownerId)
       .eq("whatsapp", String(webhookBody.whatsapp))
       .maybeSingle();
     lead_id = lead?.id ?? null;
@@ -1148,6 +1148,66 @@ async function executeAction(
       break;
     }
 
+    case "criar_lead": {
+      // Se já existe lead, não cria novo (comportamento descrito no bloco)
+      if (lead_id) return;
+
+      const ctxLead = payload.context as Record<string, unknown>;
+      const stagedLead = (ctxLead.staged_lead_data as Record<string, unknown>) ?? {};
+
+      const { data: companyRowLead } = await supabase
+        .from("companies")
+        .select("owner_id")
+        .eq("id", company_id)
+        .single();
+      const ownerIdLead = (companyRowLead as Record<string, unknown> | null)?.owner_id as string | null ?? null;
+
+      const insertLead: Record<string, unknown> = {
+        ...stagedLead,
+        owner_id: ownerIdLead,
+        status: "open",
+      };
+      if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
+
+      // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
+      if (!insertLead.pipeline_id && ownerIdLead) {
+        const { data: firstPipeline } = await supabase
+          .from("pipelines")
+          .select("id")
+          .eq("owner_id", ownerIdLead)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .single();
+        if (firstPipeline) {
+          insertLead.pipeline_id = (firstPipeline as { id: string }).id;
+          // column_id também pode ser NOT NULL — busca a primeira etapa do pipeline
+          if (!insertLead.column_id) {
+            const { data: firstColumn } = await supabase
+              .from("pipeline_columns")
+              .select("id")
+              .eq("pipeline_id", insertLead.pipeline_id as string)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .single();
+            if (firstColumn) insertLead.column_id = (firstColumn as { id: string }).id;
+          }
+        }
+      }
+
+      console.log("[criar_lead] Inserindo:", JSON.stringify(insertLead));
+      const { data: createdLead, error: createLeadErr } = await supabase
+        .from("leads")
+        .insert(insertLead)
+        .select("id")
+        .single();
+      if (createLeadErr) {
+        console.error("[criar_lead] Erro:", createLeadErr.message);
+        throw new Error(createLeadErr.message);
+      }
+      if (createdLead) payload.lead_id = (createdLead as { id: string }).id;
+      return;
+    }
+
     case "criar_negocio": {
       const columnId = cfg.etapa as string;
       const pipelineId = cfg.pipeline as string;
@@ -1167,19 +1227,24 @@ async function executeAction(
 
         const insertData: Record<string, unknown> = {
           ...staged,
-          company_id,
           owner_id: ownerIdForNew,
           status: "open",
         };
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
+        // Garante nome mínimo para satisfazer possível constraint NOT NULL
+        if (!insertData.name) insertData.name = "Novo lead (webhook)";
 
+        console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
         const { data: created, error: createErr } = await supabase
           .from("leads")
           .insert(insertData)
           .select("id")
           .single();
-        if (createErr) throw new Error(createErr.message);
+        if (createErr) {
+          console.error("[criar_negocio] Erro ao criar lead:", createErr.message);
+          throw new Error(createErr.message);
+        }
         if (created) payload.lead_id = (created as { id: string }).id;
         return;
       }
