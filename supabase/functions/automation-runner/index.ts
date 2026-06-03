@@ -717,19 +717,8 @@ async function executeFlow(
             const { error: updateErr } = await supabase.from("leads").update(updateData).eq("id", currentLeadId);
             if (updateErr) errors.push(updateErr.message);
           } else {
-            // Sem lead (webhook sem match) — cria novo lead com os campos mapeados
-            const ownerIdForNew = ((payload.context as Record<string, unknown>).webhook_owner_id as string | null) ?? null;
-            const { data: created, error: createErr } = await supabase
-              .from("leads")
-              .insert({ ...updateData, company_id, owner_id: ownerIdForNew, status: "open" })
-              .select("id")
-              .single();
-            if (createErr) {
-              errors.push(createErr.message);
-            } else if (created) {
-              // Atualiza payload.lead_id para que blocos subsequentes usem o lead criado
-              payload.lead_id = (created as { id: string }).id;
-            }
+            // Sem lead — armazena dados staged para que o bloco "Criar negócio" possa usar
+            (payload.context as Record<string, unknown>).staged_lead_data = updateData;
           }
         }
 
@@ -743,6 +732,7 @@ async function executeFlow(
 
         const newLogLeadId = payload.lead_id || null;
         const status = errors.length > 0 ? "error" : "success";
+        // newLogLeadId pode ser o lead recém-criado por um bloco anterior na mesma execução
         await supabase.from("automation_logs").insert({
           automation_id: automationId, company_id, lead_id: newLogLeadId,
           node_id: node.id, status,
@@ -1149,12 +1139,55 @@ async function executeAction(
 
   switch (item.actionId) {
     case "mover_etapa":
-    case "criar_negocio":
     case "duplicar_negocio": {
       const columnId = cfg.etapa as string;
       if (!columnId) return;
       const update: Record<string, unknown> = { column_id: columnId };
       if (cfg.pipeline) update.pipeline_id = cfg.pipeline;
+      await supabase.from("leads").update(update).eq("id", lead_id);
+      break;
+    }
+
+    case "criar_negocio": {
+      const columnId = cfg.etapa as string;
+      const pipelineId = cfg.pipeline as string;
+
+      if (!lead_id) {
+        // Nenhum lead ainda — cria usando dados preparados pelo bloco Campos (se houver)
+        const ctx = payload.context as Record<string, unknown>;
+        const staged = (ctx.staged_lead_data as Record<string, unknown>) ?? {};
+
+        // Usa company.owner_id para que o lead apareça corretamente no CRM
+        const { data: companyRow } = await supabase
+          .from("companies")
+          .select("owner_id")
+          .eq("id", company_id)
+          .single();
+        const ownerIdForNew = (companyRow as Record<string, unknown> | null)?.owner_id as string | null ?? null;
+
+        const insertData: Record<string, unknown> = {
+          ...staged,
+          company_id,
+          owner_id: ownerIdForNew,
+          status: "open",
+        };
+        if (columnId) insertData.column_id = columnId;
+        if (pipelineId) insertData.pipeline_id = pipelineId;
+
+        const { data: created, error: createErr } = await supabase
+          .from("leads")
+          .insert(insertData)
+          .select("id")
+          .single();
+        if (createErr) throw new Error(createErr.message);
+        if (created) payload.lead_id = (created as { id: string }).id;
+        return;
+      }
+
+      // Lead existente — move para a etapa/pipeline configurados
+      if (!columnId) return;
+      const update: Record<string, unknown> = { column_id: columnId };
+      if (pipelineId) update.pipeline_id = pipelineId;
       await supabase.from("leads").update(update).eq("id", lead_id);
       break;
     }
