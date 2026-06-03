@@ -239,6 +239,9 @@ async function handleWebhook(
     webhookBody = (await req.json()) as Record<string, unknown>;
   } catch { /* body vazio ou não-JSON é aceito */ }
 
+  // Persiste o último payload para exibição no canvas (sem await — não bloqueia)
+  supabase.from("automations").update({ last_webhook_payload: webhookBody }).eq("id", automationId).then(() => {});
+
   // Tenta identificar o lead pelo body (lead_id, email ou whatsapp)
   let lead_id: string | null = null;
 

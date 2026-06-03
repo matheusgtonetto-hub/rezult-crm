@@ -135,11 +135,12 @@ type AutomationRecord = {
   active: boolean;
   flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
   created_at: string;
+  last_webhook_payload?: Record<string, unknown> | null;
 };
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null }>({ nodes: [], customFieldGroups: [], trigger: null });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -1433,7 +1434,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
-        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger }}>
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -4736,7 +4737,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
-  const { nodes, customFieldGroups, trigger } = useContext(VarPickerCtx);
+  const { nodes, customFieldGroups, trigger, webhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
@@ -4819,7 +4820,8 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
 
   const confirmApiPath = () => {
     if (!apiModal) return;
-    const val = apiPath.trim() ? `{{${apiModal.sourceName}.${apiPath.trim()}}}` : `{{${apiModal.sourceName}}}`;
+    const prefix = apiModal.sourceName === "webhook" ? "gatilho" : apiModal.sourceName;
+    const val = apiPath.trim() ? `{{${prefix}.${apiPath.trim()}}}` : `{{${prefix}}}`;
     onInsert(val);
     onClose();
   };
@@ -4954,9 +4956,26 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                 )}
               </div>
               {apiModal.sourceName === "webhook" ? (
-                <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
-                  Os campos recebidos pelo webhook estarão disponíveis como <strong>{"{{gatilho.CAMPO}}"}</strong> (ex: <strong>{"{{gatilho.email}}"}</strong>).
-                </div>
+                webhookPayload && Object.keys(webhookPayload).length > 0 ? (
+                  <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 180, overflowY: "auto" }}>
+                    {Object.entries(webhookPayload).map(([key, value]) => (
+                      <button key={key}
+                        onClick={() => { onInsert(`{{gatilho.${key}}}`); onClose(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", textAlign: "left", fontSize: 12 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 90, flexShrink: 0 }}>{key}</span>
+                        <span style={{ color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 11 }}>
+                          {String(value ?? "").substring(0, 60)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
+                    Nenhum dado recebido ainda — envie um webhook para ver os campos disponíveis.
+                  </div>
+                )
               ) : (
                 <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 11, color: apiTestResponses[apiModal.sourceName] ? "#374151" : "#9CA3AF", fontFamily: "monospace", maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
                   {apiTestResponses[apiModal.sourceName]
