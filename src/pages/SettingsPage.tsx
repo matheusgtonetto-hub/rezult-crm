@@ -1416,7 +1416,7 @@ const UPGRADE_PERIOD_DISCOUNT: Record<UpgradePeriod, string | null> = {
 // ── PlanosSection ─────────────────────────────────────────────────────────────
 
 function PlanosSection() {
-  const { company } = useCompany();
+  const { company, whatsappConnections } = useCompany();
   const { user }    = useAuth();
   const { leads, pipelines, teamMembers } = useCRM();
   const { subscription } = useSubscription();
@@ -1428,6 +1428,23 @@ function PlanosSection() {
   const leadsCount     = Object.keys(leads).length;
   const pipelinesCount = pipelines.length;
   const membersCount   = teamMembers.length;
+
+  const [googleConnected, setGoogleConnected]   = useState(false);
+  const [automationsCount, setAutomationsCount] = useState(0);
+  const [integrationsCount, setIntegrationsCount] = useState(0);
+
+  useEffect(() => {
+    import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
+      checkGoogleConnection().then(c => setGoogleConnected(!!c));
+    });
+    if (!user) return;
+    supabase.from("automations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
+      .then(({ count }) => setAutomationsCount(count ?? 0));
+    supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
+      .then(({ count }) => setIntegrationsCount(count ?? 0));
+  }, [user]);
+
+  const connectionsCount = whatsappConnections.length + (googleConnected ? 1 : 0);
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
 
@@ -1539,38 +1556,50 @@ function PlanosSection() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Planos e pagamentos</h1>
-
       {/* Cabeçalho */}
-      <Card className="!p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <Card className="!p-0 overflow-hidden">
+        <div className="flex items-stretch">
+          {/* Lado esquerdo */}
+          <div className="flex items-center gap-3 w-1/2 px-5 py-4">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <CreditCard size={20} className="text-primary" />
             </div>
             <div>
-              <p className="text-base font-semibold text-foreground">Planos e pagamentos</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Controle seus planos, pagamentos e uso do Rezult CRM</p>
+              <p className="font-semibold text-foreground" style={{ fontSize: 20 }}>Planos e pagamentos</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Controle seus planos, pagamentos e uso do Rezult CRM</p>
             </div>
           </div>
+
+          {/* Divisor vertical */}
+          <div className="w-px bg-border self-stretch" />
+
+          {/* Lado direito */}
           {company && (
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden">
-                {company.logo_url
-                  ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
-                  : logoInitial}
+            <div className="flex flex-col justify-center w-1/2 px-5 py-4">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
+                  {company.logo_url
+                    ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+                    : logoInitial}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">{company.name}</p>
+                  {company.email && (
+                    <p className="text-xs text-muted-foreground truncate">{company.email}</p>
+                  )}
+                </div>
               </div>
-              <p className="text-[13px] font-medium text-foreground">{company.name}</p>
             </div>
           )}
         </div>
       </Card>
 
-      {/* Plano atual */}
+      {/* Plano atual + Benefícios + Uso — bloco único */}
       <Card>
+        {/* Plano atual */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Plano atual</p>
             <p className="text-2xl font-bold text-primary">{PLAN_LABELS[planKey] ?? planKey}</p>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -1595,7 +1624,7 @@ function PlanosSection() {
           </div>
         </div>
 
-        <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden">
+        <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
           <div className="flex-1 px-4 py-3">
             <p className="text-[11px] text-muted-foreground mb-1">Renova em</p>
             <p className="text-[13px] font-semibold text-foreground">
@@ -1627,35 +1656,38 @@ function PlanosSection() {
             </div>
           </div>
         </div>
-      </Card>
 
-      {/* Benefícios do plano */}
-      {planDef && (
-        <Card>
-          <SectionTitle title="Benefícios do plano" subtitle={`Recursos incluídos no plano ${planDef.name}`} />
-          <div className="grid grid-cols-2 gap-2">
-            {planDef.features.map(f => (
-              <div key={f} className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Check size={10} className="text-primary" strokeWidth={2.5} />
-                </div>
-                <p className="text-[13px] text-foreground">{f}</p>
+        {/* Benefícios do plano */}
+        {planDef && (
+          <>
+            <div className="border-t border-card-border pt-5 mb-5">
+              <p className="text-sm font-semibold text-foreground mb-4">Benefícios do plano</p>
+              <div className="grid grid-cols-2 gap-2">
+                {planDef.features.map(f => (
+                  <div key={f} className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Check size={10} className="text-primary" strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[13px] text-foreground">{f}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            </div>
+          </>
+        )}
 
-      {/* Cards de uso */}
-      <p className="text-base font-semibold text-foreground mb-3">Uso do plano</p>
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <UsageCard label="Leads"      current={leadsCount}     limit={limits.leads}       icon={<Users size={14} className="text-primary" />} />
-        <UsageCard label="Membros"    current={membersCount}   limit={limits.members}     icon={<Users size={14} className="text-primary" />} />
-        <UsageCard label="Pipelines"  current={pipelinesCount} limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />
-        <UsageCard label="Conexões"   current={0}              limit={limits.connections} icon={<Link2 size={14} className="text-primary" />} />
-        <UsageCard label="Automações" current={0}              limit={limits.automations} icon={<Zap   size={14} className="text-primary" />} />
-        <UsageCard label="Integrações" current={0}             limit={3}                  icon={<Plug  size={14} className="text-primary" />} />
-      </div>
+        {/* Uso do plano */}
+        <div className="border-t border-card-border pt-5">
+          <div className="grid grid-cols-3 gap-3">
+            <UsageCard label="Leads"       current={leadsCount}        limit={limits.leads}       icon={<Users size={14} className="text-primary" />} />
+            <UsageCard label="Membros"     current={membersCount}      limit={limits.members}     icon={<Users size={14} className="text-primary" />} />
+            <UsageCard label="Pipelines"   current={pipelinesCount}    limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />
+            <UsageCard label="Conexões"    current={connectionsCount}  limit={limits.connections} icon={<Link2 size={14} className="text-primary" />} />
+            <UsageCard label="Automações"  current={automationsCount}  limit={limits.automations} icon={<Zap   size={14} className="text-primary" />} />
+            <UsageCard label="Integrações" current={integrationsCount} limit={3}                  icon={<Plug  size={14} className="text-primary" />} />
+          </div>
+        </div>
+      </Card>
 
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
