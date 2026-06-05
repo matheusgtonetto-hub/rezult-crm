@@ -1560,14 +1560,14 @@ function PlanosSection() {
       <Card className="!p-0 overflow-hidden">
         <div className="flex items-stretch">
           {/* Lado esquerdo */}
-          <div className="flex items-center gap-3 w-1/2 px-5 py-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <CreditCard size={20} className="text-primary" />
-            </div>
-            <div>
+          <div className="flex flex-col justify-center w-1/2 px-5 py-4">
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <CreditCard size={15} className="text-primary" />
+              </div>
               <p className="font-semibold text-foreground" style={{ fontSize: 20 }}>Planos e pagamentos</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Controle seus planos, pagamentos e uso do Rezult CRM</p>
             </div>
+            <p className="text-sm text-muted-foreground mt-1">Controle seus planos, pagamentos e uso do Rezult CRM</p>
           </div>
 
           {/* Divisor vertical */}
