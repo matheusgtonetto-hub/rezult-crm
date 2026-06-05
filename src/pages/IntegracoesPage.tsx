@@ -257,7 +257,7 @@ export default function IntegracoesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Integrações</h1>
+          <h1 className="text-xl font-bold text-foreground">Integrações</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Automações via webhooks</p>
         </div>
         <button

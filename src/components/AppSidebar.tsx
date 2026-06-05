@@ -5,7 +5,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  ContactRound,
+  UserRound,
   LayoutDashboard,
   Cog,
   LogOut,
@@ -129,7 +129,7 @@ export function AppSidebar() {
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
-      ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
+      ? [{ to: "/leads", label: "Leads", icon: UserRound }] : []),
     { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),

@@ -226,7 +226,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Meu perfil</h1>
+      <h1 className="text-xl font-bold text-foreground mb-6">Meu perfil</h1>
 
       {/* Cabeçalho do perfil */}
       <Card>
@@ -562,7 +562,7 @@ function EmpresaSection() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Empresa</h1>
+      <h1 className="text-xl font-bold text-foreground mb-6">Empresa</h1>
 
       {/* Cabeçalho da empresa */}
       <Card className="!p-4">
@@ -1053,7 +1053,7 @@ function EquipeSection() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Equipe</h1>
+          <h1 className="text-xl font-bold text-foreground">Equipe</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
         </div>
         {isAdmin && (
@@ -2683,7 +2683,7 @@ function HorariosSection() {
   );
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Horários de trabalho</h1>
+      <h1 className="text-xl font-bold text-foreground mb-6">Horários de trabalho</h1>
       <Card>
         <div className="space-y-3">
           {schedule.map((s, i) => (
@@ -3067,7 +3067,7 @@ function ConexoesSection() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Conexões</h1>
+          <h1 className="text-xl font-bold text-foreground">Conexões</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
@@ -3811,7 +3811,7 @@ function ApiSection() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Chaves de API</h1>
+      <h1 className="text-xl font-bold text-foreground mb-6">Chaves de API</h1>
 
       {/* Webhook endpoint */}
       <Card>
@@ -4214,7 +4214,7 @@ function GoogleSheetsGuide() {
 function McpSection() {
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Servidor MCP</h1>
+      <h1 className="text-xl font-bold text-foreground mb-6">Servidor MCP</h1>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
         <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
@@ -4338,7 +4338,7 @@ function ArmazenamentoSection() {
     <>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Armazenamento</h1>
+          <h1 className="text-xl font-bold text-foreground">Armazenamento</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
         </div>
         <Button variant="outline" className="text-sm border-card-border shrink-0 ml-4" onClick={() => navigate("/configuracoes/planos")}>
@@ -4443,7 +4443,7 @@ function SectionHeader({ title, subtitle, onAdd, onClick }: { title: string; sub
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-xl font-bold text-foreground">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
       <Button onClick={onClick} className="bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
