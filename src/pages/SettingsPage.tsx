@@ -3128,9 +3128,9 @@ function ConexoesSection() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-xs font-medium text-green-700">Conectado</span>
+                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
                 </div>
-                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-[#4285F4]">
+                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-[#4285F4]" style={{ fontSize: 11.5 }}>
                   calendar.google.com <ExternalLink size={11} />
                 </a>
               </div>
@@ -3144,9 +3144,9 @@ function ConexoesSection() {
                 </div>
               </div>
               {(profile?.full_name) && (
-                <p className="font-bold text-foreground mb-1" style={{ fontSize: 15 }}>{profile.full_name}</p>
+                <p className="font-bold text-foreground mb-1" style={{ fontSize: 14 }}>{profile.full_name}</p>
               )}
-              <p className="text-xs text-muted-foreground/80 mb-3" style={{ lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
                   className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" style={{ gap: "5.2px" }}
