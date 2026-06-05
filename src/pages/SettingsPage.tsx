@@ -1328,9 +1328,9 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
         </div>
-        <p className="text-[13px] font-medium text-foreground">{label}</p>
+        <p className="text-[12px] font-semibold text-foreground">{label}</p>
       </div>
-      <p className="text-xl font-bold text-foreground">
+      <p className="text-sm font-bold text-foreground">
         {current.toLocaleString("pt-BR")}
         <span className="text-sm font-normal text-muted-foreground ml-1">/ {displayLimit}</span>
       </p>
@@ -1565,9 +1565,9 @@ function PlanosSection() {
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
               </div>
-              <p className="font-semibold text-foreground" style={{ fontSize: 19 }}>Planos e pagamentos</p>
+              <p className="font-bold text-foreground" style={{ fontSize: 19 }}>Planos e pagamentos</p>
             </div>
-            <p className="text-muted-foreground mt-1" style={{ fontSize: 13 }}>Controle seus planos, pagamentos e uso do Rezult CRM</p>
+            <p className="text-muted-foreground mt-1 font-medium" style={{ fontSize: 13 }}>Controle seus planos, pagamentos e uso do Rezult CRM</p>
           </div>
 
           {/* Divisor vertical */}
@@ -1576,7 +1576,7 @@ function PlanosSection() {
           {/* Lado direito */}
           {company && (
             <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
+              <p className="text-[10px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
                   {company.logo_url
@@ -1604,6 +1604,13 @@ function PlanosSection() {
           </div>
           <div className="flex gap-2 shrink-0">
             <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              Upgrade
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               className="border-card-border text-muted-foreground"
@@ -1613,13 +1620,6 @@ function PlanosSection() {
               {portalLoading
                 ? <><Loader2 size={13} className="animate-spin mr-1.5" />Abrindo...</>
                 : "Gerenciar plano"}
-            </Button>
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setUpgradeOpen(true)}
-            >
-              Upgrade
             </Button>
           </div>
         </div>
@@ -1662,13 +1662,11 @@ function PlanosSection() {
           <>
             <div className="border-t border-card-border pt-5 mb-5">
               <p className="text-sm font-semibold text-foreground mb-4">Benefícios do plano</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col" style={{ gap: 5 }}>
                 {planDef.features.map(f => (
                   <div key={f} className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Check size={10} className="text-primary" strokeWidth={2.5} />
-                    </div>
-                    <p className="text-[13px] text-foreground">{f}</p>
+                    <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
+                    <p className="text-[12px] text-foreground">{f}</p>
                   </div>
                 ))}
               </div>
