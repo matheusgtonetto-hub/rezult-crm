@@ -1625,21 +1625,21 @@ function PlanosSection() {
         </div>
 
         <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
-          <div className="flex-1 px-4 py-3">
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[11px] text-muted-foreground mb-1">Renova em</p>
             <p className="text-[13px] font-semibold text-foreground">
               {company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[11px] text-muted-foreground mb-1">Valor</p>
             <p className="text-[13px] font-semibold text-foreground">
               {planDef?.pricing.mensal ?? (planKey === "free" ? "Grátis" : "—")}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[11px] text-muted-foreground mb-1">Frequência</p>
             <p className="text-[13px] font-semibold text-foreground">
               {subscription?.billing_period === "semiannual" ? "Semestral"
@@ -1648,7 +1648,7 @@ function PlanosSection() {
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[11px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-muted-foreground shrink-0" />
