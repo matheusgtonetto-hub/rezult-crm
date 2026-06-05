@@ -24,7 +24,7 @@ import {
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
-  Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays, Loader2,
+  Search, ExternalLink, Settings, Settings2, KanbanSquare, Rocket, CalendarDays, Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -3146,14 +3146,12 @@ function ConexoesSection() {
               {(profile?.full_name) && (
                 <p className="font-bold text-foreground mb-1" style={{ fontSize: 15 }}>{profile.full_name}</p>
               )}
-              <p className="text-xs text-muted-foreground mb-3" style={{ lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
+              <p className="text-xs text-muted-foreground/80 mb-3" style={{ lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
-                  onClick={handleDisconnectGoogle}
-                  disabled={googleDisconnecting}
-                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" style={{ gap: "5.2px" }}
                 >
-                  <Settings2 size={14} /> Gerenciar
+                  <Settings size={18} /> Gerenciar
                 </button>
                 <Switch
                   checked={!googleDisconnecting}
