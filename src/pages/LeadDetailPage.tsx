@@ -502,6 +502,7 @@ export default function LeadDetailPage() {
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
+  const [deletingActivityGcalId, setDeletingActivityGcalId] = useState<string | undefined>();
 
   const openActivityDialog = () => {
     setEditingActivityId(null);
@@ -1308,13 +1309,17 @@ export default function LeadDetailPage() {
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <EditableField
-                        label="Próximo follow-up"
-                        value={lead.nextFollowUp}
-                        type="date"
-                        onSave={v => updateField("nextFollowUp", v)}
-                        display={v => new Date(v).toLocaleDateString("pt-BR")}
-                      />
+                      <div>
+                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Próxima atividade</label>
+                        <p style={{ fontSize: 13, color: "#111111" }}>
+                          {(() => {
+                            const next = (lead.activities ?? [])
+                              .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
+                              .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+                            return next ? new Date(next.scheduledAt!).toLocaleDateString("pt-BR") : "—";
+                          })()}
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -1456,13 +1461,6 @@ export default function LeadDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
-                          {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-
                       <UtmSection lead={lead} updateField={updateField} />
 
                       <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
@@ -1965,7 +1963,7 @@ export default function LeadDetailPage() {
                               <Pencil size={13} className="text-muted-foreground" />
                             </button>
                             <button
-                              onClick={() => setDeletingActivityId(item.id)}
+                              onClick={() => { setDeletingActivityId(item.id); setDeletingActivityGcalId(item.gcalEventId); }}
                               className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
                               style={{ width: 24, height: 24 }}
                               title="Excluir atividade"
@@ -2291,7 +2289,7 @@ export default function LeadDetailPage() {
                               <Pencil size={13} className="text-muted-foreground" />
                             </button>
                             <button
-                              onClick={() => setDeletingActivityId(act.id)}
+                              onClick={() => { setDeletingActivityId(act.id); setDeletingActivityGcalId(act.gcalEventId); }}
                               className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
                               style={{ width: 24, height: 24 }}
                               title="Excluir atividade"
@@ -2822,8 +2820,9 @@ export default function LeadDetailPage() {
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={() => {
               if (deletingActivityId) {
-                deleteActivity(lead.id, deletingActivityId);
+                deleteActivity(lead.id, deletingActivityId, deletingActivityGcalId);
                 setDeletingActivityId(null);
+                setDeletingActivityGcalId(undefined);
                 toast.success("Atividade excluída.");
               }
             }}

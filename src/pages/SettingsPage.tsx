@@ -2748,7 +2748,7 @@ const CONN_CATEGORIES = [
     label: "Agenda",
     description: "Crie conexões com plataformas de agenda",
     providers: [
-      { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: false,
+      { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: true,
         iconBg: "#4285F4", Icon: Calendar },
     ],
   },
@@ -2765,6 +2765,7 @@ const CONN_CATEGORIES = [
 
 function ConexoesSection() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { company, whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
   // Google OAuth state
@@ -3044,15 +3045,8 @@ function ConexoesSection() {
         </Button>
       </div>
 
-      {/* ── WhatsApp — instâncias conectadas ─────────────────────────── */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">WhatsApp</p>
-          <button onClick={openNewDialog} className="flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80">
-            <Plus size={13} /> Adicionar instância
-          </button>
-        </div>
-
+      {/* ── Conexões ativas ──────────────────────────────────────────── */}
+      {googleLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
             <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
@@ -3083,29 +3077,53 @@ function ConexoesSection() {
               </div>
             </div>
           ))}
-
-          {/* Card "Adicionar nova instância" */}
-          <button
-            onClick={openNewDialog}
-            className="bg-white border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/10 transition-all min-h-[140px] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Plus size={18} className="text-primary" />
-            </div>
-            <p className="text-sm font-medium text-primary">Adicionar WhatsApp</p>
-          </button>
+          <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
+            <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
+          </div>
         </div>
-      </div>
-
-      {/* ── Google Calendar ──────────────────────────────────────────── */}
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-foreground mb-3">Google Calendar</p>
+      ) : (whatsappConnections.length === 0 && !googleConn) ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+            <Link2 size={22} className="text-muted-foreground" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">Nenhuma conexão ativa</p>
+          <p className="text-xs text-muted-foreground mb-5">Conecte um serviço para começar a sincronizar dados com o CRM.</p>
+          <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
+            Criar conexão
+          </Button>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {googleLoading ? (
-            <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
-              <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
+          {whatsappConnections.map(conn => (
+            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
+                    {conn.connected ? "Conectado" : "Desconectado"}
+                  </span>
+                </div>
+                <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  z-api.io <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center shrink-0">
+                  <Webhook size={18} color="hsl(var(--background))" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{conn.phone || "Z-API"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
+                <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                  <Settings2 size={14} /> Gerenciar
+                </button>
+              </div>
             </div>
-          ) : googleConn ? (
+          ))}
+          {googleConn && (
             <div className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
@@ -3125,59 +3143,28 @@ function ConexoesSection() {
                   <p className="text-xs text-muted-foreground truncate">{googleConn.email ?? "Agenda"}</p>
                 </div>
               </div>
+              {(profile?.full_name) && (
+                <p className="font-bold text-foreground mb-1" style={{ fontSize: 15 }}>{profile.full_name}</p>
+              )}
+              <p className="text-xs text-muted-foreground mb-3" style={{ lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
                   onClick={handleDisconnectGoogle}
                   disabled={googleDisconnecting}
-                  className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
-                  <X size={14} /> {googleDisconnecting ? "Desconectando..." : "Desconectar"}
+                  <Settings2 size={14} /> Gerenciar
                 </button>
+                <Switch
+                  checked={!googleDisconnecting}
+                  onCheckedChange={(checked) => { if (!checked) handleDisconnectGoogle(); }}
+                  disabled={googleDisconnecting}
+                />
               </div>
             </div>
-          ) : (
-            <button
-              onClick={handleConnectGoogle}
-              className="bg-white border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-[#4285F4] hover:bg-blue-50/30 transition-all min-h-[140px] cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#4285F4" }}>
-                <Calendar size={18} color="#FFF" />
-              </div>
-              <p className="text-sm font-medium text-[#4285F4]">Conectar com Google</p>
-              <p className="text-xs text-muted-foreground text-center">Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.</p>
-            </button>
           )}
         </div>
-      </div>
-
-      {/* ── Outras integrações (em breve) ────────────────────────────── */}
-      <div>
-        <p className="text-sm font-semibold text-foreground mb-3">Outras conexões</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-
-          {/* Em breve */}
-          {COMING_SOON.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col opacity-60">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground">Em breve</span>
-                <a href={`https://${conn.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {conn.domain} <ExternalLink size={11} />
-                </a>
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.iconBg }}>
-                  <conn.Icon size={18} color="#FFF" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground">{conn.category}</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{conn.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* ── Gerenciar conexão (Dialog separado) ──────────────────────────── */}
       <Dialog open={open && step === "done"} onOpenChange={v => { if (!v) closeDialog(); }}>
@@ -3380,6 +3367,7 @@ function ConexoesSection() {
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
                         if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
+                        if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,

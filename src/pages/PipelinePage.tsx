@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -875,14 +875,19 @@ export default function PipelinePage() {
                                               </div>
                                             )}
 
-                                            {/* Follow-up + WhatsApp */}
+                                            {/* Próxima atividade + WhatsApp */}
                                             <div className="flex items-center justify-between mt-0.5">
-                                              {lead.nextFollowUp ? (
-                                                <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                                                  <Calendar size={11} />
-                                                  Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
-                                                </div>
-                                              ) : <div />}
+                                              {(() => {
+                                                const next = (lead.activities ?? [])
+                                                  .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
+                                                  .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+                                                return next ? (
+                                                  <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                                    <CalendarClock size={11} />
+                                                    {new Date(next.scheduledAt!).toLocaleDateString("pt-BR")}
+                                                  </div>
+                                                ) : <div />;
+                                              })()}
                                               <Popover
                                                 open={wpPopoverLeadId === leadId}
                                                 onOpenChange={open => setWpPopoverLeadId(open ? leadId : null)}

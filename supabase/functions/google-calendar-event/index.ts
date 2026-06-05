@@ -26,10 +26,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
-    let body: { title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean };
+    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false } = body;
+    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
@@ -87,7 +87,49 @@ serve(async (req) => {
       }
     }
 
-    // Cria evento no Google Calendar (com Meet apenas se solicitado)
+    // Atualiza evento existente (PATCH) quando event_id fornecido
+    if (event_id) {
+      const patch = {
+        summary: title,
+        description: description ?? "",
+        start: { dateTime: start_datetime, timeZone: "America/Sao_Paulo" },
+        end:   { dateTime: end_datetime,   timeZone: "America/Sao_Paulo" },
+        ...(attendees.length > 0 && {
+          attendees: attendees.map(email => ({ email })),
+        }),
+      };
+
+      const patchRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization:  `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(patch),
+        },
+      );
+
+      if (!patchRes.ok) {
+        const detail = await patchRes.text();
+        console.error("Google Calendar PATCH error:", detail);
+        return json({ error: "calendar_event_failed", detail }, 502);
+      }
+
+      const patchData = await patchRes.json() as {
+        id: string;
+        htmlLink: string;
+        conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+      };
+
+      const meetLink = patchData.conferenceData?.entryPoints
+        ?.find(ep => ep.entryPointType === "video")?.uri ?? null;
+
+      return json({ success: true, event_id: patchData.id, event_link: patchData.htmlLink, meet_link: meetLink });
+    }
+
+    // Cria evento novo (POST)
     const event = {
       summary: title,
       description: description ?? "",
@@ -127,11 +169,20 @@ serve(async (req) => {
     const calData = await calRes.json() as {
       id: string;
       htmlLink: string;
-      conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+      hangoutLink?: string;
+      conferenceData?: {
+        conferenceId?: string;
+        entryPoints?: Array<{ entryPointType?: string; uri?: string }>;
+        createRequest?: { status?: { statusCode?: string } };
+      };
     };
 
-    const meetLink = calData.conferenceData?.entryPoints
-      ?.find(ep => ep.entryPointType === "video")?.uri ?? null;
+    console.log("[calendar] create_meet:", create_meet, "conferenceData:", JSON.stringify(calData.conferenceData), "hangoutLink:", calData.hangoutLink);
+
+    const meetLink =
+      calData.conferenceData?.entryPoints?.find(ep => ep.entryPointType === "video")?.uri
+      ?? calData.hangoutLink
+      ?? null;
 
     return json({ success: true, event_id: calData.id, event_link: calData.htmlLink, meet_link: meetLink });
 

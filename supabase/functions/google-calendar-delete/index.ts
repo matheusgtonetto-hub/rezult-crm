@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     const delRes = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(event_id)}`,
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(event_id)}?sendUpdates=none`,
       { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } },
     );
 

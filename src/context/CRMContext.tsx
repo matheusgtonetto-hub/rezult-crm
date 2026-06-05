@@ -56,7 +56,7 @@ interface CRMContextType {
   uncompleteActivity: (leadId: string, activityId: string) => void;
   markNoShow: (leadId: string, activityId: string) => void;
   unmarkNoShow: (leadId: string, activityId: string) => void;
-  deleteActivity: (leadId: string, activityId: string, gcalEventId?: string) => void;
+  deleteActivity: (leadId: string, activityId: string, gcalEventId?: string) => Promise<void>;
   pinActivity: (leadId: string, activityId: string, pinned: boolean) => void;
 
   crmTags: Tag[];
@@ -1359,7 +1359,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const deleteActivity = useCallback((leadId: string, activityId: string, gcalEventId?: string) => {
+  const deleteActivity = useCallback(async (leadId: string, activityId: string, gcalEventId?: string) => {
     setLeads(prev => ({
       ...prev,
       [leadId]: {
@@ -1371,8 +1371,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       supabase.from("activities").delete().eq("id", activityId)
         .then(({ error }) => { if (error) console.error("deleteActivity error:", error.message); });
       if (gcalEventId) {
-        supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId } })
-          .catch(() => {});
+        const { error } = await supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId } });
+        if (error) {
+          toast.error("Não foi possível excluir o evento no Google Calendar. Verifique a conexão em Configurações.");
+        }
       }
     }
   }, [user]);
