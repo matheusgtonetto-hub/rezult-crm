@@ -1494,6 +1494,18 @@ async function executeAction(
       break;
     }
 
+    case "enviar_notificacao": {
+      const mensagem = cfg.mensagem as string;
+      if (!mensagem) return;
+      await supabase.from("notifications").insert({
+        company_id,
+        lead_id,
+        message: mensagem,
+        read: false,
+      });
+      break;
+    }
+
     case "iniciar_automacao": {
       const automacaoId = cfg.automacao_id as string;
       if (!automacaoId) return;

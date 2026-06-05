@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -22,6 +22,7 @@ import {
   CalendarDays,
   ChevronRight,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -72,6 +73,7 @@ const HOVER_BG = "rgba(255,255,255,0.1)";
 const ACTIVE_BG = "rgba(255,255,255,0.15)";
 
 type SidebarNotif = { id: string; title: string; desc: string; to: string };
+type DbNotif = { id: string; message: string; lead_id: string | null; read: boolean; created_at: string };
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -85,12 +87,30 @@ export function AppSidebar() {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [dbNotifs, setDbNotifs] = useState<DbNotif[]>([]);
 
   useEffect(() => {
     import("@/lib/googleOAuth")
       .then(({ checkGoogleConnection }) => checkGoogleConnection())
       .then(conn => setGoogleConnected(!!conn))
       .catch(() => setGoogleConnected(true));
+  }, []);
+
+  const fetchDbNotifs = useCallback(async () => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("id, message, lead_id, read, created_at")
+      .eq("read", false)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setDbNotifs(data as DbNotif[]);
+  }, []);
+
+  useEffect(() => { fetchDbNotifs(); }, [fetchDbNotifs]);
+
+  const markDbNotifRead = useCallback(async (id: string) => {
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    setDbNotifs(prev => prev.filter(n => n.id !== id));
   }, []);
 
   const notifications: SidebarNotif[] = [];
@@ -102,7 +122,7 @@ export function AppSidebar() {
       to: "/configuracoes/conexoes",
     });
   }
-  const notifCount = notifications.length;
+  const notifCount = notifications.length + dbNotifs.length;
 
   const navItems: NavItem[] = [
     { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
@@ -406,6 +426,27 @@ export function AppSidebar() {
                   </div>
                   <ChevronRight size={14} className="text-muted-foreground mt-1 shrink-0" />
                 </button>
+              ))}
+              {dbNotifs.map(n => (
+                <div
+                  key={n.id}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
+                >
+                  <div className="mt-0.5 w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                    <Bell size={14} className="text-orange-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-snug">Automação</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
+                  </div>
+                  <button
+                    onClick={() => markDbNotifRead(n.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
+                    title="Marcar como lida"
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
             </PopoverContent>
           </Popover>
