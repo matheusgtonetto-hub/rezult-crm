@@ -192,7 +192,7 @@ leads (INSERT/UPDATE)
 `lead_criado`, `neg_criado`, `neg_movido`, `neg_ganho`, `neg_perdido`, `neg_restaurado`, `atend_atribuido`, `atend_retirado`, `tag_adicionada`, `tag_removida`
 
 ### Ações implementadas (executam no banco via service role)
-`mover_etapa`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `iniciar_automacao`
+`mover_etapa`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `enviar_notificacao`, `iniciar_automacao`
 
 ---
 
