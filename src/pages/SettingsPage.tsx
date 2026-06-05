@@ -1560,22 +1560,22 @@ function PlanosSection() {
       <Card className="!p-0 overflow-hidden">
         <div className="flex items-stretch">
           {/* Lado esquerdo */}
-          <div className="flex flex-col justify-center w-1/2 px-5 py-4">
+          <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
               </div>
-              <p className="font-semibold text-foreground" style={{ fontSize: 20 }}>Planos e pagamentos</p>
+              <p className="font-semibold text-foreground" style={{ fontSize: 19 }}>Planos e pagamentos</p>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Controle seus planos, pagamentos e uso do Rezult CRM</p>
+            <p className="text-muted-foreground mt-1" style={{ fontSize: 13 }}>Controle seus planos, pagamentos e uso do Rezult CRM</p>
           </div>
 
           {/* Divisor vertical */}
-          <div className="w-px bg-border self-stretch" />
+          <div className="w-px bg-border self-stretch my-4" />
 
           {/* Lado direito */}
           {company && (
-            <div className="flex flex-col justify-center w-1/2 px-5 py-4">
+            <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
