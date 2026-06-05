@@ -2228,21 +2228,30 @@ export default function AutomacoesPage() {
                       </div>
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {cat.triggers.map(t => (
-                        <button
-                          key={t.id}
-                          onClick={() => handleSelectTrigger(cat, t)}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                        >
-                          <ArrowRight size={14} color="hsl(var(--primary))" style={{ marginTop: 1, flexShrink: 0 }} />
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{t.label}</div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
-                          </div>
-                        </button>
-                      ))}
+                      {cat.triggers.map(t => {
+                        const isComingSoon = t.id === "mcp_tool";
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => !isComingSoon && handleSelectTrigger(cat, t)}
+                            disabled={isComingSoon}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: isComingSoon ? "#F9FAFB" : "#FFFFFF", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", transition: "all 0.1s", opacity: isComingSoon ? 0.7 : 1 }}
+                            onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; } }}
+                            onMouseLeave={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; } }}
+                          >
+                            <ArrowRight size={14} color={isComingSoon ? "#9CA3AF" : "hsl(var(--primary))"} style={{ marginTop: 1, flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: isComingSoon ? "#6B7280" : "#111111" }}>{t.label}</div>
+                                {isComingSoon && (
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 );
@@ -3036,56 +3045,21 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         );
       }
 
-      case "mcp_tool": {
-        const mcpEndpoint = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-runner/mcp-trigger`;
-        const toolNameVal = (cfg.toolName as string) ?? "";
-        const examplePayload = JSON.stringify({
-          tool_name: toolNameVal || "nome_da_tool",
-          company_id: companyId ?? "SEU_COMPANY_ID",
-          lead_id: "lead_id_opcional",
-          arguments: {},
-        }, null, 2);
+      case "mcp_tool":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Nome da tool</div>
-              <input type="text" value={toolNameVal} onChange={e => updateConfig("toolName", e.target.value)} placeholder="ex: adicionar_lead" style={tcpInputStyle} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px 16px", textAlign: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 20 }}>🔌</span>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Descrição da tool</div>
-              <input type="text" value={(cfg.toolDesc as string) ?? ""} onChange={e => updateConfig("toolDesc", e.target.value)} placeholder="Descreva o que esta tool faz" style={tcpInputStyle} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Endpoint de chamada</div>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
-                  {mcpEndpoint}
-                </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(mcpEndpoint).then(() => toast.success("URL copiada"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                >
-                  <Copy size={13} color="#6B7280" />
-                </button>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Exemplo de chamada (POST)</div>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <pre style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 10, color: "#374151", lineHeight: 1.5, margin: 0, overflowX: "auto" }}>
-                  {examplePayload}
-                </pre>
-                <button
-                  onClick={() => navigator.clipboard.writeText(examplePayload).then(() => toast.success("Payload copiado"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                >
-                  <Copy size={13} color="#6B7280" />
-                </button>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#111111", marginBottom: 4 }}>MCP Server Tool</div>
+              <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>
+                Este gatilho permite que agentes de IA chamem automações via protocolo MCP.<br />
+                <span style={{ color: "#7C3AED", fontWeight: 600 }}>Disponível em breve.</span>
               </div>
             </div>
           </div>
         );
-      }
 
       case "agendado":
         return (
