@@ -136,6 +136,12 @@ Deno.serve(async (req: Request) => {
     return await handleWebhook(supabase, req, webhookMatch[1]);
   }
 
+  // ── MCP Tool trigger: POST /automation-runner/mcp-trigger ─────────────────
+  const mcpTriggerMatch = url.pathname.match(/\/mcp-trigger(?:\/)?$/i);
+  if (mcpTriggerMatch) {
+    return await handleMcpTrigger(supabase, req);
+  }
+
   // ── Modo normal: requer autenticação ─────────────────────────────────────
   const secret = Deno.env.get("AUTOMATION_SECRET");
   const auth = req.headers.get("Authorization");
@@ -285,6 +291,85 @@ async function handleWebhook(
   }
 }
 
+// ─── MCP Tool trigger handler ─────────────────────────────────────────────────
+
+async function handleMcpTrigger(supabase: SupabaseClient, req: Request): Promise<Response> {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch { /* empty body */ }
+
+  const { tool_name, company_id, lead_id, arguments: toolArgs } = body as {
+    tool_name?: string;
+    company_id?: string;
+    lead_id?: string;
+    arguments?: Record<string, unknown>;
+  };
+
+  if (!tool_name || !company_id) {
+    return Response.json({ error: "tool_name e company_id são obrigatórios" }, { status: 400, headers: corsHeaders });
+  }
+
+  const { data: automations, error: autoErr } = await supabase
+    .from("automations")
+    .select("id, name, flow")
+    .eq("company_id", company_id)
+    .eq("active", true);
+
+  if (autoErr) {
+    return Response.json({ error: autoErr.message }, { status: 500, headers: corsHeaders });
+  }
+
+  const matching = (automations as AutomationRecord[] ?? []).filter((auto) => {
+    const trigger = auto.flow?.trigger;
+    if (!trigger || trigger.triggerId !== "mcp_tool") return false;
+    const cfgToolName = (trigger.configData?.toolName as string) ?? "";
+    return !cfgToolName || cfgToolName === tool_name;
+  });
+
+  if (!matching.length) {
+    return Response.json({ error: `Nenhuma automação ativa encontrada para tool: ${tool_name}` }, { status: 404, headers: corsHeaders });
+  }
+
+  const resolvedLeadId = lead_id ?? "";
+  const payload: TriggerPayload = {
+    trigger_type: "mcp_tool",
+    company_id,
+    lead_id: resolvedLeadId,
+    context: {
+      changed_fields: { tool_name, ...(toolArgs ?? {}) },
+    },
+  };
+
+  const results: { id: string; name: string; status: string; error?: string }[] = [];
+  for (const auto of matching) {
+    try {
+      await executeFlow(supabase, auto.flow, payload, auto.id);
+      results.push({ id: auto.id, name: auto.name, status: "ok" });
+    } catch (err) {
+      console.error(`MCP tool automation ${auto.id} failed:`, err);
+      results.push({ id: auto.id, name: auto.name, status: "error", error: String(err) });
+    }
+  }
+
+  console.log(`[mcp_tool] tool=${tool_name} company=${company_id} matched=${results.length}`);
+  return Response.json({ ok: true, tool_name, matched: results.length, results }, { headers: corsHeaders });
+}
+
 // ─── Resume handler ───────────────────────────────────────────────────────────
 
 async function handleResume(supabase: SupabaseClient): Promise<Response> {
@@ -422,6 +507,15 @@ async function matchesTriggerConfig(
       if ((cfg.mode as string) !== "specific") return true;
       return String(newValue ?? "") === String(cfg.value ?? "");
     }
+    case "outra_automacao": {
+      const requiredOrigin = cfg.automacao_id as string;
+      if (!requiredOrigin) return true;
+      return payload.context.parent_automation_id === requiredOrigin;
+    }
+
+    case "mcp_tool":
+      return true;
+
     default:
       return true;
   }
@@ -495,7 +589,7 @@ async function executeFlow(
 
       for (const item of (node.actionItems ?? [])) {
         try {
-          await executeAction(supabase, item, payload);
+          await executeAction(supabase, item, payload, automationId);
           successCount++;
         } catch (err) {
           errorMessages.push(String(err));
@@ -1125,6 +1219,7 @@ async function executeAction(
   supabase: SupabaseClient,
   item: ActionItem,
   payload: TriggerPayload,
+  currentAutomationId?: string,
 ) {
   const { lead_id, company_id } = payload;
 
@@ -1410,8 +1505,16 @@ async function executeAction(
         .eq("active", true)
         .single();
       if (targetAuto) {
+        const subPayload: TriggerPayload = {
+          ...payload,
+          trigger_type: "outra_automacao",
+          context: {
+            ...payload.context,
+            parent_automation_id: currentAutomationId,
+          },
+        };
         console.log(`Iniciando sub-automação: ${(targetAuto as AutomationRecord).name}`);
-        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, payload, (targetAuto as AutomationRecord).id);
+        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, subPayload, (targetAuto as AutomationRecord).id);
       }
       break;
     }

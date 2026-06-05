@@ -1443,6 +1443,8 @@ export default function AutomacoesPage() {
             <TriggerConfigPanel
               trigger={trigger}
               automationId={selectedId ?? undefined}
+              companyId={company?.id}
+              automations={automations}
               onClose={() => setTriggerPanel(false)}
               onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
               updateConfig={updateTriggerConfigData}
@@ -2506,9 +2508,11 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, automationId, companyId, automations, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
   trigger: TriggerConfig;
   automationId?: string;
+  companyId?: string;
+  automations?: AutomationRecord[];
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
@@ -3004,32 +3008,84 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
         );
       }
 
-      case "outra_automacao":
-        return <SourceBadge />;
+      case "outra_automacao": {
+        const outrasAutos = (automations ?? []).filter(a => a.id !== automationId);
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, marginBottom: 4 }}>Como funciona</div>
+              <div style={{ fontSize: 11, color: "#0C4A6E", lineHeight: 1.5 }}>
+                Esta automação é iniciada quando outra automação usa a ação <strong>"Iniciar Automação"</strong> apontando para ela.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Restringir à automação (opcional)</div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Deixe em branco para aceitar de qualquer automação.</div>
+              <select
+                value={(cfg.automacao_id as string) ?? ""}
+                onChange={e => updateConfig("automacao_id", e.target.value)}
+                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "6px 8px", fontSize: 12, background: "#FFFFFF", color: "#374151" }}
+              >
+                <option value="">Qualquer automação</option>
+                {outrasAutos.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+      }
 
-      case "mcp_tool":
+      case "mcp_tool": {
+        const mcpEndpoint = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-runner/mcp-trigger`;
+        const toolNameVal = (cfg.toolName as string) ?? "";
+        const examplePayload = JSON.stringify({
+          tool_name: toolNameVal || "nome_da_tool",
+          company_id: companyId ?? "SEU_COMPANY_ID",
+          lead_id: "lead_id_opcional",
+          arguments: {},
+        }, null, 2);
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Nome da tool</div>
-              <input type="text" value={(cfg.toolName as string) ?? ""} onChange={e => updateConfig("toolName", e.target.value)} style={tcpInputStyle} />
+              <input type="text" value={toolNameVal} onChange={e => updateConfig("toolName", e.target.value)} placeholder="ex: adicionar_lead" style={tcpInputStyle} />
             </div>
             <div>
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Descrição da tool</div>
-              <input type="text" value={(cfg.toolDesc as string) ?? ""} onChange={e => updateConfig("toolDesc", e.target.value)} style={tcpInputStyle} />
+              <input type="text" value={(cfg.toolDesc as string) ?? ""} onChange={e => updateConfig("toolDesc", e.target.value)} placeholder="Descreva o que esta tool faz" style={tcpInputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Parâmetro de sessão</div>
-              <select value={(cfg.sessionParam as string) ?? "none"} onChange={e => updateConfig("sessionParam", e.target.value)} style={tcpSelectStyle}>
-                <option value="none">Nenhum</option>
-              </select>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Endpoint de chamada</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                  {mcpEndpoint}
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(mcpEndpoint).then(() => toast.success("URL copiada"))}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  <Copy size={13} color="#6B7280" />
+                </button>
+              </div>
             </div>
-            <SourceBadge />
-            <button style={{ background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              Adicionar parâmetro
-            </button>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Exemplo de chamada (POST)</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <pre style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 10, color: "#374151", lineHeight: 1.5, margin: 0, overflowX: "auto" }}>
+                  {examplePayload}
+                </pre>
+                <button
+                  onClick={() => navigator.clipboard.writeText(examplePayload).then(() => toast.success("Payload copiado"))}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >
+                  <Copy size={13} color="#6B7280" />
+                </button>
+              </div>
+            </div>
           </div>
         );
+      }
 
       case "agendado":
         return (
