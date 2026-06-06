@@ -9,8 +9,8 @@ import {
   LayoutDashboard,
   Cog,
   LogOut,
-  MessagesSquare,
-  Workflow,
+  MessageCircle,
+  Network,
   Filter,
   Brain,
   Bell,
@@ -132,9 +132,9 @@ export function AppSidebar() {
       ? [{ to: "/leads", label: "Leads", icon: UserRound }] : []),
     { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
     ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
+      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare }] : []),
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageCircle }] : []),
     { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },
     { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const, locked: true },
   ];
