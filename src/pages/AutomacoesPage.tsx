@@ -492,6 +492,7 @@ export default function AutomacoesPage() {
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const fileRef      = useRef<HTMLInputElement>(null);
+  const createFileRef = useRef<HTMLInputElement>(null);
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
   const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
   const resizeDragRef = useRef<{ nodeId: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
@@ -824,7 +825,8 @@ export default function AutomacoesPage() {
   const handleCreate = async () => {
     if (!newName.trim()) { toast.error("Informe um nome"); return; }
     if (!user || !company) return;
-    if (startType !== "blank") { toast.info("Em breve"); return; }
+    if (startType === "import") { createFileRef.current?.click(); return; }
+    if (startType === "model")  { toast.info("Em breve"); return; }
     setCreating(true);
     try {
       const { data, error } = await supabase
@@ -853,6 +855,51 @@ export default function AutomacoesPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleCreateImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const flow = JSON.parse(ev.target?.result as string);
+        if (!flow.nodes || !Array.isArray(flow.nodes)) { toast.error("Arquivo inválido — formato de automação não reconhecido"); return; }
+        if (!user || !company) return;
+        setCreating(true);
+        try {
+          const { data, error } = await supabase
+            .from("automations")
+            .insert({
+              owner_id: user.id,
+              company_id: company.id,
+              name: newName.trim(),
+              description: newDesc.trim(),
+              group_name: newGroup.trim() || "Automação",
+              active: false,
+              flow,
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          const rec = data as AutomationRecord;
+          setAutomations(prev => [rec, ...prev]);
+          setCreateOpen(false);
+          setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank");
+          setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput("");
+          toast.success("Automação importada");
+          openEditor(rec.id);
+        } catch {
+          toast.error("Erro ao criar automação");
+        } finally {
+          setCreating(false);
+        }
+      } catch {
+        toast.error("Arquivo inválido");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleSave = async () => {
@@ -2493,6 +2540,9 @@ export default function AutomacoesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Hidden file input for create-from-import (outside view conditionals) */}
+      <input ref={createFileRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleCreateImport} />
 
     </div>
   );
