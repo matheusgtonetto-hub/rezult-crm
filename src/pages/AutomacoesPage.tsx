@@ -140,7 +140,7 @@ type AutomationRecord = {
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null, refreshWebhookPayload: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -731,6 +731,12 @@ export default function AutomacoesPage() {
   }), [logsPanelEntries]);
 
   const selectedAutomation = automations.find(a => a.id === selectedId) ?? null;
+
+  const refreshWebhookPayload = useCallback(async () => {
+    if (!selectedId) return;
+    const { data } = await supabase.from("automations").select("last_webhook_payload").eq("id", selectedId).single();
+    if (data) setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, last_webhook_payload: data.last_webhook_payload } : a));
+  }, [selectedId]);
 
   // ── Editor helpers ────────────────────────────────────────────────────────
 
@@ -1701,7 +1707,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
-        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null }}>
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null, refreshWebhookPayload }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -5059,13 +5065,21 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
-  const { nodes, customFieldGroups, trigger, webhookPayload } = useContext(VarPickerCtx);
+  const { nodes, customFieldGroups, trigger, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
   const [apiPath, setApiPath] = useState("");
   const [apiTestResponses, setApiTestResponses] = useState<Record<string, unknown>>({});
   const [apiTestLoading, setApiTestLoading] = useState(false);
+  const [refreshingPayload, setRefreshingPayload] = useState(false);
+
+  const handleRefreshPayload = async () => {
+    if (!refreshWebhookPayload) return;
+    setRefreshingPayload(true);
+    await refreshWebhookPayload();
+    setRefreshingPayload(false);
+  };
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
 
@@ -5286,7 +5300,12 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Dados recebidos</span>
-                {apiModal.sourceName !== "webhook" && (
+                {apiModal.sourceName === "webhook" ? (
+                  <button onClick={handleRefreshPayload} disabled={refreshingPayload}
+                    style={{ fontSize: 11, padding: "3px 10px", background: refreshingPayload ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: refreshingPayload ? "default" : "pointer", fontWeight: 600 }}>
+                    {refreshingPayload ? "Atualizando…" : "Atualizar"}
+                  </button>
+                ) : (
                   <button onClick={testApiRequest} disabled={apiTestLoading}
                     style={{ fontSize: 11, padding: "3px 10px", background: apiTestLoading ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: apiTestLoading ? "default" : "pointer", fontWeight: 600 }}>
                     {apiTestLoading ? "Testando…" : "Testar"}
