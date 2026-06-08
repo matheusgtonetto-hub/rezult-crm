@@ -1043,7 +1043,7 @@ export default function AutomacoesPage() {
               description: newDesc.trim(),
               group_name: newGroup.trim() || "Automação",
               active: false,
-              flow,
+              flow: { ...flow, nodes: sanitizeImportedNodes(flow.nodes ?? []) },
             })
             .select()
             .single();
@@ -1235,6 +1235,24 @@ export default function AutomacoesPage() {
     toast.success("Automação duplicada");
   };
 
+  const sanitizeImportedNodes = (importedNodes: CanvasNode[]): CanvasNode[] => {
+    const validIds = new Set(customFieldGroups.flatMap(g => g.items.map(i => i.id)));
+    const PREFIXES = ["campo_lead.", "campo_neg.", "campo_empresa."];
+    return importedNodes.map(node => {
+      if (node.type !== "campos" || !node.fieldOps) return node;
+      const sanitized = node.fieldOps.map(op => {
+        if (op.type !== "mapeamento") return op;
+        const m = op as FieldOpMapeamento;
+        const prefix = PREFIXES.find(p => m.fieldKey.startsWith(p));
+        if (!prefix) return op;
+        const id = m.fieldKey.slice(prefix.length);
+        if (validIds.has(id)) return op;
+        return { ...m, fieldKey: "", fieldLabel: "" };
+      });
+      return { ...node, fieldOps: sanitized };
+    });
+  };
+
   const handleDownload = () => {
     if (!selectedAutomation) return;
     const blob = new Blob([JSON.stringify(selectedAutomation.flow, null, 2)], { type: "application/json" });
@@ -1321,7 +1339,7 @@ export default function AutomacoesPage() {
           toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
           return;
         }
-        setNodes(migrateNodes(flow.nodes ?? [START_NODE]));
+        setNodes(migrateNodes(sanitizeImportedNodes(flow.nodes ?? [START_NODE])));
         setTrigger(flow.trigger ?? null);
         toast.success("Fluxo importado — salve para persistir");
       } catch {
