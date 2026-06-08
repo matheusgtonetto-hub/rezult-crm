@@ -395,16 +395,16 @@ const NOTE_COLORS = [
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
 function buildOrthPath(x1: number, y1: number, x2: number, y2: number): string {
-  const midX = (x1 + x2) / 2;
   const dy = y2 - y1;
   if (Math.abs(dy) < 2) return `M ${x1} ${y1} H ${x2}`;
-  const r = 12;
-  const rc = Math.min(r, Math.abs(dy / 2) - 0.5, Math.abs(midX - x1) - 0.5, Math.abs(x2 - midX) - 0.5);
-  if (rc <= 0) return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+  // Vertical segment capped at x2-28 so the path always enters the target from the left
+  const vertX = Math.min((x1 + x2) / 2, x2 - 28);
   const sy = dy > 0 ? 1 : -1;
-  const s1 = midX >= x1 ? 1 : -1;
-  const s2 = x2 >= midX ? 1 : -1;
-  return `M ${x1} ${y1} H ${midX - s1 * rc} Q ${midX} ${y1} ${midX} ${y1 + sy * rc} V ${y2 - sy * rc} Q ${midX} ${y2} ${midX + s2 * rc} ${y2} H ${x2}`;
+  const s1 = vertX >= x1 ? 1 : -1;
+  const rc1 = Math.max(0, Math.min(12, Math.abs(vertX - x1) - 0.5, Math.abs(dy / 2) - 0.5));
+  const rc2 = Math.max(0, Math.min(12, Math.abs(x2 - vertX) - 0.5, Math.abs(dy / 2) - 0.5));
+  if (rc1 < 0.5 || rc2 < 0.5) return `M ${x1} ${y1} H ${vertX} V ${y2} H ${x2}`;
+  return `M ${x1} ${y1} H ${vertX - s1 * rc1} Q ${vertX} ${y1} ${vertX} ${y1 + sy * rc1} V ${y2 - sy * rc2} Q ${vertX} ${y2} ${vertX + rc2} ${y2} H ${x2}`;
 }
 
 // ─── DataCrazy .dc → Rezult converter ────────────────────────────────────────
