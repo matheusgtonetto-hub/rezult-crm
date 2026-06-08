@@ -520,7 +520,7 @@ export function AppSidebar() {
                 <span className="text-xs text-muted-foreground font-normal">{userEmail}</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/configuracoes/perfil")}>
                 <UserCircle size={14} className="mr-2" /> Meu perfil
               </DropdownMenuItem>
               <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">

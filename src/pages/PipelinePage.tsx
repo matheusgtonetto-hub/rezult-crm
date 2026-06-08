@@ -967,8 +967,8 @@ export default function PipelinePage() {
                                                     return (
                                                       <span
                                                         key={tagName}
-                                                        className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
-                                                        style={{ background: t.color || "#888" }}
+                                                        className="text-[10px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
+                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "#888" }}
                                                       >
                                                         {tagName}
                                                       </span>
