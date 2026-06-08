@@ -1869,7 +1869,7 @@ function TagsSection() {
 
   return (
     <>
-      <SectionHeader title="Tags" onAdd="+ Nova tag" onClick={openNew} />
+      <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
 
       <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {crmTags.length === 0 ? (
@@ -2353,7 +2353,7 @@ function ListasSection() {
 
   return (
     <>
-      <SectionHeader title="Listas" onAdd="+ Nova lista" onClick={openCreate} />
+      <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
       <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {crmLists.length === 0 ? (
@@ -2745,7 +2745,7 @@ function DepartamentosSection() {
   ];
   return (
     <>
-      <SectionHeader title="Departamentos" onAdd="+ Novo departamento" onClick={() => toast.success("Em breve")} />
+      <SectionHeader title="Departamentos" subtitle="Organize suas ideias com departamentos" onAdd="+ Novo departamento" onClick={() => toast.success("Em breve")} />
       <Card>
         <div className="space-y-2">
           {deps.map(d => (
@@ -2771,7 +2771,12 @@ function HorariosSection() {
   );
   return (
     <>
-      <h1 className="text-xl font-bold text-foreground mb-6">Horários de trabalho</h1>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Horários de trabalho</h1>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Organize os horários de trabalho dos seus colaboradores e departamentos</p>
+        </div>
+      </div>
       <Card>
         <div className="space-y-3">
           {schedule.map((s, i) => (
@@ -2814,7 +2819,7 @@ function AtividadesSection() {
   ];
   return (
     <>
-      <SectionHeader title="Tipos de atividades" onAdd="+ Novo tipo" onClick={() => toast.success("Em breve")} />
+      <SectionHeader title="Tipos de atividades" subtitle="Descubra, organize e gerencie seus tipos de atividades" onAdd="+ Novo tipo" onClick={() => toast.success("Em breve")} />
       <Card>
         <div className="space-y-2">
           {tipos.map(t => (
@@ -3899,7 +3904,10 @@ function ApiSection() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-foreground mb-6">Chaves de API</h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gere chaves de API para permitir integrações seguras com os serviços da nossa plataforma.</p>
+      </div>
 
       {/* Webhook endpoint */}
       <Card>
@@ -4302,7 +4310,10 @@ function GoogleSheetsGuide() {
 function McpSection() {
   return (
     <>
-      <h1 className="text-xl font-bold text-foreground mb-6">Servidor MCP</h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-foreground">Servidor MCP</h1>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie as configurações individuais das ferramentas</p>
+      </div>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
         <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
