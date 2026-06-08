@@ -115,7 +115,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[12px] px-4 py-2 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
