@@ -1201,12 +1201,45 @@ async function checkCondition(
       case "neg_pipeline": {
         const pipelineId = cfg.pipeline_id as string;
         if (!pipelineId) return !!(lead.pipeline_id);
-        return lead.pipeline_id === pipelineId;
+        // Check current lead first (fast path)
+        if (lead.pipeline_id === pipelineId) return true;
+        // Search for any negócio of this contact in the specified pipeline
+        const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+        const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
+        const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
+          ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
+        if (searchEmail) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("email", searchEmail).maybeSingle();
+          if (data) return true;
+        }
+        if (searchPhone) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("whatsapp", searchPhone).maybeSingle();
+          if (data) return true;
+        }
+        return false;
       }
       case "neg_etapa": {
         const etapaId = cfg.etapa_id as string;
         if (!etapaId) return !!(lead.column_id);
-        return lead.column_id === etapaId;
+        if (lead.column_id === etapaId) return true;
+        // Search for any negócio of this contact in the specified stage
+        const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+        const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
+        const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
+          ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
+        if (searchEmail) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("email", searchEmail).maybeSingle();
+          if (data) return true;
+        }
+        if (searchPhone) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("whatsapp", searchPhone).maybeSingle();
+          if (data) return true;
+        }
+        return false;
       }
       case "com_email": {
         const email = cfg.email as string;
