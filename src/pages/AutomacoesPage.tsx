@@ -394,6 +394,19 @@ const NOTE_COLORS = [
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
+function buildOrthPath(x1: number, y1: number, x2: number, y2: number): string {
+  const midX = (x1 + x2) / 2;
+  const dy = y2 - y1;
+  if (Math.abs(dy) < 2) return `M ${x1} ${y1} H ${x2}`;
+  const r = 12;
+  const rc = Math.min(r, Math.abs(dy / 2) - 0.5, Math.abs(midX - x1) - 0.5, Math.abs(x2 - midX) - 0.5);
+  if (rc <= 0) return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+  const sy = dy > 0 ? 1 : -1;
+  const s1 = midX >= x1 ? 1 : -1;
+  const s2 = x2 >= midX ? 1 : -1;
+  return `M ${x1} ${y1} H ${midX - s1 * rc} Q ${midX} ${y1} ${midX} ${y1 + sy * rc} V ${y2 - sy * rc} Q ${midX} ${y2} ${midX + s2 * rc} ${y2} H ${x2}`;
+}
+
 // ─── DataCrazy .dc → Rezult converter ────────────────────────────────────────
 
 const DC_TRIGGER_MAP: Record<string, { triggerId: string; categoryId: string; label: string }> = {
@@ -1231,6 +1244,22 @@ export default function AutomacoesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleAddNoteFromToolbar = () => {
+    const x = Math.round((-pan.x + 260) / zoom);
+    const y = Math.round((-pan.y + 160) / zoom);
+    setNodes(prev => [...prev, {
+      id: `note${Date.now()}`,
+      type: "note",
+      x, y,
+      label: "Anotação",
+      noteText: "",
+      width: 220,
+      height: 140,
+      parentIds: [],
+      errorParentIds: [],
+    }]);
+  };
+
   const handleStatClick = useCallback(async (nodeId: string, status: "success" | "alert" | "error") => {
     if (!selectedId) return;
     setLogsPanel({ nodeId });
@@ -1831,11 +1860,12 @@ export default function AutomacoesPage() {
             </button>
             <div style={{ width: 1, background: "#E5E5E5", height: 20, margin: "0 2px" }} />
             {[
-              { icon: Save,     label: saving ? "Salvando..." : "Salvar",    action: handleSave },
-              { icon: Pencil,   label: "Renomear",   action: () => { setRenameName(selectedAutomation.name); setRenameOpen(true); } },
-              { icon: Copy,     label: "Duplicar",   action: handleDuplicate },
-              { icon: Download, label: "Exportar",   action: handleDownload },
-              { icon: Upload,   label: "Importar",   action: () => fileRef.current?.click() },
+              { icon: Save,       label: saving ? "Salvando..." : "Salvar",    action: handleSave },
+              { icon: Pencil,     label: "Renomear",   action: () => { setRenameName(selectedAutomation.name); setRenameOpen(true); } },
+              { icon: Copy,       label: "Duplicar",   action: handleDuplicate },
+              { icon: StickyNote, label: "Adicionar anotação", action: handleAddNoteFromToolbar },
+              { icon: Download,   label: "Exportar",   action: handleDownload },
+              { icon: Upload,     label: "Importar",   action: () => fileRef.current?.click() },
             ].map((t, i) => {
               const Icon = t.icon;
               return (
@@ -1872,6 +1902,20 @@ export default function AutomacoesPage() {
             style={{ position: "absolute", inset: 0, cursor: "grab" }}
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
+              {/* Note nodes — rendered before SVG so they appear behind connection lines */}
+              {nodes.filter(n => n.type === "note").map(n => (
+                <NoteNode
+                  key={n.id}
+                  node={n}
+                  selected={selectedNode === n.id}
+                  onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
+                  onResizeStart={(e) => onNodeResizeStart(e, n.id)}
+                  onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
+                  onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
+                  onUpdateColor={(colorIndex) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteColorIndex: colorIndex } : x))}
+                />
+              ))}
+
               {/* SVG connection lines */}
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
                 {nodes.flatMap(n => (n.parentIds ?? []).map(pid => ({ n, pid }))).map(({ n, pid }) => {
@@ -1908,7 +1952,7 @@ export default function AutomacoesPage() {
                     }
                   }
                   const x2 = n.x, y2 = n.y + 40;
-                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
                   const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent" && selectedConn?.fromId === pid;
                   return (
                     <g
@@ -1918,8 +1962,8 @@ export default function AutomacoesPage() {
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
-                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="1,19" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -1932,7 +1976,7 @@ export default function AutomacoesPage() {
                   const x1 = pp?.x ?? parent.x + 260;
                   const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
-                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
                   const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error" && selectedConn?.fromId === epid;
                   return (
                     <g
@@ -1942,16 +1986,17 @@ export default function AutomacoesPage() {
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
-                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="1,19" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
-                    d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
-                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2} fill="none" strokeDasharray="5,4"
+                    d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
+                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
+                    strokeLinecap="round" strokeDasharray="1,19"
                     style={{ pointerEvents: "none" }}
                   />
                 )}
@@ -1997,9 +2042,8 @@ export default function AutomacoesPage() {
                   x1 = pp?.x ?? parent.x + 260;
                   y1 = pp?.y ?? parent.y + 93;
                 }
-                const cx1 = x1 + 60, cy1 = y1, cx2 = x2 - 60, cy2 = y2;
-                const mx = (x1 + 3 * cx1 + 3 * cx2 + x2) / 8;
-                const my = (y1 + 3 * cy1 + 3 * cy2 + y2) / 8;
+                const mx = (x1 + x2) / 2;
+                const my = (y1 + y2) / 2;
                 return (
                   <div
                     key={`del_${selectedConn.nodeId}_${selectedConn.type}_${selectedConn.fromId}`}
@@ -2018,8 +2062,8 @@ export default function AutomacoesPage() {
                 );
               })()}
 
-              {/* Nodes */}
-              {nodes.map(n => {
+              {/* Start + Action nodes — above connection lines */}
+              {nodes.filter(n => n.type !== "note").map(n => {
                 if (n.type === "start") return (
                   <StartNode
                     key={n.id}
@@ -2033,18 +2077,6 @@ export default function AutomacoesPage() {
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                     stats={nodeStats[n.id]}
                     onStatClick={(status) => handleStatClick(n.id, status)}
-                  />
-                );
-                if (n.type === "note") return (
-                  <NoteNode
-                    key={n.id}
-                    node={n}
-                    selected={selectedNode === n.id}
-                    onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
-                    onResizeStart={(e) => onNodeResizeStart(e, n.id)}
-                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
-                    onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
-                    onUpdateColor={(colorIndex) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteColorIndex: colorIndex } : x))}
                   />
                 );
                 return (
@@ -3482,7 +3514,6 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       style={{
         position: "absolute", left: node.x, top: node.y,
         width: w, height: h,
-        zIndex: 1,
         background: c.bg,
         border: `1.5px solid ${selected ? c.borderSel : c.border}`,
         borderRadius: 10,
