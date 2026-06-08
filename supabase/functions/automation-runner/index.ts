@@ -77,13 +77,24 @@ interface ApiConfig {
   requests: ApiRequest[];
 }
 
-interface FieldOperation {
+interface FieldOpMapeamento {
   id: string;
   type: "mapeamento";
   fieldKey: string;
   fieldLabel: string;
   value: string;
 }
+
+interface FieldOpAnaliseTel {
+  id: string;
+  type: "analise_telefone";
+  phone: string;
+  datasourceName: string;
+  datasourceColor: string;
+  defaultCountry: string;
+}
+
+type FieldOperation = FieldOpMapeamento | FieldOpAnaliseTel;
 
 interface RandomBranch {
   id: string;
@@ -792,17 +803,25 @@ async function executeFlow(
 
         for (const op of ops) {
           try {
-            const resolved = interpolate(op.value, vars);
-            if (op.fieldKey.startsWith("lead.")) {
-              leadUpdate[op.fieldKey.substring(5)] = resolved;
-            } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
-              const dotIdx = op.fieldKey.indexOf(".");
-              customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
-            } else if (op.fieldKey.startsWith("prod.")) {
-              prodUpdate[op.fieldKey.substring(5)] = resolved;
+            if (op.type === "analise_telefone") {
+              const rawPhone = interpolate(op.phone ?? "", vars);
+              const parsed = parsePhoneNumber(rawPhone, op.defaultCountry ?? "BR");
+              for (const [k, v] of Object.entries(parsed)) {
+                vars[`${op.datasourceName}.${k}`] = v;
+              }
+            } else {
+              const resolved = interpolate(op.value, vars);
+              if (op.fieldKey.startsWith("lead.")) {
+                leadUpdate[op.fieldKey.substring(5)] = resolved;
+              } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
+                const dotIdx = op.fieldKey.indexOf(".");
+                customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
+              } else if (op.fieldKey.startsWith("prod.")) {
+                prodUpdate[op.fieldKey.substring(5)] = resolved;
+              }
             }
           } catch (err) {
-            errors.push(`${op.fieldLabel}: ${String(err)}`);
+            errors.push(`${op.type === "mapeamento" ? op.fieldLabel : op.datasourceName}: ${String(err)}`);
           }
         }
 
@@ -892,6 +911,52 @@ async function executeFlow(
 
 function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? "");
+}
+
+function parsePhoneNumber(raw: string, defaultCountry = "BR"): Record<string, string> {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return { ddi: "", phone: "", nationalNumber: "", internacionalNumber: "" };
+
+  let ddi = "";
+  let nationalDigits = digits;
+
+  if (defaultCountry === "BR") {
+    if (digits.startsWith("55") && digits.length >= 12) {
+      ddi = "55";
+      nationalDigits = digits.slice(2);
+    } else if (digits.length >= 10) {
+      ddi = "55";
+      nationalDigits = digits;
+    }
+  }
+
+  const fullPhone = ddi ? `+${ddi}${nationalDigits}` : `+${nationalDigits}`;
+
+  if (ddi === "55" && nationalDigits.length >= 10) {
+    const areaCode = nationalDigits.slice(0, 2);
+    const local = nationalDigits.slice(2);
+
+    const formattedLocal = local.length === 9
+      ? `${local.slice(0, 5)}-${local.slice(5)}`
+      : local.length === 8
+        ? `${local.slice(0, 4)}-${local.slice(4)}`
+        : local;
+
+    const intlLocal = local.length === 9
+      ? `${local.slice(0, 5)} ${local.slice(5)}`
+      : local.length === 8
+        ? `${local.slice(0, 4)} ${local.slice(4)}`
+        : local;
+
+    return {
+      ddi,
+      phone: fullPhone,
+      nationalNumber: `(${areaCode}) ${formattedLocal}`,
+      internacionalNumber: `+${ddi} ${areaCode} ${intlLocal}`,
+    };
+  }
+
+  return { ddi, phone: fullPhone, nationalNumber: nationalDigits, internacionalNumber: fullPhone };
 }
 
 async function buildVarContext(
