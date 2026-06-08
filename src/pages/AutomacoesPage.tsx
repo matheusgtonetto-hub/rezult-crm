@@ -5566,40 +5566,99 @@ function CamposValueInput({ value, onChange, placeholder }: {
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const [editing, setEditing] = useState(false);
   const [varOpen, setVarOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const insertVar = (v: string) => {
     const el = taRef.current;
-    if (!el) { onChange(value + v); return; }
-    const s = el.selectionStart ?? value.length;
-    const e = el.selectionEnd ?? value.length;
-    const next = value.substring(0, s) + v + value.substring(e);
-    onChange(next);
-    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+    if (el) {
+      const s = el.selectionStart ?? value.length;
+      const e = el.selectionEnd ?? value.length;
+      const next = value.substring(0, s) + v + value.substring(e);
+      onChange(next);
+      setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+    } else {
+      onChange(value + v);
+    }
+    setVarOpen(false);
+  };
+
+  const tokens = useMemo(() => {
+    const parts: { type: "text" | "var"; content: string }[] = [];
+    const regex = /\{\{([^}]+)\}\}/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(value)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: value.slice(last, m.index) });
+      parts.push({ type: "var", content: m[1] });
+      last = m.index + m[0].length;
+    }
+    if (last < value.length) parts.push({ type: "text", content: value.slice(last) });
+    return parts;
+  }, [value]);
+
+  const varLabel = (key: string) => {
+    const dot = key.indexOf(".");
+    if (dot < 0) return key;
+    return `[${key.slice(0, dot)}] ${key.slice(dot + 1)}`;
+  };
+
+  const varColor = (key: string) => {
+    if (key.startsWith("gatilho")) return "#22C55E";
+    if (key.startsWith("campo_")) return "#F59E0B";
+    if (key.startsWith("ia.")) return "#8B5CF6";
+    return "#6366F1";
+  };
+
+  const sharedBoxStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6,
+    fontSize: 12, boxSizing: "border-box", lineHeight: 1.6, minHeight: 62,
   };
 
   return (
     <div style={{ position: "relative" }}>
-      <textarea
-        ref={taRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={4}
-        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "vertical", boxSizing: "border-box" as const, fontFamily: "inherit", lineHeight: 1.5 }}
-      />
+      {editing ? (
+        <textarea
+          ref={taRef}
+          autoFocus
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => { setTimeout(() => { if (!varOpen) setEditing(false); }, 120); }}
+          rows={3}
+          style={{ ...sharedBoxStyle, outline: "none", resize: "vertical", border: "1px solid #3B82F6", fontFamily: "inherit" }}
+        />
+      ) : (
+        <div
+          onClick={() => { setEditing(true); setTimeout(() => taRef.current?.focus(), 0); }}
+          style={{ ...sharedBoxStyle, cursor: "text", display: "flex", flexWrap: "wrap", gap: "4px 3px", alignContent: "flex-start" }}
+        >
+          {value === "" ? (
+            <span style={{ color: "#9CA3AF", fontSize: 12 }}>{placeholder ?? "Digite um valor ou use {} para inserir variável..."}</span>
+          ) : tokens.map((t, i) =>
+            t.type === "var" ? (
+              <span key={i} style={{ background: varColor(t.content), color: "#fff", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 600, lineHeight: "18px", display: "inline-flex", alignItems: "center" }}>
+                {varLabel(t.content)}
+              </span>
+            ) : (
+              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "#111", lineHeight: "22px" }}>{t.content}</span>
+            )
+          )}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4 }}>
         <button
+          onMouseDown={e => e.preventDefault()}
           onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
           style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
         ><Copy size={12} /></button>
         <div style={{ position: "relative", flexShrink: 0 }}>
           <button
-            onClick={() => setVarOpen(o => !o)}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => { setEditing(true); setVarOpen(o => !o); }}
             style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
           >{"{}"}</button>
-          {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+          {varOpen && <VarPicker onInsert={insertVar} onClose={() => { setVarOpen(false); }} />}
         </div>
       </div>
     </div>
