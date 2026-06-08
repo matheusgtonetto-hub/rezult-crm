@@ -4427,8 +4427,11 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 16 }}>{children}</div>;
 
   const textInp = (placeholder: string, key: string) => (
-    <input type="text" value={String(cfg[key] ?? "")} onChange={e => set(key, e.target.value)} placeholder={placeholder}
-      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+    <CamposValueInput
+      value={String(cfg[key] ?? "")}
+      onChange={v => set(key, v)}
+      placeholder={placeholder || undefined}
+    />
   );
 
   const numInp = (placeholder: string, key: string, min?: number) => (
