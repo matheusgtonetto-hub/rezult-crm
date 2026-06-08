@@ -179,11 +179,11 @@ export default function LeadsPage() {
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nome</TableHead>
-                <TableHead className="text-muted-foreground">Responsável</TableHead>
-                <TableHead className="text-muted-foreground w-44">Contato</TableHead>
-                <TableHead className="text-muted-foreground">Tags</TableHead>
-                <TableHead className="text-muted-foreground">Pipeline</TableHead>
-                <TableHead className="text-muted-foreground">Data de Criação</TableHead>
+                <TableHead className="text-muted-foreground w-36">Responsável</TableHead>
+                <TableHead className="text-muted-foreground w-36">Contato</TableHead>
+                <TableHead className="text-muted-foreground w-36">Tags</TableHead>
+                <TableHead className="text-muted-foreground w-36">Pipeline</TableHead>
+                <TableHead className="text-muted-foreground w-36">Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -226,7 +226,7 @@ export default function LeadsPage() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="max-w-[176px]">
+                  <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm text-foreground truncate">
                         {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
