@@ -5103,7 +5103,23 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             sourceName: r.name,
           }))
         );
-        return { ...c, fields: [...webhookFields, ...apiFields] };
+        const camposFields: VarField[] = nodes
+          .filter(n => n.type === "campos")
+          .flatMap(n =>
+            (n.fieldOps ?? [])
+              .filter(op => op.type !== "mapeamento")
+              .map(op => {
+                const dsOp = op as FieldOpLoopArray | FieldOpAnaliseTel | FieldOpFormatacaoData;
+                return {
+                  key: dsOp.datasourceName,
+                  label: dsOp.datasourceName,
+                  icon: "{}",
+                  isApiSource: true as const,
+                  sourceName: dsOp.datasourceName,
+                };
+              })
+          );
+        return { ...c, fields: [...webhookFields, ...apiFields, ...camposFields] };
       }
       return c;
     });
