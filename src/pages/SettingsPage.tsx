@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ArrowLeft, User, Tag, Package, X, XCircle, List, FormInput, Building2,
+  ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
@@ -44,8 +44,8 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: "planos",  label: "Planos e pagamentos", icon: CreditCard },
   { id: "empresa", label: "Empresa",             icon: Building2 },
   { id: "tags",    label: "Tags",                icon: Tag },
-  { id: "produtos", label: "Produtos", icon: Package },
-  { id: "motivos", label: "Motivos de perda", icon: XCircle },
+  { id: "produtos", label: "Produtos", icon: ShoppingCart },
+  { id: "motivos", label: "Motivos de perda", icon: SquareX },
   { id: "listas", label: "Listas", icon: List },
   { id: "campos", label: "Campos adicionais", icon: FormInput },
   { id: "departamentos", label: "Departamentos", icon: Building2 },
@@ -1870,26 +1870,53 @@ function TagsSection() {
   return (
     <>
       <SectionHeader title="Tags" onAdd="+ Nova tag" onClick={openNew} />
-      <Card>
+
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {crmTags.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhuma tag criada ainda.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
-          <div className="space-y-2">
-            {crmTags.map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
-                <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-foreground font-medium leading-tight">{t.name}</p>
-                  {t.description && <p className="text-[11px] text-muted-foreground truncate">{t.description}</p>}
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{tagLeadCounts[t.name] ?? 0} leads</span>
-                <button onClick={() => openEdit(t)} className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-                <button onClick={() => deleteTag(t.id)} className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Tag</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {crmTags.map(t => (
+                <TableRow key={t.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: t.color + "22" }}>
+                        <Tag size={14} style={{ color: t.color }} />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{t.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{t.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {t.created_at
+                      ? new Date(t.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(t)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deleteTag(t.id)} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
         <DialogContent className="max-w-sm">
@@ -2041,7 +2068,7 @@ function ProdutosSection() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Package size={14} className="text-primary" />
+                        <ShoppingCart size={14} className="text-primary" />
                       </div>
                       <span className="text-[13px] font-medium text-foreground">{p.name}</span>
                     </div>
@@ -2141,18 +2168,19 @@ function MotivosSection() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const openNew = () => { setEditingId(null); setMotivo(""); setShowDialog(true); };
-  const openEdit = (id: string, name: string) => { setEditingId(id); setMotivo(name); setShowDialog(true); };
+  const openNew = () => { setEditingId(null); setMotivo(""); setDescricao(""); setShowDialog(true); };
+  const openEdit = (id: string, name: string, description?: string) => { setEditingId(id); setMotivo(name); setDescricao(description ?? ""); setShowDialog(true); };
 
   const handleSave = async () => {
     if (!motivo.trim()) { toast.error("Informe o motivo."); return; }
     if (editingId) {
-      await updateLossReason(editingId, motivo.trim());
+      await updateLossReason(editingId, motivo.trim(), descricao.trim() || undefined);
       toast.success("Motivo atualizado.");
     } else {
-      const ok = await addLossReason(motivo.trim());
+      const ok = await addLossReason(motivo.trim(), descricao.trim() || undefined);
       if (!ok) { toast.error("Erro ao salvar. Verifique se a migração do banco foi executada."); return; }
       toast.success("Motivo criado.");
     }
@@ -2169,21 +2197,53 @@ function MotivosSection() {
   return (
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
-      <Card>
+
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhum motivo cadastrado.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
-          <div className="space-y-2">
-            {lossReasons.map(r => (
-              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
-                <p className="flex-1 text-[13px] text-foreground">{r.name}</p>
-                <button onClick={() => openEdit(r.id, r.name)} className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-                <button onClick={() => setDeletingId(r.id)} className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Motivo</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lossReasons.map(r => (
+                <TableRow key={r.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
+                        <SquareX size={14} style={{ color: "#E24B4A" }} />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{r.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{r.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {r.created_at
+                      ? new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(r.id, r.name, r.description)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => setDeletingId(r.id)} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-sm">
@@ -2193,16 +2253,27 @@ function MotivosSection() {
               Crie motivos de perda dos seus negócios.
             </p>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Motivo</label>
-            <Input
-              value={motivo}
-              onChange={e => setMotivo(e.target.value)}
-              placeholder="Ex: Preço alto"
-              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              onKeyDown={e => e.key === "Enter" && handleSave()}
-              autoFocus
-            />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Motivo *</label>
+              <Input
+                value={motivo}
+                onChange={e => setMotivo(e.target.value)}
+                placeholder="Ex: Preço alto"
+                className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                onKeyDown={e => e.key === "Enter" && handleSave()}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Descrição</label>
+              <Input
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                placeholder="Descrição opcional"
+                className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" className="rounded-lg" onClick={() => setShowDialog(false)}>Cancelar</Button>
@@ -2284,64 +2355,83 @@ function ListasSection() {
     <>
       <SectionHeader title="Listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      {showForm && (
-        <Card className="mb-4">
-          <p className="text-sm font-semibold text-foreground mb-3">{editId ? "Editar lista" : "Nova lista"}</p>
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+        {crmLists.length === 0 ? (
+          <div className="py-10 text-center">
+            <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhuma lista criada ainda.</p>
+            <p className="text-xs text-muted-foreground mt-1">Crie listas para organizar seus leads por segmento.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Lista</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-20" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {crmLists.map(l => (
+                <TableRow key={l.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <List size={14} className="text-primary" />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{l.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{l.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {l.created_at
+                      ? new Date(l.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewListId(l.id)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors" title="Ver leads">
+                        <Eye size={14} />
+                      </button>
+                      <button onClick={() => openEdit(l)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(l.id)} disabled={deleting === l.id} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <Dialog open={showForm} onOpenChange={v => !v && closeForm()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editId ? "Editar lista" : "Nova lista"}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" autoFocus />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição <span className="text-muted-foreground font-normal">(opcional)</span></label>
               <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
           </div>
-          <div className="flex gap-2 justify-end mt-4">
+          <DialogFooter className="gap-2">
             <Button variant="outline" className="border-card-border" onClick={closeForm}>Cancelar</Button>
             <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving}>
               {saving ? "Salvando…" : editId ? "Salvar" : "Criar"}
             </Button>
-          </div>
-        </Card>
-      )}
-
-      <Card>
-        {crmLists.length === 0 ? (
-          <div className="py-8 text-center">
-            <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhuma lista criada ainda.</p>
-            <p className="text-xs text-muted-foreground mt-1">Crie listas para organizar seus leads por segmento.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {crmLists.map(l => (
-              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg group">
-                <List size={16} className="text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-foreground font-medium truncate">{l.name}</p>
-                  {l.description && <p className="text-xs text-muted-foreground truncate">{l.description}</p>}
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{l.leadIds.length} lead{l.leadIds.length !== 1 ? "s" : ""}</span>
-                <button
-                  onClick={() => setViewListId(l.id)}
-                  className="text-muted-foreground hover:text-primary p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Ver leads"
-                ><Eye size={14} /></button>
-                <button
-                  onClick={() => openEdit(l)}
-                  className="text-muted-foreground hover:text-primary p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                ><Pencil size={14} /></button>
-                <button
-                  onClick={() => handleDelete(l.id)}
-                  disabled={deleting === l.id}
-                  className="text-muted-foreground hover:text-destructive p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                ><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal: Ver leads da lista */}
       <Dialog open={!!viewListId} onOpenChange={() => setViewListId(null)}>

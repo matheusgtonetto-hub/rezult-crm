@@ -81,8 +81,8 @@ interface CRMContextType {
   deleteProduct: (id: string) => Promise<void>;
 
   lossReasons: LossReason[];
-  addLossReason: (name: string) => Promise<boolean>;
-  updateLossReason: (id: string, name: string) => Promise<void>;
+  addLossReason: (name: string, description?: string) => Promise<boolean>;
+  updateLossReason: (id: string, name: string, description?: string) => Promise<void>;
   deleteLossReason: (id: string) => Promise<void>;
 
   customFieldGroups: CustomFieldGroup[];
@@ -449,6 +449,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         name: r.name as string,
         description: (r.description as string) ?? "",
         color: (r.color as string) ?? "#128A68",
+        created_at: (r.created_at as string) ?? undefined,
       }));
 
       const groupsList: PipelineGroup[] = dbGroupsList.map(r => ({
@@ -483,6 +484,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setLossReasons(dbLossReasons.map(r => ({
         id: r.id as string,
         name: r.name as string,
+        description: (r.description as string) ?? undefined,
+        created_at: (r.created_at as string) ?? undefined,
       })));
       if (pipelinesArr.length > 0) setActivePipelineId(pipelinesArr[0].id);
       setCrmLoading(false);
@@ -956,21 +959,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // ── Loss Reasons ───────────────────────────────────────────────────────────
 
-  const addLossReason = useCallback(async (name: string): Promise<boolean> => {
+  const addLossReason = useCallback(async (name: string, description?: string): Promise<boolean> => {
     if (!user || !company) return false;
     const { data, error } = await supabase
       .from("loss_reasons")
-      .insert({ owner_id: company.owner_id, company_id: company.id, name })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, description: description ?? null })
       .select()
       .single();
     if (error) { console.error("addLossReason error:", error.message); return false; }
-    setLossReasons(prev => [...prev, { id: data.id as string, name: data.name as string }]);
+    setLossReasons(prev => [...prev, { id: data.id as string, name: data.name as string, description: (data.description as string) ?? undefined, created_at: (data.created_at as string) ?? undefined }]);
     return true;
   }, [user, company]);
 
-  const updateLossReason = useCallback(async (id: string, name: string) => {
-    setLossReasons(prev => prev.map(r => r.id === id ? { ...r, name } : r));
-    const { error } = await supabase.from("loss_reasons").update({ name }).eq("id", id);
+  const updateLossReason = useCallback(async (id: string, name: string, description?: string) => {
+    setLossReasons(prev => prev.map(r => r.id === id ? { ...r, name, description } : r));
+    const { error } = await supabase.from("loss_reasons").update({ name, description: description ?? null }).eq("id", id);
     if (error) console.error("updateLossReason error:", error.message);
   }, []);
 
