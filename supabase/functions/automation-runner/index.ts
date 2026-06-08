@@ -112,8 +112,10 @@ interface CanvasNode {
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
   fieldOps?: FieldOperation[];
-  parentId?: string | null;
-  errorParentId?: string | null;
+  parentId?: string | null;        // legacy
+  errorParentId?: string | null;   // legacy
+  parentIds?: string[];            // current format (array)
+  errorParentIds?: string[];       // current format (array)
 }
 
 interface PendingRecord {
@@ -557,15 +559,23 @@ async function executeFlow(
   const errorChildren = new Map<string, CanvasNode[]>();
 
   for (const n of allNodes) {
-    if (n.parentId) {
-      const arr = children.get(n.parentId) ?? [];
+    // Support both legacy parentId (string) and new parentIds (array)
+    const pIds = (n.parentIds && n.parentIds.length > 0)
+      ? n.parentIds
+      : (n.parentId ? [n.parentId] : []);
+    for (const pid of pIds) {
+      const arr = children.get(pid) ?? [];
       arr.push(n);
-      children.set(n.parentId, arr);
+      children.set(pid, arr);
     }
-    if (n.errorParentId) {
-      const arr = errorChildren.get(n.errorParentId) ?? [];
+    // Support both legacy errorParentId (string) and new errorParentIds (array)
+    const epIds = (n.errorParentIds && n.errorParentIds.length > 0)
+      ? n.errorParentIds
+      : (n.errorParentId ? [n.errorParentId] : []);
+    for (const epid of epIds) {
+      const arr = errorChildren.get(epid) ?? [];
       arr.push(n);
-      errorChildren.set(n.errorParentId, arr);
+      errorChildren.set(epid, arr);
     }
   }
 
