@@ -175,15 +175,15 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Nome</TableHead>
-                <TableHead className="text-muted-foreground w-36">Responsável</TableHead>
-                <TableHead className="text-muted-foreground w-36">Contato</TableHead>
-                <TableHead className="text-muted-foreground w-36">Tags</TableHead>
-                <TableHead className="text-muted-foreground w-36">Pipeline</TableHead>
-                <TableHead className="text-muted-foreground w-36">Data de Criação</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "20%" }}>Nome</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground w-10"></TableHead>
               </TableRow>
             </TableHeader>
