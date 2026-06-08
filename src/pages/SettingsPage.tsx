@@ -1193,11 +1193,11 @@ function EquipeSection() {
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-4">
+          <div className="py-2 space-y-4 overflow-y-auto pr-1">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
               <Input
@@ -1242,7 +1242,7 @@ function EquipeSection() {
               </p>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 shrink-0">
             <Button variant="outline" onClick={() => setAddOpen(false)} className="border-card-border">Cancelar</Button>
             <Button onClick={handleAddMember} disabled={inviting} className="bg-primary hover:bg-primary/90">
               {inviting ? "Processando..." : "Convidar"}
