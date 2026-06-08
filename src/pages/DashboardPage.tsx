@@ -652,7 +652,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-muted-foreground">Pipeline:</span>
             <Select value={funnelPipeline?.id ?? ""} onValueChange={setFunnelPipelineId}>
-              <SelectTrigger className="w-[220px] h-9 bg-card border-card-border rounded-lg">
+              <SelectTrigger className="w-[220px] h-9 bg-card border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Selecionar pipeline" />
               </SelectTrigger>
               <SelectContent>
@@ -663,7 +663,7 @@ export default function DashboardPage() {
               <>
                 <span className="text-sm text-muted-foreground">Responsável:</span>
                 <Select value={funnelResponsible} onValueChange={setFunnelResponsible}>
-                  <SelectTrigger className="w-[180px] h-9 bg-card border-card-border rounded-lg">
+                  <SelectTrigger className="w-[180px] h-9 bg-card border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>

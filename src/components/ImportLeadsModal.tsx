@@ -257,7 +257,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                   <div key={label} className="space-y-1">
                     <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
                     <Select value={value} onValueChange={set}>
-                      <SelectTrigger className="h-8 text-xs rounded-lg">
+                      <SelectTrigger className="h-8 text-xs rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>{colOptions}</SelectContent>
@@ -304,7 +304,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                     setStageId(p?.columns[0]?.id ?? "");
                   }}
                 >
-                  <SelectTrigger className="h-9 text-sm rounded-lg">
+                  <SelectTrigger className="h-9 text-sm rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Selecione o pipeline" />
                   </SelectTrigger>
                   <SelectContent>
@@ -319,7 +319,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Etapa</label>
                   <Select value={stageId} onValueChange={setStageId}>
-                    <SelectTrigger className="h-9 text-sm rounded-lg">
+                    <SelectTrigger className="h-9 text-sm rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                       <SelectValue placeholder="Selecione a etapa" />
                     </SelectTrigger>
                     <SelectContent>

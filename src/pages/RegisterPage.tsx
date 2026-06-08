@@ -119,7 +119,7 @@ export default function RegisterPage() {
               placeholder="João Silva"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              className="h-11 rounded-lg"
+              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoComplete="name"
               autoFocus
             />
@@ -134,7 +134,7 @@ export default function RegisterPage() {
               placeholder="joao@empresa.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="h-11 rounded-lg"
+              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoComplete="email"
             />
           </div>
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                 placeholder="Mínimo 6 caracteres"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="h-11 rounded-lg pr-10"
+                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="new-password"
               />
               <button
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                 placeholder="Repita a senha"
                 value={confirmPwd}
                 onChange={e => setConfirmPwd(e.target.value)}
-                className="h-11 rounded-lg pr-10"
+                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="new-password"
               />
               <button

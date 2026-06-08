@@ -110,7 +110,7 @@ export default function LoginPage() {
                     placeholder="seu@email.com"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     autoFocus
                   />
                 </div>
@@ -181,7 +181,7 @@ export default function LoginPage() {
                 placeholder="••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="h-11 rounded-lg pr-10"
+                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="current-password"
               />
               <button

@@ -138,10 +138,10 @@ export default function LeadsPage() {
           placeholder="Buscar por nome ou empresa..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-card border-card-border rounded-lg max-w-xs"
+          className="bg-card border-card-border rounded-lg max-w-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
         />
         <Select value={filterResp} onValueChange={setFilterResp}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-40">
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-40 focus:ring-0 focus:ring-offset-0 focus:border-primary">
             <SelectValue placeholder="Responsável" />
           </SelectTrigger>
           <SelectContent className="bg-card border-card-border">
@@ -150,7 +150,7 @@ export default function LeadsPage() {
           </SelectContent>
         </Select>
         <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-44">
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
             <SelectValue placeholder="Etapa" />
           </SelectTrigger>
           <SelectContent className="bg-card border-card-border">
@@ -328,7 +328,7 @@ export default function LeadsPage() {
                   setDealStage(p?.columns[0]?.id ?? "");
                 }}
               >
-                <SelectTrigger className="border-card-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
@@ -337,7 +337,7 @@ export default function LeadsPage() {
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Etapa</label>
               <Select value={dealStage} onValueChange={setDealStage}>
-                <SelectTrigger className="border-card-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(dealPipelineObj?.columns ?? []).map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>

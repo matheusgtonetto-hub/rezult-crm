@@ -65,7 +65,7 @@ const Card = ({ children, className = "" }: { children: ReactNode; className?: s
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
   <div className="mb-4">
     <h2 className="text-base font-semibold text-foreground">{title}</h2>
-    {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    {subtitle && <p className="text-[14px] text-muted-foreground mt-0.5">{subtitle}</p>}
   </div>
 );
 
@@ -117,7 +117,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2.5 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[12px] px-4 py-2 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
@@ -226,7 +226,6 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <h1 className="text-xl font-bold text-foreground mb-6">Meu perfil</h1>
 
       {/* Cabeçalho do perfil */}
       <Card>
@@ -244,7 +243,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </h2>
               <CheckCircle2 size={16} className="text-primary" />
             </div>
-            <p className="text-[13px] text-muted-foreground mt-1">{authEmail}</p>
+            <p className="text-[13px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
             {createdDate && (
               <p className="text-xs text-muted-foreground mt-1">Conta criada em {createdDate}</p>
             )}
@@ -267,7 +266,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Seu nome completo"
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -299,7 +298,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                 value={authEmail}
                 readOnly
                 disabled
-                className="border-card-border bg-muted/50 text-muted-foreground cursor-not-allowed pr-9"
+                className="border-card-border bg-muted/50 text-muted-foreground cursor-not-allowed pr-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               <Lock
                 size={13}
@@ -342,7 +341,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           <div className="flex items-center gap-2 shrink-0">
             <label className="text-xs text-muted-foreground whitespace-nowrap">Tema</label>
             <Select value={theme} onValueChange={(v) => handleTheme(v as "light" | "dark")}>
-              <SelectTrigger className="border-card-border w-32">
+              <SelectTrigger className="border-card-border w-32 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -562,7 +561,6 @@ function EmpresaSection() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-foreground mb-6">Empresa</h1>
 
       {/* Cabeçalho da empresa */}
       <Card className="!p-4">
@@ -578,7 +576,7 @@ function EmpresaSection() {
               <CheckCircle2 size={16} className="text-primary" />
             </div>
             {company?.email && (
-              <p className="text-[13px] text-muted-foreground mt-0.5">{company.email}</p>
+              <p className="text-[13px] text-muted-foreground mt-[1.5px]">{company.email}</p>
             )}
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -625,17 +623,17 @@ function EmpresaSection() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Nome da empresa *</label>
             <Input value={name} onChange={e => setName(e.target.value)}
-              placeholder="Preencha com o nome da sua empresa" className="border-card-border" />
+              placeholder="Preencha com o nome da sua empresa" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">E-mail da empresa</label>
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="Preencha com o e-mail da sua empresa" className="border-card-border" />
+              placeholder="Preencha com o e-mail da sua empresa" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Nicho</label>
             <Input value={niche} onChange={e => setNiche(e.target.value)}
-              placeholder="Exemplo: Vendas" className="border-card-border" />
+              placeholder="Exemplo: Vendas" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Telefone</label>
@@ -699,7 +697,7 @@ function EmpresaSection() {
               value={document}
               onChange={e => handleDocChange(e.target.value)}
               placeholder={docType === "pj" ? "00.000.000/0000-00" : "000.000.000-00"}
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
         </div>
@@ -713,7 +711,7 @@ function EmpresaSection() {
             <label className="text-xs text-muted-foreground mb-1 block">CEP</label>
             <div className="relative">
               <Input value={zipCode} onChange={e => handleCepChange(e.target.value)}
-                placeholder="00000-000" className="border-card-border" maxLength={9} />
+                placeholder="00000-000" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" maxLength={9} />
               {loadingCep && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -725,38 +723,38 @@ function EmpresaSection() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Endereço</label>
             <Input value={address} onChange={e => setAddress(e.target.value)}
-              placeholder="Rua, Avenida..." className="border-card-border" />
+              placeholder="Rua, Avenida..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Número</label>
               <Input value={number} onChange={e => setNumber(e.target.value)}
-                placeholder="123" className="border-card-border" />
+                placeholder="123" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Complemento</label>
               <Input value={complement} onChange={e => setComplement(e.target.value)}
-                placeholder="Apto, Sala..." className="border-card-border" />
+                placeholder="Apto, Sala..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
           </div>
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Bairro</label>
             <Input value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
-              placeholder="Bairro" className="border-card-border" />
+              placeholder="Bairro" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Cidade</label>
               <Input value={city} onChange={e => setCity(e.target.value)}
-                placeholder="São Paulo" className="border-card-border" />
+                placeholder="São Paulo" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">UF</label>
               <Input value={state} onChange={e => setState(e.target.value.toUpperCase())}
-                placeholder="SP" className="border-card-border" maxLength={2} />
+                placeholder="SP" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" maxLength={2} />
             </div>
           </div>
         </div>
@@ -1054,7 +1052,7 @@ function EquipeSection() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Equipe</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
         </div>
         {isAdmin && (
           <Button onClick={() => setAddOpen(true)} className="bg-primary hover:bg-primary/90">
@@ -1211,7 +1209,7 @@ function EquipeSection() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
@@ -1565,9 +1563,9 @@ function PlanosSection() {
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
               </div>
-              <p className="font-bold text-foreground" style={{ fontSize: 19 }}>Planos e pagamentos</p>
+              <h2 className="text-lg font-bold text-foreground">Planos e pagamentos</h2>
             </div>
-            <p className="text-muted-foreground mt-1 font-medium" style={{ fontSize: 13 }}>Controle seus planos, pagamentos e uso do Rezult CRM</p>
+            <p className="text-sm text-muted-foreground mt-1">Controle seus planos, pagamentos e uso do Rezult CRM</p>
           </div>
 
           {/* Divisor vertical */}
@@ -2100,7 +2098,7 @@ function ProdutosSection() {
                 onChange={e => setName(e.target.value)}
                 placeholder="Ex: Consultoria mensal"
                 autoFocus
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -2109,7 +2107,7 @@ function ProdutosSection() {
                 value={sku}
                 onChange={e => setSku(e.target.value)}
                 placeholder="Ex: produto1"
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -2119,7 +2117,7 @@ function ProdutosSection() {
                 onChange={e => handlePriceChange(e.target.value)}
                 placeholder="R$ 0,00"
                 inputMode="numeric"
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
           </div>
@@ -2201,7 +2199,7 @@ function MotivosSection() {
               value={motivo}
               onChange={e => setMotivo(e.target.value)}
               placeholder="Ex: Preço alto"
-              className="rounded-lg"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               onKeyDown={e => e.key === "Enter" && handleSave()}
               autoFocus
             />
@@ -2292,11 +2290,11 @@ function ListasSection() {
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border" />
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição <span className="text-muted-foreground font-normal">(opcional)</span></label>
-              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-card-border" />
+              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
           </div>
           <div className="flex gap-2 justify-end mt-4">
@@ -2563,7 +2561,7 @@ function CamposSection() {
               onChange={e => setGroupName(e.target.value)}
               placeholder="Ex: Financeiro, Qualificação..."
               autoFocus
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               onKeyDown={e => e.key === "Enter" && handleSaveGroup()}
             />
           </div>
@@ -2590,14 +2588,14 @@ function CamposSection() {
                 onChange={e => setItemLabel(e.target.value)}
                 placeholder="Ex: Qual o orçamento disponível?"
                 autoFocus
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 onKeyDown={e => e.key === "Enter" && handleSaveItem()}
               />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tipo de resposta</label>
               <Select value={itemType} onValueChange={(v: "text" | "date" | "boolean") => setItemType(v)}>
-                <SelectTrigger className="border-card-border">
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2696,13 +2694,13 @@ function HorariosSection() {
               <Input
                 type="time" value={s.start} disabled={!s.active}
                 onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, start: e.target.value } : p))}
-                className="border-card-border w-32"
+                className="border-card-border w-32 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               <span className="text-xs text-muted-foreground">às</span>
               <Input
                 type="time" value={s.end} disabled={!s.active}
                 onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, end: e.target.value } : p))}
-                className="border-card-border w-32"
+                className="border-card-border w-32 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
           ))}
@@ -3068,7 +3066,7 @@ function ConexoesSection() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Conexões</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
           Criar
@@ -3235,7 +3233,7 @@ function ConexoesSection() {
               {/* Connection name */}
               <div style={{ padding: "14px 24px 0" }}>
                 <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
-                <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm" />
+                <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </div>
 
               {/* Tabs */}
@@ -3257,7 +3255,7 @@ function ConexoesSection() {
                     <div>
                       <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
                       <div style={{ position: "relative" }}>
-                        <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showInstId ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3266,7 +3264,7 @@ function ConexoesSection() {
                     <div>
                       <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
                       <div style={{ position: "relative" }}>
-                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3279,7 +3277,7 @@ function ConexoesSection() {
                         <span style={{ fontSize: 11, color: "#AAA" }}>Acesse a página de Segurança para obter</span>
                       </div>
                       <div style={{ position: "relative" }}>
-                        <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showClientTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3629,7 +3627,7 @@ function ConexoesSection() {
                     placeholder="Ex: 3C1B2A3D4E5F..."
                     value={form.instanceId}
                     onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
                 <div>
@@ -3638,7 +3636,7 @@ function ConexoesSection() {
                     placeholder="Token da instância"
                     value={form.token}
                     onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
@@ -3650,7 +3648,7 @@ function ConexoesSection() {
                     placeholder="Client-Token da instância"
                     value={form.clientToken}
                     onChange={e => setForm(f => ({ ...f, clientToken: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
@@ -3823,7 +3821,7 @@ function ApiSection() {
           <Input
             value={WEBHOOK_URL}
             readOnly
-            className="border-card-border font-mono text-xs text-muted-foreground"
+            className="border-card-border font-mono text-xs text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
           />
           <Button
             variant="outline"
@@ -3900,7 +3898,7 @@ function ApiSection() {
               placeholder="Nome da chave (ex: Site, RD Station)"
               value={labelInput}
               onChange={e => setLabelInput(e.target.value)}
-              className="border-card-border text-sm h-9"
+              className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               onKeyDown={e => e.key === "Enter" && handleGenerate()}
             />
             <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleGenerate} disabled={generating}>
@@ -3985,7 +3983,7 @@ function ApiSection() {
             <Input
               value={newKeyModal?.key ?? ""}
               readOnly
-              className="font-mono text-xs border-card-border"
+              className="font-mono text-xs border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <Button
               variant="outline"
@@ -4339,7 +4337,7 @@ function ArmazenamentoSection() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Armazenamento</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
         </div>
         <Button variant="outline" className="text-sm border-card-border shrink-0 ml-4" onClick={() => navigate("/configuracoes/planos")}>
           Gerenciar planos e uso
@@ -4444,7 +4442,7 @@ function SectionHeader({ title, subtitle, onAdd, onClick }: { title: string; sub
     <div className="flex items-start justify-between mb-6">
       <div>
         <h1 className="text-xl font-bold text-foreground">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-[14px] font-normal text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
       <Button onClick={onClick} className="bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
     </div>
@@ -4461,9 +4459,9 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
       <DialogContent className="max-w-[420px]">
         <DialogHeader><DialogTitle>Alterar senha</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
-          <Input type="password" placeholder="Senha atual" />
-          <Input type="password" placeholder="Nova senha" value={pw} onChange={e => setPw(e.target.value)} />
-          <Input type="password" placeholder="Confirmar nova senha" />
+          <Input type="password" placeholder="Senha atual" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Nova senha" value={pw} onChange={e => setPw(e.target.value)} className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Confirmar nova senha" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           {pw.length > 0 && (
             <div>
               <div className="flex gap-1">

@@ -451,7 +451,7 @@ export default function SetupPage() {
                 placeholder="João Silva"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
-                className="h-10 rounded-lg"
+                className="h-10 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
@@ -466,14 +466,14 @@ export default function SetupPage() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="h-10 rounded-lg"
+                className="h-10 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Permissão</Label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger className="h-10 rounded-lg">
+                <SelectTrigger className="h-10 rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

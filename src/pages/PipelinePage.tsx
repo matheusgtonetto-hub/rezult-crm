@@ -550,12 +550,12 @@ export default function PipelinePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome, empresa ou #"
-              className="pl-8 h-9 w-64 bg-card border-card-border rounded-lg text-sm"
+              className="pl-8 h-9 w-64 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
           <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-9 w-40 bg-card border-card-border rounded-lg text-sm">
+            <SelectTrigger className="h-9 w-40 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card border-card-border">
@@ -566,7 +566,7 @@ export default function PipelinePage() {
           </Select>
 
           <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
-            <SelectTrigger className="h-9 w-36 bg-card border-card-border rounded-lg text-sm">
+            <SelectTrigger className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card border-card-border">
@@ -582,14 +582,14 @@ export default function PipelinePage() {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm"
+              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <span>—</span>
             <Input
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm"
+              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -1109,7 +1109,7 @@ export default function PipelinePage() {
               value={renamingCol?.title || ""}
               onChange={(e) => setRenamingCol(prev => prev ? { ...prev, title: e.target.value } : prev)}
               placeholder="Nome da etapa"
-              className="rounded-lg"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <DialogFooter>
               <Button variant="outline" className="rounded-lg" onClick={() => setRenamingCol(null)}>
@@ -1171,7 +1171,7 @@ export default function PipelinePage() {
               value={newColumnName}
               onChange={(e) => setNewColumnName(e.target.value)}
               placeholder="Ex: Aguardando assinatura"
-              className="rounded-lg"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <DialogFooter>
               <Button variant="outline" className="rounded-lg" onClick={() => setShowNewColumn(false)}>
@@ -1260,7 +1260,7 @@ export default function PipelinePage() {
                           value={editPipelineName}
                           onChange={e => setEditPipelineName(e.target.value)}
                           placeholder="Nome da pipeline"
-                          className="mt-1.5 rounded-lg"
+                          className="mt-1.5 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                       </div>
                       <div>
@@ -1269,7 +1269,7 @@ export default function PipelinePage() {
                           value={editPipelineDesc}
                           onChange={e => setEditPipelineDesc(e.target.value)}
                           placeholder="Descreva o propósito desta pipeline"
-                          className="mt-1.5 rounded-lg resize-none"
+                          className="mt-1.5 rounded-lg resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           rows={3}
                         />
                       </div>
@@ -1291,7 +1291,7 @@ export default function PipelinePage() {
                               value={newGroupName}
                               onChange={e => setNewGroupName(e.target.value)}
                               placeholder="Nome do grupo"
-                              className="rounded-lg h-8 text-sm flex-1"
+                              className="rounded-lg h-8 text-sm flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                               onKeyDown={async e => {
                                 if (e.key === "Enter") {
                                   if (!newGroupName.trim()) return;

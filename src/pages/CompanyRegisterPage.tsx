@@ -285,7 +285,7 @@ export default function CompanyRegisterPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                className="h-11 rounded-lg"
+                className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
@@ -304,7 +304,7 @@ export default function CompanyRegisterPage() {
                   placeholder="contato@empresa.com"
                   value={companyEmail}
                   onChange={(e) => setCompanyEmail(e.target.value)}
-                  className="h-11 rounded-lg"
+                  className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
 
@@ -328,7 +328,7 @@ export default function CompanyRegisterPage() {
                     placeholder="(11) 99999-9999"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="h-11 rounded-lg flex-1"
+                    className="h-11 rounded-lg flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
               </div>
@@ -388,7 +388,7 @@ export default function CompanyRegisterPage() {
                     placeholder="00000-000"
                     value={zipCode}
                     onChange={(e) => handleCepChange(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     maxLength={9}
                   />
                   {loadingCep && (
@@ -407,7 +407,7 @@ export default function CompanyRegisterPage() {
                   placeholder="Rua, Avenida..."
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="h-11 rounded-lg"
+                  className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
 
@@ -420,7 +420,7 @@ export default function CompanyRegisterPage() {
                     placeholder="123"
                     value={number}
                     onChange={(e) => setNumber(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -431,7 +431,7 @@ export default function CompanyRegisterPage() {
                     placeholder="Apto, Sala..."
                     value={complement}
                     onChange={(e) => setComplement(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
               </div>
@@ -444,7 +444,7 @@ export default function CompanyRegisterPage() {
                   placeholder="Bairro"
                   value={neighborhood}
                   onChange={(e) => setNeighborhood(e.target.value)}
-                  className="h-11 rounded-lg"
+                  className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
 
@@ -457,7 +457,7 @@ export default function CompanyRegisterPage() {
                     placeholder="São Paulo"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -468,7 +468,7 @@ export default function CompanyRegisterPage() {
                     placeholder="SP"
                     value={uf}
                     onChange={(e) => setUf(e.target.value.toUpperCase())}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     maxLength={2}
                   />
                 </div>

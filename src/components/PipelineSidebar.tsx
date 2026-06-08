@@ -121,10 +121,10 @@ export function PipelineSidebar() {
           <div key={group.groupId}>
             <button
               onClick={() => toggleGroup(group.cat)}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-sidebar-foreground transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
             >
               {openGroups[group.cat] !== false ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              {group.cat}
+              {group.cat.charAt(0).toUpperCase() + group.cat.slice(1)}
               <span className="ml-auto text-muted-foreground/70">{group.items.length}</span>
             </button>
 
@@ -141,7 +141,7 @@ export function PipelineSidebar() {
                     <button
                       key={p.id}
                       onClick={() => setActivePipelineId(p.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
                         active
                           ? "bg-sidebar-accent border-l-[3px] border-primary"
                           : "text-foreground hover:bg-muted/50"
@@ -197,7 +197,7 @@ export function PipelineSidebar() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Ex: Pós-venda"
-                className="bg-background border-card-border rounded-lg"
+                className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -206,7 +206,7 @@ export function PipelineSidebar() {
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Descreva o propósito desta pipeline"
-                className="bg-background border-card-border rounded-lg resize-none"
+                className="bg-background border-card-border rounded-lg resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 rows={2}
               />
             </div>
@@ -261,7 +261,7 @@ export function PipelineSidebar() {
                           value={newGroupInput}
                           onChange={e => setNewGroupInput(e.target.value)}
                           placeholder="Nome do grupo"
-                          className="h-7 text-xs rounded-md flex-1"
+                          className="h-7 text-xs rounded-md flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           onKeyDown={e => { if (e.key === "Enter") handleCreateGroup(); }}
                           autoFocus
                         />

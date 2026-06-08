@@ -396,7 +396,7 @@ export function ActivityDialog({
               value={title}
               onChange={e => setTitle(e.target.value)}
               readOnly={readOnly}
-              className="bg-background border-card-border h-8 text-sm"
+              className="bg-background border-card-border h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               style={{ borderRadius: 15, color: title ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>
@@ -482,7 +482,7 @@ export function ActivityDialog({
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Horário</label>
               <Select value={time} onValueChange={v => !readOnly && setTime(v)} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
                   <SelectValue placeholder="--:--" />
                 </SelectTrigger>
                 <SelectContent className="max-h-52 overflow-y-auto">
@@ -495,7 +495,7 @@ export function ActivityDialog({
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Duração</label>
               <Select value={String(duration)} onValueChange={v => !readOnly && setDuration(Number(v))} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -712,7 +712,7 @@ export function ActivityDialog({
                   value={meetLink}
                   onChange={e => setMeetLink(e.target.value)}
                   placeholder="Cole ou gere o link da reunião (Zoom, Meet, Teams...)"
-                  className="h-8 text-xs border-card-border bg-background"
+                  className="h-8 text-xs border-card-border bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   style={{ borderRadius: 15 }}
                 />
               )}
@@ -727,7 +727,7 @@ export function ActivityDialog({
               value={description}
               onChange={e => setDescription(e.target.value)}
               readOnly={readOnly}
-              className="bg-background border-card-border resize-none text-sm min-h-[60px]"
+              className="bg-background border-card-border resize-none text-sm min-h-[60px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               style={{ borderRadius: 15, color: description ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>

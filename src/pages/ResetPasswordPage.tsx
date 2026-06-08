@@ -102,7 +102,7 @@ export default function ResetPasswordPage() {
               placeholder="seu@email.com"
               value={reEmail}
               onChange={e => setReEmail(e.target.value)}
-              className="h-11 rounded-lg"
+              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoFocus
             />
           </div>
@@ -167,7 +167,7 @@ export default function ResetPasswordPage() {
               placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="h-11 rounded-lg pr-10"
+              className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoFocus
               autoComplete="new-password"
             />

@@ -260,7 +260,7 @@ export default function RezultPayPage() {
         <TabsContent value="overview" className="space-y-5 mt-0">
           <div className="flex justify-end">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[160px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="hoje">Hoje</SelectItem>
                 <SelectItem value="7d">7 dias</SelectItem>
@@ -339,10 +339,10 @@ export default function RezultPayPage() {
           <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4 flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAAAAA]" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou valor" className="pl-9" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou valor" className="pl-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos status</SelectItem>
                 <SelectItem value="pago">Pago</SelectItem>
@@ -352,7 +352,7 @@ export default function RezultPayPage() {
               </SelectContent>
             </Select>
             <Select value={methodFilter} onValueChange={setMethodFilter}>
-              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Método" /></SelectTrigger>
+              <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Método" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos métodos</SelectItem>
                 <SelectItem value="cartao">Cartão</SelectItem>
@@ -497,7 +497,7 @@ export default function RezultPayPage() {
             <h2 className="text-[16px] font-semibold text-[#111111]">Comissões do time</h2>
             <div className="flex items-center gap-2">
               <Select defaultValue="abr">
-                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="abr">Abril 2026</SelectItem>
                   <SelectItem value="mar">Março 2026</SelectItem>
@@ -601,7 +601,7 @@ export default function RezultPayPage() {
             <h2 className="text-[16px] font-semibold text-[#111111]">Extrato de transações</h2>
             <div className="flex items-center gap-2">
               <Select defaultValue="abr">
-                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="abr">Abril 2026</SelectItem>
                   <SelectItem value="mar">Março 2026</SelectItem>
@@ -651,6 +651,7 @@ export default function RezultPayPage() {
                 value={draft.client}
                 onChange={e => setDraft({ ...draft, client: e.target.value })}
                 placeholder="Buscar lead ou contato"
+                className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               {draft.client && (
                 <div className="flex items-center gap-2 mt-2 p-2 bg-[#F5F5F5] rounded-lg">
@@ -659,7 +660,7 @@ export default function RezultPayPage() {
                   </div>
                   <div className="text-[12px] text-[#111111] flex-1">{draft.client}</div>
                   <Select value={draft.deal} onValueChange={v => setDraft({ ...draft, deal: v })}>
-                    <SelectTrigger className="w-[130px] h-8 text-[12px]"><SelectValue placeholder="Vincular negócio" /></SelectTrigger>
+                    <SelectTrigger className="w-[130px] h-8 text-[12px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Vincular negócio" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1085">#1085</SelectItem>
                       <SelectItem value="1092">#1092</SelectItem>
@@ -674,22 +675,22 @@ export default function RezultPayPage() {
               <h3 className="text-[12px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Cobrança</h3>
               <div>
                 <Label className="text-[12px]">Descrição/produto</Label>
-                <Input value={draft.desc} onChange={e => setDraft({ ...draft, desc: e.target.value })} className="mt-1" />
+                <Input value={draft.desc} onChange={e => setDraft({ ...draft, desc: e.target.value })} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-[12px]">Valor (R$)</Label>
-                  <Input value={draft.amount} onChange={e => setDraft({ ...draft, amount: e.target.value })} className="mt-1" placeholder="0,00" />
+                  <Input value={draft.amount} onChange={e => setDraft({ ...draft, amount: e.target.value })} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" placeholder="0,00" />
                 </div>
                 <div>
                   <Label className="text-[12px]">Vencimento</Label>
-                  <Input type="date" value={draft.due} onChange={e => setDraft({ ...draft, due: e.target.value })} className="mt-1" />
+                  <Input type="date" value={draft.due} onChange={e => setDraft({ ...draft, due: e.target.value })} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                 </div>
               </div>
               <div>
                 <Label className="text-[12px]">Método de pagamento</Label>
                 <Select value={draft.method} onValueChange={v => setDraft({ ...draft, method: v as Method })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cartao">Cartão de crédito</SelectItem>
                     <SelectItem value="pix">Pix</SelectItem>
@@ -701,7 +702,7 @@ export default function RezultPayPage() {
                 <div>
                   <Label className="text-[12px]">Parcelamento</Label>
                   <Select value={draft.installments} onValueChange={v => setDraft({ ...draft, installments: v })}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 12 }).map((_, i) => (
                         <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x sem juros</SelectItem>
@@ -716,7 +717,7 @@ export default function RezultPayPage() {
               </div>
               {draft.recurring && (
                 <Select value={draft.cycle} onValueChange={v => setDraft({ ...draft, cycle: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="mensal">Mensal</SelectItem>
                     <SelectItem value="trimestral">Trimestral</SelectItem>

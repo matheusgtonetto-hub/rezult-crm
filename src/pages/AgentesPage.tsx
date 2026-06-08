@@ -400,12 +400,12 @@ export default function AgentesPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-[12px] text-[#666]">Nome do agente</Label>
-                      <Input defaultValue={`Agent ${selected.type} — ${selected.user.split(" ")[0]}`} className="mt-1" />
+                      <Input defaultValue={`Agent ${selected.type} — ${selected.user.split(" ")[0]}`} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                     </div>
                     <div>
                       <Label className="text-[12px] text-[#666]">Tipo de agente</Label>
                       <Select defaultValue={selected.type}>
-                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {(["Master", "Coordenador", "Closer", "SDR"] as AgentType[]).map(t => (
                             <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -417,7 +417,7 @@ export default function AgentesPage() {
                     <div>
                       <Label className="text-[12px] text-[#666]">Usuário vinculado</Label>
                       <Select defaultValue={selected.user}>
-                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {MOCK_USERS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                         </SelectContent>
@@ -425,7 +425,7 @@ export default function AgentesPage() {
                     </div>
                     <div>
                       <Label className="text-[12px] text-[#666]">Nível hierárquico</Label>
-                      <Input type="number" defaultValue={selected.level} className="mt-1" />
+                      <Input type="number" defaultValue={selected.level} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-4 p-3 bg-[#F5F5F5] rounded-lg">
@@ -512,7 +512,7 @@ export default function AgentesPage() {
                       value={newLink}
                       onChange={e => setNewLink(e.target.value)}
                       placeholder="https://..."
-                      className="flex-1"
+                      className="flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <Button
                       onClick={() => {
@@ -555,7 +555,7 @@ export default function AgentesPage() {
                     value={instructions}
                     onChange={e => setInstructions(e.target.value.slice(0, 2000))}
                     placeholder="Ex: Você é o agente SDR da empresa Rezult. Seu objetivo é supervisionar as conversas de qualificação do Carlos. Sempre que identificar que o lead não foi perguntado sobre orçamento, alerte o SDR. Use um tom direto mas amigável. Nunca sugira descontos sem autorização do coordenador..."
-                    className="mt-1 min-h-[200px] text-[13px]"
+                    className="mt-1 min-h-[200px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                   <div className="text-right text-[11px] text-[#AAAAAA] mt-1">
                     {instructions.length} / 2000
@@ -712,13 +712,13 @@ export default function AgentesPage() {
                 value={draft.role}
                 onChange={e => setDraft({ ...draft, role: e.target.value })}
                 placeholder="Ex: SDR Sênior"
-                className="mt-1"
+                className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
               <Label className="text-[12px]">Tipo de agente</Label>
               <Select value={draft.type} onValueChange={v => setDraft({ ...draft, type: v as AgentType })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(["Master", "Coordenador", "Closer", "SDR"] as AgentType[]).map(t => (
                     <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -729,7 +729,7 @@ export default function AgentesPage() {
             <div>
               <Label className="text-[12px]">Usuário vinculado</Label>
               <Select value={draft.user} onValueChange={v => setDraft({ ...draft, user: v })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MOCK_USERS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                 </SelectContent>
@@ -738,7 +738,7 @@ export default function AgentesPage() {
             <div>
               <Label className="text-[12px]">Reporta a</Label>
               <Select value={draft.parentId} onValueChange={v => setDraft({ ...draft, parentId: v })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {agents.map(a => <SelectItem key={a.id} value={a.id}>{a.role} — {a.user}</SelectItem>)}
                 </SelectContent>

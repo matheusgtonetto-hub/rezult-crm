@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, cre
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
-  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
+  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight, Network,
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
@@ -1217,6 +1217,8 @@ export default function AutomacoesPage() {
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar automação..."
                 style={{ width: "100%", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                onFocus={e => { e.currentTarget.style.border = "1px solid hsl(var(--primary))"; }}
+                onBlur={e => { e.currentTarget.style.border = "1px solid #E5E5E5"; }}
               />
               <Power
                 size={14}
@@ -1232,73 +1234,77 @@ export default function AutomacoesPage() {
             </button>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
             {loading ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>Carregando...</div>
+              <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Carregando...</p>
             ) : filteredGroups.length === 0 ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>Nenhuma automação</div>
+              <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Nenhuma automação</p>
             ) : filteredGroups.map(g => {
               const open = openGroups[g.name] ?? false;
               return (
                 <div key={g.name}>
-                  <div
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                  <button
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      {renamingGroup === g.name ? (
-                        <input
-                          autoFocus
-                          value={renameGroupVal}
-                          onChange={e => setRenameGroupVal(e.target.value)}
-                          onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter") { e.currentTarget.blur(); }
-                            else if (e.key === "Escape") { setRenamingGroup(null); }
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
-                            color: "#6B7280", background: "transparent", border: "none",
-                            borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
-                            padding: "0 2px", width: "100%",
-                          }}
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
-                          title="Duplo clique para renomear"
-                          style={{ cursor: "text" }}
-                        >
-                          {g.name}
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ fontSize: 10, color: "#9CA3AF" }}>{g.items.length}</span>
-                  </div>
-                  {open && g.items.map(item => {
-                    const sel = selectedId === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => requestLeave(() => openEditor(item.id))}
-                        className="group"
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: sel ? "#F0FDF4" : "transparent", borderLeft: sel ? "3px solid hsl(var(--primary))" : "3px solid transparent", cursor: "pointer" }}
+                    {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    {renamingGroup === g.name ? (
+                      <input
+                        autoFocus
+                        value={renameGroupVal}
+                        onChange={e => setRenameGroupVal(e.target.value)}
+                        onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") { e.currentTarget.blur(); }
+                          else if (e.key === "Escape") { setRenamingGroup(null); }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
+                          color: "#6B7280", background: "transparent", border: "none",
+                          borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
+                          padding: "0 2px", width: "100%",
+                        }}
+                      />
+                    ) : (
+                      <span
+                        onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
+                        title="Duplo clique para renomear"
+                        className="cursor-text"
                       >
-                        <Zap size={14} color="hsl(var(--primary))" />
-                        <span style={{ flex: 1, fontSize: 13, color: "#111111", fontWeight: sel ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {item.name}
-                        </span>
-                        <Switch
-                          checked={item.active}
-                          onCheckedChange={(v) => { toggleActive(item.id, v); }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="scale-75"
-                        />
-                      </div>
-                    );
-                  })}
+                        {g.name.charAt(0).toUpperCase() + g.name.slice(1)}
+                      </span>
+                    )}
+                    <span className="ml-auto text-muted-foreground/70">{g.items.length}</span>
+                  </button>
+
+                  {open && (
+                    <div className="space-y-0.5 mb-1">
+                      {g.items.map(item => {
+                        const sel = selectedId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => requestLeave(() => openEditor(item.id))}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
+                              sel
+                                ? "bg-sidebar-accent border-l-[3px] border-primary"
+                                : "text-foreground hover:bg-muted/50"
+                            }`}
+                          >
+                            <Network size={14} className={sel ? "text-primary" : "text-muted-foreground"} />
+                            <span className={`truncate text-left flex-1 ${sel ? "text-foreground" : ""}`}>{item.name}</span>
+                            <Switch
+                              checked={item.active}
+                              onCheckedChange={(v) => { toggleActive(item.id, v); }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="scale-75"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -2054,7 +2060,7 @@ export default function AutomacoesPage() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Nome da automação"
-                className="mt-1"
+                className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 onKeyDown={e => e.key === "Enter" && handleCreate()}
                 autoFocus
               />
@@ -2065,7 +2071,7 @@ export default function AutomacoesPage() {
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Descrição da automação"
-                className="mt-1 resize-none"
+                className="mt-1 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 rows={2}
               />
             </div>
@@ -2445,7 +2451,7 @@ export default function AutomacoesPage() {
           <DialogHeader><DialogTitle>Renomear automação</DialogTitle></DialogHeader>
           <div>
             <Label className="text-xs font-medium">Nome</Label>
-            <Input value={renameName} onChange={e => setRenameName(e.target.value)} className="mt-1" onKeyDown={e => e.key === "Enter" && handleRename()} autoFocus />
+            <Input value={renameName} onChange={e => setRenameName(e.target.value)} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" onKeyDown={e => e.key === "Enter" && handleRename()} autoFocus />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancelar</Button>

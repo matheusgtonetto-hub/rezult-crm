@@ -110,18 +110,18 @@ export default function TasksPage() {
         <DialogContent className="bg-card border-card-border sm:max-w-md">
           <DialogHeader><DialogTitle className="text-foreground">Nova Tarefa</DialogTitle></DialogHeader>
           <form onSubmit={handleAdd} className="space-y-3">
-            <Input placeholder="Título da tarefa" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="bg-background border-card-border rounded-lg" />
+            <Input placeholder="Título da tarefa" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             <Select value={newLeadId} onValueChange={setNewLeadId}>
-              <SelectTrigger className="bg-background border-card-border rounded-lg"><SelectValue placeholder="Lead vinculado" /></SelectTrigger>
+              <SelectTrigger className="bg-background border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Lead vinculado" /></SelectTrigger>
               <SelectContent className="bg-card border-card-border">
                 {Object.values(leads).map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={newResp} onValueChange={setNewResp}>
-              <SelectTrigger className="bg-background border-card-border rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-card border-card-border">{teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
             </Select>
-            <Input type="datetime-local" value={newDate} onChange={e => setNewDate(e.target.value)} className="bg-background border-card-border rounded-lg" />
+            <Input type="datetime-local" value={newDate} onChange={e => setNewDate(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             <Button type="submit" className="w-full rounded-lg font-semibold">Criar Tarefa</Button>
           </form>
         </DialogContent>
