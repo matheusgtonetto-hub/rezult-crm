@@ -430,7 +430,7 @@ const DC_CONDITION_MAP: Record<string, { categoryId: string; conditionId: string
   "business-lost-condition":                 { categoryId: "negocios", conditionId: "perdido",      label: "Negócio está perdido" },
   "business-pending-condition":              { categoryId: "negocios", conditionId: "pendente",     label: "Negócio está pendente" },
   "business-has-attendant-condition":        { categoryId: "negocios", conditionId: "pos_atend",    label: "Negócio possui atendentes" },
-  "lead-has-business-on-pipeline-condition": { categoryId: "negocios", conditionId: "neg_pipeline", label: "Lead possui negócio no pipeline" },
+  "lead-has-business-on-pipeline-condition": { categoryId: "leads",    conditionId: "neg_pipeline", label: "Lead possui negócio no pipeline" },
 };
 
 const DC_FIELD_PARAM_MAP: Record<string, { fieldKey: string; fieldLabel: string }> = {
@@ -4499,6 +4499,11 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   if (catId === "negocios") {
     if (id === "pos_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um.")}</>)}</>;
     if (id === "sem_atend" || id === "ganho" || id === "perdido" || id === "pendente") return noConfig;
+    if (id === "neg_pipeline") return <>{grp(<>{lbl("Informe em qual pipeline que será procurado pelo negócio do lead")}{selInp("pipeline_id", pipelines.map(p => ({ value: p.id, label: p.name })))}</>)}</>;
+    if (id === "neg_etapa") {
+      const stages = pipelines.flatMap(p => (p.columns ?? []).map(c => ({ value: c.id, label: `${p.name} → ${c.title}` })));
+      return <>{grp(<>{lbl("Informe em qual etapa que será procurado pelo negócio do lead")}{selInp("etapa_id", stages)}</>)}</>;
+    }
     if (id === "pos_produto") return (
       <>
         {grp(<>{lbl("Selecione o produto que será verificado no negócio. Deixe em branco para utilizar a busca pelo SKU")}{selInp("produto_id", products.map(p => ({ value: p.id, label: p.name })))}</>)}
