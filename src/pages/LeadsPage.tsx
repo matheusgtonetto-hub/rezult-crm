@@ -261,14 +261,7 @@ export default function LeadsPage() {
                     {(() => {
                       const d = lead.created_at ? new Date(lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
-                      const fmt = new Intl.DateTimeFormat("pt-BR", {
-                        timeZone: "America/Sao_Paulo",
-                        day: "2-digit", month: "2-digit", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", hour12: false,
-                      });
-                      const parts = fmt.formatToParts(d);
-                      const get = (t: string) => parts.find(p => p.type === t)?.value ?? "";
-                      return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+                      return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
                     })()}
                   </TableCell>
                   <TableCell onClick={e => e.stopPropagation()}>
