@@ -869,7 +869,7 @@ function PermissionsEditor({
   };
 
   return (
-    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+    <div className="space-y-3">
       {PERMISSION_GROUPS.map(group => {
         const Icon = group.icon;
         const isOpen = openGroups[group.id] ?? true;
