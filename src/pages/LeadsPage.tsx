@@ -19,7 +19,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber, crmTags } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -181,6 +181,7 @@ export default function LeadsPage() {
                 <TableHead className="text-muted-foreground">Nome</TableHead>
                 <TableHead className="text-muted-foreground">Responsável</TableHead>
                 <TableHead className="text-muted-foreground">Contato</TableHead>
+                <TableHead className="text-muted-foreground">Tags</TableHead>
                 <TableHead className="text-muted-foreground">Pipeline</TableHead>
                 <TableHead className="text-muted-foreground">Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground w-10"></TableHead>
@@ -234,6 +235,21 @@ export default function LeadsPage() {
                       {lead.email && (
                         <span className="text-xs text-muted-foreground">{lead.email}</span>
                       )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(lead.tags ?? []).length === 0
+                        ? <span className="text-sm text-muted-foreground">—</span>
+                        : (lead.tags ?? []).map(tagName => {
+                            const t = crmTags.find(x => x.name === tagName);
+                            return (
+                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
+                                {tagName}
+                              </span>
+                            );
+                          })
+                      }
                     </div>
                   </TableCell>
                   <TableCell>
