@@ -233,7 +233,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   return (
     <div ref={wrapRef} className="group">
-      <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Cidade</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Cidade</label>
       {editing ? (
         <input
           ref={inputRef}
@@ -345,7 +345,7 @@ function EditableField({
 
   return (
     <div className="group">
-      <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>{label}</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>{label}</label>
       {editing ? (
         <Input
           ref={inputRef}
@@ -357,7 +357,7 @@ function EditableField({
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             if (e.key === "Escape") { setDraft(value == null ? "" : String(value)); setEditing(false); }
           }}
-          className="h-9 rounded-md text-sm"
+          className="h-9 rounded-md text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
         />
       ) : hasValue ? (
         <div
@@ -434,7 +434,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
           if (e.key === "Escape") { setOpen(false); setTitle(""); }
         }}
         placeholder="Título da tarefa..."
-        className="h-8 text-sm rounded-md"
+        className="h-8 text-sm rounded-md focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
       />
       <Button size="sm" className="h-8 rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}
         onClick={() => { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }}
@@ -542,6 +542,7 @@ export default function LeadDetailPage() {
         meetLink: data.meetLink || undefined,
         participants: data.participants.length > 0 ? data.participants : undefined,
         gcalEventId: data.gcalEventId,
+        userName: profile?.full_name || undefined,
       });
       toast.success("Atividade criada!");
     }
@@ -829,6 +830,7 @@ export default function LeadDetailPage() {
       date: new Date().toISOString(),
       type: "note",
       description: html,
+      userName: profile?.full_name || undefined,
     });
     if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
     setNewNote("");
@@ -1250,15 +1252,15 @@ export default function LeadDetailPage() {
                         value={lead.value ?? 0}
                         type="number"
                         display={v => formatBRL(Number(v) || 0)}
-                        valueStyle={{ color: "#128A68", fontWeight: 700, fontSize: 15 }}
+                        valueStyle={{ color: "#000000", fontWeight: 700, fontSize: 15 }}
                         onSave={v => updateField("value", Number(v.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0)}
                       />
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Pipeline</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Pipeline</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Produto</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Produto</label>
                         <Select
                           value={lead.productId || "none"}
                           onValueChange={v => {
@@ -1268,7 +1270,7 @@ export default function LeadDetailPage() {
                             updateField("value", prod?.defaultValue ?? 0);
                           }}
                         >
-                          <SelectTrigger className="h-9 rounded-md text-sm">
+                          <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
                             <SelectValue placeholder="Sem produto" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1280,7 +1282,7 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Responsáveis</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Responsáveis</label>
                         <div className="border rounded-md p-1.5 space-y-0.5 max-h-[110px] overflow-y-auto" style={{ borderColor: "hsl(var(--border))" }}>
                           {teamMembers.map(m => {
                             const sel = leadResps.includes(m);
@@ -1304,13 +1306,13 @@ export default function LeadDetailPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Data de entrada</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Próxima atividade</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Próxima atividade</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>
                           {(() => {
                             const next = (lead.activities ?? [])
@@ -1345,7 +1347,7 @@ export default function LeadDetailPage() {
                       />
                       {/* Multi-email */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>E-mail</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>E-mail</label>
                         {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
                           <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors">
                             <span style={{ fontSize: 13, color: "#111111" }}>{em}</span>
@@ -1381,7 +1383,7 @@ export default function LeadDetailPage() {
                               }}
                               onBlur={() => { setNewEmailDraft(""); setAddEmailMode(false); }}
                               placeholder="email@exemplo.com"
-                              className="h-7 text-xs rounded-md flex-1"
+                              className="h-7 text-xs rounded-md flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                             />
                           </div>
                         ) : (
@@ -1451,7 +1453,7 @@ export default function LeadDetailPage() {
                       <div className="pt-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Canal</label>
                         <Select value={lead.origin} onValueChange={v => updateField("origin", v)}>
-                          <SelectTrigger className="h-9 rounded-md text-sm">
+                          <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1625,8 +1627,8 @@ export default function LeadDetailPage() {
                   onClick={() => setTab(t.key)}
                   className="px-3 py-3 text-sm transition-colors"
                   style={{
-                    color: active ? "#128A68" : "#AAAAAA",
-                    fontWeight: active ? 600 : 500,
+                    color: active ? "#128A68" : "#333333",
+                    fontWeight: active ? 600 : 400,
                     borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
                     marginBottom: -1,
                   }}
@@ -1752,13 +1754,17 @@ export default function LeadDetailPage() {
                         }}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                            style={{ background: respColor }}
-                          >
-                            {lead.responsible?.[0] ?? "?"}
-                          </div>
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          {(() => { const authorName = n.userName ?? lead.responsible; return memberAvatars[authorName] ? (
+                            <img src={memberAvatars[authorName]} alt={authorName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                              style={{ background: memberColors[authorName] || "#888888" }}
+                            >
+                              {authorName?.[0] ?? "?"}
+                            </div>
+                          ); })()}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{n.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
                           {n.pinned && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
@@ -1915,21 +1921,21 @@ export default function LeadDetailPage() {
                       >
                         {/* Cabeçalho igual ao das anotações */}
                         <div className="flex items-center gap-2 mb-1">
-                          {memberAvatars[lead.responsible] ? (
+                          {(() => { const authorName = item.userName ?? lead.responsible; return memberAvatars[authorName] ? (
                             <img
-                              src={memberAvatars[lead.responsible]}
-                              alt={lead.responsible}
+                              src={memberAvatars[authorName]}
+                              alt={authorName}
                               className="w-6 h-6 rounded-full object-cover shrink-0"
                             />
                           ) : (
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                              style={{ background: respColor }}
+                              style={{ background: memberColors[authorName] || "#888888" }}
                             >
-                              {lead.responsible?.[0] ?? "?"}
+                              {authorName?.[0] ?? "?"}
                             </div>
-                          )}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          ); })()}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{item.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
                           {item.pinned && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
@@ -2132,8 +2138,8 @@ export default function LeadDetailPage() {
                         {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
-                        <p className="text-sm font-medium" style={{ color: "#111111" }}>{item.description}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="font-medium" style={{ color: "#111111", fontSize: 13 }}>{item.description}</p>
+                        <p className="text-muted-foreground mt-0.5" style={{ fontSize: 11 }}>
                           {fmtActivityDate(item.date)}
                           {item.userName && <> · <span className="font-medium">{item.userName}</span></>}
                         </p>
@@ -2615,7 +2621,7 @@ export default function LeadDetailPage() {
           </p>
         ) : (
           <Select value={selectedLossReasonId} onValueChange={setSelectedLossReasonId}>
-            <SelectTrigger className="rounded-lg">
+            <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue placeholder="Selecione um motivo" />
             </SelectTrigger>
             <SelectContent>
@@ -2656,7 +2662,7 @@ export default function LeadDetailPage() {
               value={recoveryPipelineId}
               onValueChange={setRecoveryPipelineId}
             >
-              <SelectTrigger className="rounded-lg border-card-border">
+              <SelectTrigger className="rounded-lg border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Selecione o funil" />
               </SelectTrigger>
               <SelectContent>
@@ -2708,7 +2714,7 @@ export default function LeadDetailPage() {
                   Nenhum produto vinculado. Selecione para registrar o ganho.
                 </p>
                 <Select value={wonProductId} onValueChange={setWonProductId}>
-                  <SelectTrigger className="rounded-lg">
+                  <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Escolha um produto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2739,7 +2745,7 @@ export default function LeadDetailPage() {
               Encaminhe o cliente ganho para outro funil, como CS ou Onboarding.
             </p>
             <Select value={wonTransferPipelineId} onValueChange={setWonTransferPipelineId}>
-              <SelectTrigger className="rounded-lg">
+              <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Manter no funil atual" />
               </SelectTrigger>
               <SelectContent>
