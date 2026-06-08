@@ -36,7 +36,7 @@ import IntegracoesPage from "./IntegracoesPage";
 
 type SectionId =
   | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
-  | "departamentos" | "horarios" | "atividades" | "integracoes"
+  | "departamentos" | "horarios" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
@@ -50,7 +50,6 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: "campos", label: "Campos adicionais", icon: FormInput },
   { id: "departamentos", label: "Departamentos", icon: Building2 },
   { id: "horarios", label: "Horários de trabalho", icon: Clock },
-  { id: "atividades", label: "Tipos de atividades", icon: Activity },
   { id: "integracoes", label: "Integrações", icon: Plug },
   { id: "conexoes", label: "Conexões", icon: Link2 },
   { id: "api", label: "Chaves de API", icon: KeyRound },
@@ -144,7 +143,6 @@ export default function SettingsPage() {
           {active === "campos" && <CamposSection />}
           {active === "departamentos" && <DepartamentosSection />}
           {active === "horarios" && <HorariosSection />}
-          {active === "atividades" && <AtividadesSection />}
           {active === "integracoes" && <IntegracoesSection />}
           {active === "conexoes" && <ConexoesSection />}
           {active === "api" && <ApiSection />}
@@ -2737,38 +2735,192 @@ function CamposSection() {
 }
 
 /* ---------------- DEPARTAMENTOS ---------------- */
+type Department = { id: string; name: string; created_at?: string };
+
 function DepartamentosSection() {
-  const deps = [
-    { name: "Comercial", count: 5 },
-    { name: "Marketing", count: 2 },
-    { name: "Operações", count: 1 },
-  ];
+  const { company } = useCompany();
+  const [deps, setDeps] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!company) return;
+    supabase
+      .from("departments")
+      .select("*")
+      .eq("company_id", company.id)
+      .order("created_at")
+      .then(({ data }) => {
+        setDeps((data ?? []).map(r => ({ id: r.id as string, name: r.name as string, created_at: r.created_at as string })));
+        setLoading(false);
+      });
+  }, [company]);
+
+  function openNew() { setEditingId(null); setName(""); setModalOpen(true); }
+  function openEdit(d: Department) { setEditingId(d.id); setName(d.name); setModalOpen(true); }
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error("Nome é obrigatório."); return; }
+    if (!company) return;
+    setSaving(true);
+    if (editingId) {
+      const { error } = await supabase.from("departments").update({ name: name.trim() }).eq("id", editingId);
+      if (error) { toast.error("Erro ao atualizar."); } else {
+        setDeps(prev => prev.map(d => d.id === editingId ? { ...d, name: name.trim() } : d));
+        toast.success("Departamento atualizado!");
+        setModalOpen(false);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("departments")
+        .insert({ owner_id: company.owner_id, company_id: company.id, name: name.trim() })
+        .select().single();
+      if (error) { toast.error("Erro ao criar."); } else {
+        setDeps(prev => [...prev, { id: data.id as string, name: data.name as string, created_at: data.created_at as string }]);
+        toast.success("Departamento criado!");
+        setModalOpen(false);
+      }
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete() {
+    if (!deletingId) return;
+    const { error } = await supabase.from("departments").delete().eq("id", deletingId);
+    if (error) { toast.error("Erro ao excluir."); } else {
+      setDeps(prev => prev.filter(d => d.id !== deletingId));
+      toast.success("Departamento excluído.");
+    }
+    setDeletingId(null);
+  }
+
   return (
     <>
-      <SectionHeader title="Departamentos" subtitle="Organize suas ideias com departamentos" onAdd="+ Novo departamento" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {deps.map(d => (
-            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
-              <Building2 size={16} className="text-primary" />
-              <p className="flex-1 text-[13px] text-foreground font-medium">{d.name}</p>
-              <span className="text-xs text-muted-foreground">{d.count} membros</span>
-              <button className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-              <button className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <SectionHeader title="Departamentos" subtitle="Organize suas ideias com departamentos" onAdd="+ Novo departamento" onClick={openNew} />
+
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+        {loading ? (
+          <p className="text-sm text-muted-foreground text-center py-10">Carregando…</p>
+        ) : deps.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-10">Nenhum departamento criado ainda.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Departamento</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {deps.map(d => (
+                <TableRow key={d.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 size={14} className="text-primary" />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{d.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {d.created_at
+                      ? new Date(d.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(d)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => setDeletingId(d.id)} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Editar departamento" : "Novo departamento"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Nome *</label>
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ex: Comercial"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              onKeyDown={e => e.key === "Enter" && handleSave()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button className="rounded-lg bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando…" : editingId ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingId} onOpenChange={o => !o && setDeletingId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir departamento?</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">Esta ação não pode ser desfeita.</p>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg" onClick={() => setDeletingId(null)}>Cancelar</Button>
+            <Button variant="destructive" className="rounded-lg" onClick={handleDelete}>Excluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
 /* ---------------- HORÁRIOS ---------------- */
+type ScheduleDay = { day: string; active: boolean; start: string; end: string };
+const DEFAULT_SCHEDULE = (days: string[]): ScheduleDay[] =>
+  days.map(d => ({ day: d, active: !["Sábado", "Domingo"].includes(d), start: "08:00", end: "18:00" }));
+
 function HorariosSection() {
   const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-  const [schedule, setSchedule] = useState(
-    days.map(d => ({ day: d, active: !["Sábado", "Domingo"].includes(d), start: "08:00", end: "18:00" }))
-  );
+  const { company, refetchCompany } = useCompany();
+  const [schedule, setSchedule] = useState<ScheduleDay[]>(DEFAULT_SCHEDULE(days));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!company) return;
+    const saved = (company as Record<string, unknown>).work_schedule as ScheduleDay[] | undefined;
+    if (saved && Array.isArray(saved) && saved.length === days.length) {
+      setSchedule(saved);
+    }
+  }, [company]);
+
+  const handleSave = async () => {
+    if (!company) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("companies")
+      .update({ work_schedule: schedule })
+      .eq("id", company.id);
+    if (error) {
+      toast.error("Erro ao salvar horários.");
+    } else {
+      await refetchCompany();
+      toast.success("Horários salvos!");
+    }
+    setSaving(false);
+  };
+
   return (
     <>
       <div className="flex items-start justify-between mb-6">
@@ -2801,7 +2953,9 @@ function HorariosSection() {
           ))}
         </div>
         <div className="flex justify-end mt-5">
-          <Button onClick={() => toast.success("Horários salvos!")} className="bg-primary hover:bg-primary/90">Salvar horários</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
+            {saving ? "Salvando…" : "Salvar horários"}
+          </Button>
         </div>
       </Card>
     </>
@@ -2809,34 +2963,6 @@ function HorariosSection() {
 }
 
 /* ---------------- ATIVIDADES ---------------- */
-function AtividadesSection() {
-  const tipos = [
-    { name: "Ligação", icon: Phone },
-    { name: "E-mail", icon: Mail },
-    { name: "Reunião", icon: Calendar },
-    { name: "WhatsApp", icon: MessageSquare },
-    { name: "Visita", icon: MapPin },
-  ];
-  return (
-    <>
-      <SectionHeader title="Tipos de atividades" subtitle="Descubra, organize e gerencie seus tipos de atividades" onAdd="+ Novo tipo" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {tipos.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <t.icon size={14} className="text-primary" />
-              </div>
-              <p className="flex-1 text-[13px] text-foreground font-medium">{t.name}</p>
-              <button className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-              <button className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </>
-  );
-}
 
 /* ---------------- INTEGRAÇÕES ---------------- */
 function IntegracoesSection() {
