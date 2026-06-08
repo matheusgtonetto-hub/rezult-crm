@@ -1963,7 +1963,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="1,19" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -1987,7 +1987,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="1,19" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -1996,7 +1996,7 @@ export default function AutomacoesPage() {
                   <path
                     d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
                     stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
-                    strokeLinecap="round" strokeDasharray="1,19"
+                    strokeLinecap="round" strokeDasharray="7,7"
                     style={{ pointerEvents: "none" }}
                   />
                 )}
