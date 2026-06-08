@@ -825,8 +825,7 @@ export default function AutomacoesPage() {
   const handleCreate = async () => {
     if (!newName.trim()) { toast.error("Informe um nome"); return; }
     if (!user || !company) return;
-    if (startType === "import") { createFileRef.current?.click(); return; }
-    if (startType === "model")  { toast.info("Em breve"); return; }
+    if (startType === "model") { toast.info("Em breve"); return; }
     setCreating(true);
     try {
       const { data, error } = await supabase
@@ -2238,7 +2237,17 @@ export default function AutomacoesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={creating}>
+            <Button
+              onClick={() => {
+                if (startType === "import") {
+                  if (!newName.trim()) { toast.error("Informe um nome"); return; }
+                  createFileRef.current?.click();
+                } else {
+                  handleCreate();
+                }
+              }}
+              disabled={creating}
+            >
               {creating ? "Criando..." : "Confirmar"}
             </Button>
           </DialogFooter>
