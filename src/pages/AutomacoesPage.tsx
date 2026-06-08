@@ -5188,6 +5188,27 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
     return null;
   };
 
+  const findFieldOpSource = (sourceName: string): FieldOperation | null => {
+    for (const node of nodes) {
+      if (node.type === "campos") {
+        const op = (node.fieldOps ?? []).find(
+          o => o.type !== "mapeamento" && (o as FieldOpAnaliseTel).datasourceName === sourceName
+        );
+        if (op) return op as FieldOperation;
+      }
+    }
+    return null;
+  };
+
+  const ANALISE_TEL_FIELDS: { key: string; desc: string }[] = [
+    { key: "ddi",                desc: "Código do país (ex: 55)" },
+    { key: "phone",              desc: "+5511987654321" },
+    { key: "nationalNumber",     desc: "(11) 98765-4321" },
+    { key: "internacionalNumber",desc: "+55 11 98765-4321" },
+  ];
+
+  const activeFieldOp = apiModal ? findFieldOpSource(apiModal.sourceName) : null;
+
   const testApiRequest = async () => {
     if (!apiModal) return;
     const req = findApiRequestConfig(apiModal.sourceName);
@@ -5300,7 +5321,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Dados recebidos</span>
-                {apiModal.sourceName === "webhook" ? (
+                {activeFieldOp ? null : apiModal.sourceName === "webhook" ? (
                   <button onClick={handleRefreshPayload} disabled={refreshingPayload}
                     style={{ fontSize: 11, padding: "3px 10px", background: refreshingPayload ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: refreshingPayload ? "default" : "pointer", fontWeight: 600 }}>
                     {refreshingPayload ? "Atualizando…" : "Atualizar"}
@@ -5312,7 +5333,26 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                   </button>
                 )}
               </div>
-              {apiModal.sourceName === "webhook" ? (
+              {activeFieldOp ? (
+                activeFieldOp.type === "analise_telefone" ? (
+                  <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden" }}>
+                    {ANALISE_TEL_FIELDS.map((f, i) => (
+                      <button key={f.key}
+                        onClick={() => { onInsert(`{{${(activeFieldOp as FieldOpAnaliseTel).datasourceName}.${f.key}}}`); onClose(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: i < ANALISE_TEL_FIELDS.length - 1 ? "1px solid #F3F4F6" : "none", cursor: "pointer", textAlign: "left", fontSize: 12 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0 }}>{f.key}</span>
+                        <span style={{ color: "#6B7280", fontFamily: "monospace", fontSize: 11 }}>{f.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#166534" }}>
+                    Campos disponíveis após a execução do fluxo.
+                  </div>
+                )
+              ) : apiModal.sourceName === "webhook" ? (
                 webhookPayload && Object.keys(webhookPayload).length > 0 ? (
                   <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 180, overflowY: "auto" }}>
                     {Object.entries(webhookPayload).map(([key, value]) => (
