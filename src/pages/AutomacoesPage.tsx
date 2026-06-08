@@ -404,18 +404,37 @@ const DC_TRIGGER_MAP: Record<string, { triggerId: string; categoryId: string; la
   "lead-created-trigger":           { triggerId: "lead_criado",    categoryId: "leads",    label: "Lead criado" },
   "tag-added-trigger":              { triggerId: "tag_adicionada", categoryId: "leads",    label: "Tag adicionada ao lead" },
   "tag-removed-trigger":            { triggerId: "tag_removida",   categoryId: "leads",    label: "Tag removida do lead" },
+  "json-http-request-trigger":      { triggerId: "http_webhook",   categoryId: "http",     label: "Webhook (HTTP)" },
 };
 
 const DC_CONDITION_MAP: Record<string, { categoryId: string; conditionId: string; label: string }> = {
-  "lead-with-phone-exists-condition": { categoryId: "leads",    conditionId: "com_telefone", label: "Lead com telefone existente" },
-  "lead-with-email-exists-condition": { categoryId: "leads",    conditionId: "com_email",    label: "Lead com email existente" },
-  "lead-exists-condition":            { categoryId: "leads",    conditionId: "existente",    label: "Lead existente" },
-  "lead-with-name-exists-condition":  { categoryId: "leads",    conditionId: "com_nome",     label: "Lead com nome existente" },
-  "lead-with-tag-condition":          { categoryId: "leads",    conditionId: "pos_tag",      label: "Lead possui tag" },
-  "business-won-condition":           { categoryId: "negocios", conditionId: "ganho",        label: "Negócio está ganho" },
-  "business-lost-condition":          { categoryId: "negocios", conditionId: "perdido",      label: "Negócio está perdido" },
-  "business-pending-condition":       { categoryId: "negocios", conditionId: "pendente",     label: "Negócio está pendente" },
-  "business-has-attendant-condition": { categoryId: "negocios", conditionId: "pos_atend",    label: "Negócio possui atendentes" },
+  "lead-with-phone-exists-condition":         { categoryId: "leads",    conditionId: "com_telefone", label: "Lead com telefone existente" },
+  "lead-with-email-exists-condition":         { categoryId: "leads",    conditionId: "com_email",    label: "Lead com email existente" },
+  "lead-exists-condition":                   { categoryId: "leads",    conditionId: "existente",    label: "Lead existente" },
+  "lead-with-name-exists-condition":          { categoryId: "leads",    conditionId: "com_nome",     label: "Lead com nome existente" },
+  "lead-with-tag-condition":                 { categoryId: "leads",    conditionId: "pos_tag",      label: "Lead possui tag" },
+  "business-won-condition":                  { categoryId: "negocios", conditionId: "ganho",        label: "Negócio está ganho" },
+  "business-lost-condition":                 { categoryId: "negocios", conditionId: "perdido",      label: "Negócio está perdido" },
+  "business-pending-condition":              { categoryId: "negocios", conditionId: "pendente",     label: "Negócio está pendente" },
+  "business-has-attendant-condition":        { categoryId: "negocios", conditionId: "pos_atend",    label: "Negócio possui atendentes" },
+  "lead-has-business-on-pipeline-condition": { categoryId: "negocios", conditionId: "neg_pipeline", label: "Lead possui negócio no pipeline" },
+};
+
+const DC_FIELD_PARAM_MAP: Record<string, { fieldKey: string; fieldLabel: string }> = {
+  "leadName":        { fieldKey: "lead.name",         fieldLabel: "Nome do lead" },
+  "leadEmail":       { fieldKey: "lead.email",         fieldLabel: "E-mail" },
+  "leadPhone":       { fieldKey: "lead.whatsapp",      fieldLabel: "Telefone" },
+  "leadSource":      { fieldKey: "lead.origin",        fieldLabel: "Origem" },
+  "leadCompany":     { fieldKey: "lead.company",       fieldLabel: "Empresa" },
+  "leadDocument":    { fieldKey: "lead.document",      fieldLabel: "CPF/CNPJ" },
+  "leadBirthDate":   { fieldKey: "lead.birth_date",    fieldLabel: "Data de nascimento" },
+  "leadNotes":       { fieldKey: "lead.notes",         fieldLabel: "Notas" },
+  "leadSite":        { fieldKey: "lead.site",          fieldLabel: "Site" },
+  "leadUtmSource":   { fieldKey: "lead.utm_source",    fieldLabel: "UTM Source" },
+  "leadUtmMedium":   { fieldKey: "lead.utm_medium",    fieldLabel: "UTM Medium" },
+  "leadUtmCampaign": { fieldKey: "lead.utm_campaign",  fieldLabel: "UTM Campaign" },
+  "leadUtmTerm":     { fieldKey: "lead.utm_term",      fieldLabel: "UTM Term" },
+  "leadUtmContent":  { fieldKey: "lead.utm_content",   fieldLabel: "UTM Content" },
 };
 
 function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null {
@@ -471,6 +490,23 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
           : { id: String(c.id ?? `ci${i}`), categoryId: "campos", conditionId: "campo_pos_valor", label: String(c.name ?? `Condição ${i + 1}`) };
       });
       nodes.push({ id, type: "condicoes", x, y, label: "Condições", parentId, errorParentId, conditionItems });
+
+    } else if (block.type === "field-operation") {
+      const dcFieldOps = Array.isArray(opts.fieldOperations) ? (opts.fieldOperations as Record<string, unknown>[]) : [];
+      const fieldOps: FieldOperation[] = dcFieldOps
+        .filter(op => (op.name as string) === "set-field-operation")
+        .map((op, i) => {
+          const opOpts = (op.options ?? {}) as Record<string, unknown>;
+          const param  = String(opOpts.parameter ?? "");
+          const value  = String(opOpts.value ?? "");
+          const addFieldMatch = param.match(/^additional-field\[(.+)\]$/);
+          if (addFieldMatch) {
+            return { id: String(op.stepId ?? `fo${i}`), type: "mapeamento" as const, fieldKey: `campo_lead.${addFieldMatch[1]}`, fieldLabel: addFieldMatch[1], value };
+          }
+          const mapped = DC_FIELD_PARAM_MAP[param];
+          return { id: String(op.stepId ?? `fo${i}`), type: "mapeamento" as const, fieldKey: mapped?.fieldKey ?? param, fieldLabel: mapped?.fieldLabel ?? param, value };
+        });
+      nodes.push({ id, type: "campos", x, y, label: "Operações de campos", parentId, errorParentId, fieldOps });
 
     } else {
       const label = block.type === "chat" ? "Mensagem" : block.type === "action" ? "Ação" : String(block.type);
