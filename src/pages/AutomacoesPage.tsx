@@ -92,8 +92,10 @@ type CanvasNode = {
   x: number; y: number;
   label: string;
   trigger?: TriggerConfig | null;
-  parentId?: string | null;
-  errorParentId?: string | null;
+  parentId?: string | null;        // legado — migrado para parentIds no carregamento
+  errorParentId?: string | null;   // legado — migrado para errorParentIds no carregamento
+  parentIds?: string[];            // chaves das portas de saída de origem (azul)
+  errorParentIds?: string[];       // IDs dos nós de origem (vermelho)
   subBlocks?: SubBlock[];
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
@@ -435,6 +437,14 @@ const DC_FIELD_PARAM_MAP: Record<string, { fieldKey: string; fieldLabel: string 
   "leadUtmContent":  { fieldKey: "lead.utm_content",   fieldLabel: "UTM Content" },
 };
 
+function migrateNodes(nodes: CanvasNode[]): CanvasNode[] {
+  return nodes.map(n => ({
+    ...n,
+    parentIds: n.parentIds ?? (n.parentId ? [n.parentId] : []),
+    errorParentIds: n.errorParentIds ?? (n.errorParentId ? [n.errorParentId] : []),
+  }));
+}
+
 function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null {
   if (!Array.isArray(dc.blocks)) return null;
   const blocks = dc.blocks as Record<string, unknown>[];
@@ -487,7 +497,7 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
           ? { id: String(c.id ?? `ci${i}`), categoryId: mapped.categoryId, conditionId: mapped.conditionId, label: mapped.label }
           : { id: String(c.id ?? `ci${i}`), categoryId: "campos", conditionId: "campo_pos_valor", label: String(c.name ?? `Condição ${i + 1}`) };
       });
-      nodes.push({ id, type: "condicoes", x, y, label: "Condições", parentId, errorParentId, conditionItems });
+      nodes.push({ id, type: "condicoes", x, y, label: "Condições", parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], conditionItems });
 
     } else if (block.type === "field-operation") {
       const dcFieldOps = Array.isArray(opts.fieldOperations) ? (opts.fieldOperations as Record<string, unknown>[]) : [];
@@ -504,11 +514,11 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
           const mapped = DC_FIELD_PARAM_MAP[param];
           return { id: String(op.stepId ?? `fo${i}`), type: "mapeamento" as const, fieldKey: mapped?.fieldKey ?? param, fieldLabel: mapped?.fieldLabel ?? param, value };
         });
-      nodes.push({ id, type: "campos", x, y, label: "Operações de campos", parentId, errorParentId, fieldOps });
+      nodes.push({ id, type: "campos", x, y, label: "Operações de campos", parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], fieldOps });
 
     } else {
       const label = block.type === "chat" ? "Mensagem" : block.type === "action" ? "Ação" : String(block.type);
-      nodes.push({ id, type: "acoes", x, y, label, parentId, errorParentId, actionItems: [] });
+      nodes.push({ id, type: "acoes", x, y, label, parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], actionItems: [] });
     }
   }
 
@@ -583,7 +593,7 @@ export default function AutomacoesPage() {
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
   const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
   const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
-  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" } | null>(null);
+  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error"; fromId: string } | null>(null);
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -715,7 +725,7 @@ export default function AutomacoesPage() {
     const auto = automations.find(a => a.id === id);
     if (!auto) return;
     const flow = auto.flow ?? { nodes: [START_NODE], trigger: null };
-    const n = flow.nodes?.length ? flow.nodes : [START_NODE];
+    const n = migrateNodes(flow.nodes?.length ? flow.nodes : [START_NODE]);
     skipDirtyRef.current = true;
     setNodes(n);
     setTrigger(flow.trigger ?? null);
@@ -782,8 +792,8 @@ export default function AutomacoesPage() {
       x: addNodeMenu.x,
       y: addNodeMenu.y,
       label,
-      parentId: isError ? null : actualParentId,
-      errorParentId: isError ? actualParentId : null,
+      parentIds: isError ? [] : [actualParentId],
+      errorParentIds: isError ? [actualParentId] : [],
       subBlocks: [],
     };
     setNodes(prev => [...prev, newNode]);
@@ -815,10 +825,12 @@ export default function AutomacoesPage() {
     setTriggerPanel(false);
   };
 
-  const disconnectNode = (nodeId: string, type: "parent" | "error") => {
+  const disconnectNode = (nodeId: string, type: "parent" | "error", fromId: string) => {
     setNodes(prev => prev.map(n =>
       n.id === nodeId
-        ? type === "parent" ? { ...n, parentId: null } : { ...n, errorParentId: null }
+        ? type === "parent"
+          ? { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== fromId) }
+          : { ...n, errorParentIds: (n.errorParentIds ?? []).filter(p => p !== fromId) }
         : n
     ));
     setSelectedConn(null);
@@ -897,9 +909,17 @@ export default function AutomacoesPage() {
           const targetNodeId = inputPortEl?.getAttribute("data-node-id");
           if (targetNodeId && targetNodeId !== realNodeId) {
             if (isErrorPort) {
-              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, errorParentId: realNodeId } : n));
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, errorParentIds: [...new Set([...(n.errorParentIds ?? []), realNodeId])] }
+                  : n
+              ));
             } else {
-              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, parentId: fromNodeId } : n));
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, parentIds: [...new Set([...(n.parentIds ?? []), fromNodeId])] }
+                  : n
+              ));
             }
             return;
           }
@@ -1272,7 +1292,7 @@ export default function AutomacoesPage() {
           toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
           return;
         }
-        setNodes(flow.nodes ?? [START_NODE]);
+        setNodes(migrateNodes(flow.nodes ?? [START_NODE]));
         setTrigger(flow.trigger ?? null);
         toast.success("Fluxo importado — salve para persistir");
       } catch {
@@ -1349,7 +1369,11 @@ export default function AutomacoesPage() {
         ? { ...n, randomBranches: (n.randomBranches ?? DEFAULT_BRANCHES).filter(b => b.id !== branchId) }
         : n
       );
-      return withBranchRemoved.map(n => n.parentId === portKey ? { ...n, parentId: null } : n);
+      return withBranchRemoved.map(n =>
+        (n.parentIds ?? []).includes(portKey)
+          ? { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== portKey) }
+          : n
+      );
     });
   };
 
@@ -1850,23 +1874,22 @@ export default function AutomacoesPage() {
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
               {/* SVG connection lines */}
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
-                {nodes.filter(n => n.parentId).map(n => {
-                  const parentId = n.parentId!;
-                  const parent = nodes.find(p => p.id === parentId);
+                {nodes.flatMap(n => (n.parentIds ?? []).map(pid => ({ n, pid }))).map(({ n, pid }) => {
+                  const parent = nodes.find(p => p.id === pid);
                   let x1: number, y1: number, stroke = "#CCCCCC";
                   if (parent) {
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[pid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
                     y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
                     // Compound port: nodeId_condId or nodeId_branchId
-                    const lastUnder = parentId.lastIndexOf("_");
+                    const lastUnder = pid.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
-                    const realParentId = parentId.substring(0, lastUnder);
-                    const suffix = parentId.substring(lastUnder + 1);
+                    const realParentId = pid.substring(0, lastUnder);
+                    const suffix = pid.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === realParentId);
                     if (!realParent) return null;
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[pid];
                     if (realParent.type === "condicoes") {
                       const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
                       if (condIdx === -1) return null;
@@ -1886,14 +1909,14 @@ export default function AutomacoesPage() {
                   }
                   const x2 = n.x, y2 = n.y + 40;
                   const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
-                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent";
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent" && selectedConn?.fromId === pid;
                   return (
                     <g
-                      key={n.id}
+                      key={`${n.id}_${pid}`}
                       data-conn-line
                       style={{ cursor: "pointer" }}
                       onMouseDown={e => e.stopPropagation()}
-                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent" }); }}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
                       <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" style={{ pointerEvents: "stroke" }} />
@@ -1901,23 +1924,23 @@ export default function AutomacoesPage() {
                   );
                 })}
                 {/* Error connection lines */}
-                {nodes.filter(n => n.errorParentId).map(n => {
-                  const parent = nodes.find(p => p.id === n.errorParentId);
+                {nodes.flatMap(n => (n.errorParentIds ?? []).map(epid => ({ n, epid }))).map(({ n, epid }) => {
+                  const parent = nodes.find(p => p.id === epid);
                   if (!parent) return null;
-                  const errKey = `${n.errorParentId}__error`;
+                  const errKey = `${epid}__error`;
                   const pp = portPosMap[errKey];
                   const x1 = pp?.x ?? parent.x + 260;
                   const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
                   const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
-                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error";
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error" && selectedConn?.fromId === epid;
                   return (
                     <g
-                      key={`err_${n.id}`}
+                      key={`err_${n.id}_${epid}`}
                       data-conn-line
                       style={{ cursor: "pointer" }}
                       onMouseDown={e => e.stopPropagation()}
-                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error" }); }}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
                       <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} style={{ pointerEvents: "stroke" }} />
@@ -1941,19 +1964,19 @@ export default function AutomacoesPage() {
                 let x1: number, y1: number;
                 const x2 = n.x, y2 = n.y + 40;
                 if (selectedConn.type === "parent") {
-                  const parentId = n.parentId!;
-                  const parent = nodes.find(p => p.id === parentId);
+                  const fid = selectedConn.fromId;
+                  const parent = nodes.find(p => p.id === fid);
                   if (parent) {
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[fid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
                     y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
-                    const lastUnder = parentId.lastIndexOf("_");
+                    const lastUnder = fid.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
-                    const suffix = parentId.substring(lastUnder + 1);
-                    const realParent = nodes.find(p => p.id === parentId.substring(0, lastUnder));
+                    const suffix = fid.substring(lastUnder + 1);
+                    const realParent = nodes.find(p => p.id === fid.substring(0, lastUnder));
                     if (!realParent) return null;
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[fid];
                     if (realParent.type === "condicoes") {
                       const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
                       x1 = pp?.x ?? realParent.x + 258;
@@ -1968,9 +1991,9 @@ export default function AutomacoesPage() {
                     }
                   }
                 } else {
-                  const parent = nodes.find(p => p.id === n.errorParentId);
+                  const parent = nodes.find(p => p.id === selectedConn.fromId);
                   if (!parent) return null;
-                  const pp = portPosMap[`${n.errorParentId}__error`];
+                  const pp = portPosMap[`${selectedConn.fromId}__error`];
                   x1 = pp?.x ?? parent.x + 260;
                   y1 = pp?.y ?? parent.y + 93;
                 }
@@ -1979,13 +2002,13 @@ export default function AutomacoesPage() {
                 const my = (y1 + 3 * cy1 + 3 * cy2 + y2) / 8;
                 return (
                   <div
-                    key={`del_${selectedConn.nodeId}_${selectedConn.type}`}
+                    key={`del_${selectedConn.nodeId}_${selectedConn.type}_${selectedConn.fromId}`}
                     data-conn-line
                     onMouseDown={e => e.stopPropagation()}
                     style={{ position: "absolute", left: mx - 16, top: my - 16, zIndex: 15, pointerEvents: "all" }}
                   >
                     <button
-                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type); }}
+                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type, selectedConn.fromId); }}
                       style={{ width: 32, height: 32, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                       title="Desconectar"
                     >
