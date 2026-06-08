@@ -1,0 +1,97 @@
+{
+  "id": "414912da-1192-46b6-8fb2-211f81ea800f",
+  "createdAt": "2026-05-06T14:00:42.070Z",
+  "name": "Lead Sem Número",
+  "version": 1,
+  "active": true,
+  "notes": [],
+  "blocks": [
+    {
+      "id": "15eba51a-4cc1-464e-b218-e84257107322",
+      "type": "chat",
+      "sourceBlockId": null,
+      "options": {
+        "messages": [
+          {
+            "name": "whatsapp-send-template-message",
+            "group": "whatsapp-cloud",
+            "stepId": "fc5fe71e-c99c-49f2-aebe-954224430480",
+            "options": {
+              "buttons": [],
+              "template": {
+                "id": "lead_sem_numero#pt_BR",
+                "body": {
+                  "text": "Verificar novo lead sem número!",
+                  "parameters": []
+                },
+                "name": "lead sem numero",
+                "status": "PENDING",
+                "buttons": [],
+                "language": "pt_BR"
+              }
+            }
+          }
+        ],
+        "platform": "WHATSAPP",
+        "provider": "WHATSAPP_CLOUD_API",
+        "timezone": "",
+        "contactId": "+5528999110664",
+        "instanceId": "69b97f80e74ba78c55caf4c9",
+        "nextBlockId": "",
+        "isAnnotation": false,
+        "scheduledDate": "",
+        "errorNextBlockId": ""
+      },
+      "presentation": {
+        "x": 1138.095211625523,
+        "y": -20.91297639383321
+      }
+    },
+    {
+      "id": "569bf218-f5b9-4355-8fe4-67accc2d6cc2",
+      "type": "trigger",
+      "sourceBlockId": null,
+      "options": {
+        "triggers": [
+          {
+            "name": "business-created-trigger",
+            "group": "business",
+            "options": {
+              "stageId": "80382186-3dcb-4907-9562-28ac0379dabd"
+            }
+          }
+        ],
+        "nextBlockId": "62b5c203-a754-44f8-9b29-a2302063f924"
+      },
+      "presentation": {
+        "x": 359.5425851140717,
+        "y": -9.189586839976275
+      }
+    },
+    {
+      "id": "62b5c203-a754-44f8-9b29-a2302063f924",
+      "type": "condition",
+      "sourceBlockId": null,
+      "options": {
+        "conditions": [
+          {
+            "id": "5b248bab-2a97-4f0e-9a7b-3e91211dd737",
+            "name": "lead-with-phone-exists-condition",
+            "group": "lead",
+            "options": {
+              "phone": "{Telefone do lead|leadPhone}"
+            },
+            "nextBlockId": null
+          }
+        ],
+        "trueNextBlockId": "",
+        "falseNextBlockId": "15eba51a-4cc1-464e-b218-e84257107322"
+      },
+      "presentation": {
+        "x": 760.5093233474215,
+        "y": -21.95471450395487
+      }
+    }
+  ],
+  "tenantId": "14582a92-d4f4-4142-b0a5-af0685fad37f"
+}

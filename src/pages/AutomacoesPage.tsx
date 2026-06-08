@@ -394,6 +394,93 @@ const NOTE_COLORS = [
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
+// ─── DataCrazy .dc → Rezult converter ────────────────────────────────────────
+
+const DC_TRIGGER_MAP: Record<string, { triggerId: string; categoryId: string; label: string }> = {
+  "business-created-trigger":       { triggerId: "neg_criado",     categoryId: "negocios", label: "Negócio criado" },
+  "business-won-trigger":           { triggerId: "neg_ganho",      categoryId: "negocios", label: "Negócio ganho" },
+  "business-lost-trigger":          { triggerId: "neg_perdido",    categoryId: "negocios", label: "Negócio perdido" },
+  "business-stage-changed-trigger": { triggerId: "neg_movido",     categoryId: "negocios", label: "Negócio movido" },
+  "lead-created-trigger":           { triggerId: "lead_criado",    categoryId: "leads",    label: "Lead criado" },
+  "tag-added-trigger":              { triggerId: "tag_adicionada", categoryId: "leads",    label: "Tag adicionada ao lead" },
+  "tag-removed-trigger":            { triggerId: "tag_removida",   categoryId: "leads",    label: "Tag removida do lead" },
+};
+
+const DC_CONDITION_MAP: Record<string, { categoryId: string; conditionId: string; label: string }> = {
+  "lead-with-phone-exists-condition": { categoryId: "leads",    conditionId: "com_telefone", label: "Lead com telefone existente" },
+  "lead-with-email-exists-condition": { categoryId: "leads",    conditionId: "com_email",    label: "Lead com email existente" },
+  "lead-exists-condition":            { categoryId: "leads",    conditionId: "existente",    label: "Lead existente" },
+  "lead-with-name-exists-condition":  { categoryId: "leads",    conditionId: "com_nome",     label: "Lead com nome existente" },
+  "lead-with-tag-condition":          { categoryId: "leads",    conditionId: "pos_tag",      label: "Lead possui tag" },
+  "business-won-condition":           { categoryId: "negocios", conditionId: "ganho",        label: "Negócio está ganho" },
+  "business-lost-condition":          { categoryId: "negocios", conditionId: "perdido",      label: "Negócio está perdido" },
+  "business-pending-condition":       { categoryId: "negocios", conditionId: "pendente",     label: "Negócio está pendente" },
+  "business-has-attendant-condition": { categoryId: "negocios", conditionId: "pos_atend",    label: "Negócio possui atendentes" },
+};
+
+function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null {
+  if (!Array.isArray(dc.blocks)) return null;
+  const blocks = dc.blocks as Record<string, unknown>[];
+
+  // Constrói mapa inverso: childId → { parentId, isError }
+  const parentMap = new Map<string, { parentId: string; isError: boolean }>();
+  const setParent = (childId: unknown, parentId: string, isError: boolean) => {
+    if (typeof childId === "string" && childId && !parentMap.has(childId))
+      parentMap.set(childId, { parentId, isError });
+  };
+
+  for (const block of blocks) {
+    const id = block.id as string;
+    const opts = (block.options ?? {}) as Record<string, unknown>;
+    setParent(opts.nextBlockId, id, false);
+    setParent(opts.errorNextBlockId, id, true);
+    if (block.type === "condition") {
+      setParent(opts.trueNextBlockId, id, false);
+      setParent(opts.falseNextBlockId, id, true);
+    }
+  }
+
+  const nodes: CanvasNode[] = [];
+  let trigger: TriggerConfig | null = null;
+
+  for (const block of blocks) {
+    const id = block.id as string;
+    const opts = (block.options ?? {}) as Record<string, unknown>;
+    const pres = (block.presentation ?? {}) as { x?: number; y?: number };
+    const x = pres.x ?? 0;
+    const y = pres.y ?? 0;
+    const par = parentMap.get(id);
+    const parentId    = par && !par.isError ? par.parentId : null;
+    const errorParentId = par?.isError ? par.parentId : null;
+
+    if (block.type === "trigger") {
+      const dcTriggers = Array.isArray(opts.triggers) ? (opts.triggers as Record<string, unknown>[]) : [];
+      const dcT = dcTriggers[0];
+      const mapped = dcT ? DC_TRIGGER_MAP[dcT.name as string] : null;
+      trigger = mapped
+        ? { triggerId: mapped.triggerId, categoryId: mapped.categoryId, label: mapped.label, description: "" }
+        : { triggerId: "http_webhook", categoryId: "http", label: String(dcT?.name ?? "Gatilho"), description: "" };
+      nodes.push({ id, type: "start", x, y, label: "Início", trigger });
+
+    } else if (block.type === "condition") {
+      const dcConds = Array.isArray(opts.conditions) ? (opts.conditions as Record<string, unknown>[]) : [];
+      const conditionItems: ConditionItem[] = dcConds.map((c, i) => {
+        const mapped = DC_CONDITION_MAP[c.name as string];
+        return mapped
+          ? { id: String(c.id ?? `ci${i}`), categoryId: mapped.categoryId, conditionId: mapped.conditionId, label: mapped.label }
+          : { id: String(c.id ?? `ci${i}`), categoryId: "campos", conditionId: "campo_pos_valor", label: String(c.name ?? `Condição ${i + 1}`) };
+      });
+      nodes.push({ id, type: "condicoes", x, y, label: "Condições", parentId, errorParentId, conditionItems });
+
+    } else {
+      const label = block.type === "chat" ? "Mensagem" : block.type === "action" ? "Ação" : String(block.type);
+      nodes.push({ id, type: "acoes", x, y, label, parentId, errorParentId, actionItems: [] });
+    }
+  }
+
+  return { nodes, trigger };
+}
+
 function fmtDate(iso: string) {
   try { return format(parseISO(iso), "d 'de' MMMM 'de' yyyy HH:mm", { locale: ptBR }); }
   catch { return iso; }
@@ -863,8 +950,20 @@ export default function AutomacoesPage() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const flow = JSON.parse(ev.target?.result as string);
-        if (!flow.nodes || !Array.isArray(flow.nodes)) { toast.error("Arquivo inválido — formato de automação não reconhecido"); return; }
+        const parsed = JSON.parse(ev.target?.result as string);
+        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        // DataCrazy .dc format
+        if (parsed.blocks && Array.isArray(parsed.blocks)) {
+          const converted = convertDcFlow(parsed);
+          if (!converted) { toast.error("Arquivo DataCrazy inválido"); return; }
+          flow = converted;
+        // Rezult .json format
+        } else if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          flow = parsed;
+        } else {
+          toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
+          return;
+        }
         if (!user || !company) return;
         setCreating(true);
         try {
@@ -1127,7 +1226,18 @@ export default function AutomacoesPage() {
     const reader = new FileReader();
     reader.onload = ev => {
       try {
-        const flow = JSON.parse(ev.target?.result as string);
+        const parsed = JSON.parse(ev.target?.result as string);
+        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        if (parsed.blocks && Array.isArray(parsed.blocks)) {
+          const converted = convertDcFlow(parsed);
+          if (!converted) { toast.error("Arquivo DataCrazy inválido"); return; }
+          flow = converted;
+        } else if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          flow = parsed;
+        } else {
+          toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
+          return;
+        }
         setNodes(flow.nodes ?? [START_NODE]);
         setTrigger(flow.trigger ?? null);
         toast.success("Fluxo importado — salve para persistir");
@@ -1979,7 +2089,7 @@ export default function AutomacoesPage() {
           </div>
 
           {/* Hidden file input for import */}
-          <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleImportFile} />
+          <input ref={fileRef} type="file" accept=".json,.dc" style={{ display: "none" }} onChange={handleImportFile} />
 
           {/* ── Logs Panel — painel lateral direito ──────────────────────── */}
           {logsPanel && (
@@ -2551,7 +2661,7 @@ export default function AutomacoesPage() {
       </AlertDialog>
 
       {/* Hidden file input for create-from-import (outside view conditionals) */}
-      <input ref={createFileRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleCreateImport} />
+      <input ref={createFileRef} type="file" accept=".json,.dc" style={{ display: "none" }} onChange={handleCreateImport} />
 
     </div>
   );
