@@ -85,12 +85,19 @@ interface FieldOperation {
   value: string;
 }
 
+interface RandomBranch {
+  id: string;
+  label: string;
+  percentage: number;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
   trigger?: TriggerConfig | null;
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
+  randomBranches?: RandomBranch[];
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
   fieldOps?: FieldOperation[];
@@ -838,6 +845,40 @@ async function executeFlow(
           if (errNext.length > 0) { queue.push(...errNext); continue; }
         }
         queue.push(...(children.get(node.id) ?? []));
+      }
+
+    // ── Randomizador ───────────────────────────────────────────────────────
+    } else if (node.type === "randomizador") {
+      const branches: RandomBranch[] = node.randomBranches ?? [
+        { id: "a", label: "A", percentage: 25 },
+        { id: "b", label: "B", percentage: 25 },
+        { id: "c", label: "C", percentage: 25 },
+        { id: "d", label: "D", percentage: 25 },
+      ];
+
+      const total = branches.reduce((sum, b) => sum + (b.percentage ?? 0), 0);
+      const rand = Math.random() * (total > 0 ? total : 100);
+
+      let selectedBranchId: string | null = null;
+      let cumulative = 0;
+      for (const branch of branches) {
+        cumulative += branch.percentage ?? 0;
+        if (rand < cumulative) {
+          selectedBranchId = branch.id;
+          break;
+        }
+      }
+      if (!selectedBranchId && branches.length > 0) {
+        selectedBranchId = branches[branches.length - 1].id;
+      }
+
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId, company_id, lead_id: logLeadId,
+        node_id: node.id, status: "success",
+      });
+
+      if (selectedBranchId) {
+        queue.push(...(children.get(`${node.id}_${selectedBranchId}`) ?? []));
       }
 
     // ── Outros ─────────────────────────────────────────────────────────────
