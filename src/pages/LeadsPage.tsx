@@ -175,7 +175,7 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
-          <Table className="table-fixed w-full">
+          <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground" style={{ width: "20%" }}>Nome</TableHead>
@@ -184,7 +184,7 @@ export default function LeadsPage() {
                 <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
-                <TableHead className="text-muted-foreground w-10"></TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,7 +194,7 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
-                  <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
+                  <TableCell className="font-medium text-foreground truncate">{lead.name}</TableCell>
                   <TableCell>
                     {(() => {
                       const resps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
@@ -252,8 +252,8 @@ export default function LeadsPage() {
                       }
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  <TableCell className="truncate">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full whitespace-nowrap">
                       {pipelines.find(p => p.id === lead.pipelineId)?.name || "—"}
                     </span>
                   </TableCell>
@@ -264,7 +264,7 @@ export default function LeadsPage() {
                       return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
                     })()}
                   </TableCell>
-                  <TableCell onClick={e => e.stopPropagation()}>
+                  <TableCell className="text-right pr-3" onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
