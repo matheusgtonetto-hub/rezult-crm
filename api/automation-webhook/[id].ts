@@ -19,15 +19,22 @@ export default async function handler(req: Request): Promise<Response> {
   const id = url.pathname.split("/").filter(Boolean).pop();
 
   const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? "";
   if (!supabaseUrl || !id) {
     return Response.json({ error: "Server configuration error" }, { status: 500, headers: corsHeaders });
   }
 
   const target = `${supabaseUrl}/functions/v1/automation-runner/webhook/${id}`;
 
+  const upstreamHeaders: Record<string, string> = { "Content-Type": "application/json" };
+  if (supabaseAnonKey) {
+    upstreamHeaders["Authorization"] = `Bearer ${supabaseAnonKey}`;
+    upstreamHeaders["apikey"] = supabaseAnonKey;
+  }
+
   const upstream = await fetch(target, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: upstreamHeaders,
     body: req.body,
     // @ts-expect-error duplex required for streaming body in some runtimes
     duplex: "half",
