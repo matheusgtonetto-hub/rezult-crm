@@ -180,7 +180,7 @@ export default function LeadsPage() {
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Nome</TableHead>
                 <TableHead className="text-muted-foreground">Responsável</TableHead>
-                <TableHead className="text-muted-foreground">Contato</TableHead>
+                <TableHead className="text-muted-foreground w-44">Contato</TableHead>
                 <TableHead className="text-muted-foreground">Tags</TableHead>
                 <TableHead className="text-muted-foreground">Pipeline</TableHead>
                 <TableHead className="text-muted-foreground">Data de Criação</TableHead>
@@ -226,14 +226,14 @@ export default function LeadsPage() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-[176px]">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-foreground">
+                      <span className="text-sm text-foreground truncate">
                         {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
                         {lead.whatsapp || "—"}
                       </span>
                       {lead.email && (
-                        <span className="text-xs text-muted-foreground">{lead.email}</span>
+                        <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
                       )}
                     </div>
                   </TableCell>
