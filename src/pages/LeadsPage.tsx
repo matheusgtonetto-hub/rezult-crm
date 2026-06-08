@@ -23,6 +23,7 @@ export default function LeadsPage() {
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
+  const [filterPipeline, setFilterPipeline] = useState("all");
   const [filterStage, setFilterStage] = useState("all");
 
   // Lead modal (create / edit)
@@ -50,6 +51,7 @@ export default function LeadsPage() {
       const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
       if (!resps.includes(filterResp)) return false;
     }
+    if (filterPipeline !== "all" && l.pipelineId !== filterPipeline) return false;
     if (filterStage !== "all" && l.stage !== filterStage) return false;
     return true;
   });
@@ -140,13 +142,25 @@ export default function LeadsPage() {
             {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filterPipeline} onValueChange={v => { setFilterPipeline(v); setFilterStage("all"); }}>
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
+            <SelectValue placeholder="Pipeline" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-card-border">
+            <SelectItem value="all">Todos</SelectItem>
+            {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={filterStage} onValueChange={setFilterStage}>
           <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
             <SelectValue placeholder="Etapa" />
           </SelectTrigger>
           <SelectContent className="bg-card border-card-border">
             <SelectItem value="all">Todas</SelectItem>
-            {columns.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+            {(filterPipeline !== "all"
+              ? pipelines.find(p => p.id === filterPipeline)?.columns ?? []
+              : columns
+            ).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
