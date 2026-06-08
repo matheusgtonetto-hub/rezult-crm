@@ -987,9 +987,8 @@ export default function LeadDetailPage() {
       {/* TOPBAR */}
       <div
         style={{
-          height: 60,
-          paddingTop: 16,
-          paddingBottom: 16,
+          paddingTop: 9,
+          paddingBottom: 9,
           background: "#FFFFFF",
           borderBottom: "1px solid #EEEEEE",
           position: "sticky",
@@ -1038,21 +1037,21 @@ export default function LeadDetailPage() {
             <>
               <button
                 onClick={handleWon}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#128A68", color: "#FFFFFF" }}
               >
                 <Trophy size={12} /> Ganho
               </button>
               <button
                 onClick={handleOpenRecovery}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#F59E0B", color: "#FFFFFF" }}
               >
                 <ArrowRightLeft size={12} /> Recuperação
               </button>
               <button
                 onClick={handleLost}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#E24B4A", color: "#FFFFFF" }}
               >
                 <XCircle size={12} /> Perdido
