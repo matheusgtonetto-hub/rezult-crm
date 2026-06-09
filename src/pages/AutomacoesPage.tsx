@@ -242,6 +242,10 @@ const ACTION_TYPES = [
   { id: "javascript",   label: "JavaScript",           icon: Code2,         color: "#3B82F6" },
 ] as const;
 
+// Blocos disponíveis na paleta porém ainda não executáveis pelo motor — exibidos
+// com selo "EM BREVE" e desabilitados (mesmo padrão do gatilho MCP Server Tool).
+const COMING_SOON_ACTIONS = new Set<string>(["ia", "javascript"]);
+
 const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; actions: ActionCatItem[] }[] = [
   {
     id: "negocios", label: "Negócios", icon: Briefcase,
@@ -801,6 +805,7 @@ export default function AutomacoesPage() {
 
   const handleAddNode = (type: string, label: string) => {
     if (!addNodeMenu) return;
+    if (COMING_SOON_ACTIONS.has(type)) return; // blocos "Em breve" não podem ser criados
     const isError = addNodeMenu.isError ?? false;
     const actualParentId = isError
       ? addNodeMenu.fromNodeId.replace(/__error$/, "")
@@ -1739,21 +1744,26 @@ export default function AutomacoesPage() {
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {ACTION_TYPES.slice(0, 7).map(at => {
+                {ACTION_TYPES.map(at => {
                   const Icon = at.icon;
+                  const isComingSoon = COMING_SOON_ACTIONS.has(at.id);
                   return (
-                    <button key={at.id} onClick={() => {
+                    <button key={at.id} disabled={isComingSoon} onClick={() => {
+                      if (isComingSoon) return;
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5", opacity: isComingSoon ? 0.6 : 1 }}
+                      onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       <div style={{ width: 28, height: 28, borderRadius: 7, background: `${at.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon size={14} color={at.color} />
                       </div>
-                      <span style={{ fontSize: 13, color: "#374151" }}>{at.label}</span>
+                      <span style={{ fontSize: 13, color: "#374151", flex: 1 }}>{at.label}</span>
+                      {isComingSoon && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                      )}
                     </button>
                   );
                 })}
@@ -2170,16 +2180,21 @@ export default function AutomacoesPage() {
                 >
                   {ACTION_TYPES.map(at => {
                     const Icon = at.icon;
+                    const isComingSoon = COMING_SOON_ACTIONS.has(at.id);
                     return (
                       <button
                         key={at.id}
-                        onClick={() => handleAddNode(at.id, at.label)}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left", fontSize: 13, color: "#111111" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        disabled={isComingSoon}
+                        onClick={() => { if (!isComingSoon) handleAddNode(at.id, at.label); }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: isComingSoon ? "default" : "pointer", textAlign: "left", fontSize: 13, color: "#111111", opacity: isComingSoon ? 0.6 : 1 }}
+                        onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
                         <Icon size={16} color={at.color} />
-                        {at.label}
+                        <span style={{ flex: 1 }}>{at.label}</span>
+                        {isComingSoon && (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                        )}
                       </button>
                     );
                   })}

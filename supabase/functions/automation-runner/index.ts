@@ -157,6 +157,15 @@ interface RandomBranch {
   percentage: number;
 }
 
+// Sub-blocos do nó "mensagem" (espelha o tipo SubBlock da UI em AutomacoesPage.tsx)
+interface SubBlock {
+  id: string;
+  type: "mensagem_texto" | "entrada_usuario" | "atraso_tempo" | "mensagem_audio" | "arquivo_anexo" | "arquivo_url";
+  text?: string;
+  delaySeconds?: number;
+  fileUrl?: string;
+}
+
 interface CanvasNode {
   id: string;
   type: string;
@@ -167,6 +176,7 @@ interface CanvasNode {
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
   fieldOps?: FieldOperation[];
+  subBlocks?: SubBlock[];
   parentId?: string | null;        // legacy
   errorParentId?: string | null;   // legacy
   parentIds?: string[];            // current format (array)
@@ -765,7 +775,7 @@ async function executeFlow(
           const { error: insErr } = await supabase.from("automation_pending").insert({
             company_id,
             automation_id: automationId,
-            lead_id,
+            lead_id: payload.lead_id || null,
             node_ids: nextNodes.map((n) => n.id),
             trigger_payload: payload,
             resume_after: delay.resumeAfter.toISOString(),
@@ -805,7 +815,7 @@ async function executeFlow(
         });
         queue.push(...(children.get(node.id) ?? []));
       } else {
-        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", payload.lead_id).single();
         const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
 
         let allSuccess = true;
@@ -992,10 +1002,153 @@ async function executeFlow(
         queue.push(...(children.get(`${node.id}_${selectedBranchId}`) ?? []));
       }
 
+    // ── Mensagem (WhatsApp via Z-API) ────────────────────────────────────────
+    } else if (node.type === "mensagem") {
+      const subBlocks = node.subBlocks ?? [];
+
+      // Sem sub-blocos configurados: nada a enviar, segue o fluxo
+      if (subBlocks.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+        continue;
+      }
+
+      const currentLeadId = payload.lead_id;
+      const leadData = currentLeadId
+        ? ((await supabase.from("leads").select("*").eq("id", currentLeadId).single()).data as Record<string, unknown> | null)
+        : null;
+
+      // Resolve credenciais Z-API da empresa (companies.id == payload.company_id)
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("zapi_instance_id, zapi_token, zapi_client_token, zapi_connected")
+        .eq("id", company_id)
+        .maybeSingle();
+      const zapi = companyData as Record<string, unknown> | null;
+
+      const rawPhone = String((leadData?.whatsapp ?? leadData?.phone) ?? "").replace(/\D/g, "");
+
+      // Falhas "duras" → roteia para o ramo de erro do nó
+      const hardError = (msg: string) => {
+        return supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
+          node_id: node.id, status: "error", error_message: msg,
+        });
+      };
+
+      if (!zapi?.zapi_connected || !zapi?.zapi_instance_id || !zapi?.zapi_token) {
+        await hardError("WhatsApp (Z-API) não conectado para esta empresa");
+        queue.push(...(errorChildren.get(node.id) ?? []));
+        continue;
+      }
+      if (!rawPhone) {
+        await hardError("Lead sem telefone/WhatsApp para envio");
+        queue.push(...(errorChildren.get(node.id) ?? []));
+        continue;
+      }
+
+      const creds: ZapiCreds = {
+        instanceId: String(zapi.zapi_instance_id),
+        token: String(zapi.zapi_token),
+        clientToken: zapi.zapi_client_token ? String(zapi.zapi_client_token) : null,
+      };
+      const vars = await buildVarContext(supabase, leadData, payload);
+
+      const errors: string[] = [];
+      const skipped: string[] = [];
+      let sentCount = 0;
+
+      for (const sb of subBlocks) {
+        try {
+          if (sb.type === "mensagem_texto") {
+            const message = interpolate(sb.text ?? "", vars);
+            if (!message.trim()) { skipped.push("mensagem de texto vazia"); continue; }
+            await sendZapi(creds, "send-text", { phone: rawPhone, message });
+            // Persiste no histórico de conversas (mesma tabela do multiatendimento)
+            await supabase.from("whatsapp_messages").insert({
+              owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+              phone: rawPhone, from_me: true, body: message, type: "text",
+            });
+            sentCount++;
+
+          } else if (sb.type === "atraso_tempo") {
+            // Atraso curto entre mensagens (simula digitação). Cap inline em 90 s.
+            const secs = Math.max(0, Math.min(Number(sb.delaySeconds ?? 0), 90));
+            if (secs > 0) await new Promise<void>((r) => setTimeout(r, secs * 1000));
+
+          } else if (sb.type === "arquivo_url" || sb.type === "arquivo_anexo" || sb.type === "mensagem_audio") {
+            const fileUrl = interpolate(sb.fileUrl ?? "", vars).trim();
+            if (!fileUrl) { skipped.push(`${sb.type}: sem URL de arquivo`); continue; }
+            if (sb.type === "mensagem_audio") {
+              await sendZapi(creds, "send-audio", { phone: rawPhone, audio: fileUrl });
+            } else {
+              const ext = (fileUrl.split("?")[0].split(".").pop() ?? "").toLowerCase();
+              const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext);
+              if (isImage) {
+                await sendZapi(creds, "send-image", { phone: rawPhone, image: fileUrl });
+              } else {
+                await sendZapi(creds, `send-document/${ext || "pdf"}`, { phone: rawPhone, document: fileUrl });
+              }
+            }
+            sentCount++;
+
+          } else if (sb.type === "entrada_usuario") {
+            // Captura de resposta do contato ainda não suportada pelo motor — não bloqueia
+            skipped.push("entrada do usuário (aguardar resposta) ainda não suportada");
+          }
+        } catch (err) {
+          errors.push(`${sb.type}: ${String(err)}`);
+        }
+      }
+
+      // Status: erro só se nada foi enviado e houve falha; alerta se houve skip/erro parcial
+      const noteMsgs = [...errors, ...skipped];
+      const status = (sentCount === 0 && errors.length > 0)
+        ? "error"
+        : (noteMsgs.length > 0 ? "alert" : "success");
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId, company_id, lead_id: getLogLeadId(),
+        node_id: node.id, status,
+        error_message: noteMsgs.length > 0 ? noteMsgs.join("; ") : null,
+      });
+
+      if (status === "error") {
+        queue.push(...(errorChildren.get(node.id) ?? []));
+      } else {
+        queue.push(...(children.get(node.id) ?? []));
+      }
+
     // ── Outros ─────────────────────────────────────────────────────────────
     } else {
       queue.push(...(children.get(node.id) ?? []));
     }
+  }
+}
+
+// ─── Z-API (WhatsApp) helper ──────────────────────────────────────────────────
+
+interface ZapiCreds {
+  instanceId: string;
+  token: string;
+  clientToken: string | null;
+}
+
+async function sendZapi(
+  creds: ZapiCreds,
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const url = `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}/${endpoint}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (creds.clientToken) headers["Client-Token"] = creds.clientToken;
+
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`Z-API ${endpoint} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
   }
 }
 
