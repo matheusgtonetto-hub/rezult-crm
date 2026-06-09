@@ -41,11 +41,32 @@ export default async function handler(req: Request): Promise<Response> {
     bodyText = new TextDecoder("windows-1252").decode(bodyBuffer);
   }
 
-  const upstream = await fetch(target, {
-    method: "POST",
-    headers: upstreamHeaders,
-    body: bodyText,
-  });
+  // Encaminha para a Edge Function com 1 retry — um cold-start/hiccup transitório do
+  // upstream não deve virar 500 para o chamador externo (ex: DataCrazy), que poderia
+  // reenviar e duplicar. O fluxo em si é idempotente, mas evitamos o erro na origem.
+  async function forward(): Promise<Response> {
+    return await fetch(target, { method: "POST", headers: upstreamHeaders, body: bodyText });
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await forward();
+    if (upstream.status >= 500) {
+      // Tenta uma vez mais em caso de erro transitório do upstream
+      await new Promise((r) => setTimeout(r, 400));
+      upstream = await forward();
+    }
+  } catch {
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      upstream = await forward();
+    } catch (err) {
+      return Response.json(
+        { error: "Upstream unreachable", detail: String(err) },
+        { status: 502, headers: corsHeaders },
+      );
+    }
+  }
 
   const body = await upstream.text();
 

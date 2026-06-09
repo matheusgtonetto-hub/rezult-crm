@@ -323,27 +323,44 @@ async function handleWebhook(
   // Persiste o último payload para exibição no canvas (sem await — não bloqueia)
   supabase.from("automations").update({ last_webhook_payload: webhookBody }).eq("id", automationId).then(() => {});
 
-  // Tenta identificar o lead pelo body (lead_id, email ou whatsapp)
+  // Identifica o lead pelo body em CASCATA (lead_id → email → telefone). Antes era um
+  // else-if mutuamente exclusivo: um cliente que voltava com e-mail novo mas mesmo telefone
+  // não casava (email presente porém sem match parava a busca) → lead DUPLICADO. Agora, se o
+  // e-mail não casar, ainda tentamos o telefone.
   let lead_id: string | null = null;
 
   if (webhookBody.lead_id) {
     lead_id = String(webhookBody.lead_id);
-  } else if (webhookBody.email) {
+  }
+
+  if (!lead_id && webhookBody.email) {
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
       .eq("owner_id", ownerId)
-      .eq("email", String(webhookBody.email))
+      .ilike("email", String(webhookBody.email)) // e-mail é case-insensitive
       .maybeSingle();
     lead_id = lead?.id ?? null;
-  } else if (webhookBody.whatsapp) {
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("id")
-      .eq("owner_id", ownerId)
-      .eq("whatsapp", String(webhookBody.whatsapp))
-      .maybeSingle();
-    lead_id = lead?.id ?? null;
+  }
+
+  if (!lead_id) {
+    // Os payloads enviam o número em `whatsapp`, `telefone` ou `phone`. O lead guarda o
+    // número JÁ normalizado (+55DDDNUMERO). Normaliza o valor recebido do mesmo jeito
+    // (parsePhoneNumber) e também tenta o valor cru, para casar independente de formatação.
+    const rawPhone = (webhookBody.whatsapp ?? webhookBody.telefone ?? webhookBody.phone) as string | undefined;
+    if (rawPhone) {
+      const parsed = parsePhoneNumber(String(rawPhone), "BR");
+      const candidates = [...new Set([parsed.phone, String(rawPhone)].filter(Boolean))];
+      for (const cand of candidates) {
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("owner_id", ownerId)
+          .eq("whatsapp", cand)
+          .maybeSingle();
+        if (lead?.id) { lead_id = lead.id; break; }
+      }
+    }
   }
 
   // Se não há lead, o fluxo ainda roda — dados do formulário ficam disponíveis
@@ -1207,11 +1224,22 @@ async function evaluateConditionNode(
 
   if (!lead) return { allPassed: false, passedCondIds: [] };
 
+  // Interpola os templates do config ({{gatilho.email}}, {{phone-1.phone}}, {{lead.x}}…)
+  // ANTES de comparar — sem isso, condições como com_email/com_telefone comparavam o valor
+  // do lead contra a string literal "{{gatilho.email}}" e davam sempre FALSE. As ações já
+  // interpolam (executeAction); aqui alinhamos as condições ao mesmo comportamento.
+  const vars = await buildVarContext(supabase, lead as Record<string, unknown>, payload);
+
   let allPassed = true;
   const passedCondIds: string[] = [];
 
   for (const cond of conditions) {
-    const passed = await checkCondition(supabase, cond, lead as Record<string, unknown>, payload);
+    const interpCfg: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(cond.config ?? {})) {
+      interpCfg[k] = typeof v === "string" ? interpolate(v, vars) : v;
+    }
+    const interpCond = { ...cond, config: interpCfg };
+    const passed = await checkCondition(supabase, interpCond, lead as Record<string, unknown>, payload);
     if (passed) {
       passedCondIds.push(cond.id);
     } else {
@@ -1330,7 +1358,8 @@ async function checkCondition(
       case "com_email": {
         const email = cfg.email as string;
         if (!email) return !!(lead.email);
-        return lead.email === email;
+        // E-mail é case-insensitive por convenção; normaliza para evitar falso-negativo.
+        return String(lead.email ?? "").trim().toLowerCase() === email.trim().toLowerCase();
       }
       case "com_nome": {
         const nome = cfg.nome as string;
@@ -1340,8 +1369,13 @@ async function checkCondition(
       }
       case "com_telefone": {
         const tel = cfg.telefone as string;
-        if (!tel) return !!(lead.phone);
-        return lead.phone === tel;
+        // O número pode estar em `phone` ou `whatsapp` (leads de webhook usam whatsapp).
+        // Compara só os dígitos para tolerar formatação (+55 11 98877-4760 vs +5511988774760).
+        const onlyDigits = (x: unknown) => String(x ?? "").replace(/\D/g, "");
+        const leadPhones = [lead.phone, lead.whatsapp];
+        if (!tel) return leadPhones.some((p) => onlyDigits(p) !== "");
+        const t = onlyDigits(tel);
+        return t !== "" && leadPhones.some((p) => onlyDigits(p) === t);
       }
       case "com_cpf": {
         const cpf = cfg.cpf as string;
