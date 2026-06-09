@@ -1212,9 +1212,9 @@ async function checkCondition(
       case "existente": return true;
       case "neg_pipeline": {
         const pipelineId = cfg.pipeline_id as string;
-        if (!pipelineId) return !!(lead.pipeline_id);
-        // Check current lead first (fast path)
-        if (lead.pipeline_id === pipelineId) return true;
+        if (!pipelineId) return !!(lead.pipeline_id) && !!(lead.column_id);
+        // Lead está no pipeline correto E já tem etapa atribuída (não foi criado agora pelo criar_lead)
+        if (lead.pipeline_id === pipelineId) return !!(lead.column_id);
         // Search for any negócio of this contact in the specified pipeline
         const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
         const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
@@ -1420,6 +1420,7 @@ async function executeAction(
       }
 
       // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
+      // column_id é deixado null intencionalmente: criar_negocio (próximo bloco) atribuirá a etapa correta
       if (!insertLead.pipeline_id && ownerIdLead) {
         const { data: firstPipeline } = await supabase
           .from("pipelines")
@@ -1430,17 +1431,6 @@ async function executeAction(
           .single();
         if (firstPipeline) {
           insertLead.pipeline_id = (firstPipeline as { id: string }).id;
-          // column_id também pode ser NOT NULL — busca a primeira etapa do pipeline
-          if (!insertLead.column_id) {
-            const { data: firstColumn } = await supabase
-              .from("pipeline_columns")
-              .select("id")
-              .eq("pipeline_id", insertLead.pipeline_id as string)
-              .order("created_at", { ascending: true })
-              .limit(1)
-              .single();
-            if (firstColumn) insertLead.column_id = (firstColumn as { id: string }).id;
-          }
         }
       }
 

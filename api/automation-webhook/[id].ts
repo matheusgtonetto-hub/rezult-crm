@@ -26,19 +26,25 @@ export default async function handler(req: Request): Promise<Response> {
 
   const target = `${supabaseUrl}/functions/v1/automation-runner/webhook/${id}`;
 
-  const contentType = req.headers.get("content-type") ?? "application/json; charset=utf-8";
-  const upstreamHeaders: Record<string, string> = { "Content-Type": contentType };
+  const upstreamHeaders: Record<string, string> = { "Content-Type": "application/json; charset=utf-8" };
   if (supabaseAnonKey) {
     upstreamHeaders["Authorization"] = `Bearer ${supabaseAnonKey}`;
     upstreamHeaders["apikey"] = supabaseAnonKey;
   }
 
+  // Lê os bytes brutos e força decodificação UTF-8 (fallback Windows-1252 para clientes legados)
+  const bodyBuffer = await req.arrayBuffer();
+  let bodyText: string;
+  try {
+    bodyText = new TextDecoder("utf-8", { fatal: true }).decode(bodyBuffer);
+  } catch {
+    bodyText = new TextDecoder("windows-1252").decode(bodyBuffer);
+  }
+
   const upstream = await fetch(target, {
     method: "POST",
     headers: upstreamHeaders,
-    body: req.body,
-    // @ts-expect-error duplex required for streaming body in some runtimes
-    duplex: "half",
+    body: bodyText,
   });
 
   const body = await upstream.text();
