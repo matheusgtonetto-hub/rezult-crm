@@ -44,7 +44,13 @@ export default function LeadsPage() {
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
 
-  const allLeadsSorted = Object.values(leads).sort((a, b) => a.dealNumber - b.dealNumber);
+  // Ordena por data de criação (mais recente primeiro); desempate pelo dealNumber
+  const allLeadsSorted = Object.values(leads).sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (tb !== ta) return tb - ta;
+    return b.dealNumber - a.dealNumber;
+  });
   const filtered = allLeadsSorted.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterResp !== "all") {
