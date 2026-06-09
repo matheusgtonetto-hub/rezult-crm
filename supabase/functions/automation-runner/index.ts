@@ -4,7 +4,8 @@
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
-const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Indicação", "Site", "Outro"];
+// Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
+const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,9 @@ interface TriggerPayload {
     loss_reason_id?: string;
     parent_automation_id?: string;
     changed_fields?: Record<string, unknown>;
+    // Saídas de datasources (ex: analise_telefone → "phone-1") persistidas entre nós,
+    // para que {{phone-1.phone}} fique disponível em nós posteriores ao parse
+    datasources?: Record<string, Record<string, string>>;
   };
 }
 
@@ -818,6 +822,9 @@ async function executeFlow(
             if (op.type === "analise_telefone") {
               const rawPhone = interpolate(op.phone ?? "", vars);
               const parsed = parsePhoneNumber(rawPhone, op.defaultCountry ?? "BR");
+              // Persiste no contexto para nós posteriores (buildVarContext expõe phone-1.*)
+              const dsStore = (payload.context.datasources ??= {});
+              dsStore[op.datasourceName] = parsed;
               for (const [k, v] of Object.entries(parsed)) {
                 vars[`${op.datasourceName}.${k}`] = v;
               }
@@ -839,6 +846,12 @@ async function executeFlow(
 
         if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
           const updateData: Record<string, unknown> = { ...leadUpdate };
+          // origin tem CHECK constraint no banco — sanitiza valor inválido para "Outro"
+          // (igual criar_lead/criar_negocio). Sem isso, um origin fora da lista aborta o
+          // UPDATE inteiro e nenhum campo do nó persiste (empresa, whatsapp, UTMs…).
+          if (updateData.origin !== undefined && !VALID_LEAD_ORIGINS.includes(updateData.origin as string)) {
+            updateData.origin = "Outro";
+          }
           if (Object.keys(customUpdate).length > 0) {
             const existing = (leadData?.custom_field_values ?? {}) as Record<string, unknown>;
             updateData.custom_field_values = { ...existing, ...customUpdate };
@@ -1010,6 +1023,13 @@ async function buildVarContext(
   const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
   for (const [k, v] of Object.entries(bodyFields)) {
     ctx[`gatilho.${k}`] = String(v ?? "");
+  }
+  // Saídas de datasources persistidas (ex: analise_telefone → phone-1.phone, phone-1.ddi…)
+  const datasources = payload.context.datasources ?? {};
+  for (const [dsName, fields] of Object.entries(datasources)) {
+    for (const [k, v] of Object.entries(fields)) {
+      ctx[`${dsName}.${k}`] = String(v ?? "");
+    }
   }
   return ctx;
 }
