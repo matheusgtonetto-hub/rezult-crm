@@ -4,6 +4,8 @@
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Indicação", "Site", "Outro"];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TriggerPayload {
@@ -1413,6 +1415,9 @@ async function executeAction(
         status: "open",
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
+      if (insertLead.origin && !VALID_LEAD_ORIGINS.includes(insertLead.origin as string)) {
+        insertLead.origin = "Outro";
+      }
 
       // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
       if (!insertLead.pipeline_id && ownerIdLead) {
@@ -1478,8 +1483,10 @@ async function executeAction(
         };
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
-        // Garante nome mínimo para satisfazer possível constraint NOT NULL
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
+        if (insertData.origin && !VALID_LEAD_ORIGINS.includes(insertData.origin as string)) {
+          insertData.origin = "Outro";
+        }
 
         console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
         const { data: created, error: createErr } = await supabase
