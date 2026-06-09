@@ -7,6 +7,55 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
 
+// Remove acentos e normaliza para comparação
+const stripAccents = (x: string) =>
+  x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+// Sinônimos → origem canônica. Palavras-chave com >=4 chars casam por substring;
+// abreviações curtas (fb, ig, yt…) casam apenas como token isolado, evitando falsos positivos.
+const ORIGIN_SYNONYMS: Array<[string, string[]]> = [
+  ["Google Ads",      ["google", "adwords", "gads"]],
+  ["Meta Ads",        ["meta"]],
+  ["Facebook Ads",    ["facebook", "fb", "face"]],
+  ["Instagram",       ["instagram", "insta", "ig"]],
+  ["TikTok Ads",      ["tiktok", "tik tok"]],
+  ["LinkedIn Ads",    ["linkedin", "linked in"]],
+  ["YouTube Ads",     ["youtube", "you tube"]],
+  ["Email Marketing", ["email", "e-mail", "mkt"]],
+  ["WhatsApp",        ["whatsapp", "whats", "wpp", "zap"]],
+  ["Orgânico",        ["organico", "organic", "seo"]],
+  ["Evento",          ["evento", "event", "webinar", "feira"]],
+  ["Indicação",       ["indicacao", "referral", "referencia", "indica"]],
+  ["Site",            ["site", "website", "web", "landing"]],
+];
+
+// Recebe um valor arbitrário de origem e devolve a opção pré-definida mais adequada.
+// Retorna null para valor vazio/ausente (deixa quem chama decidir — ex: usar default do banco).
+function normalizeOrigin(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = stripAccents(s);
+
+  // 1. Match exato (ignorando caixa/acento) com uma opção canônica
+  for (const v of VALID_LEAD_ORIGINS) {
+    if (stripAccents(v) === n) return v;
+  }
+
+  // 2. Match por sinônimo/palavra-chave
+  const tokens = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const hit = (kw: string) => {
+    const k = stripAccents(kw);
+    return k.length >= 4 ? n.includes(k) : tokens.includes(k);
+  };
+  for (const [canon, kws] of ORIGIN_SYNONYMS) {
+    if (kws.some(hit)) return canon;
+  }
+
+  // 3. Sem correspondência → Outro
+  return "Outro";
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TriggerPayload {
@@ -846,11 +895,12 @@ async function executeFlow(
 
         if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
           const updateData: Record<string, unknown> = { ...leadUpdate };
-          // origin tem CHECK constraint no banco — sanitiza valor inválido para "Outro"
-          // (igual criar_lead/criar_negocio). Sem isso, um origin fora da lista aborta o
-          // UPDATE inteiro e nenhum campo do nó persiste (empresa, whatsapp, UTMs…).
-          if (updateData.origin !== undefined && !VALID_LEAD_ORIGINS.includes(updateData.origin as string)) {
-            updateData.origin = "Outro";
+          // origin tem CHECK constraint no banco. Mapeia o valor recebido para a opção
+          // pré-definida mais adequada (ex: "Google" → "Google Ads"). Sem isso, um origin
+          // fora da lista aborta o UPDATE inteiro e nenhum campo do nó persiste.
+          if (updateData.origin !== undefined) {
+            const o = normalizeOrigin(updateData.origin);
+            if (o) updateData.origin = o; else delete updateData.origin; // vazio: não sobrescreve
           }
           if (Object.keys(customUpdate).length > 0) {
             const existing = (leadData?.custom_field_values ?? {}) as Record<string, unknown>;
@@ -1439,8 +1489,9 @@ async function executeAction(
         status: "open",
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
-      if (insertLead.origin !== undefined && !VALID_LEAD_ORIGINS.includes(insertLead.origin as string)) {
-        insertLead.origin = "Outro";
+      {
+        const o = normalizeOrigin(insertLead.origin);
+        if (o) insertLead.origin = o; else delete insertLead.origin; // vazio: usa default do banco
       }
 
       // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
@@ -1498,8 +1549,9 @@ async function executeAction(
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
-        if (insertData.origin !== undefined && !VALID_LEAD_ORIGINS.includes(insertData.origin as string)) {
-          insertData.origin = "Outro";
+        {
+          const o = normalizeOrigin(insertData.origin);
+          if (o) insertData.origin = o; else delete insertData.origin; // vazio: usa default do banco
         }
 
         console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
