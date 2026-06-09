@@ -657,7 +657,7 @@ async function executeFlow(
         company_id,
         lead_id: logLeadId,
         node_id: node.id,
-        status: "success",
+        status: allPassed ? "success" : "alert",
       });
 
       for (const condId of passedCondIds) {
@@ -1409,6 +1409,7 @@ async function executeAction(
       const insertLead: Record<string, unknown> = {
         ...stagedLead,
         owner_id: ownerIdLead,
+        company_id: company_id,
         status: "open",
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
@@ -1472,6 +1473,7 @@ async function executeAction(
         const insertData: Record<string, unknown> = {
           ...staged,
           owner_id: ownerIdForNew,
+          company_id: company_id,
           status: "open",
         };
         if (columnId) insertData.column_id = columnId;
