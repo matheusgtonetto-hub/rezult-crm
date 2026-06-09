@@ -26,7 +26,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   const target = `${supabaseUrl}/functions/v1/automation-runner/webhook/${id}`;
 
-  const upstreamHeaders: Record<string, string> = { "Content-Type": "application/json" };
+  const contentType = req.headers.get("content-type") ?? "application/json; charset=utf-8";
+  const upstreamHeaders: Record<string, string> = { "Content-Type": contentType };
   if (supabaseAnonKey) {
     upstreamHeaders["Authorization"] = `Bearer ${supabaseAnonKey}`;
     upstreamHeaders["apikey"] = supabaseAnonKey;
