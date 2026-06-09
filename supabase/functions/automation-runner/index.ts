@@ -1159,7 +1159,11 @@ async function checkCondition(
   payload: TriggerPayload,
 ): Promise<boolean> {
   const cfg = cond.config ?? {};
-  const { conditionId: id, categoryId: cat } = cond;
+  const { conditionId: id, categoryId: catRaw } = cond;
+  // neg_pipeline/neg_etapa pertencem à lógica "leads", mas flows antigos ou importados
+  // (DataCrazy) podem tê-los salvo com categoryId "negocios". Sem normalizar, cairiam no
+  // `default: return true` do bloco negócios → condição sempre TRUE → "Criar negócio" nunca roda.
+  const cat = (id === "neg_pipeline" || id === "neg_etapa") ? "leads" : catRaw;
 
   // ── Negócios ──────────────────────────────────────────────────────────────
   if (cat === "negocios") {
