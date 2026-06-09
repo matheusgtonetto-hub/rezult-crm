@@ -1415,7 +1415,7 @@ async function executeAction(
         status: "open",
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
-      if (insertLead.origin && !VALID_LEAD_ORIGINS.includes(insertLead.origin as string)) {
+      if (insertLead.origin !== undefined && !VALID_LEAD_ORIGINS.includes(insertLead.origin as string)) {
         insertLead.origin = "Outro";
       }
 
@@ -1484,7 +1484,7 @@ async function executeAction(
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
-        if (insertData.origin && !VALID_LEAD_ORIGINS.includes(insertData.origin as string)) {
+        if (insertData.origin !== undefined && !VALID_LEAD_ORIGINS.includes(insertData.origin as string)) {
           insertData.origin = "Outro";
         }
 
