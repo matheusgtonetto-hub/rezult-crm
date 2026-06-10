@@ -19,3 +19,10 @@ enabled = true
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
+
+# O automation-runner se autentica sozinho (segredo/UUID nos próprios handlers),
+# por isso o gateway NÃO deve exigir JWT — senão as chamadas internas (pg_cron
+# "resume" e zapi-webhook "resume-reply"), que usam o segredo do motor, são
+# barradas pelo gateway. Mantenha como false.
+[functions.automation-runner]
+verify_jwt = false

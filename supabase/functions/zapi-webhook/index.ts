@@ -94,5 +94,45 @@ serve(async (req) => {
     return new Response("db error", { status: 500 });
   }
 
+  // ── Retoma automações pausadas no bloco "Entrada do usuário" ────────────────
+  // Se este contato (owner + telefone) tem uma automação aguardando resposta,
+  // dispara a retomada no motor com o texto recebido.
+  if (!fromMe) {
+    const { data: awaiting } = await supabase
+      .from("automation_awaiting_reply")
+      .select("id")
+      .eq("owner_id", company.owner_id)
+      .eq("phone", cleanPhone)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (awaiting?.id) {
+      const { data: cfgRows } = await supabase
+        .from("automation_runner_config")
+        .select("key, value")
+        .in("key", ["supabase_url", "automation_secret"]);
+      const cfg = Object.fromEntries(((cfgRows ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+      const runnerUrl = cfg["supabase_url"];
+      const secret = cfg["automation_secret"];
+      if (runnerUrl && secret) {
+        try {
+          // Gateway autentica pela service key; o segredo do motor vai no corpo.
+          await fetch(`${runnerUrl}/functions/v1/automation-runner/resume-reply`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceKey}`,
+              "apikey": serviceKey,
+            },
+            body: JSON.stringify({ awaiting_id: awaiting.id, text: textBody, secret }),
+          });
+        } catch (e) {
+          console.error("resume_reply call failed:", e);
+        }
+      }
+    }
+  }
+
   return new Response("ok", { status: 200 });
 });

@@ -76,6 +76,8 @@ interface TriggerPayload {
     // Saídas de datasources (ex: analise_telefone → "phone-1") persistidas entre nós,
     // para que {{phone-1.phone}} fique disponível em nós posteriores ao parse
     datasources?: Record<string, Record<string, string>>;
+    // Respostas capturadas pelo bloco "Entrada do usuário" → {{var_name}}
+    user_inputs?: Record<string, string>;
   };
 }
 
@@ -230,6 +232,14 @@ Deno.serve(async (req: Request) => {
   const mcpTriggerMatch = url.pathname.match(/\/mcp-trigger(?:\/)?$/i);
   if (mcpTriggerMatch) {
     return await handleMcpTrigger(supabase, req);
+  }
+
+  // ── Resume por resposta: POST /automation-runner/resume-reply ─────────────
+  // Chamado pelo zapi-webhook quando o contato responde ("Entrada do usuário").
+  // Autentica no gateway pela service key; o segredo vai no corpo e é conferido.
+  const resumeReplyMatch = url.pathname.match(/\/resume-reply(?:\/)?$/i);
+  if (resumeReplyMatch) {
+    return await handleResumeReply(supabase, req);
   }
 
   // ── Modo normal: requer autenticação ─────────────────────────────────────
@@ -479,8 +489,84 @@ async function handleMcpTrigger(supabase: SupabaseClient, req: Request): Promise
 
 // ─── Resume handler ───────────────────────────────────────────────────────────
 
+interface AwaitingRecord {
+  id: string;
+  company_id: string;
+  automation_id: string;
+  lead_id: string | null;
+  owner_id: string;
+  phone: string;
+  node_id: string;
+  var_name: string;
+  resume_node_ids: string[];
+  trigger_payload: TriggerPayload;
+  expires_at: string | null;
+}
+
+// Retomada do bloco "Entrada do usuário" quando o contato responde (zapi-webhook).
+async function handleResumeReply(
+  supabase: SupabaseClient,
+  req: Request,
+): Promise<Response> {
+  let input: { awaiting_id?: string; text?: string; secret?: string };
+  try {
+    input = (await req.json()) as typeof input;
+  } catch {
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+
+  // Autorização: o segredo do motor vai no corpo (o gateway já validou a service key)
+  const secret = Deno.env.get("AUTOMATION_SECRET");
+  if (!secret || input.secret !== secret) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const awaitingId = input.awaiting_id;
+  if (!awaitingId) return Response.json({ error: "awaiting_id obrigatório" }, { status: 400 });
+
+  const { data: row } = await supabase
+    .from("automation_awaiting_reply")
+    .select("*")
+    .eq("id", awaitingId)
+    .maybeSingle();
+  if (!row) return Response.json({ ok: true, skipped: "not found" });
+
+  const awaiting = row as AwaitingRecord;
+  // Deleta primeiro para evitar dupla retomada
+  await supabase.from("automation_awaiting_reply").delete().eq("id", awaitingId);
+
+  const { data: automation } = await supabase
+    .from("automations")
+    .select("id, name, flow")
+    .eq("id", awaiting.automation_id)
+    .eq("company_id", awaiting.company_id)
+    .eq("active", true)
+    .single();
+  if (!automation) return Response.json({ ok: true, skipped: "automation inactive" });
+
+  // Injeta a resposta capturada → disponível como {{var_name}} nos próximos nós
+  const payload = awaiting.trigger_payload;
+  payload.context = payload.context ?? {};
+  payload.context.user_inputs = {
+    ...(payload.context.user_inputs ?? {}),
+    [awaiting.var_name]: String(input.text ?? ""),
+  };
+
+  await executeFlow(
+    supabase,
+    (automation as AutomationRecord).flow,
+    payload,
+    awaiting.automation_id,
+    awaiting.resume_node_ids,
+  );
+  return Response.json({ ok: true, resumed: awaiting.automation_id });
+}
+
 async function handleResume(supabase: SupabaseClient): Promise<Response> {
   const now = new Date().toISOString();
+
+  // Limpa esperas de resposta expiradas (contato não respondeu no prazo)
+  await supabase.from("automation_awaiting_reply").delete().lt("expires_at", now);
 
   const { data: pending, error } = await supabase
     .from("automation_pending")
@@ -1095,6 +1181,7 @@ async function executeFlow(
       const errors: string[] = [];
       const skipped: string[] = [];
       let sentCount = 0;
+      let paused = false;
 
       for (const sb of subBlocks) {
         try {
@@ -1162,8 +1249,25 @@ async function executeFlow(
             sentCount++;
 
           } else if (sb.type === "entrada_usuario") {
-            // Captura de resposta do contato ainda não suportada pelo motor — não bloqueia
-            skipped.push("entrada do usuário (aguardar resposta) ainda não suportada");
+            // PAUSA o fluxo: registra a espera pela resposta do contato. Quando a
+            // mensagem chegar (zapi-webhook → resume_reply), o motor retoma a
+            // partir dos filhos deste nó, com {{var_name}} preenchido.
+            const varName = String(sb.varName ?? "").trim() || "resposta";
+            const nextNodes = children.get(node.id) ?? [];
+            await supabase.from("automation_awaiting_reply").insert({
+              company_id,
+              automation_id: automationId,
+              lead_id: payload.lead_id || null,
+              owner_id: ownerId,
+              phone: rawPhone,
+              node_id: node.id,
+              var_name: varName,
+              resume_node_ids: nextNodes.map((n) => n.id),
+              trigger_payload: payload,
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            });
+            paused = true;
+            break; // não processa sub-blocos seguintes; serão retomados no resume
           }
         } catch (err) {
           errors.push(`${sb.type}: ${String(err)}`);
@@ -1180,6 +1284,9 @@ async function executeFlow(
         node_id: node.id, status,
         error_message: noteMsgs.length > 0 ? noteMsgs.join("; ") : null,
       });
+
+      // Pausado aguardando resposta: NÃO enfileira filhos (serão processados no resume)
+      if (paused) continue;
 
       if (status === "error") {
         queue.push(...(errorChildren.get(node.id) ?? []));
@@ -1316,6 +1423,11 @@ async function buildVarContext(
     for (const [k, v] of Object.entries(fields)) {
       ctx[`${dsName}.${k}`] = String(v ?? "");
     }
+  }
+  // Respostas do bloco "Entrada do usuário" → {{var_name}}
+  const userInputs = payload.context.user_inputs ?? {};
+  for (const [k, v] of Object.entries(userInputs)) {
+    ctx[k] = String(v ?? "");
   }
   return ctx;
 }
