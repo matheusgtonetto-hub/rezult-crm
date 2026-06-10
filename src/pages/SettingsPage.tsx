@@ -3117,6 +3117,7 @@ function ConexoesSection() {
         // Salva na tabela whatsapp_connections
         const newConn = await addWhatsAppConnection({
           name:        connName.trim() || result.phone || "WhatsApp",
+          provider:    "zapi",
           instanceId:  creds.instanceId,
           token:       creds.token,
           clientToken: creds.clientToken || null,
