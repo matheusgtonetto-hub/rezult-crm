@@ -7024,24 +7024,7 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-// Variáveis disponíveis para inserir no texto da mensagem (botões de entrada de dados {})
-const VARS_CONTATO: { token: string; label: string }[] = [
-  { token: "{{lead.name}}",     label: "Nome do lead" },
-  { token: "{{lead.whatsapp}}", label: "Telefone / WhatsApp" },
-  { token: "{{lead.email}}",    label: "E-mail" },
-  { token: "{{lead.company}}",  label: "Empresa" },
-  { token: "{{lead.origin}}",   label: "Origem" },
-  { token: "{{lead.city}}",     label: "Cidade" },
-];
-const VARS_GATILHO: { token: string; label: string }[] = [
-  { token: "{{gatilho.nome}}",     label: "Nome (do gatilho)" },
-  { token: "{{gatilho.email}}",    label: "E-mail (do gatilho)" },
-  { token: "{{gatilho.telefone}}", label: "Telefone (do gatilho)" },
-  { token: "{{gatilho.}}",         label: "Outro campo do gatilho…" },
-];
-
 const sbToolBtn: React.CSSProperties = { width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" };
-const sbDataBtn: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", color: "#3B82F6", fontSize: 11, fontWeight: 600, cursor: "pointer" };
 
 function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   b: SubBlock;
@@ -7049,24 +7032,6 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [varMenu, setVarMenu] = useState<null | "contato" | "gatilho">(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
-
-  const insertVar = (token: string) => {
-    const ta = textRef.current;
-    const cur = b.text ?? "";
-    let next: string;
-    if (ta) {
-      const start = ta.selectionStart ?? cur.length;
-      const end = ta.selectionEnd ?? cur.length;
-      next = cur.slice(0, start) + token + cur.slice(end);
-    } else {
-      next = cur + token;
-    }
-    updateSubBlock(b.id, { text: next });
-    setVarMenu(null);
-    requestAnimationFrame(() => ta?.focus());
-  };
 
   const addButton = () => updateSubBlock(b.id, { buttons: [...(b.buttons ?? []), { id: `bt${Date.now()}`, label: "" }] });
   const updateButton = (id: string, label: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).map(x => x.id === id ? { ...x, label } : x) });
@@ -7111,35 +7076,11 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         {b.type === "mensagem_texto" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
-            <textarea
-              ref={textRef}
+            <CamposValueInput
               value={b.text ?? ""}
-              onChange={e => updateSubBlock(b.id, { text: e.target.value })}
-              placeholder="Digite a mensagem..."
-              style={{ width: "100%", minHeight: 80, border: "1px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+              onChange={v => updateSubBlock(b.id, { text: v })}
+              placeholder="Digite a mensagem ou use {} para inserir variável..."
             />
-            {/* Botões de entrada de dados (inserir variáveis) */}
-            <div style={{ display: "flex", gap: 6, marginTop: 6, position: "relative" }}>
-              <button onClick={() => setVarMenu(v => v === "contato" ? null : "contato")} title="Inserir variável do contato" style={sbDataBtn}><Braces size={12} /> Contato</button>
-              <button onClick={() => setVarMenu(v => v === "gatilho" ? null : "gatilho")} title="Inserir variável do gatilho" style={sbDataBtn}><Braces size={12} /> Gatilho</button>
-              {varMenu && (
-                <>
-                  <div onClick={() => setVarMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                  <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 224, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, overflow: "hidden", maxHeight: 220, overflowY: "auto" }}>
-                    {(varMenu === "contato" ? VARS_CONTATO : VARS_GATILHO).map(v => (
-                      <button key={v.token} onClick={() => insertVar(v.token)}
-                        style={{ width: "100%", display: "flex", flexDirection: "column", gap: 1, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{v.label}</span>
-                        <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{v.token}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
             {/* Botões de resposta da mensagem */}
             {(b.buttons ?? []).length > 0 && (
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
