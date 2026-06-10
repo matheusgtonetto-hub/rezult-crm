@@ -744,6 +744,49 @@ export default function AutomacoesPage() {
 
   // ── Editor helpers ────────────────────────────────────────────────────────
 
+  // Refs lidos dentro do handler de realtime (evita closures obsoletas sem ressubscrever)
+  const logsPanelRef = useRef(logsPanel);
+  const logsPanelTabRef = useRef(logsPanelTab);
+  useEffect(() => { logsPanelRef.current = logsPanel; }, [logsPanel]);
+  useEffect(() => { logsPanelTabRef.current = logsPanelTab; }, [logsPanelTab]);
+
+  // Recarrega os contadores (sucesso/alerta/erro) de TODOS os blocos da automação.
+  // Usado ao abrir o editor e a cada nova execução (via realtime / foco / botão atualizar).
+  const refreshNodeStats = useCallback(async (id: string) => {
+    const { data } = await supabase
+      .from("automation_logs")
+      .select("node_id, status")
+      .eq("automation_id", id)
+      .limit(5000);
+    if (!data) return;
+    const stats: Record<string, { s: number; a: number; e: number }> = {};
+    for (const row of data) {
+      if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
+      if (row.status === "success") stats[row.node_id].s++;
+      else if (row.status === "alert") stats[row.node_id].a++;
+      else if (row.status === "error") stats[row.node_id].e++;
+    }
+    setNodeStats(stats);
+  }, []);
+
+  // Recarrega silenciosamente as entradas do painel de logs aberto (sem resetar a seleção).
+  const refreshLogsPanelEntries = useCallback(async (automationId: string, nodeId: string) => {
+    const { data: logRows } = await supabase
+      .from("automation_logs")
+      .select("id, lead_id, status, created_at, error_message")
+      .eq("automation_id", automationId)
+      .eq("node_id", nodeId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!logRows) return;
+    const leadIds = [...new Set((logRows as { lead_id: string }[]).map(r => r.lead_id))];
+    const { data: leadsData } = leadIds.length
+      ? await supabase.from("leads").select("id, name").in("id", leadIds)
+      : { data: [] };
+    const leadMap = Object.fromEntries(((leadsData ?? []) as { id: string; name: string }[]).map(l => [l.id, l.name]));
+    setLogsPanelEntries((logRows as Omit<LogEntry, "lead_name">[]).map(r => ({ ...r, lead_name: leadMap[r.lead_id] ?? "Lead desconhecido" })));
+  }, []);
+
   const openEditor = useCallback((id: string) => {
     const auto = automations.find(a => a.id === id);
     if (!auto) return;
@@ -759,24 +802,54 @@ export default function AutomacoesPage() {
     setNodeStats({});
     setIsDirty(false);
     setView("editor");
-    // Load execution stats for this automation
-    supabase
-      .from("automation_logs")
-      .select("node_id, status")
-      .eq("automation_id", id)
-      .limit(5000)
-      .then(({ data }) => {
-        if (!data) return;
-        const stats: Record<string, { s: number; a: number; e: number }> = {};
-        for (const row of data) {
-          if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
-          if (row.status === "success") stats[row.node_id].s++;
-          else if (row.status === "alert") stats[row.node_id].a++;
-          else if (row.status === "error") stats[row.node_id].e++;
-        }
-        setNodeStats(stats);
-      });
-  }, [automations]);
+    // Carrega os contadores de execução desta automação
+    refreshNodeStats(id);
+  }, [automations, refreshNodeStats]);
+
+  // ── Logs ao vivo ──────────────────────────────────────────────────────────
+  // Assina automation_logs e atualiza contadores + painel aberto a cada execução.
+  // Sem isto, os logs ficavam congelados no snapshot do momento em que o editor abriu.
+  useEffect(() => {
+    if (view !== "editor" || !selectedId) return;
+    let timer: number | null = null;
+    const channel = supabase
+      .channel(`autolog-${selectedId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "automation_logs", filter: `automation_id=eq.${selectedId}` },
+        () => {
+          // Debounce: uma execução insere vários logs em sequência → 1 refresh só
+          if (timer) clearTimeout(timer);
+          timer = window.setTimeout(() => {
+            refreshNodeStats(selectedId);
+            const lp = logsPanelRef.current;
+            if (lp) refreshLogsPanelEntries(selectedId, lp.nodeId);
+          }, 350);
+        },
+      )
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [view, selectedId, refreshNodeStats, refreshLogsPanelEntries]);
+
+  // Rede de segurança: se o realtime cair, recarrega ao voltar o foco para a aba.
+  useEffect(() => {
+    if (view !== "editor" || !selectedId) return;
+    const onFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      refreshNodeStats(selectedId);
+      const lp = logsPanelRef.current;
+      if (lp) refreshLogsPanelEntries(selectedId, lp.nodeId);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [view, selectedId, refreshNodeStats, refreshLogsPanelEntries]);
 
   // ── Canvas interactions ───────────────────────────────────────────────────
 
@@ -2234,11 +2307,19 @@ export default function AutomacoesPage() {
                     </div>
                   )}
                 </div>
-                <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
-                  style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                ><X size={14} /></button>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <button onClick={() => { if (selectedId) { refreshNodeStats(selectedId); if (logsPanel) refreshLogsPanelEntries(selectedId, logsPanel.nodeId); } }}
+                    title="Atualizar logs"
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  ><RefreshCw size={13} /></button>
+                  <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  ><X size={14} /></button>
+                </div>
               </div>
 
               {/* Banner: lead com caminho ativo no canvas */}
