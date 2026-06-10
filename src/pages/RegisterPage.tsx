@@ -100,23 +100,23 @@ export default function RegisterPage() {
         style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
       >
         {/* Logo */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5">
           <Logo size="md" showIcon />
         </div>
 
-        <h1 className="text-2xl font-bold text-foreground text-center">Criar sua conta</h1>
-        <p className="text-sm text-muted-foreground text-center mt-2">
-          Preencha os dados abaixo para começar
+        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo ao Rezult</h1>
+        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[5px]">
+          Preencha os dados abaixo para criar a sua conta.
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-8">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-5">
           {/* Nome completo */}
           <div className="space-y-1.5">
             <Label htmlFor="fullName" className="text-xs font-medium">Nome completo</Label>
             <Input
               id="fullName"
               type="text"
-              placeholder="João Silva"
+              placeholder="Seu nome completo"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
@@ -131,7 +131,7 @@ export default function RegisterPage() {
             <Input
               id="reg-email"
               type="email"
-              placeholder="joao@empresa.com"
+              placeholder="exemplo@gmail.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
@@ -146,7 +146,7 @@ export default function RegisterPage() {
               <Input
                 id="reg-password"
                 type={showPwd ? "text" : "password"}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Insira sua senha"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
@@ -170,7 +170,7 @@ export default function RegisterPage() {
               <Input
                 id="reg-confirm"
                 type={showConfirmPwd ? "text" : "password"}
-                placeholder="Repita a senha"
+                placeholder="Repita sua senha"
                 value={confirmPwd}
                 onChange={e => setConfirmPwd(e.target.value)}
                 className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
@@ -247,7 +247,7 @@ export default function RegisterPage() {
           <Button
             type="submit"
             className="w-full h-12 rounded-lg font-semibold mt-2"
-            disabled={loading}
+            disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy}
           >
             {loading ? "Criando conta..." : "Criar sua conta"}
           </Button>

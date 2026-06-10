@@ -141,7 +141,7 @@ export default function LoginPage() {
         className="w-full max-w-[420px] bg-card rounded-2xl p-10"
         style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
       >
-        <div className="flex justify-center mb-6"><Logo size="md" showIcon /></div>
+        <div className="flex justify-center mb-5"><Logo size="md" showIcon /></div>
 
         {emailConfirmed && (
           <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
@@ -153,12 +153,12 @@ export default function LoginPage() {
           </div>
         )}
 
-        <h1 className="text-2xl font-bold text-foreground text-center">Bem-vindo</h1>
-        <p className="text-sm text-muted-foreground text-center mt-2">
-          Acesse sua conta e gerencie seu comercial com inteligência
+        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo</h1>
+        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[5px]">
+          Faça login para acessar sua conta
         </p>
 
-        <form onSubmit={handleLogin} className="space-y-4 mt-8">
+        <form onSubmit={handleLogin} className="space-y-4 mt-5">
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs font-medium">E-mail</Label>
             <Input
@@ -167,7 +167,7 @@ export default function LoginPage() {
               placeholder="exemplo@gmail.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="h-11 rounded-lg"
+              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoComplete="email"
             />
           </div>
