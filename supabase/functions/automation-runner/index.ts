@@ -566,7 +566,7 @@ async function matchesTriggerConfig(
       if (!cfgTagIds.length) return true;
       const tagsAdded = payload.context.tag_ids_added ?? [];
       if (cfgTagIds.some((t) => tagsAdded.includes(t))) return true;
-      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds).eq("company_id", payload.company_id);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsAdded.includes(n));
     }
@@ -575,7 +575,7 @@ async function matchesTriggerConfig(
       if (!cfgTagIds.length) return true;
       const tagsRemoved = payload.context.tag_ids_removed ?? [];
       if (cfgTagIds.some((t) => tagsRemoved.includes(t))) return true;
-      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds).eq("company_id", payload.company_id);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsRemoved.includes(n));
     }
@@ -1539,7 +1539,7 @@ async function checkCondition(
         const tagIds = splitIds(cfg.tag_ids as string);
         const leadTags = (lead.tags as string[]) ?? [];
         if (!tagIds.length) return leadTags.length > 0;
-        const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+        const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", payload.company_id);
         const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
         return tagNames.some((n: string) => leadTags.includes(n));
       }
@@ -1834,7 +1834,9 @@ async function executeAction(
     case "adicionar_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      // Escopo por empresa: um id de tag de OUTRA empresa (resíduo de import/cópia)
+      // jamais pode ser resolvido aqui — senão o nome vaza e vira tag "fantasma" no lead.
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", company_id);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
@@ -1847,7 +1849,7 @@ async function executeAction(
     case "remover_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", company_id);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
