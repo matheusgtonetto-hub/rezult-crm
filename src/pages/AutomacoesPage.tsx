@@ -37,12 +37,16 @@ type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomiza
 
 type SubBlockType = "mensagem_texto" | "entrada_usuario" | "atraso_tempo" | "mensagem_audio" | "arquivo_anexo" | "arquivo_url";
 
+type MensagemBotao = { id: string; label: string };
+
 type SubBlock = {
   id: string;
   type: SubBlockType;
   text?: string;
   delaySeconds?: number;
   fileUrl?: string;
+  splitMessages?: boolean;      // "Quebrar mensagens?" — cada parágrafo vira um envio
+  buttons?: MensagemBotao[];    // botões de resposta anexados à mensagem de texto
 };
 
 type ActionItem = {
@@ -7020,6 +7024,200 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
+// Variáveis disponíveis para inserir no texto da mensagem (botões de entrada de dados {})
+const VARS_CONTATO: { token: string; label: string }[] = [
+  { token: "{{lead.name}}",     label: "Nome do lead" },
+  { token: "{{lead.whatsapp}}", label: "Telefone / WhatsApp" },
+  { token: "{{lead.email}}",    label: "E-mail" },
+  { token: "{{lead.company}}",  label: "Empresa" },
+  { token: "{{lead.origin}}",   label: "Origem" },
+  { token: "{{lead.city}}",     label: "Cidade" },
+];
+const VARS_GATILHO: { token: string; label: string }[] = [
+  { token: "{{gatilho.nome}}",     label: "Nome (do gatilho)" },
+  { token: "{{gatilho.email}}",    label: "E-mail (do gatilho)" },
+  { token: "{{gatilho.telefone}}", label: "Telefone (do gatilho)" },
+  { token: "{{gatilho.}}",         label: "Outro campo do gatilho…" },
+];
+
+const sbToolBtn: React.CSSProperties = { width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" };
+const sbDataBtn: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", color: "#3B82F6", fontSize: 11, fontWeight: 600, cursor: "pointer" };
+
+function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
+  b: SubBlock;
+  removeSubBlock: (blockId: string) => void;
+  updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
+}) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [varMenu, setVarMenu] = useState<null | "contato" | "gatilho">(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertVar = (token: string) => {
+    const ta = textRef.current;
+    const cur = b.text ?? "";
+    let next: string;
+    if (ta) {
+      const start = ta.selectionStart ?? cur.length;
+      const end = ta.selectionEnd ?? cur.length;
+      next = cur.slice(0, start) + token + cur.slice(end);
+    } else {
+      next = cur + token;
+    }
+    updateSubBlock(b.id, { text: next });
+    setVarMenu(null);
+    requestAnimationFrame(() => ta?.focus());
+  };
+
+  const addButton = () => updateSubBlock(b.id, { buttons: [...(b.buttons ?? []), { id: `bt${Date.now()}`, label: "" }] });
+  const updateButton = (id: string, label: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).map(x => x.id === id ? { ...x, label } : x) });
+  const removeButton = (id: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).filter(x => x.id !== id) });
+
+  return (
+    <div style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, background: "#FAFAFA" }}>
+      {/* Sub-block toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB", position: "relative", borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
+        {b.type === "mensagem_texto" && (
+          <button onClick={() => setSettingsOpen(o => !o)} title="Configurações" style={sbToolBtn}
+            onMouseEnter={e => (e.currentTarget.style.color = "#3B82F6")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+          ><Settings size={11} /></button>
+        )}
+        <button onClick={() => removeSubBlock(b.id)} style={sbToolBtn}
+          onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+          onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+        ><Trash2 size={11} /></button>
+        {settingsOpen && (
+          <>
+            <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+            <div style={{ position: "absolute", top: "100%", right: 6, marginTop: 4, width: 252, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, padding: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 10 }}>Configurações da mensagem de texto</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "#374151" }}>Quebrar mensagens?</span>
+                <button onClick={() => updateSubBlock(b.id, { splitMessages: !b.splitMessages })}
+                  style={{ width: 36, height: 20, borderRadius: 100, background: b.splitMessages ? "#3B82F6" : "#D1D5DB", position: "relative", transition: "background 0.15s", flexShrink: 0, border: "none", cursor: "pointer", padding: 0 }}>
+                  <span style={{ position: "absolute", top: 2, left: b.splitMessages ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFF", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, lineHeight: 1.4 }}>
+                Quando ativo, cada parágrafo (separado por linha em branco) é enviado como uma mensagem separada.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sub-block content */}
+      <div style={{ padding: "10px 12px" }}>
+        {b.type === "mensagem_texto" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
+            <textarea
+              ref={textRef}
+              value={b.text ?? ""}
+              onChange={e => updateSubBlock(b.id, { text: e.target.value })}
+              placeholder="Digite a mensagem..."
+              style={{ width: "100%", minHeight: 80, border: "1px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+            {/* Botões de entrada de dados (inserir variáveis) */}
+            <div style={{ display: "flex", gap: 6, marginTop: 6, position: "relative" }}>
+              <button onClick={() => setVarMenu(v => v === "contato" ? null : "contato")} title="Inserir variável do contato" style={sbDataBtn}><Braces size={12} /> Contato</button>
+              <button onClick={() => setVarMenu(v => v === "gatilho" ? null : "gatilho")} title="Inserir variável do gatilho" style={sbDataBtn}><Braces size={12} /> Gatilho</button>
+              {varMenu && (
+                <>
+                  <div onClick={() => setVarMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                  <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 224, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, overflow: "hidden", maxHeight: 220, overflowY: "auto" }}>
+                    {(varMenu === "contato" ? VARS_CONTATO : VARS_GATILHO).map(v => (
+                      <button key={v.token} onClick={() => insertVar(v.token)}
+                        style={{ width: "100%", display: "flex", flexDirection: "column", gap: 1, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{v.label}</span>
+                        <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{v.token}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Botões de resposta da mensagem */}
+            {(b.buttons ?? []).length > 0 && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {(b.buttons ?? []).map(bt => (
+                  <div key={bt.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input value={bt.label} onChange={e => updateButton(bt.id, e.target.value)} placeholder="Texto do botão"
+                      style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    <button onClick={() => removeButton(bt.id)} style={sbToolBtn}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                    ><Trash2 size={11} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={addButton}
+              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
+            >
+              <Plus size={13} /> Adicionar botão
+            </button>
+          </div>
+        )}
+        {b.type === "entrada_usuario" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
+            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
+          </div>
+        )}
+        {b.type === "atraso_tempo" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
+              <input type="number" min={0} value={b.delaySeconds ?? 0}
+                onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
+                style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+            </div>
+          </div>
+        )}
+        {b.type === "mensagem_audio" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
+            <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
+              <button style={{ padding: "6px 14px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
+                <Mic size={12} /> Iniciar gravação
+              </button>
+            </div>
+          </div>
+        )}
+        {b.type === "arquivo_anexo" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
+            <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
+              <Upload size={20} color="#D1D5DB" />
+              Selecionar arquivo
+              <input type="file" style={{ display: "none" }} />
+            </label>
+          </div>
+        )}
+        {b.type === "arquivo_url" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
+            <input type="url" value={b.fileUrl ?? ""} onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
+              placeholder="URL do arquivo"
+              style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+            {b.fileUrl && !b.fileUrl.startsWith("http") && (
+              <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock, onSetConnection }: {
   node: CanvasNode;
   onClose: () => void;
@@ -7111,85 +7309,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         ) : (
           <div style={{ padding: "10px 16px" }}>
             {(node.subBlocks ?? []).map(b => (
-              <div key={b.id} style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
-                {/* Sub-block toolbar */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
-                  <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                  ><Trash2 size={11} /></button>
-                </div>
-                {/* Sub-block content */}
-                <div style={{ padding: "10px 12px" }}>
-                  {b.type === "mensagem_texto" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
-                      <textarea
-                        value={b.text ?? ""}
-                        onChange={e => updateSubBlock(b.id, { text: e.target.value })}
-                        placeholder="Digite a mensagem..."
-                        style={{ width: "100%", minHeight: 80, border: "1px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
-                      />
-                    </div>
-                  )}
-                  {b.type === "entrada_usuario" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
-                    </div>
-                  )}
-                  {b.type === "atraso_tempo" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
-                        <input
-                          type="number" min={0}
-                          value={b.delaySeconds ?? 0}
-                          onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
-                          style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
-                        />
-                        <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
-                      </div>
-                    </div>
-                  )}
-                  {b.type === "mensagem_audio" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
-                        <button style={{ padding: "6px 14px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
-                          <Mic size={12} /> Iniciar gravação
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {b.type === "arquivo_anexo" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
-                        <Upload size={20} color="#D1D5DB" />
-                        Selecionar arquivo
-                        <input type="file" style={{ display: "none" }} />
-                      </label>
-                    </div>
-                  )}
-                  {b.type === "arquivo_url" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
-                      <input
-                        type="url"
-                        value={b.fileUrl ?? ""}
-                        onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
-                        placeholder="URL do arquivo"
-                        style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
-                      />
-                      {b.fileUrl && !b.fileUrl.startsWith("http") && (
-                        <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SubBlockCard key={b.id} b={b} removeSubBlock={removeSubBlock} updateSubBlock={updateSubBlock} />
             ))}
           </div>
         )}

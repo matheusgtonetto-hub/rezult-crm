@@ -164,6 +164,8 @@ interface SubBlock {
   text?: string;
   delaySeconds?: number;
   fileUrl?: string;
+  splitMessages?: boolean;
+  buttons?: { id: string; label: string }[];
 }
 
 interface CanvasNode {
@@ -1096,13 +1098,37 @@ async function executeFlow(
         try {
           if (sb.type === "mensagem_texto") {
             const message = interpolate(sb.text ?? "", vars);
-            if (!message.trim()) { skipped.push("mensagem de texto vazia"); continue; }
-            await sendZapi(creds, "send-text", { phone: rawPhone, message });
-            // Persiste no histórico de conversas (mesma tabela do multiatendimento)
-            await supabase.from("whatsapp_messages").insert({
-              owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
-              phone: rawPhone, from_me: true, body: message, type: "text",
-            });
+            const buttons = (sb.buttons ?? [])
+              .map((bt) => String(bt.label ?? "").trim())
+              .filter(Boolean);
+            if (!message.trim() && buttons.length === 0) { skipped.push("mensagem de texto vazia"); continue; }
+
+            // "Quebrar mensagens?": cada parágrafo (linha em branco) vira um envio separado
+            const parts = sb.splitMessages
+              ? message.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+              : [message];
+            if (parts.length === 0) parts.push(message);
+
+            for (let i = 0; i < parts.length; i++) {
+              const isLast = i === parts.length - 1;
+              // Botões (se houver) vão anexados à última parte, via send-button-list
+              if (isLast && buttons.length > 0) {
+                await sendZapi(creds, "send-button-list", {
+                  phone: rawPhone,
+                  message: parts[i],
+                  buttonList: { buttons: buttons.map((label, idx) => ({ id: String(idx + 1), label })) },
+                });
+              } else {
+                await sendZapi(creds, "send-text", { phone: rawPhone, message: parts[i] });
+              }
+              // Persiste no histórico de conversas (mesma tabela do multiatendimento)
+              await supabase.from("whatsapp_messages").insert({
+                owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+                phone: rawPhone, from_me: true, body: parts[i], type: "text",
+              });
+              // Pequeno intervalo entre partes para preservar a ordem de entrega
+              if (!isLast) await new Promise<void>((r) => setTimeout(r, 600));
+            }
             sentCount++;
 
           } else if (sb.type === "atraso_tempo") {
