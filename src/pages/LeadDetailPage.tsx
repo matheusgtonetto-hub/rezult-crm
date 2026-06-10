@@ -1474,10 +1474,19 @@ export default function LeadDetailPage() {
                             return (
                               <span
                                 key={tagName}
-                                className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
+                                className="text-[10px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
                                 style={{ background: t?.color || "#888" }}
                               >
                                 {tagName}
+                                <button
+                                  type="button"
+                                  onClick={() => updateField("tags", (lead.tags || []).filter(x => x !== tagName))}
+                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-white/25"
+                                  style={{ width: 13, height: 13 }}
+                                  aria-label={`Remover tag ${tagName}`}
+                                >
+                                  <X size={9} />
+                                </button>
                               </span>
                             );
                           })}
