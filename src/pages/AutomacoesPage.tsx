@@ -97,6 +97,7 @@ type CanvasNode = {
   parentIds?: string[];            // chaves das portas de saída de origem (azul)
   errorParentIds?: string[];       // IDs dos nós de origem (vermelho)
   subBlocks?: SubBlock[];
+  connectionId?: string;           // conexão (whatsapp_connections) usada pelo bloco Mensagem
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
   espera?: EsperaConfig;
@@ -1856,6 +1857,7 @@ export default function AutomacoesPage() {
               removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
               updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
               onAddSubBlock={(type) => { addSubBlock(nodePanel, type); }}
+              onSetConnection={(connectionId) => setNodes(prev => prev.map(n => n.id === nodePanel ? { ...n, connectionId } : n))}
             />
           )}
 
@@ -7018,7 +7020,7 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock }: {
+function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock, onSetConnection }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
@@ -7026,7 +7028,9 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
   removeSubBlock: (blockId: string) => void;
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
   onAddSubBlock: (type: SubBlockType) => void;
+  onSetConnection: (connectionId: string | undefined) => void;
 }) {
+  const { whatsappConnections } = useCompany();
   const hasSubBlocks = (node.subBlocks ?? []).length > 0;
   return (
     <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
@@ -7048,17 +7052,35 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Envie, receba e armazene respostas</p>
       </div>
 
-      {/* Conexão */}
+      {/* Conexão — vinculada às conexões de Configurações → Conexão (whatsapp_connections) */}
       <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <select style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
-            <option>Selecionar</option>
+          <select
+            value={node.connectionId ?? ""}
+            onChange={e => onSetConnection(e.target.value || undefined)}
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}
+          >
+            <option value="">Selecionar</option>
+            {whatsappConnections.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.phone ? ` · ${c.phone}` : ""}{c.connected ? "" : " (desconectado)"}
+              </option>
+            ))}
           </select>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></button>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Settings size={12} /></button>
+          <a
+            href="/configuracoes/conexoes" target="_blank" rel="noopener noreferrer"
+            title="Gerenciar conexões em Configurações → Conexão"
+            style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+          ><Settings size={12} /></a>
         </div>
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+        {whatsappConnections.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+            Nenhuma conexão cadastrada. Adicione em <strong>Configurações → Conexão</strong>.
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+        )}
       </div>
 
       {/* Body: list de tipos disponíveis (estado vazio) OU sub-blocos configurados */}

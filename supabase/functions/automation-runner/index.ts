@@ -177,6 +177,7 @@ interface CanvasNode {
   apiConfig?: ApiConfig;
   fieldOps?: FieldOperation[];
   subBlocks?: SubBlock[];
+  connectionId?: string; // conexão (whatsapp_connections) escolhida no bloco Mensagem
   parentId?: string | null;        // legacy
   errorParentId?: string | null;   // legacy
   parentIds?: string[];            // current format (array)
@@ -1021,15 +1022,8 @@ async function executeFlow(
         ? ((await supabase.from("leads").select("*").eq("id", currentLeadId).single()).data as Record<string, unknown> | null)
         : null;
 
-      // Resolve credenciais Z-API da empresa (companies.id == payload.company_id)
-      const { data: companyData } = await supabase
-        .from("companies")
-        .select("zapi_instance_id, zapi_token, zapi_client_token, zapi_connected")
-        .eq("id", company_id)
-        .maybeSingle();
-      const zapi = companyData as Record<string, unknown> | null;
-
       const rawPhone = String((leadData?.whatsapp ?? leadData?.phone) ?? "").replace(/\D/g, "");
+      const ownerId = (leadData?.owner_id as string | undefined) ?? null;
 
       // Falhas "duras" → roteia para o ramo de erro do nó
       const hardError = (msg: string) => {
@@ -1039,22 +1033,59 @@ async function executeFlow(
         });
       };
 
-      if (!zapi?.zapi_connected || !zapi?.zapi_instance_id || !zapi?.zapi_token) {
-        await hardError("WhatsApp (Z-API) não conectado para esta empresa");
-        queue.push(...(errorChildren.get(node.id) ?? []));
-        continue;
+      // Resolve as credenciais de envio. Prioridade: conexão escolhida no bloco
+      // (Configurações → Conexão / whatsapp_connections); se em branco, usa a
+      // conexão Z-API padrão da empresa (companies.zapi_*).
+      let creds: ZapiCreds | null = null;
+
+      if (node.connectionId) {
+        const { data: connRow } = await supabase
+          .from("whatsapp_connections")
+          .select("instance_id, token, client_token, connected, owner_id")
+          .eq("id", node.connectionId)
+          .maybeSingle();
+        const conn = connRow as Record<string, unknown> | null;
+        // Isolamento por dono: nunca usar conexão de outro tenant
+        if (!conn || (ownerId && conn.owner_id !== ownerId)) {
+          await hardError("Conexão selecionada não encontrada");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        if (!conn.connected || !conn.instance_id || !conn.token) {
+          await hardError("Conexão selecionada está desconectada");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        creds = {
+          instanceId: String(conn.instance_id),
+          token: String(conn.token),
+          clientToken: conn.client_token ? String(conn.client_token) : null,
+        };
+      } else {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("zapi_instance_id, zapi_token, zapi_client_token, zapi_connected")
+          .eq("id", company_id)
+          .maybeSingle();
+        const zapi = companyData as Record<string, unknown> | null;
+        if (!zapi?.zapi_connected || !zapi?.zapi_instance_id || !zapi?.zapi_token) {
+          await hardError("Nenhuma conexão de WhatsApp selecionada e a empresa não tem conexão padrão");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        creds = {
+          instanceId: String(zapi.zapi_instance_id),
+          token: String(zapi.zapi_token),
+          clientToken: zapi.zapi_client_token ? String(zapi.zapi_client_token) : null,
+        };
       }
+
       if (!rawPhone) {
         await hardError("Lead sem telefone/WhatsApp para envio");
         queue.push(...(errorChildren.get(node.id) ?? []));
         continue;
       }
 
-      const creds: ZapiCreds = {
-        instanceId: String(zapi.zapi_instance_id),
-        token: String(zapi.zapi_token),
-        clientToken: zapi.zapi_client_token ? String(zapi.zapi_client_token) : null,
-      };
       const vars = await buildVarContext(supabase, leadData, payload);
 
       const errors: string[] = [];
