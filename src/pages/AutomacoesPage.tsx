@@ -49,6 +49,8 @@ type SubBlock = {
   splitMessages?: boolean;      // "Quebrar mensagens?" — cada parágrafo vira um envio
   buttons?: MensagemBotao[];    // botões de resposta anexados à mensagem de texto
   varName?: string;             // nome da variável para "Entrada do usuário"
+  timeoutAmount?: number;       // "Entrada do usuário": tempo de espera pela resposta
+  timeoutUnit?: "minutos" | "horas" | "dias"; // unidade do timeout
 };
 
 type ActionItem = {
@@ -101,7 +103,8 @@ type CanvasNode = {
   parentId?: string | null;        // legado — migrado para parentIds no carregamento
   errorParentId?: string | null;   // legado — migrado para errorParentIds no carregamento
   parentIds?: string[];            // chaves das portas de saída de origem (azul)
-  errorParentIds?: string[];       // IDs dos nós de origem (vermelho)
+  errorParentIds?: string[];       // IDs dos nós de origem (vermelho — erro)
+  timeoutParentIds?: string[];     // IDs dos nós de origem (vermelho — "não respondeu")
   subBlocks?: SubBlock[];
   connectionId?: string;           // conexão (whatsapp_connections) usada pelo bloco Mensagem
   actionItems?: ActionItem[];
@@ -466,6 +469,7 @@ function migrateNodes(nodes: CanvasNode[]): CanvasNode[] {
     ...n,
     parentIds: n.parentIds ?? (n.parentId ? [n.parentId] : []),
     errorParentIds: n.errorParentIds ?? (n.errorParentId ? [n.errorParentId] : []),
+    timeoutParentIds: n.timeoutParentIds ?? [],
   }));
 }
 
@@ -613,11 +617,11 @@ export default function AutomacoesPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
   const [saving, setSaving]             = useState(false);
-  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean } | null>(null);
+  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean; isTimeout?: boolean } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
   const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
   const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
-  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error"; fromId: string } | null>(null);
+  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" | "timeout"; fromId: string } | null>(null);
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -887,17 +891,17 @@ export default function AutomacoesPage() {
     if (!addNodeMenu) return;
     if (COMING_SOON_ACTIONS.has(type)) return; // blocos "Em breve" não podem ser criados
     const isError = addNodeMenu.isError ?? false;
-    const actualParentId = isError
-      ? addNodeMenu.fromNodeId.replace(/__error$/, "")
-      : addNodeMenu.fromNodeId;
+    const isTimeout = addNodeMenu.isTimeout ?? false;
+    const actualParentId = addNodeMenu.fromNodeId.replace(/__(error|timeout)$/, "");
     const newNode: CanvasNode = {
       id: `n${Date.now()}`,
       type: type as ActionNodeType,
       x: addNodeMenu.x,
       y: addNodeMenu.y,
       label,
-      parentIds: isError ? [] : [actualParentId],
+      parentIds: (isError || isTimeout) ? [] : [actualParentId],
       errorParentIds: isError ? [actualParentId] : [],
+      timeoutParentIds: isTimeout ? [actualParentId] : [],
       subBlocks: [],
     };
     setNodes(prev => [...prev, newNode]);
@@ -929,14 +933,13 @@ export default function AutomacoesPage() {
     setTriggerPanel(false);
   };
 
-  const disconnectNode = (nodeId: string, type: "parent" | "error", fromId: string) => {
-    setNodes(prev => prev.map(n =>
-      n.id === nodeId
-        ? type === "parent"
-          ? { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== fromId) }
-          : { ...n, errorParentIds: (n.errorParentIds ?? []).filter(p => p !== fromId) }
-        : n
-    ));
+  const disconnectNode = (nodeId: string, type: "parent" | "error" | "timeout", fromId: string) => {
+    setNodes(prev => prev.map(n => {
+      if (n.id !== nodeId) return n;
+      if (type === "parent")  return { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== fromId) };
+      if (type === "timeout") return { ...n, timeoutParentIds: (n.timeoutParentIds ?? []).filter(p => p !== fromId) };
+      return { ...n, errorParentIds: (n.errorParentIds ?? []).filter(p => p !== fromId) };
+    }));
     setSelectedConn(null);
   };
 
@@ -955,7 +958,8 @@ export default function AutomacoesPage() {
           const y1 = (portRect.top + portRect.height / 2 - rect.top - pan.y) / zoom;
           const x2 = (e.clientX - rect.left - pan.x) / zoom;
           const y2 = (e.clientY - rect.top - pan.y) / zoom;
-          const isError = portDragRef.current.fromNodeId.endsWith("__error");
+          // tanto a porta de erro quanto a de "não respondeu" são vermelhas
+          const isError = /__(error|timeout)$/.test(portDragRef.current.fromNodeId);
           setPortDragLine({ x1, y1, x2, y2, isError });
         }
         // Detectar hover sobre porta de entrada de nó existente
@@ -1002,7 +1006,8 @@ export default function AutomacoesPage() {
         const isDrag = Math.sqrt(dx * dx + dy * dy) > 30;
         const fromNodeId = portDragRef.current.fromNodeId;
         const isErrorPort = fromNodeId.endsWith("__error");
-        const realNodeId = isErrorPort ? fromNodeId.replace(/__error$/, "") : fromNodeId;
+        const isTimeoutPort = fromNodeId.endsWith("__timeout");
+        const realNodeId = fromNodeId.replace(/__(error|timeout)$/, "");
         portDragRef.current = null;
         setPortDragLine(null);
         setHoveredInputPort(null);
@@ -1018,6 +1023,12 @@ export default function AutomacoesPage() {
                   ? { ...n, errorParentIds: [...new Set([...(n.errorParentIds ?? []), realNodeId])] }
                   : n
               ));
+            } else if (isTimeoutPort) {
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, timeoutParentIds: [...new Set([...(n.timeoutParentIds ?? []), realNodeId])] }
+                  : n
+              ));
             } else {
               setNodes(prev => prev.map(n =>
                 n.id === targetNodeId
@@ -1029,7 +1040,7 @@ export default function AutomacoesPage() {
           }
           const dropX = (e.clientX - rect.left - pan.x) / zoom;
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
-          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
+          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort, isTimeout: isTimeoutPort });
         } else {
           let fromNode = nodes.find(n => n.id === realNodeId);
           if (!fromNode) {
@@ -2106,6 +2117,29 @@ export default function AutomacoesPage() {
                     </g>
                   );
                 })}
+                {/* Timeout ("não respondeu") connection lines */}
+                {nodes.flatMap(n => (n.timeoutParentIds ?? []).map(tpid => ({ n, tpid }))).map(({ n, tpid }) => {
+                  const parent = nodes.find(p => p.id === tpid);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${tpid}__timeout`];
+                  const x1 = pp?.x ?? parent.x + 260;
+                  const y1 = pp?.y ?? parent.y + 70;
+                  const x2 = n.x, y2 = n.y + 40;
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "timeout" && selectedConn?.fromId === tpid;
+                  return (
+                    <g
+                      key={`tmo_${n.id}_${tpid}`}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "timeout", fromId: tpid }); }}
+                    >
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                    </g>
+                  );
+                })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
@@ -2150,6 +2184,12 @@ export default function AutomacoesPage() {
                       return null;
                     }
                   }
+                } else if (selectedConn.type === "timeout") {
+                  const parent = nodes.find(p => p.id === selectedConn.fromId);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${selectedConn.fromId}__timeout`];
+                  x1 = pp?.x ?? parent.x + 260;
+                  y1 = pp?.y ?? parent.y + 70;
                 } else {
                   const parent = nodes.find(p => p.id === selectedConn.fromId);
                   if (!parent) return null;
@@ -2202,6 +2242,7 @@ export default function AutomacoesPage() {
                     onSelect={() => { setSelectedNode(n.id); setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onErrorPortDragStart={(e) => startPortDrag(e, `${n.id}__error`)}
+                    onTimeoutPortDragStart={(e) => startPortDrag(e, `${n.id}__timeout`)}
                     onConditionPortDragStart={(e, condId) => startPortDrag(e, `${n.id}_${condId}`)}
                     onBranchPortDragStart={(e, branchId) => startPortDrag(e, `${n.id}_${branchId}`)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
@@ -3753,12 +3794,13 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onTimeoutPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onErrorPortDragStart?: (e: React.MouseEvent) => void;
+  onTimeoutPortDragStart?: (e: React.MouseEvent) => void;
   onConditionPortDragStart?: (e: React.MouseEvent, condId: string) => void;
   onBranchPortDragStart?: (e: React.MouseEvent, branchId: string) => void;
   onDragStart: (e: React.MouseEvent) => void;
@@ -4366,9 +4408,15 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {/* Output ports */}
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
           {hasUserInput && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda.</span>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda</span>
+              <div
+                data-port
+                data-from-node={`${node.id}__timeout`}
+                onMouseDown={(e) => { e.stopPropagation(); onTimeoutPortDragStart?.(e); }}
+                title="Arraste para o que fazer se o contato não responder no prazo"
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
+              />
             </div>
           )}
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
@@ -7142,6 +7190,22 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
             />
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
               Use depois como <span style={{ fontFamily: "monospace", color: "#6366F1" }}>{`{{${b.varName || "resposta"}}}`}</span>
+            </p>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "12px 0 4px" }}>Aguardar resposta por até</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={b.timeoutAmount ?? 1}
+                onChange={e => updateSubBlock(b.id, { timeoutAmount: Math.max(1, Number(e.target.value)) })}
+                style={{ width: 64, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none" }} />
+              <select value={b.timeoutUnit ?? "horas"}
+                onChange={e => updateSubBlock(b.id, { timeoutUnit: e.target.value as "minutos" | "horas" | "dias" })}
+                style={{ flex: 1, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", background: "#FFF", cursor: "pointer" }}>
+                <option value="minutos">minutos</option>
+                <option value="horas">horas</option>
+                <option value="dias">dias</option>
+              </select>
+            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Se o contato não responder nesse prazo, o fluxo segue pela saída <span style={{ color: "#EF4444", fontWeight: 600 }}>"Caso o contato não responda"</span>.
             </p>
           </div>
         )}

@@ -170,6 +170,8 @@ interface SubBlock {
   splitMessages?: boolean;
   buttons?: { id: string; label: string }[];
   varName?: string;
+  timeoutAmount?: number;
+  timeoutUnit?: "minutos" | "horas" | "dias";
 }
 
 interface CanvasNode {
@@ -188,6 +190,7 @@ interface CanvasNode {
   errorParentId?: string | null;   // legacy
   parentIds?: string[];            // current format (array)
   errorParentIds?: string[];       // current format (array)
+  timeoutParentIds?: string[];     // saída "não respondeu" do bloco Entrada do usuário
 }
 
 interface PendingRecord {
@@ -198,6 +201,7 @@ interface PendingRecord {
   node_ids: string[];
   trigger_payload: TriggerPayload;
   resume_after: string;
+  resume_sub_index?: number | null; // retomar o nó Mensagem a partir deste sub-bloco (Atraso de tempo)
 }
 
 interface AutomationFlow {
@@ -565,8 +569,46 @@ async function handleResumeReply(
 async function handleResume(supabase: SupabaseClient): Promise<Response> {
   const now = new Date().toISOString();
 
-  // Limpa esperas de resposta expiradas (contato não respondeu no prazo)
-  await supabase.from("automation_awaiting_reply").delete().lt("expires_at", now);
+  // Esperas de resposta expiradas (contato não respondeu no prazo): se houver
+  // saída "Caso o contato não responda" conectada, retoma o fluxo por ela.
+  {
+    const { data: expired } = await supabase
+      .from("automation_awaiting_reply")
+      .select("id, company_id, automation_id, trigger_payload, timeout_node_ids")
+      .lt("expires_at", now);
+    const expiredRows = (expired ?? []) as {
+      id: string; company_id: string; automation_id: string;
+      trigger_payload: TriggerPayload; timeout_node_ids: string[] | null;
+    }[];
+    if (expiredRows.length > 0) {
+      // Deleta antes de processar para evitar dupla retomada
+      await supabase.from("automation_awaiting_reply").delete().in("id", expiredRows.map((r) => r.id));
+      for (const row of expiredRows) {
+        const timeoutIds = row.timeout_node_ids ?? [];
+        if (timeoutIds.length === 0) continue; // sem saída conectada: só descarta
+        try {
+          const { data: automation } = await supabase
+            .from("automations")
+            .select("id, name, flow")
+            .eq("id", row.automation_id)
+            .eq("company_id", row.company_id)
+            .eq("active", true)
+            .single();
+          if (automation) {
+            await executeFlow(
+              supabase,
+              (automation as AutomationRecord).flow,
+              row.trigger_payload,
+              automation.id,
+              timeoutIds,
+            );
+          }
+        } catch (err) {
+          console.error(`Failed to resume timeout branch ${row.id}:`, err);
+        }
+      }
+    }
+  }
 
   const { data: pending, error } = await supabase
     .from("automation_pending")
@@ -603,12 +645,16 @@ async function handleResume(supabase: SupabaseClient): Promise<Response> {
         continue;
       }
 
+      const resumeCtx = (item.resume_sub_index != null && item.node_ids.length > 0)
+        ? { nodeId: item.node_ids[0], subIndex: item.resume_sub_index }
+        : undefined;
       await executeFlow(
         supabase,
         (automation as AutomationRecord).flow,
         item.trigger_payload,
         automation.id,
         item.node_ids,
+        resumeCtx,
       );
       results.push({ id: item.id, status: "ok" });
     } catch (err) {
@@ -722,6 +768,7 @@ async function executeFlow(
   payload: TriggerPayload,
   automationId: string,
   startNodeIds?: string[], // fornecido ao retomar de automation_pending
+  resumeContext?: { nodeId: string; subIndex: number }, // retoma um nó Mensagem a partir de um sub-bloco (Atraso de tempo)
 ) {
   const { company_id } = payload;
   // logLeadId é lido do payload a cada uso — assim captura o lead criado mid-flow
@@ -730,6 +777,7 @@ async function executeFlow(
 
   const children = new Map<string, CanvasNode[]>();
   const errorChildren = new Map<string, CanvasNode[]>();
+  const timeoutChildren = new Map<string, CanvasNode[]>();
 
   for (const n of allNodes) {
     // Support both legacy parentId (string) and new parentIds (array)
@@ -749,6 +797,12 @@ async function executeFlow(
       const arr = errorChildren.get(epid) ?? [];
       arr.push(n);
       errorChildren.set(epid, arr);
+    }
+    // Saída "não respondeu" (timeout do Entrada do usuário)
+    for (const tpid of (n.timeoutParentIds ?? [])) {
+      const arr = timeoutChildren.get(tpid) ?? [];
+      arr.push(n);
+      timeoutChildren.set(tpid, arr);
     }
   }
 
@@ -1096,6 +1150,10 @@ async function executeFlow(
     // ── Mensagem (WhatsApp via Z-API) ────────────────────────────────────────
     } else if (node.type === "mensagem") {
       const subBlocks = node.subBlocks ?? [];
+      // Retoma a sequência a partir de um sub-bloco específico (após um Atraso de tempo longo)
+      const startIdx = (resumeContext && resumeContext.nodeId === node.id)
+        ? Math.max(0, Math.min(resumeContext.subIndex, subBlocks.length))
+        : 0;
 
       // Sem sub-blocos configurados: nada a enviar, segue o fluxo
       if (subBlocks.length === 0) {
@@ -1181,9 +1239,11 @@ async function executeFlow(
       const errors: string[] = [];
       const skipped: string[] = [];
       let sentCount = 0;
-      let paused = false;
+      let paused = false;       // entrada_usuario: aguarda resposta do contato
+      let pausedTimer = false;  // atraso_tempo longo: agendado para retomar este nó
 
-      for (const sb of subBlocks) {
+      for (let i = startIdx; i < subBlocks.length; i++) {
+        const sb = subBlocks[i];
         try {
           if (sb.type === "mensagem_texto") {
             const message = interpolate(sb.text ?? "", vars);
@@ -1221,9 +1281,30 @@ async function executeFlow(
             sentCount++;
 
           } else if (sb.type === "atraso_tempo") {
-            // Atraso curto entre mensagens (simula digitação). Cap inline em 90 s.
-            const secs = Math.max(0, Math.min(Number(sb.delaySeconds ?? 0), 90));
-            if (secs > 0) await new Promise<void>((r) => setTimeout(r, secs * 1000));
+            // Atraso entre mensagens. Sem limite: ≤ 90 s espera inline (simula
+            // digitação); acima disso agenda no automation_pending e retoma este
+            // mesmo nó a partir do próximo sub-bloco (pg_cron).
+            const secs = Math.max(0, Number(sb.delaySeconds ?? 0));
+            if (secs <= 90) {
+              if (secs > 0) await new Promise<void>((r) => setTimeout(r, secs * 1000));
+            } else {
+              const { error: insErr } = await supabase.from("automation_pending").insert({
+                company_id,
+                automation_id: automationId,
+                lead_id: payload.lead_id || null,
+                node_ids: [node.id],
+                resume_sub_index: i + 1,
+                trigger_payload: payload,
+                resume_after: new Date(Date.now() + secs * 1000).toISOString(),
+              });
+              if (insErr) {
+                // Falha ao agendar: degrada para continuar imediatamente (não trava o fluxo)
+                console.error(`[node ${node.id}] failed to schedule atraso_tempo:`, insErr);
+              } else {
+                pausedTimer = true;
+                break;
+              }
+            }
 
           } else if (sb.type === "arquivo_url" || sb.type === "arquivo_anexo" || sb.type === "mensagem_audio") {
             const fileUrl = interpolate(sb.fileUrl ?? "", vars).trim();
@@ -1254,6 +1335,14 @@ async function executeFlow(
             // partir dos filhos deste nó, com {{var_name}} preenchido.
             const varName = String(sb.varName ?? "").trim() || "resposta";
             const nextNodes = children.get(node.id) ?? [];
+            const timeoutNodes = timeoutChildren.get(node.id) ?? [];
+            // Prazo de espera configurável (padrão: 24 h se não definido)
+            const unitMs = sb.timeoutUnit === "minutos" ? 60_000
+              : sb.timeoutUnit === "dias" ? 86_400_000
+              : 3_600_000; // horas
+            const timeoutMs = sb.timeoutAmount && sb.timeoutAmount > 0
+              ? sb.timeoutAmount * unitMs
+              : 24 * 60 * 60 * 1000;
             await supabase.from("automation_awaiting_reply").insert({
               company_id,
               automation_id: automationId,
@@ -1263,8 +1352,9 @@ async function executeFlow(
               node_id: node.id,
               var_name: varName,
               resume_node_ids: nextNodes.map((n) => n.id),
+              timeout_node_ids: timeoutNodes.map((n) => n.id),
               trigger_payload: payload,
-              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              expires_at: new Date(Date.now() + timeoutMs).toISOString(),
             });
             paused = true;
             break; // não processa sub-blocos seguintes; serão retomados no resume
@@ -1273,6 +1363,10 @@ async function executeFlow(
           errors.push(`${sb.type}: ${String(err)}`);
         }
       }
+
+      // Atraso de tempo longo: já agendado no automation_pending. Não loga nem
+      // enfileira filhos — o nó será retomado e logado quando concluir.
+      if (pausedTimer) continue;
 
       // Status: erro só se nada foi enviado e houve falha; alerta se houve skip/erro parcial
       const noteMsgs = [...errors, ...skipped];
