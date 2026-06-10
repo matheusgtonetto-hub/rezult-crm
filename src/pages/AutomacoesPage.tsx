@@ -7032,6 +7032,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
 }) {
   const { whatsappConnections } = useCompany();
   const hasSubBlocks = (node.subBlocks ?? []).length > 0;
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   return (
     <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
@@ -7195,8 +7196,35 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Rodapé */}
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
-        <button onClick={() => onAddSubBlock("mensagem_texto")}
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0, position: "relative" }}>
+        {addMenuOpen && (
+          <>
+            {/* clique fora fecha o menu */}
+            <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+            <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, marginBottom: 6, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 41 }}>
+              {MENSAGEM_SUB_BLOCKS.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.type}>
+                    <button
+                      onClick={() => { onAddSubBlock(item.type); setAddMenuOpen(false); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <Icon size={15} color={item.color} />
+                      <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
+                    </button>
+                    {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
+                      <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 14px" }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+        <button onClick={() => setAddMenuOpen(o => !o)}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
