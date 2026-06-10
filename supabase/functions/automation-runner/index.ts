@@ -164,8 +164,10 @@ interface SubBlock {
   text?: string;
   delaySeconds?: number;
   fileUrl?: string;
+  fileName?: string;
   splitMessages?: boolean;
   buttons?: { id: string; label: string }[];
+  varName?: string;
 }
 
 interface CanvasNode {
@@ -1139,17 +1141,24 @@ async function executeFlow(
           } else if (sb.type === "arquivo_url" || sb.type === "arquivo_anexo" || sb.type === "mensagem_audio") {
             const fileUrl = interpolate(sb.fileUrl ?? "", vars).trim();
             if (!fileUrl) { skipped.push(`${sb.type}: sem URL de arquivo`); continue; }
+            let msgType = "document";
             if (sb.type === "mensagem_audio") {
               await sendZapi(creds, "send-audio", { phone: rawPhone, audio: fileUrl });
+              msgType = "audio";
             } else {
               const ext = (fileUrl.split("?")[0].split(".").pop() ?? "").toLowerCase();
               const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext);
               if (isImage) {
                 await sendZapi(creds, "send-image", { phone: rawPhone, image: fileUrl });
+                msgType = "image";
               } else {
-                await sendZapi(creds, `send-document/${ext || "pdf"}`, { phone: rawPhone, document: fileUrl });
+                await sendZapi(creds, `send-document/${ext || "pdf"}`, { phone: rawPhone, document: fileUrl, fileName: sb.fileName ?? `arquivo.${ext || "pdf"}` });
               }
             }
+            await supabase.from("whatsapp_messages").insert({
+              owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+              phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
+            });
             sentCount++;
 
           } else if (sb.type === "entrada_usuario") {

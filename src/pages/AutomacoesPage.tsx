@@ -11,7 +11,7 @@ import {
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
-  Braces, FileDown, Brackets, RefreshCw,
+  Braces, FileDown, Brackets, RefreshCw, Loader2,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -45,8 +45,10 @@ type SubBlock = {
   text?: string;
   delaySeconds?: number;
   fileUrl?: string;
+  fileName?: string;            // nome original do arquivo (áudio/anexo)
   splitMessages?: boolean;      // "Quebrar mensagens?" — cada parágrafo vira um envio
   buttons?: MensagemBotao[];    // botões de resposta anexados à mensagem de texto
+  varName?: string;             // nome da variável para "Entrada do usuário"
 };
 
 type ActionItem = {
@@ -7032,6 +7034,26 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { user } = useAuth();
+  const [uploading, setUploading] = useState(false);
+
+  const uploadFile = async (file: File) => {
+    if (!user) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${user.id}/${b.id}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("automation-media").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("automation-media").getPublicUrl(path);
+      updateSubBlock(b.id, { fileUrl: publicUrl, fileName: file.name });
+    } catch (e) {
+      console.error("[SubBlockCard] upload:", e);
+      toast.error("Erro ao enviar arquivo. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const addButton = () => updateSubBlock(b.id, { buttons: [...(b.buttons ?? []), { id: `bt${Date.now()}`, label: "" }] });
   const updateButton = (id: string, label: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).map(x => x.id === id ? { ...x, label } : x) });
@@ -7108,7 +7130,19 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         {b.type === "entrada_usuario" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
+            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 11.5, color: "#1D4ED8", lineHeight: 1.45 }}>
+              A automação <strong>pausa e aguarda</strong> a resposta do contato no WhatsApp, e a guarda na variável abaixo.
+            </div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "10px 0 4px" }}>Salvar resposta na variável</label>
+            <input
+              value={b.varName ?? ""}
+              onChange={e => updateSubBlock(b.id, { varName: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") })}
+              placeholder="resposta"
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+            />
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Use depois como <span style={{ fontFamily: "monospace", color: "#6366F1" }}>{`{{${b.varName || "resposta"}}}`}</span>
+            </p>
           </div>
         )}
         {b.type === "atraso_tempo" && (
@@ -7126,32 +7160,57 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         {b.type === "mensagem_audio" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-            <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
-              <button style={{ padding: "6px 14px", border: "1px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
-                <Mic size={12} /> Iniciar gravação
-              </button>
-            </div>
+            {b.fileUrl ? (
+              <div style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
+                <audio controls src={b.fileUrl} style={{ width: "100%", height: 34 }} />
+                <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
+                  style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 11, fontWeight: 600 }}>
+                  <Trash2 size={11} /> Remover áudio
+                </button>
+              </div>
+            ) : (
+              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
+                {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Mic size={20} color="#D1D5DB" />}
+                {uploading ? "Enviando..." : "Selecionar áudio"}
+                <span style={{ fontSize: 10, color: "#9CA3AF" }}>MP3, OGG, M4A · máx 16MB</span>
+                <input type="file" accept="audio/*" style={{ display: "none" }} disabled={uploading}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
+              </label>
+            )}
           </div>
         )}
         {b.type === "arquivo_anexo" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-            <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
-              <Upload size={20} color="#D1D5DB" />
-              Selecionar arquivo
-              <input type="file" style={{ display: "none" }} />
-            </label>
+            {b.fileUrl ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
+                <Paperclip size={13} color="#16A34A" style={{ flexShrink: 0 }} />
+                <a href={b.fileUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: 12, color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>{b.fileName || "arquivo"}</a>
+                <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", flexShrink: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                ><Trash2 size={12} /></button>
+              </div>
+            ) : (
+              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
+                {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+                {uploading ? "Enviando..." : "Selecionar arquivo"}
+                <span style={{ fontSize: 10, color: "#9CA3AF" }}>Imagem, PDF ou documento · máx 16MB</span>
+                <input type="file" style={{ display: "none" }} disabled={uploading}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
+              </label>
+            )}
           </div>
         )}
         {b.type === "arquivo_url" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
-            <input type="url" value={b.fileUrl ?? ""} onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
-              placeholder="URL do arquivo"
-              style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
-            {b.fileUrl && !b.fileUrl.startsWith("http") && (
-              <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
-            )}
+            <CamposValueInput
+              value={b.fileUrl ?? ""}
+              onChange={v => updateSubBlock(b.id, { fileUrl: v })}
+              placeholder="URL do arquivo ou use {{variável}}..."
+            />
           </div>
         )}
       </div>
