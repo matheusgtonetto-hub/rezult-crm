@@ -67,25 +67,32 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
   </div>
 );
 
-const ADMIN_ONLY_SECTIONS: SectionId[] = ["planos", "empresa"];
+// Seções exclusivas do DONO da empresa
+const OWNER_ONLY_SECTIONS: SectionId[] = ["planos"];
+// Seções visíveis ao dono E a membros "Administrador (acesso total)"
+const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { section } = useParams<{ section?: string }>();
   const { logout, products } = useCRM();
-  const { isOwner } = useCompany();
+  const { isOwner, userPermissions } = useCompany();
+  const isFullAdmin = isOwner || userPermissions.includes("admin");
   const [pwOpen, setPwOpen] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
 
-  const visibleSections = SECTIONS.filter(s =>
-    isOwner || !ADMIN_ONLY_SECTIONS.includes(s.id)
-  );
+  const canSeeSection = (id: SectionId) =>
+    OWNER_ONLY_SECTIONS.includes(id) ? isOwner
+    : FULL_ADMIN_SECTIONS.includes(id) ? isFullAdmin
+    : true;
+
+  const visibleSections = SECTIONS.filter(s => canSeeSection(s.id));
 
   // Deriva a aba ativa a partir da URL; fallback para "perfil"
   const validIds = SECTIONS.map(s => s.id);
   const rawSection = section as SectionId | undefined;
   const active: SectionId =
-    rawSection && validIds.includes(rawSection) && (isOwner || !ADMIN_ONLY_SECTIONS.includes(rawSection))
+    rawSection && validIds.includes(rawSection) && canSeeSection(rawSection)
       ? rawSection
       : "perfil";
 
@@ -449,9 +456,32 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 function EmpresaSection() {
-  const { company, updateCompany, uploadLogo } = useCompany();
+  const { company, updateCompany, uploadLogo, isOwner, userPermissions } = useCompany();
+  const isFullAdmin = isOwner || userPermissions.includes("admin");
   const fileRef = useRef<HTMLInputElement>(null);
   const [empresaTab, setEmpresaTab] = useState<"informacoes" | "equipe">("informacoes");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteCompany = async () => {
+    if (!company) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("companies").delete().eq("id", company.id);
+      if (error) throw error;
+      toast.success("Empresa excluída.");
+      setDeleteOpen(false);
+      // Recarrega a aplicação do zero: sem empresa o AppLayout leva ao cadastro
+      // de uma nova; se ainda houver outra empresa, ela é selecionada normalmente.
+      window.location.href = "/";
+    } catch (e) {
+      toast.error("Erro ao excluir empresa. Tente novamente.");
+      console.error("[EmpresaSection] delete company:", e);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const [name,         setName]         = useState("");
   const [email,        setEmail]        = useState("");
@@ -588,29 +618,31 @@ function EmpresaSection() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-1 shrink-0">
-                {(["informacoes", "equipe"] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setEmpresaTab(tab)}
-                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
-                      empresaTab === tab
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {tab === "informacoes" ? "Informações" : "Equipe"}
-                  </button>
-                ))}
-              </div>
+              {isOwner && (
+                <div className="flex gap-1 shrink-0">
+                  {(["informacoes", "equipe"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setEmpresaTab(tab)}
+                      className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
+                        empresaTab === tab
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {tab === "informacoes" ? "Informações" : "Equipe"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </Card>
 
-      {empresaTab === "equipe" && <EquipeSection />}
+      {isOwner && empresaTab === "equipe" && <EquipeSection />}
 
-      {empresaTab === "informacoes" && <>
+      {isOwner && empresaTab === "informacoes" && <>
 
       {/* Informações principais */}
       <Card>
@@ -764,6 +796,71 @@ function EmpresaSection() {
       </Card>
 
       </>}
+
+      {/* Zona de perigo — Excluir empresa (dono + Administrador acesso total) */}
+      {isFullAdmin && (
+        <Card className="!border-[#FCA5A5]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-foreground">Excluir empresa</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Excluir permanentemente esta empresa e todos os seus dados. Esta ação não pode ser desfeita.
+              </p>
+              {isOwner && (
+                <p className="text-[13px] text-[#D97706] mt-1">
+                  Esta é sua única empresa. Após a exclusão, você precisará cadastrar uma nova.
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
+              className="bg-[#EF4444] hover:bg-[#DC2626] text-white shrink-0"
+            >
+              <Trash2 size={15} className="mr-1.5" /> Excluir Empresa
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={deleteOpen} onOpenChange={o => { if (!deleting) setDeleteOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#DC2626]">Excluir empresa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta ação é <strong>permanente e irreversível</strong>. Todos os dados de{" "}
+              <strong className="text-foreground">{company?.name}</strong> serão apagados: leads,
+              negócios, automações, tags, pipelines, atividades e configurações.
+            </p>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">
+                Para confirmar, digite o nome da empresa: <strong className="text-foreground">{company?.name}</strong>
+              </label>
+              <Input
+                value={deleteConfirm}
+                onChange={e => setDeleteConfirm(e.target.value)}
+                placeholder={company?.name ?? ""}
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#EF4444]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDeleteCompany}
+              disabled={deleting || deleteConfirm.trim() !== (company?.name ?? "").trim()}
+              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
+            >
+              {deleting
+                ? <><Loader2 size={15} className="mr-1.5 animate-spin" /> Excluindo...</>
+                : <><Trash2 size={15} className="mr-1.5" /> Excluir definitivamente</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
