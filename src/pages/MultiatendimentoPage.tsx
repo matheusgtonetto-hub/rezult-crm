@@ -378,6 +378,40 @@ export default function MultiatendimentoPage() {
   const [cfgAssinatura, setCfgAssinatura]   = useState(false);
   const [cfgMantAtend, setCfgMantAtend]     = useState(false);
   const [cfgMantDept, setCfgMantDept]       = useState(false);
+  const [muDepts, setMuDepts]               = useState<{ id: string; name: string }[]>([]);
+  const [muSchedules, setMuSchedules]       = useState<{ id: string; name: string }[]>([]);
+
+  // Carrega listas (departamentos/horários) + configurações persistidas
+  useEffect(() => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    (async () => {
+      const [d, w, s] = await Promise.all([
+        supabase.from("departments").select("id, name").eq("owner_id", oid).order("position", { ascending: true }),
+        supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
+        supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
+      ]);
+      if (d.data) setMuDepts(d.data as { id: string; name: string }[]);
+      if (w.data) setMuSchedules(w.data as { id: string; name: string }[]);
+      const st = s.data as Record<string, unknown> | null;
+      if (st) {
+        setCfgDefDept((st.default_department_id as string) ?? "");
+        setCfgHorario((st.work_schedule_id as string) ?? "");
+        setCfgTranscricao((st.audio_transcription as string) ?? "desativado");
+        setCfgAssinatura(!!st.signature_required);
+        setCfgMantAtend(!!st.keep_attendant);
+        setCfgMantDept(!!st.keep_department);
+      }
+    })();
+  }, [company?.owner_id]);
+
+  const persistMuSettings = async (patch: Record<string, unknown>) => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    const { error } = await supabase.from("multiatendimento_settings")
+      .upsert({ owner_id: oid, company_id: company?.id ?? null, updated_at: new Date().toISOString(), ...patch }, { onConflict: "owner_id" });
+    if (error) toast.error("Erro ao salvar configuração.");
+  };
   const [selectedAgent, setSelectedAgent]   = useState<string | null>(null);
   const [agentSearch, setAgentSearch]       = useState("");
   const [deptSearch, setDeptSearch]         = useState("");
@@ -2148,9 +2182,15 @@ export default function MultiatendimentoPage() {
                     {/* coluna esquerda */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {[
-                        { icon: <List size={15} color="#4285F4" />, title: "Departamento padrão", desc: "As conversas por padrão serão iniciadas nesse departamento", value: cfgDefDept, set: setCfgDefDept, options: [{ v: "", l: "Selecionar" }, ...teamMembers.map(m => ({ v: m, l: m }))] },
-                        { icon: <Clock size={15} color="#4285F4" />, title: "Horário de funcionamento", desc: "Defina o horário padrão de funcionamento dos departamentos", value: cfgHorario, set: setCfgHorario, options: [{ v: "", l: "Selecionar" }, { v: "24h", l: "24 horas" }, { v: "comercial", l: "Horário comercial (8h–18h)" }] },
-                        { icon: <Mic size={15} color="#4285F4" />, title: "Transcrição de áudios", desc: "Defina quando as mensagens de áudio serão transcritas automaticamente", value: cfgTranscricao, set: setCfgTranscricao, options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
+                        { icon: <List size={15} color="#4285F4" />, title: "Departamento padrão", desc: "As conversas por padrão serão iniciadas nesse departamento",
+                          value: cfgDefDept, onChange: (v: string) => { setCfgDefDept(v); persistMuSettings({ default_department_id: v || null }); },
+                          options: [{ v: "", l: muDepts.length ? "Selecionar" : "Nenhum departamento cadastrado" }, ...muDepts.map(d => ({ v: d.id, l: d.name }))] },
+                        { icon: <Clock size={15} color="#4285F4" />, title: "Horário de funcionamento", desc: "Defina o horário padrão de funcionamento dos departamentos",
+                          value: cfgHorario, onChange: (v: string) => { setCfgHorario(v); persistMuSettings({ work_schedule_id: v || null }); },
+                          options: [{ v: "", l: muSchedules.length ? "Selecionar" : "Nenhum horário cadastrado" }, ...muSchedules.map(s => ({ v: s.id, l: s.name }))] },
+                        { icon: <Mic size={15} color="#4285F4" />, title: "Transcrição de áudios", desc: "Defina quando as mensagens de áudio serão transcritas automaticamente",
+                          value: cfgTranscricao, onChange: (v: string) => { setCfgTranscricao(v); persistMuSettings({ audio_transcription: v }); },
+                          options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
                       ].map((item, i) => (
                         <div key={i} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
@@ -2160,7 +2200,7 @@ export default function MultiatendimentoPage() {
                               <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
                             </div>
                           </div>
-                          <select value={item.value} onChange={e => item.set(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
+                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
                             {item.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                         </div>
@@ -2176,7 +2216,7 @@ export default function MultiatendimentoPage() {
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Assinatura obrigatória</div>
                           <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
                         </div>
-                        <MuToggle checked={cfgAssinatura} onChange={() => setCfgAssinatura(p => !p)} />
+                        <MuToggle checked={cfgAssinatura} onChange={() => { const nv = !cfgAssinatura; setCfgAssinatura(nv); persistMuSettings({ signature_required: nv }); }} />
                       </div>
 
                       {/* Informações ao finalizar */}
@@ -2190,14 +2230,14 @@ export default function MultiatendimentoPage() {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                           {[
-                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend },
-                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept },
+                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
+                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
                           ].map((row, i) => (
                             <div key={i}>
                               {i > 0 && <div style={{ height: 1, background: "#EEEEEE", margin: "8px 0" }} />}
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
-                                <MuToggle checked={row.val} onChange={() => row.set((p: boolean) => !p)} />
+                                <MuToggle checked={row.val} onChange={() => { const nv = !row.val; row.set(nv); persistMuSettings({ [row.col]: nv }); }} />
                               </div>
                             </div>
                           ))}
