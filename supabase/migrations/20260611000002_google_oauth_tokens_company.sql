@@ -5,6 +5,10 @@
 alter table public.google_oauth_tokens
   add column if not exists company_id uuid references public.companies(id) on delete cascade;
 
+-- Remove constraint única antiga em user_id (permitia só 1 token por usuário global)
+alter table public.google_oauth_tokens
+  drop constraint if exists google_oauth_tokens_user_id_key;
+
 -- Remove índice simples antigo e cria um único (user_id, company_id)
 drop index if exists google_oauth_tokens_user_id_idx;
 
