@@ -1532,7 +1532,7 @@ function PlanosSection() {
       checkGoogleConnection(company.id).then(c => setGoogleConnected(!!c));
     });
     if (!user) return;
-    supabase.from("automations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
+    supabase.from("automations").select("id", { count: "exact", head: true }).eq("company_id", company.id)
       .then(({ count }) => setAutomationsCount(count ?? 0));
     supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("company_id", company.id)
       .then(({ count }) => setIntegrationsCount(count ?? 0));
@@ -4526,13 +4526,13 @@ function ArmazenamentoSection() {
   const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
-    if (!company?.owner_id || !company?.id) return;
-    const oid = company.owner_id;
+    if (!company?.id) return;
+    const cid = company.id;
 
     async function load() {
       try {
         const qCRM = (table: string) =>
-          supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+          supabase.from(table).select("*", { count: "exact", head: true }).eq("company_id", cid);
 
         // Busca IDs de todos os membros da empresa para agregar WhatsApp
         const { data: membersData } = await supabase.rpc("get_company_members", { p_company_id: company.id });
@@ -4540,14 +4540,14 @@ function ArmazenamentoSection() {
         const qWA = (table: string) =>
           memberIds.length > 0
             ? supabase.from(table).select("*", { count: "exact", head: true }).in("owner_id", memberIds)
-            : supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+            : supabase.from(table).select("*", { count: "exact", head: true }).eq("company_id", cid);
 
         const [
           filesRes, msgsRes, convsRes, leadsRes,
           activitiesRes, automsRes, autoLogsRes, tasksRes,
           tagsRes, productsRes, listsRes, cfRes,
         ] = await Promise.all([
-          supabase.from("lead_files").select("size, leads!inner(owner_id)").eq("leads.owner_id", oid),
+          supabase.from("lead_files").select("size, leads!inner(company_id)").eq("leads.company_id", cid),
           qWA("whatsapp_messages"),
           qWA("whatsapp_conversations"),
           qCRM("leads"),
