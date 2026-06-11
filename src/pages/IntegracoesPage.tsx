@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
@@ -85,6 +86,7 @@ function FieldSelect({
 export default function IntegracoesPage() {
   const { pipelines, crmTags, customFieldGroups } = useCRM();
   const { user } = useAuth();
+  const { company } = useCompany();
 
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -112,13 +114,13 @@ export default function IntegracoesPage() {
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user || !company) return;
     setLoading(true);
     setLoadError(false);
     const { data, error } = await supabase
       .from("webhook_integrations")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("company_id", company.id)
       .order("created_at", { ascending: false });
     if (error) {
       setLoadError(true);
@@ -127,7 +129,7 @@ export default function IntegracoesPage() {
     }
     setIntegrations((data ?? []).map(mapRow));
     setLoading(false);
-  }, [user]);
+  }, [user, company]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -135,10 +137,11 @@ export default function IntegracoesPage() {
   const [creating, setCreating] = useState(false);
 
   const createIntegration = async (type: string) => {
-    if (!user || creating) return;
+    if (!user || !company || creating) return;
     setCreating(true);
     const { data, error } = await supabase.from("webhook_integrations").insert({
       owner_id: user.id,
+      company_id: company.id,
       name: "Nova integração",
       type,
       active: true,

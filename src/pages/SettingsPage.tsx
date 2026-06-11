@@ -1534,7 +1534,7 @@ function PlanosSection() {
     if (!user) return;
     supabase.from("automations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
       .then(({ count }) => setAutomationsCount(count ?? 0));
-    supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
+    supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("company_id", company.id)
       .then(({ count }) => setIntegrationsCount(count ?? 0));
   }, [user, company]);
 
