@@ -3109,22 +3109,31 @@ function ConexoesSection() {
     setQrLoading(true);
     setQrSrc("");
     try {
-      const res  = await fetch(`${zapiBase(c)}/qr-code/image`, { headers: zapiHeaders(c) });
-      const data = await res.json();
-      if (data.value) {
+      const res = await fetch(`${zapiBase(c)}/qr-code/image`, { headers: zapiHeaders(c) });
+      const raw = await res.text();
+      let data: Record<string, unknown> = {};
+      try { data = JSON.parse(raw); } catch { /* resposta não-JSON */ }
+      // Diagnóstico: deixa a resposta crua no console p/ inspeção
+      console.log("[Z-API] qr-code/image", res.status, raw);
+
+      if (typeof data.value === "string" && data.value) {
         setQrSrc(data.value);
-      } else {
-        const err = String(data?.error || data?.message || "");
-        if (/subscribe|subscription/i.test(err)) {
-          toast.error("A assinatura desta instância no Z-API expirou. Renove a instância no painel do Z-API e tente novamente.");
-        } else if (err) {
-          toast.error(`Z-API: ${err}`);
-        } else {
-          toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
-        }
+        return;
       }
-    } catch {
-      toast.error("Erro ao conectar com a Z-API. Confirme o ID e Token da instância.");
+      // Instância já conectada: não há QR a gerar — o polling finaliza a conexão
+      if (data.connected === true) return;
+
+      const err = String(data.error || data.message || (res.ok ? "" : raw) || "").trim();
+      if (/subscribe|subscription/i.test(err)) {
+        toast.error("A assinatura desta instância no Z-API expirou. Renove a instância no painel do Z-API e tente novamente.");
+      } else if (err) {
+        toast.error(`Z-API (${res.status}): ${err.slice(0, 180)}`);
+      } else {
+        toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
+      }
+    } catch (e) {
+      console.error("[Z-API] qr-code/image falhou", e);
+      toast.error("Erro de rede/CORS ao falar com a Z-API. Confirme ID, Token e Client-Token.");
     } finally {
       setQrLoading(false);
     }
@@ -3153,6 +3162,27 @@ function ConexoesSection() {
     setPolling(false);
   }
 
+  // Finaliza a conexão (instância já conectada): salva e configura o webhook
+  async function finalizeConnection(creds: ZApiForm, phone: string) {
+    stopPoll();
+    setStep("done");
+    toast.success("WhatsApp conectado com sucesso!");
+    const newConn = await addWhatsAppConnection({
+      name:        connName.trim() || phone || "WhatsApp",
+      provider:    "zapi",
+      instanceId:  creds.instanceId,
+      token:       creds.token,
+      clientToken: creds.clientToken || null,
+      phone:       phone || null,
+      connected:   true,
+      active:      true,
+    });
+    setEditingConnId(newConn.id);
+    setConnName(newConn.name);
+    setEditForm(creds);
+    await configureZapiWebhook(creds);
+  }
+
   function startPoll(c: ZApiForm) {
     pollNRef.current    = 0;
     credsInFlight.current = c;
@@ -3163,28 +3193,7 @@ function ConexoesSection() {
       setPollN(pollNRef.current);
       const result = await pollStatus(credsInFlight.current!);
       if (result.connected) {
-        stopPoll();
-        const creds = credsInFlight.current!;
-        setStep("done");
-        toast.success("WhatsApp conectado com sucesso!");
-
-        // Salva na tabela whatsapp_connections
-        const newConn = await addWhatsAppConnection({
-          name:        connName.trim() || result.phone || "WhatsApp",
-          provider:    "zapi",
-          instanceId:  creds.instanceId,
-          token:       creds.token,
-          clientToken: creds.clientToken || null,
-          phone:       result.phone || null,
-          connected:   true,
-          active:      true,
-        });
-        setEditingConnId(newConn.id);
-        setConnName(newConn.name);
-        setEditForm(creds);
-
-        // Configura automaticamente o webhook na Z-API para receber mensagens
-        await configureZapiWebhook(creds);
+        await finalizeConnection(credsInFlight.current!, result.phone);
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
@@ -3197,8 +3206,11 @@ function ConexoesSection() {
       toast.error("Preencha o ID da instância, o Token e o Client-Token.");
       return;
     }
-    await fetchQr(form);
     setStep("qr");
+    // Se a instância já estiver conectada, não há QR — finaliza direto
+    const st = await pollStatus(form);
+    if (st.connected) { await finalizeConnection(form, st.phone); return; }
+    await fetchQr(form);
     startPoll(form);
   }
 
