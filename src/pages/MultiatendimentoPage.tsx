@@ -66,6 +66,7 @@ type Conversation = {
   id: string; name: string; preview: string; time: string;
   channel: Channel; tags: string[]; dealNumber?: string; pipeline?: string;
   company?: string; email?: string; phone?: string; value?: number;
+  instanceId?: string; // instância (número WhatsApp) à qual a conversa pertence
 };
 
 type Msg =
@@ -460,7 +461,7 @@ export default function MultiatendimentoPage() {
     setConvList([]);
     setConvStates({});
 
-    type DbConvRow = { id: string; owner_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string };
+    type DbConvRow = { id: string; owner_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean };
     const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -468,6 +469,7 @@ export default function MultiatendimentoPage() {
       company: r.company_name ?? undefined, email: r.email ?? undefined,
       phone: r.phone ?? undefined, value: r.value ?? undefined,
       pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
+      instanceId: r.instance_id ?? undefined,
     });
 
     type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean };
@@ -509,31 +511,34 @@ export default function MultiatendimentoPage() {
         // Backfill: tabela vazia → cria conversas a partir de mensagens existentes
         const { data: msgs } = await supabase
           .from("whatsapp_messages")
-          .select("phone, chat_name, sender_name, body, momment, created_at")
+          .select("phone, instance_id, chat_name, sender_name, body, momment, created_at")
           .eq("owner_id", tenantId)
           .eq("from_me", false)
           .order("created_at", { ascending: false });
 
         if (!msgs?.length) return;
 
-        // Agrupa por telefone, pega a mensagem mais recente por contato
-        type WaMsgRow = { phone: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
-        const phoneMap = new Map<string, WaMsgRow>();
+        // Agrupa por (instância, telefone): cada número é uma conversa separada,
+        // pega a mensagem mais recente de cada par.
+        type WaMsgRow = { phone: string; instance_id?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
+        const convMap = new Map<string, WaMsgRow>();
         for (const m of msgs) {
-          if (!phoneMap.has(m.phone)) phoneMap.set(m.phone, m as WaMsgRow);
+          const key = `${m.instance_id ?? ""}|${m.phone}`;
+          if (!convMap.has(key)) convMap.set(key, m as WaMsgRow);
         }
 
         const newConvs: Conversation[] = [];
         const newStates: Record<string, ConvState> = {};
         const dbRows: DbConvRow[] = [];
 
-        for (const [phone, m] of phoneMap) {
+        for (const m of convMap.values()) {
           const id = crypto.randomUUID();
+          const phone = m.phone;
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone });
+          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone, instanceId: m.instance_id ?? undefined });
           newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
-          dbRows.push({ id, owner_id: tenantId, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+          dbRows.push({ id, owner_id: tenantId, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
         }
 
         if (newConvs.length) {
@@ -562,10 +567,13 @@ export default function MultiatendimentoPage() {
       ? (() => { const { local, full } = phoneVariants(rawPhone); return `phone.eq.${local},phone.eq.${full},phone.eq.${activeId}`; })()
       : `phone.eq.${activeId}`;
 
-    supabase
+    let histQuery = supabase
       .from("whatsapp_messages")
       .select("*")
-      .eq("owner_id", tenantId)
+      .eq("owner_id", tenantId);
+    // Histórico isolado por instância (número) — não mistura conversas de números diferentes
+    if (active.instanceId) histQuery = histQuery.eq("instance_id", active.instanceId);
+    histQuery
       .or(phoneFilter)
       .order("created_at", { ascending: true })
       .limit(100)
@@ -593,7 +601,16 @@ export default function MultiatendimentoPage() {
         updateCs(activeId, { messages: msgs });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.phone, user?.id]);
+  }, [activeId, active?.phone, active?.instanceId, user?.id]);
+
+  // Mantém a instância (número) da conversa ativa selecionada — ao reabrir a
+  // conversa, volta a usar o mesmo número que estava sendo conversado.
+  useEffect(() => {
+    if (active?.instanceId && active.instanceId !== selectedInstance) {
+      setSelectedInstance(active.instanceId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.instanceId]);
 
   // ── listener global de mensagens recebidas (sem filtro de telefone) ──
   // Trata tanto conversas existentes (phone mismatch de código de país)
@@ -607,11 +624,12 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { id?: string; owner_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
+          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
           if (m.from_me) return; // enviadas já são adicionadas otimisticamente
           if (m.owner_id !== tenantId) return; // só mensagens da empresa selecionada
 
           const msgPhone = (m.phone ?? "") as string;
+          const msgInst  = (m.instance_id ?? "") as string;
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -630,8 +648,11 @@ export default function MultiatendimentoPage() {
             return; // nunca cria nova conversa para mensagem de sistema
           }
 
-          // Procura conversa pelo telefone (ignora diferença de código de país)
-          const existing = convListRef.current.find(c => phonesMatch(c.phone ?? "", msgPhone));
+          // Procura conversa pelo telefone E pela instância (cada número é uma conversa
+          // separada). Conversas legadas sem instância casam por telefone.
+          const existing = convListRef.current.find(c =>
+            phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
+          );
 
           if (existing) {
             // Atualiza preview da conversa existente
@@ -661,6 +682,7 @@ export default function MultiatendimentoPage() {
               channel: "whatsapp" as const,
               tags:    [],
               phone:   msgPhone,
+              instanceId: msgInst || undefined,
             };
             setConvList(prev => [newConv, ...prev]);
             setConvStates(prev => ({
@@ -669,7 +691,7 @@ export default function MultiatendimentoPage() {
             }));
             // Persiste nova conversa no banco
             supabase.from("whatsapp_conversations").insert({
-              id: newId, owner_id: tenantId, name: newConv.name, phone: msgPhone,
+              id: newId, owner_id: tenantId, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
               channel: "whatsapp", tags: [], preview: m.body ?? "",
               last_msg_at: new Date().toISOString(), read: false,
             });
@@ -726,6 +748,7 @@ export default function MultiatendimentoPage() {
           value: lead.value ?? 0,
           pipeline: pipelineName,
           dealNumber: `#${lead.dealNumber}`,
+          instanceId: selectedInstance || undefined,
         };
         const cs: ConvState = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
         toCreate.push({ conv, cs });
@@ -743,7 +766,7 @@ export default function MultiatendimentoPage() {
     // Persiste novas conversas no Supabase
     for (const { conv, cs } of toCreate) {
       supabase.from("whatsapp_conversations").upsert({
-        id: conv.id, owner_id: tenantId, name: conv.name, phone: conv.phone ?? null,
+        id: conv.id, owner_id: tenantId, instance_id: conv.instanceId ?? null, name: conv.name, phone: conv.phone ?? null,
         channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
         email: conv.email ?? null, pipeline: conv.pipeline ?? null,
         deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
@@ -796,6 +819,7 @@ export default function MultiatendimentoPage() {
       value: lead.value ?? 0,
       pipeline: pipelineName,
       dealNumber: `#${lead.dealNumber}`,
+      instanceId: selectedInstance || undefined,
     };
 
     const newCs: ConvState = { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false };
@@ -807,7 +831,7 @@ export default function MultiatendimentoPage() {
     toast.success(`Conversa iniciada com ${lead.name}`);
     if (user) {
       supabase.from("whatsapp_conversations").upsert({
-        id: leadId, owner_id: tenantId, name: newConv.name, phone: newConv.phone ?? null,
+        id: leadId, owner_id: tenantId, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
         channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
         email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
         deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
