@@ -25,7 +25,7 @@ import {
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
   Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
-  Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert,
+  Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
