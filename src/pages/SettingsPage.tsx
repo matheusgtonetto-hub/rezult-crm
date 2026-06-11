@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
 import DepartmentsManager from "@/components/DepartmentsManager";
+import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
   | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
@@ -2834,78 +2835,23 @@ function CamposSection() {
 
 /* ---------------- DEPARTAMENTOS ---------------- */
 /* ---------------- HORÁRIOS ---------------- */
-type ScheduleDay = { day: string; active: boolean; start: string; end: string };
-const DEFAULT_SCHEDULE = (days: string[]): ScheduleDay[] =>
-  days.map(d => ({ day: d, active: !["Sábado", "Domingo"].includes(d), start: "08:00", end: "18:00" }));
-
 function HorariosSection() {
-  const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-  const { company, refetchCompany } = useCompany();
-  const [schedule, setSchedule] = useState<ScheduleDay[]>(DEFAULT_SCHEDULE(days));
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!company) return;
-    const saved = (company as Record<string, unknown>).work_schedule as ScheduleDay[] | undefined;
-    if (saved && Array.isArray(saved) && saved.length === days.length) {
-      setSchedule(saved);
-    }
-  }, [company]);
-
-  const handleSave = async () => {
-    if (!company) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("companies")
-      .update({ work_schedule: schedule })
-      .eq("id", company.id);
-    if (error) {
-      toast.error("Erro ao salvar horários.");
-    } else {
-      await refetchCompany();
-      toast.success("Horários salvos!");
-    }
-    setSaving(false);
-  };
-
+  const [createOpen, setCreateOpen] = useState(false);
   return (
-    <>
-      <div className="flex items-start justify-between mb-6">
+    <div>
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Horários de trabalho</h1>
-          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Organize os horários de trabalho dos seus colaboradores e departamentos</p>
+          <h2 className="text-base font-semibold text-foreground">Horários de trabalho</h2>
+          <p className="text-[14px] text-muted-foreground mt-0.5">Organize os horários de trabalho dos seus colaboradores e departamentos</p>
         </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+          <Plus size={15} /> Criar
+        </Button>
       </div>
       <Card>
-        <div className="space-y-3">
-          {schedule.map((s, i) => (
-            <div key={s.day} className="flex items-center gap-3">
-              <Switch
-                checked={s.active}
-                onCheckedChange={(v) => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, active: v } : p))}
-              />
-              <p className="text-[13px] text-foreground w-24">{s.day}</p>
-              <Input
-                type="time" value={s.start} disabled={!s.active}
-                onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, start: e.target.value } : p))}
-                className="border-card-border w-32 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              />
-              <span className="text-xs text-muted-foreground">às</span>
-              <Input
-                type="time" value={s.end} disabled={!s.active}
-                onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, end: e.target.value } : p))}
-                className="border-card-border w-32 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-end mt-5">
-          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
-            {saving ? "Salvando…" : "Salvar horários"}
-          </Button>
-        </div>
+        <WorkSchedulesManager accent="#2563EB" createOpen={createOpen} setCreateOpen={setCreateOpen} />
       </Card>
-    </>
+    </div>
   );
 }
 

@@ -20,13 +20,7 @@ const DEPT_COLORS = [
   "#14B8A6", "#06B6D4", "#7DD3FC", "#3B82F6", "#6366F1", "#818CF8", "#A855F7", "#D8B4FE", "#6B7280", "#111827",
 ];
 
-const WORK_HOURS_OPTIONS = [
-  { v: "", l: "Selecionar" },
-  { v: "24h", l: "24 horas" },
-  { v: "comercial", l: "Horário comercial (8h–18h)" },
-];
-const workHoursLabel = (v: string | null) =>
-  WORK_HOURS_OPTIONS.find(o => o.v === (v ?? ""))?.l ?? (v || "—");
+interface ScheduleLite { id: string; name: string }
 
 const fmtDate = (iso: string) => {
   try { return new Date(iso).toLocaleDateString("pt-BR"); } catch { return "—"; }
@@ -44,6 +38,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
   const ownerId = company?.owner_id ?? null;
 
   const [depts, setDepts] = useState<Department[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Department | null>(null);
@@ -52,17 +47,20 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
   const load = useCallback(async () => {
     if (!ownerId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("departments")
-      .select("*")
-      .eq("owner_id", ownerId)
-      .order("position", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (!error && data) setDepts(data as Department[]);
+    const [d, s] = await Promise.all([
+      supabase.from("departments").select("*").eq("owner_id", ownerId)
+        .order("position", { ascending: true }).order("created_at", { ascending: true }),
+      supabase.from("work_schedules").select("id, name").eq("owner_id", ownerId)
+        .order("created_at", { ascending: true }),
+    ]);
+    if (!d.error && d.data) setDepts(d.data as Department[]);
+    if (!s.error && s.data) setSchedules(s.data as ScheduleLite[]);
     setLoading(false);
   }, [ownerId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const scheduleName = (id: string | null) => schedules.find(s => s.id === id)?.name ?? "—";
 
   const modalOpen = createOpen || editing !== null;
   const closeModal = () => { setCreateOpen(false); setEditing(null); };
@@ -134,7 +132,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
                 <span style={{ width: 12, height: 12, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
               </div>
-              <span style={{ fontSize: 12.5, color: "#666" }}>{workHoursLabel(d.work_hours)}</span>
+              <span style={{ fontSize: 12.5, color: "#666" }}>{scheduleName(d.work_hours)}</span>
               <span style={{ fontSize: 12.5, color: "#666" }}>{fmtDate(d.created_at)}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
                 <button onClick={() => setEditing(d)} title="Editar" style={iconBtn}><Pencil size={14} color="#888" /></button>
@@ -150,6 +148,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
         <DepartmentModal
           accent={accent}
           editing={editing}
+          schedules={schedules}
           teamMembers={teamMembers}
           memberEmails={memberEmails}
           memberColors={memberColors}
@@ -179,10 +178,11 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
 
 /* ── Modal de criação/edição ─────────────────────────────────────────── */
 function DepartmentModal({
-  accent, editing, teamMembers, memberEmails, memberColors, onClose, onSave,
+  accent, editing, schedules, teamMembers, memberEmails, memberColors, onClose, onSave,
 }: {
   accent: string;
   editing: Department | null;
+  schedules: ScheduleLite[];
   teamMembers: string[];
   memberEmails: Record<string, string>;
   memberColors: Record<string, string>;
@@ -233,8 +233,14 @@ function DepartmentModal({
               <label style={{ ...lbl, marginTop: 16 }}>Horário de funcionamento</label>
               <select value={workHours} onChange={e => setWorkHours(e.target.value)}
                 style={{ ...field, cursor: "pointer", color: workHours ? "#111" : "#AAA" }}>
-                {WORK_HOURS_OPTIONS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                <option value="">{schedules.length ? "Selecionar" : "Nenhum horário cadastrado"}</option>
+                {schedules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {schedules.length === 0 && (
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0" }}>
+                  Cadastre em Configurações → Horários de trabalho.
+                </p>
+              )}
 
               <label style={{ ...lbl, marginTop: 16 }}>Cor</label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 8 }}>
