@@ -3110,7 +3110,14 @@ function ConexoesSection() {
       if (data.value) {
         setQrSrc(data.value);
       } else {
-        toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
+        const err = String(data?.error || data?.message || "");
+        if (/subscribe|subscription/i.test(err)) {
+          toast.error("A assinatura desta instância no Z-API expirou. Renove a instância no painel do Z-API e tente novamente.");
+        } else if (err) {
+          toast.error(`Z-API: ${err}`);
+        } else {
+          toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
+        }
       }
     } catch {
       toast.error("Erro ao conectar com a Z-API. Confirme o ID e Token da instância.");
