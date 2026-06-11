@@ -6,14 +6,22 @@ import { toast } from "sonner";
 // Captura o code ANTES de qualquer lifecycle do React — o Supabase pode
 // limpar o ?code= da URL via history.replaceState ao detectar o parâmetro
 // no fluxo PKCE, então precisamos ler aqui, na inicialização do módulo.
-const _initialCode  = new URLSearchParams(window.location.search).get("code");
-const _initialError = new URLSearchParams(window.location.search).get("error");
+const _params       = new URLSearchParams(window.location.search);
+const _initialCode  = _params.get("code");
+const _initialError = _params.get("error");
 
-async function exchangeCode(code: string): Promise<void> {
+function parseCompanyId(): string | null {
+  const raw = _params.get("state");
+  if (!raw) return null;
+  try { return (JSON.parse(atob(raw)) as { companyId?: string }).companyId ?? null; } catch { return null; }
+}
+const _companyId = parseCompanyId();
+
+async function exchangeCode(code: string, companyId: string | null): Promise<void> {
   console.log("[OAuth] Chamando Edge Function com code:", code.slice(0, 12) + "...");
 
   const { data, error } = await supabase.functions.invoke("google-oauth-exchange", {
-    body: { code },
+    body: { code, company_id: companyId },
   });
 
   console.log("[OAuth] Resposta da Edge Function — data:", data, "error:", error);
@@ -46,7 +54,7 @@ export default function GoogleOAuthCallback() {
       return;
     }
 
-    exchangeCode(code)
+    exchangeCode(code, _companyId)
       .then(() => {
         toast.success("Google conectado com sucesso!");
         navigate("/configuracoes/conexoes", { replace: true });

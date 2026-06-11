@@ -26,10 +26,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
-    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean };
+    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false } = body;
+    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
@@ -46,12 +46,13 @@ serve(async (req) => {
     const user = authResult.data?.user;
     if (authResult.error || !user) return json({ error: "unauthorized" }, 401);
 
-    // Busca token Google do usuário
-    const { data: tokenRow, error: tokenErr } = await db
+    // Busca token Google do usuário (filtrado por empresa para isolamento multi-tenant)
+    let tokenQuery = db
       .from("google_oauth_tokens")
       .select("access_token, refresh_token, token_expiry")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .eq("user_id", user.id);
+    if (company_id) tokenQuery = tokenQuery.eq("company_id", company_id);
+    const { data: tokenRow, error: tokenErr } = await tokenQuery.maybeSingle();
 
     if (tokenErr || !tokenRow) {
       return json({ error: "google_not_connected" }, 400);
@@ -76,12 +77,14 @@ serve(async (req) => {
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json() as { access_token: string; expires_in?: number };
         accessToken = refreshData.access_token;
-        await db.from("google_oauth_tokens").update({
+        let updateQ = db.from("google_oauth_tokens").update({
           access_token: accessToken,
           token_expiry: refreshData.expires_in
             ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
             : null,
         }).eq("user_id", user.id);
+        if (company_id) updateQ = updateQ.eq("company_id", company_id);
+        await updateQ;
       } else {
         return json({ error: "token_refresh_failed" }, 502);
       }

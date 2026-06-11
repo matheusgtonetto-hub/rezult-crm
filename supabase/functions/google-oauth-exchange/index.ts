@@ -33,10 +33,10 @@ serve(async (req) => {
   const jwt        = authHeader.replace(/^Bearer\s+/i, "");
   console.log("[oauth] jwt presente:", jwt ? "sim" : "NÃO");
 
-  let body: { code?: string };
+  let body: { code?: string; company_id?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-  const { code } = body;
+  const { code, company_id } = body;
   console.log("[oauth] code recebido:", code ? code.slice(0, 12) + "..." : "VAZIO");
   if (!code) return json({ error: "missing code" }, 400);
 
@@ -88,12 +88,13 @@ serve(async (req) => {
 
   const scopes = tokenData.scope ? tokenData.scope.split(" ") : [];
 
-  // 3. Upsert em google_oauth_tokens (um registro por user_id)
+  // 3. Upsert em google_oauth_tokens (um registro por user_id + company_id)
   const { error: upsertErr } = await db
     .from("google_oauth_tokens")
     .upsert(
       {
         user_id:       user.id,
+        company_id:    company_id ?? null,
         access_token:  tokenData.access_token,
         refresh_token: tokenData.refresh_token ?? null,
         token_expiry:  tokenExpiry,
@@ -101,7 +102,7 @@ serve(async (req) => {
         scopes,
         updated_at:    new Date().toISOString(),
       },
-      { onConflict: "user_id" },
+      { onConflict: "user_id,company_id" },
     );
 
   if (upsertErr) {

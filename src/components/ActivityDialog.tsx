@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { checkGoogleConnection } from "@/lib/googleOAuth";
+import { useCompany } from "@/context/CompanyContext";
 import type { ActivityType, Lead } from "@/data/mockData";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export function ActivityDialog({
   leads, teamMembers, memberEmails, memberAvatars, memberColors,
   defaultLead, initialValues,
 }: Props) {
+  const { company } = useCompany();
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ActivityType>("meeting");
   const [date, setDate] = useState("");
@@ -123,10 +125,12 @@ export function ActivityDialog({
   useEffect(() => {
     if (!open) return;
     didSubmitRef.current = false;
-    checkGoogleConnection().then(conn => {
-      setGoogleConnected(!!conn);
-      setAddToCalendar(!!conn);
-    });
+    if (company) {
+      checkGoogleConnection(company.id).then(conn => {
+        setGoogleConnected(!!conn);
+        setAddToCalendar(!!conn);
+      });
+    }
     const { date: nd, time: nt } = getNow15();
     if (initialValues) {
       setTitle(initialValues.title ?? "");
@@ -194,6 +198,7 @@ export function ActivityDialog({
           duration_minutes: duration,
           attendees: participants,
           create_meet: true,
+          company_id: company?.id,
         },
       });
       if (error) throw error;
@@ -233,7 +238,7 @@ export function ActivityDialog({
       // Atualiza o evento já criado pelo "Criar link do Google Meet" com os dados finais
       try {
         const { data, error } = await supabase.functions.invoke("google-calendar-event", {
-          body: { event_id: meetGcalEventId, title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants },
+          body: { event_id: meetGcalEventId, title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, company_id: company?.id },
         });
         if (!error && data && !data.error) {
           toast.success(
@@ -256,7 +261,7 @@ export function ActivityDialog({
       // Nenhum evento criado ainda — cria agora com os dados finais
       try {
         const { data, error } = await supabase.functions.invoke("google-calendar-event", {
-          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, create_meet: type === "meeting" },
+          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, create_meet: type === "meeting", company_id: company?.id },
         });
         if (!error && data && !data.error) {
           gcalEventId = data.event_id ? (data.event_id as string) : undefined;
@@ -294,7 +299,7 @@ export function ActivityDialog({
 
   const handleClose = () => {
     if (meetGcalEventId && !didSubmitRef.current) {
-      supabase.functions.invoke("google-calendar-delete", { body: { event_id: meetGcalEventId } }).catch(() => {});
+      supabase.functions.invoke("google-calendar-delete", { body: { event_id: meetGcalEventId, company_id: company?.id } }).catch(() => {});
     }
     onClose();
   };

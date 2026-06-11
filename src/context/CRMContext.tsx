@@ -1399,7 +1399,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       supabase.from("activities").delete().eq("id", activityId)
         .then(({ error }) => { if (error) console.error("deleteActivity error:", error.message); });
       if (gcalEventId) {
-        const { error } = await supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId } });
+        const { error } = await supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId, company_id: company?.id } });
         if (error) {
           toast.error("Não foi possível excluir o evento no Google Calendar. Verifique a conexão em Configurações.");
         }

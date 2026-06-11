@@ -1527,15 +1527,16 @@ function PlanosSection() {
   const [integrationsCount, setIntegrationsCount] = useState(0);
 
   useEffect(() => {
+    if (!company) return;
     import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
-      checkGoogleConnection().then(c => setGoogleConnected(!!c));
+      checkGoogleConnection(company.id).then(c => setGoogleConnected(!!c));
     });
     if (!user) return;
     supabase.from("automations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
       .then(({ count }) => setAutomationsCount(count ?? 0));
     supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("owner_id", user.id)
       .then(({ count }) => setIntegrationsCount(count ?? 0));
-  }, [user]);
+  }, [user, company]);
 
   const connectionsCount = whatsappConnections.length + (googleConnected ? 1 : 0);
 
@@ -3009,23 +3010,26 @@ function ConexoesSection() {
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
 
   useEffect(() => {
+    if (!company) return;
     import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
-      checkGoogleConnection()
+      checkGoogleConnection(company.id)
         .then(c => setGoogleConn(c ? { id: c.id, email: c.email } : null))
         .finally(() => setGoogleLoading(false));
     });
-  }, []);
+  }, [company]);
 
   async function handleConnectGoogle() {
+    if (!company) return;
     const { initGoogleOAuth } = await import("@/lib/googleOAuth");
-    initGoogleOAuth();
+    initGoogleOAuth(company.id);
   }
 
   async function handleDisconnectGoogle() {
+    if (!company) return;
     setGoogleDisconnecting(true);
     try {
       const { disconnectGoogle } = await import("@/lib/googleOAuth");
-      await disconnectGoogle();
+      await disconnectGoogle(company.id);
       setGoogleConn(null);
       toast.success("Google desconectado.");
     } catch {
