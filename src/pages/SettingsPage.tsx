@@ -33,10 +33,11 @@ import { PLANS } from "@/data/plans";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
+import DepartmentsManager from "@/components/DepartmentsManager";
 
 type SectionId =
   | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
-  | "horarios" | "integracoes"
+  | "departamentos" | "horarios" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
@@ -48,6 +49,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: "motivos", label: "Motivos de perda", icon: SquareX },
   { id: "listas", label: "Listas", icon: List },
   { id: "campos", label: "Campos adicionais", icon: FormInput },
+  { id: "departamentos", label: "Departamentos", icon: KanbanSquare },
   { id: "horarios", label: "Horários de trabalho", icon: Clock },
   { id: "integracoes", label: "Integrações", icon: Plug },
   { id: "conexoes", label: "Conexões", icon: Link2 },
@@ -147,6 +149,7 @@ export default function SettingsPage() {
           {active === "motivos" && <MotivosSection />}
           {active === "listas" && <ListasSection />}
           {active === "campos" && <CamposSection />}
+          {active === "departamentos" && <DepartamentosSection />}
           {active === "horarios" && <HorariosSection />}
           {active === "integracoes" && <IntegracoesSection />}
           {active === "conexoes" && <ConexoesSection />}
@@ -2911,6 +2914,27 @@ function HorariosSection() {
 /* ---------------- INTEGRAÇÕES ---------------- */
 function IntegracoesSection() {
   return <IntegracoesPage />;
+}
+
+/* ---------------- DEPARTAMENTOS ---------------- */
+function DepartamentosSection() {
+  const [createOpen, setCreateOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Departamentos</h2>
+          <p className="text-[14px] text-muted-foreground mt-0.5">Organize suas equipes com departamentos</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+          <Plus size={15} /> Criar
+        </Button>
+      </div>
+      <Card>
+        <DepartmentsManager accent="#2563EB" createOpen={createOpen} setCreateOpen={setCreateOpen} />
+      </Card>
+    </div>
+  );
 }
 
 /* ---------------- CONEXÕES ---------------- */

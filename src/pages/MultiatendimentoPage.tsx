@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
+import DepartmentsManager from "@/components/DepartmentsManager";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -380,6 +381,7 @@ export default function MultiatendimentoPage() {
   const [selectedAgent, setSelectedAgent]   = useState<string | null>(null);
   const [agentSearch, setAgentSearch]       = useState("");
   const [deptSearch, setDeptSearch]         = useState("");
+  const [deptCreateOpen, setDeptCreateOpen] = useState(false);
   const [qmSearch, setQmSearch]             = useState("");
 
   // ── toolbar states ────────────────────────────────────────────────────
@@ -2131,7 +2133,7 @@ export default function MultiatendimentoPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {settingsTab === "dept" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
+                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
                   {settingsTab === "quick" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
                   <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
                 </div>
@@ -2207,23 +2209,7 @@ export default function MultiatendimentoPage() {
 
                 {/* ── Departamento ── */}
                 {settingsTab === "dept" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
-                      <Search size={14} color="#AAA" />
-                      <input placeholder="Pesquisar..." value={deptSearch} onChange={e => setDeptSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
-                      <span style={{ fontSize: 12, color: "#AAA" }}>0 resultados</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 100px 48px", padding: "6px 0", borderBottom: "1px solid #EEEEEE", marginBottom: 8 }}>
-                      {["Departamentos", "Horário de funcionamento", "Data de criação", ""].map((h, i) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</span>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
-                      <Folder size={32} color="#E5E5E5" />
-                      <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Nenhum departamento criado</p>
-                      <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Criar" para adicionar um departamento</p>
-                    </div>
-                  </div>
+                  <DepartmentsManager accent="#128A68" createOpen={deptCreateOpen} setCreateOpen={setDeptCreateOpen} />
                 )}
 
                 {/* ── Atendentes ── */}
