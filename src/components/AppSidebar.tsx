@@ -90,11 +90,12 @@ export function AppSidebar() {
   const [dbNotifs, setDbNotifs] = useState<DbNotif[]>([]);
 
   useEffect(() => {
+    if (!company) return;
     import("@/lib/googleOAuth")
-      .then(({ checkGoogleConnection }) => checkGoogleConnection())
+      .then(({ checkGoogleConnection }) => checkGoogleConnection(company.id))
       .then(conn => setGoogleConnected(!!conn))
       .catch(() => setGoogleConnected(true));
-  }, []);
+  }, [company?.id]);
 
   const fetchDbNotifs = useCallback(async () => {
     const { data } = await supabase
