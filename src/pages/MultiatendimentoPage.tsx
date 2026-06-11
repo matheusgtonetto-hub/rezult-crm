@@ -245,6 +245,9 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; 
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
+  // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
+  // (owner da empresa), não do usuário logado — que pode ser membro de várias empresas.
+  const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
   const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
@@ -451,9 +454,13 @@ export default function MultiatendimentoPage() {
 
   // ── carregar conversas do Supabase ao iniciar ────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tenantId) return;
 
-    type DbConvRow = { id: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string };
+    // Troca de empresa: zera as conversas do tenant anterior antes de recarregar
+    setConvList([]);
+    setConvStates({});
+
+    type DbConvRow = { id: string; owner_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string };
     const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -477,7 +484,7 @@ export default function MultiatendimentoPage() {
     supabase
       .from("whatsapp_conversations")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("owner_id", tenantId)
       .order("last_msg_at", { ascending: false })
       .then(async ({ data, error }) => {
         if (error) console.error("Erro ao carregar conversas:", error);
@@ -503,7 +510,7 @@ export default function MultiatendimentoPage() {
         const { data: msgs } = await supabase
           .from("whatsapp_messages")
           .select("phone, chat_name, sender_name, body, momment, created_at")
-          .eq("owner_id", user.id)
+          .eq("owner_id", tenantId)
           .eq("from_me", false)
           .order("created_at", { ascending: false });
 
@@ -526,7 +533,7 @@ export default function MultiatendimentoPage() {
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
           newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone });
           newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
-          dbRows.push({ id, owner_id: user.id, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+          dbRows.push({ id, owner_id: tenantId, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
         }
 
         if (newConvs.length) {
@@ -538,7 +545,7 @@ export default function MultiatendimentoPage() {
         }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [tenantId]);
 
   // auto-scroll on new messages
   useEffect(() => {
@@ -547,7 +554,7 @@ export default function MultiatendimentoPage() {
 
   // ── carregar histórico quando muda a conversa ───────────────────────
   useEffect(() => {
-    if (!activeId || !active || !user) return;
+    if (!activeId || !active || !user || !tenantId) return;
     const rawPhone = (active.phone ?? "").replace(/\D/g, "");
     // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
     // que foram salvas com o ID da conversa como chave (quando não há telefone real)
@@ -558,6 +565,7 @@ export default function MultiatendimentoPage() {
     supabase
       .from("whatsapp_messages")
       .select("*")
+      .eq("owner_id", tenantId)
       .or(phoneFilter)
       .order("created_at", { ascending: true })
       .limit(100)
@@ -591,7 +599,7 @@ export default function MultiatendimentoPage() {
   // Trata tanto conversas existentes (phone mismatch de código de país)
   // quanto novas mensagens de números ainda sem conversa no CRM
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tenantId) return;
 
     const ch = supabase
       .channel("wamsg-global")
@@ -599,8 +607,9 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
+          const m = payload.new as { id?: string; owner_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
           if (m.from_me) return; // enviadas já são adicionadas otimisticamente
+          if (m.owner_id !== tenantId) return; // só mensagens da empresa selecionada
 
           const msgPhone = (m.phone ?? "") as string;
           const d = new Date(m.momment ?? m.created_at);
@@ -659,9 +668,8 @@ export default function MultiatendimentoPage() {
               [newId]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
             }));
             // Persiste nova conversa no banco
-            const uid = m.owner_id as string;
             supabase.from("whatsapp_conversations").insert({
-              id: newId, owner_id: uid, name: newConv.name, phone: msgPhone,
+              id: newId, owner_id: tenantId, name: newConv.name, phone: msgPhone,
               channel: "whatsapp", tags: [], preview: m.body ?? "",
               last_msg_at: new Date().toISOString(), read: false,
             });
@@ -672,7 +680,7 @@ export default function MultiatendimentoPage() {
 
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [tenantId]);
 
   // load Z-API instances da tabela whatsapp_connections via CompanyContext
   useEffect(() => {
@@ -735,7 +743,7 @@ export default function MultiatendimentoPage() {
     // Persiste novas conversas no Supabase
     for (const { conv, cs } of toCreate) {
       supabase.from("whatsapp_conversations").upsert({
-        id: conv.id, owner_id: user.id, name: conv.name, phone: conv.phone ?? null,
+        id: conv.id, owner_id: tenantId, name: conv.name, phone: conv.phone ?? null,
         channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
         email: conv.email ?? null, pipeline: conv.pipeline ?? null,
         deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
@@ -799,7 +807,7 @@ export default function MultiatendimentoPage() {
     toast.success(`Conversa iniciada com ${lead.name}`);
     if (user) {
       supabase.from("whatsapp_conversations").upsert({
-        id: leadId, owner_id: user.id, name: newConv.name, phone: newConv.phone ?? null,
+        id: leadId, owner_id: tenantId, name: newConv.name, phone: newConv.phone ?? null,
         channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
         email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
         deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
@@ -859,7 +867,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
-        owner_id:    user.id,
+        owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
@@ -958,7 +966,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
-        owner_id:    user.id,
+        owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
@@ -1156,7 +1164,7 @@ export default function MultiatendimentoPage() {
       // Persiste no banco para histórico futuro
       if (user) {
         await supabase.from("whatsapp_messages").insert({
-          owner_id:    user.id,
+          owner_id:    tenantId,
           instance_id: inst.instanceId,
           phone:       cleanPhone,
           from_me:     true,
@@ -1228,7 +1236,7 @@ export default function MultiatendimentoPage() {
     const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
     supabase.from("whatsapp_messages").insert({
       id:          msgId,
-      owner_id:    user.id,
+      owner_id:    tenantId,
       instance_id: instances[0]?.instanceId ?? "system",
       phone:       phoneForSystem,
       from_me:     false,
