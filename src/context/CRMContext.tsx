@@ -160,6 +160,7 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     origin: (row.origin as LeadOrigin) ?? "Outro",
     productId: (row.product_id as string) ?? undefined,
     entryDate: (row.entry_date as string) ?? "",
+    stageEnteredAt: (row.stage_entered_at as string) ?? undefined,
     nextFollowUp: (row.next_follow_up as string) ?? undefined,
     notes: (row.notes as string) ?? "",
     tags: (row.tags as string[]) ?? [],
@@ -721,6 +722,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         origin: lead.origin,
         product_id: lead.productId || null,
         entry_date: lead.entryDate || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
+        stage_entered_at: new Date().toISOString(),
         next_follow_up: lead.nextFollowUp || null,
         notes: lead.notes,
         tags: lead.tags ?? [],
@@ -848,6 +850,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   const moveLead = useCallback((leadId: string, fromCol: string, toCol: string, toIndex: number) => {
     const lead = leads[leadId];
+
+    // Restrição: avanço somente uma etapa por vez dentro do mesmo pipeline
+    const ownerPipeline = pipelines.find(p =>
+      p.columns.some(c => c.id === fromCol) && p.columns.some(c => c.id === toCol)
+    );
+    if (ownerPipeline) {
+      const fromIdx = ownerPipeline.columns.findIndex(c => c.id === fromCol);
+      const toIdx   = ownerPipeline.columns.findIndex(c => c.id === toCol);
+      if (toIdx > fromIdx + 1) {
+        const nextStage = ownerPipeline.columns[fromIdx + 1]?.title ?? "próxima etapa";
+        toast.error(`Avance uma etapa por vez. Mova para "${nextStage}" primeiro.`);
+        return;
+      }
+    }
+
     const newResponsible = !lead?.responsible && currentUserName ? currentUserName : lead?.responsible;
     setPipelines(prev => prev.map(p => {
       const hasFrom = p.columns.some(c => c.id === fromCol);
@@ -863,13 +880,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const newResponsibles = newResponsible
       ? (leads[leadId]?.responsibles?.includes(newResponsible) ? leads[leadId].responsibles : [newResponsible, ...(leads[leadId]?.responsibles ?? [])])
       : leads[leadId]?.responsibles ?? [];
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
-    const update: Record<string, unknown> = { column_id: toCol };
+    const stageEnteredAt = new Date().toISOString();
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, stageEnteredAt, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
+    const update: Record<string, unknown> = { column_id: toCol, stage_entered_at: stageEnteredAt };
     if (newResponsible) { update.responsible = newResponsible; update.responsibles = newResponsibles; }
     supabase.from("leads").update(update).eq("id", leadId).then(({ error }) => {
       if (error) console.error("moveLead error:", error.message);
     });
-  }, [leads, currentUserName]);
+  }, [leads, pipelines, currentUserName]);
 
   const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
     const lead = leads[leadId];
@@ -893,8 +911,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const newResps2 = newResp2
       ? (lead.responsibles?.includes(newResp2) ? lead.responsibles : [newResp2, ...(lead.responsibles ?? [])])
       : lead.responsibles ?? [];
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
-    const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open" };
+    const stageEnteredAt2 = new Date().toISOString();
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, stageEnteredAt: stageEnteredAt2, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
+    const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open", stage_entered_at: stageEnteredAt2 };
     if (newResp2) { update.responsible = newResp2; update.responsibles = newResps2; }
     supabase.from("leads").update(update).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });

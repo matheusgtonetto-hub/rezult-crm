@@ -36,20 +36,13 @@ export default function Verify2FAPage() {
         style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
       >
         {/* Logo */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5">
           <Logo size="md" showIcon />
         </div>
 
-        {/* Icon */}
-        <div className="flex justify-center mb-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <MailCheck size={28} className="text-primary" />
-          </div>
-        </div>
+<h1 className="text-[23px] font-semibold text-foreground">Verifique seu e-mail</h1>
 
-        <h1 className="text-xl font-bold text-foreground">Verifique seu e-mail</h1>
-
-        <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+        <p className="text-[17px] font-normal text-muted-foreground mt-[5px] leading-[1.3]">
           Enviamos um link de confirmação para o seu e-mail.{" "}
           Clique no link para confirmar seu cadastro e continuar.
         </p>

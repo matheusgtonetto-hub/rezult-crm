@@ -103,7 +103,7 @@ export default function LoginPage() {
 
               <form onSubmit={handleForgot} className="space-y-4 mt-8 text-left">
                 <div className="space-y-1.5">
-                  <Label htmlFor="forgot-email" className="text-xs font-medium">E-mail</Label>
+                  <Label htmlFor="forgot-email" className="text-[13px] font-normal">E-mail</Label>
                   <Input
                     id="forgot-email"
                     type="email"
@@ -154,13 +154,13 @@ export default function LoginPage() {
         )}
 
         <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo</h1>
-        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[5px]">
+        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[3px]">
           Faça login para acessar sua conta
         </p>
 
         <form onSubmit={handleLogin} className="space-y-4 mt-5">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-medium">E-mail</Label>
+            <Label htmlFor="email" className="text-[13px] font-normal">E-mail</Label>
             <Input
               id="email"
               type="email"
@@ -173,7 +173,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-medium">Senha</Label>
+            <Label htmlFor="password" className="text-[13px] font-normal">Senha</Label>
             <div className="relative">
               <Input
                 id="password"

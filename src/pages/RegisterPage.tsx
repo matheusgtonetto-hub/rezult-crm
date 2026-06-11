@@ -105,14 +105,14 @@ export default function RegisterPage() {
         </div>
 
         <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo ao Rezult</h1>
-        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[5px]">
+        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[3px]">
           Preencha os dados abaixo para criar a sua conta.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-5">
           {/* Nome completo */}
           <div className="space-y-1.5">
-            <Label htmlFor="fullName" className="text-xs font-medium">Nome completo</Label>
+            <Label htmlFor="fullName" className="text-[13px] font-normal">Nome completo</Label>
             <Input
               id="fullName"
               type="text"
@@ -127,7 +127,7 @@ export default function RegisterPage() {
 
           {/* E-mail */}
           <div className="space-y-1.5">
-            <Label htmlFor="reg-email" className="text-xs font-medium">E-mail</Label>
+            <Label htmlFor="reg-email" className="text-[13px] font-normal">E-mail</Label>
             <Input
               id="reg-email"
               type="email"
@@ -141,7 +141,7 @@ export default function RegisterPage() {
 
           {/* Senha */}
           <div className="space-y-1.5">
-            <Label htmlFor="reg-password" className="text-xs font-medium">Senha</Label>
+            <Label htmlFor="reg-password" className="text-[13px] font-normal">Senha</Label>
             <div className="relative">
               <Input
                 id="reg-password"
@@ -165,7 +165,7 @@ export default function RegisterPage() {
 
           {/* Confirmar senha */}
           <div className="space-y-1.5">
-            <Label htmlFor="reg-confirm" className="text-xs font-medium">Confirmar senha</Label>
+            <Label htmlFor="reg-confirm" className="text-[13px] font-normal">Confirmar senha</Label>
             <div className="relative">
               <Input
                 id="reg-confirm"

@@ -81,7 +81,7 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { company, availableCompanies, setSelectedCompany } = useCompany();
-  const { can, canAny } = usePermissions();
+  const { canAny } = usePermissions();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
 
@@ -346,7 +346,7 @@ export function AppSidebar() {
         {/* Main navigation */}
         <nav
           className="flex flex-col items-center"
-          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", width: "100%", alignItems: "center" }}
+          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "hidden", overflowX: "hidden", width: "100%", alignItems: "center" }}
         >
           {navItems.map(renderNav)}
         </nav>

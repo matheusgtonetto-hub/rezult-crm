@@ -24,7 +24,8 @@ import {
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
-  Search, ExternalLink, Settings, Settings2, KanbanSquare, Rocket, CalendarDays, Loader2,
+  Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
+  Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -71,9 +72,9 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
 );
 
 // Seções exclusivas do DONO da empresa
-const OWNER_ONLY_SECTIONS: SectionId[] = ["planos"];
+const OWNER_ONLY_SECTIONS: SectionId[] = [];
 // Seções visíveis ao dono E a membros "Administrador (acesso total)"
-const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa"];
+const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "planos"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -622,7 +623,7 @@ function EmpresaSection() {
                   </span>
                 )}
               </div>
-              {isOwner && (
+              {isFullAdmin && (
                 <div className="flex gap-1 shrink-0">
                   {(["informacoes", "equipe"] as const).map(tab => (
                     <button
@@ -644,9 +645,9 @@ function EmpresaSection() {
         </div>
       </Card>
 
-      {isOwner && empresaTab === "equipe" && <EquipeSection />}
+      {isFullAdmin && empresaTab === "equipe" && <EquipeSection />}
 
-      {isOwner && empresaTab === "informacoes" && <>
+      {isFullAdmin && empresaTab === "informacoes" && <>
 
       {/* Informações principais */}
       <Card>
@@ -801,8 +802,8 @@ function EmpresaSection() {
 
       </>}
 
-      {/* Zona de perigo — Excluir empresa (dono + Administrador acesso total) */}
-      {isFullAdmin && (
+      {/* Zona de perigo — Excluir empresa (somente admin master / dono) */}
+      {isOwner && (
         <Card className="!border-[#FCA5A5]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -887,7 +888,7 @@ interface PendingInvite {
 
 const PERMISSION_GROUPS = [
   {
-    id: "pipelines", label: "Pipelines", icon: KanbanSquare,
+    id: "pipelines", label: "Pipelines", icon: Filter,
     description: "Permissões relacionadas à administração de pipelines.",
     options: [
       { id: "pipelines:admin",  label: "Administrador de Pipelines", description: "Permite a criação, modificação, duplicação e configuração de pipelines." },
@@ -895,7 +896,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "automacoes", label: "Automações", icon: Zap,
+    id: "automacoes", label: "Automações", icon: Network,
     description: "Permissões relacionadas ao fluxo de automações",
     options: [
       { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
@@ -911,7 +912,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "leads", label: "Leads", icon: Users,
+    id: "leads", label: "Leads", icon: UserRound,
     description: "Permissões relacionadas à gestão de leads.",
     options: [
       { id: "leads:admin",      label: "Administrador de Leads",     description: "Permite acesso à listagem de leads e a todas as ações relacionadas à eles." },
@@ -928,7 +929,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "multiatendimento", label: "Multiatendimento", icon: MessageSquare,
+    id: "multiatendimento", label: "Multiatendimento", icon: MessageCircle,
     description: "Permissões relacionadas ao multiatendimento",
     options: [
       { id: "multiatendimento:admin",      label: "Administrador de multiatendimento", description: "Permite acesso completo ao multiatendimento, ao dashboard e às configurações, sem limitações." },
@@ -959,7 +960,7 @@ function PermissionsEditor({
   permissions, onChange,
 }: { permissions: string[]; onChange: (p: string[]) => void }) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
-    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, true]))
+    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, false]))
   );
 
   const toggle = (permId: string) => {
@@ -970,35 +971,35 @@ function PermissionsEditor({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-[5px]">
       {PERMISSION_GROUPS.map(group => {
         const Icon = group.icon;
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-card-border rounded-xl overflow-hidden">
+          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-muted/50 hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
             >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${groupSelected ? "bg-primary/10" : "bg-muted"}`}>
-                <Icon size={14} className={groupSelected ? "text-primary" : "text-muted-foreground"} />
-              </div>
               <div className="flex-1 text-left">
-                <p className={`text-[13px] font-semibold ${groupSelected ? "text-primary" : "text-foreground"}`}>{group.label}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">{group.description}</p>
+                <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
+                  <Icon size={14} className="shrink-0" />
+                  {group.label}
+                </p>
+                {isOpen && <p className="text-[12px] text-muted-foreground leading-tight mt-[5px]">{group.description}</p>}
               </div>
               <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
             {isOpen && (
-              <div className="divide-y divide-card-border">
+              <div>
                 {group.options.map(opt => {
                   const selected = permissions.includes(opt.id);
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-muted/50"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
                     >
                       <input
                         type="checkbox"
@@ -1007,8 +1008,8 @@ function PermissionsEditor({
                         className="mt-0.5 accent-primary w-4 h-4 shrink-0"
                       />
                       <div>
-                        <p className={`text-[13px] font-medium ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{opt.description}</p>
+                        <p className={`text-[12px] font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
+                        <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">{opt.description}</p>
                       </div>
                     </label>
                   );
@@ -1024,7 +1025,7 @@ function PermissionsEditor({
 
 function EquipeSection() {
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, userPermissions } = useCompany();
   const [members, setMembers] = useState<Member[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1039,7 +1040,7 @@ function EquipeSection() {
   const [editPerms, setEditPerms] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const isAdmin = company?.owner_id === user?.id;
+  const isAdmin = company?.owner_id === user?.id || userPermissions.includes("admin");
 
   const initials = (n: string) =>
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -1294,11 +1295,11 @@ function EquipeSection() {
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
-          <DialogHeader className="shrink-0">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-4 overflow-y-auto pr-1">
+          <div className="py-2 space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
               <Input
@@ -1306,89 +1307,80 @@ function EquipeSection() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
 
+            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
+
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-card-border bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
+              <div className="flex-1">
+                <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
+              </div>
               <input
                 type="checkbox"
                 checked={isAdminInvite}
                 onChange={e => setIsAdminInvite(e.target.checked)}
                 className="accent-[#D97706] w-4 h-4 shrink-0"
               />
-              <div>
-                <p className={`text-[13px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Igual ao dono da conta. Vê e gerencia tudo.</p>
-              </div>
             </label>
 
             {/* Grupos de permissão — ocultos se admin */}
             {!isAdminInvite && (
-              <>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Permissões por módulo</p>
-                <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
-              </>
+              <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
             )}
-
-            <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
-              <p className="text-[11px] text-primary leading-relaxed">
-                <strong>Já tem conta:</strong> o acesso é liberado imediatamente.<br />
-                <strong>Sem conta ainda:</strong> o convite fica registrado e o acesso é liberado automaticamente ao criar a conta com este e-mail.
-              </p>
-            </div>
           </div>
-          <DialogFooter className="gap-2 shrink-0">
-            <Button variant="outline" onClick={() => setAddOpen(false)} className="border-card-border">Cancelar</Button>
-            <Button onClick={handleAddMember} disabled={inviting} className="bg-primary hover:bg-primary/90">
+          <div className="flex gap-2 w-full pt-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)} className="flex-1 border-card-border">Cancelar</Button>
+            <Button onClick={handleAddMember} disabled={inviting} className="flex-1 bg-primary hover:bg-primary/90">
               {inviting ? "Processando..." : "Convidar"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Dialog: Editar permissões */}
       <Dialog open={!!editMember} onOpenChange={v => !v && setEditMember(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar permissões — {editMember?.full_name || editMember?.email}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
+
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-card-border bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
+              <div className="flex-1">
+                <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
+              </div>
               <input
                 type="checkbox"
                 checked={editPerms.includes("admin")}
                 onChange={e => setEditPerms(e.target.checked ? ["admin"] : [])}
                 className="accent-[#D97706] w-4 h-4 shrink-0"
               />
-              <div>
-                <p className={`text-[13px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Igual ao dono da conta. Vê e gerencia tudo.</p>
-              </div>
             </label>
 
             {!editPerms.includes("admin") && (
-              <>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Permissões por módulo</p>
-                <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
-              </>
+              <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditMember(null)} className="border-card-border">Cancelar</Button>
-            <Button onClick={handleSavePermissions} disabled={savingEdit} className="bg-primary hover:bg-primary/90">
+          <div className="flex gap-2 w-full pt-2">
+            <Button variant="outline" onClick={() => setEditMember(null)} className="flex-1 border-card-border">Cancelar</Button>
+            <Button onClick={handleSavePermissions} disabled={savingEdit} className="flex-1 bg-primary hover:bg-primary/90">
               {savingEdit ? "Salvando..." : "Salvar permissões"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -1451,8 +1443,10 @@ const UPGRADE_PLAN_INFO = [
   {
     key: "starter" as UpgradePlanKey,
     name: "Starter",
+    rawMonthly: 237,
     prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
+    savings: { semiannual: "R$ 213,00", annual: "R$ 855,00" },
     features: [
       "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
       "Criação e gerenciamento de negócios e produtos.",
@@ -1467,8 +1461,10 @@ const UPGRADE_PLAN_INFO = [
     key: "essential" as UpgradePlanKey,
     name: "Essential",
     badge: "Mais popular",
+    rawMonthly: 399,
     prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
+    savings: { semiannual: "R$ 359,00", annual: "R$ 1.436,00" },
     features: [
       "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
       "Criação e gerenciamento de negócios e produtos.",
@@ -1484,8 +1480,10 @@ const UPGRADE_PLAN_INFO = [
   {
     key: "pro" as UpgradePlanKey,
     name: "Pro",
+    rawMonthly: 747,
     prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
+    savings: { semiannual: "R$ 672,00", annual: "R$ 2.692,00" },
     features: [
       "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
       "Gerenciamento ilimitado de leads com controle de tags.",
@@ -1514,7 +1512,7 @@ function PlanosSection() {
   const { company, whatsappConnections } = useCompany();
   const { user }    = useAuth();
   const { leads, pipelines, teamMembers } = useCRM();
-  const { subscription } = useSubscription();
+  const { subscription, refetch: refetchSubscription } = useSubscription();
 
   const planKey = company?.plan ?? "free";
   const planDef = PLANS.find(p => p.key === planKey);
@@ -1616,38 +1614,238 @@ function PlanosSection() {
   const [upgradeOpen,    setUpgradeOpen]    = useState(false);
   const [upgradePeriod,  setUpgradePeriod]  = useState<UpgradePeriod>("monthly");
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+  const [confirmPlan,    setConfirmPlan]    = useState<UpgradePlanKey | null>(null);
 
-  const handleSelectPlan = async (planKey: UpgradePlanKey) => {
+  const handleSelectPlan = async () => {
+    if (!confirmPlan) return;
     if (!user)    { toast.error("Você precisa estar logado."); return; }
     if (!company) { toast.error("Nenhuma empresa encontrada."); return; }
-    const priceId = UPGRADE_PRICES[planKey][upgradePeriod];
-    setUpgradeLoading(planKey);
-    try {
-      const { data: { session: authSession } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          priceId,
-          companyId:     company.id,
-          userId:        user.id,
-          userEmail:     user.email ?? "",
-          planName:      planKey,
-          billingPeriod: upgradePeriod,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
-      window.location.href = data.url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
-      setUpgradeLoading(null);
+
+    const priceId = UPGRADE_PRICES[confirmPlan][upgradePeriod];
+    const hasActiveSub = !!(subscription?.stripe_subscription_id &&
+      (subscription.status === "active" || subscription.status === "trialing"));
+
+    setUpgradeLoading(confirmPlan);
+    setConfirmPlan(null);
+
+    const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL as string;
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const headers = {
+      "Content-Type": "application/json",
+      ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+    };
+
+    if (hasActiveSub) {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/update-subscription`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            subscriptionId: subscription!.stripe_subscription_id,
+            newPriceId:     priceId,
+            planName:       confirmPlan,
+            billingPeriod:  upgradePeriod,
+            companyId:      company.id,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error ?? "Erro ao atualizar plano.");
+        toast.success("Plano atualizado com sucesso!");
+        refetchSubscription();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao atualizar plano.");
+      } finally {
+        setUpgradeLoading(null);
+      }
+    } else {
+      const tab = window.open("", "_blank");
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            priceId,
+            companyId:     company.id,
+            userId:        user.id,
+            userEmail:     user.email ?? "",
+            planName:      confirmPlan,
+            billingPeriod: upgradePeriod,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
+        if (tab) tab.location.href = data.url;
+        else window.open(data.url, "_blank");
+      } catch (err) {
+        tab?.close();
+        toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
+      } finally {
+        setUpgradeLoading(null);
+      }
     }
   };
+
+  if (upgradeOpen) {
+    return (
+      <>
+      <div className="space-y-6">
+        <div>
+          <button
+            onClick={() => setUpgradeOpen(false)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={14} /> Voltar
+          </button>
+          <div className="text-center">
+            <p className="text-xl font-bold text-foreground">Planos Rezult CRM</p>
+            <p className="text-sm text-muted-foreground mt-1">Encontre o plano que atende às suas necessidades!</p>
+          </div>
+        </div>
+        {/* Toggle de período */}
+        <div className="flex justify-center">
+          <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
+            {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
+              const disc = UPGRADE_PERIOD_DISCOUNT[period];
+              return (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setUpgradePeriod(period)}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
+                    upgradePeriod === period
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {UPGRADE_PERIOD_LABELS[period]}
+                  {disc && (
+                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      {disc}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Cards dos planos */}
+        <div className="grid grid-cols-3 gap-4 pb-8">
+          {UPGRADE_PLAN_INFO.map((plan) => {
+            const isCurrent = planKey === plan.key && (subscription?.billing_period ?? "monthly") === upgradePeriod;
+            const isLoading = upgradeLoading === plan.key;
+            return (
+              <div
+                key={plan.key}
+                className={cn(
+                  "relative flex flex-col rounded-xl p-5 transition-all bg-white",
+                  isCurrent ? "border border-primary" : "border border-gray-200"
+                )}
+              >
+                {plan.badge && !isCurrent && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    {plan.badge}
+                  </span>
+                )}
+                {isCurrent && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    Plano atual
+                  </span>
+                )}
+                <p className="text-[16px] font-bold text-foreground">{plan.name}</p>
+                {upgradePeriod === "monthly" ? (
+                  <div className="mt-3 mb-3">
+                    <span className="text-2xl font-bold text-emerald-600">{plan.prices.monthly}</span>
+                    <span className="text-xs text-muted-foreground ml-1">/mês</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mt-2 mb-1">
+                      <span className="text-[12px] text-muted-foreground line-through">R$ {plan.rawMonthly},00</span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        Economize {plan.savings[upgradePeriod as "semiannual" | "annual"]}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between mb-1">
+                      <div>
+                        <span className="text-2xl font-bold text-emerald-600">{plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}</span>
+                        <span className="text-xs text-muted-foreground ml-1">/mês</span>
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
+                        {upgradePeriod === "semiannual" ? "Semestral" : "Anual"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium text-muted-foreground mb-3">
+                      Pagamento recorrente de {plan.prices[upgradePeriod]},00 a cada {upgradePeriod === "semiannual" ? "6" : "12"} meses
+                    </p>
+                  </>
+                )}
+                <ul className="space-y-1.5 flex-1 mb-4">
+                  {plan.features.map(f => (
+                    <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-foreground">
+                      <CircleCheck size={14} className={cn("mt-0.5 shrink-0 stroke-white", isCurrent ? "fill-primary" : "fill-emerald-600")} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCurrent ? (
+                  <Button size="sm" variant="outline" className="w-full border-primary text-primary" disabled>Plano atual</Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className={cn("w-full", plan.badge ? "" : "bg-primary hover:bg-primary/90")}
+                    disabled={upgradeLoading !== null}
+                    onClick={() => setConfirmPlan(plan.key)}
+                  >
+                    {isLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Atualizar plano"}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {(() => {
+        if (!confirmPlan) return null;
+        const plan = UPGRADE_PLAN_INFO.find(p => p.key === confirmPlan)!;
+        const periodLabel = upgradePeriod === "monthly" ? "Mensal" : upgradePeriod === "semiannual" ? "Semestral" : "Anual";
+        const price = upgradePeriod === "monthly"
+          ? `${plan.prices.monthly}/mês`
+          : `${plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}/mês`;
+        return (
+          <Dialog open onOpenChange={() => setConfirmPlan(null)}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><TriangleAlert size={16} />Confirmar plano</DialogTitle>
+                <p className="text-[12px] text-muted-foreground">O valor será ajustado automaticamente se houver um método de pagamento cadastrado.</p>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Plano</span>
+                  <span className="font-semibold">{plan.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Frequência</span>
+                  <span className="font-semibold">{periodLabel}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor</span>
+                  <span className="font-semibold text-emerald-600">{price}</span>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConfirmPlan(null)}>Cancelar</Button>
+                <Button onClick={handleSelectPlan} disabled={upgradeLoading !== null}>
+                  {upgradeLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Confirmar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+      </>
+    );
+  }
 
   return (
     <>
@@ -1721,21 +1919,21 @@ function PlanosSection() {
 
         <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[11px] text-muted-foreground mb-1">Renova em</p>
+            <p className="text-[12px] text-muted-foreground mb-1">Renova em</p>
             <p className="text-[13px] font-semibold text-foreground">
               {company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[11px] text-muted-foreground mb-1">Valor</p>
+            <p className="text-[12px] text-muted-foreground mb-1">Valor</p>
             <p className="text-[13px] font-semibold text-foreground">
               {planDef?.pricing.mensal ?? (planKey === "free" ? "Grátis" : "—")}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[11px] text-muted-foreground mb-1">Frequência</p>
+            <p className="text-[12px] text-muted-foreground mb-1">Frequência</p>
             <p className="text-[13px] font-semibold text-foreground">
               {subscription?.billing_period === "semiannual" ? "Semestral"
                : subscription?.billing_period === "annual" ? "Anual"
@@ -1744,7 +1942,7 @@ function PlanosSection() {
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[11px] text-muted-foreground mb-1">Método de pagamento</p>
+            <p className="text-[12px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-muted-foreground shrink-0" />
               <p className="text-[13px] font-semibold text-foreground">Cartão de crédito</p>
@@ -1761,7 +1959,7 @@ function PlanosSection() {
                 {planDef.features.map(f => (
                   <div key={f} className="flex items-center gap-2">
                     <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
-                    <p className="text-[12px] text-foreground">{f}</p>
+                    <p className="text-[13px] leading-[1.4] text-foreground">{f}</p>
                   </div>
                 ))}
               </div>
@@ -1783,132 +1981,6 @@ function PlanosSection() {
       </Card>
 
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
-      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-        <DialogContent className="max-w-5xl rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
-          <div className="px-8 pt-7 pb-0 flex flex-col items-center text-center">
-            <p className="text-xl font-bold text-foreground">Planos Rezult CRM</p>
-            <p className="text-sm text-muted-foreground mt-1">Encontre o plano que atende às suas necessidades!</p>
-          </div>
-
-          {/* Toggle de período */}
-          <div className="px-8 pt-4 pb-2 flex justify-center">
-            <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
-              {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
-                const disc = UPGRADE_PERIOD_DISCOUNT[period];
-                return (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setUpgradePeriod(period)}
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
-                      upgradePeriod === period
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {UPGRADE_PERIOD_LABELS[period]}
-                    {disc && (
-                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        {disc}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Cards dos planos */}
-          <div className="overflow-y-auto flex-1">
-          <div className="grid grid-cols-3 gap-4 px-8 pb-8 pt-2">
-            {UPGRADE_PLAN_INFO.map((plan) => {
-              const isCurrent  = planKey === plan.key;
-              const isLoading  = upgradeLoading === plan.key;
-
-              return (
-                <div
-                  key={plan.key}
-                  className={cn(
-                    "relative flex flex-col rounded-xl border-2 p-5 transition-all",
-                    isCurrent
-                      ? "border-primary bg-primary/10"
-                      : plan.badge
-                        ? "border-primary bg-primary/[0.02]"
-                        : "border-card-border bg-white"
-                  )}
-                >
-                  {/* Badge Mais popular */}
-                  {plan.badge && !isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      {plan.badge}
-                    </span>
-                  )}
-                  {/* Badge Plano atual */}
-                  {isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      Plano atual
-                    </span>
-                  )}
-
-                  <p className="text-sm font-bold text-foreground">{plan.name}</p>
-
-                  {/* Preço */}
-                  <div className="mt-3 mb-0.5">
-                    <span className="text-2xl font-bold text-foreground">
-                      {plan.prices[upgradePeriod]}
-                    </span>
-                    {upgradePeriod === "monthly" && (
-                      <span className="text-xs text-muted-foreground ml-1">/mês</span>
-                    )}
-                  </div>
-                  {upgradePeriod === "monthly" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">cobrança mensal recorrente</p>
-                  )}
-                  {upgradePeriod === "semiannual" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
-                      semestral · equiv. {plan.monthlyEquiv.semiannual}/mês
-                    </p>
-                  )}
-                  {upgradePeriod === "annual" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
-                      anual · equiv. {plan.monthlyEquiv.annual}/mês
-                    </p>
-                  )}
-
-                  {/* Features */}
-                  <ul className="space-y-1.5 flex-1 mb-4">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                        <Check size={11} className={cn("mt-0.5 shrink-0", isCurrent ? "text-primary" : "text-emerald-600")} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {isCurrent ? (
-                    <Button size="sm" variant="outline" className="w-full border-primary text-primary" disabled>
-                      Plano atual
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className={cn("w-full", plan.badge ? "" : "bg-primary hover:bg-primary/90")}
-                      disabled={upgradeLoading !== null}
-                      onClick={() => handleSelectPlan(plan.key)}
-                    >
-                      {isLoading
-                        ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</>
-                        : "Começar 7 dias grátis"}
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -2705,7 +2777,7 @@ function CamposSection() {
                 {g.items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50">
                     <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0 ml-2" />
-                    <span className="flex-1 text-[12px] text-foreground">{item.label}</span>
+                    <span className="flex-1 text-[13px] text-foreground">{item.label}</span>
                     <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
                     <button
                       onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
@@ -2981,6 +3053,7 @@ function ConexoesSection() {
   const [editingConnId, setEditingConnId]         = useState<string | null>(null);
   const [manageTab, setManageTab]                 = useState<"auth" | "intervals" | "config">("auth");
   const [connName, setConnName]                   = useState("");
+  const [showTerms, setShowTerms]                 = useState(false);
   const [editForm, setEditForm]                   = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
   const [showInstId, setShowInstId]               = useState(false);
   const [showTok, setShowTok]                     = useState(false);
@@ -3563,7 +3636,7 @@ function ConexoesSection() {
 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <MessageSquare size={15} className="text-primary" /> Conectar WhatsApp
+              <MessageSquare size={15} className="text-primary" /> Cadastrar conexão
             </DialogTitle>
           </DialogHeader>
 
@@ -3753,43 +3826,63 @@ function ConexoesSection() {
           {/* Step 2 — Credentials */}
           {step === "creds" && (
             <>
-              <p className="text-xs text-muted-foreground -mt-1 mb-3">
-                No painel da <strong>Z-API</strong>, acesse sua instância e copie o ID e o Token.
-              </p>
+              {/* Banner informativo */}
+              <div style={{ background: "#F0FAF6", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "#0D5C3A", marginBottom: 4 }}>Intervalo entre as mensagens</p>
+                <p style={{ fontSize: 11, fontWeight: 400, color: "#376B55", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
+              </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
                   <Input
-                    placeholder="Ex: 3C1B2A3D4E5F..."
-                    value={form.instanceId}
-                    onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
-                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    placeholder="Nome da conexão"
+                    value={connName}
+                    onChange={e => setConnName(e.target.value)}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
                   <Input
-                    placeholder="Token da instância"
+                    placeholder="ID da instância do Z-API"
+                    value={form.instanceId}
+                    onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token da instância <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Token da instância do Z-API"
                     value={form.token}
                     onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
-                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    Client-Token <span className="text-[#E24B4A]">*</span> <span className="text-muted-foreground font-normal">(aba Segurança da Z-API)</span>
+                    Token de segurança <span className="text-[#E24B4A]">*</span>
+                    <span className="flex items-center gap-1 text-muted-foreground font-normal mt-0.5">
+                      <CircleAlert size={11} /> Acesse a página de Segurança para obter.
+                    </span>
                   </label>
                   <Input
-                    placeholder="Client-Token da instância"
+                    placeholder="Token de segurança do Z-API"
                     value={form.clientToken}
                     onChange={e => setForm(f => ({ ...f, clientToken: e.target.value }))}
-                    className="border-card-border font-mono text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
               </div>
-              <DialogFooter className="mt-4">
+              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
+                Ao continuar, você concorda com nossos{" "}
+                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                  Termos de Uso
+                </button>.
+              </p>
+              <DialogFooter className="mt-3">
                 <Button variant="outline" className="border-card-border" onClick={() => setStep("tutorial")}>Voltar</Button>
                 <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateQr} disabled={qrLoading}>
                   {qrLoading ? "Gerando..." : "Gerar QR Code"}
@@ -3840,6 +3933,35 @@ function ConexoesSection() {
             </>
           )}
 
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Termos de Uso */}
+      <Dialog open={showTerms} onOpenChange={setShowTerms}>
+        <DialogContent className="max-w-[560px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Termos de Uso</DialogTitle>
+          </DialogHeader>
+          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }} className="space-y-3">
+            <p>Estes Termos de Uso estabelecem as condições para a utilização do serviço de CRM fornecido pelo Rezult. Ao acessar ou utilizar nossos serviços, você concorda integralmente com estes termos.</p>
+            <p><strong>Definições</strong><br />Serviço: Refere-se ao sistema de CRM fornecido pelo Rezult.<br />Usuário: Qualquer indivíduo ou entidade que utilize o serviço.<br />Plataformas de Terceiros: Serviços externos integrados ao nosso sistema, como redes sociais e aplicativos de mensagens.</p>
+            <p><strong>Elegibilidade</strong><br />Para utilizar nossos serviços, você deve: Ter pelo menos 18 anos ou possuir autorização legal adequada. Possuir permissão para operar contas nas plataformas de terceiros integradas ao nosso serviço.</p>
+            <p><strong>Cadastro e Segurança da Conta</strong><br />Ao criar uma conta, você concorda em: Fornecer informações precisas, completas e atualizadas. Manter a confidencialidade de sua senha e credenciais de acesso. Notificar imediatamente o Rezult sobre qualquer uso não autorizado de sua conta ou violação de segurança.</p>
+            <p><strong>Uso Aceitável</strong><br />Ao utilizar nosso serviço, você concorda em: Não enviar comunicações não solicitadas ou spam. Abster-se de atividades ilegais, fraudulentas ou prejudiciais. Cumprir os termos de uso das plataformas de terceiros integradas. Evitar qualquer forma de assédio, discurso de ódio ou comportamento ofensivo.</p>
+            <p><strong>Integração com Plataformas de Terceiros</strong><br />Nosso serviço permite a integração com diversas plataformas externas. É sua responsabilidade assegurar que o uso dessas integrações esteja em conformidade com os termos e políticas das respectivas plataformas. O uso inadequado pode resultar em sanções, incluindo a suspensão ou banimento de contas nessas plataformas.</p>
+            <p><strong>Propriedade Intelectual</strong><br />Todos os direitos, títulos e interesses relativos ao serviço, incluindo, mas não se limitando a, software, logotipos, conteúdo e materiais relacionados, são de propriedade exclusiva do Rezult ou de seus licenciadores. Você concorda em não reproduzir, distribuir, modificar, criar trabalhos derivados ou explorar qualquer parte do serviço sem autorização prévia por escrito do Rezult.</p>
+            <p><strong>Privacidade e Proteção de Dados</strong><br />Respeitamos sua privacidade e processamos seus dados pessoais de acordo com nossa Política de Privacidade. Ao utilizar nosso serviço, você consente com tais práticas. Comprometemo-nos a cumprir a Lei Geral de Proteção de Dados (LGPD) e demais legislações aplicáveis.</p>
+            <p><strong>Limitação de Responsabilidade</strong><br />O Rezult não se responsabiliza por: Penalidades, suspensões ou banimentos que possam ocorrer em plataformas de terceiros devido ao uso de nosso serviço. Danos indiretos, incidentais, especiais, consequenciais ou punitivos resultantes do uso ou incapacidade de usar o serviço. Perda de dados, lucros cessantes ou outros prejuízos comerciais, mesmo que avisados da possibilidade de tais danos.</p>
+            <p><strong>Indenização</strong><br />Você concorda em indenizar, defender e isentar o Rezult, seus diretores, funcionários e agentes de quaisquer reivindicações, responsabilidades, danos, perdas e despesas, incluindo honorários advocatícios razoáveis, decorrentes de ou relacionados ao seu uso do serviço ou violação destes Termos de Uso.</p>
+            <p><strong>Modificações nos Termos</strong><br />Reservamo-nos o direito de alterar estes Termos de Uso a qualquer momento. Notificaremos sobre mudanças significativas por meio de nosso serviço ou por outros meios apropriados. O uso continuado após tais alterações constitui sua aceitação dos novos termos.</p>
+            <p><strong>Encerramento e Suspensão</strong><br />Podemos suspender ou encerrar seu acesso ao serviço se identificarmos violações a estes termos, atividades suspeitas ou uso inadequado.</p>
+            <p><strong>Disposições Gerais</strong><br />Estes termos constituem o acordo completo entre você e o Rezult em relação ao uso do serviço. Caso alguma disposição seja considerada inválida, as demais permanecerão em pleno vigor e efeito.</p>
+            <p><strong>Lei Aplicável e Foro</strong><br />Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de Florianópolis, Estado de Santa Catarina, como competente para dirimir quaisquer questões oriundas deste instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
+            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "#128A68" }}>crm@rezultcrm.com</a></p>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => setShowTerms(false)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

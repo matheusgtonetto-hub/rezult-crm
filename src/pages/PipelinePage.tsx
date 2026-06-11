@@ -192,6 +192,9 @@ export default function PipelinePage() {
     toColTitle: string;
     toIndex: number;
     sourceIndex: number;
+    isSkipping?: boolean;
+    nextColId?: string;
+    nextColTitle?: string;
   } | null>(null);
 
   // Filters
@@ -214,13 +217,15 @@ export default function PipelinePage() {
       return;
     }
     if (source.droppableId !== destination.droppableId) {
-      const cols = activePipeline?.columns ?? [];
-      const fromCol = cols.find(c => c.id === source.droppableId);
-      const toCol   = cols.find(c => c.id === destination.droppableId);
-      const isAdvance = (toCol?.position ?? 0) > (fromCol?.position ?? 0);
+      const cols = [...(activePipeline?.columns ?? [])].sort((a, b) => a.position - b.position);
+      const fromCol  = cols.find(c => c.id === source.droppableId);
+      const toCol    = cols.find(c => c.id === destination.droppableId);
+      const fromIdx  = cols.findIndex(c => c.id === source.droppableId);
+      const toIdx    = cols.findIndex(c => c.id === destination.droppableId);
+      const isAdvance = toIdx > fromIdx;
       if (isAdvance) {
-        // Não move o estado ainda — DnD reverte o card automaticamente para origem
-        // enquanto o modal está aberto. O move só acontece se confirmar.
+        const isSkipping = toIdx > fromIdx + 1;
+        const nextCol = isSkipping ? cols[fromIdx + 1] : undefined;
         setPendingAdvance({
           leadId: draggableId,
           leadName: leads[draggableId]?.name ?? "",
@@ -230,6 +235,9 @@ export default function PipelinePage() {
           toColTitle: toCol?.title ?? "",
           toIndex: destination.index,
           sourceIndex: source.index,
+          isSkipping,
+          nextColId: nextCol?.id,
+          nextColTitle: nextCol?.title,
         });
         return;
       }
@@ -246,12 +254,14 @@ export default function PipelinePage() {
 
   const handleConfirmAdvance = () => {
     if (!pendingAdvance) return;
-    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, pendingAdvance.toColId, pendingAdvance.toIndex);
+    const targetColId    = pendingAdvance.isSkipping ? pendingAdvance.nextColId!    : pendingAdvance.toColId;
+    const targetColTitle = pendingAdvance.isSkipping ? pendingAdvance.nextColTitle! : pendingAdvance.toColTitle;
+    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, targetColId, pendingAdvance.toIndex);
     addActivity(pendingAdvance.leadId, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${pendingAdvance.fromColTitle}" para "${pendingAdvance.toColTitle}".`,
+      description: `Movido de "${pendingAdvance.fromColTitle}" para "${targetColTitle}".`,
     });
     setPendingAdvance(null);
   };
@@ -1086,15 +1096,28 @@ export default function PipelinePage() {
         <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar avanço de etapa</AlertDialogTitle>
+              <AlertDialogTitle>
+                {pendingAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
-                <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
+                {pendingAdvance?.isSkipping ? (
+                  <>
+                    O lead <strong className="text-foreground">{pendingAdvance.leadName}</strong> precisa avançar uma etapa por vez.{" "}
+                    Deseja mover para <strong className="text-foreground">{pendingAdvance.nextColTitle}</strong> agora?
+                  </>
+                ) : (
+                  <>
+                    Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
+                    <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
+                  </>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={handleCancelAdvance}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmAdvance}>Confirmar</AlertDialogAction>
+              <AlertDialogAction onClick={handleConfirmAdvance}>
+                {pendingAdvance?.isSkipping ? `Mover para "${pendingAdvance.nextColTitle}"` : "Confirmar"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -68,6 +68,7 @@ export interface Lead {
   origin: LeadOrigin;
   productId?: string;
   entryDate: string;
+  stageEnteredAt?: string;
   nextFollowUp?: string;
   notes: string;
   activities: Activity[];

@@ -660,6 +660,11 @@ export default function LeadDetailPage() {
   const newNoteDivRef = useRef<HTMLDivElement | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [pendingStageAdvance, setPendingStageAdvance] = useState<{
+    fromId: string; fromTitle: string;
+    toId: string; toTitle: string;
+    isSkipping: boolean; nextId?: string; nextTitle?: string;
+  } | null>(null);
   const editingDivRef = useRef<HTMLDivElement | null>(null);
   const [mentionState, setMentionState] = useState<{ query: string; top: number; left: number; source: "new" | "edit" } | null>(null);
 
@@ -809,17 +814,34 @@ export default function LeadDetailPage() {
 
   const handleStageClick = (stageId: string) => {
     if (stageId === lead.stage) return;
-    const oldCol = stages.find(c => c.id === lead.stage);
-    const newCol = stages.find(c => c.id === stageId);
-    moveLead(lead.id, lead.stage, stageId, 0);
+    const fromIdx  = stages.findIndex(c => c.id === lead.stage);
+    const toIdx    = stages.findIndex(c => c.id === stageId);
+    const fromCol  = stages[fromIdx];
+    const toCol    = stages[toIdx];
+    const isSkipping = toIdx > fromIdx + 1;
+    const nextCol  = isSkipping ? stages[fromIdx + 1] : undefined;
+    setPendingStageAdvance({
+      fromId: fromCol?.id ?? "", fromTitle: fromCol?.title ?? "",
+      toId: toCol?.id ?? "",   toTitle: toCol?.title ?? "",
+      isSkipping,
+      nextId: nextCol?.id, nextTitle: nextCol?.title,
+    });
+  };
+
+  const handleConfirmStageAdvance = () => {
+    if (!pendingStageAdvance) return;
+    const targetId    = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextId!    : pendingStageAdvance.toId;
+    const targetTitle = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextTitle! : pendingStageAdvance.toTitle;
+    moveLead(lead.id, pendingStageAdvance.fromId, targetId, 0);
     addActivity(lead.id, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${oldCol?.title}" para "${newCol?.title}".`,
+      description: `Movido de "${pendingStageAdvance.fromTitle}" para "${targetTitle}".`,
       userName: profile?.full_name || undefined,
     });
-    toast.success(`Etapa alterada para ${newCol?.title}`);
+    toast.success(`Etapa alterada para ${targetTitle}`);
+    setPendingStageAdvance(null);
   };
 
   const handleSaveNote = () => {
@@ -1178,7 +1200,8 @@ export default function LeadDetailPage() {
             const isPast = idx < activeIdx;
             const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
             const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
-            const days = idx === activeIdx ? daysBetween(lead.entryDate, today) : isPast ? 2 : 0;
+            const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
+            const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
             return (
               <button
                 key={s.id}
@@ -2587,6 +2610,35 @@ export default function LeadDetailPage() {
         </section>
       </div>
     </div>
+
+    <AlertDialog open={!!pendingStageAdvance} onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {pendingStageAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingStageAdvance?.isSkipping ? (
+              <>
+                O lead precisa avançar uma etapa por vez.{" "}
+                Deseja mover para <strong className="text-foreground">{pendingStageAdvance.nextTitle}</strong> agora?
+              </>
+            ) : (
+              <>
+                Deseja mover para{" "}
+                <strong className="text-foreground">{pendingStageAdvance?.toTitle}</strong>?
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingStageAdvance(null)}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmStageAdvance}>
+            {pendingStageAdvance?.isSkipping ? `Mover para "${pendingStageAdvance.nextTitle}"` : "Confirmar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <AlertDialog open={!!deletingNoteId} onOpenChange={open => { if (!open) setDeletingNoteId(null); }}>
       <AlertDialogContent>
