@@ -88,31 +88,21 @@ serve(async (req) => {
 
   const scopes = tokenData.scope ? tokenData.scope.split(" ") : [];
 
-  // 3. Delete + Insert (evita problemas de upsert com coluna nullable)
-  let delQ = db.from("google_oauth_tokens").delete().eq("user_id", user.id);
-  if (company_id) {
-    delQ = delQ.eq("company_id", company_id);
-  } else {
-    delQ = delQ.is("company_id", null);
-  }
-  await delQ;
+  // 3. Salva token via função SQL (contorna cache de schema do PostgREST)
+  const { error: rpcErr } = await db.rpc("upsert_google_token", {
+    p_user_id:       user.id,
+    p_company_id:    company_id ?? null,
+    p_access_token:  tokenData.access_token,
+    p_refresh_token: tokenData.refresh_token ?? null,
+    p_token_expiry:  tokenExpiry,
+    p_email:         googleUser.email ?? null,
+    p_scopes:        scopes,
+    p_updated_at:    new Date().toISOString(),
+  });
 
-  const { error: insertErr } = await db
-    .from("google_oauth_tokens")
-    .insert({
-      user_id:       user.id,
-      company_id:    company_id ?? null,
-      access_token:  tokenData.access_token,
-      refresh_token: tokenData.refresh_token ?? null,
-      token_expiry:  tokenExpiry,
-      email:         googleUser.email ?? null,
-      scopes,
-      updated_at:    new Date().toISOString(),
-    });
-
-  if (insertErr) {
-    console.error("Insert error:", insertErr);
-    return json({ error: "db_error", detail: insertErr.message }, 500);
+  if (rpcErr) {
+    console.error("RPC error:", rpcErr);
+    return json({ error: "db_error", detail: rpcErr.message }, 500);
   }
 
   return json({ success: true, email: googleUser.email ?? null }, 200);
