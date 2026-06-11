@@ -88,26 +88,31 @@ serve(async (req) => {
 
   const scopes = tokenData.scope ? tokenData.scope.split(" ") : [];
 
-  // 3. Upsert em google_oauth_tokens (um registro por user_id + company_id)
-  const { error: upsertErr } = await db
-    .from("google_oauth_tokens")
-    .upsert(
-      {
-        user_id:       user.id,
-        company_id:    company_id ?? null,
-        access_token:  tokenData.access_token,
-        refresh_token: tokenData.refresh_token ?? null,
-        token_expiry:  tokenExpiry,
-        email:         googleUser.email ?? null,
-        scopes,
-        updated_at:    new Date().toISOString(),
-      },
-      { onConflict: "user_id,company_id" },
-    );
+  // 3. Delete + Insert (evita problemas de upsert com coluna nullable)
+  let delQ = db.from("google_oauth_tokens").delete().eq("user_id", user.id);
+  if (company_id) {
+    delQ = delQ.eq("company_id", company_id);
+  } else {
+    delQ = delQ.is("company_id", null);
+  }
+  await delQ;
 
-  if (upsertErr) {
-    console.error("Upsert error:", upsertErr);
-    return json({ error: "db_error", detail: upsertErr.message }, 500);
+  const { error: insertErr } = await db
+    .from("google_oauth_tokens")
+    .insert({
+      user_id:       user.id,
+      company_id:    company_id ?? null,
+      access_token:  tokenData.access_token,
+      refresh_token: tokenData.refresh_token ?? null,
+      token_expiry:  tokenExpiry,
+      email:         googleUser.email ?? null,
+      scopes,
+      updated_at:    new Date().toISOString(),
+    });
+
+  if (insertErr) {
+    console.error("Insert error:", insertErr);
+    return json({ error: "db_error", detail: insertErr.message }, 500);
   }
 
   return json({ success: true, email: googleUser.email ?? null }, 200);
