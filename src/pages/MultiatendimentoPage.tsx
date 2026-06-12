@@ -463,6 +463,16 @@ export default function MultiatendimentoPage() {
   const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false, assignedTo: undefined };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
+  // Nome de exibição da conversa: prioriza o nome do lead no CRM (por ID ou
+  // telefone). Cai para o nome salvo; se for vazio ou "ruim" (ex.: ".", o nome
+  // de perfil do WhatsApp do contato), usa o telefone como último recurso.
+  const convName = (c: Conversation): string => {
+    const lead = leads[c.id] ?? (c.phone ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", c.phone ?? "")) : undefined);
+    const nm = (lead?.name ?? c.name ?? "").trim();
+    if (nm && nm !== ".") return nm;
+    return c.phone ?? c.name ?? "Sem nome";
+  };
+
   // Etapas reais do pipeline vinculado ao lead ativo.
   // Tenta por ID primeiro (conversas abertas pelo pipeline); se não achar,
   // busca pelo telefone (conversas de backfill com UUID aleatório como id).
@@ -1208,7 +1218,7 @@ export default function MultiatendimentoPage() {
     setConvStates(prev => ({ ...prev, [newId]: newCs }));
     setActiveId(newId);
     setSelectedInstance(targetInstanceId);
-    toast.success(`Conversa com ${active.name} via ${label}`);
+    toast.success(`Conversa com ${convName(active)} via ${label}`);
     if (user && tenantId) {
       supabase.from("whatsapp_conversations").upsert({
         id: newId, owner_id: tenantId, instance_id: targetInstanceId, name: newConv.name, phone: newConv.phone ?? null,
@@ -1360,7 +1370,7 @@ export default function MultiatendimentoPage() {
     let list = convList;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(c => c.name.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q));
+      list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
       case "email":   list = list.filter(c => c.channel === "instagram"); break;
@@ -1369,7 +1379,8 @@ export default function MultiatendimentoPage() {
       case "alert":   list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
     return list;
-  }, [searchQuery, activeFilter, convStates, convList]);
+    // leads: convName resolve o nome do lead por telefone, então a busca depende dele
+  }, [searchQuery, activeFilter, convStates, convList, leads]);
 
   const filters = [
     { id: "email",   icon: Mail,          label: "Instagram",      count: convList.filter(c => c.channel === "instagram").length },
@@ -1464,12 +1475,12 @@ export default function MultiatendimentoPage() {
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ position: "relative", flexShrink: 0 }}>
-                  <ConvAvatar name={c.name} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} />
+                  <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} />
                   <ChannelBadge channel={c.channel} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                       <span style={{ fontSize: 11, color: "#AAA" }}>{c.time}</span>
                       {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}
@@ -1498,9 +1509,9 @@ export default function MultiatendimentoPage() {
             {/* header */}
             <div style={{ minHeight: 52, background: "#FFF", borderBottom: "1px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{active.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
                     <Filter size={10} />
                     {linkedPipeline?.name || active.pipeline || "Pipeline Comercial"}
@@ -1630,11 +1641,11 @@ export default function MultiatendimentoPage() {
                     return (
                       <div key={m.id} style={{ display: "flex", justifyContent: isAgent ? "flex-end" : "flex-start", marginBottom: 12 }}>
                         {!isAgent && (
-                          <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
+                          <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
                         <div style={{ maxWidth: "65%" }}>
                           <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
-                            {isAgent ? `${m.agent} • ${m.time}` : `${active.name} • ${m.time}`}
+                            {isAgent ? `${m.agent} • ${m.time}` : `${convName(active)} • ${m.time}`}
                           </div>
                           <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                             {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
@@ -1800,10 +1811,10 @@ export default function MultiatendimentoPage() {
             {/* HEADER */}
             <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{active.name}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>
                     <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate("/leads")} />
                   </div>
                   {/* Tags inline + picker */}
@@ -2027,7 +2038,7 @@ export default function MultiatendimentoPage() {
                     <input
                       value={negocioName}
                       onChange={e => setNegocioName(e.target.value)}
-                      placeholder={active.name}
+                      placeholder={convName(active)}
                       style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
                     />
                   </div>
@@ -2201,9 +2212,9 @@ export default function MultiatendimentoPage() {
                 onClick={() => navigate("/pipeline")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
+                  <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{active.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
                     <div style={{ fontSize: 11, color: "#AAA" }}>{active.company || "Sem empresa"}</div>
                   </div>
                 </div>
