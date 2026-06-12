@@ -1144,6 +1144,47 @@ export default function MultiatendimentoPage() {
     });
   }
 
+  // Troca o número (instância) da conversa ativa. Como cada par (instância,
+  // telefone) é uma conversa independente, mudar o número abre o thread daquele
+  // lead naquele número — existente ou um novo (vazio) — sem misturar histórico.
+  function switchActiveInstance(targetInstanceId: string) {
+    setInstanceOpen(false);
+    if (!active || !targetInstanceId) return;
+    if ((active.instanceId ?? "") === targetInstanceId) { setSelectedInstance(targetInstanceId); return; }
+
+    // Já existe um thread desse lead nesse número?
+    const existing = convList.find(c =>
+      c.id !== active.id &&
+      phonesMatch(c.phone ?? "", active.phone ?? "") &&
+      (c.instanceId ?? "") === targetInstanceId,
+    );
+    if (existing) {
+      setActiveId(existing.id);
+      setSelectedInstance(targetInstanceId);
+      return;
+    }
+
+    // Cria um novo thread (vazio) vinculado a esse número, copiando os dados do lead.
+    const label = instances.find(i => i.instanceId === targetInstanceId)?.label ?? "novo número";
+    const newId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `conv-${Date.now()}`;
+    const newConv: Conversation = { ...active, id: newId, preview: "", time: "agora", instanceId: targetInstanceId };
+    const newCs: ConvState = { ...DEFAULT_CS, stageIdx: cs?.stageIdx ?? 0 };
+    setConvList(prev => [newConv, ...prev]);
+    setConvStates(prev => ({ ...prev, [newId]: newCs }));
+    setActiveId(newId);
+    setSelectedInstance(targetInstanceId);
+    toast.success(`Conversa com ${active.name} via ${label}`);
+    if (user && tenantId) {
+      supabase.from("whatsapp_conversations").upsert({
+        id: newId, owner_id: tenantId, instance_id: targetInstanceId, name: newConv.name, phone: newConv.phone ?? null,
+        channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
+        email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
+        deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
+        preview: "", stage_idx: newCs.stageIdx, notes: "", read: true, finished: false,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    }
+  }
+
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
@@ -1451,7 +1492,7 @@ export default function MultiatendimentoPage() {
                           <>
                             <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "#AAA", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
                             {instances.map(inst => (
-                              <button key={inst.instanceId} onClick={() => { setSelectedInstance(inst.instanceId); setInstanceOpen(false); }}
+                              <button key={inst.instanceId} onClick={() => switchActiveInstance(inst.instanceId)}
                                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "#E1F5EE" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                                 onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "#F9F9F9"; }}
                                 onMouseLeave={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "transparent"; }}
