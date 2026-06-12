@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1094,12 +1094,14 @@ export default function PipelinePage() {
 
         {/* Confirmação de avanço de etapa */}
         <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle>
+              <AlertDialogTitle className={pendingAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
+                {pendingAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
                 {pendingAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
               </AlertDialogTitle>
-              <AlertDialogDescription>
+              <hr className="border-gray-300" />
+              <AlertDialogDescription className="pl-[10px]">
                 {pendingAdvance?.isSkipping ? (
                   <>
                     O lead <strong className="text-foreground">{pendingAdvance.leadName}</strong> precisa avançar uma etapa por vez.{" "}
@@ -1113,10 +1115,10 @@ export default function PipelinePage() {
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="sm:justify-center">
               <AlertDialogCancel onClick={handleCancelAdvance}>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleConfirmAdvance}>
-                {pendingAdvance?.isSkipping ? `Mover para "${pendingAdvance.nextColTitle}"` : "Confirmar"}
+                <span>{'Mover para "'}<span className="font-semibold">{pendingAdvance?.isSkipping ? pendingAdvance.nextColTitle : pendingAdvance?.toColTitle}</span>{'"'}</span>
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
