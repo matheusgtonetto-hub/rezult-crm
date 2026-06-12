@@ -177,13 +177,17 @@ function previewLabelFor(type: string | undefined, body: string | null | undefin
   return body ?? "";
 }
 
-// Monta uma mensagem recebida (realtime) respeitando o tipo. Antes, toda mensagem
-// recebida era renderizada como texto — áudio/imagem/documento não apareciam.
+// Monta uma mensagem chegada via realtime respeitando o tipo. Antes, toda mensagem
+// era renderizada como texto — áudio/imagem/documento não apareciam. Mensagens
+// from_me (enviadas por automação, outro membro ou outro dispositivo) entram como
+// "agent" com o nome de quem enviou.
 function buildIncomingMsg(
-  m: { id?: string; body?: string; type?: string; media_url?: string },
+  m: { id?: string; body?: string; type?: string; media_url?: string; from_me?: boolean; sender_name?: string },
   timeStr: string,
 ): Msg {
-  const base = { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false };
+  const base = m.from_me
+    ? { id: m.id as string, from: "agent" as const, agent: m.sender_name ?? "Automação", time: timeStr, date: "Hoje", read: true }
+    : { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false };
   if (m.type === "audio")    return { ...base, kind: "audio" as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
   if (m.type === "image")    return { ...base, kind: "image" as const, src: m.media_url ?? "", caption: m.body ?? "" };
   if (m.type === "document") return { ...base, kind: "file"  as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
@@ -220,8 +224,24 @@ function AudioBubble({ duration, src, light }: { duration: string; src?: string;
           ref={audioRef}
           src={src}
           preload="metadata"
-          onLoadedMetadata={e => { const dd = e.currentTarget.duration; if (isFinite(dd)) setDur(dd); }}
-          onTimeUpdate={e => setCur(e.currentTarget.currentTime)}
+          onLoadedMetadata={e => {
+            const a = e.currentTarget;
+            if (isFinite(a.duration)) { setDur(a.duration); return; }
+            // WebM do MediaRecorder não traz a duração no header → o browser
+            // reporta Infinity e o player ficava em 00:00. Truque padrão: seek
+            // para um tempo enorme força o cálculo; durationchange entrega o
+            // valor real e voltamos ao início.
+            const onDur = () => {
+              if (isFinite(a.duration) && a.duration > 0) {
+                setDur(a.duration);
+                a.currentTime = 0;
+                a.removeEventListener("durationchange", onDur);
+              }
+            };
+            a.addEventListener("durationchange", onDur);
+            a.currentTime = 1e10;
+          }}
+          onTimeUpdate={e => { const t = e.currentTarget.currentTime; if (isFinite(t) && t < 1e9) setCur(t); }}
           onEnded={() => { setPlaying(false); setCur(0); }}
           style={{ display: "none" }}
         />
@@ -773,7 +793,11 @@ export default function MultiatendimentoPage() {
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
           const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string; media_url?: string };
-          if (m.from_me) return; // enviadas já são adicionadas otimisticamente
+          // from_me também é processado: mensagens enviadas por AUTOMAÇÕES (ou por
+          // outro membro/dispositivo) chegam só por aqui. Antes eram ignoradas, então
+          // o áudio da automação não aparecia ao vivo e o preview da conversa nunca
+          // atualizava. As enviadas por ESTE cliente são deduplicadas por id (o
+          // insert usa o mesmo UUID da mensagem otimista).
           if (m.owner_id !== tenantId) return; // só mensagens da empresa selecionada
 
           const msgPhone = (m.phone ?? "") as string;
@@ -814,18 +838,20 @@ export default function MultiatendimentoPage() {
               if (!cur) return prev;
               if (cur.messages.some(x => x.id === m.id)) return prev;
               const newMsg: Msg = buildIncomingMsg(m, timeStr);
-              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
+              // Mensagem própria (automação/membro) não marca a conversa como não-lida
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: m.from_me ? cur.read : false } };
             });
             // Atualiza preview e timestamp no banco
             supabase.from("whatsapp_conversations").update({
-              preview: previewLabel, last_msg_at: new Date().toISOString(), read: false,
+              preview: previewLabel, last_msg_at: new Date().toISOString(), ...(m.from_me ? {} : { read: false }),
             }).eq("id", existing.id);
           } else {
             // Cria nova conversa automaticamente para este remetente
             const newId = crypto.randomUUID();
             const newConv: Conversation = {
               id:      newId,
-              name:    m.chat_name ?? m.sender_name ?? msgPhone,
+              // from_me: sender_name é o AGENTE, não serve como nome da conversa
+              name:    m.from_me ? (m.chat_name ?? msgPhone) : (m.chat_name ?? m.sender_name ?? msgPhone),
               preview: previewLabel,
               time:    timeStr,
               channel: "whatsapp" as const,
@@ -1034,13 +1060,15 @@ export default function MultiatendimentoPage() {
         const errBody = await r.json().catch(() => ({}));
         throw new Error((errBody as { error?: string }).error ?? String(r.status));
       }
+      const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = isImage
-        ? { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
-        : { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
+        ? { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
+        : { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
+        id:          msgId,
         owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
@@ -1159,11 +1187,13 @@ export default function MultiatendimentoPage() {
         const errBody = await r.json().catch(() => ({}));
         throw new Error((errBody as { error?: string }).error ?? String(r.status));
       }
-      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
+      const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
+      const newMsg: Msg = { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, "🎤 Mensagem de áudio");
       // Persiste no banco para histórico futuro
       const { error: insErr } = await supabase.from("whatsapp_messages").insert({
+        id:          msgId,
         owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
@@ -1377,8 +1407,11 @@ export default function MultiatendimentoPage() {
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
+    // Mesmo UUID na mensagem otimista e no insert — o listener realtime deduplica
+    // por id (sem isso, a própria mensagem voltaria duplicada via realtime).
+    const msgId = crypto.randomUUID();
     const msg: Msg = {
-      id: `m${Date.now()}`,
+      id: msgId,
       from: "agent",
       agent: user?.email?.split("@")[0] ?? "Você",
       time: nowTime(),
@@ -1419,6 +1452,7 @@ export default function MultiatendimentoPage() {
       // Persiste no banco para histórico futuro
       if (user) {
         await supabase.from("whatsapp_messages").insert({
+          id:          msgId,
           owner_id:    tenantId,
           instance_id: inst.instanceId,
           phone:       cleanPhone,
