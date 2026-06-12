@@ -1368,15 +1368,23 @@ async function executeFlow(
       // enfileira filhos — o nó será retomado e logado quando concluir.
       if (pausedTimer) continue;
 
-      // Status: erro só se nada foi enviado e houve falha; alerta se houve skip/erro parcial
+      // Status: erro só se nada foi enviado e houve falha; alerta se houve skip/erro parcial.
+      // Quando o nó PAUSOU aguardando resposta (Entrada do usuário), registra como
+      // "alert" com nota clara — senão o nó apareceria como concluído ("success")
+      // mesmo estando só à espera, confundindo a leitura do log.
       const noteMsgs = [...errors, ...skipped];
-      const status = (sentCount === 0 && errors.length > 0)
-        ? "error"
-        : (noteMsgs.length > 0 ? "alert" : "success");
+      const status = paused
+        ? "alert"
+        : (sentCount === 0 && errors.length > 0)
+          ? "error"
+          : (noteMsgs.length > 0 ? "alert" : "success");
+      const logNote = paused
+        ? ["Aguardando resposta do contato", ...noteMsgs].join("; ")
+        : (noteMsgs.length > 0 ? noteMsgs.join("; ") : null);
       await supabase.from("automation_logs").insert({
         automation_id: automationId, company_id, lead_id: getLogLeadId(),
         node_id: node.id, status,
-        error_message: noteMsgs.length > 0 ? noteMsgs.join("; ") : null,
+        error_message: logNote,
       });
 
       // Pausado aguardando resposta: NÃO enfileira filhos (serão processados no resume)
