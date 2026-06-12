@@ -4,6 +4,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Casa dois telefones tolerando diferenças de formato (código do país 55,
+// 9º dígito) comparando os últimos 11 dígitos — mesma regra do frontend.
+function phonesMatch(a: string, b: string): boolean {
+  const da = String(a).replace(/\D/g, "");
+  const db = String(b).replace(/\D/g, "");
+  if (!da || !db) return false;
+  return da.slice(-11) === db.slice(-11);
+}
+
 serve(async (req) => {
   // Health check
   if (req.method === "GET") {
@@ -45,14 +54,26 @@ serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // Encontra o dono da instância na tabela companies
-  const { data: company, error: compErr } = await supabase
-    .from("companies")
+  // Encontra o dono da instância. Multi-instância: a fonte da verdade é
+  // whatsapp_connections (uma empresa pode ter vários números). Fallback para
+  // o campo legado companies.zapi_instance_id (instalações antigas).
+  let ownerId: string | null = null;
+  const { data: conn } = await supabase
+    .from("whatsapp_connections")
     .select("owner_id")
-    .eq("zapi_instance_id", instanceId)
+    .eq("instance_id", instanceId)
     .maybeSingle();
+  if (conn) ownerId = (conn as { owner_id: string }).owner_id;
+  if (!ownerId) {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("owner_id")
+      .eq("zapi_instance_id", instanceId)
+      .maybeSingle();
+    if (company) ownerId = (company as { owner_id: string }).owner_id;
+  }
 
-  if (compErr || !company) {
+  if (!ownerId) {
     console.warn("Instance not found:", instanceId);
     return new Response("instance not found", { status: 200 });
   }
@@ -73,7 +94,7 @@ serve(async (req) => {
   const { error } = await supabase
     .from("whatsapp_messages")
     .insert({
-      owner_id:    company.owner_id,
+      owner_id:    ownerId,
       instance_id: instanceId,
       phone:       cleanPhone,
       message_id:  messageId ?? null,
@@ -98,14 +119,15 @@ serve(async (req) => {
   // Se este contato (owner + telefone) tem uma automação aguardando resposta,
   // dispara a retomada no motor com o texto recebido.
   if (!fromMe) {
-    const { data: awaiting } = await supabase
+    // Busca as esperas do dono e casa o telefone tolerando formato (o lead pode
+    // estar salvo sem o 55; o Z-API entrega com o 55). Igualdade exata falharia.
+    const { data: awaitingRows } = await supabase
       .from("automation_awaiting_reply")
-      .select("id")
-      .eq("owner_id", company.owner_id)
-      .eq("phone", cleanPhone)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .select("id, phone")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: true });
+    const awaiting = (awaitingRows as { id: string; phone: string }[] | null ?? [])
+      .find((r) => phonesMatch(r.phone, cleanPhone));
 
     if (awaiting?.id) {
       const { data: cfgRows } = await supabase
