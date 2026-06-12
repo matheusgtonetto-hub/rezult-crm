@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -7110,6 +7111,7 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   const chunksRef = useRef<Blob[]>([]);
   const recTimerRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
+  const recStartRef = useRef(0);
 
   const fmtSecs = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -7136,13 +7138,21 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         stopRecTimer();
         if (cancelledRef.current) { cancelledRef.current = false; chunksRef.current = []; return; }
         const type = mr.mimeType || mime || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type });
+        let blob = new Blob(chunksRef.current, { type });
         if (blob.size === 0) { toast.error("Nada foi gravado. Tente novamente."); return; }
+        // MediaRecorder não grava a duração no header do WebM → players (e o
+        // WhatsApp) mostram 0:00. Injeta a duração real no EBML antes de subir.
+        const durationMs = Date.now() - recStartRef.current;
+        if (type.includes("webm") && durationMs > 0) {
+          try { blob = await fixWebmDuration(blob, durationMs, { logger: false }); }
+          catch (e) { console.warn("[audio] fixWebmDuration falhou:", e); }
+        }
         const ext = type.includes("ogg") ? "ogg" : type.includes("mp4") ? "m4a" : "webm";
         const file = new File([blob], `gravacao-${Date.now()}.${ext}`, { type });
         await uploadFile(file);
       };
       mediaRecorderRef.current = mr;
+      recStartRef.current = Date.now();
       mr.start();
       setRecording(true);
       setRecSecs(0);
