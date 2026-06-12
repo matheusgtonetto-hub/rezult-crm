@@ -26,3 +26,8 @@ site_url = "http://localhost:3000"
 # barradas pelo gateway. Mantenha como false.
 [functions.automation-runner]
 verify_jwt = false
+
+# A Z-API chama este webhook externamente, sem JWT — precisa ficar como false,
+# senão o gateway barra as mensagens recebidas (texto/áudio/imagem/documento).
+[functions.zapi-webhook]
+verify_jwt = false
