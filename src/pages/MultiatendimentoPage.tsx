@@ -276,8 +276,9 @@ export default function MultiatendimentoPage() {
   const [convAvatars, setConvAvatars] = useState<Record<string, string>>({});
   const fetchingAvatars = useRef<Set<string>>(new Set());
 
-  async function fetchAvatar(phone: string) {
-    const inst = instances[0];
+  async function fetchAvatar(phone: string, instanceId?: string) {
+    // Prefere a instância da própria conversa; cai para a primeira conectada.
+    const inst = (instanceId && instances.find(i => i.instanceId === instanceId)) || instances[0];
     if (!inst || !phone) return;
     const p = phone.replace(/\D/g, "");
     if (!p || fetchingAvatars.current.has(p) || convAvatars[p]) return;
@@ -287,16 +288,24 @@ export default function MultiatendimentoPage() {
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
         { headers: { "Client-Token": inst.clientToken } }
       );
-      if (!res.ok) return;
-      const json = await res.json() as { value?: string };
-      if (json.value) setConvAvatars(prev => ({ ...prev, [p]: json.value! }));
-    } catch { /* ignore */ }
+      if (!res.ok) { console.warn("[avatar] Z-API", res.status, await res.text().catch(() => "")); return; }
+      const json = await res.json() as Record<string, unknown>;
+      // A Z-API retorna a URL em "link"; aceitamos variações por segurança.
+      const url = (json.link ?? json.value ?? json.profilePicture ?? json.imgUrl ?? json.url) as string | undefined;
+      if (url) setConvAvatars(prev => ({ ...prev, [p]: url }));
+      else console.warn("[avatar] sem foto para", p, json);
+    } catch (e) {
+      console.warn("[avatar] falha ao buscar foto", e);
+    } finally {
+      // Libera para nova tentativa se ainda não temos a foto (ex.: instância reconectada).
+      if (!convAvatars[p]) fetchingAvatars.current.delete(p);
+    }
   }
 
   // Fetch photos for visible conversations when instances load
   useEffect(() => {
     if (!instances[0] || convList.length === 0) return;
-    convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone); });
+    convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone, c.instanceId); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances.length, convList.length]);
 
