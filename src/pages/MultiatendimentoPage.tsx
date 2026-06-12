@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import fixWebmDuration from "fix-webm-duration";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
@@ -10,7 +11,7 @@ import type { Lead, Pipeline } from "@/data/mockData";
 import {
   Search, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
   MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -86,9 +87,9 @@ type Conversation = {
 
 type Msg =
   | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string; src?: string; date: string; read?: boolean }
   | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
   | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
 
 type Meeting = { date: string; time: string; owner: string; note: string };
@@ -143,29 +144,64 @@ function ChannelBadge({ channel }: { channel: Channel }) {
   );
 }
 
-function Waveform({ light }: { light: boolean }) {
+function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }) {
   const heights = [6, 10, 14, 8, 16, 12, 18, 10, 6, 12, 14, 8, 16, 10, 6];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 2, height: 18 }}>
-      {heights.map((h, i) => <div key={i} style={{ width: 2, height: h, background: light ? "rgba(255,255,255,0.5)" : "#128A68", opacity: light ? 1 : 0.4, borderRadius: 1 }} />)}
+      {heights.map((h, i) => {
+        const played = (i + 1) / heights.length <= progress;
+        return <div key={i} style={{ width: 2, height: h, background: light ? "#FFF" : "#128A68", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 1, transition: "opacity 0.1s" }} />;
+      })}
     </div>
   );
 }
 
-function AudioBubble({ duration, light }: { duration: string; light: boolean }) {
+function AudioBubble({ duration, src, light }: { duration: string; src?: string; light: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [dur, setDur] = useState(0);
   const fg = light ? "#FFF" : "#128A68";
+
+  const fmt = (s: number) =>
+    (isFinite(s) && s > 0)
+      ? `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`
+      : (duration || "00:00");
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) { a.play().then(() => setPlaying(true)).catch(() => {}); }
+    else { a.pause(); setPlaying(false); }
+  };
+
+  const progress = dur > 0 ? Math.min(1, cur / dur) : 0;
+  // Mostra o tempo decorrido enquanto toca; senão a duração total (ou a legada)
+  const label = src ? fmt((playing || cur > 0) ? cur : dur) : (duration || "00:00");
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "#F5F5F5", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
+      {src && (
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+          onLoadedMetadata={e => { const dd = e.currentTarget.duration; if (isFinite(dd)) setDur(dd); }}
+          onTimeUpdate={e => setCur(e.currentTarget.currentTime)}
+          onEnded={() => { setPlaying(false); setCur(0); }}
+          style={{ display: "none" }}
+        />
+      )}
       <button
-        onClick={() => setPlaying(p => !p)}
-        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "#128A68", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+        onClick={toggle}
+        disabled={!src}
+        title={src ? (playing ? "Pausar" : "Reproduzir") : "Áudio indisponível"}
+        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "#128A68", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: src ? "pointer" : "default", flexShrink: 0, opacity: src ? 1 : 0.6 }}
       >
-        <Play size={14} fill="#FFF" />
+        {playing ? <Pause size={14} fill="#FFF" /> : <Play size={14} fill="#FFF" />}
       </button>
-      <Waveform light={light} />
-      <span style={{ fontSize: 11, color: fg, fontWeight: 500 }}>{duration}</span>
-      <button style={{ background: "transparent", border: "none", color: fg, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>1x</button>
+      <Waveform light={light} progress={progress} />
+      <span style={{ fontSize: 11, color: fg, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{label}</span>
     </div>
   );
 }
@@ -237,7 +273,7 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
   );
 }
 
-function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties }) {
+function ConvAvatar({ name, avatarUrl, size, fontSize, style, onError }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties; onError?: () => void }) {
   const [err, setErr] = useState(false);
   useEffect(() => { setErr(false); }, [avatarUrl]);
   if (avatarUrl && !err) {
@@ -245,7 +281,9 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; 
       <img
         src={avatarUrl}
         alt={name}
-        onError={() => setErr(true)}
+        // URLs de foto do WhatsApp expiram (param oe=). Ao falhar, avisa o pai para
+        // buscar uma URL nova e mostra as iniciais nesse meio-tempo.
+        onError={() => { setErr(true); onError?.(); }}
         style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0, ...style }}
       />
     );
@@ -291,12 +329,14 @@ export default function MultiatendimentoPage() {
   const [convAvatars, setConvAvatars] = useState<Record<string, string>>({});
   const fetchingAvatars = useRef<Set<string>>(new Set());
 
-  async function fetchAvatar(phone: string, instanceId?: string) {
+  const avatarRetried = useRef<Set<string>>(new Set());
+
+  async function fetchAvatar(phone: string, instanceId?: string, force = false) {
     // Prefere a instância da própria conversa; cai para a primeira conectada.
     const inst = (instanceId && instances.find(i => i.instanceId === instanceId)) || instances[0];
     if (!inst || !phone) return;
     const p = phone.replace(/\D/g, "");
-    if (!p || fetchingAvatars.current.has(p) || convAvatars[p]) return;
+    if (!p || fetchingAvatars.current.has(p) || (!force && convAvatars[p])) return;
     fetchingAvatars.current.add(p);
     try {
       const res = await fetch(
@@ -323,6 +363,17 @@ export default function MultiatendimentoPage() {
     convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone, c.instanceId); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances.length, convList.length]);
+
+  // A URL da foto do WhatsApp falhou (geralmente expirou): busca uma URL nova,
+  // uma única vez por contato, para não entrar em laço se o contato não tiver foto.
+  const refetchAvatar = (phone?: string, instanceId?: string) => {
+    const p = (phone ?? "").replace(/\D/g, "");
+    if (!p || avatarRetried.current.has(p)) return;
+    avatarRetried.current.add(p);
+    setConvAvatars(prev => { const n = { ...prev }; delete n[p]; return n; });
+    fetchingAvatars.current.delete(p);
+    fetchAvatar(phone ?? "", instanceId, true);
+  };
 
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -471,6 +522,24 @@ export default function MultiatendimentoPage() {
     const nm = (lead?.name ?? c.name ?? "").trim();
     if (nm && nm !== ".") return nm;
     return c.phone ?? c.name ?? "Sem nome";
+  };
+
+  // Texto da pré-visualização na lista: usa a última mensagem carregada (rotulando
+  // mídia) e cai para o preview salvo; nomes de arquivo de áudio viram rótulo.
+  const previewText = (c: Conversation): string => {
+    const msgs = convStates[c.id]?.messages;
+    const last = msgs && msgs.length ? msgs[msgs.length - 1] : null;
+    if (last) {
+      if (last.kind === "audio") return "🎤 Mensagem de áudio";
+      if (last.kind === "image") return "🖼️ Imagem";
+      if (last.kind === "file")  return `📎 ${last.filename ?? "Arquivo"}`;
+      if (last.kind === "system" || last.kind === "text") return last.text;
+    }
+    const p = (c.preview ?? "").trim();
+    if (/\.(webm|ogg|mp3|m4a|opus)$/i.test(p)) return "🎤 Mensagem de áudio";
+    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(p)) return "🖼️ Imagem";
+    if (/\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(p)) return `📎 ${p}`;
+    return p;
   };
 
   // Etapas reais do pipeline vinculado ao lead ativo.
@@ -638,9 +707,9 @@ export default function MultiatendimentoPage() {
             read:  true as const,
           };
           if (m.type === "system")   return { id: m.id, from: "system" as const, time: base.time, kind: "system" as const, text: m.body ?? "", date: base.date };
-          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: m.body ?? "00:00" };
-          if (m.type === "image")    return { ...base, kind: "image"  as const, src: "", caption: m.body ?? "" };
-          if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo" };
+          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: /^\d{1,2}:\d{2}$/.test(m.body ?? "") ? m.body! : "", src: m.media_url ?? undefined };
+          if (m.type === "image")    return { ...base, kind: "image"  as const, src: m.media_url ?? "", caption: m.body ?? "" };
+          if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
           return { ...base, kind: "text" as const, text: m.body ?? "" };
         });
         updateCs(activeId, { messages: msgs });
@@ -1015,12 +1084,28 @@ export default function MultiatendimentoPage() {
     const duration = `${String(Math.floor(durationSecs / 60)).padStart(2, "0")}:${String(durationSecs % 60).padStart(2, "0")}`;
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
+      // MediaRecorder gera WebM sem a duração no header → WhatsApp mostra 0:00.
+      // Injeta a duração real antes de enviar/armazenar.
+      let outBlob = blob;
+      if ((blob.type || "").includes("webm") && durationSecs > 0) {
+        try { outBlob = await fixWebmDuration(blob, durationSecs * 1000, { logger: false }); }
+        catch (e) { console.warn("[audio] fixWebmDuration:", e); }
+      }
+      // Sobe o áudio para o storage → URL pública (reprodução no chat e histórico)
+      let mediaUrl: string | null = null;
+      try {
+        const ext = (outBlob.type || "").includes("ogg") ? "ogg" : "webm";
+        const path = `${user.id}/audio-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, outBlob, { upsert: true, contentType: outBlob.type || "audio/webm" });
+        if (!upErr) mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
+      } catch (e) { console.warn("[audio] upload storage:", e); }
+
       // Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,)
       const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
         reader.onload = () => res(reader.result as string);
         reader.onerror = rej;
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(outBlob);
       });
       const base64 = dataUri.split(",")[1]; // strip data URI prefix
       const r = await fetch(
@@ -1031,7 +1116,7 @@ export default function MultiatendimentoPage() {
         const errBody = await r.json().catch(() => ({}));
         throw new Error((errBody as { error?: string }).error ?? String(r.status));
       }
-      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, date: "Hoje", read: false };
+      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
@@ -1041,6 +1126,7 @@ export default function MultiatendimentoPage() {
         from_me:     true,
         body:        duration,
         type:        "audio",
+        media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: user.email?.split("@")[0] ?? "Você",
       });
@@ -1475,7 +1561,7 @@ export default function MultiatendimentoPage() {
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ position: "relative", flexShrink: 0 }}>
-                  <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} />
+                  <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} onError={() => refetchAvatar(c.phone, c.instanceId)} />
                   <ChannelBadge channel={c.channel} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1486,7 +1572,7 @@ export default function MultiatendimentoPage() {
                       {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}
                     </div>
                   </div>
-                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.preview}</p>
+                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {c.tags.slice(0, 2).map((t, i) => {
                       const s = tagStyle(t);
@@ -1509,7 +1595,7 @@ export default function MultiatendimentoPage() {
             {/* header */}
             <div style={{ minHeight: 52, background: "#FFF", borderBottom: "1px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
@@ -1649,7 +1735,7 @@ export default function MultiatendimentoPage() {
                           </div>
                           <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                             {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
-                            {m.kind === "audio" && <AudioBubble duration={m.duration} light={isAgent} />}
+                            {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={isAgent} />}
                             {m.kind === "image" && (
                               <div style={{ overflow: "hidden", borderRadius: 12 }}>
                                 {m.src ? (
@@ -1811,7 +1897,7 @@ export default function MultiatendimentoPage() {
             {/* HEADER */}
             <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>

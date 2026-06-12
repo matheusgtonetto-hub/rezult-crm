@@ -1326,6 +1326,7 @@ async function executeFlow(
             await supabase.from("whatsapp_messages").insert({
               owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
               phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
+              media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
             });
             sentCount++;
 
