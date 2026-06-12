@@ -66,7 +66,11 @@ BEGIN
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
       'Authorization', 'Bearer ' || v_secret
-    )
+    ),
+    -- 15s: o default de 5s perdia ~40% dos disparos quando o handshake SSL
+    -- até o gateway demorava ~10s (visto em net._http_response.error_msg).
+    -- O gatilho não esperava a resposta de qualquer forma (pg_net é async).
+    timeout_milliseconds := 15000
   );
 EXCEPTION WHEN OTHERS THEN
   -- Nunca bloqueia a transação principal
