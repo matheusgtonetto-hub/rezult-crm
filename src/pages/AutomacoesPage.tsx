@@ -11,7 +11,7 @@ import {
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
-  Braces, FileDown, Brackets, RefreshCw, Loader2,
+  Braces, FileDown, Brackets, RefreshCw, Loader2, Square,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -7103,6 +7103,77 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
     }
   };
 
+  // ── Gravação de áudio no navegador (MediaRecorder) ───────────────────────
+  const [recording, setRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recTimerRef = useRef<number | null>(null);
+  const cancelledRef = useRef(false);
+
+  const fmtSecs = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  const stopRecTimer = () => {
+    if (recTimerRef.current) { window.clearInterval(recTimerRef.current); recTimerRef.current = null; }
+  };
+
+  const startRecording = async () => {
+    if (!user || recording) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Seu navegador não suporta gravação de áudio.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const prefs = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"];
+      const mime = prefs.find(t => MediaRecorder.isTypeSupported(t)) || "";
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      cancelledRef.current = false;
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        stopRecTimer();
+        if (cancelledRef.current) { cancelledRef.current = false; chunksRef.current = []; return; }
+        const type = mr.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        if (blob.size === 0) { toast.error("Nada foi gravado. Tente novamente."); return; }
+        const ext = type.includes("ogg") ? "ogg" : type.includes("mp4") ? "m4a" : "webm";
+        const file = new File([blob], `gravacao-${Date.now()}.${ext}`, { type });
+        await uploadFile(file);
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+      setRecSecs(0);
+      recTimerRef.current = window.setInterval(() => setRecSecs(s => s + 1), 1000);
+    } catch (e) {
+      console.error("[audio] getUserMedia:", e);
+      toast.error("Não foi possível acessar o microfone. Verifique a permissão do navegador.");
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") mr.stop();
+    setRecording(false);
+  };
+
+  const cancelRecording = () => {
+    cancelledRef.current = true;
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") mr.stop();
+    setRecording(false);
+    setRecSecs(0);
+  };
+
+  // Cleanup ao desmontar: para timer e libera o microfone
+  useEffect(() => () => {
+    stopRecTimer();
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") { cancelledRef.current = true; mr.stop(); }
+  }, []);
+
   const addButton = () => updateSubBlock(b.id, { buttons: [...(b.buttons ?? []), { id: `bt${Date.now()}`, label: "" }] });
   const updateButton = (id: string, label: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).map(x => x.id === id ? { ...x, label } : x) });
   const removeButton = (id: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).filter(x => x.id !== id) });
@@ -7232,14 +7303,36 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
                   <Trash2 size={11} /> Remover áudio
                 </button>
               </div>
+            ) : recording ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8 }}>
+                <span className="animate-pulse" style={{ width: 10, height: 10, borderRadius: "50%", background: "#EF4444", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#B91C1C", fontVariantNumeric: "tabular-nums" }}>Gravando… {fmtSecs(recSecs)}</span>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button onClick={cancelRecording}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "0.5px solid #E5E5E5", borderRadius: 7, background: "#FFF", color: "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    <X size={11} /> Cancelar
+                  </button>
+                  <button onClick={stopRecording}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "none", borderRadius: 7, background: "#EF4444", color: "#FFF", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    <Square size={10} fill="#FFF" /> Parar
+                  </button>
+                </div>
+              </div>
             ) : (
-              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
-                {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Mic size={20} color="#D1D5DB" />}
-                {uploading ? "Enviando..." : "Selecionar áudio"}
-                <span style={{ fontSize: 10, color: "#9CA3AF" }}>MP3, OGG, M4A · máx 16MB</span>
-                <input type="file" accept="audio/*" style={{ display: "none" }} disabled={uploading}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
-              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={startRecording} disabled={uploading}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 0", border: "none", borderRadius: 8, background: uploading ? "#F3F4F6" : "#EF4444", color: uploading ? "#9CA3AF" : "#FFF", fontSize: 12, fontWeight: 600, cursor: uploading ? "default" : "pointer" }}>
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <Mic size={15} />}
+                  {uploading ? "Enviando…" : "Gravar agora"}
+                </button>
+                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
+                  {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+                  {uploading ? "Enviando..." : "Selecionar arquivo"}
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>MP3, OGG, M4A · máx 16MB</span>
+                  <input type="file" accept="audio/*" style={{ display: "none" }} disabled={uploading}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
+                </label>
+              </div>
             )}
           </div>
         )}
