@@ -515,41 +515,54 @@ export default function MultiatendimentoPage() {
       .then(async ({ data, error }) => {
         if (error) console.error("Erro ao carregar conversas:", error);
 
-        if (data && data.length > 0) {
-          // Fix race condition: MERGE com estado existente (não sobrescrever conversas do Pipeline)
+        const existingRows = (data ?? []) as DbConvRow[];
+
+        // Mescla as conversas já persistidas no estado (sem sobrescrever as do Pipeline)
+        if (existingRows.length > 0) {
           setConvList(prev => {
-            const dbIds = new Set(data.map(r => r.id));
+            const dbIds = new Set(existingRows.map(r => r.id));
             const extra = prev.filter(c => !dbIds.has(c.id)); // conversas só em memória
-            return [...data.map(mapRow), ...extra];
+            return [...existingRows.map(mapRow), ...extra];
           });
           setConvStates(prev => {
             const next: Record<string, ConvState> = { ...prev };
-            data.forEach(r => {
+            existingRows.forEach(r => {
               if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
             });
             return next;
           });
-          return;
         }
 
-        // Backfill: tabela vazia → cria conversas a partir de mensagens existentes
+        // Reconciliação: cria conversas para números que já mandaram mensagem mas
+        // ainda não têm conversa (ex.: mensagens recebidas com a página fechada —
+        // o realtime só cria chat se a página estiver aberta no momento). Roda
+        // SEMPRE, não só quando a tabela está vazia.
         const { data: msgs } = await supabase
           .from("whatsapp_messages")
-          .select("phone, instance_id, chat_name, sender_name, body, momment, created_at")
+          .select("phone, instance_id, type, chat_name, sender_name, body, momment, created_at")
           .eq("owner_id", tenantId)
           .eq("from_me", false)
           .order("created_at", { ascending: false });
 
         if (!msgs?.length) return;
 
-        // Agrupa por (instância, telefone): cada número é uma conversa separada,
-        // pega a mensagem mais recente de cada par.
-        type WaMsgRow = { phone: string; instance_id?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
+        // Conversas que já existem, por chave (instância, telefone normalizado)
+        const haveKeys = new Set(
+          existingRows.map(r => `${r.instance_id ?? ""}|${normalizeBrPhone(r.phone ?? "")}`),
+        );
+
+        // Agrupa por (instância, telefone normalizado): cada número é uma conversa
+        // separada; pega a mensagem mais recente de cada par ainda sem conversa.
+        type WaMsgRow = { phone: string; instance_id?: string; type?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
         const convMap = new Map<string, WaMsgRow>();
         for (const m of msgs) {
+          if (m.type === "system") continue; // mensagem de sistema não cria conversa
           const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
-          if (!convMap.has(key)) convMap.set(key, m as WaMsgRow);
+          if (haveKeys.has(key) || convMap.has(key)) continue;
+          convMap.set(key, m as WaMsgRow);
         }
+
+        if (convMap.size === 0) return;
 
         const newConvs: Conversation[] = [];
         const newStates: Record<string, ConvState> = {};
@@ -565,13 +578,11 @@ export default function MultiatendimentoPage() {
           dbRows.push({ id, owner_id: tenantId, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
         }
 
-        if (newConvs.length) {
-          setConvList(newConvs);
-          setConvStates(newStates);
-          supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
-            if (e) console.error("Backfill erro:", e);
-          });
-        }
+        setConvList(prev => [...newConvs, ...prev]);
+        setConvStates(prev => ({ ...newStates, ...prev }));
+        supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
+          if (e) console.error("Reconciliação de conversas — erro:", e);
+        });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
