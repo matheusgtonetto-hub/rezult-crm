@@ -1,0 +1,113 @@
+<style>
+  .audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  .audit-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 20px; }
+  .audit-card.critical { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.05); }
+  .audit-card.medium { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.04); }
+  .audit-card.low { border-color: rgba(0,229,153,0.3); background: rgba(0,229,153,0.04); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-bottom: 10px; }
+  .badge.critical { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .badge.medium { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+  .badge.low { background: rgba(0,229,153,0.1); color: #00e599; border: 1px solid rgba(0,229,153,0.25); }
+  .audit-card h3 { font-size: 14px; font-weight: 600; color: #fff; margin: 0 0 10px; }
+  .audit-list { list-style: none; margin: 0; padding: 0; }
+  .audit-list li { font-size: 12.5px; color: rgba(255,255,255,0.65); padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; gap: 8px; }
+  .audit-list li:last-child { border-bottom: none; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .dot.r { background: #f87171; }
+  .dot.y { background: #fbbf24; }
+  .dot.g { background: #00e599; }
+  .score-bar { display: flex; gap: 10px; margin: 24px 0 8px; align-items: center; }
+  .score-item { flex: 1; text-align: center; }
+  .score-num { font-size: 28px; font-weight: 700; }
+  .score-num.r { color: #f87171; }
+  .score-num.y { color: #fbbf24; }
+  .score-num.g { color: #00e599; }
+  .score-label { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; }
+  .score-div { width: 1px; background: rgba(255,255,255,0.08); }
+  .section-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: .08em; margin: 28px 0 12px; }
+</style>
+
+<h2>Auditoria completa — Rezult Site</h2>
+<p class="subtitle">10 dobras analisadas · 3 arquivos · copy, UX, conversão, técnico</p>
+
+<div class="score-bar">
+  <div class="score-item"><div class="score-num r">4</div><div class="score-label">Crítico</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><div class="score-num y">7</div><div class="score-label">Médio</div></div>
+  <div class="score-div"></div>
+  <div class="score-item"><div class="score-num g">8</div><div class="score-label">Melhoria</div></div>
+</div>
+
+<div class="audit-grid">
+
+  <div class="audit-card critical">
+    <span class="badge critical">Crítico</span>
+    <h3>Conteúdo faltando / quebrado</h3>
+    <ul class="audit-list">
+      <li><span class="dot r"></span><span>Hero mockup vazio — <code>#mockupSlotA</code> sem conteúdo visual</span></li>
+      <li><span class="dot r"></span><span>6 feature visuals vazios — <code>#featAutomation</code>, <code>#featWhatsapp</code> etc. sem imagem</span></li>
+      <li><span class="dot r"></span><span>Footer link <code>#produto</code> aponta para seção removida (DOBRA 03)</span></li>
+      <li><span class="dot r"></span><span>Links mortos: Blog, Central de ajuda, Contato, Status, redes sociais → <code>#</code></span></li>
+    </ul>
+  </div>
+
+  <div class="audit-card critical">
+    <span class="badge critical">Crítico</span>
+    <h3>Conversão</h3>
+    <ul class="audit-list">
+      <li><span class="dot r"></span><span>CTA hero principal vai pra <code>#demo</code> (na mesma página) — ok, mas sem captura de email</span></li>
+      <li><span class="dot r"></span><span>CTA "Agendar demo grátis" na DOBRA 09 vai para <code>app.rezultcrm.com</code>, não para agendamento real</span></li>
+      <li><span class="dot r"></span><span>Nenhuma seção de preços inline — usuário sai da página para planos.html</span></li>
+      <li><span class="dot r"></span><span>Nav CTA "Consultar planos" é passivo — poderia ser "Começar grátis" ou "Agendar demo"</span></li>
+    </ul>
+  </div>
+
+  <div class="audit-card medium">
+    <span class="badge medium">Copy & Messaging</span>
+    <h3>Oportunidades de copy</h3>
+    <ul class="audit-list">
+      <li><span class="dot y"></span><span>Hero sub repete "resultados" da headline — falta diferenciação real</span></li>
+      <li><span class="dot y"></span><span>Hero badge "Consultoria comercial gratuita" deslocado do contexto do headline</span></li>
+      <li><span class="dot y"></span><span>Hero note poderia ser mais específica: "Seus leads entram hoje, seu time vende amanhã"</span></li>
+      <li><span class="dot y"></span><span>Lede DOBRA 01 termina com "tudo em um só lugar" — repete conceito do h2 acima</span></li>
+      <li><span class="dot y"></span><span>FAQ: falta pergunta sobre preço/planos (a mais comum)</span></li>
+    </ul>
+  </div>
+
+  <div class="audit-card medium">
+    <span class="badge medium">SEO & Meta</span>
+    <h3>Presença digital</h3>
+    <ul class="audit-list">
+      <li><span class="dot y"></span><span>Sem <code>og:image</code>, <code>og:title</code>, <code>og:description</code> — compartilhamento social sem preview</span></li>
+      <li><span class="dot y"></span><span>Sem favicon — tab do browser fica em branco</span></li>
+      <li><span class="dot y"></span><span>Sem <code>twitter:card</code></span></li>
+      <li><span class="dot y"></span><span>Sem <code>canonical</code> URL</span></li>
+      <li><span class="dot y"></span><span>Geist Mono carregando sem uso visível no conteúdo</span></li>
+    </ul>
+  </div>
+
+  <div class="audit-card low">
+    <span class="badge low">Melhorias UX</span>
+    <h3>Experiência do usuário</h3>
+    <ul class="audit-list">
+      <li><span class="dot g"></span><span>Testimonials sem foto — só iniciais; pode reduzir credibilidade percebida</span></li>
+      <li><span class="dot g"></span><span>Seção Benefícios (carousel) tem apenas 5 cards — conteúdo raso, poderia ampliar</span></li>
+      <li><span class="dot g"></span><span>Tabela de comparação sem linha de preço — oportunidade de ancoragem</span></li>
+      <li><span class="dot g"></span><span>Scroll indicator / seta na hero poderia guiar ao próximo bloco</span></li>
+    </ul>
+  </div>
+
+  <div class="audit-card low">
+    <span class="badge low">Visual & Atmosfera</span>
+    <h3>Já implementados ✓ + gaps</h3>
+    <ul class="audit-list">
+      <li><span class="dot g"></span><span>✓ Grain overlay, parallax, section tints, mesh blobs — ok</span></li>
+      <li><span class="dot g"></span><span>Feature rows: col direita vazia sem mockup real cria desequilíbrio visual</span></li>
+      <li><span class="dot g"></span><span>Cards de segmento (SaaS, Infoprodutores…) sem imagem/visual de fundo</span></li>
+      <li><span class="dot g"></span><span>Hero mockup slot vazio é o maior gap visual da página</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top: 28px; font-size: 13px;">Por onde quer começar? Responda no terminal qual área priorizar.</p>

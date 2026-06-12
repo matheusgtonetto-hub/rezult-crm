@@ -81,6 +81,8 @@ import {
   Link,
   Download,
   ImageIcon,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -2612,12 +2614,14 @@ export default function LeadDetailPage() {
     </div>
 
     <AlertDialog open={!!pendingStageAdvance} onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>
+          <AlertDialogTitle className={pendingStageAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
+            {pendingStageAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
             {pendingStageAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
           </AlertDialogTitle>
-          <AlertDialogDescription>
+          <hr className="border-gray-300" />
+          <AlertDialogDescription className="pl-[10px]">
             {pendingStageAdvance?.isSkipping ? (
               <>
                 O lead precisa avançar uma etapa por vez.{" "}
@@ -2631,10 +2635,10 @@ export default function LeadDetailPage() {
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sm:justify-center">
           <AlertDialogCancel onClick={() => setPendingStageAdvance(null)}>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={handleConfirmStageAdvance}>
-            {pendingStageAdvance?.isSkipping ? `Mover para "${pendingStageAdvance.nextTitle}"` : "Confirmar"}
+            <span>{'Mover para "'}<span className="font-semibold">{pendingStageAdvance?.isSkipping ? pendingStageAdvance.nextTitle : pendingStageAdvance?.toTitle}</span>{'"'}</span>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,0 +1,285 @@
+<style>
+  .phone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; }
+  .phone-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .phone-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .phone-label.r { color: #f87171; }
+  .phone-label.y { color: #fbbf24; }
+  .phone-label.g { color: #00e599; }
+  .phone {
+    width: 100%; border-radius: 20px; overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: #05080A;
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: 12px;
+    color: #F4F6F4;
+  }
+  .phone.bad { border-color: rgba(239,68,68,0.5); }
+  .phone.warn { border-color: rgba(251,191,36,0.5); }
+  .phone.ok { border-color: rgba(0,229,153,0.4); }
+  .phone-screen { padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+
+  /* phone nav */
+  .ph-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(5,8,10,0.9); border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .ph-logo { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+  .ph-logo-mark { width: 22px; height: 22px; border-radius: 7px; background: #00E599; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #04140D; }
+  .ph-burger { width: 28px; height: 28px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; }
+  .ph-burger span { display: block; width: 12px; height: 1.5px; background: rgba(255,255,255,0.7); border-radius: 2px; box-shadow: 0 4px 0 rgba(255,255,255,0.7), 0 -4px 0 rgba(255,255,255,0.7); }
+
+  /* hero mockup */
+  .ph-hero { padding: 20px 12px 14px; text-align: center; position: relative; }
+  .ph-hero-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 5px; border-radius: 100px; background: #131A1E; border: 1px solid rgba(0,229,153,0.25); font-size: 9px; color: rgba(244,246,244,0.6); margin-bottom: 10px; }
+  .ph-hero-tag { background: #00E599; color: #04140D; font-size: 7px; font-weight: 700; padding: 2px 6px; border-radius: 100px; letter-spacing: .02em; }
+  .ph-hero h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; margin-bottom: 8px; }
+  .ph-hero p { font-size: 10.5px; color: rgba(244,246,244,0.62); line-height: 1.5; margin-bottom: 10px; }
+  .ph-hero-btns { display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; }
+  .ph-hero-btns.stacked { flex-direction: column; }
+  .ph-btn-p { background: #00E599; color: #04140D; font-size: 9px; font-weight: 700; padding: 7px 12px; border-radius: 999px; white-space: nowrap; }
+  .ph-btn-s { background: #131A1E; color: #F4F6F4; font-size: 9px; padding: 7px 10px; border-radius: 999px; border: 1px solid #00e599; white-space: nowrap; }
+  .ph-btn-p.full { width: 100%; text-align: center; }
+  .ph-btn-s.full { width: 100%; text-align: center; }
+  .ph-spacer { height: 80px; background: rgba(0,229,153,0.05); border-radius: 10px; border: 1px dashed rgba(0,229,153,0.2); display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgba(0,229,153,0.4); }
+
+  /* metrics */
+  .ph-metrics-2col { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .ph-metrics-1col { display: grid; grid-template-columns: 1fr; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .ph-metric { padding: 14px 12px; border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .ph-metric:nth-child(even) { border-right: none; }
+  .ph-metric .v { font-size: 22px; font-weight: 700; color: #00E599; letter-spacing: -0.04em; }
+  .ph-metric .l { font-size: 8.5px; color: rgba(244,246,244,0.5); margin-top: 3px; line-height: 1.3; }
+
+  /* table */
+  .ph-table-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+  .ph-table-wrap.overflow { overflow: hidden; }
+  .ph-table-wrap.scrollable { overflow-x: auto; }
+  .ph-table { width: 100%; border-collapse: collapse; min-width: 340px; font-size: 8.5px; }
+  .ph-table th { background: #131A1E; padding: 8px 6px; font-size: 7.5px; color: rgba(244,246,244,0.5); text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .ph-table th.us { color: #00E599; }
+  .ph-table td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .ph-chk { color: #00E599; font-weight: 700; font-size: 10px; }
+  .ph-no { color: rgba(244,246,244,0.3); font-size: 10px; }
+  .ph-overflow-indicator { font-size: 8px; color: #f87171; text-align: center; padding: 4px; }
+  .ph-scroll-indicator { font-size: 8px; color: #00e599; text-align: center; padding: 4px; }
+
+  /* feature row */
+  .ph-feature { padding: 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+  .ph-feature-icon { width: 28px; height: 28px; border-radius: 7px; background: #131A1E; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: #00E599; margin-bottom: 6px; font-size: 11px; }
+  .ph-feature h4 { font-size: 13px; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .ph-feature p { font-size: 8.5px; color: rgba(244,246,244,0.55); line-height: 1.5; }
+  .ph-feature-visual-empty { height: 70px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; margin-top: 8px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgba(255,255,255,0.2); }
+  .ph-feature-visual-hidden { display: none; }
+
+  /* section padding */
+  .ph-section-label { font-size: 8px; font-family: monospace; letter-spacing: .06em; text-transform: uppercase; color: rgba(244,246,244,0.35); border-left: 2px solid #f87171; padding-left: 6px; margin: 4px 0; }
+  .ph-section-label.ok { border-color: #00e599; color: rgba(0,229,153,0.7); }
+  .ph-padding-vis { height: 6px; background: rgba(239,68,68,0.25); border-radius: 3px; margin: 2px 0; position: relative; overflow: hidden; }
+  .ph-padding-vis::after { content: "90px"; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 6px; color: #f87171; }
+  .ph-padding-vis.ok { background: rgba(0,229,153,0.2); }
+  .ph-padding-vis.ok::after { content: "40px"; color: #00e599; }
+
+  .issue-note { font-size: 11px; color: rgba(255,255,255,0.55); line-height: 1.5; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid; margin-top: 8px; }
+  .issue-note.r { border-color: #f87171; }
+  .issue-note.y { border-color: #fbbf24; }
+  .issue-note.g { border-color: #00e599; }
+  .section-divider { margin: 28px 0 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .section-divider h3 { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .section-divider p { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+  .vs-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,0.25); text-align: center; padding: 4px 0; }
+</style>
+
+<h2>Análise mobile — Rezult Site</h2>
+<p class="subtitle">Simulação de 375px · 4 problemas críticos encontrados</p>
+
+<!-- ISSUE 1: Compare table -->
+<div class="section-divider">
+  <h3>1 · Tabela de comparação — overflow sem scroll</h3>
+  <p>A tabela tem 4 colunas mas o wrapper usa <code>overflow: hidden</code>. No mobile, as colunas são cortadas sem possibilidade de deslizar.</p>
+</div>
+<div class="phone-grid" style="grid-template-columns: 1fr 1fr 1fr; align-items: start;">
+  <div class="phone-wrap">
+    <div class="phone-label r">Atual — cortado</div>
+    <div class="phone bad">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="phone-screen">
+        <div style="font-size:9px; color:rgba(0,229,153,0.8); letter-spacing:.1em; text-transform:uppercase; font-family:monospace;">Comparação</div>
+        <div style="font-size:16px; font-weight:600; letter-spacing:-.03em; line-height:1.1; margin-bottom:8px;">Por que trocar o que<br>você usa hoje.</div>
+        <div class="ph-table-wrap overflow">
+          <table class="ph-table">
+            <thead><tr>
+              <th>Recurso</th>
+              <th class="us">Rezult</th>
+              <th>CRM genérico</th>
+              <th>Planilha</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>Agentes de IA no WhatsApp</td><td class="ph-chk">✓</td><td class="ph-no">✗</td><td class="ph-no">✗</td></tr>
+              <tr><td>Multiatendimento WhatsApp</td><td class="ph-chk">✓</td><td class="ph-no">parcial</td><td class="ph-no">✗</td></tr>
+              <tr><td>Automações visuais</td><td class="ph-chk">✓</td><td class="ph-chk">✓</td><td class="ph-no">✗</td></tr>
+            </tbody>
+          </table>
+          <div class="ph-overflow-indicator">⚠ conteúdo cortado — sem scroll horizontal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="phone-wrap" style="justify-content:center; align-self:center;">
+    <div class="vs-label">↓ fix</div>
+  </div>
+  <div class="phone-wrap">
+    <div class="phone-label g">Corrigido — scrollável</div>
+    <div class="phone ok">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="phone-screen">
+        <div style="font-size:9px; color:rgba(0,229,153,0.8); letter-spacing:.1em; text-transform:uppercase; font-family:monospace;">Comparação</div>
+        <div style="font-size:16px; font-weight:600; letter-spacing:-.03em; line-height:1.1; margin-bottom:8px;">Por que trocar o que<br>você usa hoje.</div>
+        <div class="ph-table-wrap scrollable">
+          <table class="ph-table">
+            <thead><tr>
+              <th>Recurso</th>
+              <th class="us">Rezult</th>
+              <th>CRM genérico</th>
+              <th>Planilha</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>Agentes de IA no WhatsApp</td><td class="ph-chk">✓</td><td class="ph-no">✗</td><td class="ph-no">✗</td></tr>
+              <tr><td>Multiatendimento WhatsApp</td><td class="ph-chk">✓</td><td class="ph-no">parcial</td><td class="ph-no">✗</td></tr>
+              <tr><td>Automações visuais</td><td class="ph-chk">✓</td><td class="ph-chk">✓</td><td class="ph-no">✗</td></tr>
+            </tbody>
+          </table>
+          <div class="ph-scroll-indicator">← deslize para ver mais →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ISSUE 2: Hero buttons stacking -->
+<div class="section-divider">
+  <h3>2 · Botões da hero — sem stacking no mobile</h3>
+  <p><code>flex-wrap: wrap</code> faz os botões quebrarem lado a lado. Sem <code>flex-direction: column</code>, os dois botões ficam em larguras inconsistentes em telas menores.</p>
+</div>
+<div class="phone-grid" style="grid-template-columns: 1fr 1fr 1fr; align-items: start;">
+  <div class="phone-wrap">
+    <div class="phone-label y">Atual — wrap inconsistente</div>
+    <div class="phone warn">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="ph-hero">
+        <div class="ph-hero-badge"><span class="ph-hero-tag">NOVO</span>Consultoria comercial gratuita</div>
+        <h1>Escale seus<br>resultados com o <span style="color:#00E599;">Rezult CRM.</span></h1>
+        <p>O CRM com WhatsApp, automações inteligentes e fluxos avançados que irão escalar seus resultados.</p>
+        <div class="ph-hero-btns">
+          <div class="ph-btn-p">Agendar demo grátis</div>
+          <div class="ph-btn-s">Ver planos</div>
+        </div>
+        <div style="font-size:8.5px; color:rgba(244,246,244,0.38); margin-top:8px; display:flex; gap:4px; justify-content:center; align-items:center;">
+          <span style="color:#00E599;">✓</span> Seu time começa a vender no mesmo dia.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="phone-wrap" style="justify-content:center; align-self:center;">
+    <div class="vs-label">↓ fix</div>
+  </div>
+  <div class="phone-wrap">
+    <div class="phone-label g">Corrigido — full width stacked</div>
+    <div class="phone ok">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="ph-hero">
+        <div class="ph-hero-badge"><span class="ph-hero-tag">NOVO</span>Consultoria comercial gratuita</div>
+        <h1>Escale seus<br>resultados com o <span style="color:#00E599;">Rezult CRM.</span></h1>
+        <p>O CRM com WhatsApp, automações inteligentes e fluxos avançados que irão escalar seus resultados.</p>
+        <div class="ph-hero-btns stacked">
+          <div class="ph-btn-p full">Agendar demo grátis</div>
+          <div class="ph-btn-s full">Ver planos</div>
+        </div>
+        <div style="font-size:8.5px; color:rgba(244,246,244,0.38); margin-top:8px; display:flex; gap:4px; justify-content:center; align-items:center;">
+          <span style="color:#00E599;">✓</span> Seu time começa a vender no mesmo dia.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ISSUE 3: Feature visuals -->
+<div class="section-divider">
+  <h3>3 · Feature visuals — divs vazias no mobile</h3>
+  <p>As 6 <code>.feature-visual</code> divs não têm altura definida. No mobile (1 coluna), renderizam como boxes vazias com sombra/borda mas sem conteúdo — ocupam espaço inútil.</p>
+</div>
+<div class="phone-grid" style="grid-template-columns: 1fr 1fr 1fr; align-items: start;">
+  <div class="phone-wrap">
+    <div class="phone-label r">Atual — box vazia</div>
+    <div class="phone bad">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="phone-screen">
+        <div class="ph-feature">
+          <div class="ph-feature-icon">⚡</div>
+          <h4>Automações que<br>trabalham 24h</h4>
+          <p>Monte fluxos visuais arrastando blocos. Lead novo entrou? Dispara mensagem, move de etapa...</p>
+          <div class="ph-feature-visual-empty">📦 div vazia com borda e sombra</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="phone-wrap" style="justify-content:center; align-self:center;">
+    <div class="vs-label">↓ fix</div>
+  </div>
+  <div class="phone-wrap">
+    <div class="phone-label g">Corrigido — hidden no mobile</div>
+    <div class="phone ok">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div class="phone-screen">
+        <div class="ph-feature">
+          <div class="ph-feature-icon">⚡</div>
+          <h4>Automações que<br>trabalham 24h</h4>
+          <p>Monte fluxos visuais arrastando blocos. Lead novo entrou? Dispara mensagem, move de etapa...</p>
+          <div class="ph-feature-visual-hidden"></div>
+        </div>
+        <div style="font-size:8.5px; color:rgba(0,229,153,0.5); text-align:center; padding: 6px 0; font-style:italic;">visual oculto — layout limpo</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ISSUE 4: Section paddings + metrics -->
+<div class="section-divider">
+  <h3>4 · Paddings inline e métricas — sem ajuste mobile</h3>
+  <p>Seções com <code>style="padding: 90px 0"</code> ignoram os media queries. Métrica <code>.v</code> tem <code>font-size: 52px</code> sem redução no mobile. Padding do metric <code>40px 32px</code> também não reduz.</p>
+</div>
+<div class="phone-grid" style="grid-template-columns: 1fr 1fr 1fr; align-items: start;">
+  <div class="phone-wrap">
+    <div class="phone-label r">Atual — padding excessivo</div>
+    <div class="phone bad">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div style="height:20px; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; font-size:8px; color:#f87171;">↕ padding-top 90px (inline)</div>
+      <div class="phone-screen" style="padding: 0 10px;">
+        <div class="ph-metrics-1col">
+          <div class="ph-metric" style="padding: 22px 16px;"><div class="v" style="font-size:28px; color:#00E599; font-weight:700; letter-spacing:-.04em;">3.4x</div><div class="l" style="font-size:8px; color:rgba(244,246,244,0.5); margin-top:2px;">ROAS médio dos clientes</div></div>
+          <div class="ph-metric" style="padding: 22px 16px; border-right:none;"><div class="v" style="font-size:28px; color:#00E599; font-weight:700;">+62%</div><div class="l" style="font-size:8px; color:rgba(244,246,244,0.5); margin-top:2px;">Taxa de qualificação com IA</div></div>
+        </div>
+        <div style="font-size:8px; color:#f87171; margin-top:4px;">⚠ .metric padding 40px 32px não reduz</div>
+        <div style="font-size:8px; color:#f87171;">&nbsp; .metric .v font-size 52px não reduz</div>
+      </div>
+      <div style="height:20px; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; font-size:8px; color:#f87171;">↕ padding-bottom 50px (inline)</div>
+    </div>
+  </div>
+  <div class="phone-wrap" style="justify-content:center; align-self:center;">
+    <div class="vs-label">↓ fix</div>
+  </div>
+  <div class="phone-wrap">
+    <div class="phone-label g">Corrigido — padding compacto</div>
+    <div class="phone ok">
+      <div class="ph-nav"><div class="ph-logo"><div class="ph-logo-mark">RZ</div>Rezult</div><div class="ph-burger"><span></span></div></div>
+      <div style="height:10px;"></div>
+      <div class="phone-screen" style="padding: 0 10px;">
+        <div class="ph-metrics-1col">
+          <div class="ph-metric" style="padding: 14px 16px;"><div class="v" style="font-size:36px; color:#00E599; font-weight:700; letter-spacing:-.04em;">3.4x</div><div class="l" style="font-size:8px; color:rgba(244,246,244,0.5); margin-top:2px;">ROAS médio dos clientes</div></div>
+          <div class="ph-metric" style="padding: 14px 16px; border-right:none;"><div class="v" style="font-size:36px; color:#00E599; font-weight:700;">+62%</div><div class="l" style="font-size:8px; color:rgba(244,246,244,0.5); margin-top:2px;">Taxa de qualificação com IA</div></div>
+        </div>
+        <div style="font-size:8px; color:rgba(0,229,153,0.6); margin-top:4px;">✓ .metric padding 20px 16px mobile</div>
+        <div style="font-size:8px; color:rgba(0,229,153,0.6);">&nbsp; .metric .v font-size 38px mobile</div>
+      </div>
+      <div style="height:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:28px; font-size:12px;">Quer que eu aplique todos os 4 fixes de uma vez? Responda no terminal.</p>
