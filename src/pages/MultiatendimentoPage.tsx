@@ -13,6 +13,7 @@ import {
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
   MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -1039,6 +1040,21 @@ export default function MultiatendimentoPage() {
     const isImage = file.type.startsWith("image/");
     toast.loading("Enviando arquivo…", { id: "file-send" });
     try {
+      // Sobe o arquivo para o storage → URL pública. Sem isso a mensagem ficava
+      // sem media_url e, ao recarregar, o arquivo não podia ser baixado no chat.
+      let mediaUrl: string | null = null;
+      try {
+        const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+        const path = `${user.id}/file-${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
+        if (!upErr) {
+          mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
+        } else {
+          console.error("[file] upload storage:", upErr);
+          toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${upErr.message}`);
+        }
+      } catch (e) { console.error("[file] upload storage:", e); }
+
       // BUG FIX: manter URI completa (data:image/jpeg;base64,...) que a Z-API exige
       const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
@@ -1062,12 +1078,12 @@ export default function MultiatendimentoPage() {
       }
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = isImage
-        ? { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
-        : { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
+        ? { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: mediaUrl ?? URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
+        : { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, url: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
-      await supabase.from("whatsapp_messages").insert({
+      const { error: insErr } = await supabase.from("whatsapp_messages").insert({
         id:          msgId,
         owner_id:    tenantId,
         instance_id: inst.instanceId,
@@ -1075,9 +1091,11 @@ export default function MultiatendimentoPage() {
         from_me:     true,
         body:        file.name,
         type:        isImage ? "image" : "document",
+        media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: user.email?.split("@")[0] ?? "Você",
       });
+      if (insErr) { console.error("[file] insert:", insErr); toast.error(`Arquivo enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Arquivo enviado!", { id: "file-send" });
     } catch (err) {
       toast.error(`Erro ao enviar arquivo: ${(err as Error).message}`, { id: "file-send" });
@@ -1843,12 +1861,30 @@ export default function MultiatendimentoPage() {
                               </div>
                             )}
                             {m.kind === "file" && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <FolderOpen size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                              // Com URL, a bolha inteira é um link de download; sem URL
+                              // (mensagens antigas, sem media_url) mantém só o visual.
+                              m.url ? (
+                                <a
+                                  href={m.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download={m.filename}
+                                  title={`Baixar ${m.filename}`}
+                                  style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none", cursor: "pointer" }}
+                                >
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <Download size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                                  </div>
+                                  <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.filename}</span>
+                                </a>
+                              ) : (
+                                <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <FolderOpen size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                                  </div>
+                                  <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
                                 </div>
-                                <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
-                              </div>
+                              )
                             )}
                           </div>
                         </div>
@@ -1892,10 +1928,18 @@ export default function MultiatendimentoPage() {
                         m.kind === "image" ? (
                           <img key={m.id} src={m.src} alt={m.caption} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, cursor: "pointer" }} onClick={() => window.open(m.src)} />
                         ) : (
-                          <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
-                            <FolderOpen size={14} color="#128A68" />
-                            <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as { filename: string }).filename}</span>
-                          </div>
+                          // Com URL, o chip abre/baixa o arquivo; sem URL, só exibe o nome
+                          (m as { url?: string }).url ? (
+                            <a key={m.id} href={(m as { url?: string }).url} target="_blank" rel="noopener noreferrer" download={(m as { filename: string }).filename} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "inherit", textDecoration: "none", cursor: "pointer" }}>
+                              <Download size={14} color="#128A68" />
+                              <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{(m as { filename: string }).filename}</span>
+                            </a>
+                          ) : (
+                            <div key={m.id} title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, opacity: 0.7 }}>
+                              <FolderOpen size={14} color="#128A68" />
+                              <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as { filename: string }).filename}</span>
+                            </div>
+                          )
                         )
                       ))}
                     </div>
