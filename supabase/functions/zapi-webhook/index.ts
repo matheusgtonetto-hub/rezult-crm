@@ -42,10 +42,31 @@ serve(async (req) => {
     return new Response("invalid json", { status: 400 });
   }
 
-  // Só processa mensagens de texto
-  const textBody = payload?.text?.message;
-  if (!textBody) {
-    return new Response("no text message", { status: 200 });
+  // Extrai o conteúdo conforme o tipo da mensagem. Antes só texto era salvo;
+  // áudio/imagem/documento recebidos eram descartados (não apareciam no chat
+  // e o preview da conversa não atualizava).
+  const text     = payload?.text     as { message?: string } | undefined;
+  const audio    = payload?.audio    as { audioUrl?: string; seconds?: number } | undefined;
+  const image    = payload?.image    as { imageUrl?: string; caption?: string } | undefined;
+  const document = payload?.document as { documentUrl?: string; fileName?: string } | undefined;
+
+  let msgType = "text";
+  let body: string | null = null;
+  let mediaUrl: string | null = null;
+
+  if (text?.message) {
+    msgType = "text"; body = text.message;
+  } else if (audio?.audioUrl) {
+    msgType = "audio"; mediaUrl = audio.audioUrl;
+    const s = Number(audio.seconds ?? 0);
+    body = s > 0 ? `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : "";
+  } else if (image?.imageUrl) {
+    msgType = "image"; mediaUrl = image.imageUrl; body = image.caption ?? "";
+  } else if (document?.documentUrl) {
+    msgType = "document"; mediaUrl = document.documentUrl; body = document.fileName ?? "arquivo";
+  } else {
+    // Tipo não suportado (vídeo, sticker, localização, etc.) — ignora por ora.
+    return new Response("unsupported message type", { status: 200 });
   }
 
   const {
@@ -109,8 +130,9 @@ serve(async (req) => {
       phone:       cleanPhone,
       message_id:  messageId ?? null,
       from_me:     !!fromMe,
-      body:        textBody,
-      type:        "text",
+      body:        body,
+      type:        msgType,
+      media_url:   mediaUrl,
       momment:     momment ?? null,
       chat_name:   chatName ?? null,
       sender_name: senderName ?? null,
@@ -157,7 +179,7 @@ serve(async (req) => {
               "Authorization": `Bearer ${serviceKey}`,
               "apikey": serviceKey,
             },
-            body: JSON.stringify({ awaiting_id: awaiting.id, text: textBody, secret }),
+            body: JSON.stringify({ awaiting_id: awaiting.id, text: body ?? "", secret }),
           });
         } catch (e) {
           console.error("resume_reply call failed:", e);

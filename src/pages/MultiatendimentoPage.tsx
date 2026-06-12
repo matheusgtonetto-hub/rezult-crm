@@ -156,6 +156,40 @@ function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }
   );
 }
 
+// Normaliza a duração do áudio para "MM:SS". Aceita já formatado ("01:23"),
+// segundos puros ("83" → "01:23", como o WhatsApp/Z-API entrega no recebido)
+// ou vazio quando desconhecido.
+function parseAudioDuration(raw?: string | null): string {
+  const b = (raw ?? "").trim();
+  if (/^\d{1,2}:\d{2}$/.test(b)) return b;
+  if (/^\d+$/.test(b)) {
+    const s = parseInt(b, 10);
+    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+// Rótulo de pré-visualização (lista de conversas) conforme o tipo da mensagem.
+function previewLabelFor(type: string | undefined, body: string | null | undefined): string {
+  if (type === "audio")    return "🎤 Mensagem de áudio";
+  if (type === "image")    return "🖼️ Imagem";
+  if (type === "document") return `📎 ${body || "Arquivo"}`;
+  return body ?? "";
+}
+
+// Monta uma mensagem recebida (realtime) respeitando o tipo. Antes, toda mensagem
+// recebida era renderizada como texto — áudio/imagem/documento não apareciam.
+function buildIncomingMsg(
+  m: { id?: string; body?: string; type?: string; media_url?: string },
+  timeStr: string,
+): Msg {
+  const base = { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false };
+  if (m.type === "audio")    return { ...base, kind: "audio" as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
+  if (m.type === "image")    return { ...base, kind: "image" as const, src: m.media_url ?? "", caption: m.body ?? "" };
+  if (m.type === "document") return { ...base, kind: "file"  as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
+  return { ...base, kind: "text" as const, text: m.body ?? "" };
+}
+
 function AudioBubble({ duration, src, light }: { duration: string; src?: string; light: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -707,7 +741,7 @@ export default function MultiatendimentoPage() {
             read:  true as const,
           };
           if (m.type === "system")   return { id: m.id, from: "system" as const, time: base.time, kind: "system" as const, text: m.body ?? "", date: base.date };
-          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: /^\d{1,2}:\d{2}$/.test(m.body ?? "") ? m.body! : "", src: m.media_url ?? undefined };
+          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
           if (m.type === "image")    return { ...base, kind: "image"  as const, src: m.media_url ?? "", caption: m.body ?? "" };
           if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
           return { ...base, kind: "text" as const, text: m.body ?? "" };
@@ -738,7 +772,7 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
+          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string; media_url?: string };
           if (m.from_me) return; // enviadas já são adicionadas otimisticamente
           if (m.owner_id !== tenantId) return; // só mensagens da empresa selecionada
 
@@ -768,22 +802,23 @@ export default function MultiatendimentoPage() {
             phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
           );
 
+          const previewLabel = previewLabelFor(m.type, m.body);
           if (existing) {
             // Atualiza preview da conversa existente
             setConvList(prev => prev.map(c =>
-              c.id === existing.id ? { ...c, preview: m.body ?? "", time: timeStr } : c
+              c.id === existing.id ? { ...c, preview: previewLabel, time: timeStr } : c
             ));
             // Adiciona a mensagem no estado da conversa se já estiver carregada
             setConvStates(prev => {
               const cur = prev[existing.id];
               if (!cur) return prev;
               if (cur.messages.some(x => x.id === m.id)) return prev;
-              const newMsg: Msg = { id: m.id, from: "lead", time: timeStr, kind: "text" as const, text: m.body ?? "", date: "Hoje", read: false };
+              const newMsg: Msg = buildIncomingMsg(m, timeStr);
               return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: false } };
             });
             // Atualiza preview e timestamp no banco
             supabase.from("whatsapp_conversations").update({
-              preview: m.body ?? "", last_msg_at: new Date().toISOString(), read: false,
+              preview: previewLabel, last_msg_at: new Date().toISOString(), read: false,
             }).eq("id", existing.id);
           } else {
             // Cria nova conversa automaticamente para este remetente
@@ -791,7 +826,7 @@ export default function MultiatendimentoPage() {
             const newConv: Conversation = {
               id:      newId,
               name:    m.chat_name ?? m.sender_name ?? msgPhone,
-              preview: m.body ?? "",
+              preview: previewLabel,
               time:    timeStr,
               channel: "whatsapp" as const,
               tags:    [],
@@ -801,12 +836,12 @@ export default function MultiatendimentoPage() {
             setConvList(prev => [newConv, ...prev]);
             setConvStates(prev => ({
               ...prev,
-              [newId]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
+              [newId]: { messages: [buildIncomingMsg(m, timeStr)], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
             }));
             // Persiste nova conversa no banco
             supabase.from("whatsapp_conversations").insert({
               id: newId, owner_id: tenantId, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
-              channel: "whatsapp", tags: [], preview: m.body ?? "",
+              channel: "whatsapp", tags: [], preview: previewLabel,
               last_msg_at: new Date().toISOString(), read: false,
             });
           }
@@ -1003,6 +1038,7 @@ export default function MultiatendimentoPage() {
         ? { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
         : { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
         owner_id:    tenantId,
@@ -1097,8 +1133,15 @@ export default function MultiatendimentoPage() {
         const ext = (outBlob.type || "").includes("ogg") ? "ogg" : "webm";
         const path = `${user.id}/audio-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage.from("automation-media").upload(path, outBlob, { upsert: true, contentType: outBlob.type || "audio/webm" });
-        if (!upErr) mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
-      } catch (e) { console.warn("[audio] upload storage:", e); }
+        if (!upErr) {
+          mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
+        } else {
+          // Sem este upload o áudio fica sem URL pública → não reproduz no chat
+          // e aparece como 00:00. Antes o erro era engolido (só console.warn).
+          console.error("[audio] upload storage:", upErr);
+          toast.error(`Falha ao salvar o áudio (não tocará no chat): ${upErr.message}`);
+        }
+      } catch (e) { console.error("[audio] upload storage:", e); toast.error(`Falha ao salvar o áudio: ${(e as Error).message}`); }
 
       // Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,)
       const dataUri = await new Promise<string>((res, rej) => {
@@ -1118,8 +1161,9 @@ export default function MultiatendimentoPage() {
       }
       const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
+      bumpPreview(activeId, "🎤 Mensagem de áudio");
       // Persiste no banco para histórico futuro
-      await supabase.from("whatsapp_messages").insert({
+      const { error: insErr } = await supabase.from("whatsapp_messages").insert({
         owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
@@ -1130,6 +1174,7 @@ export default function MultiatendimentoPage() {
         momment:     Date.now(),
         sender_name: user.email?.split("@")[0] ?? "Você",
       });
+      if (insErr) { console.error("[audio] insert:", insErr); toast.error(`Áudio enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Áudio enviado!", { id: "audio-send" });
     } catch (err) {
       toast.error(`Erro ao enviar áudio: ${(err as Error).message}`, { id: "audio-send" });
@@ -1316,6 +1361,19 @@ export default function MultiatendimentoPage() {
     }
   }
 
+  // Atualiza o preview (última mensagem) da conversa na lista e no banco.
+  // Antes, só mensagens RECEBIDAS atualizavam o preview, então áudios/arquivos/
+  // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
+  // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
+  function bumpPreview(convId: string, label: string) {
+    const now = nowTime();
+    setConvList(prev => prev.map(c => c.id === convId ? { ...c, preview: label, time: now } : c));
+    supabase.from("whatsapp_conversations")
+      .update({ preview: label, last_msg_at: new Date().toISOString() })
+      .eq("id", convId)
+      .then(({ error }) => { if (error) console.warn("bumpPreview:", error.message); });
+  }
+
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
@@ -1330,6 +1388,7 @@ export default function MultiatendimentoPage() {
       read: false,
     };
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
+    bumpPreview(activeId, text);
     setInputValue("");
 
     // Enviar via Z-API + persistir no Supabase
