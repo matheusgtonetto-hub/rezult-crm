@@ -41,12 +41,20 @@ export interface Company {
 
 type CompanyUpdateData = Partial<Omit<Company, "id" | "owner_id" | "plan" | "plan_expires_at">>;
 
+export type WhatsAppProvider = "zapi" | "cloud_api";
+
 export interface WhatsAppConnection {
   id: string;
   name: string;
+  provider: WhatsAppProvider;
+  // Z-API
   instanceId: string;
   token: string;
   clientToken?: string | null;
+  // Cloud API (Meta) — Embedded Signup
+  phoneNumberId?: string | null;
+  wabaId?: string | null;
+  accessToken?: string | null;
   phone?: string | null;
   connected: boolean;
   active: boolean;
@@ -55,15 +63,19 @@ export interface WhatsAppConnection {
 
 function mapConn(r: Record<string, unknown>): WhatsAppConnection {
   return {
-    id:          r.id as string,
-    name:        (r.name as string) || "WhatsApp",
-    instanceId:  r.instance_id as string,
-    token:       r.token as string,
-    clientToken: r.client_token as string | null,
-    phone:       r.phone as string | null,
-    connected:   r.connected as boolean,
-    active:      r.active as boolean,
-    createdAt:   r.created_at as string,
+    id:            r.id as string,
+    name:          (r.name as string) || "WhatsApp",
+    provider:      ((r.provider as string) || "zapi") as WhatsAppProvider,
+    instanceId:    (r.instance_id as string) ?? "",
+    token:         (r.token as string) ?? "",
+    clientToken:   r.client_token as string | null,
+    phoneNumberId: r.phone_number_id as string | null,
+    wabaId:        r.waba_id as string | null,
+    accessToken:   r.access_token as string | null,
+    phone:         r.phone as string | null,
+    connected:     r.connected as boolean,
+    active:        r.active as boolean,
+    createdAt:     r.created_at as string,
   };
 }
 
@@ -124,14 +136,18 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     const { data: row, error } = await supabase
       .from("whatsapp_connections")
       .insert({
-        owner_id:     user.id,
-        name:         data.name,
-        instance_id:  data.instanceId,
-        token:        data.token,
-        client_token: data.clientToken ?? null,
-        phone:        data.phone ?? null,
-        connected:    data.connected,
-        active:       data.active,
+        owner_id:        user.id,
+        name:            data.name,
+        provider:        data.provider ?? "zapi",
+        instance_id:     data.instanceId || null,
+        token:           data.token || null,
+        client_token:    data.clientToken ?? null,
+        phone_number_id: data.phoneNumberId ?? null,
+        waba_id:         data.wabaId ?? null,
+        access_token:    data.accessToken ?? null,
+        phone:           data.phone ?? null,
+        connected:       data.connected,
+        active:          data.active,
       })
       .select()
       .single();
@@ -143,13 +159,17 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const updateWhatsAppConnection = useCallback(async (id: string, data: Partial<Omit<WhatsAppConnection, "id" | "createdAt">>) => {
     const payload: Record<string, unknown> = {};
-    if (data.name         !== undefined) payload.name         = data.name;
-    if (data.instanceId   !== undefined) payload.instance_id  = data.instanceId;
-    if (data.token        !== undefined) payload.token        = data.token;
-    if (data.clientToken  !== undefined) payload.client_token = data.clientToken;
-    if (data.phone        !== undefined) payload.phone        = data.phone;
-    if (data.connected    !== undefined) payload.connected    = data.connected;
-    if (data.active       !== undefined) payload.active       = data.active;
+    if (data.name          !== undefined) payload.name            = data.name;
+    if (data.provider      !== undefined) payload.provider        = data.provider;
+    if (data.instanceId    !== undefined) payload.instance_id     = data.instanceId || null;
+    if (data.token         !== undefined) payload.token           = data.token || null;
+    if (data.clientToken   !== undefined) payload.client_token    = data.clientToken;
+    if (data.phoneNumberId !== undefined) payload.phone_number_id = data.phoneNumberId;
+    if (data.wabaId        !== undefined) payload.waba_id         = data.wabaId;
+    if (data.accessToken   !== undefined) payload.access_token    = data.accessToken;
+    if (data.phone         !== undefined) payload.phone           = data.phone;
+    if (data.connected     !== undefined) payload.connected       = data.connected;
+    if (data.active        !== undefined) payload.active          = data.active;
     const { error } = await supabase.from("whatsapp_connections").update(payload).eq("id", id);
     if (error) throw error;
     setWhatsappConnections(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));

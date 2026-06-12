@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  ContactRound,
+  UserRound,
   LayoutDashboard,
   Cog,
   LogOut,
-  MessagesSquare,
-  Workflow,
+  MessageCircle,
+  Network,
   Filter,
   Brain,
   Bell,
@@ -22,6 +22,7 @@ import {
   CalendarDays,
   ChevronRight,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -72,6 +73,7 @@ const HOVER_BG = "rgba(255,255,255,0.1)";
 const ACTIVE_BG = "rgba(255,255,255,0.15)";
 
 type SidebarNotif = { id: string; title: string; desc: string; to: string };
+type DbNotif = { id: string; message: string; lead_id: string | null; read: boolean; created_at: string };
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -79,18 +81,37 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { company, availableCompanies, setSelectedCompany } = useCompany();
-  const { can, canAny } = usePermissions();
+  const { canAny } = usePermissions();
   const userEmail = profile?.email ?? user?.email ?? "";
   const userName = profile?.full_name || userEmail.split("@")[0];
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [dbNotifs, setDbNotifs] = useState<DbNotif[]>([]);
 
   useEffect(() => {
+    if (!company) return;
     import("@/lib/googleOAuth")
-      .then(({ checkGoogleConnection }) => checkGoogleConnection())
+      .then(({ checkGoogleConnection }) => checkGoogleConnection(company.id))
       .then(conn => setGoogleConnected(!!conn))
       .catch(() => setGoogleConnected(true));
+  }, [company?.id]);
+
+  const fetchDbNotifs = useCallback(async () => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("id, message, lead_id, read, created_at")
+      .eq("read", false)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setDbNotifs(data as DbNotif[]);
+  }, []);
+
+  useEffect(() => { fetchDbNotifs(); }, [fetchDbNotifs]);
+
+  const markDbNotifRead = useCallback(async (id: string) => {
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    setDbNotifs(prev => prev.filter(n => n.id !== id));
   }, []);
 
   const notifications: SidebarNotif[] = [];
@@ -102,19 +123,19 @@ export function AppSidebar() {
       to: "/configuracoes/conexoes",
     });
   }
-  const notifCount = notifications.length;
+  const notifCount = notifications.length + dbNotifs.length;
 
   const navItems: NavItem[] = [
     { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
-      ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
+      ? [{ to: "/leads", label: "Leads", icon: UserRound }] : []),
     { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
     ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
+      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare }] : []),
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageCircle }] : []),
     { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },
     { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const, locked: true },
   ];
@@ -326,7 +347,7 @@ export function AppSidebar() {
         {/* Main navigation */}
         <nav
           className="flex flex-col items-center"
-          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", width: "100%", alignItems: "center" }}
+          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "hidden", overflowX: "hidden", width: "100%", alignItems: "center" }}
         >
           {navItems.map(renderNav)}
         </nav>
@@ -407,6 +428,27 @@ export function AppSidebar() {
                   <ChevronRight size={14} className="text-muted-foreground mt-1 shrink-0" />
                 </button>
               ))}
+              {dbNotifs.map(n => (
+                <div
+                  key={n.id}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
+                >
+                  <div className="mt-0.5 w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                    <Bell size={14} className="text-orange-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-snug">Automação</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
+                  </div>
+                  <button
+                    onClick={() => markDbNotifRead(n.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
+                    title="Marcar como lida"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </PopoverContent>
           </Popover>
 
@@ -479,7 +521,7 @@ export function AppSidebar() {
                 <span className="text-xs text-muted-foreground font-normal">{userEmail}</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/configuracoes/perfil")}>
                 <UserCircle size={14} className="mr-2" /> Meu perfil
               </DropdownMenuItem>
               <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">

@@ -30,13 +30,13 @@ ALTER TABLE automation_pending ENABLE ROW LEVEL SECURITY;
 SELECT cron.schedule(
   'resume-pending-automations',
   '* * * * *',
-  $$
+  $job$
   SELECT net.http_post(
-    url              => (SELECT supabase_url FROM automation_runner_config LIMIT 1)
+    url              => (SELECT value FROM automation_runner_config WHERE key = 'supabase_url' LIMIT 1)
                         || '/functions/v1/automation-runner',
     headers          => jsonb_build_object(
                           'Content-Type',  'application/json',
-                          'Authorization', 'Bearer ' || (SELECT automation_secret FROM automation_runner_config LIMIT 1)
+                          'Authorization', 'Bearer ' || (SELECT value FROM automation_runner_config WHERE key = 'automation_secret' LIMIT 1)
                         ),
     body             => '{"resume": true}'::jsonb,
     timeout_milliseconds => 55000
@@ -44,5 +44,5 @@ SELECT cron.schedule(
   WHERE EXISTS (
     SELECT 1 FROM automation_pending WHERE resume_after <= now()
   )
-  $$
+  $job$
 );

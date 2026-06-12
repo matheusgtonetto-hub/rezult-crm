@@ -765,7 +765,25 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                               {(movePipelineObj?.columns ?? []).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={async e => { e.stopPropagation(); await updateLead(l.id, { pipelineId: movePipeline, stage: moveStage }); setMoveDealId(null); toast.success("Negócio movido!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
+                              <button onClick={async e => {
+                                e.stopPropagation();
+                                // Restrição: avanço somente uma etapa por vez dentro do mesmo pipeline
+                                if (movePipeline === l.pipelineId) {
+                                  const p = pipelines.find(p2 => p2.id === movePipeline);
+                                  if (p) {
+                                    const fromIdx = p.columns.findIndex(c => c.id === l.stage);
+                                    const toIdx   = p.columns.findIndex(c => c.id === moveStage);
+                                    if (toIdx > fromIdx + 1) {
+                                      const nextStage = p.columns[fromIdx + 1]?.title ?? "próxima etapa";
+                                      toast.error(`Avance uma etapa por vez. Mova para "${nextStage}" primeiro.`);
+                                      return;
+                                    }
+                                  }
+                                }
+                                await updateLead(l.id, { pipelineId: movePipeline, stage: moveStage });
+                                setMoveDealId(null);
+                                toast.success("Negócio movido!");
+                              }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
                               <button onClick={e => { e.stopPropagation(); setMoveDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>

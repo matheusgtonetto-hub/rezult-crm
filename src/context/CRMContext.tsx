@@ -56,7 +56,7 @@ interface CRMContextType {
   uncompleteActivity: (leadId: string, activityId: string) => void;
   markNoShow: (leadId: string, activityId: string) => void;
   unmarkNoShow: (leadId: string, activityId: string) => void;
-  deleteActivity: (leadId: string, activityId: string, gcalEventId?: string) => void;
+  deleteActivity: (leadId: string, activityId: string, gcalEventId?: string) => Promise<void>;
   pinActivity: (leadId: string, activityId: string, pinned: boolean) => void;
 
   crmTags: Tag[];
@@ -81,8 +81,8 @@ interface CRMContextType {
   deleteProduct: (id: string) => Promise<void>;
 
   lossReasons: LossReason[];
-  addLossReason: (name: string) => Promise<boolean>;
-  updateLossReason: (id: string, name: string) => Promise<void>;
+  addLossReason: (name: string, description?: string) => Promise<boolean>;
+  updateLossReason: (id: string, name: string, description?: string) => Promise<void>;
   deleteLossReason: (id: string) => Promise<void>;
 
   customFieldGroups: CustomFieldGroup[];
@@ -160,6 +160,7 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     origin: (row.origin as LeadOrigin) ?? "Outro",
     productId: (row.product_id as string) ?? undefined,
     entryDate: (row.entry_date as string) ?? "",
+    stageEnteredAt: (row.stage_entered_at as string) ?? undefined,
     nextFollowUp: (row.next_follow_up as string) ?? undefined,
     notes: (row.notes as string) ?? "",
     tags: (row.tags as string[]) ?? [],
@@ -290,22 +291,23 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     setCrmLoading(true);
 
     const ownerId = company.owner_id;
+    const companyId = company.id;
 
     async function loadAll() {
 
       const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
-        supabase.from("pipelines").select("*").eq("owner_id", ownerId).order("position"),
-        supabase.from("pipeline_columns").select("*").order("position"),
-        supabase.from("leads").select("*").eq("owner_id", ownerId).order("position"),
-        supabase.from("activities").select("*").eq("owner_id", ownerId),
-        supabase.from("tasks").select("*").eq("owner_id", ownerId).order("created_at"),
-        supabase.from("tags").select("*").eq("owner_id", ownerId).order("created_at"),
-        supabase.from("pipeline_groups").select("*").eq("owner_id", ownerId).order("created_at"),
-        supabase.from("products").select("*").eq("owner_id", ownerId).order("created_at"),
-        supabase.from("loss_reasons").select("*").eq("owner_id", ownerId).order("created_at"),
-        supabase.from("custom_field_groups").select("*").eq("owner_id", ownerId).order("position"),
+        supabase.from("pipelines").select("*").eq("company_id", companyId).order("position"),
+        supabase.from("pipeline_columns").select("*").eq("company_id", companyId).order("position"),
+        supabase.from("leads").select("*").eq("company_id", companyId).order("position"),
+        supabase.from("activities").select("*").eq("company_id", companyId),
+        supabase.from("tasks").select("*").eq("company_id", companyId).order("created_at"),
+        supabase.from("tags").select("*").eq("company_id", companyId).order("created_at"),
+        supabase.from("pipeline_groups").select("*").eq("company_id", companyId).order("created_at"),
+        supabase.from("products").select("*").eq("company_id", companyId).order("created_at"),
+        supabase.from("loss_reasons").select("*").eq("company_id", companyId).order("created_at"),
+        supabase.from("custom_field_groups").select("*").eq("company_id", companyId).order("position"),
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-        supabase.from("lists").select("*").eq("owner_id", ownerId).order("created_at"),
+        supabase.from("lists").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("list_leads").select("list_id, lead_id"),
       ]);
 
@@ -340,7 +342,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const { data: cfItemsData } = await supabase
         .from("custom_field_items")
         .select("*")
-        .eq("owner_id", ownerId)
+        .eq("company_id", companyId)
         .order("position");
       const dbCFItems = (cfItemsData ?? []) as Record<string, unknown>[];
 
@@ -366,7 +368,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       if (!hasDefault && ownerId === user.id) {
         const { data: gData } = await supabase
           .from("custom_field_groups")
-          .insert({ owner_id: ownerId, name: "Qualificação", position: 0, is_default: true })
+          .insert({ owner_id: ownerId, company_id: companyId, name: "Qualificação", position: 0, is_default: true })
           .select()
           .single();
         if (gData) {
@@ -377,7 +379,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
             { label: "O lead é o decisor?",         field_type: "boolean", position: 2 },
             { label: "Orçamento disponível?",       field_type: "text", position: 3 },
             { label: "Previsão de fechamento?",     field_type: "date", position: 4 },
-          ].map(i => ({ ...i, owner_id: ownerId, group_id: gRow.id }));
+          ].map(i => ({ ...i, owner_id: ownerId, company_id: companyId, group_id: gRow.id }));
           const { data: iData } = await supabase
             .from("custom_field_items")
             .insert(defaultItems)
@@ -448,6 +450,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         name: r.name as string,
         description: (r.description as string) ?? "",
         color: (r.color as string) ?? "#128A68",
+        created_at: (r.created_at as string) ?? undefined,
       }));
 
       const groupsList: PipelineGroup[] = dbGroupsList.map(r => ({
@@ -482,6 +485,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setLossReasons(dbLossReasons.map(r => ({
         id: r.id as string,
         name: r.name as string,
+        description: (r.description as string) ?? undefined,
+        created_at: (r.created_at as string) ?? undefined,
       })));
       if (pipelinesArr.length > 0) setActivePipelineId(pipelinesArr[0].id);
       setCrmLoading(false);
@@ -494,10 +499,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     // Real-time subscription — keeps leads in sync when automations update them externally
     const channel = supabase
-      .channel(`leads-rt-${ownerId}`)
+      .channel(`leads-rt-${companyId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "leads", filter: `owner_id=eq.${ownerId}` },
+        { event: "*", schema: "public", table: "leads", filter: `company_id=eq.${companyId}` },
         (payload) => {
           if (payload.eventType === "UPDATE") {
             const row = payload.new as Record<string, unknown>;
@@ -574,7 +579,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     const { data: pData, error: pErr } = await supabase
       .from("pipelines")
-      .insert({ owner_id: company.owner_id, name, category, description: description ?? "", position: pipelines.length })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, category, description: description ?? "", position: pipelines.length })
       .select()
       .single();
 
@@ -582,6 +587,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     const colsPayload = colDefs.map((c, i) => ({
       pipeline_id: pData.id,
+      company_id: company.id,
       title: c.title,
       color: c.color,
       position: i,
@@ -663,7 +669,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from("pipeline_columns")
-      .insert({ pipeline_id: pipelineId, title: col.title, color: col.color, position: pipeline.columns.length })
+      .insert({ pipeline_id: pipelineId, company_id: company.id, title: col.title, color: col.color, position: pipeline.columns.length })
       .select()
       .single();
 
@@ -698,6 +704,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .from("leads")
       .insert({
         owner_id: company.owner_id,
+        company_id: company.id,
         pipeline_id: lead.pipelineId,
         column_id: lead.stage || null,
         deal_number: lead.dealNumber,
@@ -715,6 +722,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         origin: lead.origin,
         product_id: lead.productId || null,
         entry_date: lead.entryDate || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
+        stage_entered_at: new Date().toISOString(),
         next_follow_up: lead.nextFollowUp || null,
         notes: lead.notes,
         tags: lead.tags ?? [],
@@ -746,6 +754,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       await supabase.from("activities").insert(
         lead.activities.map(a => ({
           owner_id: company.owner_id,
+          company_id: company.id,
           lead_id: realId,
           type: a.type,
           description: a.description,
@@ -841,6 +850,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   const moveLead = useCallback((leadId: string, fromCol: string, toCol: string, toIndex: number) => {
     const lead = leads[leadId];
+
+    // Restrição: avanço somente uma etapa por vez dentro do mesmo pipeline
+    const ownerPipeline = pipelines.find(p =>
+      p.columns.some(c => c.id === fromCol) && p.columns.some(c => c.id === toCol)
+    );
+    if (ownerPipeline) {
+      const fromIdx = ownerPipeline.columns.findIndex(c => c.id === fromCol);
+      const toIdx   = ownerPipeline.columns.findIndex(c => c.id === toCol);
+      if (toIdx > fromIdx + 1) {
+        const nextStage = ownerPipeline.columns[fromIdx + 1]?.title ?? "próxima etapa";
+        toast.error(`Avance uma etapa por vez. Mova para "${nextStage}" primeiro.`);
+        return;
+      }
+    }
+
     const newResponsible = !lead?.responsible && currentUserName ? currentUserName : lead?.responsible;
     setPipelines(prev => prev.map(p => {
       const hasFrom = p.columns.some(c => c.id === fromCol);
@@ -856,13 +880,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const newResponsibles = newResponsible
       ? (leads[leadId]?.responsibles?.includes(newResponsible) ? leads[leadId].responsibles : [newResponsible, ...(leads[leadId]?.responsibles ?? [])])
       : leads[leadId]?.responsibles ?? [];
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
-    const update: Record<string, unknown> = { column_id: toCol };
+    const stageEnteredAt = new Date().toISOString();
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, stageEnteredAt, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
+    const update: Record<string, unknown> = { column_id: toCol, stage_entered_at: stageEnteredAt };
     if (newResponsible) { update.responsible = newResponsible; update.responsibles = newResponsibles; }
     supabase.from("leads").update(update).eq("id", leadId).then(({ error }) => {
       if (error) console.error("moveLead error:", error.message);
     });
-  }, [leads, currentUserName]);
+  }, [leads, pipelines, currentUserName]);
 
   const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
     const lead = leads[leadId];
@@ -886,8 +911,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const newResps2 = newResp2
       ? (lead.responsibles?.includes(newResp2) ? lead.responsibles : [newResp2, ...(lead.responsibles ?? [])])
       : lead.responsibles ?? [];
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
-    const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open" };
+    const stageEnteredAt2 = new Date().toISOString();
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, stageEnteredAt: stageEnteredAt2, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
+    const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open", stage_entered_at: stageEnteredAt2 };
     if (newResp2) { update.responsible = newResp2; update.responsibles = newResps2; }
     supabase.from("leads").update(update).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
@@ -915,7 +941,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "won", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "won", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadWon activity error:", error.message); });
   }, [user, company, currentUserName]);
 
@@ -932,7 +958,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "lost", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "lost", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadLost activity error:", error.message); });
   }, [user, company, currentUserName]);
 
@@ -946,27 +972,27 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       ...prev,
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
     }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, lead_id: leadId, type: "stage_change", description: act.description, date: act.date, user_name: act.userName ?? null })
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "stage_change", description: act.description, date: act.date, user_name: act.userName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadOpen activity error:", error.message); });
   }, [user, company, currentUserName]);
 
   // ── Loss Reasons ───────────────────────────────────────────────────────────
 
-  const addLossReason = useCallback(async (name: string): Promise<boolean> => {
+  const addLossReason = useCallback(async (name: string, description?: string): Promise<boolean> => {
     if (!user || !company) return false;
     const { data, error } = await supabase
       .from("loss_reasons")
-      .insert({ owner_id: company.owner_id, name })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, description: description ?? null })
       .select()
       .single();
     if (error) { console.error("addLossReason error:", error.message); return false; }
-    setLossReasons(prev => [...prev, { id: data.id as string, name: data.name as string }]);
+    setLossReasons(prev => [...prev, { id: data.id as string, name: data.name as string, description: (data.description as string) ?? undefined, created_at: (data.created_at as string) ?? undefined }]);
     return true;
   }, [user, company]);
 
-  const updateLossReason = useCallback(async (id: string, name: string) => {
-    setLossReasons(prev => prev.map(r => r.id === id ? { ...r, name } : r));
-    const { error } = await supabase.from("loss_reasons").update({ name }).eq("id", id);
+  const updateLossReason = useCallback(async (id: string, name: string, description?: string) => {
+    setLossReasons(prev => prev.map(r => r.id === id ? { ...r, name, description } : r));
+    const { error } = await supabase.from("loss_reasons").update({ name, description: description ?? null }).eq("id", id);
     if (error) console.error("updateLossReason error:", error.message);
   }, []);
 
@@ -983,7 +1009,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const position = customFieldGroups.length;
     const { data, error } = await supabase
       .from("custom_field_groups")
-      .insert({ owner_id: company.owner_id, name, position })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, position })
       .select().single();
     if (error || !data) { console.error("addCustomFieldGroup:", error?.message); return null; }
     const row = data as Record<string, unknown>;
@@ -1010,7 +1036,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const position = group ? group.items.length : 0;
     const { data, error } = await supabase
       .from("custom_field_items")
-      .insert({ owner_id: company.owner_id, group_id: groupId, label, field_type: fieldType, position })
+      .insert({ owner_id: company.owner_id, company_id: company.id, group_id: groupId, label, field_type: fieldType, position })
       .select().single();
     if (error || !data) { console.error("addCustomFieldItem:", error?.message); return null; }
     const row = data as Record<string, unknown>;
@@ -1051,7 +1077,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   const addList = useCallback(async (name: string, description: string): Promise<CrmList | null> => {
     if (!user || !company) return null;
-    const { data, error } = await supabase.from("lists").insert({ owner_id: company.owner_id, name, description }).select().single();
+    const { data, error } = await supabase.from("lists").insert({ owner_id: company.owner_id, company_id: company.id, name, description }).select().single();
     if (error || !data) { toast.error("Erro ao criar lista"); console.error("addList error:", error?.message, error?.details); return null; }
     const newList: CrmList = { id: data.id as string, name, description, leadIds: [], created_at: data.created_at as string };
     setCrmLists(prev => [...prev, newList]);
@@ -1090,7 +1116,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (!user || !company) return false;
     const { data, error } = await supabase
       .from("tags")
-      .insert({ owner_id: company.owner_id, name, description, color })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, description, color })
       .select()
       .single();
     if (error || !data) {
@@ -1122,7 +1148,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (!user || !company) return false;
     const { data, error } = await supabase
       .from("pipeline_groups")
-      .insert({ owner_id: company.owner_id, name, created_by: user.email ?? "" })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name, created_by: user.email ?? "" })
       .select()
       .single();
     if (error || !data) {
@@ -1148,7 +1174,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (!user || !company) return;
     const { data: row, error } = await supabase
       .from("products")
-      .insert({ owner_id: company.owner_id, name: data.name, sku: data.sku, default_value: data.defaultValue })
+      .insert({ owner_id: company.owner_id, company_id: company.id, name: data.name, sku: data.sku, default_value: data.defaultValue })
       .select()
       .single();
     if (error || !row) { toast.error("Erro ao criar produto."); return; }
@@ -1185,6 +1211,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .from("tasks")
       .insert({
         owner_id: company.owner_id,
+        company_id: company.id,
         lead_id: task.leadId || null,
         lead_name: task.leadName,
         title: task.title,
@@ -1236,6 +1263,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (user && company) {
       supabase.from("activities").insert({
         owner_id: company.owner_id,
+        company_id: company.id,
         lead_id: leadId,
         type: activity.type,
         description: activity.description,
@@ -1359,7 +1387,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const deleteActivity = useCallback((leadId: string, activityId: string, gcalEventId?: string) => {
+  const deleteActivity = useCallback(async (leadId: string, activityId: string, gcalEventId?: string) => {
     setLeads(prev => ({
       ...prev,
       [leadId]: {
@@ -1371,8 +1399,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       supabase.from("activities").delete().eq("id", activityId)
         .then(({ error }) => { if (error) console.error("deleteActivity error:", error.message); });
       if (gcalEventId) {
-        supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId } })
-          .catch(() => {});
+        const { error } = await supabase.functions.invoke("google-calendar-delete", { body: { event_id: gcalEventId, company_id: company?.id } });
+        if (error) {
+          toast.error("Não foi possível excluir o evento no Google Calendar. Verifique a conexão em Configurações.");
+        }
       }
     }
   }, [user]);

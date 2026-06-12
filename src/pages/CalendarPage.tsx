@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useCompany } from "@/context/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
@@ -436,6 +437,7 @@ export default function CalendarPage() {
   const navigate = useNavigate();
   const { leads, addActivity, patchActivity, deleteActivity, teamMembers, memberEmails, memberAvatars, memberColors, crmLoading } = useCRM();
   const { profile } = useProfile();
+  const { company } = useCompany();
   const [view, setView] = useState<CalView>("semana");
   const today = useMemo(() => new Date(), []);
   const [cur, setCur] = useState(() => new Date());
@@ -461,7 +463,8 @@ export default function CalendarPage() {
 
   // Sync Google Calendar → CRM: verifica diretamente cada evento e remove os deletados
   const syncFromGoogle = useCallback(async (showToast = false) => {
-    const conn = await checkGoogleConnection();
+    if (!company) return;
+    const conn = await checkGoogleConnection(company.id);
     if (!conn) return;
 
     // Coleta todos os gcal_event_ids das atividades carregadas
@@ -479,7 +482,7 @@ export default function CalendarPage() {
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
-        body: { event_ids: tracked.map(t => t.gcalEventId) },
+        body: { event_ids: tracked.map(t => t.gcalEventId), company_id: company.id },
       });
 
       if (error || !data?.success) {
@@ -504,7 +507,7 @@ export default function CalendarPage() {
     } finally {
       setSyncing(false);
     }
-  }, [leads, deleteActivity]);
+  }, [leads, deleteActivity, company]);
 
   // Mantém referência atualizada para não precisar recriar o event listener
   const syncFromGoogleRef = useRef(syncFromGoogle);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import fixWebmDuration from "fix-webm-duration";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
@@ -10,12 +11,13 @@ import type { Lead, Pipeline } from "@/data/mockData";
 import {
   Search, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, CheckCheck,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
   MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
+import DepartmentsManager from "@/components/DepartmentsManager";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -30,19 +32,34 @@ function nowTime() {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 // Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
-function phonesMatch(a: string, b: string): boolean {
-  const da = a.replace(/\D/g, "");
-  const db = b.replace(/\D/g, "");
-  if (!da || !db) return false;
-  return da.slice(-11) === db.slice(-11);
+// Normaliza um telefone BR para o núcleo DDD + 8 dígitos finais, tolerando o
+// código do país 55 e o 9º dígito de celular — que o WhatsApp/Z-API às vezes
+// entrega sem o 9 (ex.: 553189904484 ↔ 31989904484). Comparar pelos últimos N
+// dígitos não basta porque o 9 desloca a contagem.
+function normalizeBrPhone(raw: string): string {
+  let d = (raw ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // remove código do país
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3); // remove o 9 extra
+  return d; // DDD(2) + 8 dígitos
 }
-// Retorna par de variantes do telefone para query OR (com e sem "55")
-function phoneVariants(raw: string): { local: string; full: string } {
-  const d = raw.replace(/\D/g, "");
-  if (d.length >= 12 && d.startsWith("55")) {
-    return { local: d.slice(2), full: d };
+function phonesMatch(a: string, b: string): boolean {
+  const na = normalizeBrPhone(a);
+  const nb = normalizeBrPhone(b);
+  if (na.length < 10 || nb.length < 10) return false;
+  return na.slice(-10) === nb.slice(-10); // DDD + 8 dígitos
+}
+// Todas as variantes plausíveis de como o telefone pode estar salvo (com/sem 55,
+// com/sem o 9º dígito) — para montar a query OR do histórico de mensagens.
+function phoneVariants(raw: string): string[] {
+  const core = normalizeBrPhone(raw); // DDD + 8
+  if (core.length < 10) {
+    const d = (raw ?? "").replace(/\D/g, "");
+    return d ? [d] : [];
   }
-  return { local: d, full: `55${d}` };
+  const ddd = core.slice(0, 2);
+  const eight = core.slice(-8);
+  const with9 = `${ddd}9${eight}`; // DDD + 9 + 8 (celular)
+  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
 }
 
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
@@ -65,13 +82,14 @@ type Conversation = {
   id: string; name: string; preview: string; time: string;
   channel: Channel; tags: string[]; dealNumber?: string; pipeline?: string;
   company?: string; email?: string; phone?: string; value?: number;
+  instanceId?: string; // instância (número WhatsApp) à qual a conversa pertence
 };
 
 type Msg =
   | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string; src?: string; date: string; read?: boolean }
   | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string;               date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
   | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
 
 type Meeting = { date: string; time: string; owner: string; note: string };
@@ -126,29 +144,64 @@ function ChannelBadge({ channel }: { channel: Channel }) {
   );
 }
 
-function Waveform({ light }: { light: boolean }) {
+function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }) {
   const heights = [6, 10, 14, 8, 16, 12, 18, 10, 6, 12, 14, 8, 16, 10, 6];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 2, height: 18 }}>
-      {heights.map((h, i) => <div key={i} style={{ width: 2, height: h, background: light ? "rgba(255,255,255,0.5)" : "#128A68", opacity: light ? 1 : 0.4, borderRadius: 1 }} />)}
+      {heights.map((h, i) => {
+        const played = (i + 1) / heights.length <= progress;
+        return <div key={i} style={{ width: 2, height: h, background: light ? "#FFF" : "#128A68", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 1, transition: "opacity 0.1s" }} />;
+      })}
     </div>
   );
 }
 
-function AudioBubble({ duration, light }: { duration: string; light: boolean }) {
+function AudioBubble({ duration, src, light }: { duration: string; src?: string; light: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [dur, setDur] = useState(0);
   const fg = light ? "#FFF" : "#128A68";
+
+  const fmt = (s: number) =>
+    (isFinite(s) && s > 0)
+      ? `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`
+      : (duration || "00:00");
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) { a.play().then(() => setPlaying(true)).catch(() => {}); }
+    else { a.pause(); setPlaying(false); }
+  };
+
+  const progress = dur > 0 ? Math.min(1, cur / dur) : 0;
+  // Mostra o tempo decorrido enquanto toca; senão a duração total (ou a legada)
+  const label = src ? fmt((playing || cur > 0) ? cur : dur) : (duration || "00:00");
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "#F5F5F5", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
+      {src && (
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+          onLoadedMetadata={e => { const dd = e.currentTarget.duration; if (isFinite(dd)) setDur(dd); }}
+          onTimeUpdate={e => setCur(e.currentTarget.currentTime)}
+          onEnded={() => { setPlaying(false); setCur(0); }}
+          style={{ display: "none" }}
+        />
+      )}
       <button
-        onClick={() => setPlaying(p => !p)}
-        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "#128A68", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+        onClick={toggle}
+        disabled={!src}
+        title={src ? (playing ? "Pausar" : "Reproduzir") : "Áudio indisponível"}
+        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "#128A68", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: src ? "pointer" : "default", flexShrink: 0, opacity: src ? 1 : 0.6 }}
       >
-        <Play size={14} fill="#FFF" />
+        {playing ? <Pause size={14} fill="#FFF" /> : <Play size={14} fill="#FFF" />}
       </button>
-      <Waveform light={light} />
-      <span style={{ fontSize: 11, color: fg, fontWeight: 500 }}>{duration}</span>
-      <button style={{ background: "transparent", border: "none", color: fg, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>1x</button>
+      <Waveform light={light} progress={progress} />
+      <span style={{ fontSize: 11, color: fg, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{label}</span>
     </div>
   );
 }
@@ -156,7 +209,7 @@ function AudioBubble({ duration, light }: { duration: string; light: boolean }) 
 function Section({ title, children, defaultOpen = false, action }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: "0.5px solid #F0F0F0" }}>
+    <div style={{ borderBottom: "1px solid #F0F0F0" }}>
       <button
         onClick={() => setOpen(!open)}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer" }}
@@ -220,7 +273,7 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
   );
 }
 
-function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties }) {
+function ConvAvatar({ name, avatarUrl, size, fontSize, style, onError }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties; onError?: () => void }) {
   const [err, setErr] = useState(false);
   useEffect(() => { setErr(false); }, [avatarUrl]);
   if (avatarUrl && !err) {
@@ -228,7 +281,9 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; 
       <img
         src={avatarUrl}
         alt={name}
-        onError={() => setErr(true)}
+        // URLs de foto do WhatsApp expiram (param oe=). Ao falhar, avisa o pai para
+        // buscar uma URL nova e mostra as iniciais nesse meio-tempo.
+        onError={() => { setErr(true); onError?.(); }}
         style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0, ...style }}
       />
     );
@@ -244,6 +299,9 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style }: { name: string; 
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
+  // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
+  // (owner da empresa), não do usuário logado — que pode ser membro de várias empresas.
+  const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
   const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
@@ -271,29 +329,51 @@ export default function MultiatendimentoPage() {
   const [convAvatars, setConvAvatars] = useState<Record<string, string>>({});
   const fetchingAvatars = useRef<Set<string>>(new Set());
 
-  async function fetchAvatar(phone: string) {
-    const inst = instances[0];
+  const avatarRetried = useRef<Set<string>>(new Set());
+
+  async function fetchAvatar(phone: string, instanceId?: string, force = false) {
+    // Prefere a instância da própria conversa; cai para a primeira conectada.
+    const inst = (instanceId && instances.find(i => i.instanceId === instanceId)) || instances[0];
     if (!inst || !phone) return;
     const p = phone.replace(/\D/g, "");
-    if (!p || fetchingAvatars.current.has(p) || convAvatars[p]) return;
+    if (!p || fetchingAvatars.current.has(p) || (!force && convAvatars[p])) return;
     fetchingAvatars.current.add(p);
     try {
       const res = await fetch(
         `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
         { headers: { "Client-Token": inst.clientToken } }
       );
-      if (!res.ok) return;
-      const json = await res.json() as { value?: string };
-      if (json.value) setConvAvatars(prev => ({ ...prev, [p]: json.value! }));
-    } catch { /* ignore */ }
+      if (!res.ok) { console.warn("[avatar] Z-API", res.status, await res.text().catch(() => "")); return; }
+      const json = await res.json() as Record<string, unknown>;
+      // A Z-API retorna a URL em "link"; aceitamos variações por segurança.
+      const url = (json.link ?? json.value ?? json.profilePicture ?? json.imgUrl ?? json.url) as string | undefined;
+      if (url) setConvAvatars(prev => ({ ...prev, [p]: url }));
+      else console.warn("[avatar] sem foto para", p, json);
+    } catch (e) {
+      console.warn("[avatar] falha ao buscar foto", e);
+    } finally {
+      // Libera para nova tentativa se ainda não temos a foto (ex.: instância reconectada).
+      if (!convAvatars[p]) fetchingAvatars.current.delete(p);
+    }
   }
 
   // Fetch photos for visible conversations when instances load
   useEffect(() => {
     if (!instances[0] || convList.length === 0) return;
-    convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone); });
+    convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone, c.instanceId); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances.length, convList.length]);
+
+  // A URL da foto do WhatsApp falhou (geralmente expirou): busca uma URL nova,
+  // uma única vez por contato, para não entrar em laço se o contato não tiver foto.
+  const refetchAvatar = (phone?: string, instanceId?: string) => {
+    const p = (phone ?? "").replace(/\D/g, "");
+    if (!p || avatarRetried.current.has(p)) return;
+    avatarRetried.current.add(p);
+    setConvAvatars(prev => { const n = { ...prev }; delete n[p]; return n; });
+    fetchingAvatars.current.delete(p);
+    fetchAvatar(phone ?? "", instanceId, true);
+  };
 
   // scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -377,9 +457,44 @@ export default function MultiatendimentoPage() {
   const [cfgAssinatura, setCfgAssinatura]   = useState(false);
   const [cfgMantAtend, setCfgMantAtend]     = useState(false);
   const [cfgMantDept, setCfgMantDept]       = useState(false);
+  const [muDepts, setMuDepts]               = useState<{ id: string; name: string }[]>([]);
+  const [muSchedules, setMuSchedules]       = useState<{ id: string; name: string }[]>([]);
+
+  // Carrega listas (departamentos/horários) + configurações persistidas
+  useEffect(() => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    (async () => {
+      const [d, w, s] = await Promise.all([
+        supabase.from("departments").select("id, name").eq("owner_id", oid).order("position", { ascending: true }),
+        supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
+        supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
+      ]);
+      if (d.data) setMuDepts(d.data as { id: string; name: string }[]);
+      if (w.data) setMuSchedules(w.data as { id: string; name: string }[]);
+      const st = s.data as Record<string, unknown> | null;
+      if (st) {
+        setCfgDefDept((st.default_department_id as string) ?? "");
+        setCfgHorario((st.work_schedule_id as string) ?? "");
+        setCfgTranscricao((st.audio_transcription as string) ?? "desativado");
+        setCfgAssinatura(!!st.signature_required);
+        setCfgMantAtend(!!st.keep_attendant);
+        setCfgMantDept(!!st.keep_department);
+      }
+    })();
+  }, [company?.owner_id]);
+
+  const persistMuSettings = async (patch: Record<string, unknown>) => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    const { error } = await supabase.from("multiatendimento_settings")
+      .upsert({ owner_id: oid, company_id: company?.id ?? null, updated_at: new Date().toISOString(), ...patch }, { onConflict: "owner_id" });
+    if (error) toast.error("Erro ao salvar configuração.");
+  };
   const [selectedAgent, setSelectedAgent]   = useState<string | null>(null);
   const [agentSearch, setAgentSearch]       = useState("");
   const [deptSearch, setDeptSearch]         = useState("");
+  const [deptCreateOpen, setDeptCreateOpen] = useState(false);
   const [qmSearch, setQmSearch]             = useState("");
 
   // ── toolbar states ────────────────────────────────────────────────────
@@ -399,6 +514,34 @@ export default function MultiatendimentoPage() {
   const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false, assignedTo: undefined };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
+  // Nome de exibição da conversa: prioriza o nome do lead no CRM (por ID ou
+  // telefone). Cai para o nome salvo; se for vazio ou "ruim" (ex.: ".", o nome
+  // de perfil do WhatsApp do contato), usa o telefone como último recurso.
+  const convName = (c: Conversation): string => {
+    const lead = leads[c.id] ?? (c.phone ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", c.phone ?? "")) : undefined);
+    const nm = (lead?.name ?? c.name ?? "").trim();
+    if (nm && nm !== ".") return nm;
+    return c.phone ?? c.name ?? "Sem nome";
+  };
+
+  // Texto da pré-visualização na lista: usa a última mensagem carregada (rotulando
+  // mídia) e cai para o preview salvo; nomes de arquivo de áudio viram rótulo.
+  const previewText = (c: Conversation): string => {
+    const msgs = convStates[c.id]?.messages;
+    const last = msgs && msgs.length ? msgs[msgs.length - 1] : null;
+    if (last) {
+      if (last.kind === "audio") return "🎤 Mensagem de áudio";
+      if (last.kind === "image") return "🖼️ Imagem";
+      if (last.kind === "file")  return `📎 ${last.filename ?? "Arquivo"}`;
+      if (last.kind === "system" || last.kind === "text") return last.text;
+    }
+    const p = (c.preview ?? "").trim();
+    if (/\.(webm|ogg|mp3|m4a|opus)$/i.test(p)) return "🎤 Mensagem de áudio";
+    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(p)) return "🖼️ Imagem";
+    if (/\.(pdf|docx?|xlsx?|pptx?|zip|rar)$/i.test(p)) return `📎 ${p}`;
+    return p;
+  };
+
   // Etapas reais do pipeline vinculado ao lead ativo.
   // Tenta por ID primeiro (conversas abertas pelo pipeline); se não achar,
   // busca pelo telefone (conversas de backfill com UUID aleatório como id).
@@ -415,9 +558,13 @@ export default function MultiatendimentoPage() {
 
   // ── carregar conversas do Supabase ao iniciar ────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tenantId) return;
 
-    type DbConvRow = { id: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string };
+    // Troca de empresa: zera as conversas do tenant anterior antes de recarregar
+    setConvList([]);
+    setConvStates({});
+
+    type DbConvRow = { id: string; owner_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean };
     const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -425,6 +572,7 @@ export default function MultiatendimentoPage() {
       company: r.company_name ?? undefined, email: r.email ?? undefined,
       phone: r.phone ?? undefined, value: r.value ?? undefined,
       pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
+      instanceId: r.instance_id ?? undefined,
     });
 
     type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean };
@@ -441,68 +589,82 @@ export default function MultiatendimentoPage() {
     supabase
       .from("whatsapp_conversations")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("owner_id", tenantId)
       .order("last_msg_at", { ascending: false })
       .then(async ({ data, error }) => {
         if (error) console.error("Erro ao carregar conversas:", error);
 
-        if (data && data.length > 0) {
-          // Fix race condition: MERGE com estado existente (não sobrescrever conversas do Pipeline)
+        const existingRows = (data ?? []) as DbConvRow[];
+
+        // Mescla as conversas já persistidas no estado (sem sobrescrever as do Pipeline)
+        if (existingRows.length > 0) {
           setConvList(prev => {
-            const dbIds = new Set(data.map(r => r.id));
+            const dbIds = new Set(existingRows.map(r => r.id));
             const extra = prev.filter(c => !dbIds.has(c.id)); // conversas só em memória
-            return [...data.map(mapRow), ...extra];
+            return [...existingRows.map(mapRow), ...extra];
           });
           setConvStates(prev => {
             const next: Record<string, ConvState> = { ...prev };
-            data.forEach(r => {
+            existingRows.forEach(r => {
               if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
             });
             return next;
           });
-          return;
         }
 
-        // Backfill: tabela vazia → cria conversas a partir de mensagens existentes
+        // Reconciliação: cria conversas para números que já mandaram mensagem mas
+        // ainda não têm conversa (ex.: mensagens recebidas com a página fechada —
+        // o realtime só cria chat se a página estiver aberta no momento). Roda
+        // SEMPRE, não só quando a tabela está vazia.
         const { data: msgs } = await supabase
           .from("whatsapp_messages")
-          .select("phone, chat_name, sender_name, body, momment, created_at")
-          .eq("owner_id", user.id)
+          .select("phone, instance_id, type, chat_name, sender_name, body, momment, created_at")
+          .eq("owner_id", tenantId)
           .eq("from_me", false)
           .order("created_at", { ascending: false });
 
         if (!msgs?.length) return;
 
-        // Agrupa por telefone, pega a mensagem mais recente por contato
-        type WaMsgRow = { phone: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
-        const phoneMap = new Map<string, WaMsgRow>();
+        // Conversas que já existem, por chave (instância, telefone normalizado)
+        const haveKeys = new Set(
+          existingRows.map(r => `${r.instance_id ?? ""}|${normalizeBrPhone(r.phone ?? "")}`),
+        );
+
+        // Agrupa por (instância, telefone normalizado): cada número é uma conversa
+        // separada; pega a mensagem mais recente de cada par ainda sem conversa.
+        type WaMsgRow = { phone: string; instance_id?: string; type?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
+        const convMap = new Map<string, WaMsgRow>();
         for (const m of msgs) {
-          if (!phoneMap.has(m.phone)) phoneMap.set(m.phone, m as WaMsgRow);
+          if (m.type === "system") continue; // mensagem de sistema não cria conversa
+          const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
+          if (haveKeys.has(key) || convMap.has(key)) continue;
+          convMap.set(key, m as WaMsgRow);
         }
+
+        if (convMap.size === 0) return;
 
         const newConvs: Conversation[] = [];
         const newStates: Record<string, ConvState> = {};
         const dbRows: DbConvRow[] = [];
 
-        for (const [phone, m] of phoneMap) {
+        for (const m of convMap.values()) {
           const id = crypto.randomUUID();
+          const phone = m.phone;
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone });
+          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone, instanceId: m.instance_id ?? undefined });
           newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
-          dbRows.push({ id, owner_id: user.id, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+          dbRows.push({ id, owner_id: tenantId, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
         }
 
-        if (newConvs.length) {
-          setConvList(newConvs);
-          setConvStates(newStates);
-          supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
-            if (e) console.error("Backfill erro:", e);
-          });
-        }
+        setConvList(prev => [...newConvs, ...prev]);
+        setConvStates(prev => ({ ...newStates, ...prev }));
+        supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
+          if (e) console.error("Reconciliação de conversas — erro:", e);
+        });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [tenantId]);
 
   // auto-scroll on new messages
   useEffect(() => {
@@ -511,17 +673,21 @@ export default function MultiatendimentoPage() {
 
   // ── carregar histórico quando muda a conversa ───────────────────────
   useEffect(() => {
-    if (!activeId || !active || !user) return;
+    if (!activeId || !active || !user || !tenantId) return;
     const rawPhone = (active.phone ?? "").replace(/\D/g, "");
     // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
     // que foram salvas com o ID da conversa como chave (quando não há telefone real)
     const phoneFilter = rawPhone
-      ? (() => { const { local, full } = phoneVariants(rawPhone); return `phone.eq.${local},phone.eq.${full},phone.eq.${activeId}`; })()
+      ? [...phoneVariants(rawPhone).map(v => `phone.eq.${v}`), `phone.eq.${activeId}`].join(",")
       : `phone.eq.${activeId}`;
 
-    supabase
+    let histQuery = supabase
       .from("whatsapp_messages")
       .select("*")
+      .eq("owner_id", tenantId);
+    // Histórico isolado por instância (número) — não mistura conversas de números diferentes
+    if (active.instanceId) histQuery = histQuery.eq("instance_id", active.instanceId);
+    histQuery
       .or(phoneFilter)
       .order("created_at", { ascending: true })
       .limit(100)
@@ -541,21 +707,30 @@ export default function MultiatendimentoPage() {
             read:  true as const,
           };
           if (m.type === "system")   return { id: m.id, from: "system" as const, time: base.time, kind: "system" as const, text: m.body ?? "", date: base.date };
-          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: m.body ?? "00:00" };
-          if (m.type === "image")    return { ...base, kind: "image"  as const, src: "", caption: m.body ?? "" };
-          if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo" };
+          if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: /^\d{1,2}:\d{2}$/.test(m.body ?? "") ? m.body! : "", src: m.media_url ?? undefined };
+          if (m.type === "image")    return { ...base, kind: "image"  as const, src: m.media_url ?? "", caption: m.body ?? "" };
+          if (m.type === "document") return { ...base, kind: "file"   as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
           return { ...base, kind: "text" as const, text: m.body ?? "" };
         });
         updateCs(activeId, { messages: msgs });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.phone, user?.id]);
+  }, [activeId, active?.phone, active?.instanceId, user?.id]);
+
+  // Mantém a instância (número) da conversa ativa selecionada — ao reabrir a
+  // conversa, volta a usar o mesmo número que estava sendo conversado.
+  useEffect(() => {
+    if (active?.instanceId && active.instanceId !== selectedInstance) {
+      setSelectedInstance(active.instanceId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.instanceId]);
 
   // ── listener global de mensagens recebidas (sem filtro de telefone) ──
   // Trata tanto conversas existentes (phone mismatch de código de país)
   // quanto novas mensagens de números ainda sem conversa no CRM
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tenantId) return;
 
     const ch = supabase
       .channel("wamsg-global")
@@ -563,10 +738,12 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
+          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string };
           if (m.from_me) return; // enviadas já são adicionadas otimisticamente
+          if (m.owner_id !== tenantId) return; // só mensagens da empresa selecionada
 
           const msgPhone = (m.phone ?? "") as string;
+          const msgInst  = (m.instance_id ?? "") as string;
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -585,8 +762,11 @@ export default function MultiatendimentoPage() {
             return; // nunca cria nova conversa para mensagem de sistema
           }
 
-          // Procura conversa pelo telefone (ignora diferença de código de país)
-          const existing = convListRef.current.find(c => phonesMatch(c.phone ?? "", msgPhone));
+          // Procura conversa pelo telefone E pela instância (cada número é uma conversa
+          // separada). Conversas legadas sem instância casam por telefone.
+          const existing = convListRef.current.find(c =>
+            phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
+          );
 
           if (existing) {
             // Atualiza preview da conversa existente
@@ -616,6 +796,7 @@ export default function MultiatendimentoPage() {
               channel: "whatsapp" as const,
               tags:    [],
               phone:   msgPhone,
+              instanceId: msgInst || undefined,
             };
             setConvList(prev => [newConv, ...prev]);
             setConvStates(prev => ({
@@ -623,9 +804,8 @@ export default function MultiatendimentoPage() {
               [newId]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
             }));
             // Persiste nova conversa no banco
-            const uid = m.owner_id as string;
             supabase.from("whatsapp_conversations").insert({
-              id: newId, owner_id: uid, name: newConv.name, phone: msgPhone,
+              id: newId, owner_id: tenantId, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
               channel: "whatsapp", tags: [], preview: m.body ?? "",
               last_msg_at: new Date().toISOString(), read: false,
             });
@@ -636,7 +816,7 @@ export default function MultiatendimentoPage() {
 
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [tenantId]);
 
   // load Z-API instances da tabela whatsapp_connections via CompanyContext
   useEffect(() => {
@@ -682,6 +862,7 @@ export default function MultiatendimentoPage() {
           value: lead.value ?? 0,
           pipeline: pipelineName,
           dealNumber: `#${lead.dealNumber}`,
+          instanceId: selectedInstance || undefined,
         };
         const cs: ConvState = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
         toCreate.push({ conv, cs });
@@ -699,7 +880,7 @@ export default function MultiatendimentoPage() {
     // Persiste novas conversas no Supabase
     for (const { conv, cs } of toCreate) {
       supabase.from("whatsapp_conversations").upsert({
-        id: conv.id, owner_id: user.id, name: conv.name, phone: conv.phone ?? null,
+        id: conv.id, owner_id: tenantId, instance_id: conv.instanceId ?? null, name: conv.name, phone: conv.phone ?? null,
         channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
         email: conv.email ?? null, pipeline: conv.pipeline ?? null,
         deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
@@ -752,6 +933,7 @@ export default function MultiatendimentoPage() {
       value: lead.value ?? 0,
       pipeline: pipelineName,
       dealNumber: `#${lead.dealNumber}`,
+      instanceId: selectedInstance || undefined,
     };
 
     const newCs: ConvState = { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false };
@@ -763,7 +945,7 @@ export default function MultiatendimentoPage() {
     toast.success(`Conversa iniciada com ${lead.name}`);
     if (user) {
       supabase.from("whatsapp_conversations").upsert({
-        id: leadId, owner_id: user.id, name: newConv.name, phone: newConv.phone ?? null,
+        id: leadId, owner_id: tenantId, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
         channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
         email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
         deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
@@ -823,7 +1005,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
-        owner_id:    user.id,
+        owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
@@ -902,12 +1084,28 @@ export default function MultiatendimentoPage() {
     const duration = `${String(Math.floor(durationSecs / 60)).padStart(2, "0")}:${String(durationSecs % 60).padStart(2, "0")}`;
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
+      // MediaRecorder gera WebM sem a duração no header → WhatsApp mostra 0:00.
+      // Injeta a duração real antes de enviar/armazenar.
+      let outBlob = blob;
+      if ((blob.type || "").includes("webm") && durationSecs > 0) {
+        try { outBlob = await fixWebmDuration(blob, durationSecs * 1000, { logger: false }); }
+        catch (e) { console.warn("[audio] fixWebmDuration:", e); }
+      }
+      // Sobe o áudio para o storage → URL pública (reprodução no chat e histórico)
+      let mediaUrl: string | null = null;
+      try {
+        const ext = (outBlob.type || "").includes("ogg") ? "ogg" : "webm";
+        const path = `${user.id}/audio-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, outBlob, { upsert: true, contentType: outBlob.type || "audio/webm" });
+        if (!upErr) mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
+      } catch (e) { console.warn("[audio] upload storage:", e); }
+
       // Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,)
       const dataUri = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
         reader.onload = () => res(reader.result as string);
         reader.onerror = rej;
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(outBlob);
       });
       const base64 = dataUri.split(",")[1]; // strip data URI prefix
       const r = await fetch(
@@ -918,16 +1116,17 @@ export default function MultiatendimentoPage() {
         const errBody = await r.json().catch(() => ({}));
         throw new Error((errBody as { error?: string }).error ?? String(r.status));
       }
-      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, date: "Hoje", read: false };
+      const newMsg: Msg = { id: `m${Date.now()}`, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       // Persiste no banco para histórico futuro
       await supabase.from("whatsapp_messages").insert({
-        owner_id:    user.id,
+        owner_id:    tenantId,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
         body:        duration,
         type:        "audio",
+        media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: user.email?.split("@")[0] ?? "Você",
       });
@@ -1076,6 +1275,47 @@ export default function MultiatendimentoPage() {
     });
   }
 
+  // Troca o número (instância) da conversa ativa. Como cada par (instância,
+  // telefone) é uma conversa independente, mudar o número abre o thread daquele
+  // lead naquele número — existente ou um novo (vazio) — sem misturar histórico.
+  function switchActiveInstance(targetInstanceId: string) {
+    setInstanceOpen(false);
+    if (!active || !targetInstanceId) return;
+    if ((active.instanceId ?? "") === targetInstanceId) { setSelectedInstance(targetInstanceId); return; }
+
+    // Já existe um thread desse lead nesse número?
+    const existing = convList.find(c =>
+      c.id !== active.id &&
+      phonesMatch(c.phone ?? "", active.phone ?? "") &&
+      (c.instanceId ?? "") === targetInstanceId,
+    );
+    if (existing) {
+      setActiveId(existing.id);
+      setSelectedInstance(targetInstanceId);
+      return;
+    }
+
+    // Cria um novo thread (vazio) vinculado a esse número, copiando os dados do lead.
+    const label = instances.find(i => i.instanceId === targetInstanceId)?.label ?? "novo número";
+    const newId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `conv-${Date.now()}`;
+    const newConv: Conversation = { ...active, id: newId, preview: "", time: "agora", instanceId: targetInstanceId };
+    const newCs: ConvState = { ...DEFAULT_CS, stageIdx: cs?.stageIdx ?? 0 };
+    setConvList(prev => [newConv, ...prev]);
+    setConvStates(prev => ({ ...prev, [newId]: newCs }));
+    setActiveId(newId);
+    setSelectedInstance(targetInstanceId);
+    toast.success(`Conversa com ${convName(active)} via ${label}`);
+    if (user && tenantId) {
+      supabase.from("whatsapp_conversations").upsert({
+        id: newId, owner_id: tenantId, instance_id: targetInstanceId, name: newConv.name, phone: newConv.phone ?? null,
+        channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
+        email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
+        deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
+        preview: "", stage_idx: newCs.stageIdx, notes: "", read: true, finished: false,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    }
+  }
+
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
@@ -1120,7 +1360,7 @@ export default function MultiatendimentoPage() {
       // Persiste no banco para histórico futuro
       if (user) {
         await supabase.from("whatsapp_messages").insert({
-          owner_id:    user.id,
+          owner_id:    tenantId,
           instance_id: inst.instanceId,
           phone:       cleanPhone,
           from_me:     true,
@@ -1192,7 +1432,7 @@ export default function MultiatendimentoPage() {
     const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
     supabase.from("whatsapp_messages").insert({
       id:          msgId,
-      owner_id:    user.id,
+      owner_id:    tenantId,
       instance_id: instances[0]?.instanceId ?? "system",
       phone:       phoneForSystem,
       from_me:     false,
@@ -1216,7 +1456,7 @@ export default function MultiatendimentoPage() {
     let list = convList;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(c => c.name.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q));
+      list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
       case "email":   list = list.filter(c => c.channel === "instagram"); break;
@@ -1225,7 +1465,8 @@ export default function MultiatendimentoPage() {
       case "alert":   list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
     return list;
-  }, [searchQuery, activeFilter, convStates, convList]);
+    // leads: convName resolve o nome do lead por telefone, então a busca depende dele
+  }, [searchQuery, activeFilter, convStates, convList, leads]);
 
   const filters = [
     { id: "email",   icon: Mail,          label: "Instagram",      count: convList.filter(c => c.channel === "instagram").length },
@@ -1250,7 +1491,7 @@ export default function MultiatendimentoPage() {
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
       <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
-        <div style={{ padding: "12px 12px 8px", borderBottom: "0.5px solid #F0F0F0" }}>
+        <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px" }}>
               <Search size={14} color="#AAA" />
@@ -1315,23 +1556,23 @@ export default function MultiatendimentoPage() {
               <div
                 key={c.id}
                 onClick={() => { setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", background: isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10 }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", background: isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10 }}
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9F9F9"; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ position: "relative", flexShrink: 0 }}>
-                  <ConvAvatar name={c.name} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} />
+                  <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} onError={() => refetchAvatar(c.phone, c.instanceId)} />
                   <ChannelBadge channel={c.channel} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                       <span style={{ fontSize: 11, color: "#AAA" }}>{c.time}</span>
                       {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}
                     </div>
                   </div>
-                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.preview}</p>
+                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {c.tags.slice(0, 2).map((t, i) => {
                       const s = tagStyle(t);
@@ -1352,11 +1593,11 @@ export default function MultiatendimentoPage() {
         {active && cs ? (
           <>
             {/* header */}
-            <div style={{ minHeight: 52, background: "#FFF", borderBottom: "0.5px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ minHeight: 52, background: "#FFF", borderBottom: "1px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{active.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
                   <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
                     <Filter size={10} />
                     {linkedPipeline?.name || active.pipeline || "Pipeline Comercial"}
@@ -1378,12 +1619,12 @@ export default function MultiatendimentoPage() {
                       <ChevronDown size={10} color={instances.length > 0 ? "#128A68" : "#AAA"} />
                     </button>
                     {instanceOpen && (
-                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
+                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
                         {instances.length > 0 ? (
                           <>
                             <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "#AAA", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
                             {instances.map(inst => (
-                              <button key={inst.instanceId} onClick={() => { setSelectedInstance(inst.instanceId); setInstanceOpen(false); }}
+                              <button key={inst.instanceId} onClick={() => switchActiveInstance(inst.instanceId)}
                                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "#E1F5EE" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                                 onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "#F9F9F9"; }}
                                 onMouseLeave={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "transparent"; }}
@@ -1396,7 +1637,7 @@ export default function MultiatendimentoPage() {
                                 {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="#128A68" style={{ marginLeft: "auto" }} />}
                               </button>
                             ))}
-                            <div style={{ borderTop: "0.5px solid #F0F0F0", padding: "8px 12px" }}>
+                            <div style={{ borderTop: "1px solid #F0F0F0", padding: "8px 12px" }}>
                               <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0 }}>+ Gerenciar conexões</button>
                             </div>
                           </>
@@ -1434,7 +1675,7 @@ export default function MultiatendimentoPage() {
                     <MoreHorizontal size={18} color="#AAA" />
                   </button>
                   {moreMenuOpen && (
-                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
                       {[
                         { label: "Transferir", action: () => { setShowTransferDialog(true); setMoreMenuOpen(false); } },
                         { label: "Arquivar", action: () => { updateCs(activeId, { finished: true }); toast("Conversa arquivada"); setMoreMenuOpen(false); } },
@@ -1473,7 +1714,7 @@ export default function MultiatendimentoPage() {
                       return (
                         <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
                           <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
-                          <span style={{ fontSize: 11, color: "#888", background: "#F0F0F0", border: "0.5px solid #E0E0E0", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 11, color: "#888", background: "#F0F0F0", border: "1px solid #E0E0E0", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
                             <UserCheck size={11} color="#888" />
                             {m.text}
                             <span style={{ color: "#BBB", marginLeft: 2 }}>· {m.time}</span>
@@ -1486,15 +1727,15 @@ export default function MultiatendimentoPage() {
                     return (
                       <div key={m.id} style={{ display: "flex", justifyContent: isAgent ? "flex-end" : "flex-start", marginBottom: 12 }}>
                         {!isAgent && (
-                          <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
+                          <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
                         <div style={{ maxWidth: "65%" }}>
                           <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
-                            {isAgent ? `${m.agent} • ${m.time}` : `${active.name} • ${m.time}`}
+                            {isAgent ? `${m.agent} • ${m.time}` : `${convName(active)} • ${m.time}`}
                           </div>
-                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "0.5px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                             {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
-                            {m.kind === "audio" && <AudioBubble duration={m.duration} light={isAgent} />}
+                            {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={isAgent} />}
                             {m.kind === "image" && (
                               <div style={{ overflow: "hidden", borderRadius: 12 }}>
                                 {m.src ? (
@@ -1527,10 +1768,10 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* rodapé */}
-            <div style={{ background: "#FFF", borderTop: "0.5px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
+            <div style={{ background: "#FFF", borderTop: "1px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
               {/* painel de emojis */}
               {showEmoji && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {EMOJIS.map(e => (
                       <button key={e} onClick={() => insertEmoji(e)}
@@ -1545,7 +1786,7 @@ export default function MultiatendimentoPage() {
 
               {/* painel de arquivos da conversa */}
               {showFiles && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>Arquivos da conversa</span>
                     <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="#AAA" /></button>
@@ -1607,7 +1848,7 @@ export default function MultiatendimentoPage() {
                     {String(Math.floor(recordingTime / 60)).padStart(2, "0")}:{String(recordingTime % 60).padStart(2, "0")}
                   </span>
                   <span style={{ fontSize: 13, color: "#AAA", flex: 1 }}>Gravando áudio…</span>
-                  <button onClick={cancelRecording} style={{ background: "none", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                  <button onClick={cancelRecording} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
                   <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
                 </div>
               ) : (
@@ -1650,16 +1891,16 @@ export default function MultiatendimentoPage() {
       />
 
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
-      <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "0.5px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
+      <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
         {active && cs && (
           <>
             {/* HEADER */}
-            <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
+            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} />
+                <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{active.name}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>
                     <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate("/leads")} />
                   </div>
                   {/* Tags inline + picker */}
@@ -1876,14 +2117,14 @@ export default function MultiatendimentoPage() {
 
               {/* Painel: + Negócio */}
               {showNegocioForm && (
-                <div style={{ marginTop: 12, background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo negócio</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
                     <input
                       value={negocioName}
                       onChange={e => setNegocioName(e.target.value)}
-                      placeholder={active.name}
+                      placeholder={convName(active)}
                       style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
                     />
                   </div>
@@ -1921,7 +2162,7 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* ETAPA NO PIPELINE */}
-            <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
+            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</div>
               <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
@@ -1989,10 +2230,10 @@ export default function MultiatendimentoPage() {
                 .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
               const TYPE_LABEL: Record<string, string> = { meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp", follow_up: "Follow-up", task: "Tarefa" };
               return (
-                <div style={{ padding: "16px", borderBottom: "0.5px solid #F0F0F0" }}>
+                <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
                   {nextAct ? (
-                    <div style={{ background: "#F9FBFA", border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
+                    <div style={{ background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                         <CalendarIcon size={14} color="#128A68" />
                         <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>
@@ -2053,13 +2294,13 @@ export default function MultiatendimentoPage() {
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
-              <div style={{ border: "0.5px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
+              <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
                 onClick={() => navigate("/pipeline")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <ConvAvatar name={active.name} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
+                  <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{active.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
                     <div style={{ fontSize: 11, color: "#AAA" }}>{active.company || "Sem empresa"}</div>
                   </div>
                 </div>
@@ -2131,7 +2372,7 @@ export default function MultiatendimentoPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {settingsTab === "dept" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
+                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
                   {settingsTab === "quick" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
                   <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
                 </div>
@@ -2146,9 +2387,15 @@ export default function MultiatendimentoPage() {
                     {/* coluna esquerda */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {[
-                        { icon: <List size={15} color="#4285F4" />, title: "Departamento padrão", desc: "As conversas por padrão serão iniciadas nesse departamento", value: cfgDefDept, set: setCfgDefDept, options: [{ v: "", l: "Selecionar" }, ...teamMembers.map(m => ({ v: m, l: m }))] },
-                        { icon: <Clock size={15} color="#4285F4" />, title: "Horário de funcionamento", desc: "Defina o horário padrão de funcionamento dos departamentos", value: cfgHorario, set: setCfgHorario, options: [{ v: "", l: "Selecionar" }, { v: "24h", l: "24 horas" }, { v: "comercial", l: "Horário comercial (8h–18h)" }] },
-                        { icon: <Mic size={15} color="#4285F4" />, title: "Transcrição de áudios", desc: "Defina quando as mensagens de áudio serão transcritas automaticamente", value: cfgTranscricao, set: setCfgTranscricao, options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
+                        { icon: <List size={15} color="#4285F4" />, title: "Departamento padrão", desc: "As conversas por padrão serão iniciadas nesse departamento",
+                          value: cfgDefDept, onChange: (v: string) => { setCfgDefDept(v); persistMuSettings({ default_department_id: v || null }); },
+                          options: [{ v: "", l: muDepts.length ? "Selecionar" : "Nenhum departamento cadastrado" }, ...muDepts.map(d => ({ v: d.id, l: d.name }))] },
+                        { icon: <Clock size={15} color="#4285F4" />, title: "Horário de funcionamento", desc: "Defina o horário padrão de funcionamento dos departamentos",
+                          value: cfgHorario, onChange: (v: string) => { setCfgHorario(v); persistMuSettings({ work_schedule_id: v || null }); },
+                          options: [{ v: "", l: muSchedules.length ? "Selecionar" : "Nenhum horário cadastrado" }, ...muSchedules.map(s => ({ v: s.id, l: s.name }))] },
+                        { icon: <Mic size={15} color="#4285F4" />, title: "Transcrição de áudios", desc: "Defina quando as mensagens de áudio serão transcritas automaticamente",
+                          value: cfgTranscricao, onChange: (v: string) => { setCfgTranscricao(v); persistMuSettings({ audio_transcription: v }); },
+                          options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
                       ].map((item, i) => (
                         <div key={i} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
@@ -2158,7 +2405,7 @@ export default function MultiatendimentoPage() {
                               <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
                             </div>
                           </div>
-                          <select value={item.value} onChange={e => item.set(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
+                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
                             {item.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                         </div>
@@ -2174,7 +2421,7 @@ export default function MultiatendimentoPage() {
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Assinatura obrigatória</div>
                           <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
                         </div>
-                        <MuToggle checked={cfgAssinatura} onChange={() => setCfgAssinatura(p => !p)} />
+                        <MuToggle checked={cfgAssinatura} onChange={() => { const nv = !cfgAssinatura; setCfgAssinatura(nv); persistMuSettings({ signature_required: nv }); }} />
                       </div>
 
                       {/* Informações ao finalizar */}
@@ -2188,14 +2435,14 @@ export default function MultiatendimentoPage() {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                           {[
-                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend },
-                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept },
+                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
+                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
                           ].map((row, i) => (
                             <div key={i}>
                               {i > 0 && <div style={{ height: 1, background: "#EEEEEE", margin: "8px 0" }} />}
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
-                                <MuToggle checked={row.val} onChange={() => row.set((p: boolean) => !p)} />
+                                <MuToggle checked={row.val} onChange={() => { const nv = !row.val; row.set(nv); persistMuSettings({ [row.col]: nv }); }} />
                               </div>
                             </div>
                           ))}
@@ -2207,23 +2454,7 @@ export default function MultiatendimentoPage() {
 
                 {/* ── Departamento ── */}
                 {settingsTab === "dept" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
-                      <Search size={14} color="#AAA" />
-                      <input placeholder="Pesquisar..." value={deptSearch} onChange={e => setDeptSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
-                      <span style={{ fontSize: 12, color: "#AAA" }}>0 resultados</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 100px 48px", padding: "6px 0", borderBottom: "1px solid #EEEEEE", marginBottom: 8 }}>
-                      {["Departamentos", "Horário de funcionamento", "Data de criação", ""].map((h, i) => (
-                        <span key={i} style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</span>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
-                      <Folder size={32} color="#E5E5E5" />
-                      <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Nenhum departamento criado</p>
-                      <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Criar" para adicionar um departamento</p>
-                    </div>
-                  </div>
+                  <DepartmentsManager accent="#128A68" createOpen={deptCreateOpen} setCreateOpen={setDeptCreateOpen} />
                 )}
 
                 {/* ── Atendentes ── */}
@@ -2381,7 +2612,7 @@ function TransferDialog({
         style={{ background: "#FFF", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "0.5px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 7 }}>
               <UserCheck size={16} color="#128A68" /> Transferir atendimento
@@ -2394,7 +2625,7 @@ function TransferDialog({
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #F0F0F0" }}>
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
             <Search size={14} color="#AAA" />
             <input
@@ -2453,7 +2684,7 @@ function TransferDialog({
         </div>
 
         {/* footer */}
-        <div style={{ padding: "10px 20px", borderTop: "0.5px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
+        <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
           {filtered.length} atendente{filtered.length !== 1 ? "s" : ""} disponíve{filtered.length !== 1 ? "is" : "l"}
         </div>
       </div>
@@ -2498,7 +2729,7 @@ function NewConvDialog({
         style={{ background: "#FFF", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "0.5px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Nova conversa</div>
             <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um negócio do pipeline</div>
@@ -2509,7 +2740,7 @@ function NewConvDialog({
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "0.5px solid #F0F0F0" }}>
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
             <Search size={14} color="#AAA" />
             <input
@@ -2573,7 +2804,7 @@ function NewConvDialog({
 
         {/* footer */}
         {filteredLeads.length > 0 && (
-          <div style={{ padding: "10px 20px", borderTop: "0.5px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
+          <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
             {filteredLeads.length} negócio{filteredLeads.length !== 1 ? "s" : ""} encontrado{filteredLeads.length !== 1 ? "s" : ""}
           </div>
         )}

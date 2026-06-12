@@ -119,7 +119,7 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
               placeholder="Ex: Reunião de apresentação"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="bg-background border-card-border rounded-lg"
+              className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
               type="datetime-local"
               value={scheduledAt}
               onChange={e => setScheduledAt(e.target.value)}
-              className="bg-background border-card-border rounded-lg"
+              className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -182,7 +182,7 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
               placeholder="contato@empresa.com"
               value={contactEmail}
               onChange={e => setContactEmail(e.target.value)}
-              className="bg-background border-card-border rounded-lg"
+              className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -194,7 +194,7 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
               placeholder="https://meet.google.com/..."
               value={meetLink}
               onChange={e => setMeetLink(e.target.value)}
-              className="bg-background border-card-border rounded-lg"
+              className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -205,7 +205,7 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
               placeholder="Descreva os detalhes da atividade..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="bg-background border-card-border rounded-lg min-h-[80px] resize-none"
+              className="bg-background border-card-border rounded-lg min-h-[80px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 

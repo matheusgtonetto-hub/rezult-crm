@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { checkGoogleConnection } from "@/lib/googleOAuth";
+import { useCompany } from "@/context/CompanyContext";
 import type { ActivityType, Lead } from "@/data/mockData";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export function ActivityDialog({
   leads, teamMembers, memberEmails, memberAvatars, memberColors,
   defaultLead, initialValues,
 }: Props) {
+  const { company } = useCompany();
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ActivityType>("meeting");
   const [date, setDate] = useState("");
@@ -118,13 +120,17 @@ export function ActivityDialog({
   const [meetGcalEventId, setMeetGcalEventId] = useState<string | undefined>();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const didSubmitRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
-    checkGoogleConnection().then(conn => {
-      setGoogleConnected(!!conn);
-      setAddToCalendar(!!conn);
-    });
+    didSubmitRef.current = false;
+    if (company) {
+      checkGoogleConnection(company.id).then(conn => {
+        setGoogleConnected(!!conn);
+        setAddToCalendar(!!conn);
+      });
+    }
     const { date: nd, time: nt } = getNow15();
     if (initialValues) {
       setTitle(initialValues.title ?? "");
@@ -191,6 +197,8 @@ export function ActivityDialog({
           start_datetime: startDt,
           duration_minutes: duration,
           attendees: participants,
+          create_meet: true,
+          company_id: company?.id,
         },
       });
       if (error) throw error;
@@ -223,20 +231,40 @@ export function ActivityDialog({
     if (!title.trim() || !date || !time) return;
     if (!defaultLead && !selectedLeadId) return;
 
+    const startDt = `${date}T${time}:00`;
     let gcalEventId: string | undefined = meetGcalEventId;
 
-    // Cria evento no Google Calendar se ainda não foi criado via Meet link
-    console.log("[ActivityDialog] handleSubmit - type:", type, "addToCalendar:", addToCalendar, "googleConnected:", googleConnected, "meetEventCreated:", meetEventCreated, "meetGcalEventId:", meetGcalEventId);
-    if (addToCalendar && googleConnected && !meetEventCreated) {
-      const startDt = `${date}T${time}:00`;
+    if (meetGcalEventId) {
+      // Atualiza o evento já criado pelo "Criar link do Google Meet" com os dados finais
       try {
         const { data, error } = await supabase.functions.invoke("google-calendar-event", {
-          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, create_meet: type === "meeting" },
+          body: { event_id: meetGcalEventId, title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, company_id: company?.id },
         });
-        console.log("[ActivityDialog] google-calendar-event response - data:", data, "error:", error);
+        if (!error && data && !data.error) {
+          toast.success(
+            <span>
+              Evento atualizado no Google Calendar.{" "}
+              {data.event_link && (
+                <a href={data.event_link as string} target="_blank" rel="noopener noreferrer" className="underline">
+                  Ver evento
+                </a>
+              )}
+            </span>,
+          );
+        } else {
+          toast.error("Não foi possível atualizar o evento no Google Calendar.");
+        }
+      } catch {
+        toast.error("Não foi possível atualizar o evento no Google Calendar.");
+      }
+    } else if (addToCalendar && googleConnected) {
+      // Nenhum evento criado ainda — cria agora com os dados finais
+      try {
+        const { data, error } = await supabase.functions.invoke("google-calendar-event", {
+          body: { title: title.trim(), description, start_datetime: startDt, duration_minutes: duration, attendees: participants, create_meet: type === "meeting", company_id: company?.id },
+        });
         if (!error && data && !data.error) {
           gcalEventId = data.event_id ? (data.event_id as string) : undefined;
-          console.log("[ActivityDialog] gcalEventId captured:", gcalEventId);
           toast.success(
             <span>
               Evento criado no Google Calendar.{" "}
@@ -248,16 +276,14 @@ export function ActivityDialog({
             </span>,
           );
         } else {
-          console.error("[ActivityDialog] Falha ao criar evento:", error ?? data);
           toast.error("Não foi possível criar o evento no Google Calendar.");
         }
-      } catch (err) {
-        console.error("[ActivityDialog] Exceção ao criar evento:", err);
+      } catch {
         toast.error("Não foi possível criar o evento no Google Calendar.");
       }
     }
-    console.log("[ActivityDialog] gcalEventId final antes do onSubmit:", gcalEventId);
 
+    didSubmitRef.current = true;
     onSubmit({
       title: title.trim(),
       type,
@@ -269,6 +295,13 @@ export function ActivityDialog({
       leadId: defaultLead ? undefined : selectedLeadId,
       gcalEventId,
     });
+  };
+
+  const handleClose = () => {
+    if (meetGcalEventId && !didSubmitRef.current) {
+      supabase.functions.invoke("google-calendar-delete", { body: { event_id: meetGcalEventId, company_id: company?.id } }).catch(() => {});
+    }
+    onClose();
   };
 
   const activeLead = defaultLead ?? (selectedLeadId ? leads[selectedLeadId] : undefined);
@@ -296,7 +329,7 @@ export function ActivityDialog({
   const canSubmit = !!title.trim() && !!date && !!time && (!!defaultLead || !!selectedLeadId);
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) handleClose(); }}>
       <DialogContent className="bg-card border-card-border sm:max-w-lg p-5" style={{ borderRadius: 15 }}>
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm text-foreground">
@@ -368,7 +401,7 @@ export function ActivityDialog({
               value={title}
               onChange={e => setTitle(e.target.value)}
               readOnly={readOnly}
-              className="bg-background border-card-border h-8 text-sm"
+              className="bg-background border-card-border h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               style={{ borderRadius: 15, color: title ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>
@@ -454,7 +487,7 @@ export function ActivityDialog({
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Horário</label>
               <Select value={time} onValueChange={v => !readOnly && setTime(v)} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
                   <SelectValue placeholder="--:--" />
                 </SelectTrigger>
                 <SelectContent className="max-h-52 overflow-y-auto">
@@ -467,7 +500,7 @@ export function ActivityDialog({
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Duração</label>
               <Select value={String(duration)} onValueChange={v => !readOnly && setDuration(Number(v))} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -684,7 +717,7 @@ export function ActivityDialog({
                   value={meetLink}
                   onChange={e => setMeetLink(e.target.value)}
                   placeholder="Cole ou gere o link da reunião (Zoom, Meet, Teams...)"
-                  className="h-8 text-xs border-card-border bg-background"
+                  className="h-8 text-xs border-card-border bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   style={{ borderRadius: 15 }}
                 />
               )}
@@ -699,7 +732,7 @@ export function ActivityDialog({
               value={description}
               onChange={e => setDescription(e.target.value)}
               readOnly={readOnly}
-              className="bg-background border-card-border resize-none text-sm min-h-[60px]"
+              className="bg-background border-card-border resize-none text-sm min-h-[60px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               style={{ borderRadius: 15, color: description ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>
@@ -737,7 +770,7 @@ export function ActivityDialog({
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => { onDelete(); onClose(); }}
+                      onClick={() => { onDelete(); handleClose(); }}
                       className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
                       style={{ borderRadius: 15 }}
                     >
@@ -758,7 +791,7 @@ export function ActivityDialog({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="border-card-border flex-1"
                       style={{ borderRadius: 15 }}
                     >
@@ -771,7 +804,7 @@ export function ActivityDialog({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="border-card-border w-full"
                   style={{ borderRadius: 15 }}
                 >
@@ -795,7 +828,7 @@ export function ActivityDialog({
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => { onDelete(); onClose(); }}
+                      onClick={() => { onDelete(); handleClose(); }}
                       className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
                       style={{ borderRadius: 15 }}
                     >
@@ -819,7 +852,7 @@ export function ActivityDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="border-card-border flex-1"
                     style={{ borderRadius: 15 }}
                   >

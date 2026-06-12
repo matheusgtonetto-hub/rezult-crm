@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, cre
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
-  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight,
+  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight, Network,
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
@@ -11,7 +11,7 @@ import {
   Package, DollarSign, Tag, List, MessageSquare, Sparkles, Building2, ToggleLeft, ToggleRight,
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
-  Braces, FileDown,
+  Braces, FileDown, Brackets, RefreshCw, Loader2, Square,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -37,12 +38,20 @@ type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomiza
 
 type SubBlockType = "mensagem_texto" | "entrada_usuario" | "atraso_tempo" | "mensagem_audio" | "arquivo_anexo" | "arquivo_url";
 
+type MensagemBotao = { id: string; label: string };
+
 type SubBlock = {
   id: string;
   type: SubBlockType;
   text?: string;
   delaySeconds?: number;
   fileUrl?: string;
+  fileName?: string;            // nome original do arquivo (áudio/anexo)
+  splitMessages?: boolean;      // "Quebrar mensagens?" — cada parágrafo vira um envio
+  buttons?: MensagemBotao[];    // botões de resposta anexados à mensagem de texto
+  varName?: string;             // nome da variável para "Entrada do usuário"
+  timeoutAmount?: number;       // "Entrada do usuário": tempo de espera pela resposta
+  timeoutUnit?: "minutos" | "horas" | "dias"; // unidade do timeout
 };
 
 type ActionItem = {
@@ -80,13 +89,11 @@ type ApiRequest = {
 };
 type ApiConfig = { requests: ApiRequest[] };
 
-type FieldOperation = {
-  id: string;
-  type: "mapeamento";
-  fieldKey: string;
-  fieldLabel: string;
-  value: string;
-};
+type FieldOpMapeamento     = { id: string; type: "mapeamento";       fieldKey: string; fieldLabel: string; value: string };
+type FieldOpLoopArray      = { id: string; type: "loop_array";       datasourceName: string; datasourceColor: string; paramKey: string; paramLabel: string };
+type FieldOpAnaliseTel     = { id: string; type: "analise_telefone"; phone: string; datasourceName: string; datasourceColor: string; defaultCountry: string };
+type FieldOpFormatacaoData = { id: string; type: "formatacao_data";  date: string; timezone: string; addAmount: number; addUnit: string; datasourceName: string; datasourceColor: string };
+type FieldOperation = FieldOpMapeamento | FieldOpLoopArray | FieldOpAnaliseTel | FieldOpFormatacaoData;
 
 type CanvasNode = {
   id: string;
@@ -94,9 +101,13 @@ type CanvasNode = {
   x: number; y: number;
   label: string;
   trigger?: TriggerConfig | null;
-  parentId?: string | null;
-  errorParentId?: string | null;
+  parentId?: string | null;        // legado — migrado para parentIds no carregamento
+  errorParentId?: string | null;   // legado — migrado para errorParentIds no carregamento
+  parentIds?: string[];            // chaves das portas de saída de origem (azul)
+  errorParentIds?: string[];       // IDs dos nós de origem (vermelho — erro)
+  timeoutParentIds?: string[];     // IDs dos nós de origem (vermelho — "não respondeu")
   subBlocks?: SubBlock[];
+  connectionId?: string;           // conexão (whatsapp_connections) usada pelo bloco Mensagem
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
   espera?: EsperaConfig;
@@ -140,7 +151,7 @@ type AutomationRecord = {
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null, refreshWebhookPayload: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -241,6 +252,10 @@ const ACTION_TYPES = [
   { id: "ia",           label: "IA",                   icon: Bot,           color: "#8B5CF6" },
   { id: "javascript",   label: "JavaScript",           icon: Code2,         color: "#3B82F6" },
 ] as const;
+
+// Blocos disponíveis na paleta porém ainda não executáveis pelo motor — exibidos
+// com selo "EM BREVE" e desabilitados (mesmo padrão do gatilho MCP Server Tool).
+const COMING_SOON_ACTIONS = new Set<string>(["ia", "javascript"]);
 
 const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; actions: ActionCatItem[] }[] = [
   {
@@ -394,6 +409,151 @@ const NOTE_COLORS = [
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
+function buildOrthPath(x1: number, y1: number, x2: number, y2: number): string {
+  const dy = y2 - y1;
+  if (Math.abs(dy) < 2) return `M ${x1} ${y1} H ${x2}`;
+  // Vertical segment capped at x2-28 so the path always enters the target from the left
+  const vertX = Math.min((x1 + x2) / 2, x2 - 28);
+  const sy = dy > 0 ? 1 : -1;
+  const s1 = vertX >= x1 ? 1 : -1;
+  const rc1 = Math.max(0, Math.min(12, Math.abs(vertX - x1) - 0.5, Math.abs(dy / 2) - 0.5));
+  const rc2 = Math.max(0, Math.min(12, Math.abs(x2 - vertX) - 0.5, Math.abs(dy / 2) - 0.5));
+  if (rc1 < 0.5 || rc2 < 0.5) return `M ${x1} ${y1} H ${vertX} V ${y2} H ${x2}`;
+  return `M ${x1} ${y1} H ${vertX - s1 * rc1} Q ${vertX} ${y1} ${vertX} ${y1 + sy * rc1} V ${y2 - sy * rc2} Q ${vertX} ${y2} ${vertX + rc2} ${y2} H ${x2}`;
+}
+
+// ─── DataCrazy .dc → Rezult converter ────────────────────────────────────────
+
+const DC_TRIGGER_MAP: Record<string, { triggerId: string; categoryId: string; label: string }> = {
+  "business-created-trigger":       { triggerId: "neg_criado",     categoryId: "negocios", label: "Negócio criado" },
+  "business-won-trigger":           { triggerId: "neg_ganho",      categoryId: "negocios", label: "Negócio ganho" },
+  "business-lost-trigger":          { triggerId: "neg_perdido",    categoryId: "negocios", label: "Negócio perdido" },
+  "business-stage-changed-trigger": { triggerId: "neg_movido",     categoryId: "negocios", label: "Negócio movido" },
+  "lead-created-trigger":           { triggerId: "lead_criado",    categoryId: "leads",    label: "Lead criado" },
+  "tag-added-trigger":              { triggerId: "tag_adicionada", categoryId: "leads",    label: "Tag adicionada ao lead" },
+  "tag-removed-trigger":            { triggerId: "tag_removida",   categoryId: "leads",    label: "Tag removida do lead" },
+  "json-http-request-trigger":      { triggerId: "http_webhook",   categoryId: "http",     label: "Webhook (HTTP)" },
+};
+
+const DC_CONDITION_MAP: Record<string, { categoryId: string; conditionId: string; label: string }> = {
+  "lead-with-phone-exists-condition":         { categoryId: "leads",    conditionId: "com_telefone", label: "Lead com telefone existente" },
+  "lead-with-email-exists-condition":         { categoryId: "leads",    conditionId: "com_email",    label: "Lead com email existente" },
+  "lead-exists-condition":                   { categoryId: "leads",    conditionId: "existente",    label: "Lead existente" },
+  "lead-with-name-exists-condition":          { categoryId: "leads",    conditionId: "com_nome",     label: "Lead com nome existente" },
+  "lead-with-tag-condition":                 { categoryId: "leads",    conditionId: "pos_tag",      label: "Lead possui tag" },
+  "business-won-condition":                  { categoryId: "negocios", conditionId: "ganho",        label: "Negócio está ganho" },
+  "business-lost-condition":                 { categoryId: "negocios", conditionId: "perdido",      label: "Negócio está perdido" },
+  "business-pending-condition":              { categoryId: "negocios", conditionId: "pendente",     label: "Negócio está pendente" },
+  "business-has-attendant-condition":        { categoryId: "negocios", conditionId: "pos_atend",    label: "Negócio possui atendentes" },
+  "lead-has-business-on-pipeline-condition": { categoryId: "leads",    conditionId: "neg_pipeline", label: "Lead possui negócio no pipeline" },
+};
+
+const DC_FIELD_PARAM_MAP: Record<string, { fieldKey: string; fieldLabel: string }> = {
+  "leadName":        { fieldKey: "lead.name",         fieldLabel: "Nome do lead" },
+  "leadEmail":       { fieldKey: "lead.email",         fieldLabel: "E-mail" },
+  "leadPhone":       { fieldKey: "lead.whatsapp",      fieldLabel: "Telefone" },
+  "leadSource":      { fieldKey: "lead.origin",        fieldLabel: "Origem" },
+  "leadCompany":     { fieldKey: "lead.company",       fieldLabel: "Empresa" },
+  "leadDocument":    { fieldKey: "lead.document",      fieldLabel: "CPF/CNPJ" },
+  "leadBirthDate":   { fieldKey: "lead.birth_date",    fieldLabel: "Data de nascimento" },
+  "leadNotes":       { fieldKey: "lead.notes",         fieldLabel: "Notas" },
+  "leadSite":        { fieldKey: "lead.site",          fieldLabel: "Site" },
+  "leadUtmSource":   { fieldKey: "lead.utm_source",    fieldLabel: "UTM Source" },
+  "leadUtmMedium":   { fieldKey: "lead.utm_medium",    fieldLabel: "UTM Medium" },
+  "leadUtmCampaign": { fieldKey: "lead.utm_campaign",  fieldLabel: "UTM Campaign" },
+  "leadUtmTerm":     { fieldKey: "lead.utm_term",      fieldLabel: "UTM Term" },
+  "leadUtmContent":  { fieldKey: "lead.utm_content",   fieldLabel: "UTM Content" },
+};
+
+function migrateNodes(nodes: CanvasNode[]): CanvasNode[] {
+  return nodes.map(n => ({
+    ...n,
+    parentIds: n.parentIds ?? (n.parentId ? [n.parentId] : []),
+    errorParentIds: n.errorParentIds ?? (n.errorParentId ? [n.errorParentId] : []),
+    timeoutParentIds: n.timeoutParentIds ?? [],
+  }));
+}
+
+function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null {
+  if (!Array.isArray(dc.blocks)) return null;
+  const blocks = dc.blocks as Record<string, unknown>[];
+
+  // Constrói mapa inverso: childId → { parentId, isError }
+  const parentMap = new Map<string, { parentId: string; isError: boolean }>();
+  const setParent = (childId: unknown, parentId: string, isError: boolean) => {
+    if (typeof childId === "string" && childId && !parentMap.has(childId))
+      parentMap.set(childId, { parentId, isError });
+  };
+
+  for (const block of blocks) {
+    const id = block.id as string;
+    const opts = (block.options ?? {}) as Record<string, unknown>;
+    setParent(opts.nextBlockId, id, false);
+    setParent(opts.errorNextBlockId, id, true);
+    if (block.type === "condition") {
+      setParent(opts.trueNextBlockId, id, false);
+      setParent(opts.falseNextBlockId, id, true);
+    }
+  }
+
+  const nodes: CanvasNode[] = [];
+  let trigger: TriggerConfig | null = null;
+
+  for (const block of blocks) {
+    const id = block.id as string;
+    const opts = (block.options ?? {}) as Record<string, unknown>;
+    const pres = (block.presentation ?? {}) as { x?: number; y?: number };
+    const x = pres.x ?? 0;
+    const y = pres.y ?? 0;
+    const par = parentMap.get(id);
+    const parentId    = par && !par.isError ? par.parentId : null;
+    const errorParentId = par?.isError ? par.parentId : null;
+
+    if (block.type === "trigger") {
+      const dcTriggers = Array.isArray(opts.triggers) ? (opts.triggers as Record<string, unknown>[]) : [];
+      const dcT = dcTriggers[0];
+      const mapped = dcT ? DC_TRIGGER_MAP[dcT.name as string] : null;
+      trigger = mapped
+        ? { triggerId: mapped.triggerId, categoryId: mapped.categoryId, label: mapped.label, description: "" }
+        : { triggerId: "http_webhook", categoryId: "http", label: String(dcT?.name ?? "Gatilho"), description: "" };
+      nodes.push({ id, type: "start", x, y, label: "Início", trigger });
+
+    } else if (block.type === "condition") {
+      const dcConds = Array.isArray(opts.conditions) ? (opts.conditions as Record<string, unknown>[]) : [];
+      const conditionItems: ConditionItem[] = dcConds.map((c, i) => {
+        const mapped = DC_CONDITION_MAP[c.name as string];
+        return mapped
+          ? { id: String(c.id ?? `ci${i}`), categoryId: mapped.categoryId, conditionId: mapped.conditionId, label: mapped.label }
+          : { id: String(c.id ?? `ci${i}`), categoryId: "campos", conditionId: "campo_pos_valor", label: String(c.name ?? `Condição ${i + 1}`) };
+      });
+      nodes.push({ id, type: "condicoes", x, y, label: "Condições", parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], conditionItems });
+
+    } else if (block.type === "field-operation") {
+      const dcFieldOps = Array.isArray(opts.fieldOperations) ? (opts.fieldOperations as Record<string, unknown>[]) : [];
+      const fieldOps: FieldOperation[] = dcFieldOps
+        .filter(op => (op.name as string) === "set-field-operation")
+        .map((op, i) => {
+          const opOpts = (op.options ?? {}) as Record<string, unknown>;
+          const param  = String(opOpts.parameter ?? "");
+          const value  = String(opOpts.value ?? "");
+          const addFieldMatch = param.match(/^additional-field\[(.+)\]$/);
+          if (addFieldMatch) {
+            return { id: String(op.stepId ?? `fo${i}`), type: "mapeamento" as const, fieldKey: `campo_lead.${addFieldMatch[1]}`, fieldLabel: addFieldMatch[1], value };
+          }
+          const mapped = DC_FIELD_PARAM_MAP[param];
+          return { id: String(op.stepId ?? `fo${i}`), type: "mapeamento" as const, fieldKey: mapped?.fieldKey ?? param, fieldLabel: mapped?.fieldLabel ?? param, value };
+        });
+      nodes.push({ id, type: "campos", x, y, label: "Operações de campos", parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], fieldOps });
+
+    } else {
+      const label = block.type === "chat" ? "Mensagem" : block.type === "action" ? "Ação" : String(block.type);
+      nodes.push({ id, type: "acoes", x, y, label, parentIds: parentId ? [parentId] : [], errorParentIds: errorParentId ? [errorParentId] : [], actionItems: [] });
+    }
+  }
+
+  return { nodes, trigger };
+}
+
 function fmtDate(iso: string) {
   try { return format(parseISO(iso), "d 'de' MMMM 'de' yyyy HH:mm", { locale: ptBR }); }
   catch { return iso; }
@@ -458,11 +618,11 @@ export default function AutomacoesPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
   const [saving, setSaving]             = useState(false);
-  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean } | null>(null);
+  const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean; isTimeout?: boolean } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
   const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
   const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
-  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" } | null>(null);
+  const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" | "timeout"; fromId: string } | null>(null);
   const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
@@ -492,6 +652,7 @@ export default function AutomacoesPage() {
   const canvasRef    = useRef<HTMLDivElement>(null);
   const panRef       = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
   const fileRef      = useRef<HTMLInputElement>(null);
+  const createFileRef = useRef<HTMLInputElement>(null);
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
   const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
   const resizeDragRef = useRef<{ nodeId: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
@@ -587,13 +748,62 @@ export default function AutomacoesPage() {
 
   const selectedAutomation = automations.find(a => a.id === selectedId) ?? null;
 
+  const refreshWebhookPayload = useCallback(async () => {
+    if (!selectedId) return;
+    const { data } = await supabase.from("automations").select("last_webhook_payload").eq("id", selectedId).single();
+    if (data) setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, last_webhook_payload: data.last_webhook_payload } : a));
+  }, [selectedId]);
+
   // ── Editor helpers ────────────────────────────────────────────────────────
+
+  // Refs lidos dentro do handler de realtime (evita closures obsoletas sem ressubscrever)
+  const logsPanelRef = useRef(logsPanel);
+  const logsPanelTabRef = useRef(logsPanelTab);
+  useEffect(() => { logsPanelRef.current = logsPanel; }, [logsPanel]);
+  useEffect(() => { logsPanelTabRef.current = logsPanelTab; }, [logsPanelTab]);
+
+  // Recarrega os contadores (sucesso/alerta/erro) de TODOS os blocos da automação.
+  // Usado ao abrir o editor e a cada nova execução (via realtime / foco / botão atualizar).
+  const refreshNodeStats = useCallback(async (id: string) => {
+    const { data } = await supabase
+      .from("automation_logs")
+      .select("node_id, status")
+      .eq("automation_id", id)
+      .limit(5000);
+    if (!data) return;
+    const stats: Record<string, { s: number; a: number; e: number }> = {};
+    for (const row of data) {
+      if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
+      if (row.status === "success") stats[row.node_id].s++;
+      else if (row.status === "alert") stats[row.node_id].a++;
+      else if (row.status === "error") stats[row.node_id].e++;
+    }
+    setNodeStats(stats);
+  }, []);
+
+  // Recarrega silenciosamente as entradas do painel de logs aberto (sem resetar a seleção).
+  const refreshLogsPanelEntries = useCallback(async (automationId: string, nodeId: string) => {
+    const { data: logRows } = await supabase
+      .from("automation_logs")
+      .select("id, lead_id, status, created_at, error_message")
+      .eq("automation_id", automationId)
+      .eq("node_id", nodeId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!logRows) return;
+    const leadIds = [...new Set((logRows as { lead_id: string }[]).map(r => r.lead_id))];
+    const { data: leadsData } = leadIds.length
+      ? await supabase.from("leads").select("id, name").in("id", leadIds)
+      : { data: [] };
+    const leadMap = Object.fromEntries(((leadsData ?? []) as { id: string; name: string }[]).map(l => [l.id, l.name]));
+    setLogsPanelEntries((logRows as Omit<LogEntry, "lead_name">[]).map(r => ({ ...r, lead_name: leadMap[r.lead_id] ?? "Lead desconhecido" })));
+  }, []);
 
   const openEditor = useCallback((id: string) => {
     const auto = automations.find(a => a.id === id);
     if (!auto) return;
     const flow = auto.flow ?? { nodes: [START_NODE], trigger: null };
-    const n = flow.nodes?.length ? flow.nodes : [START_NODE];
+    const n = migrateNodes(flow.nodes?.length ? flow.nodes : [START_NODE]);
     skipDirtyRef.current = true;
     setNodes(n);
     setTrigger(flow.trigger ?? null);
@@ -604,24 +814,54 @@ export default function AutomacoesPage() {
     setNodeStats({});
     setIsDirty(false);
     setView("editor");
-    // Load execution stats for this automation
-    supabase
-      .from("automation_logs")
-      .select("node_id, status")
-      .eq("automation_id", id)
-      .limit(5000)
-      .then(({ data }) => {
-        if (!data) return;
-        const stats: Record<string, { s: number; a: number; e: number }> = {};
-        for (const row of data) {
-          if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
-          if (row.status === "success") stats[row.node_id].s++;
-          else if (row.status === "alert") stats[row.node_id].a++;
-          else if (row.status === "error") stats[row.node_id].e++;
-        }
-        setNodeStats(stats);
-      });
-  }, [automations]);
+    // Carrega os contadores de execução desta automação
+    refreshNodeStats(id);
+  }, [automations, refreshNodeStats]);
+
+  // ── Logs ao vivo ──────────────────────────────────────────────────────────
+  // Assina automation_logs e atualiza contadores + painel aberto a cada execução.
+  // Sem isto, os logs ficavam congelados no snapshot do momento em que o editor abriu.
+  useEffect(() => {
+    if (view !== "editor" || !selectedId) return;
+    let timer: number | null = null;
+    const channel = supabase
+      .channel(`autolog-${selectedId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "automation_logs", filter: `automation_id=eq.${selectedId}` },
+        () => {
+          // Debounce: uma execução insere vários logs em sequência → 1 refresh só
+          if (timer) clearTimeout(timer);
+          timer = window.setTimeout(() => {
+            refreshNodeStats(selectedId);
+            const lp = logsPanelRef.current;
+            if (lp) refreshLogsPanelEntries(selectedId, lp.nodeId);
+          }, 350);
+        },
+      )
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [view, selectedId, refreshNodeStats, refreshLogsPanelEntries]);
+
+  // Rede de segurança: se o realtime cair, recarrega ao voltar o foco para a aba.
+  useEffect(() => {
+    if (view !== "editor" || !selectedId) return;
+    const onFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      refreshNodeStats(selectedId);
+      const lp = logsPanelRef.current;
+      if (lp) refreshLogsPanelEntries(selectedId, lp.nodeId);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [view, selectedId, refreshNodeStats, refreshLogsPanelEntries]);
 
   // ── Canvas interactions ───────────────────────────────────────────────────
 
@@ -650,18 +890,19 @@ export default function AutomacoesPage() {
 
   const handleAddNode = (type: string, label: string) => {
     if (!addNodeMenu) return;
+    if (COMING_SOON_ACTIONS.has(type)) return; // blocos "Em breve" não podem ser criados
     const isError = addNodeMenu.isError ?? false;
-    const actualParentId = isError
-      ? addNodeMenu.fromNodeId.replace(/__error$/, "")
-      : addNodeMenu.fromNodeId;
+    const isTimeout = addNodeMenu.isTimeout ?? false;
+    const actualParentId = addNodeMenu.fromNodeId.replace(/__(error|timeout)$/, "");
     const newNode: CanvasNode = {
       id: `n${Date.now()}`,
       type: type as ActionNodeType,
       x: addNodeMenu.x,
       y: addNodeMenu.y,
       label,
-      parentId: isError ? null : actualParentId,
-      errorParentId: isError ? actualParentId : null,
+      parentIds: (isError || isTimeout) ? [] : [actualParentId],
+      errorParentIds: isError ? [actualParentId] : [],
+      timeoutParentIds: isTimeout ? [actualParentId] : [],
       subBlocks: [],
     };
     setNodes(prev => [...prev, newNode]);
@@ -693,12 +934,13 @@ export default function AutomacoesPage() {
     setTriggerPanel(false);
   };
 
-  const disconnectNode = (nodeId: string, type: "parent" | "error") => {
-    setNodes(prev => prev.map(n =>
-      n.id === nodeId
-        ? type === "parent" ? { ...n, parentId: null } : { ...n, errorParentId: null }
-        : n
-    ));
+  const disconnectNode = (nodeId: string, type: "parent" | "error" | "timeout", fromId: string) => {
+    setNodes(prev => prev.map(n => {
+      if (n.id !== nodeId) return n;
+      if (type === "parent")  return { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== fromId) };
+      if (type === "timeout") return { ...n, timeoutParentIds: (n.timeoutParentIds ?? []).filter(p => p !== fromId) };
+      return { ...n, errorParentIds: (n.errorParentIds ?? []).filter(p => p !== fromId) };
+    }));
     setSelectedConn(null);
   };
 
@@ -717,7 +959,8 @@ export default function AutomacoesPage() {
           const y1 = (portRect.top + portRect.height / 2 - rect.top - pan.y) / zoom;
           const x2 = (e.clientX - rect.left - pan.x) / zoom;
           const y2 = (e.clientY - rect.top - pan.y) / zoom;
-          const isError = portDragRef.current.fromNodeId.endsWith("__error");
+          // tanto a porta de erro quanto a de "não respondeu" são vermelhas
+          const isError = /__(error|timeout)$/.test(portDragRef.current.fromNodeId);
           setPortDragLine({ x1, y1, x2, y2, isError });
         }
         // Detectar hover sobre porta de entrada de nó existente
@@ -764,7 +1007,8 @@ export default function AutomacoesPage() {
         const isDrag = Math.sqrt(dx * dx + dy * dy) > 30;
         const fromNodeId = portDragRef.current.fromNodeId;
         const isErrorPort = fromNodeId.endsWith("__error");
-        const realNodeId = isErrorPort ? fromNodeId.replace(/__error$/, "") : fromNodeId;
+        const isTimeoutPort = fromNodeId.endsWith("__timeout");
+        const realNodeId = fromNodeId.replace(/__(error|timeout)$/, "");
         portDragRef.current = null;
         setPortDragLine(null);
         setHoveredInputPort(null);
@@ -775,15 +1019,29 @@ export default function AutomacoesPage() {
           const targetNodeId = inputPortEl?.getAttribute("data-node-id");
           if (targetNodeId && targetNodeId !== realNodeId) {
             if (isErrorPort) {
-              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, errorParentId: realNodeId } : n));
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, errorParentIds: [...new Set([...(n.errorParentIds ?? []), realNodeId])] }
+                  : n
+              ));
+            } else if (isTimeoutPort) {
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, timeoutParentIds: [...new Set([...(n.timeoutParentIds ?? []), realNodeId])] }
+                  : n
+              ));
             } else {
-              setNodes(prev => prev.map(n => n.id === targetNodeId ? { ...n, parentId: fromNodeId } : n));
+              setNodes(prev => prev.map(n =>
+                n.id === targetNodeId
+                  ? { ...n, parentIds: [...new Set([...(n.parentIds ?? []), fromNodeId])] }
+                  : n
+              ));
             }
             return;
           }
           const dropX = (e.clientX - rect.left - pan.x) / zoom;
           const dropY = (e.clientY - rect.top - pan.y) / zoom;
-          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort });
+          setAddNodeMenu({ fromNodeId, x: dropX, y: dropY, isError: isErrorPort, isTimeout: isTimeoutPort });
         } else {
           let fromNode = nodes.find(n => n.id === realNodeId);
           if (!fromNode) {
@@ -824,7 +1082,7 @@ export default function AutomacoesPage() {
   const handleCreate = async () => {
     if (!newName.trim()) { toast.error("Informe um nome"); return; }
     if (!user || !company) return;
-    if (startType !== "blank") { toast.info("Em breve"); return; }
+    if (startType === "model") { toast.info("Em breve"); return; }
     setCreating(true);
     try {
       const { data, error } = await supabase
@@ -853,6 +1111,63 @@ export default function AutomacoesPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleCreateImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        // DataCrazy .dc format
+        if (parsed.blocks && Array.isArray(parsed.blocks)) {
+          const converted = convertDcFlow(parsed);
+          if (!converted) { toast.error("Arquivo DataCrazy inválido"); return; }
+          flow = converted;
+        // Rezult .json format
+        } else if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          flow = parsed;
+        } else {
+          toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
+          return;
+        }
+        if (!user || !company) return;
+        setCreating(true);
+        try {
+          const { data, error } = await supabase
+            .from("automations")
+            .insert({
+              owner_id: user.id,
+              company_id: company.id,
+              name: newName.trim(),
+              description: newDesc.trim(),
+              group_name: newGroup.trim() || "Automação",
+              active: false,
+              flow: { ...flow, nodes: sanitizeImportedNodes(flow.nodes ?? []) },
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          const rec = data as AutomationRecord;
+          setAutomations(prev => [rec, ...prev]);
+          setCreateOpen(false);
+          setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank");
+          setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput("");
+          toast.success("Automação importada");
+          openEditor(rec.id);
+        } catch {
+          toast.error("Erro ao criar automação");
+        } finally {
+          setCreating(false);
+        }
+      } catch {
+        toast.error("Arquivo inválido");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleSave = async () => {
@@ -1023,6 +1338,24 @@ export default function AutomacoesPage() {
     toast.success("Automação duplicada");
   };
 
+  const sanitizeImportedNodes = (importedNodes: CanvasNode[]): CanvasNode[] => {
+    const validIds = new Set(customFieldGroups.flatMap(g => g.items.map(i => i.id)));
+    const PREFIXES = ["campo_lead.", "campo_neg.", "campo_empresa."];
+    return importedNodes.map(node => {
+      if (node.type !== "campos" || !node.fieldOps) return node;
+      const sanitized = node.fieldOps.map(op => {
+        if (op.type !== "mapeamento") return op;
+        const m = op as FieldOpMapeamento;
+        const prefix = PREFIXES.find(p => m.fieldKey.startsWith(p));
+        if (!prefix) return op;
+        const id = m.fieldKey.slice(prefix.length);
+        if (validIds.has(id)) return op;
+        return { ...m, fieldKey: "", fieldLabel: "" };
+      });
+      return { ...node, fieldOps: sanitized };
+    });
+  };
+
   const handleDownload = () => {
     if (!selectedAutomation) return;
     const blob = new Blob([JSON.stringify(selectedAutomation.flow, null, 2)], { type: "application/json" });
@@ -1030,6 +1363,22 @@ export default function AutomacoesPage() {
     const a    = document.createElement("a");
     a.href = url; a.download = `${selectedAutomation.name}.json`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleAddNoteFromToolbar = () => {
+    const x = Math.round((-pan.x + 260) / zoom);
+    const y = Math.round((-pan.y + 160) / zoom);
+    setNodes(prev => [...prev, {
+      id: `note${Date.now()}`,
+      type: "note",
+      x, y,
+      label: "Anotação",
+      noteText: "",
+      width: 220,
+      height: 140,
+      parentIds: [],
+      errorParentIds: [],
+    }]);
   };
 
   const handleStatClick = useCallback(async (nodeId: string, status: "success" | "alert" | "error") => {
@@ -1081,8 +1430,19 @@ export default function AutomacoesPage() {
     const reader = new FileReader();
     reader.onload = ev => {
       try {
-        const flow = JSON.parse(ev.target?.result as string);
-        setNodes(flow.nodes ?? [START_NODE]);
+        const parsed = JSON.parse(ev.target?.result as string);
+        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        if (parsed.blocks && Array.isArray(parsed.blocks)) {
+          const converted = convertDcFlow(parsed);
+          if (!converted) { toast.error("Arquivo DataCrazy inválido"); return; }
+          flow = converted;
+        } else if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          flow = parsed;
+        } else {
+          toast.error("Arquivo inválido — formato não reconhecido (.json ou .dc)");
+          return;
+        }
+        setNodes(migrateNodes(sanitizeImportedNodes(flow.nodes ?? [START_NODE])));
         setTrigger(flow.trigger ?? null);
         toast.success("Fluxo importado — salve para persistir");
       } catch {
@@ -1159,7 +1519,11 @@ export default function AutomacoesPage() {
         ? { ...n, randomBranches: (n.randomBranches ?? DEFAULT_BRANCHES).filter(b => b.id !== branchId) }
         : n
       );
-      return withBranchRemoved.map(n => n.parentId === portKey ? { ...n, parentId: null } : n);
+      return withBranchRemoved.map(n =>
+        (n.parentIds ?? []).includes(portKey)
+          ? { ...n, parentIds: (n.parentIds ?? []).filter(p => p !== portKey) }
+          : n
+      );
     });
   };
 
@@ -1195,8 +1559,8 @@ export default function AutomacoesPage() {
   const removeFieldOp = (nodeId: string, opId: string) => {
     setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).filter(o => o.id !== opId) } : n));
   };
-  const updateFieldOp = (nodeId: string, opId: string, data: Partial<FieldOperation>) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).map(o => o.id === opId ? { ...o, ...data } : o) } : n));
+  const updateFieldOp = (nodeId: string, opId: string, data: Record<string, unknown>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).map(o => o.id === opId ? { ...o, ...data } as FieldOperation : o) } : n));
   };
 
   const updateTriggerConfigData = (key: string, value: string | boolean | number) => {
@@ -1209,14 +1573,16 @@ export default function AutomacoesPage() {
     <>
       {!leftCollapsed ? (
         <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
-          <div style={{ padding: 12, borderBottom: "0.5px solid #E5E5E5" }}>
+          <div style={{ padding: 12, borderBottom: "1px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar automação..."
-                style={{ width: "100%", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                onFocus={e => { e.currentTarget.style.border = "1px solid hsl(var(--primary))"; }}
+                onBlur={e => { e.currentTarget.style.border = "1px solid #E5E5E5"; }}
               />
               <Power
                 size={14}
@@ -1232,73 +1598,77 @@ export default function AutomacoesPage() {
             </button>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
             {loading ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>Carregando...</div>
+              <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Carregando...</p>
             ) : filteredGroups.length === 0 ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>Nenhuma automação</div>
+              <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Nenhuma automação</p>
             ) : filteredGroups.map(g => {
               const open = openGroups[g.name] ?? false;
               return (
                 <div key={g.name}>
-                  <div
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#6B7280", letterSpacing: 0.3 }}
+                  <button
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
-                      {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      {renamingGroup === g.name ? (
-                        <input
-                          autoFocus
-                          value={renameGroupVal}
-                          onChange={e => setRenameGroupVal(e.target.value)}
-                          onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter") { e.currentTarget.blur(); }
-                            else if (e.key === "Escape") { setRenamingGroup(null); }
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
-                            color: "#6B7280", background: "transparent", border: "none",
-                            borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
-                            padding: "0 2px", width: "100%",
-                          }}
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
-                          title="Duplo clique para renomear"
-                          style={{ cursor: "text" }}
-                        >
-                          {g.name}
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ fontSize: 10, color: "#9CA3AF" }}>{g.items.length}</span>
-                  </div>
-                  {open && g.items.map(item => {
-                    const sel = selectedId === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => requestLeave(() => openEditor(item.id))}
-                        className="group"
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: sel ? "#F0FDF4" : "transparent", borderLeft: sel ? "3px solid hsl(var(--primary))" : "3px solid transparent", cursor: "pointer" }}
+                    {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    {renamingGroup === g.name ? (
+                      <input
+                        autoFocus
+                        value={renameGroupVal}
+                        onChange={e => setRenameGroupVal(e.target.value)}
+                        onBlur={() => handleRenameGroup(g.name, renameGroupVal)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") { e.currentTarget.blur(); }
+                          else if (e.key === "Escape") { setRenamingGroup(null); }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
+                          color: "#6B7280", background: "transparent", border: "none",
+                          borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
+                          padding: "0 2px", width: "100%",
+                        }}
+                      />
+                    ) : (
+                      <span
+                        onDoubleClick={e => { e.stopPropagation(); setRenamingGroup(g.name); setRenameGroupVal(g.name); }}
+                        title="Duplo clique para renomear"
+                        className="cursor-text"
                       >
-                        <Zap size={14} color="hsl(var(--primary))" />
-                        <span style={{ flex: 1, fontSize: 13, color: "#111111", fontWeight: sel ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {item.name}
-                        </span>
-                        <Switch
-                          checked={item.active}
-                          onCheckedChange={(v) => { toggleActive(item.id, v); }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="scale-75"
-                        />
-                      </div>
-                    );
-                  })}
+                        {g.name.charAt(0).toUpperCase() + g.name.slice(1)}
+                      </span>
+                    )}
+                    <span className="ml-auto text-muted-foreground/70">{g.items.length}</span>
+                  </button>
+
+                  {open && (
+                    <div className="space-y-0.5 mb-1">
+                      {g.items.map(item => {
+                        const sel = selectedId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => requestLeave(() => openEditor(item.id))}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
+                              sel
+                                ? "bg-sidebar-accent border-l-[3px] border-primary"
+                                : "text-foreground hover:bg-muted/50"
+                            }`}
+                          >
+                            <Network size={14} className={sel ? "text-primary" : "text-muted-foreground"} />
+                            <span className={`truncate text-left flex-1 ${sel ? "text-foreground" : ""}`}>{item.name}</span>
+                            <Switch
+                              checked={item.active}
+                              onCheckedChange={(v) => { toggleActive(item.id, v); }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="scale-75"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1306,7 +1676,7 @@ export default function AutomacoesPage() {
 
           <button
             onClick={() => setLeftCollapsed(true)}
-            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
           >
             <ChevronLeft size={14} color="#6B7280" />
           </button>
@@ -1314,7 +1684,7 @@ export default function AutomacoesPage() {
       ) : (
         <button
           onClick={() => setLeftCollapsed(false)}
-          style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "1px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
         >
           <ChevronRight size={14} color="#6B7280" />
         </button>
@@ -1347,7 +1717,7 @@ export default function AutomacoesPage() {
                   value={listSearch}
                   onChange={e => setListSearch(e.target.value)}
                   placeholder="Pesquisar..."
-                  style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
+                  style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
                 />
               </div>
             </div>
@@ -1362,7 +1732,7 @@ export default function AutomacoesPage() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
                 {/* Create card */}
-                <div style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>Criar nova automação</div>
                     <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4, lineHeight: 1.5 }}>
@@ -1374,7 +1744,7 @@ export default function AutomacoesPage() {
                       <button
                         key={g.name}
                         onClick={() => { setNewGroup(g.name); setCreateOpen(true); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "#FFFFFF", color: i === 0 ? "#FFFFFF" : "#374151", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "#FFFFFF", color: i === 0 ? "#FFFFFF" : "#374151", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
                       >
                         <Zap size={13} color={i === 0 ? "#FFFFFF" : "hsl(var(--primary))"} />
                         {g.name}
@@ -1383,7 +1753,7 @@ export default function AutomacoesPage() {
                   </div>
                   <button
                     onClick={() => setCreateOpen(true)}
-                    style={{ marginTop: "auto", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                   >
                     <Plus size={14} /> Criar nova automação
                   </button>
@@ -1391,9 +1761,9 @@ export default function AutomacoesPage() {
 
                 {/* Automation cards */}
                 {filteredAutomations.map(auto => (
-                  <div key={auto.id} style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
+                  <div key={auto.id} style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
                     {/* Mini canvas preview */}
-                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
                       <div style={{ opacity: 0.15, fontSize: 10, color: "#374151", transform: "scale(0.35)", transformOrigin: "center", pointerEvents: "none", userSelect: "none" }}>
                         <div style={{ background: "#FFFFFF", border: "1px dashed #CCCCCC", borderRadius: 8, padding: "8px 12px", width: 200 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -1417,7 +1787,7 @@ export default function AutomacoesPage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{auto.name}</div>
                       <button
                         onClick={() => openEditor(auto.id)}
-                        style={{ marginTop: "auto", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#374151", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                        style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#374151", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#374151"; }}
                       >
@@ -1434,7 +1804,7 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
-        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null }}>
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null, refreshWebhookPayload }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
@@ -1443,6 +1813,8 @@ export default function AutomacoesPage() {
             <TriggerConfigPanel
               trigger={trigger}
               automationId={selectedId ?? undefined}
+              companyId={company?.id}
+              automations={automations}
               onClose={() => setTriggerPanel(false)}
               onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
               updateConfig={updateTriggerConfigData}
@@ -1459,26 +1831,31 @@ export default function AutomacoesPage() {
           {/* Default: Blocos básicos (when no node selected) */}
           {!nodePanel && !triggerPanel && (
             <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {ACTION_TYPES.slice(0, 7).map(at => {
+                {ACTION_TYPES.map(at => {
                   const Icon = at.icon;
+                  const isComingSoon = COMING_SOON_ACTIONS.has(at.id);
                   return (
-                    <button key={at.id} onClick={() => {
+                    <button key={at.id} disabled={isComingSoon} onClick={() => {
+                      if (isComingSoon) return;
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5", opacity: isComingSoon ? 0.6 : 1 }}
+                      onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       <div style={{ width: 28, height: 28, borderRadius: 7, background: `${at.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon size={14} color={at.color} />
                       </div>
-                      <span style={{ fontSize: 13, color: "#374151" }}>{at.label}</span>
+                      <span style={{ fontSize: 13, color: "#374151", flex: 1 }}>{at.label}</span>
+                      {isComingSoon && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                      )}
                     </button>
                   );
                 })}
@@ -1498,6 +1875,7 @@ export default function AutomacoesPage() {
               removeSubBlock={(blockId) => removeSubBlock(nodePanel, blockId)}
               updateSubBlock={(blockId, data) => updateSubBlock(nodePanel, blockId, data)}
               onAddSubBlock={(type) => { addSubBlock(nodePanel, type); }}
+              onSetConnection={(connectionId) => setNodes(prev => prev.map(n => n.id === nodePanel ? { ...n, connectionId } : n))}
             />
           )}
 
@@ -1609,11 +1987,12 @@ export default function AutomacoesPage() {
             </button>
             <div style={{ width: 1, background: "#E5E5E5", height: 20, margin: "0 2px" }} />
             {[
-              { icon: Save,     label: saving ? "Salvando..." : "Salvar",    action: handleSave },
-              { icon: Pencil,   label: "Renomear",   action: () => { setRenameName(selectedAutomation.name); setRenameOpen(true); } },
-              { icon: Copy,     label: "Duplicar",   action: handleDuplicate },
-              { icon: Download, label: "Exportar",   action: handleDownload },
-              { icon: Upload,   label: "Importar",   action: () => fileRef.current?.click() },
+              { icon: Save,       label: saving ? "Salvando..." : "Salvar",    action: handleSave },
+              { icon: Pencil,     label: "Renomear",   action: () => { setRenameName(selectedAutomation.name); setRenameOpen(true); } },
+              { icon: Copy,       label: "Duplicar",   action: handleDuplicate },
+              { icon: StickyNote, label: "Adicionar anotação", action: handleAddNoteFromToolbar },
+              { icon: Download,   label: "Exportar",   action: handleDownload },
+              { icon: Upload,     label: "Importar",   action: () => fileRef.current?.click() },
             ].map((t, i) => {
               const Icon = t.icon;
               return (
@@ -1650,25 +2029,38 @@ export default function AutomacoesPage() {
             style={{ position: "absolute", inset: 0, cursor: "grab" }}
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
+              {/* Note nodes — rendered before SVG so they appear behind connection lines */}
+              {nodes.filter(n => n.type === "note").map(n => (
+                <NoteNode
+                  key={n.id}
+                  node={n}
+                  selected={selectedNode === n.id}
+                  onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
+                  onResizeStart={(e) => onNodeResizeStart(e, n.id)}
+                  onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
+                  onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
+                  onUpdateColor={(colorIndex) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteColorIndex: colorIndex } : x))}
+                />
+              ))}
+
               {/* SVG connection lines */}
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
-                {nodes.filter(n => n.parentId).map(n => {
-                  const parentId = n.parentId!;
-                  const parent = nodes.find(p => p.id === parentId);
+                {nodes.flatMap(n => (n.parentIds ?? []).map(pid => ({ n, pid }))).map(({ n, pid }) => {
+                  const parent = nodes.find(p => p.id === pid);
                   let x1: number, y1: number, stroke = "#CCCCCC";
                   if (parent) {
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[pid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
                     y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
                     // Compound port: nodeId_condId or nodeId_branchId
-                    const lastUnder = parentId.lastIndexOf("_");
+                    const lastUnder = pid.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
-                    const realParentId = parentId.substring(0, lastUnder);
-                    const suffix = parentId.substring(lastUnder + 1);
+                    const realParentId = pid.substring(0, lastUnder);
+                    const suffix = pid.substring(lastUnder + 1);
                     const realParent = nodes.find(p => p.id === realParentId);
                     if (!realParent) return null;
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[pid];
                     if (realParent.type === "condicoes") {
                       const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
                       if (condIdx === -1) return null;
@@ -1687,50 +2079,74 @@ export default function AutomacoesPage() {
                     }
                   }
                   const x2 = n.x, y2 = n.y + 40;
-                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
-                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent";
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "parent" && selectedConn?.fromId === pid;
                   return (
                     <g
-                      key={n.id}
+                      key={`${n.id}_${pid}`}
                       data-conn-line
                       style={{ cursor: "pointer" }}
                       onMouseDown={e => e.stopPropagation()}
-                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent" }); }}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
-                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2 : 1.5} fill="none" strokeDasharray="5,4" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
                 {/* Error connection lines */}
-                {nodes.filter(n => n.errorParentId).map(n => {
-                  const parent = nodes.find(p => p.id === n.errorParentId);
+                {nodes.flatMap(n => (n.errorParentIds ?? []).map(epid => ({ n, epid }))).map(({ n, epid }) => {
+                  const parent = nodes.find(p => p.id === epid);
                   if (!parent) return null;
-                  const errKey = `${n.errorParentId}__error`;
+                  const errKey = `${epid}__error`;
                   const pp = portPosMap[errKey];
                   const x1 = pp?.x ?? parent.x + 260;
                   const y1 = pp?.y ?? parent.y + 93;
                   const x2 = n.x, y2 = n.y + 40;
-                  const pathD = `M ${x1} ${y1} C ${x1 + 60} ${y1} ${x2 - 60} ${y2} ${x2} ${y2}`;
-                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error";
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "error" && selectedConn?.fromId === epid;
                   return (
                     <g
-                      key={`err_${n.id}`}
+                      key={`err_${n.id}_${epid}`}
                       data-conn-line
                       style={{ cursor: "pointer" }}
                       onMouseDown={e => e.stopPropagation()}
-                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error" }); }}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
-                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={12} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 2.5 : 1.5} fill="none" strokeDasharray="5,4" opacity={isSel ? 1 : 0.7} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                    </g>
+                  );
+                })}
+                {/* Timeout ("não respondeu") connection lines */}
+                {nodes.flatMap(n => (n.timeoutParentIds ?? []).map(tpid => ({ n, tpid }))).map(({ n, tpid }) => {
+                  const parent = nodes.find(p => p.id === tpid);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${tpid}__timeout`];
+                  const x1 = pp?.x ?? parent.x + 260;
+                  const y1 = pp?.y ?? parent.y + 70;
+                  const x2 = n.x, y2 = n.y + 40;
+                  const pathD = buildOrthPath(x1, y1, x2, y2);
+                  const isSel = selectedConn?.nodeId === n.id && selectedConn?.type === "timeout" && selectedConn?.fromId === tpid;
+                  return (
+                    <g
+                      key={`tmo_${n.id}_${tpid}`}
+                      data-conn-line
+                      style={{ cursor: "pointer" }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "timeout", fromId: tpid }); }}
+                    >
+                      <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
                 {/* Live drag line */}
                 {portDragLine && (
                   <path
-                    d={`M ${portDragLine.x1} ${portDragLine.y1} C ${portDragLine.x1 + 60} ${portDragLine.y1} ${portDragLine.x2 - 60} ${portDragLine.y2} ${portDragLine.x2} ${portDragLine.y2}`}
-                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2} fill="none" strokeDasharray="5,4"
+                    d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
+                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
+                    strokeLinecap="round" strokeDasharray="7,7"
                     style={{ pointerEvents: "none" }}
                   />
                 )}
@@ -1743,19 +2159,19 @@ export default function AutomacoesPage() {
                 let x1: number, y1: number;
                 const x2 = n.x, y2 = n.y + 40;
                 if (selectedConn.type === "parent") {
-                  const parentId = n.parentId!;
-                  const parent = nodes.find(p => p.id === parentId);
+                  const fid = selectedConn.fromId;
+                  const parent = nodes.find(p => p.id === fid);
                   if (parent) {
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[fid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
                     y1 = pp?.y ?? (parent.type === "start" ? parent.y + 158 : parent.y + 110);
                   } else {
-                    const lastUnder = parentId.lastIndexOf("_");
+                    const lastUnder = fid.lastIndexOf("_");
                     if (lastUnder <= 0) return null;
-                    const suffix = parentId.substring(lastUnder + 1);
-                    const realParent = nodes.find(p => p.id === parentId.substring(0, lastUnder));
+                    const suffix = fid.substring(lastUnder + 1);
+                    const realParent = nodes.find(p => p.id === fid.substring(0, lastUnder));
                     if (!realParent) return null;
-                    const pp = portPosMap[parentId];
+                    const pp = portPosMap[fid];
                     if (realParent.type === "condicoes") {
                       const condIdx = (realParent.conditionItems ?? []).findIndex(c => c.id === suffix);
                       x1 = pp?.x ?? realParent.x + 258;
@@ -1769,25 +2185,30 @@ export default function AutomacoesPage() {
                       return null;
                     }
                   }
-                } else {
-                  const parent = nodes.find(p => p.id === n.errorParentId);
+                } else if (selectedConn.type === "timeout") {
+                  const parent = nodes.find(p => p.id === selectedConn.fromId);
                   if (!parent) return null;
-                  const pp = portPosMap[`${n.errorParentId}__error`];
+                  const pp = portPosMap[`${selectedConn.fromId}__timeout`];
+                  x1 = pp?.x ?? parent.x + 260;
+                  y1 = pp?.y ?? parent.y + 70;
+                } else {
+                  const parent = nodes.find(p => p.id === selectedConn.fromId);
+                  if (!parent) return null;
+                  const pp = portPosMap[`${selectedConn.fromId}__error`];
                   x1 = pp?.x ?? parent.x + 260;
                   y1 = pp?.y ?? parent.y + 93;
                 }
-                const cx1 = x1 + 60, cy1 = y1, cx2 = x2 - 60, cy2 = y2;
-                const mx = (x1 + 3 * cx1 + 3 * cx2 + x2) / 8;
-                const my = (y1 + 3 * cy1 + 3 * cy2 + y2) / 8;
+                const mx = (x1 + x2) / 2;
+                const my = (y1 + y2) / 2;
                 return (
                   <div
-                    key={`del_${selectedConn.nodeId}_${selectedConn.type}`}
+                    key={`del_${selectedConn.nodeId}_${selectedConn.type}_${selectedConn.fromId}`}
                     data-conn-line
                     onMouseDown={e => e.stopPropagation()}
                     style={{ position: "absolute", left: mx - 16, top: my - 16, zIndex: 15, pointerEvents: "all" }}
                   >
                     <button
-                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type); }}
+                      onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type, selectedConn.fromId); }}
                       style={{ width: 32, height: 32, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                       title="Desconectar"
                     >
@@ -1797,8 +2218,8 @@ export default function AutomacoesPage() {
                 );
               })()}
 
-              {/* Nodes */}
-              {nodes.map(n => {
+              {/* Start + Action nodes — above connection lines */}
+              {nodes.filter(n => n.type !== "note").map(n => {
                 if (n.type === "start") return (
                   <StartNode
                     key={n.id}
@@ -1814,18 +2235,6 @@ export default function AutomacoesPage() {
                     onStatClick={(status) => handleStatClick(n.id, status)}
                   />
                 );
-                if (n.type === "note") return (
-                  <NoteNode
-                    key={n.id}
-                    node={n}
-                    selected={selectedNode === n.id}
-                    onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
-                    onResizeStart={(e) => onNodeResizeStart(e, n.id)}
-                    onDelete={() => { setNodes(prev => prev.filter(x => x.id !== n.id)); setSelectedNode(null); }}
-                    onUpdateText={(text) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteText: text } : x))}
-                    onUpdateColor={(colorIndex) => setNodes(prev => prev.map(x => x.id === n.id ? { ...x, noteColorIndex: colorIndex } : x))}
-                  />
-                );
                 return (
                   <ActionNode
                     key={n.id}
@@ -1834,6 +2243,7 @@ export default function AutomacoesPage() {
                     onSelect={() => { setSelectedNode(n.id); setNodePanel(n.id); }}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onErrorPortDragStart={(e) => startPortDrag(e, `${n.id}__error`)}
+                    onTimeoutPortDragStart={(e) => startPortDrag(e, `${n.id}__timeout`)}
                     onConditionPortDragStart={(e, condId) => startPortDrag(e, `${n.id}_${condId}`)}
                     onBranchPortDragStart={(e, branchId) => startPortDrag(e, `${n.id}_${branchId}`)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => { setSelectedNode(n.id); setNodePanel(n.id); })}
@@ -1867,7 +2277,7 @@ export default function AutomacoesPage() {
                   <div key={`chip_${i}`} style={{
                     position: "absolute", left: nd.x, top: nd.y - 56,
                     width: 260, background: "#FFFFFF",
-                    border: "0.5px solid #E5E5E5",
+                    border: "1px solid #E5E5E5",
                     borderLeft: `3px solid ${sColor}`,
                     borderRadius: 8,
                     padding: "6px 10px 6px 8px",
@@ -1888,21 +2298,26 @@ export default function AutomacoesPage() {
               {addNodeMenu && (
                 <div
                   data-node
-                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
+                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
                   onClick={e => e.stopPropagation()}
                 >
                   {ACTION_TYPES.map(at => {
                     const Icon = at.icon;
+                    const isComingSoon = COMING_SOON_ACTIONS.has(at.id);
                     return (
                       <button
                         key={at.id}
-                        onClick={() => handleAddNode(at.id, at.label)}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left", fontSize: 13, color: "#111111" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        disabled={isComingSoon}
+                        onClick={() => { if (!isComingSoon) handleAddNode(at.id, at.label); }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: isComingSoon ? "default" : "pointer", textAlign: "left", fontSize: 13, color: "#111111", opacity: isComingSoon ? 0.6 : 1 }}
+                        onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
                         <Icon size={16} color={at.color} />
-                        {at.label}
+                        <span style={{ flex: 1 }}>{at.label}</span>
+                        {isComingSoon && (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                        )}
                       </button>
                     );
                   })}
@@ -1912,27 +2327,27 @@ export default function AutomacoesPage() {
           </div>
 
           {/* Zoom controls */}
-          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
             <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} style={zoomBtn}><Minus size={14} /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtn}><Maximize2 size={14} /></button>
           </div>
 
           {/* Nav arrows */}
-          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => requestLeave(() => setView("list"))} style={zoomBtn} title="Voltar à lista"><ArrowLeft size={14} /></button>
             <button style={zoomBtn}><ArrowRight size={14} /></button>
           </div>
 
           {/* Hidden file input for import */}
-          <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleImportFile} />
+          <input ref={fileRef} type="file" accept=".json,.dc" style={{ display: "none" }} onChange={handleImportFile} />
 
           {/* ── Logs Panel — painel lateral direito ──────────────────────── */}
           {logsPanel && (
-            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "0.5px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "1px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
 
               {/* Header */}
-              <div style={{ padding: "12px 14px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5 }}>Logs do bloco</span>
                   {logsPanelNode && (
@@ -1942,11 +2357,19 @@ export default function AutomacoesPage() {
                     </div>
                   )}
                 </div>
-                <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
-                  style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                ><X size={14} /></button>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <button onClick={() => { if (selectedId) { refreshNodeStats(selectedId); if (logsPanel) refreshLogsPanelEntries(selectedId, logsPanel.nodeId); } }}
+                    title="Atualizar logs"
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  ><RefreshCw size={13} /></button>
+                  <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  ><X size={14} /></button>
+                </div>
               </div>
 
               {/* Banner: lead com caminho ativo no canvas */}
@@ -1963,7 +2386,7 @@ export default function AutomacoesPage() {
               )}
 
               {/* Tabs */}
-              <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+              <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
                 {([
                   { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
                   { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
@@ -1980,18 +2403,18 @@ export default function AutomacoesPage() {
               </div>
 
               {/* Filtros */}
-              <div style={{ padding: "8px 12px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div style={{ flex: 1, position: "relative" }}>
                   <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
-                    style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
+                    style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
                   >
                     <option value="">Selecionar lead</option>
                     {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
                 <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
-                  style={{ border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
+                  style={{ border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
                 >
                   <option value="week">Última semana</option>
                   <option value="month">Último mês</option>
@@ -2052,7 +2475,7 @@ export default function AutomacoesPage() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Nome da automação"
-                className="mt-1"
+                className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 onKeyDown={e => e.key === "Enter" && handleCreate()}
                 autoFocus
               />
@@ -2063,7 +2486,7 @@ export default function AutomacoesPage() {
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Descrição da automação"
-                className="mt-1 resize-none"
+                className="mt-1 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 rows={2}
               />
             </div>
@@ -2183,7 +2606,17 @@ export default function AutomacoesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={creating}>
+            <Button
+              onClick={() => {
+                if (startType === "import") {
+                  if (!newName.trim()) { toast.error("Informe um nome"); return; }
+                  createFileRef.current?.click();
+                } else {
+                  handleCreate();
+                }
+              }}
+              disabled={creating}
+            >
               {creating ? "Criando..." : "Confirmar"}
             </Button>
           </DialogFooter>
@@ -2195,7 +2628,7 @@ export default function AutomacoesPage() {
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
             {/* Category list */}
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar gatilho</div>
               {TRIGGER_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2226,21 +2659,30 @@ export default function AutomacoesPage() {
                       </div>
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {cat.triggers.map(t => (
-                        <button
-                          key={t.id}
-                          onClick={() => handleSelectTrigger(cat, t)}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
-                        >
-                          <ArrowRight size={14} color="hsl(var(--primary))" style={{ marginTop: 1, flexShrink: 0 }} />
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{t.label}</div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
-                          </div>
-                        </button>
-                      ))}
+                      {cat.triggers.map(t => {
+                        const isComingSoon = t.id === "mcp_tool";
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => !isComingSoon && handleSelectTrigger(cat, t)}
+                            disabled={isComingSoon}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: isComingSoon ? "#F9FAFB" : "#FFFFFF", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", transition: "all 0.1s", opacity: isComingSoon ? 0.7 : 1 }}
+                            onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; } }}
+                            onMouseLeave={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; } }}
+                          >
+                            <ArrowRight size={14} color={isComingSoon ? "#9CA3AF" : "hsl(var(--primary))"} style={{ marginTop: 1, flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: isComingSoon ? "#6B7280" : "#111111" }}>{t.label}</div>
+                                {isComingSoon && (
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 );
@@ -2254,7 +2696,7 @@ export default function AutomacoesPage() {
       <Dialog open={acoesPickerOpen} onOpenChange={setAcoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação</div>
               {ACTION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2281,7 +2723,7 @@ export default function AutomacoesPage() {
                         return (
                           <button key={action.id}
                             onClick={() => { if (nodePanel) addActionItem(nodePanel, { categoryId: cat.id, actionId: action.id, label: action.label, description: action.description }); setAcoesPickerOpen(false); }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
@@ -2312,7 +2754,7 @@ export default function AutomacoesPage() {
       <Dialog open={condicoesPickerOpen} onOpenChange={setCondicoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar condição</div>
               {CONDITION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -2341,7 +2783,7 @@ export default function AutomacoesPage() {
                               if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
                               setCondicoesPickerOpen(false);
                             }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                           >
@@ -2371,7 +2813,7 @@ export default function AutomacoesPage() {
       <Dialog open={espePickerOpen} onOpenChange={setEspePickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "0.5px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               {ESPERA_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedEspePickerCat === cat.id;
@@ -2406,7 +2848,7 @@ export default function AutomacoesPage() {
                             }
                             setEspePickerOpen(false);
                           }}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
                         >
@@ -2434,7 +2876,7 @@ export default function AutomacoesPage() {
           <DialogHeader><DialogTitle>Renomear automação</DialogTitle></DialogHeader>
           <div>
             <Label className="text-xs font-medium">Nome</Label>
-            <Input value={renameName} onChange={e => setRenameName(e.target.value)} className="mt-1" onKeyDown={e => e.key === "Enter" && handleRename()} autoFocus />
+            <Input value={renameName} onChange={e => setRenameName(e.target.value)} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" onKeyDown={e => e.key === "Enter" && handleRename()} autoFocus />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancelar</Button>
@@ -2477,6 +2919,9 @@ export default function AutomacoesPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Hidden file input for create-from-import (outside view conditionals) */}
+      <input ref={createFileRef} type="file" accept=".json,.dc" style={{ display: "none" }} onChange={handleCreateImport} />
+
     </div>
   );
 }
@@ -2489,12 +2934,12 @@ const zoomBtn: React.CSSProperties = {
 };
 
 const tcpSelectStyle: React.CSSProperties = {
-  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
   padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", cursor: "pointer",
 };
 
 const tcpInputStyle: React.CSSProperties = {
-  width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6,
+  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
   padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", boxSizing: "border-box",
 };
 
@@ -2506,9 +2951,11 @@ const tcpWarning = (text: string) => (
 
 // ─── TriggerConfigPanel ────────────────────────────────────────────────────────
 
-function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
+function TriggerConfigPanel({ trigger, automationId, companyId, automations, onClose, onChangeTrigger, updateConfig, pipelines, crmTags, addTag, teamMembers, products, lossReasons, customFieldGroups }: {
   trigger: TriggerConfig;
   automationId?: string;
+  companyId?: string;
+  automations?: AutomationRecord[];
   onClose: () => void;
   onChangeTrigger: () => void;
   updateConfig: (key: string, value: string | boolean | number) => void;
@@ -2529,7 +2976,7 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
         <select value={(cfg.instance as string) ?? ""} onChange={e => updateConfig("instance", e.target.value)} style={{ ...tcpSelectStyle, flex: 1 }}>
           <option value="">Selecionar</option>
         </select>
-        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <ArrowLeftRight size={13} color="#6B7280" />
         </button>
       </div>
@@ -2557,7 +3004,7 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
           onChange={e => updateConfig("keywords", e.target.value)}
           placeholder="Digite palavras-chave..."
           rows={3}
-          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
         />
       </div>
       <div>
@@ -2987,12 +3434,12 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
             <div>
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>URL do webhook</div>
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <div style={{ flex: 1, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
                   {webhookUrl}
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "0.5px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 >
                   <Copy size={13} color="#6B7280" />
                 </button>
@@ -3004,30 +3451,47 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
         );
       }
 
-      case "outra_automacao":
-        return <SourceBadge />;
+      case "outra_automacao": {
+        const outrasAutos = (automations ?? []).filter(a => a.id !== automationId);
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, marginBottom: 4 }}>Como funciona</div>
+              <div style={{ fontSize: 11, color: "#0C4A6E", lineHeight: 1.5 }}>
+                Esta automação é iniciada quando outra automação usa a ação <strong>"Iniciar Automação"</strong> apontando para ela.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Restringir à automação (opcional)</div>
+              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Deixe em branco para aceitar de qualquer automação.</div>
+              <select
+                value={(cfg.automacao_id as string) ?? ""}
+                onChange={e => updateConfig("automacao_id", e.target.value)}
+                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "6px 8px", fontSize: 12, background: "#FFFFFF", color: "#374151" }}
+              >
+                <option value="">Qualquer automação</option>
+                {outrasAutos.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+      }
 
       case "mcp_tool":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Nome da tool</div>
-              <input type="text" value={(cfg.toolName as string) ?? ""} onChange={e => updateConfig("toolName", e.target.value)} style={tcpInputStyle} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px 16px", textAlign: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 20 }}>🔌</span>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Descrição da tool</div>
-              <input type="text" value={(cfg.toolDesc as string) ?? ""} onChange={e => updateConfig("toolDesc", e.target.value)} style={tcpInputStyle} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#111111", marginBottom: 4 }}>MCP Server Tool</div>
+              <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>
+                Este gatilho permite que agentes de IA chamem automações via protocolo MCP.<br />
+                <span style={{ color: "#7C3AED", fontWeight: 600 }}>Disponível em breve.</span>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Parâmetro de sessão</div>
-              <select value={(cfg.sessionParam as string) ?? "none"} onChange={e => updateConfig("sessionParam", e.target.value)} style={tcpSelectStyle}>
-                <option value="none">Nenhum</option>
-              </select>
-            </div>
-            <SourceBadge />
-            <button style={{ background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              Adicionar parâmetro
-            </button>
           </div>
         );
 
@@ -3047,7 +3511,7 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
                 onChange={e => updateConfig("interval", Number(e.target.value))} style={tcpInputStyle} />
             </div>
             {tcpWarning("O intervalo mínimo é de 15 minutos.")}
-            <div style={{ background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 6 }}>
                 <Calendar size={12} /> Próxima execução
               </div>
@@ -3064,7 +3528,7 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
           <ArrowLeft size={14} color="#6B7280" />
         </button>
@@ -3078,10 +3542,10 @@ function TriggerConfigPanel({ trigger, automationId, onClose, onChangeTrigger, u
         {renderBody()}
       </div>
       {/* Footer */}
-      <div style={{ padding: "10px 16px", borderTop: "0.5px solid #E5E5E5" }}>
+      <div style={{ padding: "10px 16px", borderTop: "1px solid #E5E5E5" }}>
         <button
           onClick={onChangeTrigger}
-          style={{ width: "100%", border: "0.5px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
+          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#6B7280"; }}
         >
@@ -3117,7 +3581,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "0.5px solid #E5E5E5" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "1px solid #E5E5E5" }}>
         <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
@@ -3170,7 +3634,7 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         <button
           data-action
           onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
@@ -3220,7 +3684,6 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       style={{
         position: "absolute", left: node.x, top: node.y,
         width: w, height: h,
-        zIndex: 1,
         background: c.bg,
         border: `1.5px solid ${selected ? c.borderSel : c.border}`,
         borderRadius: 10,
@@ -3252,7 +3715,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
               <div
                 data-action
                 onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
+                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
               >
                 {NOTE_COLORS.map((col, i) => (
                   <button
@@ -3332,12 +3795,13 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onTimeoutPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onErrorPortDragStart?: (e: React.MouseEvent) => void;
+  onTimeoutPortDragStart?: (e: React.MouseEvent) => void;
   onConditionPortDragStart?: (e: React.MouseEvent, condId: string) => void;
   onBranchPortDragStart?: (e: React.MouseEvent, branchId: string) => void;
   onDragStart: (e: React.MouseEvent) => void;
@@ -3390,7 +3854,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     <div
       data-action
       onMouseDown={e => e.stopPropagation()}
-      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "0.5px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
     >
       {([
         { Ic: Trash2,     title: "Excluir",    action: onDelete,   hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
@@ -3424,7 +3888,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {inputPort}
         {selected && toolbar}
         {/* Header */}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Zap size={16} color="#F97316" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Ação</span>
         </div>
@@ -3493,7 +3957,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
         </div>
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([
             { key: "success" as const, count: stats?.s ?? 0, color: "#F97316", label: "Sucessos" },
             { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
@@ -3523,7 +3987,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Filter size={15} color="#8B5CF6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condições</span>
         </div>
@@ -3620,7 +4084,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Clock size={15} color="#3B82F6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Espera</span>
         </div>
@@ -3659,7 +4123,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 290, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Shuffle size={15} color="#F97316" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
         </div>
@@ -3667,7 +4131,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {branches.map((b, i) => (
-              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 6 }}>
+              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6 }}>
                 <div style={{ width: 20, height: 20, borderRadius: 5, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
                 </div>
@@ -3697,7 +4161,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           >
             <Plus size={11} /> Adicionar ramificação
           </button>
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
             <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
               style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
               onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
@@ -3726,7 +4190,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Braces size={15} color="#3B82F6" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>API</span>
         </div>
@@ -3775,7 +4239,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([{ key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
@@ -3794,7 +4258,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{ position: "absolute", left: node.x, top: node.y, width: 270, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
           <Sliders size={15} color="#22C55E" />
           <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Operações de campos</span>
         </div>
@@ -3805,15 +4269,23 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-              {ops.map(op => (
+              {ops.map(op => {
+                const dsColor = op.type !== "mapeamento" ? (op as FieldOpLoopArray | FieldOpAnaliseTel | FieldOpFormatacaoData).datasourceColor : undefined;
+                const dsName  = op.type !== "mapeamento" ? (op as FieldOpLoopArray | FieldOpAnaliseTel | FieldOpFormatacaoData).datasourceName : undefined;
+                const OpIcon  = op.type === "loop_array" ? Brackets : op.type === "analise_telefone" ? Phone : op.type === "formatacao_data" ? Calendar : ArrowLeftRight;
+                const opTitle = op.type === "loop_array" ? "Loop de array" : op.type === "analise_telefone" ? "Análise de telefone" : op.type === "formatacao_data" ? "Formatação de data" : (op as FieldOpMapeamento).fieldLabel || "Campo não selecionado";
+                const opSub   = op.type === "mapeamento" && (op as FieldOpMapeamento).value ? `= ${(op as FieldOpMapeamento).value}` : null;
+                return (
                 <div key={op.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 7, fontSize: 11 }}>
-                  <ArrowLeftRight size={11} color="#22C55E" />
+                  <OpIcon size={11} color="#22C55E" />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{op.fieldLabel || "Campo não selecionado"}</div>
-                    {op.value && <div style={{ color: "#22C55E", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>= {op.value}</div>}
+                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
+                    {opSub && <div style={{ color: "#22C55E", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opSub}</div>}
                   </div>
+                  {dsName && <span style={{ fontSize: 9, fontWeight: 700, background: dsColor ?? "#6366F1", color: "#fff", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
                 </div>
-              ))}
+              );})}
+
             </div>
           )}
           <button
@@ -3834,7 +4306,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([{ key: "success" as const, count: stats?.s ?? 0, color: "#22C55E", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
@@ -3898,7 +4370,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       {selected && toolbar}
 
       {/* Header */}
-      <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
         <MessageCircle size={16} color="#3B82F6" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Mensagem</span>
       </div>
@@ -3914,7 +4386,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             {node.subBlocks.map(b => {
               const SBIcon = SUB_BLOCK_ICONS[b.type];
               return (
-                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "0.5px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
                   <SBIcon size={12} color="#6B7280" />
                   <span style={{ flex: 1 }}>{b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}</span>
                   {removeSubBlock && (
@@ -3937,9 +4409,15 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {/* Output ports */}
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
           {hasUserInput && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda.</span>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #EF4444", flexShrink: 0 }} />
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda</span>
+              <div
+                data-port
+                data-from-node={`${node.id}__timeout`}
+                onMouseDown={(e) => { e.stopPropagation(); onTimeoutPortDragStart?.(e); }}
+                title="Arraste para o que fazer se o contato não responder no prazo"
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
+              />
             </div>
           )}
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
@@ -3964,7 +4442,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       </div>
 
       {/* Footer metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "0.5px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         {([
           { key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" },
           { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
@@ -4011,7 +4489,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
     const condData = catData?.conditions.find(c => c.id === selectedItem.conditionId);
     return (
       <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
@@ -4043,7 +4521,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Condições
@@ -4093,7 +4571,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
           </div>
         )}
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#6366F1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#E0E7FF"; e.currentTarget.style.borderColor = "#6366F1"; }}
@@ -4126,8 +4604,11 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 16 }}>{children}</div>;
 
   const textInp = (placeholder: string, key: string) => (
-    <input type="text" value={String(cfg[key] ?? "")} onChange={e => set(key, e.target.value)} placeholder={placeholder}
-      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+    <CamposValueInput
+      value={String(cfg[key] ?? "")}
+      onChange={v => set(key, v)}
+      placeholder={placeholder || undefined}
+    />
   );
 
   const numInp = (placeholder: string, key: string, min?: number) => (
@@ -4171,6 +4652,11 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   if (catId === "negocios") {
     if (id === "pos_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja filtrar a atribuição ao negócio. Deixe em branco para considerar qualquer um.")}</>)}</>;
     if (id === "sem_atend" || id === "ganho" || id === "perdido" || id === "pendente") return noConfig;
+    if (id === "neg_pipeline") return <>{grp(<>{lbl("Informe em qual pipeline que será procurado pelo negócio do lead")}{selInp("pipeline_id", pipelines.map(p => ({ value: p.id, label: p.name })))}</>)}</>;
+    if (id === "neg_etapa") {
+      const stages = pipelines.flatMap(p => (p.columns ?? []).map(c => ({ value: c.id, label: `${p.name} → ${c.title}` })));
+      return <>{grp(<>{lbl("Informe em qual etapa que será procurado pelo negócio do lead")}{selInp("etapa_id", stages)}</>)}</>;
+    }
     if (id === "pos_produto") return (
       <>
         {grp(<>{lbl("Selecione o produto que será verificado no negócio. Deixe em branco para utilizar a busca pelo SKU")}{selInp("produto_id", products.map(p => ({ value: p.id, label: p.name })))}</>)}
@@ -4363,7 +4849,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={espera ? onOpenPicker : onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, maxWidth: 200, overflow: "hidden" }}>
             <ArrowLeft size={16} style={{ flexShrink: 0 }} />
@@ -4494,7 +4980,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                 <input type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
                   style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
-                  <button title="Copiar" style={{ width: 22, height: 22, border: "0.5px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
+                  <button title="Copiar" style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
                   <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
                 </div>
               </div>
@@ -4672,7 +5158,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
   const total = branches.reduce((s, b) => s + b.percentage, 0);
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Randomizador
@@ -4707,7 +5193,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
-                    style={{ width: 46, border: "0.5px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
+                    style={{ width: 46, border: "1px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
                   <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
                 </div>
                 {branches.length > 2 && (
@@ -4721,7 +5207,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
           })}
         </div>
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={addBranch}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
@@ -4737,13 +5223,21 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
-  const { nodes, customFieldGroups, trigger, webhookPayload } = useContext(VarPickerCtx);
+  const { nodes, customFieldGroups, trigger, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
   const [apiPath, setApiPath] = useState("");
   const [apiTestResponses, setApiTestResponses] = useState<Record<string, unknown>>({});
   const [apiTestLoading, setApiTestLoading] = useState(false);
+  const [refreshingPayload, setRefreshingPayload] = useState(false);
+
+  const handleRefreshPayload = async () => {
+    if (!refreshWebhookPayload) return;
+    setRefreshingPayload(true);
+    await refreshWebhookPayload();
+    setRefreshingPayload(false);
+  };
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
 
@@ -4799,7 +5293,23 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             sourceName: r.name,
           }))
         );
-        return { ...c, fields: [...webhookFields, ...apiFields] };
+        const camposFields: VarField[] = nodes
+          .filter(n => n.type === "campos")
+          .flatMap(n =>
+            (n.fieldOps ?? [])
+              .filter(op => op.type !== "mapeamento")
+              .map(op => {
+                const dsOp = op as FieldOpLoopArray | FieldOpAnaliseTel | FieldOpFormatacaoData;
+                return {
+                  key: dsOp.datasourceName,
+                  label: dsOp.datasourceName,
+                  icon: "{}",
+                  isApiSource: true as const,
+                  sourceName: dsOp.datasourceName,
+                };
+              })
+          );
+        return { ...c, fields: [...webhookFields, ...apiFields, ...camposFields] };
       }
       return c;
     });
@@ -4835,6 +5345,27 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
     }
     return null;
   };
+
+  const findFieldOpSource = (sourceName: string): FieldOperation | null => {
+    for (const node of nodes) {
+      if (node.type === "campos") {
+        const op = (node.fieldOps ?? []).find(
+          o => o.type !== "mapeamento" && (o as FieldOpAnaliseTel).datasourceName === sourceName
+        );
+        if (op) return op as FieldOperation;
+      }
+    }
+    return null;
+  };
+
+  const ANALISE_TEL_FIELDS: { key: string; desc: string }[] = [
+    { key: "ddi",                desc: "Código do país (ex: 55)" },
+    { key: "phone",              desc: "+5511987654321" },
+    { key: "nationalNumber",     desc: "(11) 98765-4321" },
+    { key: "internacionalNumber",desc: "+55 11 98765-4321" },
+  ];
+
+  const activeFieldOp = apiModal ? findFieldOpSource(apiModal.sourceName) : null;
 
   const testApiRequest = async () => {
     if (!apiModal) return;
@@ -4948,14 +5479,38 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Dados recebidos</span>
-                {apiModal.sourceName !== "webhook" && (
+                {activeFieldOp ? null : apiModal.sourceName === "webhook" ? (
+                  <button onClick={handleRefreshPayload} disabled={refreshingPayload}
+                    style={{ fontSize: 11, padding: "3px 10px", background: refreshingPayload ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: refreshingPayload ? "default" : "pointer", fontWeight: 600 }}>
+                    {refreshingPayload ? "Atualizando…" : "Atualizar"}
+                  </button>
+                ) : (
                   <button onClick={testApiRequest} disabled={apiTestLoading}
                     style={{ fontSize: 11, padding: "3px 10px", background: apiTestLoading ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: apiTestLoading ? "default" : "pointer", fontWeight: 600 }}>
                     {apiTestLoading ? "Testando…" : "Testar"}
                   </button>
                 )}
               </div>
-              {apiModal.sourceName === "webhook" ? (
+              {activeFieldOp ? (
+                activeFieldOp.type === "analise_telefone" ? (
+                  <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden" }}>
+                    {ANALISE_TEL_FIELDS.map((f, i) => (
+                      <button key={f.key}
+                        onClick={() => { onInsert(`{{${(activeFieldOp as FieldOpAnaliseTel).datasourceName}.${f.key}}}`); onClose(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: i < ANALISE_TEL_FIELDS.length - 1 ? "1px solid #F3F4F6" : "none", cursor: "pointer", textAlign: "left", fontSize: 12 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0 }}>{f.key}</span>
+                        <span style={{ color: "#6B7280", fontFamily: "monospace", fontSize: 11 }}>{f.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#166534" }}>
+                    Campos disponíveis após a execução do fluxo.
+                  </div>
+                )
+              ) : apiModal.sourceName === "webhook" ? (
                 webhookPayload && Object.keys(webhookPayload).length > 0 ? (
                   <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 180, overflowY: "auto" }}>
                     {Object.entries(webhookPayload).map(([key, value]) => (
@@ -5117,8 +5672,8 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
   // ── Left config panel ───────────────────────────────────────────────────────
   const leftPanel = selectedReq ? (
-    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "0.5px solid #E5E5E5" : "none", height: "100%" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "1px solid #E5E5E5" : "none", height: "100%" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <button onClick={() => { setSelectedReqId(null); setShowAdvanced(false); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111", padding: 0, marginBottom: 4 }}>
           <ArrowLeft size={15} />{selectedReq.type === "json" ? "Requisição HTTP com comunicação via JSON" : "Requisição de arquivo HTTP"}
         </button>
@@ -5163,7 +5718,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
     </div>
   ) : (
     <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111", padding: 0 }}>
             <ArrowLeft size={16} /> API
@@ -5217,10 +5772,10 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
   const advPanel = selectedReq && showAdvanced ? (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Configurações avançadas</div>
       </div>
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
         <MethodDropdown value={selectedReq.method} onChange={v => upd({ method: v })} />
         <div style={{ flex: 1, position: "relative", display: "flex", gap: 4 }}>
           <input value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..."
@@ -5238,7 +5793,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setAdvTab(tab as typeof advTab)}
             style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${advTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: advTab === tab ? 600 : 400, color: advTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
@@ -5284,7 +5839,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
       <Dialog open={showTypePicker} onOpenChange={setShowTypePicker}>
         <DialogContent style={{ maxWidth: 480, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 280 }}>
-            <div style={{ width: 140, borderRight: "0.5px solid #E5E5E5", padding: "16px 0" }}>
+            <div style={{ width: 140, borderRight: "1px solid #E5E5E5", padding: "16px 0" }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111" }}>Adicionar API</div>
               <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#3B82F6", fontWeight: 600 }}>
                 <Globe size={14} /> HTTP
@@ -5312,8 +5867,6 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
   );
 }
 
-// ─── CamposPanel ──────────────────────────────────────────────────────────────
-
 // ─── CamposValueInput ────────────────────────────────────────────────────────
 
 function CamposValueInput({ value, onChange, placeholder }: {
@@ -5321,40 +5874,99 @@ function CamposValueInput({ value, onChange, placeholder }: {
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const [editing, setEditing] = useState(false);
   const [varOpen, setVarOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const insertVar = (v: string) => {
     const el = taRef.current;
-    if (!el) { onChange(value + v); return; }
-    const s = el.selectionStart ?? value.length;
-    const e = el.selectionEnd ?? value.length;
-    const next = value.substring(0, s) + v + value.substring(e);
-    onChange(next);
-    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+    if (el) {
+      const s = el.selectionStart ?? value.length;
+      const e = el.selectionEnd ?? value.length;
+      const next = value.substring(0, s) + v + value.substring(e);
+      onChange(next);
+      setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+    } else {
+      onChange(value + v);
+    }
+    setVarOpen(false);
+  };
+
+  const tokens = useMemo(() => {
+    const parts: { type: "text" | "var"; content: string }[] = [];
+    const regex = /\{\{([^}]+)\}\}/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(value)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: value.slice(last, m.index) });
+      parts.push({ type: "var", content: m[1] });
+      last = m.index + m[0].length;
+    }
+    if (last < value.length) parts.push({ type: "text", content: value.slice(last) });
+    return parts;
+  }, [value]);
+
+  const varLabel = (key: string) => {
+    const dot = key.indexOf(".");
+    if (dot < 0) return key;
+    return `[${key.slice(0, dot)}] ${key.slice(dot + 1)}`;
+  };
+
+  const varColor = (key: string) => {
+    if (key.startsWith("gatilho")) return "#22C55E";
+    if (key.startsWith("campo_")) return "#F59E0B";
+    if (key.startsWith("ia.")) return "#8B5CF6";
+    return "#6366F1";
+  };
+
+  const sharedBoxStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6,
+    fontSize: 12, boxSizing: "border-box", lineHeight: 1.6, minHeight: 62,
   };
 
   return (
     <div style={{ position: "relative" }}>
-      <textarea
-        ref={taRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={4}
-        style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "vertical", boxSizing: "border-box" as const, fontFamily: "inherit", lineHeight: 1.5 }}
-      />
+      {editing ? (
+        <textarea
+          ref={taRef}
+          autoFocus
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => { setTimeout(() => { if (!varOpen) setEditing(false); }, 120); }}
+          rows={3}
+          style={{ ...sharedBoxStyle, outline: "none", resize: "vertical", border: "1px solid #3B82F6", fontFamily: "inherit" }}
+        />
+      ) : (
+        <div
+          onClick={() => { setEditing(true); setTimeout(() => taRef.current?.focus(), 0); }}
+          style={{ ...sharedBoxStyle, cursor: "text", display: "flex", flexWrap: "wrap", gap: "4px 3px", alignContent: "flex-start" }}
+        >
+          {value === "" ? (
+            <span style={{ color: "#9CA3AF", fontSize: 12 }}>{placeholder ?? "Digite um valor ou use {} para inserir variável..."}</span>
+          ) : tokens.map((t, i) =>
+            t.type === "var" ? (
+              <span key={i} style={{ background: varColor(t.content), color: "#fff", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 600, lineHeight: "18px", display: "inline-flex", alignItems: "center" }}>
+                {varLabel(t.content)}
+              </span>
+            ) : (
+              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "#111", lineHeight: "22px" }}>{t.content}</span>
+            )
+          )}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4 }}>
         <button
+          onMouseDown={e => e.preventDefault()}
           onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
           style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
         ><Copy size={12} /></button>
         <div style={{ position: "relative", flexShrink: 0 }}>
           <button
-            onClick={() => setVarOpen(o => !o)}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => { setEditing(true); setVarOpen(o => !o); }}
             style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
           >{"{}"}</button>
-          {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+          {varOpen && <VarPicker onInsert={insertVar} onClose={() => { setVarOpen(false); }} />}
         </div>
       </div>
     </div>
@@ -5462,6 +6074,12 @@ function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
 
 // ─── CamposPanel ─────────────────────────────────────────────────────────────
 
+const OUTROS_OP_TYPES = [
+  { type: "loop_array"       as const, Icon: Brackets, label: "Loop de array",       sub: "Itera sobre um array de dados" },
+  { type: "analise_telefone" as const, Icon: Phone,    label: "Análise de telefone",  sub: "Analisa um número de telefone" },
+  { type: "formatacao_data"  as const, Icon: Calendar, label: "Formatação de data",   sub: "Formatação e manipulação de data" },
+];
+
 function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeFieldOp, updateFieldOp, customFieldGroups }: {
   node: CanvasNode;
   onClose: () => void;
@@ -5469,22 +6087,43 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
   onDuplicate: () => void;
   addFieldOp: (op: FieldOperation) => void;
   removeFieldOp: (opId: string) => void;
-  updateFieldOp: (opId: string, data: Partial<FieldOperation>) => void;
+  updateFieldOp: (opId: string, data: Record<string, unknown>) => void;
   customFieldGroups: import("@/data/mockData").CustomFieldGroup[];
 }) {
   const [selectedOpId, setSelectedOpId] = useState<string | null>(null);
   const [destPickerOpen, setDestPickerOpen] = useState(false);
+  const [paramPickerOpen, setParamPickerOpen] = useState(false);
+  const [showOutrasPicker, setShowOutrasPicker] = useState(false);
   const fieldOps = node.fieldOps ?? [];
   const selectedOp = fieldOps.find(o => o.id === selectedOpId) ?? null;
 
-  const handleAddOp = () => {
-    const op: FieldOperation = { id: `fo${Date.now()}`, type: "mapeamento", fieldKey: "", fieldLabel: "", value: "" };
+  const nextDsName = (prefix: string) => {
+    const count = fieldOps.filter(o => o.type !== "mapeamento" && (o as FieldOpLoopArray).datasourceName?.startsWith(prefix)).length;
+    return `${prefix}-${count + 1}`;
+  };
+
+  const handleAddMapeamento = () => {
+    const op: FieldOpMapeamento = { id: `fo${Date.now()}`, type: "mapeamento", fieldKey: "", fieldLabel: "", value: "" };
+    addFieldOp(op);
+    setSelectedOpId(op.id);
+  };
+
+  const handleAddOutra = (type: "loop_array" | "analise_telefone" | "formatacao_data") => {
+    setShowOutrasPicker(false);
+    let op: FieldOperation;
+    if (type === "loop_array") {
+      op = { id: `fo${Date.now()}`, type: "loop_array", datasourceName: nextDsName("array"), datasourceColor: "#6366F1", paramKey: "", paramLabel: "" };
+    } else if (type === "analise_telefone") {
+      op = { id: `fo${Date.now()}`, type: "analise_telefone", phone: "", datasourceName: nextDsName("phone"), datasourceColor: "#6366F1", defaultCountry: "BR" };
+    } else {
+      op = { id: `fo${Date.now()}`, type: "formatacao_data", date: "", timezone: "America/Sao_Paulo", addAmount: 0, addUnit: "dias", datasourceName: nextDsName("date"), datasourceColor: "#22C55E" };
+    }
     addFieldOp(op);
     setSelectedOpId(op.id);
   };
 
   const panelHeader = (title: string, subtitle: string, onBack: () => void) => (
-    <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+    <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
           <ArrowLeft size={16} /> {title}
@@ -5504,49 +6143,207 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
 
   // ── Detail view ─────────────────────────────────────────────────────────────
   if (selectedOpId && selectedOp) {
-    return (
-      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
-          <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
-            <ArrowLeft size={16} /> Mapeamento de campo
-          </button>
-          <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Campo de destino */}
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo de destino</label>
-              <div style={{ position: "relative" }}>
-                <button
-                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: selectedOp.fieldKey ? "#111" : "#9CA3AF" }}
-                  onClick={() => setDestPickerOpen(v => !v)}
-                >
-                  <span>{selectedOp.fieldLabel || "Selecionar"}</span>
-                  <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
-                </button>
-                {destPickerOpen && (
-                  <FieldDestPicker
-                    customFieldGroups={customFieldGroups}
-                    onSelect={(key, label) => { updateFieldOp(selectedOp.id, { fieldKey: key, fieldLabel: label }); setDestPickerOpen(false); }}
-                    onClose={() => setDestPickerOpen(false)}
-                  />
-                )}
+    // ── Mapeamento de campo ──────────────────────────────────────────────────
+    if (selectedOp.type === "mapeamento") {
+      const op = selectedOp as FieldOpMapeamento;
+      return (
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+              <ArrowLeft size={16} /> Mapeamento de campo
+            </button>
+            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo de destino</label>
+                <div style={{ position: "relative" }}>
+                  <button
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: op.fieldKey ? "#111" : "#9CA3AF" }}
+                    onClick={() => setDestPickerOpen(v => !v)}
+                  >
+                    <span>{op.fieldLabel || "Selecionar"}</span>
+                    <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                  </button>
+                  {destPickerOpen && (
+                    <FieldDestPicker
+                      customFieldGroups={customFieldGroups}
+                      onSelect={(key, label) => { updateFieldOp(op.id, { fieldKey: key, fieldLabel: label }); setDestPickerOpen(false); }}
+                      onClose={() => setDestPickerOpen(false)}
+                    />
+                  )}
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
+                <CamposValueInput
+                  value={op.value}
+                  onChange={v => updateFieldOp(op.id, { value: v })}
+                  placeholder="Digite um valor ou use {{variável}}..."
+                />
               </div>
             </div>
-            {/* Valor */}
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
-              <CamposValueInput
-                value={selectedOp.value}
-                onChange={v => updateFieldOp(selectedOp.id, { value: v })}
-                placeholder="Digite um valor ou use {{variável}}..."
-              />
+          </div>
+        </aside>
+      );
+    }
+
+    // ── Loop de array ────────────────────────────────────────────────────────
+    if (selectedOp.type === "loop_array") {
+      const op = selectedOp as FieldOpLoopArray;
+      return (
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+              <ArrowLeft size={16} /> Loop de array
+            </button>
+            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Itera sobre um array de dados</p>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados</label>
+                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Parâmetro</label>
+                <div style={{ position: "relative" }}>
+                  <button
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: op.paramKey ? "#111" : "#9CA3AF" }}
+                    onClick={() => setParamPickerOpen(v => !v)}
+                  >
+                    <span>{op.paramLabel || "Selecionar"}</span>
+                    <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                  </button>
+                  {paramPickerOpen && (
+                    <FieldDestPicker
+                      customFieldGroups={customFieldGroups}
+                      onSelect={(key, label) => { updateFieldOp(op.id, { paramKey: key, paramLabel: label }); setParamPickerOpen(false); }}
+                      onClose={() => setParamPickerOpen(false)}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </aside>
-    );
+        </aside>
+      );
+    }
+
+    // ── Análise de telefone ──────────────────────────────────────────────────
+    if (selectedOp.type === "analise_telefone") {
+      const op = selectedOp as FieldOpAnaliseTel;
+      return (
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+              <ArrowLeft size={16} /> Análise de telefone
+            </button>
+            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Analisa um número de telefone</p>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
+                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Telefone</label>
+                <CamposValueInput
+                  value={op.phone}
+                  onChange={v => updateFieldOp(op.id, { phone: v })}
+                  placeholder="Número de telefone ou {{variável}}..."
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>País padrão</label>
+                <select
+                  value={op.defaultCountry}
+                  onChange={e => updateFieldOp(op.id, { defaultCountry: e.target.value })}
+                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                >
+                  <option value="BR">Brasil (BR)</option>
+                  <option value="US">Estados Unidos (US)</option>
+                  <option value="PT">Portugal (PT)</option>
+                  <option value="AR">Argentina (AR)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    // ── Formatação de data ───────────────────────────────────────────────────
+    if (selectedOp.type === "formatacao_data") {
+      const op = selectedOp as FieldOpFormatacaoData;
+      return (
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+              <ArrowLeft size={16} /> Formatação de data
+            </button>
+            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Formatação e manipulação de data</p>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
+                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Data</label>
+                <CamposValueInput
+                  value={op.date}
+                  onChange={v => updateFieldOp(op.id, { date: v })}
+                  placeholder="Data ou {{variável}}..."
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Fuso horário</label>
+                <select
+                  value={op.timezone}
+                  onChange={e => updateFieldOp(op.id, { timezone: e.target.value })}
+                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                >
+                  <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+                  <option value="America/Manaus">America/Manaus (AMT)</option>
+                  <option value="America/Belem">America/Belem (BRT)</option>
+                  <option value="America/Fortaleza">America/Fortaleza (BRT)</option>
+                  <option value="America/Recife">America/Recife (BRT)</option>
+                  <option value="America/Noronha">America/Noronha (FNT)</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Adicionar tempo à data</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="number"
+                    value={op.addAmount}
+                    onChange={e => updateFieldOp(op.id, { addAmount: Number(e.target.value) })}
+                    style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                  />
+                  <select
+                    value={op.addUnit}
+                    onChange={e => updateFieldOp(op.id, { addUnit: e.target.value })}
+                    style={{ flex: 1, height: 34, padding: "0 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                  >
+                    <option value="segundos">Segundos</option>
+                    <option value="minutos">Minutos</option>
+                    <option value="horas">Horas</option>
+                    <option value="dias">Dias</option>
+                    <option value="semanas">Semanas</option>
+                    <option value="meses">Meses</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      );
+    }
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
@@ -5556,54 +6353,79 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {fieldOps.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-            {fieldOps.map(op => (
-              <div key={op.id}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, cursor: "pointer" }}
-                onClick={() => setSelectedOpId(op.id)}
-                onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
-              >
-                <ArrowLeftRight size={13} color="#22C55E" style={{ flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {op.fieldLabel || "Selecionar campo"}
+            {fieldOps.map(op => {
+              const isMap = op.type === "mapeamento";
+              const dsColor = !isMap ? (op as FieldOpLoopArray).datasourceColor : undefined;
+              const dsName  = !isMap ? (op as FieldOpLoopArray).datasourceName : undefined;
+              const OpIcon  = op.type === "loop_array" ? Brackets : op.type === "analise_telefone" ? Phone : op.type === "formatacao_data" ? Calendar : ArrowLeftRight;
+              const opTitle = isMap ? ((op as FieldOpMapeamento).fieldLabel || "Selecionar campo") : op.type === "loop_array" ? "Loop de array" : op.type === "analise_telefone" ? "Análise de telefone" : "Formatação de data";
+              const opSub   = isMap && (op as FieldOpMapeamento).value ? `= ${(op as FieldOpMapeamento).value}` : null;
+              return (
+                <div key={op.id}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, cursor: "pointer" }}
+                  onClick={() => setSelectedOpId(op.id)}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+                >
+                  <OpIcon size={13} color="#22C55E" style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
+                    {opSub && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{opSub}</div>}
                   </div>
-                  {op.value && (
-                    <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
-                      = {op.value}
-                    </div>
-                  )}
+                  {dsName && <span style={{ fontSize: 9, fontWeight: 700, background: dsColor, color: "#fff", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
+                  <button
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); removeFieldOp(op.id); }}
+                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                  ><X size={11} /></button>
                 </div>
-                <button
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); removeFieldOp(op.id); }}
-                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
-                ><X size={11} /></button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {fieldOps.length === 0 && (
           <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 4, lineHeight: 1.5 }}>Nenhuma operação adicionada ainda.</div>
         )}
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-        <button onClick={handleAddOp}
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+        <button onClick={handleAddMapeamento}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #86EFAC", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; }}
         >
           <Plus size={13} /> Adicionar mapeamento de campo
         </button>
-        <button onClick={handleAddOp}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
-        >
-          <Plus size={13} /> Adicionar outra operação de campo
-        </button>
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowOutrasPicker(v => !v)}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+          >
+            <Plus size={13} /> Adicionar outra operação de campo
+          </button>
+          {showOutrasPicker && (
+            <div style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 20, overflow: "hidden" }}>
+              {OUTROS_OP_TYPES.map(({ type, Icon: OpIcon, label, sub }) => (
+                <button key={type} onClick={() => handleAddOutra(type)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F0FDF4")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                >
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <OpIcon size={15} color="#22C55E" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{label}</div>
+                    <div style={{ fontSize: 11, color: "#6B7280" }}>{sub}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -5715,12 +6537,12 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
         </div>
       )}
       <button onClick={() => { setOpen(v => !v); setCreateMode(false); setSearch(""); }}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
         <span>{selectedIds.length === 0 ? "Selecione as tags" : `${selectedIds.length} tag${selectedIds.length > 1 ? "s" : ""} selecionada${selectedIds.length > 1 ? "s" : ""}`}</span>
         <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "0.5px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
           {!createMode && (
             <div style={{ padding: "8px 8px 4px" }}>
               <input type="text" placeholder="Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus />
@@ -6153,7 +6975,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
     const isWarning = actData?.warning;
     return (
       <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
@@ -6182,7 +7004,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
 
   return (
     <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Ações
@@ -6229,7 +7051,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           </div>
         )}
       </div>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#F97316", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
@@ -6253,7 +7075,317 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock }: {
+const sbToolBtn: React.CSSProperties = { width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" };
+
+function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
+  b: SubBlock;
+  removeSubBlock: (blockId: string) => void;
+  updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
+}) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { user } = useAuth();
+  const [uploading, setUploading] = useState(false);
+
+  const uploadFile = async (file: File) => {
+    if (!user) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${user.id}/${b.id}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("automation-media").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("automation-media").getPublicUrl(path);
+      updateSubBlock(b.id, { fileUrl: publicUrl, fileName: file.name });
+    } catch (e) {
+      console.error("[SubBlockCard] upload:", e);
+      toast.error("Erro ao enviar arquivo. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ── Gravação de áudio no navegador (MediaRecorder) ───────────────────────
+  const [recording, setRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recTimerRef = useRef<number | null>(null);
+  const cancelledRef = useRef(false);
+  const recStartRef = useRef(0);
+
+  const fmtSecs = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  const stopRecTimer = () => {
+    if (recTimerRef.current) { window.clearInterval(recTimerRef.current); recTimerRef.current = null; }
+  };
+
+  const startRecording = async () => {
+    if (!user || recording) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Seu navegador não suporta gravação de áudio.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const prefs = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"];
+      const mime = prefs.find(t => MediaRecorder.isTypeSupported(t)) || "";
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      cancelledRef.current = false;
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        stopRecTimer();
+        if (cancelledRef.current) { cancelledRef.current = false; chunksRef.current = []; return; }
+        const type = mr.mimeType || mime || "audio/webm";
+        let blob = new Blob(chunksRef.current, { type });
+        if (blob.size === 0) { toast.error("Nada foi gravado. Tente novamente."); return; }
+        // MediaRecorder não grava a duração no header do WebM → players (e o
+        // WhatsApp) mostram 0:00. Injeta a duração real no EBML antes de subir.
+        const durationMs = Date.now() - recStartRef.current;
+        if (type.includes("webm") && durationMs > 0) {
+          try { blob = await fixWebmDuration(blob, durationMs, { logger: false }); }
+          catch (e) { console.warn("[audio] fixWebmDuration falhou:", e); }
+        }
+        const ext = type.includes("ogg") ? "ogg" : type.includes("mp4") ? "m4a" : "webm";
+        const file = new File([blob], `gravacao-${Date.now()}.${ext}`, { type });
+        await uploadFile(file);
+      };
+      mediaRecorderRef.current = mr;
+      recStartRef.current = Date.now();
+      mr.start();
+      setRecording(true);
+      setRecSecs(0);
+      recTimerRef.current = window.setInterval(() => setRecSecs(s => s + 1), 1000);
+    } catch (e) {
+      console.error("[audio] getUserMedia:", e);
+      toast.error("Não foi possível acessar o microfone. Verifique a permissão do navegador.");
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") mr.stop();
+    setRecording(false);
+  };
+
+  const cancelRecording = () => {
+    cancelledRef.current = true;
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") mr.stop();
+    setRecording(false);
+    setRecSecs(0);
+  };
+
+  // Cleanup ao desmontar: para timer e libera o microfone
+  useEffect(() => () => {
+    stopRecTimer();
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== "inactive") { cancelledRef.current = true; mr.stop(); }
+  }, []);
+
+  const addButton = () => updateSubBlock(b.id, { buttons: [...(b.buttons ?? []), { id: `bt${Date.now()}`, label: "" }] });
+  const updateButton = (id: string, label: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).map(x => x.id === id ? { ...x, label } : x) });
+  const removeButton = (id: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).filter(x => x.id !== id) });
+
+  return (
+    <div style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, background: "#FAFAFA" }}>
+      {/* Sub-block toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB", position: "relative", borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
+        {b.type === "mensagem_texto" && (
+          <button onClick={() => setSettingsOpen(o => !o)} title="Configurações" style={sbToolBtn}
+            onMouseEnter={e => (e.currentTarget.style.color = "#3B82F6")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+          ><Settings size={11} /></button>
+        )}
+        <button onClick={() => removeSubBlock(b.id)} style={sbToolBtn}
+          onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+          onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+        ><Trash2 size={11} /></button>
+        {settingsOpen && (
+          <>
+            <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+            <div style={{ position: "absolute", top: "100%", right: 6, marginTop: 4, width: 252, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, padding: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 10 }}>Configurações da mensagem de texto</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 12, color: "#374151" }}>Quebrar mensagens?</span>
+                <button onClick={() => updateSubBlock(b.id, { splitMessages: !b.splitMessages })}
+                  style={{ width: 36, height: 20, borderRadius: 100, background: b.splitMessages ? "#3B82F6" : "#D1D5DB", position: "relative", transition: "background 0.15s", flexShrink: 0, border: "none", cursor: "pointer", padding: 0 }}>
+                  <span style={{ position: "absolute", top: 2, left: b.splitMessages ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFF", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, lineHeight: 1.4 }}>
+                Quando ativo, cada parágrafo (separado por linha em branco) é enviado como uma mensagem separada.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sub-block content */}
+      <div style={{ padding: "10px 12px" }}>
+        {b.type === "mensagem_texto" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
+            <CamposValueInput
+              value={b.text ?? ""}
+              onChange={v => updateSubBlock(b.id, { text: v })}
+              placeholder="Digite a mensagem ou use {} para inserir variável..."
+            />
+            {/* Botões de resposta da mensagem */}
+            {(b.buttons ?? []).length > 0 && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {(b.buttons ?? []).map(bt => (
+                  <div key={bt.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input value={bt.label} onChange={e => updateButton(bt.id, e.target.value)} placeholder="Texto do botão"
+                      style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    <button onClick={() => removeButton(bt.id)} style={sbToolBtn}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                    ><Trash2 size={11} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={addButton}
+              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
+            >
+              <Plus size={13} /> Adicionar botão
+            </button>
+          </div>
+        )}
+        {b.type === "entrada_usuario" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
+            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 11.5, color: "#1D4ED8", lineHeight: 1.45 }}>
+              A automação <strong>pausa e aguarda</strong> a resposta do contato no WhatsApp, e a guarda na variável abaixo.
+            </div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "10px 0 4px" }}>Salvar resposta na variável</label>
+            <input
+              value={b.varName ?? ""}
+              onChange={e => updateSubBlock(b.id, { varName: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") })}
+              placeholder="resposta"
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+            />
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Use depois como <span style={{ fontFamily: "monospace", color: "#6366F1" }}>{`{{${b.varName || "resposta"}}}`}</span>
+            </p>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "12px 0 4px" }}>Aguardar resposta por até</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="number" min={1} value={b.timeoutAmount ?? 1}
+                onChange={e => updateSubBlock(b.id, { timeoutAmount: Math.max(1, Number(e.target.value)) })}
+                style={{ width: 64, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none" }} />
+              <select value={b.timeoutUnit ?? "horas"}
+                onChange={e => updateSubBlock(b.id, { timeoutUnit: e.target.value as "minutos" | "horas" | "dias" })}
+                style={{ flex: 1, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", background: "#FFF", cursor: "pointer" }}>
+                <option value="minutos">minutos</option>
+                <option value="horas">horas</option>
+                <option value="dias">dias</option>
+              </select>
+            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Se o contato não responder nesse prazo, o fluxo segue pela saída <span style={{ color: "#EF4444", fontWeight: 600 }}>"Caso o contato não responda"</span>.
+            </p>
+          </div>
+        )}
+        {b.type === "atraso_tempo" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
+              <input type="number" min={0} value={b.delaySeconds ?? 0}
+                onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
+                style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
+              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+            </div>
+          </div>
+        )}
+        {b.type === "mensagem_audio" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
+            {b.fileUrl ? (
+              <div style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
+                <audio controls src={b.fileUrl} style={{ width: "100%", height: 34 }} />
+                <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
+                  style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 11, fontWeight: 600 }}>
+                  <Trash2 size={11} /> Remover áudio
+                </button>
+              </div>
+            ) : recording ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8 }}>
+                <span className="animate-pulse" style={{ width: 10, height: 10, borderRadius: "50%", background: "#EF4444", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#B91C1C", fontVariantNumeric: "tabular-nums" }}>Gravando… {fmtSecs(recSecs)}</span>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button onClick={cancelRecording}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "0.5px solid #E5E5E5", borderRadius: 7, background: "#FFF", color: "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    <X size={11} /> Cancelar
+                  </button>
+                  <button onClick={stopRecording}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "none", borderRadius: 7, background: "#EF4444", color: "#FFF", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    <Square size={10} fill="#FFF" /> Parar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={startRecording} disabled={uploading}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 0", border: "none", borderRadius: 8, background: uploading ? "#F3F4F6" : "#EF4444", color: uploading ? "#9CA3AF" : "#FFF", fontSize: 12, fontWeight: 600, cursor: uploading ? "default" : "pointer" }}>
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <Mic size={15} />}
+                  {uploading ? "Enviando…" : "Gravar agora"}
+                </button>
+                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
+                  {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+                  {uploading ? "Enviando..." : "Selecionar arquivo"}
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>MP3, OGG, M4A · máx 16MB</span>
+                  <input type="file" accept="audio/*" style={{ display: "none" }} disabled={uploading}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
+                </label>
+              </div>
+            )}
+          </div>
+        )}
+        {b.type === "arquivo_anexo" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
+            {b.fileUrl ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
+                <Paperclip size={13} color="#16A34A" style={{ flexShrink: 0 }} />
+                <a href={b.fileUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: 12, color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>{b.fileName || "arquivo"}</a>
+                <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", flexShrink: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                ><Trash2 size={12} /></button>
+              </div>
+            ) : (
+              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
+                {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+                {uploading ? "Enviando..." : "Selecionar arquivo"}
+                <span style={{ fontSize: 10, color: "#9CA3AF" }}>Imagem, PDF ou documento · máx 16MB</span>
+                <input type="file" style={{ display: "none" }} disabled={uploading}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
+              </label>
+            )}
+          </div>
+        )}
+        {b.type === "arquivo_url" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
+            <CamposValueInput
+              value={b.fileUrl ?? ""}
+              onChange={v => updateSubBlock(b.id, { fileUrl: v })}
+              placeholder="URL do arquivo ou use {{variável}}..."
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, updateSubBlock, onAddSubBlock, onSetConnection }: {
   node: CanvasNode;
   onClose: () => void;
   onDelete: () => void;
@@ -6261,12 +7393,15 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
   removeSubBlock: (blockId: string) => void;
   updateSubBlock: (blockId: string, data: Partial<SubBlock>) => void;
   onAddSubBlock: (type: SubBlockType) => void;
+  onSetConnection: (connectionId: string | undefined) => void;
 }) {
+  const { whatsappConnections } = useCompany();
   const hasSubBlocks = (node.subBlocks ?? []).length > 0;
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   return (
     <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #E5E5E5" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
             <ArrowLeft size={16} /> Mensagens
@@ -6283,17 +7418,35 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Envie, receba e armazene respostas</p>
       </div>
 
-      {/* Conexão */}
+      {/* Conexão — vinculada às conexões de Configurações → Conexão (whatsapp_connections) */}
       <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <select style={{ flex: 1, padding: "7px 10px", border: "0.5px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}>
-            <option>Selecionar</option>
+          <select
+            value={node.connectionId ?? ""}
+            onChange={e => onSetConnection(e.target.value || undefined)}
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}
+          >
+            <option value="">Selecionar</option>
+            {whatsappConnections.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.phone ? ` · ${c.phone}` : ""}{c.connected ? "" : " (desconectado)"}
+              </option>
+            ))}
           </select>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ArrowLeft size={12} style={{ transform: "rotate(180deg)" }} /></button>
-          <button style={{ width: 30, height: 30, borderRadius: 7, border: "0.5px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Settings size={12} /></button>
+          <a
+            href="/configuracoes/conexoes" target="_blank" rel="noopener noreferrer"
+            title="Gerenciar conexões em Configurações → Conexão"
+            style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+          ><Settings size={12} /></a>
         </div>
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+        {whatsappConnections.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+            Nenhuma conexão cadastrada. Adicione em <strong>Configurações → Conexão</strong>.
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+        )}
       </div>
 
       {/* Body: list de tipos disponíveis (estado vazio) OU sub-blocos configurados */}
@@ -6323,93 +7476,42 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
         ) : (
           <div style={{ padding: "10px 16px" }}>
             {(node.subBlocks ?? []).map(b => (
-              <div key={b.id} style={{ marginBottom: 8, border: "0.5px solid #E5E5E5", borderRadius: 10, overflow: "hidden", background: "#FAFAFA" }}>
-                {/* Sub-block toolbar */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB" }}>
-                  <button onClick={() => removeSubBlock(b.id)} style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
-                  ><Trash2 size={11} /></button>
-                </div>
-                {/* Sub-block content */}
-                <div style={{ padding: "10px 12px" }}>
-                  {b.type === "mensagem_texto" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
-                      <textarea
-                        value={b.text ?? ""}
-                        onChange={e => updateSubBlock(b.id, { text: e.target.value })}
-                        placeholder="Digite a mensagem..."
-                        style={{ width: "100%", minHeight: 80, border: "0.5px solid #E5E5E5", borderRadius: 7, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
-                      />
-                    </div>
-                  )}
-                  {b.type === "entrada_usuario" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-                      <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", textAlign: "center" }}>Resposta do usuário</div>
-                    </div>
-                  )}
-                  {b.type === "atraso_tempo" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
-                        <input
-                          type="number" min={0}
-                          value={b.delaySeconds ?? 0}
-                          onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
-                          style={{ width: 64, padding: "5px 8px", border: "0.5px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }}
-                        />
-                        <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
-                      </div>
-                    </div>
-                  )}
-                  {b.type === "mensagem_audio" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
-                      <div style={{ padding: "10px 12px", background: "#F9FAFB", border: "0.5px dashed #D1D5DB", borderRadius: 8, textAlign: "center" }}>
-                        <button style={{ padding: "6px 14px", border: "0.5px solid #E5E5E5", borderRadius: 6, background: "#FFF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, margin: "0 auto" }}>
-                          <Mic size={12} /> Iniciar gravação
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {b.type === "arquivo_anexo" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
-                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: "pointer", fontSize: 11, color: "#6B7280" }}>
-                        <Upload size={20} color="#D1D5DB" />
-                        Selecionar arquivo
-                        <input type="file" style={{ display: "none" }} />
-                      </label>
-                    </div>
-                  )}
-                  {b.type === "arquivo_url" && (
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
-                      <input
-                        type="url"
-                        value={b.fileUrl ?? ""}
-                        onChange={e => updateSubBlock(b.id, { fileUrl: e.target.value })}
-                        placeholder="URL do arquivo"
-                        style={{ width: "100%", padding: "7px 10px", border: `0.5px solid ${b.fileUrl && !b.fileUrl.startsWith("http") ? "#EF4444" : "#E5E5E5"}`, borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
-                      />
-                      {b.fileUrl && !b.fileUrl.startsWith("http") && (
-                        <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0" }}>URL informada é inválida</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SubBlockCard key={b.id} b={b} removeSubBlock={removeSubBlock} updateSubBlock={updateSubBlock} />
             ))}
           </div>
         )}
       </div>
 
       {/* Rodapé */}
-      <div style={{ borderTop: "0.5px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
-        <button onClick={() => onAddSubBlock("mensagem_texto")}
+      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0, position: "relative" }}>
+        {addMenuOpen && (
+          <>
+            {/* clique fora fecha o menu */}
+            <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+            <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, marginBottom: 6, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 41 }}>
+              {MENSAGEM_SUB_BLOCKS.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.type}>
+                    <button
+                      onClick={() => { onAddSubBlock(item.type); setAddMenuOpen(false); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <Icon size={15} color={item.color} />
+                      <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
+                    </button>
+                    {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
+                      <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 14px" }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+        <button onClick={() => setAddMenuOpen(o => !o)}
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}

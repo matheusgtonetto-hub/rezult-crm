@@ -26,10 +26,10 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
 
-    let body: { title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean };
+    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false } = body;
+    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
@@ -46,12 +46,13 @@ serve(async (req) => {
     const user = authResult.data?.user;
     if (authResult.error || !user) return json({ error: "unauthorized" }, 401);
 
-    // Busca token Google do usuário
-    const { data: tokenRow, error: tokenErr } = await db
+    // Busca token Google do usuário (filtrado por empresa para isolamento multi-tenant)
+    let tokenQuery = db
       .from("google_oauth_tokens")
       .select("access_token, refresh_token, token_expiry")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .eq("user_id", user.id);
+    if (company_id) tokenQuery = tokenQuery.eq("company_id", company_id);
+    const { data: tokenRow, error: tokenErr } = await tokenQuery.maybeSingle();
 
     if (tokenErr || !tokenRow) {
       return json({ error: "google_not_connected" }, 400);
@@ -76,18 +77,62 @@ serve(async (req) => {
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json() as { access_token: string; expires_in?: number };
         accessToken = refreshData.access_token;
-        await db.from("google_oauth_tokens").update({
+        let updateQ = db.from("google_oauth_tokens").update({
           access_token: accessToken,
           token_expiry: refreshData.expires_in
             ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
             : null,
         }).eq("user_id", user.id);
+        if (company_id) updateQ = updateQ.eq("company_id", company_id);
+        await updateQ;
       } else {
         return json({ error: "token_refresh_failed" }, 502);
       }
     }
 
-    // Cria evento no Google Calendar (com Meet apenas se solicitado)
+    // Atualiza evento existente (PATCH) quando event_id fornecido
+    if (event_id) {
+      const patch = {
+        summary: title,
+        description: description ?? "",
+        start: { dateTime: start_datetime, timeZone: "America/Sao_Paulo" },
+        end:   { dateTime: end_datetime,   timeZone: "America/Sao_Paulo" },
+        ...(attendees.length > 0 && {
+          attendees: attendees.map(email => ({ email })),
+        }),
+      };
+
+      const patchRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization:  `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(patch),
+        },
+      );
+
+      if (!patchRes.ok) {
+        const detail = await patchRes.text();
+        console.error("Google Calendar PATCH error:", detail);
+        return json({ error: "calendar_event_failed", detail }, 502);
+      }
+
+      const patchData = await patchRes.json() as {
+        id: string;
+        htmlLink: string;
+        conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+      };
+
+      const meetLink = patchData.conferenceData?.entryPoints
+        ?.find(ep => ep.entryPointType === "video")?.uri ?? null;
+
+      return json({ success: true, event_id: patchData.id, event_link: patchData.htmlLink, meet_link: meetLink });
+    }
+
+    // Cria evento novo (POST)
     const event = {
       summary: title,
       description: description ?? "",
@@ -127,11 +172,20 @@ serve(async (req) => {
     const calData = await calRes.json() as {
       id: string;
       htmlLink: string;
-      conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+      hangoutLink?: string;
+      conferenceData?: {
+        conferenceId?: string;
+        entryPoints?: Array<{ entryPointType?: string; uri?: string }>;
+        createRequest?: { status?: { statusCode?: string } };
+      };
     };
 
-    const meetLink = calData.conferenceData?.entryPoints
-      ?.find(ep => ep.entryPointType === "video")?.uri ?? null;
+    console.log("[calendar] create_meet:", create_meet, "conferenceData:", JSON.stringify(calData.conferenceData), "hangoutLink:", calData.hangoutLink);
+
+    const meetLink =
+      calData.conferenceData?.entryPoints?.find(ep => ep.entryPointType === "video")?.uri
+      ?? calData.hangoutLink
+      ?? null;
 
     return json({ success: true, event_id: calData.id, event_link: calData.htmlLink, meet_link: meetLink });
 

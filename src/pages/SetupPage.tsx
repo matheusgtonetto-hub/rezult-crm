@@ -38,6 +38,34 @@ import {
 type Step = 1 | 2 | 3;
 type BillingTab = "mensal" | "semestral" | "anual";
 
+// ─── Stripe price IDs ────────────────────────────────────────────────────────
+
+const STRIPE_PRICES = {
+  starter: {
+    monthly:    "price_1Tbp3sHLGbQg56rmYk9RbtKj",
+    semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK",
+    annual:     "price_1Tbp3sHLGbQg56rmuvxhNhoQ",
+  },
+  essential: {
+    monthly:    "price_1Tbp7lHLGbQg56rmxz4NpynU",
+    semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a",
+    annual:     "price_1Tbp7lHLGbQg56rmJcvQ4GY5",
+  },
+  pro: {
+    monthly:    "price_1TbpAAHLGbQg56rmh1i1HdvY",
+    semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL",
+    annual:     "price_1TbpAAHLGbQg56rmYRFZlZ3I",
+  },
+} as const;
+
+type PlanKey = keyof typeof STRIPE_PRICES;
+
+const BILLING_TAB_TO_PERIOD: Record<BillingTab, "monthly" | "semiannual" | "annual"> = {
+  mensal:    "monthly",
+  semestral: "semiannual",
+  anual:     "annual",
+};
+
 
 // ─── Step meta ───────────────────────────────────────────────────────────────
 
@@ -64,7 +92,7 @@ export default function SetupPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const initStep  = (location.state as { step?: number } | null)?.step ?? 1;
-  const { company, companyLoading, isFreePlan, planExpired, refetchCompany } = useCompany();
+  const { company, companyLoading, isFreePlan } = useCompany();
   const { user } = useAuth();
 
   // Redireciona apenas usuários com plano pago — free trial passa pelo wizard normalmente
@@ -104,29 +132,43 @@ export default function SetupPage() {
 
   // ── Plan selection ────────────────────────────────────────────────────────
 
-  const handleSelectPlan = async (planKey: string) => {
+  const handleSelectPlan = async (planKey: PlanKey) => {
     if (!user || !company) return;
     setSavingPlan(planKey);
 
-    const daysMap: Record<BillingTab, number> = { mensal: 30, semestral: 180, anual: 365 };
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + daysMap[billingTab]);
+    const priceId = STRIPE_PRICES[planKey][BILLING_TAB_TO_PERIOD[billingTab]];
 
-    const { error } = await supabase
-      .from("companies")
-      .update({ plan: planKey, plan_expires_at: expiresAt.toISOString() })
-      .eq("owner_id", user.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
 
-    setSavingPlan(null);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          priceId,
+          companyId:     company.id,
+          userId:        user.id,
+          userEmail:     user.email ?? "",
+          planName:      planKey,
+          billingPeriod: BILLING_TAB_TO_PERIOD[billingTab],
+        }),
+      });
 
-    if (error) {
-      toast.error("Erro ao salvar plano. Tente novamente.");
-      return;
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "Erro ao criar sessão de pagamento.");
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
+      setSavingPlan(null);
     }
-
-    await refetchCompany();
-    toast.success("Plano atualizado com sucesso!");
-    navigate("/dashboard");
   };
 
   // ── Invite ────────────────────────────────────────────────────────────────
@@ -338,7 +380,7 @@ export default function SetupPage() {
                           variant={plan.badge ? "default" : "outline"}
                           className="w-full h-10 rounded-lg text-sm font-semibold"
                           disabled={savingPlan !== null}
-                          onClick={() => handleSelectPlan(plan.key)}
+                          onClick={() => handleSelectPlan(plan.key as PlanKey)}
                         >
                           {savingPlan === plan.key ? "Salvando..." : "Selecionar plano"}
                         </Button>
@@ -409,7 +451,7 @@ export default function SetupPage() {
                 placeholder="João Silva"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
-                className="h-10 rounded-lg"
+                className="h-10 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
@@ -424,14 +466,14 @@ export default function SetupPage() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="h-10 rounded-lg"
+                className="h-10 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Permissão</Label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
-                <SelectTrigger className="h-10 rounded-lg">
+                <SelectTrigger className="h-10 rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

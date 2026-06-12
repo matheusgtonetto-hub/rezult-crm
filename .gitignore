@@ -25,3 +25,10 @@ dist-ssr
 
 .claude/skills/
 .vercel
+
+# Tooling de IA / rascunhos locais (não versionar)
+.agents/
+.superpowers/
+skills-lock.json
+.env.backup-local
+teste rezult.dc

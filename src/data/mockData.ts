@@ -68,6 +68,7 @@ export interface Lead {
   origin: LeadOrigin;
   productId?: string;
   entryDate: string;
+  stageEnteredAt?: string;
   nextFollowUp?: string;
   notes: string;
   activities: Activity[];
@@ -108,6 +109,7 @@ export interface Tag {
   name: string;
   description: string;
   color: string;
+  created_at?: string;
 }
 
 export interface Task {
@@ -147,6 +149,8 @@ export interface Product {
 export interface LossReason {
   id: string;
   name: string;
+  description?: string;
+  created_at?: string;
 }
 
 export const stageColors = {

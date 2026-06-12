@@ -15,8 +15,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
-        heading: ["Inter", "sans-serif"],
+        sans: ["Geist Sans", "sans-serif"],
+        heading: ["Geist Sans", "sans-serif"],
         mono: ["Geist Mono", "monospace"],
       },
       colors: {

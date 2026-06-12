@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import postgres from "https://deno.land/x/postgresjs@v3.4.4/mod.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -23,20 +24,22 @@ serve(async (req) => {
   const redirectUri  = Deno.env.get("GOOGLE_REDIRECT_URI") ?? "";
   const supabaseUrl  = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const dbUrl        = Deno.env.get("SUPABASE_DB_URL") ?? "";
 
   console.log("[oauth] clientId:", clientId ? clientId.slice(0, 20) + "..." : "VAZIO");
   console.log("[oauth] redirectUri:", redirectUri || "VAZIO");
   console.log("[oauth] serviceKey:", serviceKey ? "ok" : "VAZIO");
+  console.log("[oauth] dbUrl:", dbUrl ? "ok" : "VAZIO");
 
   // Extrai user_id do JWT do Supabase
   const authHeader = req.headers.get("authorization") ?? "";
   const jwt        = authHeader.replace(/^Bearer\s+/i, "");
   console.log("[oauth] jwt presente:", jwt ? "sim" : "NÃO");
 
-  let body: { code?: string };
+  let body: { code?: string; company_id?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-  const { code } = body;
+  const { code, company_id } = body;
   console.log("[oauth] code recebido:", code ? code.slice(0, 12) + "..." : "VAZIO");
   if (!code) return json({ error: "missing code" }, 400);
 
@@ -88,25 +91,34 @@ serve(async (req) => {
 
   const scopes = tokenData.scope ? tokenData.scope.split(" ") : [];
 
-  // 3. Upsert em google_oauth_tokens (um registro por user_id)
-  const { error: upsertErr } = await db
-    .from("google_oauth_tokens")
-    .upsert(
-      {
-        user_id:       user.id,
-        access_token:  tokenData.access_token,
-        refresh_token: tokenData.refresh_token ?? null,
-        token_expiry:  tokenExpiry,
-        email:         googleUser.email ?? null,
-        scopes,
-        updated_at:    new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (upsertErr) {
-    console.error("Upsert error:", upsertErr);
-    return json({ error: "db_error", detail: upsertErr.message }, 500);
+  // 3. Salva token via SQL direto (contorna cache de schema do PostgREST)
+  const sql = postgres(dbUrl, { max: 1 });
+  try {
+    await sql`
+      DELETE FROM public.google_oauth_tokens
+      WHERE user_id = ${user.id}::uuid
+        AND (
+          (${company_id ?? null}::uuid IS NOT NULL AND company_id = ${company_id ?? null}::uuid)
+          OR
+          (${company_id ?? null}::uuid IS NULL AND company_id IS NULL)
+        )
+    `;
+    await sql`
+      INSERT INTO public.google_oauth_tokens
+        (user_id, company_id, access_token, refresh_token, token_expiry, email, scopes, updated_at)
+      VALUES (
+        ${user.id}::uuid,
+        ${company_id ?? null}::uuid,
+        ${tokenData.access_token},
+        ${tokenData.refresh_token ?? null},
+        ${tokenExpiry}::timestamptz,
+        ${googleUser.email ?? null},
+        ${scopes},
+        now()
+      )
+    `;
+  } finally {
+    await sql.end();
   }
 
   return json({ success: true, email: googleUser.email ?? null }, 200);

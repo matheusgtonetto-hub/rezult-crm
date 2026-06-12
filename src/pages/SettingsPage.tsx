@@ -19,12 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ArrowLeft, User, Tag, Package, X, XCircle, List, FormInput, Building2,
+  ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
-  Search, ExternalLink, Settings2, KanbanSquare, Rocket, CalendarDays, Loader2,
+  Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
+  Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -33,10 +34,12 @@ import { PLANS } from "@/data/plans";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
+import DepartmentsManager from "@/components/DepartmentsManager";
+import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
   | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
-  | "departamentos" | "horarios" | "atividades" | "integracoes"
+  | "departamentos" | "horarios" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
@@ -44,13 +47,12 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: "planos",  label: "Planos e pagamentos", icon: CreditCard },
   { id: "empresa", label: "Empresa",             icon: Building2 },
   { id: "tags",    label: "Tags",                icon: Tag },
-  { id: "produtos", label: "Produtos", icon: Package },
-  { id: "motivos", label: "Motivos de perda", icon: XCircle },
+  { id: "produtos", label: "Produtos", icon: ShoppingCart },
+  { id: "motivos", label: "Motivos de perda", icon: SquareX },
   { id: "listas", label: "Listas", icon: List },
   { id: "campos", label: "Campos adicionais", icon: FormInput },
-  { id: "departamentos", label: "Departamentos", icon: Building2 },
+  { id: "departamentos", label: "Departamentos", icon: KanbanSquare },
   { id: "horarios", label: "Horários de trabalho", icon: Clock },
-  { id: "atividades", label: "Tipos de atividades", icon: Activity },
   { id: "integracoes", label: "Integrações", icon: Plug },
   { id: "conexoes", label: "Conexões", icon: Link2 },
   { id: "api", label: "Chaves de API", icon: KeyRound },
@@ -65,29 +67,36 @@ const Card = ({ children, className = "" }: { children: ReactNode; className?: s
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
   <div className="mb-4">
     <h2 className="text-base font-semibold text-foreground">{title}</h2>
-    {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    {subtitle && <p className="text-[14px] text-muted-foreground mt-0.5">{subtitle}</p>}
   </div>
 );
 
-const ADMIN_ONLY_SECTIONS: SectionId[] = ["planos", "empresa"];
+// Seções exclusivas do DONO da empresa
+const OWNER_ONLY_SECTIONS: SectionId[] = [];
+// Seções visíveis ao dono E a membros "Administrador (acesso total)"
+const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "planos"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { section } = useParams<{ section?: string }>();
   const { logout, products } = useCRM();
-  const { isOwner } = useCompany();
+  const { isOwner, userPermissions } = useCompany();
+  const isFullAdmin = isOwner || userPermissions.includes("admin");
   const [pwOpen, setPwOpen] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
 
-  const visibleSections = SECTIONS.filter(s =>
-    isOwner || !ADMIN_ONLY_SECTIONS.includes(s.id)
-  );
+  const canSeeSection = (id: SectionId) =>
+    OWNER_ONLY_SECTIONS.includes(id) ? isOwner
+    : FULL_ADMIN_SECTIONS.includes(id) ? isFullAdmin
+    : true;
+
+  const visibleSections = SECTIONS.filter(s => canSeeSection(s.id));
 
   // Deriva a aba ativa a partir da URL; fallback para "perfil"
   const validIds = SECTIONS.map(s => s.id);
   const rawSection = section as SectionId | undefined;
   const active: SectionId =
-    rawSection && validIds.includes(rawSection) && (isOwner || !ADMIN_ONLY_SECTIONS.includes(rawSection))
+    rawSection && validIds.includes(rawSection) && canSeeSection(rawSection)
       ? rawSection
       : "perfil";
 
@@ -103,10 +112,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-[200px] bg-card border-r-[0.5px] border-card-border flex flex-col shrink-0">
+      <aside className="w-[200px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b-[0.5px] border-card-border"
+          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -117,7 +126,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2.5 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
@@ -144,7 +153,6 @@ export default function SettingsPage() {
           {active === "campos" && <CamposSection />}
           {active === "departamentos" && <DepartamentosSection />}
           {active === "horarios" && <HorariosSection />}
-          {active === "atividades" && <AtividadesSection />}
           {active === "integracoes" && <IntegracoesSection />}
           {active === "conexoes" && <ConexoesSection />}
           {active === "api" && <ApiSection />}
@@ -226,7 +234,6 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Meu perfil</h1>
 
       {/* Cabeçalho do perfil */}
       <Card>
@@ -244,7 +251,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </h2>
               <CheckCircle2 size={16} className="text-primary" />
             </div>
-            <p className="text-[13px] text-muted-foreground mt-1">{authEmail}</p>
+            <p className="text-[13px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
             {createdDate && (
               <p className="text-xs text-muted-foreground mt-1">Conta criada em {createdDate}</p>
             )}
@@ -267,7 +274,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Seu nome completo"
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -299,7 +306,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                 value={authEmail}
                 readOnly
                 disabled
-                className="border-card-border bg-muted/50 text-muted-foreground cursor-not-allowed pr-9"
+                className="border-card-border bg-muted/50 text-muted-foreground cursor-not-allowed pr-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               <Lock
                 size={13}
@@ -342,7 +349,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           <div className="flex items-center gap-2 shrink-0">
             <label className="text-xs text-muted-foreground whitespace-nowrap">Tema</label>
             <Select value={theme} onValueChange={(v) => handleTheme(v as "light" | "dark")}>
-              <SelectTrigger className="border-card-border w-32">
+              <SelectTrigger className="border-card-border w-32 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -378,7 +385,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
       {company && (
         <Card>
           <SectionTitle title="Empresa" subtitle="Empresa vinculada à sua conta" />
-          <div className="border-[0.5px] border-card-border rounded-lg overflow-hidden">
+          <div className="border border-card-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold">
@@ -454,9 +461,32 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 function EmpresaSection() {
-  const { company, updateCompany, uploadLogo } = useCompany();
+  const { company, updateCompany, uploadLogo, isOwner, userPermissions } = useCompany();
+  const isFullAdmin = isOwner || userPermissions.includes("admin");
   const fileRef = useRef<HTMLInputElement>(null);
   const [empresaTab, setEmpresaTab] = useState<"informacoes" | "equipe">("informacoes");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteCompany = async () => {
+    if (!company) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("companies").delete().eq("id", company.id);
+      if (error) throw error;
+      toast.success("Empresa excluída.");
+      setDeleteOpen(false);
+      // Recarrega a aplicação do zero: sem empresa o AppLayout leva ao cadastro
+      // de uma nova; se ainda houver outra empresa, ela é selecionada normalmente.
+      window.location.href = "/";
+    } catch (e) {
+      toast.error("Erro ao excluir empresa. Tente novamente.");
+      console.error("[EmpresaSection] delete company:", e);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const [name,         setName]         = useState("");
   const [email,        setEmail]        = useState("");
@@ -562,7 +592,6 @@ function EmpresaSection() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Empresa</h1>
 
       {/* Cabeçalho da empresa */}
       <Card className="!p-4">
@@ -578,7 +607,7 @@ function EmpresaSection() {
               <CheckCircle2 size={16} className="text-primary" />
             </div>
             {company?.email && (
-              <p className="text-[13px] text-muted-foreground mt-0.5">{company.email}</p>
+              <p className="text-[13px] text-muted-foreground mt-[1.5px]">{company.email}</p>
             )}
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -594,29 +623,31 @@ function EmpresaSection() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-1 shrink-0">
-                {(["informacoes", "equipe"] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setEmpresaTab(tab)}
-                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
-                      empresaTab === tab
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {tab === "informacoes" ? "Informações" : "Equipe"}
-                  </button>
-                ))}
-              </div>
+              {isFullAdmin && (
+                <div className="flex gap-1 shrink-0">
+                  {(["informacoes", "equipe"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setEmpresaTab(tab)}
+                      className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
+                        empresaTab === tab
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {tab === "informacoes" ? "Informações" : "Equipe"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </Card>
 
-      {empresaTab === "equipe" && <EquipeSection />}
+      {isFullAdmin && empresaTab === "equipe" && <EquipeSection />}
 
-      {empresaTab === "informacoes" && <>
+      {isFullAdmin && empresaTab === "informacoes" && <>
 
       {/* Informações principais */}
       <Card>
@@ -625,17 +656,17 @@ function EmpresaSection() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Nome da empresa *</label>
             <Input value={name} onChange={e => setName(e.target.value)}
-              placeholder="Preencha com o nome da sua empresa" className="border-card-border" />
+              placeholder="Preencha com o nome da sua empresa" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">E-mail da empresa</label>
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="Preencha com o e-mail da sua empresa" className="border-card-border" />
+              placeholder="Preencha com o e-mail da sua empresa" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Nicho</label>
             <Input value={niche} onChange={e => setNiche(e.target.value)}
-              placeholder="Exemplo: Vendas" className="border-card-border" />
+              placeholder="Exemplo: Vendas" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Telefone</label>
@@ -699,7 +730,7 @@ function EmpresaSection() {
               value={document}
               onChange={e => handleDocChange(e.target.value)}
               placeholder={docType === "pj" ? "00.000.000/0000-00" : "000.000.000-00"}
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
         </div>
@@ -713,7 +744,7 @@ function EmpresaSection() {
             <label className="text-xs text-muted-foreground mb-1 block">CEP</label>
             <div className="relative">
               <Input value={zipCode} onChange={e => handleCepChange(e.target.value)}
-                placeholder="00000-000" className="border-card-border" maxLength={9} />
+                placeholder="00000-000" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" maxLength={9} />
               {loadingCep && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -725,38 +756,38 @@ function EmpresaSection() {
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Endereço</label>
             <Input value={address} onChange={e => setAddress(e.target.value)}
-              placeholder="Rua, Avenida..." className="border-card-border" />
+              placeholder="Rua, Avenida..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Número</label>
               <Input value={number} onChange={e => setNumber(e.target.value)}
-                placeholder="123" className="border-card-border" />
+                placeholder="123" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Complemento</label>
               <Input value={complement} onChange={e => setComplement(e.target.value)}
-                placeholder="Apto, Sala..." className="border-card-border" />
+                placeholder="Apto, Sala..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
           </div>
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Bairro</label>
             <Input value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
-              placeholder="Bairro" className="border-card-border" />
+              placeholder="Bairro" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Cidade</label>
               <Input value={city} onChange={e => setCity(e.target.value)}
-                placeholder="São Paulo" className="border-card-border" />
+                placeholder="São Paulo" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">UF</label>
               <Input value={state} onChange={e => setState(e.target.value.toUpperCase())}
-                placeholder="SP" className="border-card-border" maxLength={2} />
+                placeholder="SP" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" maxLength={2} />
             </div>
           </div>
         </div>
@@ -770,6 +801,71 @@ function EmpresaSection() {
       </Card>
 
       </>}
+
+      {/* Zona de perigo — Excluir empresa (somente admin master / dono) */}
+      {isOwner && (
+        <Card className="!border-[#FCA5A5]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-foreground">Excluir empresa</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Excluir permanentemente esta empresa e todos os seus dados. Esta ação não pode ser desfeita.
+              </p>
+              {isOwner && (
+                <p className="text-[13px] text-[#D97706] mt-1">
+                  Esta é sua única empresa. Após a exclusão, você precisará cadastrar uma nova.
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
+              className="bg-[#EF4444] hover:bg-[#DC2626] text-white shrink-0"
+            >
+              <Trash2 size={15} className="mr-1.5" /> Excluir Empresa
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={deleteOpen} onOpenChange={o => { if (!deleting) setDeleteOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#DC2626]">Excluir empresa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta ação é <strong>permanente e irreversível</strong>. Todos os dados de{" "}
+              <strong className="text-foreground">{company?.name}</strong> serão apagados: leads,
+              negócios, automações, tags, pipelines, atividades e configurações.
+            </p>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">
+                Para confirmar, digite o nome da empresa: <strong className="text-foreground">{company?.name}</strong>
+              </label>
+              <Input
+                value={deleteConfirm}
+                onChange={e => setDeleteConfirm(e.target.value)}
+                placeholder={company?.name ?? ""}
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#EF4444]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDeleteCompany}
+              disabled={deleting || deleteConfirm.trim() !== (company?.name ?? "").trim()}
+              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
+            >
+              {deleting
+                ? <><Loader2 size={15} className="mr-1.5 animate-spin" /> Excluindo...</>
+                : <><Trash2 size={15} className="mr-1.5" /> Excluir definitivamente</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -792,7 +888,7 @@ interface PendingInvite {
 
 const PERMISSION_GROUPS = [
   {
-    id: "pipelines", label: "Pipelines", icon: KanbanSquare,
+    id: "pipelines", label: "Pipelines", icon: Filter,
     description: "Permissões relacionadas à administração de pipelines.",
     options: [
       { id: "pipelines:admin",  label: "Administrador de Pipelines", description: "Permite a criação, modificação, duplicação e configuração de pipelines." },
@@ -800,7 +896,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "automacoes", label: "Automações", icon: Zap,
+    id: "automacoes", label: "Automações", icon: Network,
     description: "Permissões relacionadas ao fluxo de automações",
     options: [
       { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
@@ -816,7 +912,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "leads", label: "Leads", icon: Users,
+    id: "leads", label: "Leads", icon: UserRound,
     description: "Permissões relacionadas à gestão de leads.",
     options: [
       { id: "leads:admin",      label: "Administrador de Leads",     description: "Permite acesso à listagem de leads e a todas as ações relacionadas à eles." },
@@ -833,7 +929,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "multiatendimento", label: "Multiatendimento", icon: MessageSquare,
+    id: "multiatendimento", label: "Multiatendimento", icon: MessageCircle,
     description: "Permissões relacionadas ao multiatendimento",
     options: [
       { id: "multiatendimento:admin",      label: "Administrador de multiatendimento", description: "Permite acesso completo ao multiatendimento, ao dashboard e às configurações, sem limitações." },
@@ -864,7 +960,7 @@ function PermissionsEditor({
   permissions, onChange,
 }: { permissions: string[]; onChange: (p: string[]) => void }) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
-    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, true]))
+    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, false]))
   );
 
   const toggle = (permId: string) => {
@@ -875,35 +971,35 @@ function PermissionsEditor({
   };
 
   return (
-    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+    <div className="space-y-[5px]">
       {PERMISSION_GROUPS.map(group => {
         const Icon = group.icon;
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-card-border rounded-xl overflow-hidden">
+          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-muted/50 hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
             >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${groupSelected ? "bg-primary/10" : "bg-muted"}`}>
-                <Icon size={14} className={groupSelected ? "text-primary" : "text-muted-foreground"} />
-              </div>
               <div className="flex-1 text-left">
-                <p className={`text-[13px] font-semibold ${groupSelected ? "text-primary" : "text-foreground"}`}>{group.label}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">{group.description}</p>
+                <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
+                  <Icon size={14} className="shrink-0" />
+                  {group.label}
+                </p>
+                {isOpen && <p className="text-[12px] text-muted-foreground leading-tight mt-[5px]">{group.description}</p>}
               </div>
               <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
             {isOpen && (
-              <div className="divide-y divide-card-border">
+              <div>
                 {group.options.map(opt => {
                   const selected = permissions.includes(opt.id);
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-muted/50"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
                     >
                       <input
                         type="checkbox"
@@ -912,8 +1008,8 @@ function PermissionsEditor({
                         className="mt-0.5 accent-primary w-4 h-4 shrink-0"
                       />
                       <div>
-                        <p className={`text-[13px] font-medium ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{opt.description}</p>
+                        <p className={`text-[12px] font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
+                        <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">{opt.description}</p>
                       </div>
                     </label>
                   );
@@ -929,7 +1025,7 @@ function PermissionsEditor({
 
 function EquipeSection() {
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, userPermissions } = useCompany();
   const [members, setMembers] = useState<Member[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -944,7 +1040,7 @@ function EquipeSection() {
   const [editPerms, setEditPerms] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const isAdmin = company?.owner_id === user?.id;
+  const isAdmin = company?.owner_id === user?.id || userPermissions.includes("admin");
 
   const initials = (n: string) =>
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -1053,8 +1149,8 @@ function EquipeSection() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Equipe</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
+          <h1 className="text-xl font-bold text-foreground">Equipe</h1>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
         </div>
         {isAdmin && (
           <Button onClick={() => setAddOpen(true)} className="bg-primary hover:bg-primary/90">
@@ -1083,7 +1179,7 @@ function EquipeSection() {
               return (
                 <div
                   key={m.id}
-                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold shrink-0 overflow-hidden">
                     {m.avatar_url
@@ -1166,7 +1262,7 @@ function EquipeSection() {
               {pendingInvites.map(inv => (
                 <div
                   key={inv.id}
-                  className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg bg-muted/50"
+                  className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg bg-muted/50"
                 >
                   <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Mail size={14} className="text-muted-foreground" />
@@ -1199,7 +1295,7 @@ function EquipeSection() {
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
@@ -1211,89 +1307,80 @@ function EquipeSection() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="border-card-border"
+                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
 
+            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
+
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-card-border bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
+              <div className="flex-1">
+                <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
+              </div>
               <input
                 type="checkbox"
                 checked={isAdminInvite}
                 onChange={e => setIsAdminInvite(e.target.checked)}
                 className="accent-[#D97706] w-4 h-4 shrink-0"
               />
-              <div>
-                <p className={`text-[13px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Igual ao dono da conta. Vê e gerencia tudo.</p>
-              </div>
             </label>
 
             {/* Grupos de permissão — ocultos se admin */}
             {!isAdminInvite && (
-              <>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Permissões por módulo</p>
-                <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
-              </>
+              <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
             )}
-
-            <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
-              <p className="text-[11px] text-primary leading-relaxed">
-                <strong>Já tem conta:</strong> o acesso é liberado imediatamente.<br />
-                <strong>Sem conta ainda:</strong> o convite fica registrado e o acesso é liberado automaticamente ao criar a conta com este e-mail.
-              </p>
-            </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setAddOpen(false)} className="border-card-border">Cancelar</Button>
-            <Button onClick={handleAddMember} disabled={inviting} className="bg-primary hover:bg-primary/90">
+          <div className="flex gap-2 w-full pt-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)} className="flex-1 border-card-border">Cancelar</Button>
+            <Button onClick={handleAddMember} disabled={inviting} className="flex-1 bg-primary hover:bg-primary/90">
               {inviting ? "Processando..." : "Convidar"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Dialog: Editar permissões */}
       <Dialog open={!!editMember} onOpenChange={v => !v && setEditMember(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar permissões — {editMember?.full_name || editMember?.email}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
+
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-card-border bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
+              <div className="flex-1">
+                <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
+                  <Crown size={12} className="inline mr-1" />
+                  Administrador (acesso total)
+                </p>
+                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
+              </div>
               <input
                 type="checkbox"
                 checked={editPerms.includes("admin")}
                 onChange={e => setEditPerms(e.target.checked ? ["admin"] : [])}
                 className="accent-[#D97706] w-4 h-4 shrink-0"
               />
-              <div>
-                <p className={`text-[13px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Igual ao dono da conta. Vê e gerencia tudo.</p>
-              </div>
             </label>
 
             {!editPerms.includes("admin") && (
-              <>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Permissões por módulo</p>
-                <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
-              </>
+              <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditMember(null)} className="border-card-border">Cancelar</Button>
-            <Button onClick={handleSavePermissions} disabled={savingEdit} className="bg-primary hover:bg-primary/90">
+          <div className="flex gap-2 w-full pt-2">
+            <Button variant="outline" onClick={() => setEditMember(null)} className="flex-1 border-card-border">Cancelar</Button>
+            <Button onClick={handleSavePermissions} disabled={savingEdit} className="flex-1 bg-primary hover:bg-primary/90">
               {savingEdit ? "Salvando..." : "Salvar permissões"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -1323,14 +1410,14 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
   const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
   return (
-    <div className="bg-white border-[0.5px] border-card-border rounded-xl p-4">
+    <div className="bg-white border border-card-border rounded-xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
         </div>
-        <p className="text-[13px] font-medium text-foreground">{label}</p>
+        <p className="text-[12px] font-semibold text-foreground">{label}</p>
       </div>
-      <p className="text-xl font-bold text-foreground">
+      <p className="text-sm font-bold text-foreground">
         {current.toLocaleString("pt-BR")}
         <span className="text-sm font-normal text-muted-foreground ml-1">/ {displayLimit}</span>
       </p>
@@ -1356,8 +1443,10 @@ const UPGRADE_PLAN_INFO = [
   {
     key: "starter" as UpgradePlanKey,
     name: "Starter",
+    rawMonthly: 237,
     prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
+    savings: { semiannual: "R$ 213,00", annual: "R$ 855,00" },
     features: [
       "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
       "Criação e gerenciamento de negócios e produtos.",
@@ -1372,8 +1461,10 @@ const UPGRADE_PLAN_INFO = [
     key: "essential" as UpgradePlanKey,
     name: "Essential",
     badge: "Mais popular",
+    rawMonthly: 399,
     prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
+    savings: { semiannual: "R$ 359,00", annual: "R$ 1.436,00" },
     features: [
       "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
       "Criação e gerenciamento de negócios e produtos.",
@@ -1389,8 +1480,10 @@ const UPGRADE_PLAN_INFO = [
   {
     key: "pro" as UpgradePlanKey,
     name: "Pro",
+    rawMonthly: 747,
     prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
+    savings: { semiannual: "R$ 672,00", annual: "R$ 2.692,00" },
     features: [
       "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
       "Gerenciamento ilimitado de leads com controle de tags.",
@@ -1416,10 +1509,10 @@ const UPGRADE_PERIOD_DISCOUNT: Record<UpgradePeriod, string | null> = {
 // ── PlanosSection ─────────────────────────────────────────────────────────────
 
 function PlanosSection() {
-  const { company } = useCompany();
+  const { company, whatsappConnections } = useCompany();
   const { user }    = useAuth();
   const { leads, pipelines, teamMembers } = useCRM();
-  const { subscription } = useSubscription();
+  const { subscription, refetch: refetchSubscription } = useSubscription();
 
   const planKey = company?.plan ?? "free";
   const planDef = PLANS.find(p => p.key === planKey);
@@ -1428,6 +1521,24 @@ function PlanosSection() {
   const leadsCount     = Object.keys(leads).length;
   const pipelinesCount = pipelines.length;
   const membersCount   = teamMembers.length;
+
+  const [googleConnected, setGoogleConnected]   = useState(false);
+  const [automationsCount, setAutomationsCount] = useState(0);
+  const [integrationsCount, setIntegrationsCount] = useState(0);
+
+  useEffect(() => {
+    if (!company) return;
+    import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
+      checkGoogleConnection(company.id).then(c => setGoogleConnected(!!c));
+    });
+    if (!user) return;
+    supabase.from("automations").select("id", { count: "exact", head: true }).eq("company_id", company.id)
+      .then(({ count }) => setAutomationsCount(count ?? 0));
+    supabase.from("webhook_integrations").select("id", { count: "exact", head: true }).eq("company_id", company.id)
+      .then(({ count }) => setIntegrationsCount(count ?? 0));
+  }, [user, company]);
+
+  const connectionsCount = whatsappConnections.length + (googleConnected ? 1 : 0);
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
 
@@ -1504,76 +1615,295 @@ function PlanosSection() {
   const [upgradeOpen,    setUpgradeOpen]    = useState(false);
   const [upgradePeriod,  setUpgradePeriod]  = useState<UpgradePeriod>("monthly");
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+  const [confirmPlan,    setConfirmPlan]    = useState<UpgradePlanKey | null>(null);
 
-  const handleSelectPlan = async (planKey: UpgradePlanKey) => {
+  const handleSelectPlan = async () => {
+    if (!confirmPlan) return;
     if (!user)    { toast.error("Você precisa estar logado."); return; }
     if (!company) { toast.error("Nenhuma empresa encontrada."); return; }
-    const priceId = UPGRADE_PRICES[planKey][upgradePeriod];
-    setUpgradeLoading(planKey);
-    try {
-      const { data: { session: authSession } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          priceId,
-          companyId:     company.id,
-          userId:        user.id,
-          userEmail:     user.email ?? "",
-          planName:      planKey,
-          billingPeriod: upgradePeriod,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
-      window.location.href = data.url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
-      setUpgradeLoading(null);
+
+    const priceId = UPGRADE_PRICES[confirmPlan][upgradePeriod];
+    const hasActiveSub = !!(subscription?.stripe_subscription_id &&
+      (subscription.status === "active" || subscription.status === "trialing"));
+
+    setUpgradeLoading(confirmPlan);
+    setConfirmPlan(null);
+
+    const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL as string;
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const headers = {
+      "Content-Type": "application/json",
+      ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
+    };
+
+    if (hasActiveSub) {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/update-subscription`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            subscriptionId: subscription!.stripe_subscription_id,
+            newPriceId:     priceId,
+            planName:       confirmPlan,
+            billingPeriod:  upgradePeriod,
+            companyId:      company.id,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error ?? "Erro ao atualizar plano.");
+        toast.success("Plano atualizado com sucesso!");
+        refetchSubscription();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao atualizar plano.");
+      } finally {
+        setUpgradeLoading(null);
+      }
+    } else {
+      const tab = window.open("", "_blank");
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            priceId,
+            companyId:     company.id,
+            userId:        user.id,
+            userEmail:     user.email ?? "",
+            planName:      confirmPlan,
+            billingPeriod: upgradePeriod,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
+        if (tab) tab.location.href = data.url;
+        else window.open(data.url, "_blank");
+      } catch (err) {
+        tab?.close();
+        toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
+      } finally {
+        setUpgradeLoading(null);
+      }
     }
   };
 
+  if (upgradeOpen) {
+    return (
+      <>
+      <div className="space-y-6">
+        <div>
+          <button
+            onClick={() => setUpgradeOpen(false)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={14} /> Voltar
+          </button>
+          <div className="text-center">
+            <p className="text-xl font-bold text-foreground">Planos Rezult CRM</p>
+            <p className="text-sm text-muted-foreground mt-1">Encontre o plano que atende às suas necessidades!</p>
+          </div>
+        </div>
+        {/* Toggle de período */}
+        <div className="flex justify-center">
+          <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
+            {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
+              const disc = UPGRADE_PERIOD_DISCOUNT[period];
+              return (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setUpgradePeriod(period)}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
+                    upgradePeriod === period
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {UPGRADE_PERIOD_LABELS[period]}
+                  {disc && (
+                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      {disc}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Cards dos planos */}
+        <div className="grid grid-cols-3 gap-4 pb-8">
+          {UPGRADE_PLAN_INFO.map((plan) => {
+            const isCurrent = planKey === plan.key && (subscription?.billing_period ?? "monthly") === upgradePeriod;
+            const isLoading = upgradeLoading === plan.key;
+            return (
+              <div
+                key={plan.key}
+                className={cn(
+                  "relative flex flex-col rounded-xl p-5 transition-all bg-white",
+                  isCurrent ? "border border-primary" : "border border-gray-200"
+                )}
+              >
+                {plan.badge && !isCurrent && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    {plan.badge}
+                  </span>
+                )}
+                {isCurrent && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    Plano atual
+                  </span>
+                )}
+                <p className="text-[16px] font-bold text-foreground">{plan.name}</p>
+                {upgradePeriod === "monthly" ? (
+                  <div className="mt-3 mb-3">
+                    <span className="text-2xl font-bold text-emerald-600">{plan.prices.monthly}</span>
+                    <span className="text-xs text-muted-foreground ml-1">/mês</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mt-2 mb-1">
+                      <span className="text-[12px] text-muted-foreground line-through">R$ {plan.rawMonthly},00</span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        Economize {plan.savings[upgradePeriod as "semiannual" | "annual"]}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between mb-1">
+                      <div>
+                        <span className="text-2xl font-bold text-emerald-600">{plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}</span>
+                        <span className="text-xs text-muted-foreground ml-1">/mês</span>
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
+                        {upgradePeriod === "semiannual" ? "Semestral" : "Anual"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium text-muted-foreground mb-3">
+                      Pagamento recorrente de {plan.prices[upgradePeriod]},00 a cada {upgradePeriod === "semiannual" ? "6" : "12"} meses
+                    </p>
+                  </>
+                )}
+                <ul className="space-y-1.5 flex-1 mb-4">
+                  {plan.features.map(f => (
+                    <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-foreground">
+                      <CircleCheck size={14} className={cn("mt-0.5 shrink-0 stroke-white", isCurrent ? "fill-primary" : "fill-emerald-600")} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCurrent ? (
+                  <Button size="sm" variant="outline" className="w-full border-primary text-primary" disabled>Plano atual</Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className={cn("w-full", plan.badge ? "" : "bg-primary hover:bg-primary/90")}
+                    disabled={upgradeLoading !== null}
+                    onClick={() => setConfirmPlan(plan.key)}
+                  >
+                    {isLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Atualizar plano"}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {(() => {
+        if (!confirmPlan) return null;
+        const plan = UPGRADE_PLAN_INFO.find(p => p.key === confirmPlan)!;
+        const periodLabel = upgradePeriod === "monthly" ? "Mensal" : upgradePeriod === "semiannual" ? "Semestral" : "Anual";
+        const price = upgradePeriod === "monthly"
+          ? `${plan.prices.monthly}/mês`
+          : `${plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}/mês`;
+        return (
+          <Dialog open onOpenChange={() => setConfirmPlan(null)}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><TriangleAlert size={16} />Confirmar plano</DialogTitle>
+                <p className="text-[12px] text-muted-foreground">O valor será ajustado automaticamente se houver um método de pagamento cadastrado.</p>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Plano</span>
+                  <span className="font-semibold">{plan.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Frequência</span>
+                  <span className="font-semibold">{periodLabel}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor</span>
+                  <span className="font-semibold text-emerald-600">{price}</span>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConfirmPlan(null)}>Cancelar</Button>
+                <Button onClick={handleSelectPlan} disabled={upgradeLoading !== null}>
+                  {upgradeLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Confirmar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+      </>
+    );
+  }
+
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Planos e pagamentos</h1>
-
       {/* Cabeçalho */}
-      <Card className="!p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <CreditCard size={20} className="text-primary" />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-foreground">Planos e pagamentos</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Controle seus planos, pagamentos e uso do Rezult CRM</p>
-            </div>
-          </div>
-          {company && (
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden">
-                {company.logo_url
-                  ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
-                  : logoInitial}
+      <Card className="!p-0 overflow-hidden">
+        <div className="flex items-stretch">
+          {/* Lado esquerdo */}
+          <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <CreditCard size={15} className="text-primary" />
               </div>
-              <p className="text-[13px] font-medium text-foreground">{company.name}</p>
+              <h2 className="text-lg font-bold text-foreground">Planos e pagamentos</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Controle seus planos, pagamentos e uso do Rezult CRM</p>
+          </div>
+
+          {/* Divisor vertical */}
+          <div className="w-px bg-border self-stretch my-4" />
+
+          {/* Lado direito */}
+          {company && (
+            <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+              <p className="text-[10px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
+                  {company.logo_url
+                    ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+                    : logoInitial}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">{company.name}</p>
+                  {company.email && (
+                    <p className="text-xs text-muted-foreground truncate">{company.email}</p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
       </Card>
 
-      {/* Plano atual */}
+      {/* Plano atual + Benefícios + Uso — bloco único */}
       <Card>
+        {/* Plano atual */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Plano atual</p>
             <p className="text-2xl font-bold text-primary">{PLAN_LABELS[planKey] ?? planKey}</p>
           </div>
           <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setUpgradeOpen(true)}
+            >
+              Upgrade
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1585,33 +1915,26 @@ function PlanosSection() {
                 ? <><Loader2 size={13} className="animate-spin mr-1.5" />Abrindo...</>
                 : "Gerenciar plano"}
             </Button>
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => setUpgradeOpen(true)}
-            >
-              Upgrade
-            </Button>
           </div>
         </div>
 
-        <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden">
-          <div className="flex-1 px-4 py-3">
-            <p className="text-[11px] text-muted-foreground mb-1">Renova em</p>
+        <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <p className="text-[12px] text-muted-foreground mb-1">Renova em</p>
             <p className="text-[13px] font-semibold text-foreground">
               {company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
-            <p className="text-[11px] text-muted-foreground mb-1">Valor</p>
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <p className="text-[12px] text-muted-foreground mb-1">Valor</p>
             <p className="text-[13px] font-semibold text-foreground">
               {planDef?.pricing.mensal ?? (planKey === "free" ? "Grátis" : "—")}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
-            <p className="text-[11px] text-muted-foreground mb-1">Frequência</p>
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <p className="text-[12px] text-muted-foreground mb-1">Frequência</p>
             <p className="text-[13px] font-semibold text-foreground">
               {subscription?.billing_period === "semiannual" ? "Semestral"
                : subscription?.billing_period === "annual" ? "Anual"
@@ -1619,171 +1942,46 @@ function PlanosSection() {
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4 py-3">
-            <p className="text-[11px] text-muted-foreground mb-1">Método de pagamento</p>
+          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <p className="text-[12px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-muted-foreground shrink-0" />
               <p className="text-[13px] font-semibold text-foreground">Cartão de crédito</p>
             </div>
           </div>
         </div>
+
+        {/* Benefícios do plano */}
+        {planDef && (
+          <>
+            <div className="border-t border-card-border pt-5 mb-5">
+              <p className="text-sm font-semibold text-foreground mb-4">Benefícios do plano</p>
+              <div className="flex flex-col" style={{ gap: 5 }}>
+                {planDef.features.map(f => (
+                  <div key={f} className="flex items-center gap-2">
+                    <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
+                    <p className="text-[13px] leading-[1.4] text-foreground">{f}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Uso do plano */}
+        <div className="border-t border-card-border pt-5">
+          <div className="grid grid-cols-3 gap-3">
+            <UsageCard label="Leads"       current={leadsCount}        limit={limits.leads}       icon={<Users size={14} className="text-primary" />} />
+            <UsageCard label="Membros"     current={membersCount}      limit={limits.members}     icon={<Users size={14} className="text-primary" />} />
+            <UsageCard label="Pipelines"   current={pipelinesCount}    limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />
+            <UsageCard label="Conexões"    current={connectionsCount}  limit={limits.connections} icon={<Link2 size={14} className="text-primary" />} />
+            <UsageCard label="Automações"  current={automationsCount}  limit={limits.automations} icon={<Zap   size={14} className="text-primary" />} />
+            <UsageCard label="Integrações" current={integrationsCount} limit={3}                  icon={<Plug  size={14} className="text-primary" />} />
+          </div>
+        </div>
       </Card>
 
-      {/* Benefícios do plano */}
-      {planDef && (
-        <Card>
-          <SectionTitle title="Benefícios do plano" subtitle={`Recursos incluídos no plano ${planDef.name}`} />
-          <div className="grid grid-cols-2 gap-2">
-            {planDef.features.map(f => (
-              <div key={f} className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Check size={10} className="text-primary" strokeWidth={2.5} />
-                </div>
-                <p className="text-[13px] text-foreground">{f}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Cards de uso */}
-      <p className="text-base font-semibold text-foreground mb-3">Uso do plano</p>
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <UsageCard label="Leads"      current={leadsCount}     limit={limits.leads}       icon={<Users size={14} className="text-primary" />} />
-        <UsageCard label="Membros"    current={membersCount}   limit={limits.members}     icon={<Users size={14} className="text-primary" />} />
-        <UsageCard label="Pipelines"  current={pipelinesCount} limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />
-        <UsageCard label="Conexões"   current={0}              limit={limits.connections} icon={<Link2 size={14} className="text-primary" />} />
-        <UsageCard label="Automações" current={0}              limit={limits.automations} icon={<Zap   size={14} className="text-primary" />} />
-        <UsageCard label="Integrações" current={0}             limit={3}                  icon={<Plug  size={14} className="text-primary" />} />
-      </div>
-
       {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
-      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-        <DialogContent className="max-w-5xl rounded-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
-          <div className="px-8 pt-7 pb-0 flex flex-col items-center text-center">
-            <p className="text-xl font-bold text-foreground">Planos Rezult CRM</p>
-            <p className="text-sm text-muted-foreground mt-1">Encontre o plano que atende às suas necessidades!</p>
-          </div>
-
-          {/* Toggle de período */}
-          <div className="px-8 pt-4 pb-2 flex justify-center">
-            <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
-              {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
-                const disc = UPGRADE_PERIOD_DISCOUNT[period];
-                return (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setUpgradePeriod(period)}
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
-                      upgradePeriod === period
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {UPGRADE_PERIOD_LABELS[period]}
-                    {disc && (
-                      <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        {disc}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Cards dos planos */}
-          <div className="overflow-y-auto flex-1">
-          <div className="grid grid-cols-3 gap-4 px-8 pb-8 pt-2">
-            {UPGRADE_PLAN_INFO.map((plan) => {
-              const isCurrent  = planKey === plan.key;
-              const isLoading  = upgradeLoading === plan.key;
-
-              return (
-                <div
-                  key={plan.key}
-                  className={cn(
-                    "relative flex flex-col rounded-xl border-2 p-5 transition-all",
-                    isCurrent
-                      ? "border-primary bg-primary/10"
-                      : plan.badge
-                        ? "border-primary bg-primary/[0.02]"
-                        : "border-card-border bg-white"
-                  )}
-                >
-                  {/* Badge Mais popular */}
-                  {plan.badge && !isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      {plan.badge}
-                    </span>
-                  )}
-                  {/* Badge Plano atual */}
-                  {isCurrent && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      Plano atual
-                    </span>
-                  )}
-
-                  <p className="text-sm font-bold text-foreground">{plan.name}</p>
-
-                  {/* Preço */}
-                  <div className="mt-3 mb-0.5">
-                    <span className="text-2xl font-bold text-foreground">
-                      {plan.prices[upgradePeriod]}
-                    </span>
-                    {upgradePeriod === "monthly" && (
-                      <span className="text-xs text-muted-foreground ml-1">/mês</span>
-                    )}
-                  </div>
-                  {upgradePeriod === "monthly" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">cobrança mensal recorrente</p>
-                  )}
-                  {upgradePeriod === "semiannual" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
-                      semestral · equiv. {plan.monthlyEquiv.semiannual}/mês
-                    </p>
-                  )}
-                  {upgradePeriod === "annual" && (
-                    <p className="text-[11px] font-medium text-emerald-600 mb-3">
-                      anual · equiv. {plan.monthlyEquiv.annual}/mês
-                    </p>
-                  )}
-
-                  {/* Features */}
-                  <ul className="space-y-1.5 flex-1 mb-4">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                        <Check size={11} className={cn("mt-0.5 shrink-0", isCurrent ? "text-primary" : "text-emerald-600")} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {isCurrent ? (
-                    <Button size="sm" variant="outline" className="w-full border-primary text-primary" disabled>
-                      Plano atual
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className={cn("w-full", plan.badge ? "" : "bg-primary hover:bg-primary/90")}
-                      disabled={upgradeLoading !== null}
-                      onClick={() => handleSelectPlan(plan.key)}
-                    >
-                      {isLoading
-                        ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</>
-                        : "Começar 7 dias grátis"}
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -1841,27 +2039,54 @@ function TagsSection() {
 
   return (
     <>
-      <SectionHeader title="Tags" onAdd="+ Nova tag" onClick={openNew} />
-      <Card>
+      <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
+
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {crmTags.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhuma tag criada ainda.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
-          <div className="space-y-2">
-            {crmTags.map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
-                <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-foreground font-medium leading-tight">{t.name}</p>
-                  {t.description && <p className="text-[11px] text-muted-foreground truncate">{t.description}</p>}
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{tagLeadCounts[t.name] ?? 0} leads</span>
-                <button onClick={() => openEdit(t)} className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-                <button onClick={() => deleteTag(t.id)} className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Tag</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {crmTags.map(t => (
+                <TableRow key={t.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: t.color + "22" }}>
+                        <Tag size={14} style={{ color: t.color }} />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{t.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{t.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {t.created_at
+                      ? new Date(t.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(t)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deleteTag(t.id)} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
         <DialogContent className="max-w-sm">
@@ -1993,7 +2218,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-white border-[0.5px] border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2013,7 +2238,7 @@ function ProdutosSection() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Package size={14} className="text-primary" />
+                        <ShoppingCart size={14} className="text-primary" />
                       </div>
                       <span className="text-[13px] font-medium text-foreground">{p.name}</span>
                     </div>
@@ -2070,7 +2295,7 @@ function ProdutosSection() {
                 onChange={e => setName(e.target.value)}
                 placeholder="Ex: Consultoria mensal"
                 autoFocus
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -2079,7 +2304,7 @@ function ProdutosSection() {
                 value={sku}
                 onChange={e => setSku(e.target.value)}
                 placeholder="Ex: produto1"
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -2089,7 +2314,7 @@ function ProdutosSection() {
                 onChange={e => handlePriceChange(e.target.value)}
                 placeholder="R$ 0,00"
                 inputMode="numeric"
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
           </div>
@@ -2113,18 +2338,19 @@ function MotivosSection() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const openNew = () => { setEditingId(null); setMotivo(""); setShowDialog(true); };
-  const openEdit = (id: string, name: string) => { setEditingId(id); setMotivo(name); setShowDialog(true); };
+  const openNew = () => { setEditingId(null); setMotivo(""); setDescricao(""); setShowDialog(true); };
+  const openEdit = (id: string, name: string, description?: string) => { setEditingId(id); setMotivo(name); setDescricao(description ?? ""); setShowDialog(true); };
 
   const handleSave = async () => {
     if (!motivo.trim()) { toast.error("Informe o motivo."); return; }
     if (editingId) {
-      await updateLossReason(editingId, motivo.trim());
+      await updateLossReason(editingId, motivo.trim(), descricao.trim() || undefined);
       toast.success("Motivo atualizado.");
     } else {
-      const ok = await addLossReason(motivo.trim());
+      const ok = await addLossReason(motivo.trim(), descricao.trim() || undefined);
       if (!ok) { toast.error("Erro ao salvar. Verifique se a migração do banco foi executada."); return; }
       toast.success("Motivo criado.");
     }
@@ -2141,21 +2367,53 @@ function MotivosSection() {
   return (
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
-      <Card>
+
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhum motivo cadastrado.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
-          <div className="space-y-2">
-            {lossReasons.map(r => (
-              <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
-                <p className="flex-1 text-[13px] text-foreground">{r.name}</p>
-                <button onClick={() => openEdit(r.id, r.name)} className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-                <button onClick={() => setDeletingId(r.id)} className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Motivo</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lossReasons.map(r => (
+                <TableRow key={r.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
+                        <SquareX size={14} style={{ color: "#E24B4A" }} />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{r.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{r.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {r.created_at
+                      ? new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(r.id, r.name, r.description)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => setDeletingId(r.id)} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-sm">
@@ -2165,16 +2423,27 @@ function MotivosSection() {
               Crie motivos de perda dos seus negócios.
             </p>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Motivo</label>
-            <Input
-              value={motivo}
-              onChange={e => setMotivo(e.target.value)}
-              placeholder="Ex: Preço alto"
-              className="rounded-lg"
-              onKeyDown={e => e.key === "Enter" && handleSave()}
-              autoFocus
-            />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Motivo *</label>
+              <Input
+                value={motivo}
+                onChange={e => setMotivo(e.target.value)}
+                placeholder="Ex: Preço alto"
+                className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                onKeyDown={e => e.key === "Enter" && handleSave()}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Descrição</label>
+              <Input
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                placeholder="Descrição opcional"
+                className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" className="rounded-lg" onClick={() => setShowDialog(false)}>Cancelar</Button>
@@ -2254,66 +2523,85 @@ function ListasSection() {
 
   return (
     <>
-      <SectionHeader title="Listas" onAdd="+ Nova lista" onClick={openCreate} />
+      <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      {showForm && (
-        <Card className="mb-4">
-          <p className="text-sm font-semibold text-foreground mb-3">{editId ? "Editar lista" : "Nova lista"}</p>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
-              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição <span className="text-muted-foreground font-normal">(opcional)</span></label>
-              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-card-border" />
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" className="border-card-border" onClick={closeForm}>Cancelar</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving}>
-              {saving ? "Salvando…" : editId ? "Salvar" : "Criar"}
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      <Card>
+      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
         {crmLists.length === 0 ? (
-          <div className="py-8 text-center">
+          <div className="py-10 text-center">
             <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Nenhuma lista criada ainda.</p>
             <p className="text-xs text-muted-foreground mt-1">Crie listas para organizar seus leads por segmento.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {crmLists.map(l => (
-              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg group">
-                <List size={16} className="text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] text-foreground font-medium truncate">{l.name}</p>
-                  {l.description && <p className="text-xs text-muted-foreground truncate">{l.description}</p>}
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{l.leadIds.length} lead{l.leadIds.length !== 1 ? "s" : ""}</span>
-                <button
-                  onClick={() => setViewListId(l.id)}
-                  className="text-muted-foreground hover:text-primary p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Ver leads"
-                ><Eye size={14} /></button>
-                <button
-                  onClick={() => openEdit(l)}
-                  className="text-muted-foreground hover:text-primary p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                ><Pencil size={14} /></button>
-                <button
-                  onClick={() => handleDelete(l.id)}
-                  disabled={deleting === l.id}
-                  className="text-muted-foreground hover:text-destructive p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                ><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-card-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-medium">Lista</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Descrição</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-medium">Data de criação</TableHead>
+                <TableHead className="w-20" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {crmLists.map(l => (
+                <TableRow key={l.id} className="border-card-border hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <List size={14} className="text-primary" />
+                      </div>
+                      <span className="text-[13px] font-medium text-foreground">{l.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">{l.description || "—"}</TableCell>
+                  <TableCell className="text-[13px] text-muted-foreground">
+                    {l.created_at
+                      ? new Date(l.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewListId(l.id)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors" title="Ver leads">
+                        <Eye size={14} />
+                      </button>
+                      <button onClick={() => openEdit(l)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(l.id)} disabled={deleting === l.id} className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </Card>
+      </div>
+
+      <Dialog open={showForm} onOpenChange={v => !v && closeForm()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editId ? "Editar lista" : "Nova lista"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
+              <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" autoFocus />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Descrição <span className="text-muted-foreground font-normal">(opcional)</span></label>
+              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Para que serve esta lista?" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="border-card-border" onClick={closeForm}>Cancelar</Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando…" : editId ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal: Ver leads da lista */}
       <Dialog open={!!viewListId} onOpenChange={() => setViewListId(null)}>
@@ -2337,7 +2625,7 @@ function ListasSection() {
             ) : (
               <div className="space-y-2">
                 {viewLeads.map(lead => (
-                  <div key={lead.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border-[0.5px] border-card-border">
+                  <div key={lead.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-card-border">
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                       style={{ background: `hsl(${Math.abs(lead.name.split("").reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % 360} 55% 45%)` }}
@@ -2446,13 +2734,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-white border-[0.5px] border-card-border rounded-xl px-4 py-10 text-center">
+          <div className="bg-white border border-card-border rounded-xl px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-white border-[0.5px] border-card-border rounded-xl overflow-hidden">
+          <div key={g.id} className="bg-white border border-card-border rounded-xl overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -2490,7 +2778,7 @@ function CamposSection() {
                 {g.items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50">
                     <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0 ml-2" />
-                    <span className="flex-1 text-[12px] text-foreground">{item.label}</span>
+                    <span className="flex-1 text-[13px] text-foreground">{item.label}</span>
                     <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
                     <button
                       onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
@@ -2533,7 +2821,7 @@ function CamposSection() {
               onChange={e => setGroupName(e.target.value)}
               placeholder="Ex: Financeiro, Qualificação..."
               autoFocus
-              className="border-card-border"
+              className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               onKeyDown={e => e.key === "Enter" && handleSaveGroup()}
             />
           </div>
@@ -2560,14 +2848,14 @@ function CamposSection() {
                 onChange={e => setItemLabel(e.target.value)}
                 placeholder="Ex: Qual o orçamento disponível?"
                 autoFocus
-                className="border-card-border"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 onKeyDown={e => e.key === "Enter" && handleSaveItem()}
               />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tipo de resposta</label>
               <Select value={itemType} onValueChange={(v: "text" | "date" | "boolean") => setItemType(v)}>
-                <SelectTrigger className="border-card-border">
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2619,105 +2907,53 @@ function CamposSection() {
 }
 
 /* ---------------- DEPARTAMENTOS ---------------- */
-function DepartamentosSection() {
-  const deps = [
-    { name: "Comercial", count: 5 },
-    { name: "Marketing", count: 2 },
-    { name: "Operações", count: 1 },
-  ];
-  return (
-    <>
-      <SectionHeader title="Departamentos" onAdd="+ Novo departamento" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {deps.map(d => (
-            <div key={d.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
-              <Building2 size={16} className="text-primary" />
-              <p className="flex-1 text-[13px] text-foreground font-medium">{d.name}</p>
-              <span className="text-xs text-muted-foreground">{d.count} membros</span>
-              <button className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-              <button className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </>
-  );
-}
-
 /* ---------------- HORÁRIOS ---------------- */
 function HorariosSection() {
-  const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-  const [schedule, setSchedule] = useState(
-    days.map(d => ({ day: d, active: !["Sábado", "Domingo"].includes(d), start: "08:00", end: "18:00" }))
-  );
+  const [createOpen, setCreateOpen] = useState(false);
   return (
-    <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Horários de trabalho</h1>
+    <div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Horários de trabalho</h2>
+          <p className="text-[14px] text-muted-foreground mt-0.5">Organize os horários de trabalho dos seus colaboradores e departamentos</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+          <Plus size={15} /> Criar
+        </Button>
+      </div>
       <Card>
-        <div className="space-y-3">
-          {schedule.map((s, i) => (
-            <div key={s.day} className="flex items-center gap-3">
-              <Switch
-                checked={s.active}
-                onCheckedChange={(v) => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, active: v } : p))}
-              />
-              <p className="text-[13px] text-foreground w-24">{s.day}</p>
-              <Input
-                type="time" value={s.start} disabled={!s.active}
-                onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, start: e.target.value } : p))}
-                className="border-card-border w-32"
-              />
-              <span className="text-xs text-muted-foreground">às</span>
-              <Input
-                type="time" value={s.end} disabled={!s.active}
-                onChange={e => setSchedule(prev => prev.map((p, idx) => idx === i ? { ...p, end: e.target.value } : p))}
-                className="border-card-border w-32"
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-end mt-5">
-          <Button onClick={() => toast.success("Horários salvos!")} className="bg-primary hover:bg-primary/90">Salvar horários</Button>
-        </div>
+        <WorkSchedulesManager accent="#2563EB" createOpen={createOpen} setCreateOpen={setCreateOpen} />
       </Card>
-    </>
+    </div>
   );
 }
 
 /* ---------------- ATIVIDADES ---------------- */
-function AtividadesSection() {
-  const tipos = [
-    { name: "Ligação", icon: Phone },
-    { name: "E-mail", icon: Mail },
-    { name: "Reunião", icon: Calendar },
-    { name: "WhatsApp", icon: MessageSquare },
-    { name: "Visita", icon: MapPin },
-  ];
-  return (
-    <>
-      <SectionHeader title="Tipos de atividades" onAdd="+ Novo tipo" onClick={() => toast.success("Em breve")} />
-      <Card>
-        <div className="space-y-2">
-          {tipos.map(t => (
-            <div key={t.name} className="flex items-center gap-3 px-3 py-2.5 border-[0.5px] border-card-border rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <t.icon size={14} className="text-primary" />
-              </div>
-              <p className="flex-1 text-[13px] text-foreground font-medium">{t.name}</p>
-              <button className="text-muted-foreground hover:text-foreground p-1"><Pencil size={14} /></button>
-              <button className="text-muted-foreground hover:text-destructive p-1"><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </>
-  );
-}
 
 /* ---------------- INTEGRAÇÕES ---------------- */
 function IntegracoesSection() {
   return <IntegracoesPage />;
+}
+
+/* ---------------- DEPARTAMENTOS ---------------- */
+function DepartamentosSection() {
+  const [createOpen, setCreateOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Departamentos</h2>
+          <p className="text-[14px] text-muted-foreground mt-0.5">Organize suas equipes com departamentos</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+          <Plus size={15} /> Criar
+        </Button>
+      </div>
+      <Card>
+        <DepartmentsManager accent="#2563EB" createOpen={createOpen} setCreateOpen={setCreateOpen} />
+      </Card>
+    </div>
+  );
 }
 
 /* ---------------- CONEXÕES ---------------- */
@@ -2748,7 +2984,7 @@ const CONN_CATEGORIES = [
     label: "Agenda",
     description: "Crie conexões com plataformas de agenda",
     providers: [
-      { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: false,
+      { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: true,
         iconBg: "#4285F4", Icon: Calendar },
     ],
   },
@@ -2765,6 +3001,7 @@ const CONN_CATEGORIES = [
 
 function ConexoesSection() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { company, whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
   // Google OAuth state
@@ -2773,23 +3010,26 @@ function ConexoesSection() {
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
 
   useEffect(() => {
+    if (!company) return;
     import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
-      checkGoogleConnection()
+      checkGoogleConnection(company.id)
         .then(c => setGoogleConn(c ? { id: c.id, email: c.email } : null))
         .finally(() => setGoogleLoading(false));
     });
-  }, []);
+  }, [company]);
 
   async function handleConnectGoogle() {
+    if (!company) return;
     const { initGoogleOAuth } = await import("@/lib/googleOAuth");
-    initGoogleOAuth();
+    initGoogleOAuth(company.id);
   }
 
   async function handleDisconnectGoogle() {
+    if (!company) return;
     setGoogleDisconnecting(true);
     try {
       const { disconnectGoogle } = await import("@/lib/googleOAuth");
-      await disconnectGoogle();
+      await disconnectGoogle(company.id);
       setGoogleConn(null);
       toast.success("Google desconectado.");
     } catch {
@@ -2817,6 +3057,7 @@ function ConexoesSection() {
   const [editingConnId, setEditingConnId]         = useState<string | null>(null);
   const [manageTab, setManageTab]                 = useState<"auth" | "intervals" | "config">("auth");
   const [connName, setConnName]                   = useState("");
+  const [showTerms, setShowTerms]                 = useState(false);
   const [editForm, setEditForm]                   = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
   const [showInstId, setShowInstId]               = useState(false);
   const [showTok, setShowTok]                     = useState(false);
@@ -2868,15 +3109,31 @@ function ConexoesSection() {
     setQrLoading(true);
     setQrSrc("");
     try {
-      const res  = await fetch(`${zapiBase(c)}/qr-code/image`, { headers: zapiHeaders(c) });
-      const data = await res.json();
-      if (data.value) {
+      const res = await fetch(`${zapiBase(c)}/qr-code/image`, { headers: zapiHeaders(c) });
+      const raw = await res.text();
+      let data: Record<string, unknown> = {};
+      try { data = JSON.parse(raw); } catch { /* resposta não-JSON */ }
+      // Diagnóstico: deixa a resposta crua no console p/ inspeção
+      console.log("[Z-API] qr-code/image", res.status, raw);
+
+      if (typeof data.value === "string" && data.value) {
         setQrSrc(data.value);
+        return;
+      }
+      // Instância já conectada: não há QR a gerar — o polling finaliza a conexão
+      if (data.connected === true) return;
+
+      const err = String(data.error || data.message || (res.ok ? "" : raw) || "").trim();
+      if (/subscribe|subscription/i.test(err)) {
+        toast.error("A assinatura desta instância no Z-API expirou. Renove a instância no painel do Z-API e tente novamente.");
+      } else if (err) {
+        toast.error(`Z-API (${res.status}): ${err.slice(0, 180)}`);
       } else {
         toast.error("Não foi possível gerar o QR Code. Verifique as credenciais.");
       }
-    } catch {
-      toast.error("Erro ao conectar com a Z-API. Confirme o ID e Token da instância.");
+    } catch (e) {
+      console.error("[Z-API] qr-code/image falhou", e);
+      toast.error("Erro de rede/CORS ao falar com a Z-API. Confirme ID, Token e Client-Token.");
     } finally {
       setQrLoading(false);
     }
@@ -2905,6 +3162,27 @@ function ConexoesSection() {
     setPolling(false);
   }
 
+  // Finaliza a conexão (instância já conectada): salva e configura o webhook
+  async function finalizeConnection(creds: ZApiForm, phone: string) {
+    stopPoll();
+    setStep("done");
+    toast.success("WhatsApp conectado com sucesso!");
+    const newConn = await addWhatsAppConnection({
+      name:        connName.trim() || phone || "WhatsApp",
+      provider:    "zapi",
+      instanceId:  creds.instanceId,
+      token:       creds.token,
+      clientToken: creds.clientToken || null,
+      phone:       phone || null,
+      connected:   true,
+      active:      true,
+    });
+    setEditingConnId(newConn.id);
+    setConnName(newConn.name);
+    setEditForm(creds);
+    await configureZapiWebhook(creds);
+  }
+
   function startPoll(c: ZApiForm) {
     pollNRef.current    = 0;
     credsInFlight.current = c;
@@ -2915,27 +3193,7 @@ function ConexoesSection() {
       setPollN(pollNRef.current);
       const result = await pollStatus(credsInFlight.current!);
       if (result.connected) {
-        stopPoll();
-        const creds = credsInFlight.current!;
-        setStep("done");
-        toast.success("WhatsApp conectado com sucesso!");
-
-        // Salva na tabela whatsapp_connections
-        const newConn = await addWhatsAppConnection({
-          name:        connName.trim() || result.phone || "WhatsApp",
-          instanceId:  creds.instanceId,
-          token:       creds.token,
-          clientToken: creds.clientToken || null,
-          phone:       result.phone || null,
-          connected:   true,
-          active:      true,
-        });
-        setEditingConnId(newConn.id);
-        setConnName(newConn.name);
-        setEditForm(creds);
-
-        // Configura automaticamente o webhook na Z-API para receber mensagens
-        await configureZapiWebhook(creds);
+        await finalizeConnection(credsInFlight.current!, result.phone);
       } else if (pollNRef.current >= 3) {
         stopPoll();
       }
@@ -2948,8 +3206,11 @@ function ConexoesSection() {
       toast.error("Preencha o ID da instância, o Token e o Client-Token.");
       return;
     }
-    await fetchQr(form);
     setStep("qr");
+    // Se a instância já estiver conectada, não há QR — finaliza direto
+    const st = await pollStatus(form);
+    if (st.connected) { await finalizeConnection(form, st.phone); return; }
+    await fetchQr(form);
     startPoll(form);
   }
 
@@ -3036,23 +3297,16 @@ function ConexoesSection() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Conexões</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
+          <h1 className="text-xl font-bold text-foreground">Conexões</h1>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
           Criar
         </Button>
       </div>
 
-      {/* ── WhatsApp — instâncias conectadas ─────────────────────────── */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">WhatsApp</p>
-          <button onClick={openNewDialog} className="flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80">
-            <Plus size={13} /> Adicionar instância
-          </button>
-        </div>
-
+      {/* ── Conexões ativas ──────────────────────────────────────────── */}
+      {googleLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
             <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
@@ -3083,36 +3337,60 @@ function ConexoesSection() {
               </div>
             </div>
           ))}
-
-          {/* Card "Adicionar nova instância" */}
-          <button
-            onClick={openNewDialog}
-            className="bg-white border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/10 transition-all min-h-[140px] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Plus size={18} className="text-primary" />
-            </div>
-            <p className="text-sm font-medium text-primary">Adicionar WhatsApp</p>
-          </button>
+          <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
+            <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
+          </div>
         </div>
-      </div>
-
-      {/* ── Google Calendar ──────────────────────────────────────────── */}
-      <div className="mb-6">
-        <p className="text-sm font-semibold text-foreground mb-3">Google Calendar</p>
+      ) : (whatsappConnections.length === 0 && !googleConn) ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+            <Link2 size={22} className="text-muted-foreground" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">Nenhuma conexão ativa</p>
+          <p className="text-xs text-muted-foreground mb-5">Conecte um serviço para começar a sincronizar dados com o CRM.</p>
+          <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
+            Criar conexão
+          </Button>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {googleLoading ? (
-            <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
-              <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
+          {whatsappConnections.map(conn => (
+            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
+                    {conn.connected ? "Conectado" : "Desconectado"}
+                  </span>
+                </div>
+                <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  z-api.io <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center shrink-0">
+                  <Webhook size={18} color="hsl(var(--background))" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{conn.phone || "Z-API"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
+                <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                  <Settings2 size={14} /> Gerenciar
+                </button>
+              </div>
             </div>
-          ) : googleConn ? (
+          ))}
+          {googleConn && (
             <div className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-xs font-medium text-green-700">Conectado</span>
+                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
                 </div>
-                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-[#4285F4]">
+                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-[#4285F4]" style={{ fontSize: 11.5 }}>
                   calendar.google.com <ExternalLink size={11} />
                 </a>
               </div>
@@ -3125,59 +3403,26 @@ function ConexoesSection() {
                   <p className="text-xs text-muted-foreground truncate">{googleConn.email ?? "Agenda"}</p>
                 </div>
               </div>
+              {(profile?.full_name) && (
+                <p className="font-bold text-foreground mb-1" style={{ fontSize: 14 }}>{profile.full_name}</p>
+              )}
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
-                  onClick={handleDisconnectGoogle}
-                  disabled={googleDisconnecting}
-                  className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                  className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" style={{ gap: "5.2px" }}
                 >
-                  <X size={14} /> {googleDisconnecting ? "Desconectando..." : "Desconectar"}
+                  <Settings size={18} /> Gerenciar
                 </button>
+                <Switch
+                  checked={!googleDisconnecting}
+                  onCheckedChange={(checked) => { if (!checked) handleDisconnectGoogle(); }}
+                  disabled={googleDisconnecting}
+                />
               </div>
             </div>
-          ) : (
-            <button
-              onClick={handleConnectGoogle}
-              className="bg-white border border-dashed border-border rounded-xl p-5 flex flex-col items-center justify-center gap-2 hover:border-[#4285F4] hover:bg-blue-50/30 transition-all min-h-[140px] cursor-pointer"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#4285F4" }}>
-                <Calendar size={18} color="#FFF" />
-              </div>
-              <p className="text-sm font-medium text-[#4285F4]">Conectar com Google</p>
-              <p className="text-xs text-muted-foreground text-center">Sincronize tarefas e reuniões com seu calendário Google diretamente pelo CRM.</p>
-            </button>
           )}
         </div>
-      </div>
-
-      {/* ── Outras integrações (em breve) ────────────────────────────── */}
-      <div>
-        <p className="text-sm font-semibold text-foreground mb-3">Outras conexões</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-
-          {/* Em breve */}
-          {COMING_SOON.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col opacity-60">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground">Em breve</span>
-                <a href={`https://${conn.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {conn.domain} <ExternalLink size={11} />
-                </a>
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.iconBg }}>
-                  <conn.Icon size={18} color="#FFF" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground">{conn.category}</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{conn.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* ── Gerenciar conexão (Dialog separado) ──────────────────────────── */}
       <Dialog open={open && step === "done"} onOpenChange={v => { if (!v) closeDialog(); }}>
@@ -3220,7 +3465,7 @@ function ConexoesSection() {
               {/* Connection name */}
               <div style={{ padding: "14px 24px 0" }}>
                 <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
-                <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm" />
+                <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </div>
 
               {/* Tabs */}
@@ -3242,7 +3487,7 @@ function ConexoesSection() {
                     <div>
                       <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
                       <div style={{ position: "relative" }}>
-                        <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showInstId ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3251,7 +3496,7 @@ function ConexoesSection() {
                     <div>
                       <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
                       <div style={{ position: "relative" }}>
-                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3264,7 +3509,7 @@ function ConexoesSection() {
                         <span style={{ fontSize: 11, color: "#AAA" }}>Acesse a página de Segurança para obter</span>
                       </div>
                       <div style={{ position: "relative" }}>
-                        <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10" />
+                        <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showClientTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
@@ -3380,6 +3625,7 @@ function ConexoesSection() {
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
                         if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
+                        if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
@@ -3413,7 +3659,7 @@ function ConexoesSection() {
 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <MessageSquare size={15} className="text-primary" /> Conectar WhatsApp
+              <MessageSquare size={15} className="text-primary" /> Cadastrar conexão
             </DialogTitle>
           </DialogHeader>
 
@@ -3603,43 +3849,63 @@ function ConexoesSection() {
           {/* Step 2 — Credentials */}
           {step === "creds" && (
             <>
-              <p className="text-xs text-muted-foreground -mt-1 mb-3">
-                No painel da <strong>Z-API</strong>, acesse sua instância e copie o ID e o Token.
-              </p>
+              {/* Banner informativo */}
+              <div style={{ background: "#F0FAF6", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "#0D5C3A", marginBottom: 4 }}>Intervalo entre as mensagens</p>
+                <p style={{ fontSize: 11, fontWeight: 400, color: "#376B55", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
+              </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
                   <Input
-                    placeholder="Ex: 3C1B2A3D4E5F..."
-                    value={form.instanceId}
-                    onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    placeholder="Nome da conexão"
+                    value={connName}
+                    onChange={e => setConnName(e.target.value)}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
                   <Input
-                    placeholder="Token da instância"
+                    placeholder="ID da instância do Z-API"
+                    value={form.instanceId}
+                    onChange={e => setForm(f => ({ ...f, instanceId: e.target.value }))}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token da instância <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Token da instância do Z-API"
                     value={form.token}
                     onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    Client-Token <span className="text-[#E24B4A]">*</span> <span className="text-muted-foreground font-normal">(aba Segurança da Z-API)</span>
+                    Token de segurança <span className="text-[#E24B4A]">*</span>
+                    <span className="flex items-center gap-1 text-muted-foreground font-normal mt-0.5">
+                      <CircleAlert size={11} /> Acesse a página de Segurança para obter.
+                    </span>
                   </label>
                   <Input
-                    placeholder="Client-Token da instância"
+                    placeholder="Token de segurança do Z-API"
                     value={form.clientToken}
                     onChange={e => setForm(f => ({ ...f, clientToken: e.target.value }))}
-                    className="border-card-border font-mono text-sm"
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     type="password"
                   />
                 </div>
               </div>
-              <DialogFooter className="mt-4">
+              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
+                Ao continuar, você concorda com nossos{" "}
+                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                  Termos de Uso
+                </button>.
+              </p>
+              <DialogFooter className="mt-3">
                 <Button variant="outline" className="border-card-border" onClick={() => setStep("tutorial")}>Voltar</Button>
                 <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateQr} disabled={qrLoading}>
                   {qrLoading ? "Gerando..." : "Gerar QR Code"}
@@ -3690,6 +3956,35 @@ function ConexoesSection() {
             </>
           )}
 
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Termos de Uso */}
+      <Dialog open={showTerms} onOpenChange={setShowTerms}>
+        <DialogContent className="max-w-[560px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Termos de Uso</DialogTitle>
+          </DialogHeader>
+          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }} className="space-y-3">
+            <p>Estes Termos de Uso estabelecem as condições para a utilização do serviço de CRM fornecido pelo Rezult. Ao acessar ou utilizar nossos serviços, você concorda integralmente com estes termos.</p>
+            <p><strong>Definições</strong><br />Serviço: Refere-se ao sistema de CRM fornecido pelo Rezult.<br />Usuário: Qualquer indivíduo ou entidade que utilize o serviço.<br />Plataformas de Terceiros: Serviços externos integrados ao nosso sistema, como redes sociais e aplicativos de mensagens.</p>
+            <p><strong>Elegibilidade</strong><br />Para utilizar nossos serviços, você deve: Ter pelo menos 18 anos ou possuir autorização legal adequada. Possuir permissão para operar contas nas plataformas de terceiros integradas ao nosso serviço.</p>
+            <p><strong>Cadastro e Segurança da Conta</strong><br />Ao criar uma conta, você concorda em: Fornecer informações precisas, completas e atualizadas. Manter a confidencialidade de sua senha e credenciais de acesso. Notificar imediatamente o Rezult sobre qualquer uso não autorizado de sua conta ou violação de segurança.</p>
+            <p><strong>Uso Aceitável</strong><br />Ao utilizar nosso serviço, você concorda em: Não enviar comunicações não solicitadas ou spam. Abster-se de atividades ilegais, fraudulentas ou prejudiciais. Cumprir os termos de uso das plataformas de terceiros integradas. Evitar qualquer forma de assédio, discurso de ódio ou comportamento ofensivo.</p>
+            <p><strong>Integração com Plataformas de Terceiros</strong><br />Nosso serviço permite a integração com diversas plataformas externas. É sua responsabilidade assegurar que o uso dessas integrações esteja em conformidade com os termos e políticas das respectivas plataformas. O uso inadequado pode resultar em sanções, incluindo a suspensão ou banimento de contas nessas plataformas.</p>
+            <p><strong>Propriedade Intelectual</strong><br />Todos os direitos, títulos e interesses relativos ao serviço, incluindo, mas não se limitando a, software, logotipos, conteúdo e materiais relacionados, são de propriedade exclusiva do Rezult ou de seus licenciadores. Você concorda em não reproduzir, distribuir, modificar, criar trabalhos derivados ou explorar qualquer parte do serviço sem autorização prévia por escrito do Rezult.</p>
+            <p><strong>Privacidade e Proteção de Dados</strong><br />Respeitamos sua privacidade e processamos seus dados pessoais de acordo com nossa Política de Privacidade. Ao utilizar nosso serviço, você consente com tais práticas. Comprometemo-nos a cumprir a Lei Geral de Proteção de Dados (LGPD) e demais legislações aplicáveis.</p>
+            <p><strong>Limitação de Responsabilidade</strong><br />O Rezult não se responsabiliza por: Penalidades, suspensões ou banimentos que possam ocorrer em plataformas de terceiros devido ao uso de nosso serviço. Danos indiretos, incidentais, especiais, consequenciais ou punitivos resultantes do uso ou incapacidade de usar o serviço. Perda de dados, lucros cessantes ou outros prejuízos comerciais, mesmo que avisados da possibilidade de tais danos.</p>
+            <p><strong>Indenização</strong><br />Você concorda em indenizar, defender e isentar o Rezult, seus diretores, funcionários e agentes de quaisquer reivindicações, responsabilidades, danos, perdas e despesas, incluindo honorários advocatícios razoáveis, decorrentes de ou relacionados ao seu uso do serviço ou violação destes Termos de Uso.</p>
+            <p><strong>Modificações nos Termos</strong><br />Reservamo-nos o direito de alterar estes Termos de Uso a qualquer momento. Notificaremos sobre mudanças significativas por meio de nosso serviço ou por outros meios apropriados. O uso continuado após tais alterações constitui sua aceitação dos novos termos.</p>
+            <p><strong>Encerramento e Suspensão</strong><br />Podemos suspender ou encerrar seu acesso ao serviço se identificarmos violações a estes termos, atividades suspeitas ou uso inadequado.</p>
+            <p><strong>Disposições Gerais</strong><br />Estes termos constituem o acordo completo entre você e o Rezult em relação ao uso do serviço. Caso alguma disposição seja considerada inválida, as demais permanecerão em pleno vigor e efeito.</p>
+            <p><strong>Lei Aplicável e Foro</strong><br />Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de Florianópolis, Estado de Santa Catarina, como competente para dirimir quaisquer questões oriundas deste instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
+            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "#128A68" }}>crm@rezultcrm.com</a></p>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => setShowTerms(false)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -3795,7 +4090,10 @@ function ApiSection() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Chaves de API</h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gere chaves de API para permitir integrações seguras com os serviços da nossa plataforma.</p>
+      </div>
 
       {/* Webhook endpoint */}
       <Card>
@@ -3807,7 +4105,7 @@ function ApiSection() {
           <Input
             value={WEBHOOK_URL}
             readOnly
-            className="border-card-border font-mono text-xs text-muted-foreground"
+            className="border-card-border font-mono text-xs text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
           />
           <Button
             variant="outline"
@@ -3884,7 +4182,7 @@ function ApiSection() {
               placeholder="Nome da chave (ex: Site, RD Station)"
               value={labelInput}
               onChange={e => setLabelInput(e.target.value)}
-              className="border-card-border text-sm h-9"
+              className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               onKeyDown={e => e.key === "Enter" && handleGenerate()}
             />
             <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleGenerate} disabled={generating}>
@@ -3969,7 +4267,7 @@ function ApiSection() {
             <Input
               value={newKeyModal?.key ?? ""}
               readOnly
-              className="font-mono text-xs border-card-border"
+              className="font-mono text-xs border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <Button
               variant="outline"
@@ -4198,10 +4496,13 @@ function GoogleSheetsGuide() {
 function McpSection() {
   return (
     <>
-      <h1 className="text-xl font-semibold text-foreground mb-6">Servidor MCP</h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-foreground">Servidor MCP</h1>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie as configurações individuais das ferramentas</p>
+      </div>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-muted border-[0.5px] border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -4237,13 +4538,13 @@ function ArmazenamentoSection() {
   const [othersBytes, setOthersBytes]       = useState(0);
 
   useEffect(() => {
-    if (!company?.owner_id || !company?.id) return;
-    const oid = company.owner_id;
+    if (!company?.id) return;
+    const cid = company.id;
 
     async function load() {
       try {
         const qCRM = (table: string) =>
-          supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+          supabase.from(table).select("*", { count: "exact", head: true }).eq("company_id", cid);
 
         // Busca IDs de todos os membros da empresa para agregar WhatsApp
         const { data: membersData } = await supabase.rpc("get_company_members", { p_company_id: company.id });
@@ -4251,14 +4552,14 @@ function ArmazenamentoSection() {
         const qWA = (table: string) =>
           memberIds.length > 0
             ? supabase.from(table).select("*", { count: "exact", head: true }).in("owner_id", memberIds)
-            : supabase.from(table).select("*", { count: "exact", head: true }).eq("owner_id", oid);
+            : supabase.from(table).select("*", { count: "exact", head: true }).eq("company_id", cid);
 
         const [
           filesRes, msgsRes, convsRes, leadsRes,
           activitiesRes, automsRes, autoLogsRes, tasksRes,
           tagsRes, productsRes, listsRes, cfRes,
         ] = await Promise.all([
-          supabase.from("lead_files").select("size, leads!inner(owner_id)").eq("leads.owner_id", oid),
+          supabase.from("lead_files").select("size, leads!inner(company_id)").eq("leads.company_id", cid),
           qWA("whatsapp_messages"),
           qWA("whatsapp_conversations"),
           qCRM("leads"),
@@ -4322,8 +4623,8 @@ function ArmazenamentoSection() {
     <>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Armazenamento</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
+          <h1 className="text-xl font-bold text-foreground">Armazenamento</h1>
+          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie o armazenamento da sua conta e contrate armazenamento extra quando necessário</p>
         </div>
         <Button variant="outline" className="text-sm border-card-border shrink-0 ml-4" onClick={() => navigate("/configuracoes/planos")}>
           Gerenciar planos e uso
@@ -4427,8 +4728,8 @@ function SectionHeader({ title, subtitle, onAdd, onClick }: { title: string; sub
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        <h1 className="text-xl font-bold text-foreground">{title}</h1>
+        {subtitle && <p className="text-[14px] font-normal text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
       <Button onClick={onClick} className="bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" />{onAdd.replace("+ ", "")}</Button>
     </div>
@@ -4445,9 +4746,9 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
       <DialogContent className="max-w-[420px]">
         <DialogHeader><DialogTitle>Alterar senha</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
-          <Input type="password" placeholder="Senha atual" />
-          <Input type="password" placeholder="Nova senha" value={pw} onChange={e => setPw(e.target.value)} />
-          <Input type="password" placeholder="Confirmar nova senha" />
+          <Input type="password" placeholder="Senha atual" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Nova senha" value={pw} onChange={e => setPw(e.target.value)} className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Confirmar nova senha" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           {pw.length > 0 && (
             <div>
               <div className="flex gap-1">

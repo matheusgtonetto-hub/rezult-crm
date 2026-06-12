@@ -4,6 +4,58 @@
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+// Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
+const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
+
+// Remove acentos e normaliza para comparação
+const stripAccents = (x: string) =>
+  x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+// Sinônimos → origem canônica. Palavras-chave com >=4 chars casam por substring;
+// abreviações curtas (fb, ig, yt…) casam apenas como token isolado, evitando falsos positivos.
+const ORIGIN_SYNONYMS: Array<[string, string[]]> = [
+  ["Google Ads",      ["google", "adwords", "gads"]],
+  ["Meta Ads",        ["meta"]],
+  ["Facebook Ads",    ["facebook", "fb", "face"]],
+  ["Instagram",       ["instagram", "insta", "ig"]],
+  ["TikTok Ads",      ["tiktok", "tik tok"]],
+  ["LinkedIn Ads",    ["linkedin", "linked in"]],
+  ["YouTube Ads",     ["youtube", "you tube"]],
+  ["Email Marketing", ["email", "e-mail", "mkt"]],
+  ["WhatsApp",        ["whatsapp", "whats", "wpp", "zap"]],
+  ["Orgânico",        ["organico", "organic", "seo"]],
+  ["Evento",          ["evento", "event", "webinar", "feira"]],
+  ["Indicação",       ["indicacao", "referral", "referencia", "indica"]],
+  ["Site",            ["site", "website", "web", "landing"]],
+];
+
+// Recebe um valor arbitrário de origem e devolve a opção pré-definida mais adequada.
+// Retorna null para valor vazio/ausente (deixa quem chama decidir — ex: usar default do banco).
+function normalizeOrigin(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = stripAccents(s);
+
+  // 1. Match exato (ignorando caixa/acento) com uma opção canônica
+  for (const v of VALID_LEAD_ORIGINS) {
+    if (stripAccents(v) === n) return v;
+  }
+
+  // 2. Match por sinônimo/palavra-chave
+  const tokens = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const hit = (kw: string) => {
+    const k = stripAccents(kw);
+    return k.length >= 4 ? n.includes(k) : tokens.includes(k);
+  };
+  for (const [canon, kws] of ORIGIN_SYNONYMS) {
+    if (kws.some(hit)) return canon;
+  }
+
+  // 3. Sem correspondência → Outro
+  return "Outro";
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TriggerPayload {
@@ -21,6 +73,11 @@ interface TriggerPayload {
     loss_reason_id?: string;
     parent_automation_id?: string;
     changed_fields?: Record<string, unknown>;
+    // Saídas de datasources (ex: analise_telefone → "phone-1") persistidas entre nós,
+    // para que {{phone-1.phone}} fique disponível em nós posteriores ao parse
+    datasources?: Record<string, Record<string, string>>;
+    // Respostas capturadas pelo bloco "Entrada do usuário" → {{var_name}}
+    user_inputs?: Record<string, string>;
   };
 }
 
@@ -77,12 +134,44 @@ interface ApiConfig {
   requests: ApiRequest[];
 }
 
-interface FieldOperation {
+interface FieldOpMapeamento {
   id: string;
   type: "mapeamento";
   fieldKey: string;
   fieldLabel: string;
   value: string;
+}
+
+interface FieldOpAnaliseTel {
+  id: string;
+  type: "analise_telefone";
+  phone: string;
+  datasourceName: string;
+  datasourceColor: string;
+  defaultCountry: string;
+}
+
+type FieldOperation = FieldOpMapeamento | FieldOpAnaliseTel;
+
+interface RandomBranch {
+  id: string;
+  label: string;
+  percentage: number;
+}
+
+// Sub-blocos do nó "mensagem" (espelha o tipo SubBlock da UI em AutomacoesPage.tsx)
+interface SubBlock {
+  id: string;
+  type: "mensagem_texto" | "entrada_usuario" | "atraso_tempo" | "mensagem_audio" | "arquivo_anexo" | "arquivo_url";
+  text?: string;
+  delaySeconds?: number;
+  fileUrl?: string;
+  fileName?: string;
+  splitMessages?: boolean;
+  buttons?: { id: string; label: string }[];
+  varName?: string;
+  timeoutAmount?: number;
+  timeoutUnit?: "minutos" | "horas" | "dias";
 }
 
 interface CanvasNode {
@@ -91,11 +180,17 @@ interface CanvasNode {
   trigger?: TriggerConfig | null;
   actionItems?: ActionItem[];
   conditionItems?: ConditionItem[];
+  randomBranches?: RandomBranch[];
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
   fieldOps?: FieldOperation[];
-  parentId?: string | null;
-  errorParentId?: string | null;
+  subBlocks?: SubBlock[];
+  connectionId?: string; // conexão (whatsapp_connections) escolhida no bloco Mensagem
+  parentId?: string | null;        // legacy
+  errorParentId?: string | null;   // legacy
+  parentIds?: string[];            // current format (array)
+  errorParentIds?: string[];       // current format (array)
+  timeoutParentIds?: string[];     // saída "não respondeu" do bloco Entrada do usuário
 }
 
 interface PendingRecord {
@@ -106,6 +201,7 @@ interface PendingRecord {
   node_ids: string[];
   trigger_payload: TriggerPayload;
   resume_after: string;
+  resume_sub_index?: number | null; // retomar o nó Mensagem a partir deste sub-bloco (Atraso de tempo)
 }
 
 interface AutomationFlow {
@@ -134,6 +230,20 @@ Deno.serve(async (req: Request) => {
   const webhookMatch = url.pathname.match(/\/webhook\/([a-f0-9-]{36})$/i);
   if (webhookMatch) {
     return await handleWebhook(supabase, req, webhookMatch[1]);
+  }
+
+  // ── MCP Tool trigger: POST /automation-runner/mcp-trigger ─────────────────
+  const mcpTriggerMatch = url.pathname.match(/\/mcp-trigger(?:\/)?$/i);
+  if (mcpTriggerMatch) {
+    return await handleMcpTrigger(supabase, req);
+  }
+
+  // ── Resume por resposta: POST /automation-runner/resume-reply ─────────────
+  // Chamado pelo zapi-webhook quando o contato responde ("Entrada do usuário").
+  // Autentica no gateway pela service key; o segredo vai no corpo e é conferido.
+  const resumeReplyMatch = url.pathname.match(/\/resume-reply(?:\/)?$/i);
+  if (resumeReplyMatch) {
+    return await handleResumeReply(supabase, req);
   }
 
   // ── Modo normal: requer autenticação ─────────────────────────────────────
@@ -242,27 +352,44 @@ async function handleWebhook(
   // Persiste o último payload para exibição no canvas (sem await — não bloqueia)
   supabase.from("automations").update({ last_webhook_payload: webhookBody }).eq("id", automationId).then(() => {});
 
-  // Tenta identificar o lead pelo body (lead_id, email ou whatsapp)
+  // Identifica o lead pelo body em CASCATA (lead_id → email → telefone). Antes era um
+  // else-if mutuamente exclusivo: um cliente que voltava com e-mail novo mas mesmo telefone
+  // não casava (email presente porém sem match parava a busca) → lead DUPLICADO. Agora, se o
+  // e-mail não casar, ainda tentamos o telefone.
   let lead_id: string | null = null;
 
   if (webhookBody.lead_id) {
     lead_id = String(webhookBody.lead_id);
-  } else if (webhookBody.email) {
+  }
+
+  if (!lead_id && webhookBody.email) {
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
       .eq("owner_id", ownerId)
-      .eq("email", String(webhookBody.email))
+      .ilike("email", String(webhookBody.email)) // e-mail é case-insensitive
       .maybeSingle();
     lead_id = lead?.id ?? null;
-  } else if (webhookBody.whatsapp) {
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("id")
-      .eq("owner_id", ownerId)
-      .eq("whatsapp", String(webhookBody.whatsapp))
-      .maybeSingle();
-    lead_id = lead?.id ?? null;
+  }
+
+  if (!lead_id) {
+    // Os payloads enviam o número em `whatsapp`, `telefone` ou `phone`. O lead guarda o
+    // número JÁ normalizado (+55DDDNUMERO). Normaliza o valor recebido do mesmo jeito
+    // (parsePhoneNumber) e também tenta o valor cru, para casar independente de formatação.
+    const rawPhone = (webhookBody.whatsapp ?? webhookBody.telefone ?? webhookBody.phone) as string | undefined;
+    if (rawPhone) {
+      const parsed = parsePhoneNumber(String(rawPhone), "BR");
+      const candidates = [...new Set([parsed.phone, String(rawPhone)].filter(Boolean))];
+      for (const cand of candidates) {
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("owner_id", ownerId)
+          .eq("whatsapp", cand)
+          .maybeSingle();
+        if (lead?.id) { lead_id = lead.id; break; }
+      }
+    }
   }
 
   // Se não há lead, o fluxo ainda roda — dados do formulário ficam disponíveis
@@ -285,10 +412,203 @@ async function handleWebhook(
   }
 }
 
+// ─── MCP Tool trigger handler ─────────────────────────────────────────────────
+
+async function handleMcpTrigger(supabase: SupabaseClient, req: Request): Promise<Response> {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch { /* empty body */ }
+
+  const { tool_name, company_id, lead_id, arguments: toolArgs } = body as {
+    tool_name?: string;
+    company_id?: string;
+    lead_id?: string;
+    arguments?: Record<string, unknown>;
+  };
+
+  if (!tool_name || !company_id) {
+    return Response.json({ error: "tool_name e company_id são obrigatórios" }, { status: 400, headers: corsHeaders });
+  }
+
+  const { data: automations, error: autoErr } = await supabase
+    .from("automations")
+    .select("id, name, flow")
+    .eq("company_id", company_id)
+    .eq("active", true);
+
+  if (autoErr) {
+    return Response.json({ error: autoErr.message }, { status: 500, headers: corsHeaders });
+  }
+
+  const matching = (automations as AutomationRecord[] ?? []).filter((auto) => {
+    const trigger = auto.flow?.trigger;
+    if (!trigger || trigger.triggerId !== "mcp_tool") return false;
+    const cfgToolName = (trigger.configData?.toolName as string) ?? "";
+    return !cfgToolName || cfgToolName === tool_name;
+  });
+
+  if (!matching.length) {
+    return Response.json({ error: `Nenhuma automação ativa encontrada para tool: ${tool_name}` }, { status: 404, headers: corsHeaders });
+  }
+
+  const resolvedLeadId = lead_id ?? "";
+  const payload: TriggerPayload = {
+    trigger_type: "mcp_tool",
+    company_id,
+    lead_id: resolvedLeadId,
+    context: {
+      changed_fields: { tool_name, ...(toolArgs ?? {}) },
+    },
+  };
+
+  const results: { id: string; name: string; status: string; error?: string }[] = [];
+  for (const auto of matching) {
+    try {
+      await executeFlow(supabase, auto.flow, payload, auto.id);
+      results.push({ id: auto.id, name: auto.name, status: "ok" });
+    } catch (err) {
+      console.error(`MCP tool automation ${auto.id} failed:`, err);
+      results.push({ id: auto.id, name: auto.name, status: "error", error: String(err) });
+    }
+  }
+
+  console.log(`[mcp_tool] tool=${tool_name} company=${company_id} matched=${results.length}`);
+  return Response.json({ ok: true, tool_name, matched: results.length, results }, { headers: corsHeaders });
+}
+
 // ─── Resume handler ───────────────────────────────────────────────────────────
+
+interface AwaitingRecord {
+  id: string;
+  company_id: string;
+  automation_id: string;
+  lead_id: string | null;
+  owner_id: string;
+  phone: string;
+  node_id: string;
+  var_name: string;
+  resume_node_ids: string[];
+  trigger_payload: TriggerPayload;
+  expires_at: string | null;
+}
+
+// Retomada do bloco "Entrada do usuário" quando o contato responde (zapi-webhook).
+async function handleResumeReply(
+  supabase: SupabaseClient,
+  req: Request,
+): Promise<Response> {
+  let input: { awaiting_id?: string; text?: string; secret?: string };
+  try {
+    input = (await req.json()) as typeof input;
+  } catch {
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+
+  // Autorização: o segredo do motor vai no corpo (o gateway já validou a service key)
+  const secret = Deno.env.get("AUTOMATION_SECRET");
+  if (!secret || input.secret !== secret) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const awaitingId = input.awaiting_id;
+  if (!awaitingId) return Response.json({ error: "awaiting_id obrigatório" }, { status: 400 });
+
+  const { data: row } = await supabase
+    .from("automation_awaiting_reply")
+    .select("*")
+    .eq("id", awaitingId)
+    .maybeSingle();
+  if (!row) return Response.json({ ok: true, skipped: "not found" });
+
+  const awaiting = row as AwaitingRecord;
+  // Deleta primeiro para evitar dupla retomada
+  await supabase.from("automation_awaiting_reply").delete().eq("id", awaitingId);
+
+  const { data: automation } = await supabase
+    .from("automations")
+    .select("id, name, flow")
+    .eq("id", awaiting.automation_id)
+    .eq("company_id", awaiting.company_id)
+    .eq("active", true)
+    .single();
+  if (!automation) return Response.json({ ok: true, skipped: "automation inactive" });
+
+  // Injeta a resposta capturada → disponível como {{var_name}} nos próximos nós
+  const payload = awaiting.trigger_payload;
+  payload.context = payload.context ?? {};
+  payload.context.user_inputs = {
+    ...(payload.context.user_inputs ?? {}),
+    [awaiting.var_name]: String(input.text ?? ""),
+  };
+
+  await executeFlow(
+    supabase,
+    (automation as AutomationRecord).flow,
+    payload,
+    awaiting.automation_id,
+    awaiting.resume_node_ids,
+  );
+  return Response.json({ ok: true, resumed: awaiting.automation_id });
+}
 
 async function handleResume(supabase: SupabaseClient): Promise<Response> {
   const now = new Date().toISOString();
+
+  // Esperas de resposta expiradas (contato não respondeu no prazo): se houver
+  // saída "Caso o contato não responda" conectada, retoma o fluxo por ela.
+  {
+    const { data: expired } = await supabase
+      .from("automation_awaiting_reply")
+      .select("id, company_id, automation_id, trigger_payload, timeout_node_ids")
+      .lt("expires_at", now);
+    const expiredRows = (expired ?? []) as {
+      id: string; company_id: string; automation_id: string;
+      trigger_payload: TriggerPayload; timeout_node_ids: string[] | null;
+    }[];
+    if (expiredRows.length > 0) {
+      // Deleta antes de processar para evitar dupla retomada
+      await supabase.from("automation_awaiting_reply").delete().in("id", expiredRows.map((r) => r.id));
+      for (const row of expiredRows) {
+        const timeoutIds = row.timeout_node_ids ?? [];
+        if (timeoutIds.length === 0) continue; // sem saída conectada: só descarta
+        try {
+          const { data: automation } = await supabase
+            .from("automations")
+            .select("id, name, flow")
+            .eq("id", row.automation_id)
+            .eq("company_id", row.company_id)
+            .eq("active", true)
+            .single();
+          if (automation) {
+            await executeFlow(
+              supabase,
+              (automation as AutomationRecord).flow,
+              row.trigger_payload,
+              automation.id,
+              timeoutIds,
+            );
+          }
+        } catch (err) {
+          console.error(`Failed to resume timeout branch ${row.id}:`, err);
+        }
+      }
+    }
+  }
 
   const { data: pending, error } = await supabase
     .from("automation_pending")
@@ -325,12 +645,16 @@ async function handleResume(supabase: SupabaseClient): Promise<Response> {
         continue;
       }
 
+      const resumeCtx = (item.resume_sub_index != null && item.node_ids.length > 0)
+        ? { nodeId: item.node_ids[0], subIndex: item.resume_sub_index }
+        : undefined;
       await executeFlow(
         supabase,
         (automation as AutomationRecord).flow,
         item.trigger_payload,
         automation.id,
         item.node_ids,
+        resumeCtx,
       );
       results.push({ id: item.id, status: "ok" });
     } catch (err) {
@@ -379,7 +703,7 @@ async function matchesTriggerConfig(
       if (!cfgTagIds.length) return true;
       const tagsAdded = payload.context.tag_ids_added ?? [];
       if (cfgTagIds.some((t) => tagsAdded.includes(t))) return true;
-      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds).eq("company_id", payload.company_id);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsAdded.includes(n));
     }
@@ -388,7 +712,7 @@ async function matchesTriggerConfig(
       if (!cfgTagIds.length) return true;
       const tagsRemoved = payload.context.tag_ids_removed ?? [];
       if (cfgTagIds.some((t) => tagsRemoved.includes(t))) return true;
-      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds);
+      const { data: rows } = await supabase.from("tags").select("name").in("id", cfgTagIds).eq("company_id", payload.company_id);
       const names = (rows ?? []).map((r: { name: string }) => r.name);
       return names.some((n: string) => tagsRemoved.includes(n));
     }
@@ -422,6 +746,15 @@ async function matchesTriggerConfig(
       if ((cfg.mode as string) !== "specific") return true;
       return String(newValue ?? "") === String(cfg.value ?? "");
     }
+    case "outra_automacao": {
+      const requiredOrigin = cfg.automacao_id as string;
+      if (!requiredOrigin) return true;
+      return payload.context.parent_automation_id === requiredOrigin;
+    }
+
+    case "mcp_tool":
+      return true;
+
     default:
       return true;
   }
@@ -435,25 +768,41 @@ async function executeFlow(
   payload: TriggerPayload,
   automationId: string,
   startNodeIds?: string[], // fornecido ao retomar de automation_pending
+  resumeContext?: { nodeId: string; subIndex: number }, // retoma um nó Mensagem a partir de um sub-bloco (Atraso de tempo)
 ) {
-  const { company_id, lead_id } = payload;
-  // lead_id pode ser "" quando disparado por webhook sem lead — normaliza para null nos logs
-  const logLeadId = lead_id || null;
+  const { company_id } = payload;
+  // logLeadId é lido do payload a cada uso — assim captura o lead criado mid-flow
+  const getLogLeadId = () => payload.lead_id || null;
   const allNodes: CanvasNode[] = flow.nodes ?? [];
 
   const children = new Map<string, CanvasNode[]>();
   const errorChildren = new Map<string, CanvasNode[]>();
+  const timeoutChildren = new Map<string, CanvasNode[]>();
 
   for (const n of allNodes) {
-    if (n.parentId) {
-      const arr = children.get(n.parentId) ?? [];
+    // Support both legacy parentId (string) and new parentIds (array)
+    const pIds = (n.parentIds && n.parentIds.length > 0)
+      ? n.parentIds
+      : (n.parentId ? [n.parentId] : []);
+    for (const pid of pIds) {
+      const arr = children.get(pid) ?? [];
       arr.push(n);
-      children.set(n.parentId, arr);
+      children.set(pid, arr);
     }
-    if (n.errorParentId) {
-      const arr = errorChildren.get(n.errorParentId) ?? [];
+    // Support both legacy errorParentId (string) and new errorParentIds (array)
+    const epIds = (n.errorParentIds && n.errorParentIds.length > 0)
+      ? n.errorParentIds
+      : (n.errorParentId ? [n.errorParentId] : []);
+    for (const epid of epIds) {
+      const arr = errorChildren.get(epid) ?? [];
       arr.push(n);
-      errorChildren.set(n.errorParentId, arr);
+      errorChildren.set(epid, arr);
+    }
+    // Saída "não respondeu" (timeout do Entrada do usuário)
+    for (const tpid of (n.timeoutParentIds ?? [])) {
+      const arr = timeoutChildren.get(tpid) ?? [];
+      arr.push(n);
+      timeoutChildren.set(tpid, arr);
     }
   }
 
@@ -469,7 +818,7 @@ async function executeFlow(
       await supabase.from("automation_logs").insert({
         automation_id: automationId,
         company_id,
-        lead_id: logLeadId,
+        lead_id: getLogLeadId(),
         node_id: startNode.id,
         status: "success",
       });
@@ -495,7 +844,7 @@ async function executeFlow(
 
       for (const item of (node.actionItems ?? [])) {
         try {
-          await executeAction(supabase, item, payload);
+          await executeAction(supabase, item, payload, automationId);
           successCount++;
         } catch (err) {
           errorMessages.push(String(err));
@@ -510,7 +859,7 @@ async function executeFlow(
         await supabase.from("automation_logs").insert({
           automation_id: automationId,
           company_id,
-          lead_id: logLeadId,
+          lead_id: getLogLeadId(),
           node_id: node.id,
           status,
           error_message: errorMessages.length > 0 ? errorMessages.join("; ") : null,
@@ -533,9 +882,9 @@ async function executeFlow(
       await supabase.from("automation_logs").insert({
         automation_id: automationId,
         company_id,
-        lead_id: logLeadId,
+        lead_id: getLogLeadId(),
         node_id: node.id,
-        status: "success",
+        status: allPassed ? "success" : "alert",
       });
 
       for (const condId of passedCondIds) {
@@ -561,7 +910,7 @@ async function executeFlow(
           // Curto o suficiente para esperar inline (≤ 90 s)
           await new Promise<void>((r) => setTimeout(r, delay.ms));
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id: logLeadId,
+            automation_id: automationId, company_id, lead_id: getLogLeadId(),
             node_id: node.id, status: "success",
           });
           queue.push(...nextNodes);
@@ -571,7 +920,7 @@ async function executeFlow(
           const { error: insErr } = await supabase.from("automation_pending").insert({
             company_id,
             automation_id: automationId,
-            lead_id,
+            lead_id: payload.lead_id || null,
             node_ids: nextNodes.map((n) => n.id),
             trigger_payload: payload,
             resume_after: delay.resumeAfter.toISOString(),
@@ -582,7 +931,7 @@ async function executeFlow(
             queue.push(...nextNodes);
           }
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id: logLeadId,
+            automation_id: automationId, company_id, lead_id: getLogLeadId(),
             node_id: node.id, status: "success",
           });
           // NÃO enfileira filhos — serão processados quando retomado
@@ -590,7 +939,7 @@ async function executeFlow(
         } else {
           // "immediate" (já está na janela) ou nenhum filho
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id: logLeadId,
+            automation_id: automationId, company_id, lead_id: getLogLeadId(),
             node_id: node.id, status: "success",
           });
           queue.push(...nextNodes);
@@ -606,12 +955,12 @@ async function executeFlow(
 
       if (requests.length === 0) {
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id: logLeadId,
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
           node_id: node.id, status: "success",
         });
         queue.push(...(children.get(node.id) ?? []));
       } else {
-        const { data: leadData } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+        const { data: leadData } = await supabase.from("leads").select("*").eq("id", payload.lead_id).single();
         const vars = await buildVarContext(supabase, leadData as Record<string, unknown> | null, payload);
 
         let allSuccess = true;
@@ -653,13 +1002,13 @@ async function executeFlow(
 
         if (allSuccess) {
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id: logLeadId,
+            automation_id: automationId, company_id, lead_id: getLogLeadId(),
             node_id: node.id, status: "success",
           });
           queue.push(...(children.get(node.id) ?? []));
         } else {
           await supabase.from("automation_logs").insert({
-            automation_id: automationId, company_id, lead_id: logLeadId,
+            automation_id: automationId, company_id, lead_id: getLogLeadId(),
             node_id: node.id, status: "error",
             error_message: errors.join("; "),
           });
@@ -673,7 +1022,7 @@ async function executeFlow(
 
       if (ops.length === 0) {
         await supabase.from("automation_logs").insert({
-          automation_id: automationId, company_id, lead_id: logLeadId,
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
           node_id: node.id, status: "success",
         });
         queue.push(...(children.get(node.id) ?? []));
@@ -691,22 +1040,40 @@ async function executeFlow(
 
         for (const op of ops) {
           try {
-            const resolved = interpolate(op.value, vars);
-            if (op.fieldKey.startsWith("lead.")) {
-              leadUpdate[op.fieldKey.substring(5)] = resolved;
-            } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
-              const dotIdx = op.fieldKey.indexOf(".");
-              customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
-            } else if (op.fieldKey.startsWith("prod.")) {
-              prodUpdate[op.fieldKey.substring(5)] = resolved;
+            if (op.type === "analise_telefone") {
+              const rawPhone = interpolate(op.phone ?? "", vars);
+              const parsed = parsePhoneNumber(rawPhone, op.defaultCountry ?? "BR");
+              // Persiste no contexto para nós posteriores (buildVarContext expõe phone-1.*)
+              const dsStore = (payload.context.datasources ??= {});
+              dsStore[op.datasourceName] = parsed;
+              for (const [k, v] of Object.entries(parsed)) {
+                vars[`${op.datasourceName}.${k}`] = v;
+              }
+            } else {
+              const resolved = interpolate(op.value, vars);
+              if (op.fieldKey.startsWith("lead.")) {
+                leadUpdate[op.fieldKey.substring(5)] = resolved;
+              } else if (op.fieldKey.startsWith("campo_lead.") || op.fieldKey.startsWith("campo_neg.") || op.fieldKey.startsWith("campo_empresa.")) {
+                const dotIdx = op.fieldKey.indexOf(".");
+                customUpdate[op.fieldKey.substring(dotIdx + 1)] = resolved;
+              } else if (op.fieldKey.startsWith("prod.")) {
+                prodUpdate[op.fieldKey.substring(5)] = resolved;
+              }
             }
           } catch (err) {
-            errors.push(`${op.fieldLabel}: ${String(err)}`);
+            errors.push(`${op.type === "mapeamento" ? op.fieldLabel : op.datasourceName}: ${String(err)}`);
           }
         }
 
         if (Object.keys(leadUpdate).length > 0 || Object.keys(customUpdate).length > 0) {
           const updateData: Record<string, unknown> = { ...leadUpdate };
+          // origin tem CHECK constraint no banco. Mapeia o valor recebido para a opção
+          // pré-definida mais adequada (ex: "Google" → "Google Ads"). Sem isso, um origin
+          // fora da lista aborta o UPDATE inteiro e nenhum campo do nó persiste.
+          if (updateData.origin !== undefined) {
+            const o = normalizeOrigin(updateData.origin);
+            if (o) updateData.origin = o; else delete updateData.origin; // vazio: não sobrescreve
+          }
           if (Object.keys(customUpdate).length > 0) {
             const existing = (leadData?.custom_field_values ?? {}) as Record<string, unknown>;
             updateData.custom_field_values = { ...existing, ...customUpdate };
@@ -746,6 +1113,290 @@ async function executeFlow(
         queue.push(...(children.get(node.id) ?? []));
       }
 
+    // ── Randomizador ───────────────────────────────────────────────────────
+    } else if (node.type === "randomizador") {
+      const branches: RandomBranch[] = node.randomBranches ?? [
+        { id: "a", label: "A", percentage: 25 },
+        { id: "b", label: "B", percentage: 25 },
+        { id: "c", label: "C", percentage: 25 },
+        { id: "d", label: "D", percentage: 25 },
+      ];
+
+      const total = branches.reduce((sum, b) => sum + (b.percentage ?? 0), 0);
+      const rand = Math.random() * (total > 0 ? total : 100);
+
+      let selectedBranchId: string | null = null;
+      let cumulative = 0;
+      for (const branch of branches) {
+        cumulative += branch.percentage ?? 0;
+        if (rand < cumulative) {
+          selectedBranchId = branch.id;
+          break;
+        }
+      }
+      if (!selectedBranchId && branches.length > 0) {
+        selectedBranchId = branches[branches.length - 1].id;
+      }
+
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId, company_id, lead_id: getLogLeadId(),
+        node_id: node.id, status: "success",
+      });
+
+      if (selectedBranchId) {
+        queue.push(...(children.get(`${node.id}_${selectedBranchId}`) ?? []));
+      }
+
+    // ── Mensagem (WhatsApp via Z-API) ────────────────────────────────────────
+    } else if (node.type === "mensagem") {
+      const subBlocks = node.subBlocks ?? [];
+      // Retoma a sequência a partir de um sub-bloco específico (após um Atraso de tempo longo)
+      const startIdx = (resumeContext && resumeContext.nodeId === node.id)
+        ? Math.max(0, Math.min(resumeContext.subIndex, subBlocks.length))
+        : 0;
+
+      // Sem sub-blocos configurados: nada a enviar, segue o fluxo
+      if (subBlocks.length === 0) {
+        await supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
+          node_id: node.id, status: "success",
+        });
+        queue.push(...(children.get(node.id) ?? []));
+        continue;
+      }
+
+      const currentLeadId = payload.lead_id;
+      const leadData = currentLeadId
+        ? ((await supabase.from("leads").select("*").eq("id", currentLeadId).single()).data as Record<string, unknown> | null)
+        : null;
+
+      const rawPhone = String((leadData?.whatsapp ?? leadData?.phone) ?? "").replace(/\D/g, "");
+      const ownerId = (leadData?.owner_id as string | undefined) ?? null;
+
+      // Falhas "duras" → roteia para o ramo de erro do nó
+      const hardError = (msg: string) => {
+        return supabase.from("automation_logs").insert({
+          automation_id: automationId, company_id, lead_id: getLogLeadId(),
+          node_id: node.id, status: "error", error_message: msg,
+        });
+      };
+
+      // Resolve as credenciais de envio. Prioridade: conexão escolhida no bloco
+      // (Configurações → Conexão / whatsapp_connections); se em branco, usa a
+      // conexão Z-API padrão da empresa (companies.zapi_*).
+      let creds: ZapiCreds | null = null;
+
+      if (node.connectionId) {
+        const { data: connRow } = await supabase
+          .from("whatsapp_connections")
+          .select("instance_id, token, client_token, connected, owner_id")
+          .eq("id", node.connectionId)
+          .maybeSingle();
+        const conn = connRow as Record<string, unknown> | null;
+        // Isolamento por dono: nunca usar conexão de outro tenant
+        if (!conn || (ownerId && conn.owner_id !== ownerId)) {
+          await hardError("Conexão selecionada não encontrada");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        if (!conn.connected || !conn.instance_id || !conn.token) {
+          await hardError("Conexão selecionada está desconectada");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        creds = {
+          instanceId: String(conn.instance_id),
+          token: String(conn.token),
+          clientToken: conn.client_token ? String(conn.client_token) : null,
+        };
+      } else {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("zapi_instance_id, zapi_token, zapi_client_token, zapi_connected")
+          .eq("id", company_id)
+          .maybeSingle();
+        const zapi = companyData as Record<string, unknown> | null;
+        if (!zapi?.zapi_connected || !zapi?.zapi_instance_id || !zapi?.zapi_token) {
+          await hardError("Nenhuma conexão de WhatsApp selecionada e a empresa não tem conexão padrão");
+          queue.push(...(errorChildren.get(node.id) ?? []));
+          continue;
+        }
+        creds = {
+          instanceId: String(zapi.zapi_instance_id),
+          token: String(zapi.zapi_token),
+          clientToken: zapi.zapi_client_token ? String(zapi.zapi_client_token) : null,
+        };
+      }
+
+      if (!rawPhone) {
+        await hardError("Lead sem telefone/WhatsApp para envio");
+        queue.push(...(errorChildren.get(node.id) ?? []));
+        continue;
+      }
+
+      const vars = await buildVarContext(supabase, leadData, payload);
+
+      const errors: string[] = [];
+      const skipped: string[] = [];
+      let sentCount = 0;
+      let paused = false;       // entrada_usuario: aguarda resposta do contato
+      let pausedTimer = false;  // atraso_tempo longo: agendado para retomar este nó
+
+      for (let i = startIdx; i < subBlocks.length; i++) {
+        const sb = subBlocks[i];
+        try {
+          if (sb.type === "mensagem_texto") {
+            const message = interpolate(sb.text ?? "", vars);
+            const buttons = (sb.buttons ?? [])
+              .map((bt) => String(bt.label ?? "").trim())
+              .filter(Boolean);
+            if (!message.trim() && buttons.length === 0) { skipped.push("mensagem de texto vazia"); continue; }
+
+            // "Quebrar mensagens?": cada parágrafo (linha em branco) vira um envio separado
+            const parts = sb.splitMessages
+              ? message.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+              : [message];
+            if (parts.length === 0) parts.push(message);
+
+            for (let i = 0; i < parts.length; i++) {
+              const isLast = i === parts.length - 1;
+              // Botões (se houver) vão anexados à última parte, via send-button-list
+              if (isLast && buttons.length > 0) {
+                await sendZapi(creds, "send-button-list", {
+                  phone: rawPhone,
+                  message: parts[i],
+                  buttonList: { buttons: buttons.map((label, idx) => ({ id: String(idx + 1), label })) },
+                });
+              } else {
+                await sendZapi(creds, "send-text", { phone: rawPhone, message: parts[i] });
+              }
+              // Persiste no histórico de conversas (mesma tabela do multiatendimento)
+              await supabase.from("whatsapp_messages").insert({
+                owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+                phone: rawPhone, from_me: true, body: parts[i], type: "text",
+              });
+              // Pequeno intervalo entre partes para preservar a ordem de entrega
+              if (!isLast) await new Promise<void>((r) => setTimeout(r, 600));
+            }
+            sentCount++;
+
+          } else if (sb.type === "atraso_tempo") {
+            // Atraso entre mensagens. Sem limite: ≤ 90 s espera inline (simula
+            // digitação); acima disso agenda no automation_pending e retoma este
+            // mesmo nó a partir do próximo sub-bloco (pg_cron).
+            const secs = Math.max(0, Number(sb.delaySeconds ?? 0));
+            if (secs <= 90) {
+              if (secs > 0) await new Promise<void>((r) => setTimeout(r, secs * 1000));
+            } else {
+              const { error: insErr } = await supabase.from("automation_pending").insert({
+                company_id,
+                automation_id: automationId,
+                lead_id: payload.lead_id || null,
+                node_ids: [node.id],
+                resume_sub_index: i + 1,
+                trigger_payload: payload,
+                resume_after: new Date(Date.now() + secs * 1000).toISOString(),
+              });
+              if (insErr) {
+                // Falha ao agendar: degrada para continuar imediatamente (não trava o fluxo)
+                console.error(`[node ${node.id}] failed to schedule atraso_tempo:`, insErr);
+              } else {
+                pausedTimer = true;
+                break;
+              }
+            }
+
+          } else if (sb.type === "arquivo_url" || sb.type === "arquivo_anexo" || sb.type === "mensagem_audio") {
+            const fileUrl = interpolate(sb.fileUrl ?? "", vars).trim();
+            if (!fileUrl) { skipped.push(`${sb.type}: sem URL de arquivo`); continue; }
+            let msgType = "document";
+            if (sb.type === "mensagem_audio") {
+              await sendZapi(creds, "send-audio", { phone: rawPhone, audio: fileUrl });
+              msgType = "audio";
+            } else {
+              const ext = (fileUrl.split("?")[0].split(".").pop() ?? "").toLowerCase();
+              const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext);
+              if (isImage) {
+                await sendZapi(creds, "send-image", { phone: rawPhone, image: fileUrl });
+                msgType = "image";
+              } else {
+                await sendZapi(creds, `send-document/${ext || "pdf"}`, { phone: rawPhone, document: fileUrl, fileName: sb.fileName ?? `arquivo.${ext || "pdf"}` });
+              }
+            }
+            await supabase.from("whatsapp_messages").insert({
+              owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+              phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
+              media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
+            });
+            sentCount++;
+
+          } else if (sb.type === "entrada_usuario") {
+            // PAUSA o fluxo: registra a espera pela resposta do contato. Quando a
+            // mensagem chegar (zapi-webhook → resume_reply), o motor retoma a
+            // partir dos filhos deste nó, com {{var_name}} preenchido.
+            const varName = String(sb.varName ?? "").trim() || "resposta";
+            const nextNodes = children.get(node.id) ?? [];
+            const timeoutNodes = timeoutChildren.get(node.id) ?? [];
+            // Prazo de espera configurável (padrão: 24 h se não definido)
+            const unitMs = sb.timeoutUnit === "minutos" ? 60_000
+              : sb.timeoutUnit === "dias" ? 86_400_000
+              : 3_600_000; // horas
+            const timeoutMs = sb.timeoutAmount && sb.timeoutAmount > 0
+              ? sb.timeoutAmount * unitMs
+              : 24 * 60 * 60 * 1000;
+            await supabase.from("automation_awaiting_reply").insert({
+              company_id,
+              automation_id: automationId,
+              lead_id: payload.lead_id || null,
+              owner_id: ownerId,
+              phone: rawPhone,
+              node_id: node.id,
+              var_name: varName,
+              resume_node_ids: nextNodes.map((n) => n.id),
+              timeout_node_ids: timeoutNodes.map((n) => n.id),
+              trigger_payload: payload,
+              expires_at: new Date(Date.now() + timeoutMs).toISOString(),
+            });
+            paused = true;
+            break; // não processa sub-blocos seguintes; serão retomados no resume
+          }
+        } catch (err) {
+          errors.push(`${sb.type}: ${String(err)}`);
+        }
+      }
+
+      // Atraso de tempo longo: já agendado no automation_pending. Não loga nem
+      // enfileira filhos — o nó será retomado e logado quando concluir.
+      if (pausedTimer) continue;
+
+      // Status: erro só se nada foi enviado e houve falha; alerta se houve skip/erro parcial.
+      // Quando o nó PAUSOU aguardando resposta (Entrada do usuário), registra como
+      // "alert" com nota clara — senão o nó apareceria como concluído ("success")
+      // mesmo estando só à espera, confundindo a leitura do log.
+      const noteMsgs = [...errors, ...skipped];
+      const status = paused
+        ? "alert"
+        : (sentCount === 0 && errors.length > 0)
+          ? "error"
+          : (noteMsgs.length > 0 ? "alert" : "success");
+      const logNote = paused
+        ? ["Aguardando resposta do contato", ...noteMsgs].join("; ")
+        : (noteMsgs.length > 0 ? noteMsgs.join("; ") : null);
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId, company_id, lead_id: getLogLeadId(),
+        node_id: node.id, status,
+        error_message: logNote,
+      });
+
+      // Pausado aguardando resposta: NÃO enfileira filhos (serão processados no resume)
+      if (paused) continue;
+
+      if (status === "error") {
+        queue.push(...(errorChildren.get(node.id) ?? []));
+      } else {
+        queue.push(...(children.get(node.id) ?? []));
+      }
+
     // ── Outros ─────────────────────────────────────────────────────────────
     } else {
       queue.push(...(children.get(node.id) ?? []));
@@ -753,10 +1404,80 @@ async function executeFlow(
   }
 }
 
+// ─── Z-API (WhatsApp) helper ──────────────────────────────────────────────────
+
+interface ZapiCreds {
+  instanceId: string;
+  token: string;
+  clientToken: string | null;
+}
+
+async function sendZapi(
+  creds: ZapiCreds,
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const url = `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}/${endpoint}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (creds.clientToken) headers["Client-Token"] = creds.clientToken;
+
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`Z-API ${endpoint} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
+  }
+}
+
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
 function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => vars[key.trim()] ?? "");
+}
+
+function parsePhoneNumber(raw: string, defaultCountry = "BR"): Record<string, string> {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return { ddi: "", phone: "", nationalNumber: "", internacionalNumber: "" };
+
+  let ddi = "";
+  let nationalDigits = digits;
+
+  if (defaultCountry === "BR") {
+    if (digits.startsWith("55") && digits.length >= 12) {
+      ddi = "55";
+      nationalDigits = digits.slice(2);
+    } else if (digits.length >= 10) {
+      ddi = "55";
+      nationalDigits = digits;
+    }
+  }
+
+  const fullPhone = ddi ? `+${ddi}${nationalDigits}` : `+${nationalDigits}`;
+
+  if (ddi === "55" && nationalDigits.length >= 10) {
+    const areaCode = nationalDigits.slice(0, 2);
+    const local = nationalDigits.slice(2);
+
+    const formattedLocal = local.length === 9
+      ? `${local.slice(0, 5)}-${local.slice(5)}`
+      : local.length === 8
+        ? `${local.slice(0, 4)}-${local.slice(4)}`
+        : local;
+
+    const intlLocal = local.length === 9
+      ? `${local.slice(0, 5)} ${local.slice(5)}`
+      : local.length === 8
+        ? `${local.slice(0, 4)} ${local.slice(4)}`
+        : local;
+
+    return {
+      ddi,
+      phone: fullPhone,
+      nationalNumber: `(${areaCode}) ${formattedLocal}`,
+      internacionalNumber: `+${ddi} ${areaCode} ${intlLocal}`,
+    };
+  }
+
+  return { ddi, phone: fullPhone, nationalNumber: nationalDigits, internacionalNumber: fullPhone };
 }
 
 async function buildVarContext(
@@ -798,6 +1519,18 @@ async function buildVarContext(
   const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
   for (const [k, v] of Object.entries(bodyFields)) {
     ctx[`gatilho.${k}`] = String(v ?? "");
+  }
+  // Saídas de datasources persistidas (ex: analise_telefone → phone-1.phone, phone-1.ddi…)
+  const datasources = payload.context.datasources ?? {};
+  for (const [dsName, fields] of Object.entries(datasources)) {
+    for (const [k, v] of Object.entries(fields)) {
+      ctx[`${dsName}.${k}`] = String(v ?? "");
+    }
+  }
+  // Respostas do bloco "Entrada do usuário" → {{var_name}}
+  const userInputs = payload.context.user_inputs ?? {};
+  for (const [k, v] of Object.entries(userInputs)) {
+    ctx[k] = String(v ?? "");
   }
   return ctx;
 }
@@ -925,11 +1658,22 @@ async function evaluateConditionNode(
 
   if (!lead) return { allPassed: false, passedCondIds: [] };
 
+  // Interpola os templates do config ({{gatilho.email}}, {{phone-1.phone}}, {{lead.x}}…)
+  // ANTES de comparar — sem isso, condições como com_email/com_telefone comparavam o valor
+  // do lead contra a string literal "{{gatilho.email}}" e davam sempre FALSE. As ações já
+  // interpolam (executeAction); aqui alinhamos as condições ao mesmo comportamento.
+  const vars = await buildVarContext(supabase, lead as Record<string, unknown>, payload);
+
   let allPassed = true;
   const passedCondIds: string[] = [];
 
   for (const cond of conditions) {
-    const passed = await checkCondition(supabase, cond, lead as Record<string, unknown>, payload);
+    const interpCfg: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(cond.config ?? {})) {
+      interpCfg[k] = typeof v === "string" ? interpolate(v, vars) : v;
+    }
+    const interpCond = { ...cond, config: interpCfg };
+    const passed = await checkCondition(supabase, interpCond, lead as Record<string, unknown>, payload);
     if (passed) {
       passedCondIds.push(cond.id);
     } else {
@@ -947,7 +1691,11 @@ async function checkCondition(
   payload: TriggerPayload,
 ): Promise<boolean> {
   const cfg = cond.config ?? {};
-  const { conditionId: id, categoryId: cat } = cond;
+  const { conditionId: id, categoryId: catRaw } = cond;
+  // neg_pipeline/neg_etapa pertencem à lógica "leads", mas flows antigos ou importados
+  // (DataCrazy) podem tê-los salvo com categoryId "negocios". Sem normalizar, cairiam no
+  // `default: return true` do bloco negócios → condição sempre TRUE → "Criar negócio" nunca roda.
+  const cat = (id === "neg_pipeline" || id === "neg_etapa") ? "leads" : catRaw;
 
   // ── Negócios ──────────────────────────────────────────────────────────────
   if (cat === "negocios") {
@@ -1000,18 +1748,52 @@ async function checkCondition(
       case "existente": return true;
       case "neg_pipeline": {
         const pipelineId = cfg.pipeline_id as string;
-        if (!pipelineId) return !!(lead.pipeline_id);
-        return lead.pipeline_id === pipelineId;
+        if (!pipelineId) return !!(lead.pipeline_id) && !!(lead.column_id);
+        // Lead está no pipeline correto E já tem etapa atribuída (não foi criado agora pelo criar_lead)
+        if (lead.pipeline_id === pipelineId) return !!(lead.column_id);
+        // Search for any negócio of this contact in the specified pipeline
+        const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+        const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
+        const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
+          ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
+        if (searchEmail) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("email", searchEmail).maybeSingle();
+          if (data) return true;
+        }
+        if (searchPhone) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("whatsapp", searchPhone).maybeSingle();
+          if (data) return true;
+        }
+        return false;
       }
       case "neg_etapa": {
         const etapaId = cfg.etapa_id as string;
         if (!etapaId) return !!(lead.column_id);
-        return lead.column_id === etapaId;
+        if (lead.column_id === etapaId) return true;
+        // Search for any negócio of this contact in the specified stage
+        const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+        const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
+        const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
+          ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
+        if (searchEmail) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("email", searchEmail).maybeSingle();
+          if (data) return true;
+        }
+        if (searchPhone) {
+          const { data } = await supabase.from("leads").select("id")
+            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("whatsapp", searchPhone).maybeSingle();
+          if (data) return true;
+        }
+        return false;
       }
       case "com_email": {
         const email = cfg.email as string;
         if (!email) return !!(lead.email);
-        return lead.email === email;
+        // E-mail é case-insensitive por convenção; normaliza para evitar falso-negativo.
+        return String(lead.email ?? "").trim().toLowerCase() === email.trim().toLowerCase();
       }
       case "com_nome": {
         const nome = cfg.nome as string;
@@ -1021,8 +1803,13 @@ async function checkCondition(
       }
       case "com_telefone": {
         const tel = cfg.telefone as string;
-        if (!tel) return !!(lead.phone);
-        return lead.phone === tel;
+        // O número pode estar em `phone` ou `whatsapp` (leads de webhook usam whatsapp).
+        // Compara só os dígitos para tolerar formatação (+55 11 98877-4760 vs +5511988774760).
+        const onlyDigits = (x: unknown) => String(x ?? "").replace(/\D/g, "");
+        const leadPhones = [lead.phone, lead.whatsapp];
+        if (!tel) return leadPhones.some((p) => onlyDigits(p) !== "");
+        const t = onlyDigits(tel);
+        return t !== "" && leadPhones.some((p) => onlyDigits(p) === t);
       }
       case "com_cpf": {
         const cpf = cfg.cpf as string;
@@ -1033,7 +1820,7 @@ async function checkCondition(
         const tagIds = splitIds(cfg.tag_ids as string);
         const leadTags = (lead.tags as string[]) ?? [];
         if (!tagIds.length) return leadTags.length > 0;
-        const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+        const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", payload.company_id);
         const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
         return tagNames.some((n: string) => leadTags.includes(n));
       }
@@ -1125,6 +1912,7 @@ async function executeAction(
   supabase: SupabaseClient,
   item: ActionItem,
   payload: TriggerPayload,
+  currentAutomationId?: string,
 ) {
   const { lead_id, company_id } = payload;
 
@@ -1165,11 +1953,17 @@ async function executeAction(
       const insertLead: Record<string, unknown> = {
         ...stagedLead,
         owner_id: ownerIdLead,
+        company_id: company_id,
         status: "open",
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
+      {
+        const o = normalizeOrigin(insertLead.origin);
+        if (o) insertLead.origin = o; else delete insertLead.origin; // vazio: usa default do banco
+      }
 
       // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
+      // column_id é deixado null intencionalmente: criar_negocio (próximo bloco) atribuirá a etapa correta
       if (!insertLead.pipeline_id && ownerIdLead) {
         const { data: firstPipeline } = await supabase
           .from("pipelines")
@@ -1180,17 +1974,6 @@ async function executeAction(
           .single();
         if (firstPipeline) {
           insertLead.pipeline_id = (firstPipeline as { id: string }).id;
-          // column_id também pode ser NOT NULL — busca a primeira etapa do pipeline
-          if (!insertLead.column_id) {
-            const { data: firstColumn } = await supabase
-              .from("pipeline_columns")
-              .select("id")
-              .eq("pipeline_id", insertLead.pipeline_id as string)
-              .order("created_at", { ascending: true })
-              .limit(1)
-              .single();
-            if (firstColumn) insertLead.column_id = (firstColumn as { id: string }).id;
-          }
         }
       }
 
@@ -1228,12 +2011,16 @@ async function executeAction(
         const insertData: Record<string, unknown> = {
           ...staged,
           owner_id: ownerIdForNew,
+          company_id: company_id,
           status: "open",
         };
         if (columnId) insertData.column_id = columnId;
         if (pipelineId) insertData.pipeline_id = pipelineId;
-        // Garante nome mínimo para satisfazer possível constraint NOT NULL
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
+        {
+          const o = normalizeOrigin(insertData.origin);
+          if (o) insertData.origin = o; else delete insertData.origin; // vazio: usa default do banco
+        }
 
         console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
         const { data: created, error: createErr } = await supabase
@@ -1250,10 +2037,24 @@ async function executeAction(
       }
 
       // Lead existente — move para a etapa/pipeline configurados
-      if (!columnId) return;
-      const update: Record<string, unknown> = { column_id: columnId };
+      if (!columnId && !pipelineId) return;
+      const update: Record<string, unknown> = {};
       if (pipelineId) update.pipeline_id = pipelineId;
-      await supabase.from("leads").update(update).eq("id", lead_id);
+      let finalColumnId = columnId;
+      if (!finalColumnId && pipelineId) {
+        const { data: firstCol } = await supabase
+          .from("pipeline_columns")
+          .select("id")
+          .eq("pipeline_id", pipelineId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .single();
+        finalColumnId = (firstCol as { id: string } | null)?.id ?? "";
+      }
+      if (finalColumnId) update.column_id = finalColumnId;
+      if (Object.keys(update).length > 0) {
+        await supabase.from("leads").update(update).eq("id", lead_id);
+      }
       break;
     }
 
@@ -1314,7 +2115,9 @@ async function executeAction(
     case "adicionar_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      // Escopo por empresa: um id de tag de OUTRA empresa (resíduo de import/cópia)
+      // jamais pode ser resolvido aqui — senão o nome vaza e vira tag "fantasma" no lead.
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", company_id);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
@@ -1327,7 +2130,7 @@ async function executeAction(
     case "remover_tags": {
       const tagIds = splitIds(cfg.tags as string);
       if (!tagIds.length) return;
-      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds);
+      const { data: tagRows } = await supabase.from("tags").select("name").in("id", tagIds).eq("company_id", company_id);
       const tagNames = (tagRows ?? []).map((r: { name: string }) => r.name);
       if (!tagNames.length) return;
       const { data: lead } = await supabase.from("leads").select("tags").eq("id", lead_id).single();
@@ -1399,6 +2202,18 @@ async function executeAction(
       break;
     }
 
+    case "enviar_notificacao": {
+      const mensagem = cfg.mensagem as string;
+      if (!mensagem) return;
+      await supabase.from("notifications").insert({
+        company_id,
+        lead_id,
+        message: mensagem,
+        read: false,
+      });
+      break;
+    }
+
     case "iniciar_automacao": {
       const automacaoId = cfg.automacao_id as string;
       if (!automacaoId) return;
@@ -1410,8 +2225,16 @@ async function executeAction(
         .eq("active", true)
         .single();
       if (targetAuto) {
+        const subPayload: TriggerPayload = {
+          ...payload,
+          trigger_type: "outra_automacao",
+          context: {
+            ...payload.context,
+            parent_automation_id: currentAutomationId,
+          },
+        };
         console.log(`Iniciando sub-automação: ${(targetAuto as AutomationRecord).name}`);
-        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, payload, (targetAuto as AutomationRecord).id);
+        await executeFlow(supabase, (targetAuto as AutomationRecord).flow, subPayload, (targetAuto as AutomationRecord).id);
       }
       break;
     }

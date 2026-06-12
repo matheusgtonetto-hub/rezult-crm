@@ -48,12 +48,10 @@ serve(async (req) => {
       customer_email: userEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        trial_period_days: 7,
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },
       success_url: "https://app.rezultcrm.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://app.rezultcrm.com/planos",
     });
 
     return json({ url: session.url });

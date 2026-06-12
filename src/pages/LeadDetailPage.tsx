@@ -233,7 +233,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   return (
     <div ref={wrapRef} className="group">
-      <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Cidade</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Cidade</label>
       {editing ? (
         <input
           ref={inputRef}
@@ -345,7 +345,7 @@ function EditableField({
 
   return (
     <div className="group">
-      <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>{label}</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>{label}</label>
       {editing ? (
         <Input
           ref={inputRef}
@@ -357,7 +357,7 @@ function EditableField({
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             if (e.key === "Escape") { setDraft(value == null ? "" : String(value)); setEditing(false); }
           }}
-          className="h-9 rounded-md text-sm"
+          className="h-9 rounded-md text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
         />
       ) : hasValue ? (
         <div
@@ -390,7 +390,7 @@ function UtmSection({ lead, updateField }: { lead: import("@/data/mockData").Lea
   const hasAny = !!(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.utmTerm || lead.utmContent);
   return (
     <>
-      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
       <button
         onClick={() => setOpen(v => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: "2px 0" }}
@@ -434,7 +434,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
           if (e.key === "Escape") { setOpen(false); setTitle(""); }
         }}
         placeholder="Título da tarefa..."
-        className="h-8 text-sm rounded-md"
+        className="h-8 text-sm rounded-md focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
       />
       <Button size="sm" className="h-8 rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}
         onClick={() => { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }}
@@ -502,6 +502,7 @@ export default function LeadDetailPage() {
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
+  const [deletingActivityGcalId, setDeletingActivityGcalId] = useState<string | undefined>();
 
   const openActivityDialog = () => {
     setEditingActivityId(null);
@@ -541,6 +542,7 @@ export default function LeadDetailPage() {
         meetLink: data.meetLink || undefined,
         participants: data.participants.length > 0 ? data.participants : undefined,
         gcalEventId: data.gcalEventId,
+        userName: profile?.full_name || undefined,
       });
       toast.success("Atividade criada!");
     }
@@ -658,6 +660,11 @@ export default function LeadDetailPage() {
   const newNoteDivRef = useRef<HTMLDivElement | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [pendingStageAdvance, setPendingStageAdvance] = useState<{
+    fromId: string; fromTitle: string;
+    toId: string; toTitle: string;
+    isSkipping: boolean; nextId?: string; nextTitle?: string;
+  } | null>(null);
   const editingDivRef = useRef<HTMLDivElement | null>(null);
   const [mentionState, setMentionState] = useState<{ query: string; top: number; left: number; source: "new" | "edit" } | null>(null);
 
@@ -807,17 +814,34 @@ export default function LeadDetailPage() {
 
   const handleStageClick = (stageId: string) => {
     if (stageId === lead.stage) return;
-    const oldCol = stages.find(c => c.id === lead.stage);
-    const newCol = stages.find(c => c.id === stageId);
-    moveLead(lead.id, lead.stage, stageId, 0);
+    const fromIdx  = stages.findIndex(c => c.id === lead.stage);
+    const toIdx    = stages.findIndex(c => c.id === stageId);
+    const fromCol  = stages[fromIdx];
+    const toCol    = stages[toIdx];
+    const isSkipping = toIdx > fromIdx + 1;
+    const nextCol  = isSkipping ? stages[fromIdx + 1] : undefined;
+    setPendingStageAdvance({
+      fromId: fromCol?.id ?? "", fromTitle: fromCol?.title ?? "",
+      toId: toCol?.id ?? "",   toTitle: toCol?.title ?? "",
+      isSkipping,
+      nextId: nextCol?.id, nextTitle: nextCol?.title,
+    });
+  };
+
+  const handleConfirmStageAdvance = () => {
+    if (!pendingStageAdvance) return;
+    const targetId    = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextId!    : pendingStageAdvance.toId;
+    const targetTitle = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextTitle! : pendingStageAdvance.toTitle;
+    moveLead(lead.id, pendingStageAdvance.fromId, targetId, 0);
     addActivity(lead.id, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${oldCol?.title}" para "${newCol?.title}".`,
+      description: `Movido de "${pendingStageAdvance.fromTitle}" para "${targetTitle}".`,
       userName: profile?.full_name || undefined,
     });
-    toast.success(`Etapa alterada para ${newCol?.title}`);
+    toast.success(`Etapa alterada para ${targetTitle}`);
+    setPendingStageAdvance(null);
   };
 
   const handleSaveNote = () => {
@@ -828,6 +852,7 @@ export default function LeadDetailPage() {
       date: new Date().toISOString(),
       type: "note",
       description: html,
+      userName: profile?.full_name || undefined,
     });
     if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
     setNewNote("");
@@ -984,11 +1009,10 @@ export default function LeadDetailPage() {
       {/* TOPBAR */}
       <div
         style={{
-          height: 60,
-          paddingTop: 16,
-          paddingBottom: 16,
+          paddingTop: 9,
+          paddingBottom: 9,
           background: "#FFFFFF",
-          borderBottom: "0.5px solid #EEEEEE",
+          borderBottom: "1px solid #EEEEEE",
           position: "sticky",
           top: 0,
           zIndex: 30,
@@ -1035,21 +1059,21 @@ export default function LeadDetailPage() {
             <>
               <button
                 onClick={handleWon}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#128A68", color: "#FFFFFF" }}
               >
                 <Trophy size={12} /> Ganho
               </button>
               <button
                 onClick={handleOpenRecovery}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#F59E0B", color: "#FFFFFF" }}
               >
                 <ArrowRightLeft size={12} /> Recuperação
               </button>
               <button
                 onClick={handleLost}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "#E24B4A", color: "#FFFFFF" }}
               >
                 <XCircle size={12} /> Perdido
@@ -1152,7 +1176,7 @@ export default function LeadDetailPage() {
         style={{
           height: 52,
           background: "#FFFFFF",
-          borderBottom: "0.5px solid #E5E5E5",
+          borderBottom: "1px solid #E5E5E5",
           paddingLeft: 16,
           paddingRight: 16,
         }}
@@ -1176,7 +1200,8 @@ export default function LeadDetailPage() {
             const isPast = idx < activeIdx;
             const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
             const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
-            const days = idx === activeIdx ? daysBetween(lead.entryDate, today) : isPast ? 2 : 0;
+            const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
+            const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
             return (
               <button
                 key={s.id}
@@ -1249,15 +1274,15 @@ export default function LeadDetailPage() {
                         value={lead.value ?? 0}
                         type="number"
                         display={v => formatBRL(Number(v) || 0)}
-                        valueStyle={{ color: "#128A68", fontWeight: 700, fontSize: 15 }}
+                        valueStyle={{ color: "#000000", fontWeight: 700, fontSize: 15 }}
                         onSave={v => updateField("value", Number(v.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0)}
                       />
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Pipeline</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Pipeline</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Produto</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Produto</label>
                         <Select
                           value={lead.productId || "none"}
                           onValueChange={v => {
@@ -1267,7 +1292,7 @@ export default function LeadDetailPage() {
                             updateField("value", prod?.defaultValue ?? 0);
                           }}
                         >
-                          <SelectTrigger className="h-9 rounded-md text-sm">
+                          <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
                             <SelectValue placeholder="Sem produto" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1279,7 +1304,7 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Responsáveis</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Responsáveis</label>
                         <div className="border rounded-md p-1.5 space-y-0.5 max-h-[110px] overflow-y-auto" style={{ borderColor: "hsl(var(--border))" }}>
                           {teamMembers.map(m => {
                             const sel = leadResps.includes(m);
@@ -1303,18 +1328,22 @@ export default function LeadDetailPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Data de entrada</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <EditableField
-                        label="Próximo follow-up"
-                        value={lead.nextFollowUp}
-                        type="date"
-                        onSave={v => updateField("nextFollowUp", v)}
-                        display={v => new Date(v).toLocaleDateString("pt-BR")}
-                      />
+                      <div>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Próxima atividade</label>
+                        <p style={{ fontSize: 13, color: "#111111" }}>
+                          {(() => {
+                            const next = (lead.activities ?? [])
+                              .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
+                              .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+                            return next ? new Date(next.scheduledAt!).toLocaleDateString("pt-BR") : "—";
+                          })()}
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -1340,7 +1369,7 @@ export default function LeadDetailPage() {
                       />
                       {/* Multi-email */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>E-mail</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>E-mail</label>
                         {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
                           <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors">
                             <span style={{ fontSize: 13, color: "#111111" }}>{em}</span>
@@ -1376,7 +1405,7 @@ export default function LeadDetailPage() {
                               }}
                               onBlur={() => { setNewEmailDraft(""); setAddEmailMode(false); }}
                               placeholder="email@exemplo.com"
-                              className="h-7 text-xs rounded-md flex-1"
+                              className="h-7 text-xs rounded-md flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                             />
                           </div>
                         ) : (
@@ -1446,7 +1475,7 @@ export default function LeadDetailPage() {
                       <div className="pt-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Canal</label>
                         <Select value={lead.origin} onValueChange={v => updateField("origin", v)}>
-                          <SelectTrigger className="h-9 rounded-md text-sm">
+                          <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1456,16 +1485,9 @@ export default function LeadDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <label className="block mb-1" style={{ fontSize: 11, color: "#AAAAAA" }}>Data de entrada</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
-                          {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-
                       <UtmSection lead={lead} updateField={updateField} />
 
-                      <div style={{ borderTop: "0.5px solid #E5E5E5", margin: "8px 0 4px" }} />
+                      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
 
                       <div className="space-y-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
@@ -1475,10 +1497,19 @@ export default function LeadDetailPage() {
                             return (
                               <span
                                 key={tagName}
-                                className="text-[10px] px-2 py-0.5 rounded-full text-white font-medium"
+                                className="text-[10px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
                                 style={{ background: t?.color || "#888" }}
                               >
                                 {tagName}
+                                <button
+                                  type="button"
+                                  onClick={() => updateField("tags", (lead.tags || []).filter(x => x !== tagName))}
+                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-white/25"
+                                  style={{ width: 13, height: 13 }}
+                                  aria-label={`Remover tag ${tagName}`}
+                                >
+                                  <X size={9} />
+                                </button>
                               </span>
                             );
                           })}
@@ -1627,8 +1658,8 @@ export default function LeadDetailPage() {
                   onClick={() => setTab(t.key)}
                   className="px-3 py-3 text-sm transition-colors"
                   style={{
-                    color: active ? "#128A68" : "#AAAAAA",
-                    fontWeight: active ? 600 : 500,
+                    color: active ? "#128A68" : "#333333",
+                    fontWeight: active ? 600 : 400,
                     borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
                     marginBottom: -1,
                   }}
@@ -1644,7 +1675,7 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div
                   style={{
-                    border: `0.5px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
+                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
                     borderRadius: 10,
                     background: "#FAFAFA",
                     padding: 12,
@@ -1748,19 +1779,23 @@ export default function LeadDetailPage() {
                       <div
                         style={{
                           background: n.pinned ? "#FFFBEB" : "#FAFAF7",
-                          border: n.pinned ? "0.5px solid #FCD34D" : "0.5px solid #E5E5E5",
+                          border: n.pinned ? "1px solid #FCD34D" : "1px solid #E5E5E5",
                           borderRadius: 10,
                           padding: 15,
                         }}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                            style={{ background: respColor }}
-                          >
-                            {lead.responsible?.[0] ?? "?"}
-                          </div>
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          {(() => { const authorName = n.userName ?? lead.responsible; return memberAvatars[authorName] ? (
+                            <img src={memberAvatars[authorName]} alt={authorName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                              style={{ background: memberColors[authorName] || "#888888" }}
+                            >
+                              {authorName?.[0] ?? "?"}
+                            </div>
+                          ); })()}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{n.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
                           {n.pinned && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
@@ -1904,7 +1939,7 @@ export default function LeadDetailPage() {
                         style={{
                           background: item.pinned ? "#FFFBEB" : "#FAFAF7",
                           border: item.pinned
-                            ? "0.5px solid #FCD34D"
+                            ? "1px solid #FCD34D"
                             : isCompleted
                             ? "1.5px solid #128A68"
                             : isNoShow
@@ -1917,21 +1952,21 @@ export default function LeadDetailPage() {
                       >
                         {/* Cabeçalho igual ao das anotações */}
                         <div className="flex items-center gap-2 mb-1">
-                          {memberAvatars[lead.responsible] ? (
+                          {(() => { const authorName = item.userName ?? lead.responsible; return memberAvatars[authorName] ? (
                             <img
-                              src={memberAvatars[lead.responsible]}
-                              alt={lead.responsible}
+                              src={memberAvatars[authorName]}
+                              alt={authorName}
                               className="w-6 h-6 rounded-full object-cover shrink-0"
                             />
                           ) : (
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                              style={{ background: respColor }}
+                              style={{ background: memberColors[authorName] || "#888888" }}
                             >
-                              {lead.responsible?.[0] ?? "?"}
+                              {authorName?.[0] ?? "?"}
                             </div>
-                          )}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          ); })()}
+                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{item.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
                           {item.pinned && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
@@ -1965,7 +2000,7 @@ export default function LeadDetailPage() {
                               <Pencil size={13} className="text-muted-foreground" />
                             </button>
                             <button
-                              onClick={() => setDeletingActivityId(item.id)}
+                              onClick={() => { setDeletingActivityId(item.id); setDeletingActivityGcalId(item.gcalEventId); }}
                               className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
                               style={{ width: 24, height: 24 }}
                               title="Excluir atividade"
@@ -2134,8 +2169,8 @@ export default function LeadDetailPage() {
                         {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
-                        <p className="text-sm font-medium" style={{ color: "#111111" }}>{item.description}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="font-medium" style={{ color: "#111111", fontSize: 13 }}>{item.description}</p>
+                        <p className="text-muted-foreground mt-0.5" style={{ fontSize: 11 }}>
                           {fmtActivityDate(item.date)}
                           {item.userName && <> · <span className="font-medium">{item.userName}</span></>}
                         </p>
@@ -2238,7 +2273,7 @@ export default function LeadDetailPage() {
                         style={{
                           background: act.pinned ? "#FFFBEB" : "#FAFAF7",
                           border: act.pinned
-                            ? "0.5px solid #FCD34D"
+                            ? "1px solid #FCD34D"
                             : isCompleted
                             ? "1.5px solid #128A68"
                             : isNoShow
@@ -2291,7 +2326,7 @@ export default function LeadDetailPage() {
                               <Pencil size={13} className="text-muted-foreground" />
                             </button>
                             <button
-                              onClick={() => setDeletingActivityId(act.id)}
+                              onClick={() => { setDeletingActivityId(act.id); setDeletingActivityGcalId(act.gcalEventId); }}
                               className="flex items-center justify-center rounded-md hover:bg-destructive/10 transition-colors"
                               style={{ width: 24, height: 24 }}
                               title="Excluir atividade"
@@ -2447,7 +2482,7 @@ export default function LeadDetailPage() {
                       <div
                         key={t.id}
                         className="flex items-center gap-3 p-3 rounded-lg"
-                        style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}
+                        style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
                       >
                         <Checkbox
                           checked={done}
@@ -2516,7 +2551,7 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enviados manualmente</p>
                     <div className="space-y-2">
                       {uploadedFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
                           <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "#128A68" }}>
                             {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
@@ -2544,7 +2579,7 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Via WhatsApp</p>
                     <div className="space-y-2">
                       {waFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "0.5px solid #E5E5E5" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
                           <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "#F0FDF4", color: "#25D366" }}>
                             {f.type === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
@@ -2575,6 +2610,35 @@ export default function LeadDetailPage() {
         </section>
       </div>
     </div>
+
+    <AlertDialog open={!!pendingStageAdvance} onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {pendingStageAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingStageAdvance?.isSkipping ? (
+              <>
+                O lead precisa avançar uma etapa por vez.{" "}
+                Deseja mover para <strong className="text-foreground">{pendingStageAdvance.nextTitle}</strong> agora?
+              </>
+            ) : (
+              <>
+                Deseja mover para{" "}
+                <strong className="text-foreground">{pendingStageAdvance?.toTitle}</strong>?
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingStageAdvance(null)}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmStageAdvance}>
+            {pendingStageAdvance?.isSkipping ? `Mover para "${pendingStageAdvance.nextTitle}"` : "Confirmar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <AlertDialog open={!!deletingNoteId} onOpenChange={open => { if (!open) setDeletingNoteId(null); }}>
       <AlertDialogContent>
@@ -2617,7 +2681,7 @@ export default function LeadDetailPage() {
           </p>
         ) : (
           <Select value={selectedLossReasonId} onValueChange={setSelectedLossReasonId}>
-            <SelectTrigger className="rounded-lg">
+            <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue placeholder="Selecione um motivo" />
             </SelectTrigger>
             <SelectContent>
@@ -2658,7 +2722,7 @@ export default function LeadDetailPage() {
               value={recoveryPipelineId}
               onValueChange={setRecoveryPipelineId}
             >
-              <SelectTrigger className="rounded-lg border-card-border">
+              <SelectTrigger className="rounded-lg border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Selecione o funil" />
               </SelectTrigger>
               <SelectContent>
@@ -2710,7 +2774,7 @@ export default function LeadDetailPage() {
                   Nenhum produto vinculado. Selecione para registrar o ganho.
                 </p>
                 <Select value={wonProductId} onValueChange={setWonProductId}>
-                  <SelectTrigger className="rounded-lg">
+                  <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Escolha um produto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2741,7 +2805,7 @@ export default function LeadDetailPage() {
               Encaminhe o cliente ganho para outro funil, como CS ou Onboarding.
             </p>
             <Select value={wonTransferPipelineId} onValueChange={setWonTransferPipelineId}>
-              <SelectTrigger className="rounded-lg">
+              <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Manter no funil atual" />
               </SelectTrigger>
               <SelectContent>
@@ -2822,8 +2886,9 @@ export default function LeadDetailPage() {
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={() => {
               if (deletingActivityId) {
-                deleteActivity(lead.id, deletingActivityId);
+                deleteActivity(lead.id, deletingActivityId, deletingActivityGcalId);
                 setDeletingActivityId(null);
+                setDeletingActivityGcalId(undefined);
                 toast.success("Atividade excluída.");
               }
             }}

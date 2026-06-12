@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -192,6 +192,9 @@ export default function PipelinePage() {
     toColTitle: string;
     toIndex: number;
     sourceIndex: number;
+    isSkipping?: boolean;
+    nextColId?: string;
+    nextColTitle?: string;
   } | null>(null);
 
   // Filters
@@ -214,13 +217,15 @@ export default function PipelinePage() {
       return;
     }
     if (source.droppableId !== destination.droppableId) {
-      const cols = activePipeline?.columns ?? [];
-      const fromCol = cols.find(c => c.id === source.droppableId);
-      const toCol   = cols.find(c => c.id === destination.droppableId);
-      const isAdvance = (toCol?.position ?? 0) > (fromCol?.position ?? 0);
+      const cols = [...(activePipeline?.columns ?? [])].sort((a, b) => a.position - b.position);
+      const fromCol  = cols.find(c => c.id === source.droppableId);
+      const toCol    = cols.find(c => c.id === destination.droppableId);
+      const fromIdx  = cols.findIndex(c => c.id === source.droppableId);
+      const toIdx    = cols.findIndex(c => c.id === destination.droppableId);
+      const isAdvance = toIdx > fromIdx;
       if (isAdvance) {
-        // Não move o estado ainda — DnD reverte o card automaticamente para origem
-        // enquanto o modal está aberto. O move só acontece se confirmar.
+        const isSkipping = toIdx > fromIdx + 1;
+        const nextCol = isSkipping ? cols[fromIdx + 1] : undefined;
         setPendingAdvance({
           leadId: draggableId,
           leadName: leads[draggableId]?.name ?? "",
@@ -230,6 +235,9 @@ export default function PipelinePage() {
           toColTitle: toCol?.title ?? "",
           toIndex: destination.index,
           sourceIndex: source.index,
+          isSkipping,
+          nextColId: nextCol?.id,
+          nextColTitle: nextCol?.title,
         });
         return;
       }
@@ -246,12 +254,14 @@ export default function PipelinePage() {
 
   const handleConfirmAdvance = () => {
     if (!pendingAdvance) return;
-    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, pendingAdvance.toColId, pendingAdvance.toIndex);
+    const targetColId    = pendingAdvance.isSkipping ? pendingAdvance.nextColId!    : pendingAdvance.toColId;
+    const targetColTitle = pendingAdvance.isSkipping ? pendingAdvance.nextColTitle! : pendingAdvance.toColTitle;
+    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, targetColId, pendingAdvance.toIndex);
     addActivity(pendingAdvance.leadId, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${pendingAdvance.fromColTitle}" para "${pendingAdvance.toColTitle}".`,
+      description: `Movido de "${pendingAdvance.fromColTitle}" para "${targetColTitle}".`,
     });
     setPendingAdvance(null);
   };
@@ -550,12 +560,12 @@ export default function PipelinePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome, empresa ou #"
-              className="pl-8 h-9 w-64 bg-card border-card-border rounded-lg text-sm"
+              className="pl-8 h-9 w-64 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
           <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-9 w-40 bg-card border-card-border rounded-lg text-sm">
+            <SelectTrigger className="h-9 w-40 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card border-card-border">
@@ -566,7 +576,7 @@ export default function PipelinePage() {
           </Select>
 
           <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
-            <SelectTrigger className="h-9 w-36 bg-card border-card-border rounded-lg text-sm">
+            <SelectTrigger className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-card border-card-border">
@@ -582,14 +592,14 @@ export default function PipelinePage() {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm"
+              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <span>—</span>
             <Input
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm"
+              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
@@ -875,14 +885,19 @@ export default function PipelinePage() {
                                               </div>
                                             )}
 
-                                            {/* Follow-up + WhatsApp */}
+                                            {/* Próxima atividade + WhatsApp */}
                                             <div className="flex items-center justify-between mt-0.5">
-                                              {lead.nextFollowUp ? (
-                                                <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                                                  <Calendar size={11} />
-                                                  Follow-up: {new Date(lead.nextFollowUp + "T00:00:00").toLocaleDateString("pt-BR")}
-                                                </div>
-                                              ) : <div />}
+                                              {(() => {
+                                                const next = (lead.activities ?? [])
+                                                  .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
+                                                  .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
+                                                return next ? (
+                                                  <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                                    <CalendarClock size={11} />
+                                                    {new Date(next.scheduledAt!).toLocaleDateString("pt-BR")}
+                                                  </div>
+                                                ) : <div />;
+                                              })()}
                                               <Popover
                                                 open={wpPopoverLeadId === leadId}
                                                 onOpenChange={open => setWpPopoverLeadId(open ? leadId : null)}
@@ -962,8 +977,8 @@ export default function PipelinePage() {
                                                     return (
                                                       <span
                                                         key={tagName}
-                                                        className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
-                                                        style={{ background: t.color || "#888" }}
+                                                        className="text-[10px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
+                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "#888" }}
                                                       >
                                                         {tagName}
                                                       </span>
@@ -1081,15 +1096,28 @@ export default function PipelinePage() {
         <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar avanço de etapa</AlertDialogTitle>
+              <AlertDialogTitle>
+                {pendingAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
-                <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
+                {pendingAdvance?.isSkipping ? (
+                  <>
+                    O lead <strong className="text-foreground">{pendingAdvance.leadName}</strong> precisa avançar uma etapa por vez.{" "}
+                    Deseja mover para <strong className="text-foreground">{pendingAdvance.nextColTitle}</strong> agora?
+                  </>
+                ) : (
+                  <>
+                    Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
+                    <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
+                  </>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={handleCancelAdvance}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmAdvance}>Confirmar</AlertDialogAction>
+              <AlertDialogAction onClick={handleConfirmAdvance}>
+                {pendingAdvance?.isSkipping ? `Mover para "${pendingAdvance.nextColTitle}"` : "Confirmar"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1104,7 +1132,7 @@ export default function PipelinePage() {
               value={renamingCol?.title || ""}
               onChange={(e) => setRenamingCol(prev => prev ? { ...prev, title: e.target.value } : prev)}
               placeholder="Nome da etapa"
-              className="rounded-lg"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <DialogFooter>
               <Button variant="outline" className="rounded-lg" onClick={() => setRenamingCol(null)}>
@@ -1166,7 +1194,7 @@ export default function PipelinePage() {
               value={newColumnName}
               onChange={(e) => setNewColumnName(e.target.value)}
               placeholder="Ex: Aguardando assinatura"
-              className="rounded-lg"
+              className="rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
             <DialogFooter>
               <Button variant="outline" className="rounded-lg" onClick={() => setShowNewColumn(false)}>
@@ -1255,7 +1283,7 @@ export default function PipelinePage() {
                           value={editPipelineName}
                           onChange={e => setEditPipelineName(e.target.value)}
                           placeholder="Nome da pipeline"
-                          className="mt-1.5 rounded-lg"
+                          className="mt-1.5 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                       </div>
                       <div>
@@ -1264,7 +1292,7 @@ export default function PipelinePage() {
                           value={editPipelineDesc}
                           onChange={e => setEditPipelineDesc(e.target.value)}
                           placeholder="Descreva o propósito desta pipeline"
-                          className="mt-1.5 rounded-lg resize-none"
+                          className="mt-1.5 rounded-lg resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           rows={3}
                         />
                       </div>
@@ -1286,7 +1314,7 @@ export default function PipelinePage() {
                               value={newGroupName}
                               onChange={e => setNewGroupName(e.target.value)}
                               placeholder="Nome do grupo"
-                              className="rounded-lg h-8 text-sm flex-1"
+                              className="rounded-lg h-8 text-sm flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                               onKeyDown={async e => {
                                 if (e.key === "Enter") {
                                   if (!newGroupName.trim()) return;

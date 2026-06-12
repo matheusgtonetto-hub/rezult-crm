@@ -393,7 +393,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           lineHeight: 1.4,
                           background: isLead ? "#FFFFFF" : "#0F6E56",
                           color: isLead ? "#111111" : "#FFFFFF",
-                          border: isLead ? "0.5px solid #E5E5E5" : "none",
+                          border: isLead ? "1px solid #E5E5E5" : "none",
                           borderRadius: isLead
                             ? "4px 16px 16px 16px"
                             : "16px 4px 16px 16px",

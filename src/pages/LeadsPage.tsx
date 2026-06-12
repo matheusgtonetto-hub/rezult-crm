@@ -19,10 +19,11 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber, crmTags } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
+  const [filterPipeline, setFilterPipeline] = useState("all");
   const [filterStage, setFilterStage] = useState("all");
 
   // Lead modal (create / edit)
@@ -43,22 +44,20 @@ export default function LeadsPage() {
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
 
-  const allLeadsSorted = Object.values(leads).sort((a, b) => a.dealNumber - b.dealNumber);
-  const seenPhones = new Set<string>();
-  const allLeads = allLeadsSorted.filter(l => {
-    const phone = l.whatsapp?.replace(/\D/g, "") ?? "";
-    if (!phone) return true;
-    const norm = phone.startsWith("55") ? phone : `55${phone}`;
-    if (seenPhones.has(norm)) return false;
-    seenPhones.add(norm);
-    return true;
+  // Ordena por data de criação (mais recente primeiro); desempate pelo dealNumber
+  const allLeadsSorted = Object.values(leads).sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (tb !== ta) return tb - ta;
+    return b.dealNumber - a.dealNumber;
   });
-  const filtered = allLeads.filter(l => {
+  const filtered = allLeadsSorted.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterResp !== "all") {
       const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
       if (!resps.includes(filterResp)) return false;
     }
+    if (filterPipeline !== "all" && l.pipelineId !== filterPipeline) return false;
     if (filterStage !== "all" && l.stage !== filterStage) return false;
     return true;
   });
@@ -138,10 +137,10 @@ export default function LeadsPage() {
           placeholder="Buscar por nome ou empresa..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-card border-card-border rounded-lg max-w-xs"
+          className="bg-card border-card-border rounded-lg max-w-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
         />
         <Select value={filterResp} onValueChange={setFilterResp}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-40">
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-40 focus:ring-0 focus:ring-offset-0 focus:border-primary">
             <SelectValue placeholder="Responsável" />
           </SelectTrigger>
           <SelectContent className="bg-card border-card-border">
@@ -149,13 +148,25 @@ export default function LeadsPage() {
             {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filterPipeline} onValueChange={v => { setFilterPipeline(v); setFilterStage("all"); }}>
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
+            <SelectValue placeholder="Pipeline" />
+          </SelectTrigger>
+          <SelectContent className="bg-card border-card-border">
+            <SelectItem value="all">Todos</SelectItem>
+            {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-44">
+          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
             <SelectValue placeholder="Etapa" />
           </SelectTrigger>
           <SelectContent className="bg-card border-card-border">
             <SelectItem value="all">Todas</SelectItem>
-            {columns.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+            {(filterPipeline !== "all"
+              ? pipelines.find(p => p.id === filterPipeline)?.columns ?? []
+              : columns
+            ).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -170,15 +181,16 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
-          <Table>
+          <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Nome</TableHead>
-                <TableHead className="text-muted-foreground">Responsável</TableHead>
-                <TableHead className="text-muted-foreground">Contato</TableHead>
-                <TableHead className="text-muted-foreground">Pipeline</TableHead>
-                <TableHead className="text-muted-foreground">Data de Criação</TableHead>
-                <TableHead className="text-muted-foreground w-10"></TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "20%" }}>Nome</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,7 +200,7 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
-                  <TableCell className="font-medium text-foreground">{lead.name}</TableCell>
+                  <TableCell className="font-medium text-foreground truncate">{lead.name}</TableCell>
                   <TableCell>
                     {(() => {
                       const resps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
@@ -222,17 +234,32 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-foreground">
+                      <span className="text-sm text-foreground truncate">
                         {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
                         {lead.whatsapp || "—"}
                       </span>
                       {lead.email && (
-                        <span className="text-xs text-muted-foreground">{lead.email}</span>
+                        <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                    <div className="flex flex-wrap gap-1">
+                      {(lead.tags ?? []).length === 0
+                        ? <span className="text-sm text-muted-foreground">—</span>
+                        : (lead.tags ?? []).map(tagName => {
+                            const t = crmTags.find(x => x.name === tagName);
+                            return (
+                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
+                                {tagName}
+                              </span>
+                            );
+                          })
+                      }
+                    </div>
+                  </TableCell>
+                  <TableCell className="truncate">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full whitespace-nowrap">
                       {pipelines.find(p => p.id === lead.pipelineId)?.name || "—"}
                     </span>
                   </TableCell>
@@ -240,17 +267,10 @@ export default function LeadsPage() {
                     {(() => {
                       const d = lead.created_at ? new Date(lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
-                      const fmt = new Intl.DateTimeFormat("pt-BR", {
-                        timeZone: "America/Sao_Paulo",
-                        day: "2-digit", month: "2-digit", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", hour12: false,
-                      });
-                      const parts = fmt.formatToParts(d);
-                      const get = (t: string) => parts.find(p => p.type === t)?.value ?? "";
-                      return `${get("day")}/${get("month")}/${get("year")} às ${get("hour")}:${get("minute")}`;
+                      return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
                     })()}
                   </TableCell>
-                  <TableCell onClick={e => e.stopPropagation()}>
+                  <TableCell className="text-right pr-3" onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
@@ -328,7 +348,7 @@ export default function LeadsPage() {
                   setDealStage(p?.columns[0]?.id ?? "");
                 }}
               >
-                <SelectTrigger className="border-card-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
@@ -337,7 +357,7 @@ export default function LeadsPage() {
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Etapa</label>
               <Select value={dealStage} onValueChange={setDealStage}>
-                <SelectTrigger className="border-card-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(dealPipelineObj?.columns ?? []).map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>

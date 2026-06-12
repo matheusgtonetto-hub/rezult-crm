@@ -225,7 +225,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Nome completo"
-              className="border-border"
+              className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoFocus
             />
           </div>
@@ -262,7 +262,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
               <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
-                <SelectTrigger className="border-border">
+                <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,7 +323,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <Field label="Telefone">
               <div className="flex gap-2">
                 <Select value={form.phoneDdi} onValueChange={v => set("phoneDdi", v)}>
-                  <SelectTrigger className="w-[90px] border-border text-xs shrink-0">
+                  <SelectTrigger className="w-[90px] border-border text-xs shrink-0 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -338,7 +338,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   value={form.whatsapp}
                   onChange={e => set("whatsapp", e.target.value)}
                   placeholder="(11) 99999-0000"
-                  className="border-border flex-1"
+                  className="border-border flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
             </Field>
@@ -372,7 +372,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                       if (e.key === "Enter") { e.preventDefault(); addEmail(emailInput); }
                     }}
                     placeholder="email@exemplo.com"
-                    className="border-border flex-1"
+                    className="border-border flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                   <button
                     type="button"
@@ -391,7 +391,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.site}
                 onChange={e => set("site", e.target.value)}
                 placeholder="https://exemplo.com"
-                className="border-border"
+                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
           </TabsContent>
@@ -403,7 +403,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.document}
                 onChange={e => set("document", e.target.value)}
                 placeholder="000.000.000-00"
-                className="border-border"
+                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
@@ -412,13 +412,13 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.company}
                 onChange={e => set("company", e.target.value)}
                 placeholder="Nome da empresa"
-                className="border-border"
+                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
             <Field label="Origem">
               <Select value={form.origin} onValueChange={v => set("origin", v)}>
-                <SelectTrigger className="border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGINS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
@@ -430,7 +430,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 type="date"
                 value={form.birthDate}
                 onChange={e => set("birthDate", e.target.value)}
-                className="border-border"
+                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
           </TabsContent>
@@ -442,7 +442,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.country}
                 onChange={e => set("country", e.target.value)}
                 placeholder="Brasil"
-                className="border-border"
+                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
@@ -453,7 +453,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   onChange={e => { set("zipCode", e.target.value); fetchCep(e.target.value); }}
                   placeholder="00000-000"
                   maxLength={9}
-                  className="border-border pr-8"
+                  className="border-border pr-8 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
                 {cepLoading && (
                   <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -464,31 +464,31 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Endereço">
-                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="border-border" />
+                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                 </Field>
               </div>
               <Field label="Número">
-                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="border-border" />
+                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </Field>
             </div>
 
             <Field label="Complemento">
-              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="border-border" />
+              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </Field>
 
             <Field label="Bairro">
-              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="border-border" />
+              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </Field>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Cidade">
-                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="border-border" />
+                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                 </Field>
               </div>
               <Field label="UF">
                 <Select value={form.state} onValueChange={v => set("state", v)}>
-                  <SelectTrigger className="border-border"><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     {BRASIL_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -503,7 +503,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
               value={form.notes}
               onChange={e => set("notes", e.target.value)}
               placeholder="Adicione informações relevantes sobre este lead..."
-              className="border-border min-h-[200px] resize-none"
+              className="border-border min-h-[200px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </TabsContent>
         </Tabs>

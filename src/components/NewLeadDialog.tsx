@@ -57,14 +57,14 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
       <DialogContent className="bg-card border-card-border sm:max-w-md">
         <DialogHeader><DialogTitle className="text-foreground">Novo Lead</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input placeholder="Nome *" value={name} onChange={e => setName(e.target.value)} className="bg-background border-card-border rounded-lg" />
-          <Input placeholder="Empresa" value={company} onChange={e => setCompany(e.target.value)} className="bg-background border-card-border rounded-lg" />
-          <Input placeholder="WhatsApp *" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="bg-background border-card-border rounded-lg" />
-          <Input placeholder="Valor (R$)" type="number" value={value} onChange={e => setValue(e.target.value)} className="bg-background border-card-border rounded-lg" />
-          <Input placeholder="Responsável" value={responsible} onChange={e => setResponsible(e.target.value)} className="bg-background border-card-border rounded-lg" />
+          <Input placeholder="Nome *" value={name} onChange={e => setName(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input placeholder="Empresa" value={company} onChange={e => setCompany(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input placeholder="WhatsApp *" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input placeholder="Valor (R$)" type="number" value={value} onChange={e => setValue(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input placeholder="Responsável" value={responsible} onChange={e => setResponsible(e.target.value)} className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           <div className="grid grid-cols-2 gap-3">
             <Select value={priority} onValueChange={v => setPriority(v as Priority)}>
-              <SelectTrigger className="bg-background border-card-border rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-card border-card-border">
                 <SelectItem value="Alta">Alta</SelectItem>
                 <SelectItem value="Média">Média</SelectItem>
@@ -72,7 +72,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
               </SelectContent>
             </Select>
             <Select value={origin} onValueChange={v => setOrigin(v as LeadOrigin)}>
-              <SelectTrigger className="bg-background border-card-border rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-background border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-card border-card-border">
                 {["Instagram", "Facebook Ads", "Indicação", "Site", "Outro"].map(o => (
                   <SelectItem key={o} value={o}>{o}</SelectItem>
@@ -81,7 +81,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
             </Select>
           </div>
           <Select value={stage} onValueChange={setStage}>
-            <SelectTrigger className="bg-background border-card-border rounded-lg"><SelectValue placeholder="Estágio" /></SelectTrigger>
+            <SelectTrigger className="bg-background border-card-border rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Estágio" /></SelectTrigger>
             <SelectContent className="bg-card border-card-border">
               {columns.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
             </SelectContent>

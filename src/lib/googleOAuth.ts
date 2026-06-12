@@ -11,7 +11,8 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
-export function initGoogleOAuth() {
+export function initGoogleOAuth(companyId: string) {
+  const state = btoa(JSON.stringify({ companyId }));
   const params = new URLSearchParams({
     client_id:     CLIENT_ID,
     redirect_uri:  REDIRECT_URI,
@@ -19,6 +20,7 @@ export function initGoogleOAuth() {
     scope:         SCOPES,
     access_type:   "offline",
     prompt:        "consent",
+    state,
   });
   const fullUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   console.log("[GoogleOAuth] REDIRECT_URI:", REDIRECT_URI);
@@ -26,7 +28,7 @@ export function initGoogleOAuth() {
   window.location.href = fullUrl;
 }
 
-export async function checkGoogleConnection() {
+export async function checkGoogleConnection(companyId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -34,20 +36,22 @@ export async function checkGoogleConnection() {
     .from("google_oauth_tokens")
     .select("id, email, scopes, token_expiry")
     .eq("user_id", user.id)
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (error || !data) return null;
   return data as { id: string; email: string | null; scopes: string[] | null; token_expiry: string | null };
 }
 
-export async function disconnectGoogle() {
+export async function disconnectGoogle(companyId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Usuário não autenticado");
 
   const { error } = await supabase
     .from("google_oauth_tokens")
     .delete()
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("company_id", companyId);
 
   if (error) throw error;
 }
