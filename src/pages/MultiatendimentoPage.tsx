@@ -31,19 +31,34 @@ function nowTime() {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 // Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
-function phonesMatch(a: string, b: string): boolean {
-  const da = a.replace(/\D/g, "");
-  const db = b.replace(/\D/g, "");
-  if (!da || !db) return false;
-  return da.slice(-11) === db.slice(-11);
+// Normaliza um telefone BR para o núcleo DDD + 8 dígitos finais, tolerando o
+// código do país 55 e o 9º dígito de celular — que o WhatsApp/Z-API às vezes
+// entrega sem o 9 (ex.: 553189904484 ↔ 31989904484). Comparar pelos últimos N
+// dígitos não basta porque o 9 desloca a contagem.
+function normalizeBrPhone(raw: string): string {
+  let d = (raw ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // remove código do país
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3); // remove o 9 extra
+  return d; // DDD(2) + 8 dígitos
 }
-// Retorna par de variantes do telefone para query OR (com e sem "55")
-function phoneVariants(raw: string): { local: string; full: string } {
-  const d = raw.replace(/\D/g, "");
-  if (d.length >= 12 && d.startsWith("55")) {
-    return { local: d.slice(2), full: d };
+function phonesMatch(a: string, b: string): boolean {
+  const na = normalizeBrPhone(a);
+  const nb = normalizeBrPhone(b);
+  if (na.length < 10 || nb.length < 10) return false;
+  return na.slice(-10) === nb.slice(-10); // DDD + 8 dígitos
+}
+// Todas as variantes plausíveis de como o telefone pode estar salvo (com/sem 55,
+// com/sem o 9º dígito) — para montar a query OR do histórico de mensagens.
+function phoneVariants(raw: string): string[] {
+  const core = normalizeBrPhone(raw); // DDD + 8
+  if (core.length < 10) {
+    const d = (raw ?? "").replace(/\D/g, "");
+    return d ? [d] : [];
   }
-  return { local: d, full: `55${d}` };
+  const ddd = core.slice(0, 2);
+  const eight = core.slice(-8);
+  const with9 = `${ddd}9${eight}`; // DDD + 9 + 8 (celular)
+  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
 }
 
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
@@ -532,7 +547,7 @@ export default function MultiatendimentoPage() {
         type WaMsgRow = { phone: string; instance_id?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
         const convMap = new Map<string, WaMsgRow>();
         for (const m of msgs) {
-          const key = `${m.instance_id ?? ""}|${m.phone}`;
+          const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
           if (!convMap.has(key)) convMap.set(key, m as WaMsgRow);
         }
 
@@ -573,7 +588,7 @@ export default function MultiatendimentoPage() {
     // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
     // que foram salvas com o ID da conversa como chave (quando não há telefone real)
     const phoneFilter = rawPhone
-      ? (() => { const { local, full } = phoneVariants(rawPhone); return `phone.eq.${local},phone.eq.${full},phone.eq.${activeId}`; })()
+      ? [...phoneVariants(rawPhone).map(v => `phone.eq.${v}`), `phone.eq.${activeId}`].join(",")
       : `phone.eq.${activeId}`;
 
     let histQuery = supabase
