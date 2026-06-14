@@ -1597,7 +1597,7 @@ export default function MultiatendimentoPage() {
 
   return (
     <div
-      style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }}
+      style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))" }}
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
@@ -1700,7 +1700,7 @@ export default function MultiatendimentoPage() {
       </aside>
 
       {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#F4F6F8", minWidth: 0 }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "hsl(var(--background))", minWidth: 0 }}>
         {active && cs ? (
           <>
             {/* header */}

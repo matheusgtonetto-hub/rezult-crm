@@ -9,7 +9,7 @@ export interface Subscription {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
-  plan_name: "starter" | "essential" | "pro" | null;
+  plan_name: "silver" | "platinum" | "emerald" | null;
   billing_period: "monthly" | "semiannual" | "annual" | null;
   status: "trialing" | "active" | "past_due" | "canceled" | "unpaid" | null;
   trial_ends_at: string | null;

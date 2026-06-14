@@ -649,7 +649,7 @@ export default function CalendarPage() {
   return (
     <div
       style={{
-        background: "#F4F6F8",
+        background: "hsl(var(--background))",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",

@@ -1083,6 +1083,13 @@ export default function AutomacoesPage() {
     if (!newName.trim()) { toast.error("Informe um nome"); return; }
     if (!user || !company) return;
     if (startType === "model") { toast.info("Em breve"); return; }
+
+    const { PLAN_LIMITS } = await import("@/data/plans");
+    const limit = PLAN_LIMITS[company.plan]?.automations ?? PLAN_LIMITS.free.automations;
+    if (limit !== null && automations.length >= limit) {
+      toast.error(`Seu plano permite no máximo ${limit} automação${limit > 1 ? "ões" : ""}. Faça upgrade para criar mais.`);
+      return;
+    }
     setCreating(true);
     try {
       const { data, error } = await supabase
@@ -1695,7 +1702,7 @@ export default function AutomacoesPage() {
   // ─── RENDER ───────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))", overflow: "hidden" }}>
       {/* Left sidebar — sempre visível */}
       {Sidebar()}
 
@@ -1703,7 +1710,7 @@ export default function AutomacoesPage() {
       {view === "list" && (
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Header */}
-          <div style={{ padding: "20px 28px 0", background: "#F4F6F8" }}>
+          <div style={{ padding: "20px 28px 0", background: "hsl(var(--background))" }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111111", margin: 0 }}>Fluxo de automações</h1>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
               <div style={{ display: "flex", gap: 0 }}>
@@ -1971,7 +1978,7 @@ export default function AutomacoesPage() {
           )}
 
           {/* Canvas area — flex: 1, encolhe quando painel está aberto */}
-          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "#F4F6F8", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
 
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>

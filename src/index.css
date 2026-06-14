@@ -33,7 +33,7 @@
     --accent-foreground: 0 0% 6.7%;   /* #111111 */
 
     /* BACKGROUNDS / SURFACES */
-    --background: 210 14% 97%;           /* #F4F6F8 */
+    --background: 150 25% 98%;           /* #FAFCFB */
     --foreground: 0 0% 6.7%;          /* #111111 */
 
     --card: 0 0% 100%;                /* #FFFFFF */
@@ -118,6 +118,16 @@
   .glow-rz {
     animation: rzShine 4s ease-in-out infinite;
   }
+}
+
+@keyframes banner-btn-attention {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+
+@keyframes spin-border {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 @keyframes pilotGlow {

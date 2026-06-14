@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-// Replace with your real Cloudflare Turnstile sitekey when available
 const TURNSTILE_SITEKEY = "0x4AAAAAAA_PLACEHOLDER";
 
 declare global {
@@ -32,7 +31,6 @@ export default function RegisterPage() {
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Register Turnstile callback and load script once
   useEffect(() => {
     window.__turnstile_register_cb = () => {};
 
@@ -68,9 +66,7 @@ export default function RegisterPage() {
       return;
     }
 
-    // Supabase "Confirm email" disabled — user auto-confirmed, go straight to onboarding.
     if (!needsConfirmation) {
-      // Check if this user was invited to an existing company
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_name")
@@ -83,7 +79,6 @@ export default function RegisterPage() {
     sessionStorage.setItem("register_email", email);
 
     if (resentConfirmation) {
-      // Account already exists but was unconfirmed — we resent the confirmation link.
       toast.info("Reenviamos o link de confirmação para o seu e-mail. Verifique sua caixa de entrada.");
     }
 
@@ -91,177 +86,174 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ background: "#F0F4F8" }}
-    >
-      <div
-        className="w-full max-w-[460px] bg-card rounded-2xl p-10"
-        style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
-      >
-        {/* Logo */}
-        <div className="flex justify-center mb-5">
-          <Logo size="md" showIcon />
+    <div className="h-screen overflow-y-auto flex items-center justify-center px-4 py-6" style={{ background: "#EFF5F2" }}>
+      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
+        {/* Rotating border light */}
+        <div
+          className="absolute inset-[-100%]"
+          style={{
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            animation: "spin-border 4s linear infinite",
+          }}
+        />
+        <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[20px]">
+          <div className="flex justify-center items-center mb-[15px]">
+            <Logo size="md" showIcon />
+            <span className="text-[28px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
+          </div>
+
+          <h1 className="text-[23px] font-semibold text-foreground text-center">Crie sua conta</h1>
+          <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
+            Preencha os dados abaixo para começar.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-3 mt-[15px]">
+            <div className="space-y-[3px]">
+              <Label htmlFor="fullName" className="text-[13px] font-normal text-black">Nome completo</Label>
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="Seu nome completo"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-[3px]">
+              <Label htmlFor="reg-email" className="text-[13px] font-normal text-black">E-mail</Label>
+              <Input
+                id="reg-email"
+                type="email"
+                placeholder="email@gmail.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="space-y-[3px]">
+              <Label htmlFor="reg-password" className="text-[13px] font-normal text-black">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="reg-password"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="Insira sua senha"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(s => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-[3px]">
+              <Label htmlFor="reg-confirm" className="text-[13px] font-normal text-black">Confirmar senha</Label>
+              <div className="relative">
+                <Input
+                  id="reg-confirm"
+                  type={showConfirmPwd ? "text" : "password"}
+                  placeholder="Repita sua senha"
+                  value={confirmPwd}
+                  onChange={e => setConfirmPwd(e.target.value)}
+                  className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPwd(s => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showConfirmPwd ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <div
+                className="cf-turnstile"
+                data-sitekey={TURNSTILE_SITEKEY}
+                data-callback="__turnstile_register_cb"
+                data-theme="light"
+                data-language="pt-BR"
+              />
+            </div>
+
+            <div className="space-y-[5px]">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={agreedTos}
+                  onChange={e => setAgreedTos(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-[12px] text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
+                  Li e concordo com os{" "}
+                  <a
+                    href="https://datacrazy.io/termos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Termos de Serviço
+                  </a>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={agreedPrivacy}
+                  onChange={e => setAgreedPrivacy(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
+                />
+                <span className="text-[12px] text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
+                  Li e concordo com a{" "}
+                  <a
+                    href="https://datacrazy.io/politica-de-privacidade"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Política de Privacidade
+                  </a>
+                </span>
+              </label>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-auto py-[10px] rounded-[5px] font-semibold"
+              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy}
+            >
+              {loading ? "Criando conta..." : "Começar teste grátis"}
+            </Button>
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="text-[13px] text-primary hover:text-primary/80 transition-colors"
+              >
+                Voltar
+              </button>
+            </div>
+          </form>
         </div>
-
-        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo ao Rezult</h1>
-        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[3px]">
-          Preencha os dados abaixo para criar a sua conta.
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-5">
-          {/* Nome completo */}
-          <div className="space-y-1.5">
-            <Label htmlFor="fullName" className="text-[13px] font-normal">Nome completo</Label>
-            <Input
-              id="fullName"
-              type="text"
-              placeholder="Seu nome completo"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              autoComplete="name"
-              autoFocus
-            />
-          </div>
-
-          {/* E-mail */}
-          <div className="space-y-1.5">
-            <Label htmlFor="reg-email" className="text-[13px] font-normal">E-mail</Label>
-            <Input
-              id="reg-email"
-              type="email"
-              placeholder="exemplo@gmail.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              autoComplete="email"
-            />
-          </div>
-
-          {/* Senha */}
-          <div className="space-y-1.5">
-            <Label htmlFor="reg-password" className="text-[13px] font-normal">Senha</Label>
-            <div className="relative">
-              <Input
-                id="reg-password"
-                type={showPwd ? "text" : "password"}
-                placeholder="Insira sua senha"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(s => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
-              >
-                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Confirmar senha */}
-          <div className="space-y-1.5">
-            <Label htmlFor="reg-confirm" className="text-[13px] font-normal">Confirmar senha</Label>
-            <div className="relative">
-              <Input
-                id="reg-confirm"
-                type={showConfirmPwd ? "text" : "password"}
-                placeholder="Repita sua senha"
-                value={confirmPwd}
-                onChange={e => setConfirmPwd(e.target.value)}
-                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPwd(s => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={showConfirmPwd ? "Ocultar senha" : "Mostrar senha"}
-              >
-                {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Cloudflare Turnstile */}
-          <div className="flex justify-center py-1">
-            <div
-              className="cf-turnstile"
-              data-sitekey={TURNSTILE_SITEKEY}
-              data-callback="__turnstile_register_cb"
-              data-theme="light"
-              data-language="pt-BR"
-            />
-          </div>
-
-          {/* Terms checkboxes */}
-          <div className="space-y-3 pt-1">
-            <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={agreedTos}
-                onChange={e => setAgreedTos(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
-              />
-              <span className="text-sm text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
-                Li e concordo com os{" "}
-                <a
-                  href="https://datacrazy.io/termos"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="text-primary hover:underline font-medium"
-                >
-                  Termos de Serviço
-                </a>
-              </span>
-            </label>
-
-            <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={agreedPrivacy}
-                onChange={e => setAgreedPrivacy(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
-              />
-              <span className="text-sm text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
-                Li e concordo com a{" "}
-                <a
-                  href="https://datacrazy.io/politica-de-privacidade"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="text-primary hover:underline font-medium"
-                >
-                  Política de Privacidade
-                </a>
-              </span>
-            </label>
-          </div>
-
-          {/* Primary CTA */}
-          <Button
-            type="submit"
-            className="w-full h-12 rounded-lg font-semibold mt-2"
-            disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy}
-          >
-            {loading ? "Criando conta..." : "Criar sua conta"}
-          </Button>
-
-          {/* Back */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11 rounded-lg font-medium border-card-border"
-            onClick={() => navigate("/")}
-          >
-            Voltar
-          </Button>
-        </form>
       </div>
     </div>
   );

@@ -13,17 +13,17 @@ import { Check, Zap, ArrowLeft, Loader2 } from "lucide-react";
 // ─── Price IDs (Stripe test mode) ────────────────────────────────────────────
 
 const STRIPE_PRICES = {
-  starter: {
+  silver: {
     monthly:    "price_1Tbp3sHLGbQg56rmYk9RbtKj",
     semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK",
     annual:     "price_1Tbp3sHLGbQg56rmuvxhNhoQ",
   },
-  essential: {
+  platinum: {
     monthly:    "price_1Tbp7lHLGbQg56rmxz4NpynU",
     semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a",
     annual:     "price_1Tbp7lHLGbQg56rmJcvQ4GY5",
   },
-  pro: {
+  emerald: {
     monthly:    "price_1TbpAAHLGbQg56rmh1i1HdvY",
     semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL",
     annual:     "price_1TbpAAHLGbQg56rmYRFZlZ3I",
@@ -46,8 +46,8 @@ interface PlanInfo {
 
 const PLAN_INFO: PlanInfo[] = [
   {
-    key: "starter",
-    name: "Starter",
+    key: "silver",
+    name: "Silver",
     prices:       { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
     features: [
@@ -61,8 +61,8 @@ const PLAN_INFO: PlanInfo[] = [
     ],
   },
   {
-    key: "essential",
-    name: "Essential",
+    key: "platinum",
+    name: "Platinum",
     badge: "Mais popular",
     prices:       { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
@@ -79,8 +79,8 @@ const PLAN_INFO: PlanInfo[] = [
     ],
   },
   {
-    key: "pro",
-    name: "Pro",
+    key: "emerald",
+    name: "Emerald",
     prices:       { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
     features: [
@@ -235,10 +235,10 @@ export default function PlanosPage() {
             <div
               key={plan.key}
               className={cn(
-                "relative flex flex-col rounded-2xl border-2 p-8 bg-card transition-all",
+                "relative flex flex-col rounded-2xl border p-8 bg-card transition-all",
                 plan.badge
                   ? "border-primary shadow-md shadow-primary/10"
-                  : "border-border"
+                  : "border-gray-200"
               )}
             >
               {/* Popular badge */}

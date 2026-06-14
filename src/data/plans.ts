@@ -14,10 +14,26 @@ export interface PlanDefinition {
   pricing: PlanPricing;
 }
 
+export interface PlanLimits {
+  leads: number | null;
+  members: number | null;
+  connections: number | null;
+  automations: number | null;
+  pipelines: number | null;
+  webhooks: number | null;
+}
+
+export const PLAN_LIMITS: Record<string, PlanLimits> = {
+  free:     { leads: 50,     members: 2,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 1    },
+  silver:   { leads: 5000,   members: 4,    connections: 3,    automations: 8,    pipelines: 5,    webhooks: 3    },
+  platinum: { leads: 100000, members: 15,   connections: 10,   automations: 20,   pipelines: 20,   webhooks: 15   },
+  emerald:  { leads: null,   members: null, connections: null, automations: null, pipelines: null, webhooks: null },
+};
+
 export const PLANS: PlanDefinition[] = [
   {
-    key: "starter",
-    name: "Starter",
+    key: "silver",
+    name: "Silver",
     features: [
       "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
       "Criação e gerenciamento de negócios e produtos.",
@@ -36,8 +52,8 @@ export const PLANS: PlanDefinition[] = [
     },
   },
   {
-    key: "essential",
-    name: "Essential",
+    key: "platinum",
+    name: "Platinum",
     badge: "Recomendado",
     features: [
       "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
@@ -59,8 +75,8 @@ export const PLANS: PlanDefinition[] = [
     },
   },
   {
-    key: "pro",
-    name: "Pro",
+    key: "emerald",
+    name: "Emerald",
     features: [
       "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
       "Gerenciamento ilimitado de leads com controle de tags.",

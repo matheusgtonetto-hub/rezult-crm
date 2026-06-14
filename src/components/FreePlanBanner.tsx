@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,21 +11,20 @@ import {
 import { PLANS } from "@/data/plans";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Check, Zap, X } from "lucide-react";
+import { Check, Zap, TriangleAlert } from "lucide-react";
 
 type BillingTab = "mensal" | "semestral" | "anual";
 
-export const BANNER_HEIGHT = 52;
+export const BANNER_HEIGHT = 50;
 
 export function FreePlanBanner() {
   const { isFreePlan, planExpired, planDaysLeft } = useCompany();
+  const navigate = useNavigate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
 
   // Only show when actively in free trial (not expired)
   if (!isFreePlan || planExpired || planDaysLeft === null) return null;
-
-  const daysText = planDaysLeft === 1 ? "1 dia" : `${planDaysLeft} dias`;
 
   const getPrice = (plan: typeof PLANS[0]) => {
     if (billingTab === "semestral") return plan.pricing.semestral;
@@ -42,20 +42,18 @@ export function FreePlanBanner() {
     <>
       {/* ── Fixed bottom banner ─────────────────────────────────────────── */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-6"
-        style={{
-          height: BANNER_HEIGHT,
-          background: "hsl(var(--primary))",
-        }}
+        className="fixed bottom-0 left-[67px] right-[15px] z-50 rounded-t-[7px] overflow-hidden flex items-center justify-center gap-6 px-6"
+        style={{ height: BANNER_HEIGHT, background: "#EF4444" }}
       >
-        <p className="text-sm font-medium text-primary-foreground">
-          Seu plano gratuito acaba em{" "}
-          <strong className="font-bold">{daysText}</strong>
+        <p className="text-sm font-[500] text-white flex items-center gap-2">
+          <TriangleAlert size={16} className="shrink-0" />
+          Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades
         </p>
         <Button
           size="sm"
-          className="h-8 text-xs font-semibold rounded-lg bg-white text-primary hover:bg-white/90"
-          onClick={() => setUpgradeOpen(true)}
+          className="h-8 text-xs font-semibold rounded-lg text-black shrink-0"
+          style={{ background: "#ffffff", animation: "banner-btn-attention 1.2s ease-in-out infinite" }}
+          onClick={() => navigate("/configuracoes/planos")}
         >
           Fazer upgrade agora!
         </Button>

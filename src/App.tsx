@@ -73,6 +73,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/verify-2fa" element={<Verify2FAPage />} />
           <Route path="/company-register" element={<CompanyRegisterPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/planos" element={<PlanosPage />} />

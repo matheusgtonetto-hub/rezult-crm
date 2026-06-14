@@ -15,6 +15,7 @@ interface AuthContextType {
     resentConfirmation?: boolean;
   }>;
   resendConfirmation: (email: string) => Promise<void>;
+  verifyOtp: (email: string, token: string) => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
@@ -129,9 +130,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { full_name: name },
-        // Redirect to /login so the user sees the confirmation success banner
-        // and must log in manually — prevents auto-login after email confirmation.
-        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
@@ -142,7 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.resend({
         type: "signup",
         email,
-        options: { emailRedirectTo: `${window.location.origin}/login` },
       });
       return { error: null, needsConfirmation: true, resentConfirmation: true };
     }
@@ -164,8 +161,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/login` },
     });
+  };
+
+  const verifyOtp = async (email: string, token: string): Promise<string | null> => {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+    if (error) return error.message;
+    if (data.session) setSession(data.session);
+    return null;
   };
 
   const resetPassword = async (email: string): Promise<string | null> => {
@@ -190,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         resendConfirmation,
+        verifyOtp,
         resetPassword,
         signOut,
       }}

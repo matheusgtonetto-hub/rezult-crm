@@ -138,6 +138,14 @@ export default function IntegracoesPage() {
 
   const createIntegration = async (type: string) => {
     if (!user || !company || creating) return;
+
+    const { PLAN_LIMITS } = await import("@/data/plans");
+    const limit = PLAN_LIMITS[company.plan]?.webhooks ?? PLAN_LIMITS.free.webhooks;
+    if (limit !== null && integrations.length >= limit) {
+      toast.error(`Seu plano permite no máximo ${limit} integração${limit > 1 ? "ões" : ""}. Faça upgrade para adicionar mais.`);
+      return;
+    }
+
     setCreating(true);
     const { data, error } = await supabase.from("webhook_integrations").insert({
       owner_id: user.id,
