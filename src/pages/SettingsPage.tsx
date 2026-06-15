@@ -170,7 +170,7 @@ export default function SettingsPage() {
 function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
   const { profile, updateProfile, uploadAvatar, updateTheme } = useProfile();
   const { user, signOut } = useAuth();
-  const { company } = useCompany();
+  const { company, availableCompanies } = useCompany();
   const [name, setName]       = useState(profile?.full_name ?? "");
   const [phone, setPhone]     = useState(maskPhone(profile?.phone ?? ""));
   const [theme, setTheme]     = useState<"light" | "dark">(profile?.theme ?? "light");
@@ -262,8 +262,9 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
         </div>
       </Card>
 
-      {/* Seção Informações */}
+      {/* Card único: Informações + Preferências + Imagem de perfil */}
       <Card>
+        {/* Informações */}
         <SectionTitle title="Informações" subtitle="Suas informações de cadastro e login" />
         <div className="grid grid-cols-2 gap-4">
 
@@ -328,19 +329,9 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           </div>
         </div>
 
-        <div className="flex justify-end mt-5 pt-4 border-t border-card-border">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-primary hover:bg-primary/90 min-w-[100px]"
-          >
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
-        </div>
-      </Card>
+        <hr className="border-card-border my-[30px]" />
 
-      {/* Preferências */}
-      <Card>
+        {/* Preferências */}
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-foreground">Preferências</p>
@@ -359,10 +350,10 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
             </Select>
           </div>
         </div>
-      </Card>
 
-      {/* Imagem de perfil */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
+        {/* Imagem de perfil */}
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
@@ -380,25 +371,45 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
             <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
         </div>
+
+        <div className="flex justify-end mt-5 pt-4 border-t border-card-border">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-primary hover:bg-primary/90 min-w-[100px]"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
       </Card>
 
-      {company && (
+      {availableCompanies.length > 0 && (
         <Card>
-          <SectionTitle title="Empresa" subtitle="Empresa vinculada à sua conta" />
+          <SectionTitle title="Empresa" subtitle={availableCompanies.length > 1 ? "Empresas vinculadas à sua conta" : "Empresa vinculada à sua conta"} />
           <div className="border border-card-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold">
-                  {company.name?.[0]?.toUpperCase() ?? "E"}
+            {availableCompanies.map((c, i) => (
+              <div
+                key={c.id}
+                className={`flex items-center justify-between px-4 py-3 hover:bg-muted/50 ${i > 0 ? "border-t border-card-border" : ""}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                    {c.logo_url
+                      ? <img src={c.logo_url} alt={c.name} className="w-full h-full object-contain" />
+                      : c.name?.[0]?.toUpperCase() ?? "E"}
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-medium text-foreground">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {{"free":"Free","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[c.plan] ?? c.plan}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[14px] font-medium text-foreground">{company.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {{"free":"Free","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[company.plan] ?? company.plan}
-                  </p>
-                </div>
+                {c.id === company?.id && (
+                  <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">Ativa</span>
+                )}
               </div>
-            </div>
+            ))}
           </div>
         </Card>
       )}

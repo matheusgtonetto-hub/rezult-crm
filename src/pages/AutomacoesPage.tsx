@@ -1579,7 +1579,7 @@ export default function AutomacoesPage() {
   const Sidebar = () => (
     <>
       {!leftCollapsed ? (
-        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
+        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
           <div style={{ padding: 12, borderBottom: "1px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
@@ -1597,12 +1597,13 @@ export default function AutomacoesPage() {
                 title="Filtrar por estado"
               />
             </div>
-            <button
+            <Button
               onClick={() => setCreateOpen(true)}
-              style={{ width: "100%", marginTop: 8, background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
+              size="sm"
+              className="w-full justify-center rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold mt-2"
             >
-              <Plus size={14} /> Adicionar automação
-            </button>
+              <Plus size={14} className="mr-1.5" /> Adicionar automação
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
@@ -1657,7 +1658,7 @@ export default function AutomacoesPage() {
                           <button
                             key={item.id}
                             onClick={() => requestLeave(() => openEditor(item.id))}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
+                            className={`w-full flex items-center gap-2 px-3 py-[6px] rounded-[10px] text-[14px] font-medium transition-colors ${
                               sel
                                 ? "bg-sidebar-accent border-l-[3px] border-primary"
                                 : "text-foreground hover:bg-muted/50"
