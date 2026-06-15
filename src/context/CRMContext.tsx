@@ -50,7 +50,7 @@ interface CRMContextType {
   updateTask: (id: string, data: Partial<Task>) => void;
   deleteTask: (id: string) => void;
 
-  addActivity: (leadId: string, activity: Omit<Activity, "id">) => void;
+  addActivity: (leadId: string, activity: Omit<Activity, "id">) => Promise<void>;
   updateActivity: (leadId: string, activityId: string, description: string) => void;
   patchActivity: (leadId: string, activityId: string, fields: Partial<Pick<Activity, "title" | "description" | "scheduledAt" | "meetLink" | "contactEmail" | "type" | "durationMinutes" | "participants">>) => void;
   completeActivity: (leadId: string, activityId: string) => void;
@@ -294,13 +294,31 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const ownerId = company.owner_id;
     const companyId = company.id;
 
+    async function fetchAllActivities(cId: string): Promise<Record<string, unknown>[]> {
+      const PAGE = 1000;
+      const all: Record<string, unknown>[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("activities")
+          .select("*")
+          .eq("company_id", cId)
+          .order("date", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) { console.error("fetchAllActivities error:", error.message); break; }
+        if (data) all.push(...(data as Record<string, unknown>[]));
+        if (!data || data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    }
+
     async function loadAll() {
 
-      const [pipelineRes, columnRes, leadRes, activityRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
+      const [pipelineRes, columnRes, leadRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
         supabase.from("pipelines").select("*").eq("company_id", companyId).order("position"),
         supabase.from("pipeline_columns").select("*").eq("company_id", companyId).order("position"),
         supabase.from("leads").select("*").eq("company_id", companyId).order("position"),
-        supabase.from("activities").select("*").eq("company_id", companyId),
         supabase.from("tasks").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("tags").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("pipeline_groups").select("*").eq("company_id", companyId).order("created_at"),
@@ -328,10 +346,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setMemberEmails(emailMap);
       setMemberAvatars(avatarMap);
 
+      const dbActivities = await fetchAllActivities(companyId);
+
       const dbPipelines = (pipelineRes.data ?? []) as Record<string, unknown>[];
       const dbColumns = (columnRes.data ?? []) as Record<string, unknown>[];
       const dbLeads = (leadRes.data ?? []) as Record<string, unknown>[];
-      const dbActivities = (activityRes.data ?? []) as Record<string, unknown>[];
       const dbTasks = (taskRes.data ?? []) as Record<string, unknown>[];
       const dbTagsList = (tagRes.data ?? []) as Record<string, unknown>[];
       const dbGroupsList = (groupRes.data ?? []) as Record<string, unknown>[];
@@ -512,7 +531,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
             setLeads(prev => {
               if (!prev[leadId]) return prev;
-              return { ...prev, [leadId]: dbToLead(row, prev[leadId].activities) };
+              const updated = dbToLead(row, prev[leadId].activities);
+              // Preserve local notes to avoid overwriting active user edits via Realtime
+              updated.notes = prev[leadId].notes;
+              return { ...prev, [leadId]: updated };
             });
 
             setPipelines(prev => {
@@ -1260,7 +1282,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // ── Activities ─────────────────────────────────────────────────────────────
 
-  const addActivity = useCallback((leadId: string, activity: Omit<Activity, "id">) => {
+  const addActivity = useCallback(async (leadId: string, activity: Omit<Activity, "id">): Promise<void> => {
     const tempId = `a-${Date.now()}`;
     const full: Activity = { ...activity, id: tempId };
     setLeads(prev => ({
@@ -1268,7 +1290,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), full] },
     }));
     if (user && company) {
-      supabase.from("activities").insert({
+      const { data, error } = await supabase.from("activities").insert({
         owner_id: company.owner_id,
         company_id: company.id,
         lead_id: leadId,
@@ -1283,9 +1305,17 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         meet_link: activity.meetLink ?? null,
         participants: activity.participants ? JSON.stringify(activity.participants) : null,
         gcal_event_id: activity.gcalEventId ?? null,
-      }).select().single().then(({ data, error }) => {
-        if (error) { console.error("addActivity error:", error.message); return; }
-        if (data) {
+      }).select().single();
+      if (error) {
+        console.error("addActivity error:", error.message);
+        // Reverte o estado otimista em caso de erro
+        setLeads(prev => ({
+          ...prev,
+          [leadId]: { ...prev[leadId], activities: prev[leadId]?.activities.filter(a => a.id !== tempId) ?? [] },
+        }));
+        throw error;
+      }
+      if (data) {
           const realId = (data as Record<string, unknown>).id as string;
           setLeads(prev => ({
             ...prev,
@@ -1294,8 +1324,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
               activities: prev[leadId]?.activities.map(a => a.id === tempId ? { ...a, id: realId } : a) ?? [],
             },
           }));
-        }
-      });
+      }
     }
   }, [user, company]);
 

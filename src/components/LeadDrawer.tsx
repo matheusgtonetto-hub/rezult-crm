@@ -151,6 +151,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [historyTab, setHistoryTab]  = useState<HistoryTab>("historico");
   const [newNote, setNewNote]         = useState("");
   const [notesOpen, setNotesOpen]     = useState(true);
+  const [localNotes, setLocalNotes]   = useState("");
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Novo negócio
   const [showNewDeal, setShowNewDeal]       = useState(false);
@@ -184,6 +186,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
   // Deriva lead ANTES dos hooks restantes (sem early return ainda)
   const lead = leadId ? leads[leadId] : null;
+
+  // Sincroniza notas locais quando o lead muda (abre outro lead ou carrega pela 1ª vez)
+  useEffect(() => {
+    if (lead?.notes !== undefined) setLocalNotes(lead.notes);
+  }, [leadId]);
   const leadPhone = lead?.whatsapp ?? "";
 
   // Carrega arquivos ao abrir aba — hook ANTES do early return
@@ -450,8 +457,19 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               </button>
               {notesOpen && (
                 <textarea
-                  value={lead.notes}
-                  onChange={e => updateLead(leadId, { notes: e.target.value })}
+                  value={localNotes}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setLocalNotes(value);
+                    if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+                    notesTimerRef.current = setTimeout(() => {
+                      updateLead(leadId, { notes: value });
+                    }, 600);
+                  }}
+                  onBlur={() => {
+                    if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+                    updateLead(leadId, { notes: localNotes });
+                  }}
                   placeholder="Adicionar notas..."
                   style={{ width: "100%", border: "1px solid #E8E8E8", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "#333", resize: "vertical", minHeight: 72, outline: "none", fontFamily: "inherit", lineHeight: 1.5, boxSizing: "border-box" }}
                 />

@@ -846,20 +846,23 @@ export default function LeadDetailPage() {
     setPendingStageAdvance(null);
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     const html = newNoteDivRef.current?.innerHTML ?? "";
     if (!html.trim() || html === "<br>") return;
-    addActivity(lead.id, {
-      id: `a-${Date.now()}`,
-      date: new Date().toISOString(),
-      type: "note",
-      description: html,
-      userName: profile?.full_name || undefined,
-    });
-    if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
-    setNewNote("");
-    setNewNoteActive(false);
-    toast.success("Anotação salva!");
+    try {
+      await addActivity(lead.id, {
+        date: new Date().toISOString(),
+        type: "note",
+        description: html,
+        userName: profile?.full_name || undefined,
+      });
+      if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
+      setNewNote("");
+      setNewNoteActive(false);
+      toast.success("Anotação salva!");
+    } catch {
+      toast.error("Erro ao salvar anotação. Tente novamente.");
+    }
   };
 
   const applyNewNoteFormat = (cmd: string, val?: string) => {
