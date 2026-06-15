@@ -61,7 +61,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
 ];
 
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-card border border-gray-200 rounded-xl p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-card border border-gray-200 rounded-[8px] p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -112,10 +112,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-[200px] bg-card border-r border-card-border flex flex-col shrink-0">
+      <aside className="w-[230px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
+          className="flex items-center gap-2 text-[14px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[14px] px-4 py-2 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
@@ -251,7 +251,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </h2>
               <CheckCircle2 size={16} className="text-primary" />
             </div>
-            <p className="text-[13px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
+            <p className="text-[14px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
             {createdDate && (
               <p className="text-xs text-muted-foreground mt-1">Conta criada em {createdDate}</p>
             )}
@@ -376,7 +376,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <Upload size={20} className="text-muted-foreground mx-auto mb-1" />
-            <p className="text-[13px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
         </div>
@@ -392,7 +392,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                   {company.name?.[0]?.toUpperCase() ?? "E"}
                 </div>
                 <div>
-                  <p className="text-[13px] font-medium text-foreground">{company.name}</p>
+                  <p className="text-[14px] font-medium text-foreground">{company.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {{"free":"Free","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[company.plan] ?? company.plan}
                   </p>
@@ -607,7 +607,7 @@ function EmpresaSection() {
               <CheckCircle2 size={16} className="text-primary" />
             </div>
             {company?.email && (
-              <p className="text-[13px] text-muted-foreground mt-[1.5px]">{company.email}</p>
+              <p className="text-[14px] text-muted-foreground mt-[1.5px]">{company.email}</p>
             )}
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -691,7 +691,7 @@ function EmpresaSection() {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
             <Upload size={20} className="text-muted-foreground mx-auto mb-1" />
-            <p className="text-[13px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG · max 2MB</p>
           </div>
         </div>
@@ -806,7 +806,7 @@ function EmpresaSection() {
                 Excluir permanentemente esta empresa e todos os seus dados. Esta ação não pode ser desfeita.
               </p>
               {isOwner && (
-                <p className="text-[13px] text-[#D97706] mt-1">
+                <p className="text-[14px] text-[#D97706] mt-1">
                   Esta é sua única empresa. Após a exclusão, você precisará cadastrar uma nova.
                 </p>
               )}
@@ -1182,7 +1182,7 @@ function EquipeSection() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] font-medium text-foreground truncate">
+                      <p className="text-[14px] font-medium text-foreground truncate">
                         {m.full_name || "—"}
                         {isSelf && <span className="text-muted-foreground font-normal ml-1">(você)</span>}
                       </p>
@@ -1262,7 +1262,7 @@ function EquipeSection() {
                     <Mail size={14} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-muted-foreground truncate">{inv.email}</p>
+                    <p className="text-[14px] text-muted-foreground truncate">{inv.email}</p>
                     <p className="text-[11px] text-muted-foreground">
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
@@ -1847,7 +1847,7 @@ function PlanosSection() {
                     : logoInitial}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground">{company.name}</p>
+                  <p className="text-[14px] font-semibold text-foreground">{company.name}</p>
                   {company.email && (
                     <p className="text-xs text-muted-foreground truncate">{company.email}</p>
                   )}
@@ -1890,21 +1890,21 @@ function PlanosSection() {
         <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Renova em</p>
-            <p className="text-[13px] font-semibold text-foreground">
+            <p className="text-[14px] font-semibold text-foreground">
               {planKey === "free" ? "Free" : company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Valor</p>
-            <p className="text-[13px] font-semibold text-foreground">
+            <p className="text-[14px] font-semibold text-foreground">
               {planDef?.pricing.mensal ?? (planKey === "free" ? "Free" : "—")}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Frequência</p>
-            <p className="text-[13px] font-semibold text-foreground">
+            <p className="text-[14px] font-semibold text-foreground">
               {subscription?.billing_period === "semiannual" ? "Semestral"
                : subscription?.billing_period === "annual" ? "Anual"
                : "Mensal"}
@@ -1915,7 +1915,7 @@ function PlanosSection() {
             <p className="text-[12px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-muted-foreground shrink-0" />
-              <p className="text-[13px] font-semibold text-foreground">Cartão de crédito</p>
+              <p className="text-[14px] font-semibold text-foreground">Cartão de crédito</p>
             </div>
           </div>
         </div>
@@ -1929,7 +1929,7 @@ function PlanosSection() {
                 {planDef.features.map(f => (
                   <div key={f} className="flex items-center gap-2">
                     <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
-                    <p className="text-[13px] leading-[1.4] text-foreground">{f}</p>
+                    <p className="text-[14px] leading-[1.4] text-foreground">{f}</p>
                   </div>
                 ))}
               </div>
@@ -2031,11 +2031,11 @@ function TagsSection() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: t.color + "22" }}>
                         <Tag size={14} style={{ color: t.color }} />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{t.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{t.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{t.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{t.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {t.created_at
                       ? new Date(t.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2209,14 +2209,14 @@ function ProdutosSection() {
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <ShoppingCart size={14} className="text-primary" />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{p.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{p.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{p.sku || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">{p.sku || "—"}</TableCell>
                   <TableCell>
-                    <span className="text-[13px] font-semibold text-primary">{fmt(p.defaultValue)}</span>
+                    <span className="text-[14px] font-semibold text-primary">{fmt(p.defaultValue)}</span>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {p.created_at
                       ? new Date(p.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2358,11 +2358,11 @@ function MotivosSection() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
                         <SquareX size={14} style={{ color: "#E24B4A" }} />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{r.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{r.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{r.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{r.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {r.created_at
                       ? new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2519,11 +2519,11 @@ function ListasSection() {
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <List size={14} className="text-primary" />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{l.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{l.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{l.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{l.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {l.created_at
                       ? new Date(l.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2602,7 +2602,7 @@ function ListasSection() {
                       {lead.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-foreground truncate">{lead.name}</p>
+                      <p className="text-[14px] font-medium text-foreground truncate">{lead.name}</p>
                       {stageName(lead.id) && (
                         <p className="text-xs text-muted-foreground truncate">{stageName(lead.id)}</p>
                       )}
@@ -2719,7 +2719,7 @@ function CamposSection() {
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <FormInput size={13} className="text-primary" />
                 </div>
-                <span className="text-[13px] font-semibold text-foreground">{g.name}</span>
+                <span className="text-[14px] font-semibold text-foreground">{g.name}</span>
                 {g.isDefault && <Badge className="text-[10px] bg-primary/10 text-primary border-0">padrão</Badge>}
                 <Badge variant="secondary" className="text-[10px]">{g.items.length} perguntas</Badge>
                 <ChevronDown
@@ -2747,7 +2747,7 @@ function CamposSection() {
                 {g.items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50">
                     <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0 ml-2" />
-                    <span className="flex-1 text-[13px] text-foreground">{item.label}</span>
+                    <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
                     <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
                     <button
                       onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
