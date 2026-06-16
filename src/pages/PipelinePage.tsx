@@ -8,6 +8,7 @@ import { useProfile } from "@/context/ProfileContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
+import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -62,7 +63,7 @@ const COLUMN_COLORS = [
   "#10B981", "#F43F5E", "#A855F7", "#3B82F6", "#22C55E",
 ];
 
-type SortKey = "recent" | "value" | "name";
+type SortKey = "recent" | "oldest" | "value" | "name";
 type StatusFilter = "open" | "won" | "lost" | "all";
 
 export default function PipelinePage() {
@@ -99,8 +100,18 @@ export default function PipelinePage() {
   const isAdmin = can("admin");
   const myName = profile?.full_name ?? "";
 
-  // "Visualizando como:" — só usado por admins; null = todos os leads
-  const [viewAsUser, setViewAsUser] = useState<string | null>(null);
+  // "Visualizando como:" — só usado por admins; [] = todos os leads
+  const [viewAsUser, setViewAsUser] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("pipeline_filter_viewAsUser") ?? "[]"); } catch { return []; }
+  });
+
+  useEffect(() => { localStorage.setItem("pipeline_filter_viewAsUser", JSON.stringify(viewAsUser)); }, [viewAsUser]);
+
+  function toggleViewAsUser(val: string) {
+    setViewAsUser(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
+    );
+  }
   const [viewPickerOpen, setViewPickerOpen] = useState(false);
   const viewPickerRef = useRef<HTMLDivElement>(null);
 
@@ -197,12 +208,18 @@ export default function PipelinePage() {
     nextColTitle?: string;
   } | null>(null);
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("recent");
-  const [status, setStatus] = useState<StatusFilter>("open");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // Filters — persistidos em localStorage
+  const [search, setSearch] = useState(() => localStorage.getItem("pipeline_filter_search") ?? "");
+  const [sortKey, setSortKey] = useState<SortKey>(() => (localStorage.getItem("pipeline_filter_sort") as SortKey) ?? "recent");
+  const [status, setStatus] = useState<StatusFilter>(() => (localStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
+  const [dateFrom, setDateFrom] = useState(() => localStorage.getItem("pipeline_filter_dateFrom") ?? "");
+  const [dateTo, setDateTo] = useState(() => localStorage.getItem("pipeline_filter_dateTo") ?? "");
+
+  useEffect(() => { localStorage.setItem("pipeline_filter_search", search); }, [search]);
+  useEffect(() => { localStorage.setItem("pipeline_filter_sort", sortKey); }, [sortKey]);
+  useEffect(() => { localStorage.setItem("pipeline_filter_status", status); }, [status]);
+  useEffect(() => { localStorage.setItem("pipeline_filter_dateFrom", dateFrom); }, [dateFrom]);
+  useEffect(() => { localStorage.setItem("pipeline_filter_dateTo", dateTo); }, [dateTo]);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -309,8 +326,13 @@ export default function PipelinePage() {
             const resps = getResps(leads[id]);
             return resps.length === 0 || resps.includes(myName);
           });
-        } else if (viewAsUser !== null) {
-          ids = ids.filter(id => getResps(leads[id]).includes(viewAsUser));
+        } else if (viewAsUser.length > 0) {
+          ids = ids.filter(id => {
+            const resps = getResps(leads[id]);
+            return viewAsUser.some(v =>
+              v === "__no_responsible__" ? resps.length === 0 : resps.includes(v)
+            );
+          });
         }
 
         ids.sort((a, b) => {
@@ -318,6 +340,7 @@ export default function PipelinePage() {
           const lb = leads[b];
           if (sortKey === "value") return lb.value - la.value;
           if (sortKey === "name") return la.name.localeCompare(lb.name);
+          if (sortKey === "oldest") return la.entryDate.localeCompare(lb.entryDate);
           return lb.entryDate.localeCompare(la.entryDate);
         });
         return { ...col, filteredIds: ids };
@@ -445,25 +468,29 @@ export default function PipelinePage() {
               <span className="text-[11px] text-muted-foreground whitespace-nowrap">Visualizando como:</span>
               <button
                 onClick={() => setViewPickerOpen(v => !v)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg border bg-card text-sm transition-colors hover:bg-secondary"
+                className="flex items-center gap-1.5 h-[30px] px-3 rounded-lg border bg-card text-xs transition-colors hover:bg-secondary"
                 style={{
                   borderColor: viewPickerOpen ? "hsl(var(--primary))" : "hsl(var(--card-border))",
-                  color: viewAsUser ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                  color: viewAsUser.length > 0 ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
                 }}
               >
-                {viewAsUser ? (
+                {viewAsUser.length === 0 ? (
+                  <span>Todos os leads</span>
+                ) : viewAsUser.length === 1 && viewAsUser[0] === "__no_responsible__" ? (
+                  <span>Sem responsável</span>
+                ) : viewAsUser.length === 1 ? (
                   <>
-                    {memberAvatars[viewAsUser] ? (
-                      <img src={memberAvatars[viewAsUser]} alt={viewAsUser} className="rounded-full object-cover shrink-0" style={{ width: 18, height: 18 }} />
+                    {memberAvatars[viewAsUser[0]] ? (
+                      <img src={memberAvatars[viewAsUser[0]]} alt={viewAsUser[0]} className="rounded-full object-cover shrink-0" style={{ width: 18, height: 18 }} />
                     ) : (
-                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser] ?? "#AAAAAA", fontSize: 9 }}>
-                        {viewAsUser[0].toUpperCase()}
+                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser[0]] ?? "#AAAAAA", fontSize: 9 }}>
+                        {viewAsUser[0][0].toUpperCase()}
                       </div>
                     )}
-                    <span className="max-w-[120px] truncate">{viewAsUser}</span>
+                    <span className="max-w-[120px] truncate">{viewAsUser[0]}</span>
                   </>
                 ) : (
-                  <span>Todos os leads</span>
+                  <span>{viewAsUser.length} selecionados</span>
                 )}
                 <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
               </button>
@@ -477,20 +504,29 @@ export default function PipelinePage() {
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Visualizando como</span>
                   </div>
                   <button
-                    onClick={() => { setViewAsUser(null); setViewPickerOpen(false); }}
+                    onClick={() => setViewAsUser([])}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
                   >
-                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser === null ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser === null ? "hsl(var(--primary))" : "transparent" }}>
-                      {viewAsUser === null && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.length === 0 ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.length === 0 ? "hsl(var(--primary))" : "transparent" }}>
+                      {viewAsUser.length === 0 && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
-                    <span className="text-xs" style={{ fontWeight: viewAsUser === null ? 600 : 400 }}>Todos os leads</span>
+                    <span className="text-xs" style={{ fontWeight: viewAsUser.length === 0 ? 600 : 400 }}>Todos os leads</span>
+                  </button>
+                  <button
+                    onClick={() => toggleViewAsUser("__no_responsible__")}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.includes("__no_responsible__") ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.includes("__no_responsible__") ? "hsl(var(--primary))" : "transparent" }}>
+                      {viewAsUser.includes("__no_responsible__") && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <span className="text-xs" style={{ fontWeight: viewAsUser.includes("__no_responsible__") ? 600 : 400 }}>Sem responsável</span>
                   </button>
                   {teamMembers.map(name => {
-                    const selected = viewAsUser === name;
+                    const selected = viewAsUser.includes(name);
                     const avatar = memberAvatars[name];
                     const color = memberColors[name] ?? "#AAAAAA";
                     return (
-                      <button key={name} onClick={() => { setViewAsUser(name); setViewPickerOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted">
+                      <button key={name} onClick={() => toggleViewAsUser(name)} className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted">
                         <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
                           {selected && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         </div>
@@ -560,46 +596,46 @@ export default function PipelinePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome, empresa ou #"
-              className="pl-8 h-9 w-64 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
 
-          <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-9 w-40 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-card-border">
-              <SelectItem value="recent">Mais recentes</SelectItem>
-              <SelectItem value="value">Valor</SelectItem>
-              <SelectItem value="name">Nome</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Ordenação</span>
+            <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
+              <SelectTrigger className="h-[30px] w-[135px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-card-border">
+                <SelectItem value="recent">Mais recentes</SelectItem>
+                <SelectItem value="oldest">Mais antigos</SelectItem>
+                <SelectItem value="value">Valor</SelectItem>
+                <SelectItem value="name">Nome</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
-            <SelectTrigger className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-card-border">
-              <SelectItem value="open">Em aberto</SelectItem>
-              <SelectItem value="won">Ganho</SelectItem>
-              <SelectItem value="lost">Perdido</SelectItem>
-              <SelectItem value="all">Todos</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Status</span>
+            <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
+              <SelectTrigger className="h-[30px] w-[115px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-card-border">
+                <SelectItem value="open">Em aberto</SelectItem>
+                <SelectItem value="won">Ganho</SelectItem>
+                <SelectItem value="lost">Perdido</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-            />
-            <span>—</span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              className="h-9 w-36 bg-card border-card-border rounded-lg text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Data</span>
+            <DateRangePicker
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onChangeRange={(from, to) => { setDateFrom(from); setDateTo(to); }}
             />
           </div>
 
