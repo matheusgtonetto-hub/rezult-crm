@@ -1838,8 +1838,8 @@ export default function AutomacoesPage() {
 
           {/* Default: Blocos básicos (when no node selected) */}
           {!nodePanel && !triggerPanel && (
-            <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
+            <aside style={{ width: 270, minWidth: 270, height: "80%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", marginLeft: 10, alignSelf: "center", border: "1px solid #E5E7EB", borderRadius: 8 }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
               </div>
@@ -1853,14 +1853,14 @@ export default function AutomacoesPage() {
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", borderBottom: "0.5px solid #F5F5F5", opacity: isComingSoon ? 0.6 : 1 }}
-                      onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed #E5E7EB", borderRadius: 5, cursor: isComingSoon ? "default" : "pointer", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
+                      onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.background = "#D1FAE5"; e.currentTarget.style.borderColor = "hsl(163, 77%, 31%)"; e.currentTarget.style.borderRadius = "5px"; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E7EB"; }}
                     >
-                      <div style={{ width: 28, height: 28, borderRadius: 7, background: `${at.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon size={14} color={at.color} />
                       </div>
-                      <span style={{ fontSize: 13, color: "#374151", flex: 1 }}>{at.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{at.label}</span>
                       {isComingSoon && (
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                       )}
@@ -3581,10 +3581,10 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       data-node
       onMouseDown={onDragStart}
       style={{
-        position: "absolute", left: node.x, top: node.y, width: 260,
+        position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
         background: "#FFFFFF",
-        border: `${selected ? 2 : 1.5}px dashed ${selected ? "hsl(var(--primary))" : "#CCCCCC"}`,
+        border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
         borderRadius: 12, padding: 14, cursor: "grab",
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
@@ -3642,28 +3642,21 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.s ?? 0} Sucessos</button>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.a ?? 0} Alertas</button>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.e ?? 0} Erros</button>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        {([
+          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B",             label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444",             label: "Erros"    },
+        ]).map(({ key, count, color, label }) => (
+          <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+            style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+            <div style={{ color }}>{label}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -3885,10 +3878,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         data-node
         onMouseDown={onDragStart}
         style={{
-          position: "absolute", left: node.x, top: node.y, width: 270,
+          position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "#F97316" : "#E5E5E5"}`,
           borderRadius: 12, cursor: "grab",
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
@@ -3992,7 +3985,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const items = node.conditionItems ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4063,22 +4056,21 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "0.5px solid #F3F4F6", fontSize: 11 }}>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
+          <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+            {([
+              { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+              { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B",             label: "Alertas"  },
+              { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444",             label: "Erros"    },
+            ]).map(({ key, count, color, label }) => (
+              <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+                style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+                onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+                <div style={{ color }}>{label}</div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -4089,7 +4081,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const espera = node.espera;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4128,7 +4120,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const branches = node.randomBranches ?? DEFAULT_BRANCHES;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 290, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4195,7 +4187,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const apiRequests = node.apiConfig?.requests ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4263,7 +4255,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const ops = node.fieldOps ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 270, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4332,10 +4324,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         data-node
         onMouseDown={onDragStart}
         style={{
-          position: "absolute", left: node.x, top: node.y, width: 240,
+          position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
           borderRadius: 12, padding: 14, cursor: "grab",
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
@@ -4368,7 +4360,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
         background: "#FFFFFF",
-        border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
+        border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
         borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
