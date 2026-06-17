@@ -1080,7 +1080,7 @@ export default function AutomacoesPage() {
 
     const { pan, zoom } = stateRef.current;
     const multiplier = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 300 : 1;
-    const delta = -(e.deltaY * multiplier) * 0.003;
+    const delta = -(e.deltaY * multiplier) * 0.0025;
     const newZoom = Math.max(0.4, Math.min(2.5, zoom + delta));
     if (newZoom === zoom) return;
 
