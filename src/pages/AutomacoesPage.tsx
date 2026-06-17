@@ -2076,7 +2076,7 @@ export default function AutomacoesPage() {
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
                 {nodes.flatMap(n => (n.parentIds ?? []).map(pid => ({ n, pid }))).map(({ n, pid }) => {
                   const parent = nodes.find(p => p.id === pid);
-                  let x1: number, y1: number, stroke = "#CCCCCC";
+                  let x1: number, y1: number, stroke = "#9CA3AF";
                   if (parent) {
                     const pp = portPosMap[pid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
@@ -2119,7 +2119,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2.5 : 2} fill="none" strokeLinecap="round" strokeDasharray="5,5" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2143,7 +2143,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="5,5" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2166,7 +2166,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "timeout", fromId: tpid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2175,7 +2175,7 @@ export default function AutomacoesPage() {
                   <path
                     d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
                     stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
-                    strokeLinecap="round" strokeDasharray="7,7"
+                    strokeLinecap="round" strokeDasharray="5,5"
                     style={{ pointerEvents: "none" }}
                   />
                 )}
@@ -3606,15 +3606,15 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         zIndex: 2,
         background: "#FFFFFF",
         border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
-        borderRadius: 12, padding: 14, cursor: "grab",
+        borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "1px solid #E5E5E5" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 14px 10px", borderBottom: "1px solid #E5E5E5" }}>
         <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
-      <div style={{ paddingTop: 10 }}>
+      <div style={{ padding: "10px 14px 14px" }}>
         {node.trigger ? (
           <div
             style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
@@ -3663,11 +3663,11 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         {([
           { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-          { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B",             label: "Alertas"  },
-          { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444",             label: "Erros"    },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
         ]).map(({ key, count, color, label }) => (
           <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
             style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
@@ -3902,7 +3902,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `1px solid ${selected ? "#F97316" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`,
           borderRadius: 12, cursor: "grab",
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
@@ -3979,11 +3979,11 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
         </div>
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([
-            { key: "success" as const, count: stats?.s ?? 0, color: "#F97316", label: "Sucessos" },
-            { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
-            { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
           ]).map(({ key, count, color, label }) => (
             <button
               key={key}
@@ -4006,7 +4006,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const items = node.conditionItems ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#8B5CF6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4077,22 +4077,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-            {([
-              { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-              { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B",             label: "Alertas"  },
-              { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444",             label: "Erros"    },
-            ]).map(({ key, count, color, label }) => (
-              <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
-                style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-                onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-              >
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
-                <div style={{ color }}>{label}</div>
-              </button>
-            ))}
-          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
+          ]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+              style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -4102,7 +4102,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const espera = node.espera;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4141,7 +4141,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const branches = node.randomBranches ?? DEFAULT_BRANCHES;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4182,23 +4182,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           >
             <Plus size={11} /> Adicionar ramificação
           </button>
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
+          ]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+              style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
-          </div>
+            >
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -4208,7 +4207,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const apiRequests = node.apiConfig?.requests ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4260,8 +4259,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
               <div style={{ color }}>{label}</div>
@@ -4276,7 +4275,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const ops = node.fieldOps ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#22C55E" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4327,8 +4326,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#22C55E", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
               <div style={{ color }}>{label}</div>
@@ -4348,7 +4347,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `1px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
           borderRadius: 12, padding: 14, cursor: "grab",
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
@@ -4381,7 +4380,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
         background: "#FFFFFF",
-        border: `1px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
+        border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`,
         borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
@@ -4463,11 +4462,11 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       </div>
 
       {/* Footer metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         {([
-          { key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" },
-          { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
-          { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
         ]).map(({ key, count, color, label }) => (
           <button
             key={key}
