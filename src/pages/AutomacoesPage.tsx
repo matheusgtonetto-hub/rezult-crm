@@ -1081,7 +1081,7 @@ export default function AutomacoesPage() {
     const { pan, zoom } = stateRef.current;
     const multiplier = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 300 : 1;
     const delta = -(e.deltaY * multiplier) * 0.003;
-    const newZoom = Math.max(0.4, Math.min(2, zoom + delta));
+    const newZoom = Math.max(0.4, Math.min(2.5, zoom + delta));
     if (newZoom === zoom) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -2357,7 +2357,7 @@ export default function AutomacoesPage() {
 
           {/* Zoom controls */}
           <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
-            <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
+            <button onClick={() => setZoom(z => Math.min(2.5, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
             <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} style={zoomBtn}><Minus size={14} /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtn}><Maximize2 size={14} /></button>
           </div>
