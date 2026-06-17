@@ -656,6 +656,7 @@ export default function AutomacoesPage() {
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
   const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
   const resizeDragRef = useRef<{ nodeId: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
+  const wheelThrottleRef = useRef<number>(0);
   // Always-fresh refs to avoid stale closures in mouse event handlers
   const stateRef = useRef({ pan, zoom, nodes });
   stateRef.current = { pan, zoom, nodes };
@@ -1073,8 +1074,28 @@ export default function AutomacoesPage() {
   }, []);
 
   const onWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setZoom(z => Math.max(0.4, Math.min(2, z + delta)));
+    const now = Date.now();
+    if (now - wheelThrottleRef.current < 32) return;
+    wheelThrottleRef.current = now;
+
+    const { pan, zoom } = stateRef.current;
+    const multiplier = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 300 : 1;
+    const delta = -(e.deltaY * multiplier) * 0.003;
+    const newZoom = Math.max(0.4, Math.min(2, zoom + delta));
+    if (newZoom === zoom) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) { setZoom(newZoom); return; }
+
+    // Ponto do canvas sob o cursor (coordenadas canvas)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const canvasX = (mouseX - pan.x) / zoom;
+    const canvasY = (mouseY - pan.y) / zoom;
+
+    // Ajusta pan para manter esse ponto fixo após o zoom
+    setZoom(newZoom);
+    setPan({ x: mouseX - canvasX * newZoom, y: mouseY - canvasY * newZoom });
   };
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
