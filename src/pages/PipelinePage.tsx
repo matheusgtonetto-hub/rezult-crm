@@ -451,7 +451,7 @@ export default function PipelinePage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Page header */}
-        <div className="px-6 pt-6 pb-3 flex items-center gap-4">
+        <div className="px-6 pb-3 flex items-center gap-4" style={{ paddingTop: 15 }}>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold text-foreground truncate">
               {activePipeline.name}
@@ -586,7 +586,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Filters bar */}
-        <div className="px-6 pb-4 flex flex-nowrap items-center gap-2 border-b border-card-border overflow-x-auto">
+        <div className="px-6 pb-[7px] flex flex-nowrap items-center gap-2 overflow-x-auto">
           <div className="relative">
             <Search
               size={14}
@@ -648,7 +648,7 @@ export default function PipelinePage() {
               <div
                 ref={colsProvided.innerRef}
                 {...colsProvided.droppableProps}
-                className="flex gap-3 overflow-x-auto flex-1 p-4 bg-background"
+                className="flex gap-3 overflow-x-auto flex-1 px-4 pb-4 pt-[7px] bg-background"
               >
                 {filteredColumns.map((col, colIndex) => {
                   const totalValue = col.filteredIds.reduce(
