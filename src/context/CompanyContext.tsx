@@ -251,12 +251,15 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => setUserPermissions((data?.permissions as string[]) ?? []));
   }, [company?.id, user?.id]);
 
-  const isFreePlan = company?.plan === "free";
+  const PAID_PLANS = ["silver", "platinum", "emerald"];
 
   const planExpired = useMemo(() => {
     if (!company) return false;
     return new Date(company.plan_expires_at) < new Date();
   }, [company]);
+
+  // isFreePlan = true quando não há empresa, plano não é pago, ou plano pago expirou
+  const isFreePlan = !company || !PAID_PLANS.includes(company.plan ?? "") || planExpired;
 
   const planDaysLeft = useMemo(() => {
     if (!company || company.plan !== "free" || planExpired) return null;

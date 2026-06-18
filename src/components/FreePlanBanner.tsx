@@ -23,8 +23,7 @@ export function FreePlanBanner() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
 
-  // Only show when actively in free trial (not expired)
-  if (!isFreePlan || planExpired || planDaysLeft === null) return null;
+  if (!isFreePlan) return null;
 
   const getPrice = (plan: typeof PLANS[0]) => {
     if (billingTab === "semestral") return plan.pricing.semestral;

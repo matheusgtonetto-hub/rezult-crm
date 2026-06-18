@@ -21,13 +21,14 @@ export interface PlanLimits {
   automations: number | null;
   pipelines: number | null;
   webhooks: number | null;
+  storage: number | null; // GB
 }
 
 export const PLAN_LIMITS: Record<string, PlanLimits> = {
-  free:     { leads: 50,     members: 2,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 1    },
-  silver:   { leads: 5000,   members: 4,    connections: 3,    automations: 8,    pipelines: 5,    webhooks: 3    },
-  platinum: { leads: 100000, members: 15,   connections: 10,   automations: 20,   pipelines: 20,   webhooks: 15   },
-  emerald:  { leads: null,   members: null, connections: null, automations: null, pipelines: null, webhooks: null },
+  free:     { leads: 50,     members: 2,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 1,    storage: 1    },
+  silver:   { leads: 5000,   members: 4,    connections: 3,    automations: 8,    pipelines: 5,    webhooks: 3,    storage: 10   },
+  platinum: { leads: 100000, members: 15,   connections: 10,   automations: 20,   pipelines: 20,   webhooks: 15,   storage: 50   },
+  emerald:  { leads: null,   members: null, connections: null, automations: null, pipelines: null, webhooks: null, storage: null },
 };
 
 export const PLANS: PlanDefinition[] = [

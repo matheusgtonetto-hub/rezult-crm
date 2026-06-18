@@ -25,14 +25,6 @@ export default function AppLayout() {
     }
   }, [companyLoading, company, pathname, navigate]);
 
-  // Block access when free trial has expired — send to plan selection step
-  // Paid plans (pro, enterprise, etc.) are never blocked regardless of expiration date
-  useEffect(() => {
-    if (!companyLoading && isFreePlan && planExpired) {
-      navigate("/setup", { state: { step: 3 }, replace: true });
-    }
-  }, [companyLoading, isFreePlan, planExpired, navigate]);
-
   if (crmLoading || companyLoading) {
     return (
       <div
@@ -44,7 +36,7 @@ export default function AppLayout() {
     );
   }
 
-  const showBanner = isFreePlan && !planExpired && planDaysLeft !== null;
+  const showBanner = isFreePlan;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
