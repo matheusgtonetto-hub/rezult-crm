@@ -26,7 +26,25 @@ async function exchangeCode(code: string, companyId: string | null): Promise<voi
 
   console.log("[OAuth] Resposta da Edge Function — data:", data, "error:", error);
 
-  if (error) throw error;
+  if (error) {
+    // supabase-js esconde o corpo da resposta de erro em error.context (um Response).
+    // Lemos o detail real retornado pela Edge Function para diagnóstico.
+    let detail = "";
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.text === "function") {
+      try {
+        const raw = await ctx.text();
+        try {
+          const parsed = JSON.parse(raw) as { error?: string; detail?: string };
+          detail = [parsed.error, parsed.detail].filter(Boolean).join(" — ");
+        } catch {
+          detail = raw;
+        }
+      } catch { /* ignore */ }
+    }
+    console.error("[OAuth] Detalhe do erro da Edge Function:", detail || "(sem corpo)");
+    throw new Error(detail ? `${error.message}: ${detail}` : error.message);
+  }
 }
 
 export default function GoogleOAuthCallback() {

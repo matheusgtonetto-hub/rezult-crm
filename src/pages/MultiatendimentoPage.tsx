@@ -9,11 +9,11 @@ import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
-  Search, Settings, Mail, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
+  Search, Settings, Instagram, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
-  MessageSquare, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
-  Download,
+  MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
+  Download, Pencil, Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -83,7 +83,8 @@ type Conversation = {
   id: string; name: string; preview: string; time: string;
   channel: Channel; tags: string[]; dealNumber?: string; pipeline?: string;
   company?: string; email?: string; phone?: string; value?: number;
-  instanceId?: string; // instância (número WhatsApp) à qual a conversa pertence
+  instanceId?: string;  // instância (número WhatsApp) à qual a conversa pertence
+  lastMsgAt?: string;   // timestamp ISO da última mensagem (para filtros/ordenação)
 };
 
 type Msg =
@@ -103,6 +104,7 @@ type ConvState = {
   read: boolean;
   finished: boolean;
   assignedTo?: string;
+  departmentId?: string;
 };
 
 type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string };
@@ -288,7 +290,7 @@ function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIco
   const fg     = isActive ? "#128A68" : "#535353";
   const border = isActive ? "1px solid #128A68" : "1px solid transparent";
   return (
-    <div style={{ position: "relative", display: "inline-flex" }}
+    <div style={{ position: "relative", display: "flex", flex: 1, minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -306,7 +308,7 @@ function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIco
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
         <Icon size={12} />
         {count !== null && <span>{count}</span>}
       </button>
@@ -369,6 +371,31 @@ export default function MultiatendimentoPage() {
   const [inputValue, setInputValue] = useState("");
   const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+
+  // ── Filtros avançados (painel lateral) ────────────────────────────────
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [fltDepts, setFltDepts]         = useState<string[]>([]);   // department ids
+  const [fltAgents, setFltAgents]       = useState<string[]>([]);   // nomes de atendentes
+  const [fltInstances, setFltInstances] = useState<string[]>([]);   // instance ids
+  const [fltTags, setFltTags]           = useState<string[]>([]);   // nomes de tags
+  const [fltPipeline, setFltPipeline]   = useState<string>("");     // pipeline id ("" = todas)
+  const [fltStages, setFltStages]       = useState<string[]>([]);   // column ids da etapa
+  const [fltWindow, setFltWindow]       = useState<"all" | "in" | "out">("all");
+  const [fltDateFrom, setFltDateFrom]   = useState<string>("");
+  const [fltDateTo, setFltDateTo]       = useState<string>("");
+  const [fltOrder, setFltOrder]         = useState<"recent" | "old" | "name">("recent");
+  const [fltSecOpen, setFltSecOpen]     = useState<Record<string, boolean>>({});
+
+  // ── Seleção / ações em massa ──────────────────────────────────────────
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedConvs, setSelectedConvs]  = useState<string[]>([]);
+  const [bulkMenuOpen, setBulkMenuOpen]    = useState(false);
+  const [bulkAction, setBulkAction]        = useState<"agent" | "dept" | null>(null);
+  // Execução manual de automação: lista de conversas-alvo (null = modal fechado)
+  const [autoModalConvs, setAutoModalConvs] = useState<string[] | null>(null);
+  const [manualAutomations, setManualAutomations] = useState<{ id: string; name: string }[]>([]);
+  const [runningAutomation, setRunningAutomation] = useState(false);
 
   // nova conversa
   const [newConvOpen, setNewConvOpen] = useState(false);
@@ -552,6 +579,77 @@ export default function MultiatendimentoPage() {
   const [deptCreateOpen, setDeptCreateOpen] = useState(false);
   const [qmSearch, setQmSearch]             = useState("");
 
+  // ── mensagens rápidas ─────────────────────────────────────────────────
+  type QuickMessage = { id: string; title: string; shortcut: string | null; content: string };
+  const [qmList, setQmList]                 = useState<QuickMessage[]>([]);
+  const [qmModalOpen, setQmModalOpen]       = useState(false);
+  const [qmEditing, setQmEditing]           = useState<QuickMessage | null>(null);
+  const [qmTitle, setQmTitle]               = useState("");
+  const [qmShortcut, setQmShortcut]         = useState("");
+  const [qmContent, setQmContent]           = useState("");
+  const [qmSaving, setQmSaving]             = useState(false);
+  const [qmPickerOpen, setQmPickerOpen]     = useState(false);
+
+  const loadQuickMessages = async () => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    const { data } = await supabase.from("quick_messages")
+      .select("id, title, shortcut, content")
+      .eq("owner_id", oid)
+      .order("created_at", { ascending: false });
+    if (data) setQmList(data as QuickMessage[]);
+  };
+  useEffect(() => { loadQuickMessages(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [company?.owner_id]);
+
+  const openNewQuickMessage = () => { setQmEditing(null); setQmTitle(""); setQmShortcut(""); setQmContent(""); setQmModalOpen(true); };
+  const openEditQuickMessage = (q: QuickMessage) => { setQmEditing(q); setQmTitle(q.title); setQmShortcut(q.shortcut ?? ""); setQmContent(q.content); setQmModalOpen(true); };
+
+  const saveQuickMessage = async () => {
+    const oid = company?.owner_id;
+    if (!oid) return;
+    if (!qmTitle.trim() || !qmContent.trim()) { toast.error("Preencha o título e a mensagem."); return; }
+    setQmSaving(true);
+    const payload = {
+      title: qmTitle.trim(),
+      shortcut: qmShortcut.trim() || null,
+      content: qmContent.trim(),
+      owner_id: oid,
+      company_id: company?.id ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = qmEditing
+      ? await supabase.from("quick_messages").update(payload).eq("id", qmEditing.id)
+      : await supabase.from("quick_messages").insert(payload);
+    setQmSaving(false);
+    if (error) { toast.error("Erro ao salvar mensagem rápida."); return; }
+    toast.success(qmEditing ? "Mensagem rápida atualizada." : "Mensagem rápida criada.");
+    setQmModalOpen(false);
+    loadQuickMessages();
+  };
+
+  const deleteQuickMessage = async (q: QuickMessage) => {
+    const { error } = await supabase.from("quick_messages").delete().eq("id", q.id);
+    if (error) { toast.error("Erro ao excluir mensagem rápida."); return; }
+    toast.success("Mensagem rápida excluída.");
+    setQmList(prev => prev.filter(x => x.id !== q.id));
+  };
+
+  const insertQuickMessage = (q: QuickMessage) => {
+    setInputValue(prev => (prev.trim() ? `${prev.trimEnd()} ${q.content}` : q.content));
+    setQmPickerOpen(false);
+  };
+
+  // Autocomplete por atalho: enquanto o texto digitado for só um atalho (ex: "/ola"),
+  // sugere as mensagens cujo atalho começa com o que foi digitado.
+  const shortcutSuggestions = useMemo<QuickMessage[]>(() => {
+    const v = inputValue.trim().toLowerCase();
+    if (!v.startsWith("/")) return [];
+    return qmList.filter(q => q.shortcut && q.shortcut.toLowerCase().startsWith(v));
+  }, [inputValue, qmList]);
+
+  // Expande um atalho substituindo o texto digitado pelo conteúdo da mensagem.
+  const expandShortcut = (q: QuickMessage) => { setInputValue(q.content); };
+
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
   const [showFiles, setShowFiles]         = useState(false);
@@ -566,7 +664,7 @@ export default function MultiatendimentoPage() {
 
   const active   = convList.find(c => c.id === activeId);
   // Fix: fallback para evitar que cs seja null quando convStates[activeId] ainda não foi carregado
-  const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false, assignedTo: undefined };
+  const DEFAULT_CS: ConvState = { messages: [], stageIdx: 0, meeting: null, notes: "", read: true, finished: false, assignedTo: undefined, departmentId: undefined };
   const cs = activeId ? (convStates[activeId] ?? DEFAULT_CS) : null;
 
   // Nome de exibição da conversa: prioriza o nome do lead no CRM (por ID ou
@@ -605,6 +703,26 @@ export default function MultiatendimentoPage() {
     ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""))
     : null;
   const effectiveLead  = linkedLead ?? linkedLeadByPhone ?? null;
+
+  // Anotações da conversa → gravadas como atividade "note" no negócio vinculado,
+  // ficando visíveis na aba Anotações do card do negócio na pipeline.
+  const addNote = () => {
+    const text = noteDraft.trim();
+    if (!text) return;
+    if (!effectiveLead) {
+      toast.error("Esta conversa não está vinculada a um negócio.");
+      return;
+    }
+    addActivity(effectiveLead.id, {
+      type: "note",
+      date: new Date().toISOString(),
+      description: text,
+      userName: user?.email?.split("@")[0] ?? undefined,
+    });
+    setNoteDraft("");
+    toast.success("Anotação adicionada ao negócio.");
+  };
+
   const linkedPipeline = effectiveLead?.pipelineId ? (pipelines ?? []).find(p => p.id === effectiveLead.pipelineId) : null;
   const pipelineCols   = linkedPipeline?.columns ?? [];
   const activeStages   = pipelineCols.length > 0 ? pipelineCols.map(c => c.title) : PIPELINE_STAGES;
@@ -628,9 +746,10 @@ export default function MultiatendimentoPage() {
       phone: r.phone ?? undefined, value: r.value ?? undefined,
       pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
       instanceId: r.instance_id ?? undefined,
+      lastMsgAt: r.last_msg_at ?? undefined,
     });
 
-    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean };
+    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string };
     const mapState = (r: DbStateRow): ConvState => ({
       messages: [],
       stageIdx: r.stage_idx ?? 0,
@@ -639,6 +758,7 @@ export default function MultiatendimentoPage() {
       read:     r.read ?? true,
       finished: r.finished ?? false,
       assignedTo: r.assigned_to ?? undefined,
+      departmentId: r.department_id ?? undefined,
     });
 
     supabase
@@ -1229,12 +1349,49 @@ export default function MultiatendimentoPage() {
     }
   }
 
-  function suggestAI() {
+  async function suggestAI() {
     if (!cs || aiLoading || cs.finished) return;
     setAiLoading(true);
-    const templates = AI_TEMPLATES[cs.stageIdx] ?? AI_TEMPLATES[0];
-    const suggestion = templates[Math.floor(Math.random() * templates.length)];
-    setTimeout(() => { setInputValue(suggestion); setAiLoading(false); }, 500);
+    try {
+      // Converte o histórico em texto rotulado para a IA ler o contexto
+      const aiMsgs = (cs.messages ?? [])
+        .filter(m => m.kind !== "system")
+        .map(m => {
+          let text = "";
+          if (m.kind === "text") text = m.text;
+          else if (m.kind === "audio") text = "[mensagem de áudio]";
+          else if (m.kind === "image") text = m.caption ? `[imagem] ${m.caption}` : "[imagem]";
+          else if (m.kind === "file") text = `[arquivo: ${m.filename}]`;
+          return { from: m.from, text };
+        })
+        .filter(m => m.text);
+
+      if (aiMsgs.length === 0) { toast.info("Sem mensagens na conversa para analisar."); return; }
+
+      const { data, error } = await supabase.functions.invoke("ai-suggest-reply", {
+        body: {
+          messages: aiMsgs,
+          leadName: effectiveLead?.name ?? active?.name ?? undefined,
+          stage: activeStages[activeStageIdx] ?? undefined,
+          pipeline: linkedPipeline?.name ?? undefined,
+        },
+      });
+
+      const result = (data ?? {}) as { suggestion?: string; error?: string };
+      if (error || result.error) {
+        if (result.error === "not_configured") {
+          toast.error("IA não configurada. Adicione a chave ANTHROPIC_API_KEY nas Edge Functions do Supabase.");
+        } else {
+          toast.error("Não foi possível gerar a sugestão. Tente novamente.");
+        }
+        return;
+      }
+      if (result.suggestion) setInputValue(result.suggestion);
+    } catch {
+      toast.error("Não foi possível gerar a sugestão. Tente novamente.");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   async function handleCreateNegocio() {
@@ -1363,6 +1520,7 @@ export default function MultiatendimentoPage() {
       dbPatch.meeting_note  = meta.meeting?.note  ?? null;
     }
     if ("assignedTo" in meta) dbPatch.assigned_to = meta.assignedTo ?? null;
+    if ("departmentId" in meta) dbPatch.department_id = meta.departmentId ?? null;
     supabase.from("whatsapp_conversations").update(dbPatch).eq("id", id).then(({ error }) => {
       if (error) console.error("updateCs DB:", error);
     });
@@ -1563,6 +1721,10 @@ export default function MultiatendimentoPage() {
   }
 
   // ── filter ──────────────────────────────────────────────────────────
+  // Resolve o lead vinculado à conversa (por ID ou por telefone)
+  const convLead = (c: Conversation) =>
+    leads[c.id] ?? (c.phone ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", c.phone ?? "")) : undefined);
+
   const filteredConversations = useMemo(() => {
     let list = convList;
     if (searchQuery.trim()) {
@@ -1572,20 +1734,179 @@ export default function MultiatendimentoPage() {
     switch (activeFilter) {
       case "email":   list = list.filter(c => c.channel === "instagram"); break;
       case "pending": list = list.filter(c => !convStates[c.id]?.finished); break;
+      case "waiting": list = list.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
       case "done":    list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":   list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
-    return list;
-    // leads: convName resolve o nome do lead por telefone, então a busca depende dele
-  }, [searchQuery, activeFilter, convStates, convList, leads]);
+
+    // ── filtros avançados do painel ──
+    if (fltDepts.length)     list = list.filter(c => { const d = convStates[c.id]?.departmentId; return !!d && fltDepts.includes(d); });
+    if (fltAgents.length)    list = list.filter(c => { const a = convStates[c.id]?.assignedTo; return !!a && fltAgents.includes(a); });
+    if (fltInstances.length) list = list.filter(c => !!c.instanceId && fltInstances.includes(c.instanceId));
+    if (fltTags.length)      list = list.filter(c => c.tags.some(t => fltTags.includes(t)));
+    if (fltPipeline || fltStages.length) {
+      list = list.filter(c => {
+        const l = convLead(c);
+        if (!l) return false;
+        if (fltPipeline && l.pipelineId !== fltPipeline) return false;
+        if (fltStages.length && !fltStages.includes(l.stage)) return false;
+        return true;
+      });
+    }
+    if (fltWindow !== "all") {
+      const DAY = 24 * 60 * 60 * 1000;
+      list = list.filter(c => {
+        if (!c.lastMsgAt) return fltWindow === "out";
+        const within = Date.now() - new Date(c.lastMsgAt).getTime() <= DAY;
+        return fltWindow === "in" ? within : !within;
+      });
+    }
+    if (fltDateFrom) list = list.filter(c => c.lastMsgAt && new Date(c.lastMsgAt) >= new Date(fltDateFrom + "T00:00:00"));
+    if (fltDateTo)   list = list.filter(c => c.lastMsgAt && new Date(c.lastMsgAt) <= new Date(fltDateTo + "T23:59:59"));
+
+    // ── ordenação ──
+    const ts = (c: Conversation) => (c.lastMsgAt ? new Date(c.lastMsgAt).getTime() : 0);
+    const sorted = [...list];
+    if (fltOrder === "recent")    sorted.sort((a, b) => ts(b) - ts(a));
+    else if (fltOrder === "old")  sorted.sort((a, b) => ts(a) - ts(b));
+    else if (fltOrder === "name") sorted.sort((a, b) => convName(a).localeCompare(convName(b), "pt-BR"));
+    return sorted;
+    // leads: convName/convLead resolvem o lead por telefone, então a busca depende deles
+  }, [searchQuery, activeFilter, convStates, convList, leads, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
+
+  const activeAdvCount =
+    (fltDepts.length ? 1 : 0) + (fltAgents.length ? 1 : 0) + (fltInstances.length ? 1 : 0) +
+    (fltTags.length ? 1 : 0) + ((fltPipeline || fltStages.length) ? 1 : 0) +
+    (fltWindow !== "all" ? 1 : 0) + ((fltDateFrom || fltDateTo) ? 1 : 0);
+
+  const clearAdvancedFilters = () => {
+    setFltDepts([]); setFltAgents([]); setFltInstances([]); setFltTags([]);
+    setFltPipeline(""); setFltStages([]); setFltWindow("all");
+    setFltDateFrom(""); setFltDateTo(""); setFltOrder("recent");
+  };
+
+  const toggleInArray = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
+    setter(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+
+  // ── seleção / ações em massa ──
+  const bulkItemStyle = (disabled = false): React.CSSProperties => ({
+    display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+    background: "none", border: "none", padding: "8px 10px", borderRadius: 8,
+    fontSize: 13, color: disabled ? "#CCC" : "#333", cursor: disabled ? "not-allowed" : "pointer",
+  });
+
+  const toggleConvSelected = (id: string) =>
+    setSelectedConvs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const allVisibleSelected = filteredConversations.length > 0 && filteredConversations.every(c => selectedConvs.includes(c.id));
+  const toggleSelectAll = () => setSelectedConvs(allVisibleSelected ? [] : filteredConversations.map(c => c.id));
+
+  // Aplica um patch de estado + persiste no banco para todas as conversas selecionadas
+  const bulkApply = (patch: Partial<ConvState>, dbPatch: Record<string, unknown>, msg: string) => {
+    const ids = [...selectedConvs];
+    if (ids.length === 0) return;
+    setConvStates(prev => {
+      const next = { ...prev };
+      ids.forEach(id => { next[id] = { ...DEFAULT_CS, ...next[id], ...patch }; });
+      return next;
+    });
+    supabase.from("whatsapp_conversations").update(dbPatch).in("id", ids).then(({ error }) => {
+      if (error) { console.error("bulkApply:", error); toast.error("Erro ao aplicar ação em massa."); return; }
+      toast.success(msg);
+    });
+    setSelectedConvs([]);
+  };
+
+  const bulkFinish = () => bulkApply({ finished: true, read: true }, { finished: true, read: true }, `${selectedConvs.length} conversa(s) finalizada(s).`);
+
+  const bulkAssignAgent = (agent: string) => {
+    bulkApply({ assignedTo: agent }, { assigned_to: agent }, `Atendente atribuído a ${selectedConvs.length} conversa(s).`);
+    setBulkAction(null);
+  };
+
+  const bulkAssignDept = (deptId: string) => {
+    const deptName = muDepts.find(d => d.id === deptId)?.name ?? "departamento";
+    bulkApply({ departmentId: deptId }, { department_id: deptId }, `Conversas transferidas para ${deptName}.`);
+    setBulkAction(null);
+  };
+
+  // Automações com gatilho de "Execução manual" (lead_manual), ativas
+  useEffect(() => {
+    const cid = company?.id;
+    if (!cid) { setManualAutomations([]); return; }
+    (async () => {
+      const { data } = await supabase.from("automations").select("id, name, flow").eq("company_id", cid).eq("active", true);
+      const list = (data ?? [])
+        .filter((a: { flow?: { trigger?: { triggerId?: string } } }) => a.flow?.trigger?.triggerId === "lead_manual")
+        .map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }));
+      setManualAutomations(list);
+    })();
+  }, [company?.id]);
+
+  // Executa uma automação manual (lead_manual) nos leads das conversas-alvo
+  const runAutomationOnConvs = async (automationId: string) => {
+    const convIds = autoModalConvs ?? [];
+    const cid = company?.id;
+    if (!cid || convIds.length === 0) return;
+    setRunningAutomation(true);
+    let ok = 0, skipped = 0;
+    for (const convId of convIds) {
+      const c = convList.find(x => x.id === convId);
+      const leadId = c ? convLead(c)?.id : undefined;
+      if (!leadId) { skipped++; continue; }
+      const { error } = await supabase.functions.invoke("automation-runner/manual", {
+        body: { company_id: cid, lead_id: leadId, automation_id: automationId },
+      });
+      if (error) { skipped++; } else { ok++; }
+    }
+    setRunningAutomation(false);
+    setAutoModalConvs(null);
+    if (selectionMode) setSelectedConvs([]);
+    if (ok > 0) toast.success(`Automação executada em ${ok} conversa(s).`);
+    if (skipped > 0) toast.error(`${skipped} conversa(s) sem negócio vinculado foram ignoradas.`);
+  };
+
+  // Seção de checklist (multi-seleção) do painel de filtros
+  const renderFilterChecklist = (
+    secKey: string, title: string, summary: string,
+    options: { value: string; label: string; color?: string }[],
+    selected: string[], setter: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    const open = fltSecOpen[secKey] ?? false;
+    return (
+      <div style={{ borderBottom: "1px solid #F0F0F0" }}>
+        <button onClick={() => setFltSecOpen(p => ({ ...p, [secKey]: !open }))} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: "14px 0", cursor: "pointer" }}>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{title}</div>
+            <div style={{ fontSize: 12, color: selected.length ? "#128A68" : "#AAA", marginTop: 2 }}>{selected.length ? `${selected.length} selecionado(s)` : summary}</div>
+          </div>
+          <ChevronDown size={16} color="#AAA" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+        </button>
+        {open && (
+          <div style={{ paddingBottom: 12, display: "flex", flexDirection: "column", gap: 2, maxHeight: 200, overflowY: "auto" }}>
+            {options.length === 0 && <div style={{ fontSize: 12, color: "#CCC", padding: "4px 0" }}>Nenhum item cadastrado</div>}
+            {options.map(o => {
+              const on = selected.includes(o.value);
+              return (
+                <button key={o.value} onClick={() => toggleInArray(setter, o.value)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                  {o.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: o.color, flexShrink: 0 }} />}
+                  <span style={{ fontSize: 13, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const filters = [
-    { id: "email",   icon: Mail,          label: "Instagram",      count: convList.filter(c => c.channel === "instagram").length },
-    { id: "pending", icon: Clock,         label: "Não lidas",      count: convList.filter(c => !convStates[c.id]?.finished).length },
-    { id: "folder",  icon: Folder,        label: "Todas",          count: convList.length },
-    { id: "auto",    icon: Zap,           label: "Automações",     count: convList.length },
-    { id: "done",    icon: CheckCircle2,  label: "Finalizadas",    count: convList.filter(c => convStates[c.id]?.finished).length },
-    { id: "alert",   icon: AlertTriangle, label: "Follow-up",      count: convList.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "email",   icon: Instagram,     label: "Instagram",   count: convList.filter(c => c.channel === "instagram").length },
+    { id: "pending", icon: MessageCircle, label: "Abertas",     count: convList.filter(c => !convStates[c.id]?.finished).length },
+    { id: "waiting", icon: Clock,         label: "Em espera",   count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convList.filter(c => convStates[c.id]?.finished).length },
+    { id: "alert",   icon: AlertTriangle, label: "Follow-up",   count: convList.filter(c => c.tags.includes("Follow-up")).length },
   ];
 
   // ── grouped messages ────────────────────────────────────────────────
@@ -1598,7 +1919,7 @@ export default function MultiatendimentoPage() {
   return (
     <div
       style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }}
-      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); }}
+      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
       <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
@@ -1639,7 +1960,65 @@ export default function MultiatendimentoPage() {
               <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
             ))}
           </div>
+
+          {/* barra: Filtros + ações em massa (⋯) */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 10 }}>
+            <span style={{ fontSize: 12, color: "#888" }}>
+              {selectionMode ? `${selectedConvs.length} selecionada${selectedConvs.length === 1 ? "" : "s"}` : `${filteredConversations.length} conversa${filteredConversations.length === 1 ? "" : "s"}`}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button
+                onClick={() => setFilterPanelOpen(true)}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "#E1F5EE" : "transparent", border: "1px solid " + (activeAdvCount ? "#128A68" : "#E5E5E5"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "#128A68" : "#666", cursor: "pointer" }}
+              >
+                <Filter size={13} /> Filtros
+                {activeAdvCount > 0 && <span style={{ background: "#128A68", color: "#FFF", borderRadius: 999, fontSize: 10, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
+              </button>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setBulkMenuOpen(v => !v); }}
+                  title="Ações em massa"
+                  style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                >
+                  <MoreHorizontal size={16} color="#666" />
+                </button>
+                {bulkMenuOpen && (
+                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 50, padding: 6 }}>
+                    <button onClick={() => { setSelectionMode(v => { const nv = !v; if (!nv) setSelectedConvs([]); return nv; }); setBulkMenuOpen(false); }} style={bulkItemStyle()}>
+                      <Eye size={14} color="#128A68" /> {selectionMode ? "Desabilitar seleção" : "Habilitar seleção"}
+                    </button>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px 4px" }}>Ações em massa</div>
+                    {[
+                      { key: "finish", icon: <CheckCircle2 size={14} color="#666" />, label: "Finalizar conversas", onClick: () => bulkFinish() },
+                      { key: "agent",  icon: <UserCheck size={14} color="#666" />,    label: "Transferir atendente", onClick: () => { setBulkAction("agent"); } },
+                      { key: "dept",   icon: <Folder size={14} color="#666" />,       label: "Transferir departamento", onClick: () => { setBulkAction("dept"); } },
+                      { key: "auto",   icon: <Zap size={14} color="#666" />,          label: "Executar automação", onClick: () => { setAutoModalConvs([...selectedConvs]); } },
+                    ].map(item => {
+                      const disabled = !selectionMode || selectedConvs.length === 0;
+                      return (
+                        <button key={item.key} disabled={disabled} onClick={() => { item.onClick(); setBulkMenuOpen(false); }} style={bulkItemStyle(disabled)}>
+                          {item.icon} {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {selectionMode && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "#F8F8F8", borderBottom: "1px solid #EEEEEE", flexShrink: 0 }}>
+            <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#128A68" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (allVisibleSelected ? "#128A68" : "#CCC"), background: allVisibleSelected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {allVisibleSelected && <Check size={11} color="#FFF" />}
+              </div>
+              {allVisibleSelected ? "Desmarcar todas" : "Selecionar todas"}
+            </button>
+            <button onClick={() => { setSelectionMode(false); setSelectedConvs([]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#888" }}>Sair</button>
+          </div>
+        )}
 
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredConversations.length === 0 && (
@@ -1663,14 +2042,20 @@ export default function MultiatendimentoPage() {
             const isActive = c.id === activeId;
             const cState = convStates[c.id];
             const unread = !cState?.read;
+            const selected = selectedConvs.includes(c.id);
             return (
               <div
                 key={c.id}
-                onClick={() => { setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", background: isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10 }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9F9F9"; }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                onClick={() => { if (selectionMode) { toggleConvSelected(c.id); return; } setActiveId(c.id); updateCs(c.id, { read: true }); }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "#F9F9F9"; }}
+                onMouseLeave={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "transparent"; }}
               >
+                {selectionMode && (
+                  <div style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (selected ? "#128A68" : "#CCC"), background: selected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {selected && <Check size={12} color="#FFF" />}
+                  </div>
+                )}
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={36} fontSize={12} onError={() => refetchAvatar(c.phone, c.instanceId)} />
                   <ChannelBadge channel={c.channel} />
@@ -1790,7 +2175,12 @@ export default function MultiatendimentoPage() {
                       {[
                         { label: "Transferir", action: () => { setShowTransferDialog(true); setMoreMenuOpen(false); } },
                         { label: "Arquivar", action: () => { updateCs(activeId, { finished: true }); toast("Conversa arquivada"); setMoreMenuOpen(false); } },
-                        { label: "Abrir perfil", action: () => { navigate("/leads"); setMoreMenuOpen(false); } },
+                        { label: "Abrir perfil", action: () => {
+                          setMoreMenuOpen(false);
+                          const leadId = effectiveLead?.id;
+                          if (leadId) navigate(`/pipeline/lead/${leadId}`);
+                          else toast.error("Esta conversa não está vinculada a um lead.");
+                        } },
                       ].map(item => (
                         <button key={item.label} onClick={item.action}
                           style={{ width: "100%", display: "block", padding: "10px 14px", background: "transparent", border: "none", textAlign: "left", fontSize: 13, color: "#111", cursor: "pointer" }}
@@ -1975,6 +2365,32 @@ export default function MultiatendimentoPage() {
                 >
                   <Sparkles size={16} color="#128A68" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
                 </button>
+                <div style={{ position: "relative", display: "inline-flex" }}>
+                  <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                    <Zap size={18} color={qmPickerOpen ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
+                  </span>
+                  {qmPickerOpen && (
+                    <>
+                      <div onClick={() => setQmPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 280, maxHeight: 260, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
+                        {qmList.length === 0 ? (
+                          <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 12, color: "#AAA" }}>Nenhuma mensagem rápida.<br />Crie em Configurações.</div>
+                        ) : qmList.map(q => (
+                          <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                              {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* linha de entrada */}
@@ -1989,11 +2405,37 @@ export default function MultiatendimentoPage() {
                   <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
                 </div>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                  {shortcutSuggestions.length > 0 && (
+                    <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
+                      {shortcutSuggestions.map(q => (
+                        <button key={q.id} onMouseDown={e => { e.preventDefault(); expandShortcut(q); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     value={inputValue}
                     onChange={e => setInputValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); setShowEmoji(false); } }}
+                    onKeyDown={e => {
+                      if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && shortcutSuggestions.length > 0) {
+                        e.preventDefault();
+                        const v = inputValue.trim().toLowerCase();
+                        const exact = shortcutSuggestions.find(q => q.shortcut?.toLowerCase() === v);
+                        expandShortcut(exact ?? shortcutSuggestions[0]);
+                        return;
+                      }
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); setShowEmoji(false); }
+                    }}
                     placeholder={cs.finished ? "Conversa finalizada — reabra para responder" : "Mensagem..."}
                     disabled={cs.finished}
                     style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
@@ -2202,7 +2644,7 @@ export default function MultiatendimentoPage() {
                   onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
                 ><Plus size={12} /> Negócio</button>
                 <button
-                  onClick={() => toast("Automação: em breve")}
+                  onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
                   style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
@@ -2412,22 +2854,48 @@ export default function MultiatendimentoPage() {
               ))}
             </Section>
 
-            <Section title="Notas">
+            <Section title="Anotações">
               <textarea
-                placeholder="Adicionar nota..."
-                value={effectiveLead ? (effectiveLead.notes ?? "") : cs.notes}
-                onChange={e => {
-                  if (effectiveLead) {
-                    updateLead(effectiveLead.id, { notes: e.target.value });
-                  } else {
-                    updateCs(activeId, { notes: e.target.value });
-                  }
-                }}
+                placeholder="Adicionar anotação..."
+                value={noteDraft}
+                onChange={e => setNoteDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } }}
                 style={{ width: "100%", background: "#F5F5F5", borderRadius: 8, padding: 10, border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", minHeight: 80, resize: "vertical" }}
               />
-              {(effectiveLead ? effectiveLead.notes : cs.notes) && (
-                <div style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>Salvo automaticamente</div>
+              <button
+                onClick={addNote}
+                disabled={!noteDraft.trim()}
+                style={{ marginTop: 6, width: "100%", padding: "8px 0", borderRadius: 8, border: "none", background: noteDraft.trim() ? "#128A68" : "#E5E5E5", color: noteDraft.trim() ? "#FFF" : "#AAA", fontSize: 13, fontWeight: 600, cursor: noteDraft.trim() ? "pointer" : "default" }}
+              >
+                Adicionar anotação
+              </button>
+              {!effectiveLead && (
+                <div style={{ fontSize: 11, color: "#C2410C", marginTop: 6 }}>
+                  Vincule esta conversa a um negócio para registrar anotações.
+                </div>
               )}
+              {effectiveLead && (() => {
+                const notes = (effectiveLead.activities ?? [])
+                  .filter(a => a.type === "note")
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .slice(0, 5);
+                if (notes.length === 0) return null;
+                return (
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {notes.map(n => (
+                      <div key={n.id} style={{ background: "#FFF", border: "1px solid #EEE", borderRadius: 8, padding: "8px 10px" }}>
+                        <div
+                          style={{ fontSize: 12, color: "#333", lineHeight: 1.5, wordBreak: "break-word" }}
+                          dangerouslySetInnerHTML={{ __html: n.description }}
+                        />
+                        <div style={{ fontSize: 10, color: "#AAA", marginTop: 4 }}>
+                          {n.userName ? `${n.userName} · ` : ""}{new Date(n.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
@@ -2510,7 +2978,7 @@ export default function MultiatendimentoPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
-                  {settingsTab === "quick" && <button onClick={() => toast.info("Em breve")} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
+                  {settingsTab === "quick" && <button onClick={openNewQuickMessage} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
                   <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
                 </div>
               </div>
@@ -2654,22 +3122,239 @@ export default function MultiatendimentoPage() {
                 )}
 
                 {/* ── Mensagens rápidas ── */}
-                {settingsTab === "quick" && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
-                      <Search size={14} color="#AAA" />
-                      <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
+                {settingsTab === "quick" && (() => {
+                  const term = qmSearch.trim().toLowerCase();
+                  const filtered = term
+                    ? qmList.filter(q =>
+                        q.title.toLowerCase().includes(term) ||
+                        q.content.toLowerCase().includes(term) ||
+                        (q.shortcut ?? "").toLowerCase().includes(term))
+                    : qmList;
+                  return (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+                        <Search size={14} color="#AAA" />
+                        <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
+                      </div>
+                      {filtered.length === 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
+                          <Zap size={32} color="#E5E5E5" />
+                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>{qmList.length === 0 ? "Nenhuma mensagem rápida criada" : "Nenhum resultado encontrado"}</p>
+                          {qmList.length === 0 && <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>}
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {filtered.map(q => (
+                            <div key={q.id} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{q.title}</span>
+                                  {q.shortcut && <span style={{ fontSize: 11, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
+                                </div>
+                                <div style={{ fontSize: 12, color: "#888", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                                <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="#888" /></button>
+                                <button title="Excluir" onClick={() => deleteQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Trash2 size={15} color="#E53E3E" /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
-                      <Zap size={32} color="#E5E5E5" />
-                      <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Nenhuma mensagem rápida criada</p>
-                      <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: criar/editar mensagem rápida ──────────────────────── */}
+      {qmModalOpen && (
+        <div
+          onClick={() => !qmSaving && setQmModalOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
+              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+            </div>
+            <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Título</label>
+                <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "#AAA", fontWeight: 400 }}>(opcional)</span></label>
+                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Mensagem</label>
+                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+              </div>
+            </div>
+            <div style={{ padding: "14px 22px 18px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PAINEL: filtros avançados ────────────────────────────────── */}
+      {filterPanelOpen && (
+        <>
+          <div onClick={() => setFilterPanelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 310 }} />
+          <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: 380, maxWidth: "90vw", background: "#FFF", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 311, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>Filtros</div>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 22px" }}>
+              {renderFilterChecklist("dept", "Departamentos", "Todos", muDepts.map(d => ({ value: d.id, label: d.name })), fltDepts, setFltDepts)}
+              {renderFilterChecklist("agents", "Atendentes", "Todos", teamMembers.map(m => ({ value: m, label: m })), fltAgents, setFltAgents)}
+              {renderFilterChecklist("inst", "Instâncias", "Todas", instances.map(i => ({ value: i.instanceId, label: i.label })), fltInstances, setFltInstances)}
+              {renderFilterChecklist("tags", "Tags", "Todas", crmTags.map(t => ({ value: t.name, label: t.name, color: t.color })), fltTags, setFltTags)}
+
+              {/* Negócio na etapa */}
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Negócio na etapa</div>
+                <select value={fltPipeline} onChange={e => { setFltPipeline(e.target.value); setFltStages([]); }} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: fltPipeline ? "#111" : "#888", background: "#FFF", cursor: "pointer", outline: "none" }}>
+                  <option value="">Todos os pipelines</option>
+                  {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                {(() => {
+                  const po = (pipelines ?? []).find(p => p.id === fltPipeline);
+                  if (!po) return null;
+                  return (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
+                      {po.columns.map(col => {
+                        const on = fltStages.includes(col.id);
+                        return (
+                          <button key={col.id} onClick={() => toggleInArray(setFltStages, col.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                            <span style={{ fontSize: 13, color: "#333" }}>{col.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Janela em atendimento */}
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Janela em atendimento</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {([["all", "Todos"], ["in", "Dentro de 24h"], ["out", "Fora de 24h"]] as const).map(([v, l]) => {
+                    const on = fltWindow === v;
+                    return (
+                      <button key={v} onClick={() => setFltWindow(v)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "#128A68" : "#CCC"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}</div>
+                        <span style={{ fontSize: 13, color: "#333" }}>{l}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Data da última mensagem */}
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Data da última mensagem</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>De</label>
+                    <input type="date" value={fltDateFrom} onChange={e => setFltDateFrom(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Até</label>
+                    <input type="date" value={fltDateTo} onChange={e => setFltDateTo(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ordem */}
+              <div style={{ padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Ordem</div>
+                <select value={fltOrder} onChange={e => setFltOrder(e.target.value as "recent" | "old" | "name")} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#111", background: "#FFF", cursor: "pointer", outline: "none" }}>
+                  <option value="recent">Mais recentes</option>
+                  <option value="old">Mais antigas</option>
+                  <option value="name">Nome (A–Z)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #EEEEEE", display: "flex", gap: 10, flexShrink: 0 }}>
+              <button onClick={clearAdvancedFilters} style={{ flex: 1, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Limpar filtros</button>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Aplicar filtros</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── MODAL: ações em massa (transferir atendente/departamento) ──── */}
+      {(bulkAction === "agent" || bulkAction === "dept") && (
+        <div onClick={() => setBulkAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{selectedConvs.length} conversa(s) selecionada(s)</div>
+              </div>
+              <button onClick={() => setBulkAction(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+              {bulkAction === "agent" && (teamMembers.length === 0
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum atendente cadastrado</div>
+                : teamMembers.map(m => (
+                  <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{initials(m)}</div>
+                    <span style={{ fontSize: 13, color: "#111" }}>{m}</span>
+                  </button>
+                )))}
+              {bulkAction === "dept" && (muDepts.length === 0
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum departamento cadastrado</div>
+                : muDepts.map(d => (
+                  <button key={d.id} onClick={() => bulkAssignDept(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Folder size={16} color="#128A68" />
+                    <span style={{ fontSize: 13, color: "#111" }}>{d.name}</span>
+                  </button>
+                )))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: executar automação (manual) ───────────────────────── */}
+      {autoModalConvs !== null && (
+        <div onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 400, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Executar automação</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{autoModalConvs.length} conversa(s) · gatilho de execução manual</div>
+              </div>
+              <button onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+              {manualAutomations.length === 0 ? (
+                <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                  <Zap size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, color: "#AAA", margin: "0 0 4px" }}>Nenhuma automação manual ativa</p>
+                  <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Crie uma automação com o gatilho "Execução manual da automação por lead ou contato".</p>
+                </div>
+              ) : manualAutomations.map(a => (
+                <button key={a.id} disabled={runningAutomation} onClick={() => runAutomationOnConvs(a.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 12px", background: "none", border: "none", borderRadius: 8, cursor: runningAutomation ? "default" : "pointer", textAlign: "left", opacity: runningAutomation ? 0.6 : 1 }} onMouseEnter={e => { if (!runningAutomation) e.currentTarget.style.background = "#F5F5F5"; }} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Zap size={15} color="#128A68" /></div>
+                  <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{a.name}</span>
+                </button>
+              ))}
+            </div>
+            {runningAutomation && <div style={{ padding: "10px", textAlign: "center", fontSize: 12, color: "#128A68", borderTop: "1px solid #EEEEEE" }}>Executando…</div>}
           </div>
         </div>
       )}

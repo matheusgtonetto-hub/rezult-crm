@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { ChevronDown, ChevronRight, Filter, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,11 @@ export function PipelineSidebar() {
   const {
     pipelines,
     activePipelineId,
-    setActivePipelineId,
     addPipeline,
     pipelineGroups,
     addPipelineGroup,
   } = useCRM();
+  const navigate = useNavigate();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [showNew, setShowNew] = useState(false);
@@ -89,9 +90,10 @@ export function PipelineSidebar() {
     if (!newName.trim()) { toast.error("Informe o nome da pipeline."); return; }
     if (!newCategory) { toast.error("Selecione ou crie um grupo."); return; }
     setCreating(true);
-    await addPipeline(newName.trim(), newCategory, DEFAULT_COLUMNS, newDesc.trim());
+    const newId = await addPipeline(newName.trim(), newCategory, DEFAULT_COLUMNS, newDesc.trim());
     setCreating(false);
     closeNewDialog();
+    if (newId) navigate(`/pipeline/${newId}`);
     toast.success("Pipeline criada!");
   };
 
@@ -140,7 +142,7 @@ export function PipelineSidebar() {
                   return (
                     <button
                       key={p.id}
-                      onClick={() => setActivePipelineId(p.id)}
+                      onClick={() => navigate(`/pipeline/${p.id}`)}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
                         active
                           ? "bg-sidebar-accent border-l-[3px] border-primary"
@@ -168,7 +170,7 @@ export function PipelineSidebar() {
                 return (
                   <button
                     key={p.id}
-                    onClick={() => setActivePipelineId(p.id)}
+                    onClick={() => navigate(`/pipeline/${p.id}`)}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
                       active
                         ? "bg-sidebar-accent border-l-[3px] border-primary"

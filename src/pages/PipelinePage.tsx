@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
@@ -69,6 +69,8 @@ export default function PipelinePage() {
   const {
     pipelines,
     activePipeline,
+    activePipelineId,
+    setActivePipelineId,
     leads,
     moveLead,
     addActivity,
@@ -95,6 +97,25 @@ export default function PipelinePage() {
   const { profile } = useProfile();
   const { can } = usePermissions();
   const navigate = useNavigate();
+  const { pipelineId } = useParams();
+
+  // A URL é a fonte da verdade do pipeline ativo: /pipeline/:pipelineId
+  // 1) param válido na URL → adota como pipeline ativo
+  useEffect(() => {
+    if (pipelineId && pipelines.some(p => p.id === pipelineId) && pipelineId !== activePipelineId) {
+      setActivePipelineId(pipelineId);
+    }
+  }, [pipelineId, pipelines, activePipelineId, setActivePipelineId]);
+
+  // 2) URL sem id (/pipeline) ou id inexistente → redireciona para o ativo/primeiro
+  useEffect(() => {
+    if (pipelines.length === 0) return;
+    const valid = pipelineId && pipelines.some(p => p.id === pipelineId);
+    if (!valid) {
+      const target = pipelines.some(p => p.id === activePipelineId) ? activePipelineId : pipelines[0].id;
+      navigate(`/pipeline/${target}`, { replace: true });
+    }
+  }, [pipelineId, pipelines, activePipelineId, navigate]);
 
   const isAdmin = can("admin");
   const myName = profile?.full_name ?? "";
@@ -198,7 +219,17 @@ export default function PipelinePage() {
   } | null>(null);
 
   // Filters
-  const [search, setSearch] = useState("");
+  // A busca é refletida na URL como ?search=... (fonte da verdade)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") ?? "";
+  const setSearch = (val: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val) next.set("search", val);
+      else next.delete("search");
+      return next;
+    }, { replace: true });
+  };
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [status, setStatus] = useState<StatusFilter>("open");
   const [dateFrom, setDateFrom] = useState("");
@@ -336,14 +367,18 @@ export default function PipelinePage() {
 
   const handleDeletePipeline = () => {
     const groupName = activePipeline.category;
-    const othersInGroup = pipelines.filter(p => p.category === groupName && p.id !== activePipeline.id);
-    deletePipeline(activePipeline.id);
+    const deletedId = activePipeline.id;
+    const othersInGroup = pipelines.filter(p => p.category === groupName && p.id !== deletedId);
+    const nextPipeline = pipelines.find(p => p.id !== deletedId);
+    deletePipeline(deletedId);
     if (othersInGroup.length === 0) {
       const group = pipelineGroups.find(g => g.name === groupName);
       if (group) deletePipelineGroup(group.id);
     }
     setConfirmDeletePipeline(false);
     setShowEditPipeline(false);
+    // A URL aponta para a pipeline excluída — vai para a próxima disponível
+    if (nextPipeline) navigate(`/pipeline/${nextPipeline.id}`, { replace: true });
     toast.success("Pipeline removida.");
   };
 

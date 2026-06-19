@@ -62,6 +62,9 @@ interface TriggerPayload {
   trigger_type: string;
   company_id: string;
   lead_id: string;
+  // Execução manual direcionada: quando presente, apenas esta automação é executada
+  // (usado pelo gatilho lead_manual disparado da UI). Opcional e retrocompatível.
+  automation_id?: string;
   context: {
     tag_ids_added?: string[];
     tag_ids_removed?: string[];
@@ -246,7 +249,14 @@ Deno.serve(async (req: Request) => {
     return await handleResumeReply(supabase, req);
   }
 
-  // ── Modo normal: requer autenticação ─────────────────────────────────────
+  // ── Execução manual: autenticada pelo JWT do usuário (chamada da UI) ──────
+  // Gatilho "lead_manual" — não usa o AUTOMATION_SECRET (que não pode ir ao browser).
+  const manualMatch = url.pathname.match(/\/manual(?:\/)?$/i);
+  if (manualMatch) {
+    return await handleManual(supabase, req);
+  }
+
+  // ── Modo normal: requer autenticação por secret ───────────────────────────
   const secret = Deno.env.get("AUTOMATION_SECRET");
   const auth = req.headers.get("Authorization");
 
@@ -268,10 +278,17 @@ Deno.serve(async (req: Request) => {
 
   // ── Trigger mode normal ────────────────────────────────────────────────────
   const payload = body as unknown as TriggerPayload;
-  const { trigger_type, company_id, lead_id } = payload;
-  if (!trigger_type || !company_id || !lead_id) {
+  if (!payload.trigger_type || !payload.company_id || !payload.lead_id) {
     return new Response("Missing required fields", { status: 400 });
   }
+  return await runTrigger(supabase, payload);
+});
+
+// Executa as automações ativas que casam com o gatilho do payload.
+// Se payload.automation_id estiver presente, executa apenas aquela automação.
+async function runTrigger(supabase: SupabaseClient, payload: TriggerPayload): Promise<Response> {
+  if (!payload.context) payload.context = {};
+  const { trigger_type, company_id, lead_id, automation_id } = payload;
 
   const { data: automations, error } = await supabase
     .from("automations")
@@ -287,6 +304,8 @@ Deno.serve(async (req: Request) => {
   const results: { id: string; name: string; status: string; error?: string }[] = [];
 
   for (const automation of (automations as AutomationRecord[] ?? [])) {
+    // Execução manual direcionada: ignora todas exceto a automação escolhida
+    if (automation_id && automation.id !== automation_id) continue;
     const flow = automation.flow;
     const trigger = flow?.trigger;
     if (!trigger || trigger.triggerId !== trigger_type) continue;
@@ -303,7 +322,39 @@ Deno.serve(async (req: Request) => {
 
   console.log(`[${trigger_type}] lead=${lead_id} matched=${results.length}`);
   return Response.json({ trigger_type, lead_id, matched: results.length, results });
-});
+}
+
+// Execução manual disparada pela UI (gatilho lead_manual). Autentica pelo JWT do
+// usuário e autoriza apenas dono ou membro da empresa antes de executar.
+async function handleManual(supabase: SupabaseClient, req: Request): Promise<Response> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const jwt = authHeader.replace(/^Bearer\s+/i, "");
+  if (!jwt) return new Response("Unauthorized", { status: 401 });
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+  const user = userData?.user;
+  if (userErr || !user) return new Response("Unauthorized", { status: 401 });
+
+  let body: { company_id?: string; lead_id?: string; automation_id?: string };
+  try { body = await req.json(); } catch { return new Response("Bad request", { status: 400 }); }
+
+  const { company_id, lead_id, automation_id } = body;
+  if (!company_id || !lead_id || !automation_id) {
+    return new Response("Missing required fields", { status: 400 });
+  }
+
+  // Autorização: dono da empresa ou membro
+  const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", company_id).maybeSingle();
+  let allowed = comp?.owner_id === user.id;
+  if (!allowed) {
+    const { data: mem } = await supabase.from("company_members").select("id").eq("company_id", company_id).eq("user_id", user.id).maybeSingle();
+    allowed = !!mem;
+  }
+  if (!allowed) return new Response("Forbidden", { status: 403 });
+
+  const payload: TriggerPayload = { trigger_type: "lead_manual", company_id, lead_id, automation_id, context: {} };
+  return await runTrigger(supabase, payload);
+}
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
 
@@ -1506,10 +1557,14 @@ async function buildVarContext(
         ctx["prod.default_value"] = String(p.default_value ?? "");
       }
     }
-    // Campos adicionais (custom_field_values)
+    // Campos adicionais (custom_field_values) — mesmos valores expostos sob os
+    // três prefixos do seletor (lead / negócio / empresa).
     const cfv = (lead.custom_field_values ?? {}) as Record<string, unknown>;
     for (const [k, v] of Object.entries(cfv)) {
-      ctx[`campo_lead.${k}`] = String(v ?? "");
+      const sv = String(v ?? "");
+      ctx[`campo_lead.${k}`]    = sv;
+      ctx[`campo_neg.${k}`]     = sv;
+      ctx[`campo_empresa.${k}`] = sv;
     }
   }
   ctx["gatilho.tipo"]       = payload.trigger_type;
