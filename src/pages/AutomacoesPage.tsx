@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -1106,9 +1107,9 @@ export default function AutomacoesPage() {
     if (startType === "model") { toast.info("Em breve"); return; }
 
     const { PLAN_LIMITS } = await import("@/data/plans");
-    const limit = PLAN_LIMITS[company.plan]?.automations ?? PLAN_LIMITS.free.automations;
+    const limit = PLAN_LIMITS[company.plan]?.automations ?? null;
     if (limit !== null && automations.length >= limit) {
-      toast.error(`Seu plano permite no máximo ${limit} automação${limit > 1 ? "ões" : ""}. Faça upgrade para criar mais.`);
+      emitPlanLimit("automações");
       return;
     }
     setCreating(true);

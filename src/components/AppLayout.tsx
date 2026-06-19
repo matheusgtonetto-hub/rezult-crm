@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { FreePlanBanner, BANNER_HEIGHT } from "@/components/FreePlanBanner";
+import { PlanLimitModal } from "@/components/PlanLimitModal";
 
 // Routes where the user is actively completing onboarding — no redirect needed
 const ONBOARDING_PATHS = ["/company-register", "/setup"];
@@ -13,6 +14,16 @@ export default function AppLayout() {
   const { company, companyLoading, planExpired, isFreePlan, planDaysLeft } = useCompany();
   const navigate                                                          = useNavigate();
   const { pathname }                                                      = useLocation();
+  const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const resource = (e as CustomEvent<{ resource: string }>).detail.resource;
+      setPlanLimitResource(resource);
+    };
+    window.addEventListener("plan-limit-reached", handler);
+    return () => window.removeEventListener("plan-limit-reached", handler);
+  }, []);
 
   // Only redirect to company-register if:
   // 1. Company data has finished loading
@@ -58,6 +69,9 @@ export default function AppLayout() {
       </main>
 
       <FreePlanBanner />
+      {planLimitResource && (
+        <PlanLimitModal resource={planLimitResource} onClose={() => setPlanLimitResource(null)} />
+      )}
     </div>
   );
 }

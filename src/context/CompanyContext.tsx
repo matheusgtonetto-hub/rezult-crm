@@ -5,6 +5,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { PLAN_LIMITS } from "@/data/plans";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 
 export interface Company {
   id: string;
@@ -136,9 +137,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("Não autenticado");
 
     const plan = selectedCompany?.plan ?? "free";
-    const limit = PLAN_LIMITS[plan]?.connections ?? PLAN_LIMITS.free.connections;
+    const limit = PLAN_LIMITS[plan]?.connections ?? null;
     if (limit !== null && whatsappConnections.length >= limit) {
-      throw new Error(`Seu plano permite no máximo ${limit} conexão${limit > 1 ? "ões" : ""}. Faça upgrade para adicionar mais.`);
+      emitPlanLimit("conexões");
+      throw new Error("plan-limit");
     }
 
     const { data: row, error } = await supabase

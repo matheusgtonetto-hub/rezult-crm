@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import {
   Search, Plus, X, Copy, Check, RefreshCw, Loader2,
   ShoppingBag, ChevronLeft, ToggleLeft, ToggleRight, Trash2, AlertTriangle,
@@ -140,9 +141,9 @@ export default function IntegracoesPage() {
     if (!user || !company || creating) return;
 
     const { PLAN_LIMITS } = await import("@/data/plans");
-    const limit = PLAN_LIMITS[company.plan]?.webhooks ?? PLAN_LIMITS.free.webhooks;
+    const limit = PLAN_LIMITS[company.plan]?.webhooks ?? null;
     if (limit !== null && integrations.length >= limit) {
-      toast.error(`Seu plano permite no máximo ${limit} integração${limit > 1 ? "ões" : ""}. Faça upgrade para adicionar mais.`);
+      emitPlanLimit("integrações");
       return;
     }
 

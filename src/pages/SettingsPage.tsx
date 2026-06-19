@@ -31,6 +31,7 @@ import {
 import { useCompany } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS, PLAN_LIMITS } from "@/data/plans";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
@@ -1079,6 +1080,14 @@ function EquipeSection() {
 
   const handleAddMember = async () => {
     if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
+
+    const plan = company?.plan ?? "free";
+    const limit = PLAN_LIMITS[plan]?.members ?? null;
+    if (limit !== null && members.length >= limit) {
+      emitPlanLimit("membros");
+      return;
+    }
+
     setInviting(true);
     const permsToSend = isAdminInvite ? ["admin"] : invitePerms;
     const { data, error } = await supabase.rpc("add_member_to_company", {
@@ -1537,7 +1546,7 @@ function PlanosSection() {
       .then(({ count }) => setIntegrationsCount(count ?? 0));
   }, [user, company]);
 
-  const connectionsCount = whatsappConnections.length + (googleConnected ? 1 : 0);
+  const connectionsCount = whatsappConnections.length;
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
 

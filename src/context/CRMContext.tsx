@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { toast } from "sonner";
 import { PLAN_LIMITS } from "@/data/plans";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 
 interface CRMContextType {
   crmLoading: boolean;
@@ -600,9 +601,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   ) => {
     if (!user || !company) return;
 
-    const limit = PLAN_LIMITS[company.plan]?.pipelines ?? PLAN_LIMITS.free.pipelines;
+    const limit = PLAN_LIMITS[company.plan]?.pipelines ?? null;
     if (limit !== null && pipelines.length >= limit) {
-      toast.error(`Seu plano permite no máximo ${limit} pipeline${limit > 1 ? "s" : ""}. Faça upgrade para criar mais.`);
+      emitPlanLimit("pipelines");
       return;
     }
 
