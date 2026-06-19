@@ -84,6 +84,7 @@ function AppRoutes() {
             <Route path="/pilot" element={<PilotPage />} />
             <Route path="/pipeline" element={<PipelinePage />} />
             <Route path="/pipeline/lead/:id" element={<LeadDetailPage />} />
+            <Route path="/pipeline/:pipelineId" element={<PipelinePage />} />
             <Route path="/leads" element={<LeadsPage />} />
             <Route path="/contatos" element={<Navigate to="/leads" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />

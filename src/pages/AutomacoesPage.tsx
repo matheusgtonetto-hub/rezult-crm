@@ -410,6 +410,147 @@ const NOTE_COLORS = [
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
 
+// ─── Modelos pré-configurados (opção "Modelo" ao criar automação) ─────────────
+// Usam apenas peças genéricas (gatilho + mensagem + espera), sem IDs específicos
+// de um tenant (pipeline/etapa/tag), para funcionarem em qualquer empresa. O
+// usuário ajusta os textos, a conexão de WhatsApp e os detalhes no editor.
+const tplTrigger = (categoryId: string, triggerId: string, label: string, description: string): TriggerConfig =>
+  ({ categoryId, triggerId, label, description, configData: {} });
+const tplMsg = (id: string, x: number, parentId: string, text: string): CanvasNode =>
+  ({ id, type: "mensagem", x, y: 80, label: "Mensagem", parentIds: [parentId], subBlocks: [{ id: `${id}_sb`, type: "mensagem_texto", text, splitMessages: false }] });
+const tplWait = (id: string, x: number, parentId: string, espera: EsperaConfig): CanvasNode =>
+  ({ id, type: "espera", x, y: 80, label: "Espera", parentIds: [parentId], espera });
+const tplStart = (trigger: TriggerConfig): CanvasNode => ({ ...START_NODE, trigger });
+
+const AUTOMATION_TEMPLATES: { id: string; name: string; description: string; group: string; icon: React.ElementType; flow: { nodes: CanvasNode[]; trigger: TriggerConfig } }[] = [
+  {
+    id: "boas_vindas",
+    name: "Boas-vindas a novo lead",
+    description: "Recebe automaticamente todo lead novo com uma saudação e uma pergunta de qualificação.",
+    group: "Atendimento",
+    icon: User,
+    flow: (() => {
+      const trigger = tplTrigger("leads", "lead_criado", "Lead criado", "Quando um lead é criado");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          tplMsg("m1", 360, "n1", "Olá! 👋 Que bom ter você por aqui. Sou da equipe e vou te ajudar no que precisar."),
+          tplWait("w1", 640, "m1", { type: "minutos", amount: 2 }),
+          tplMsg("m2", 920, "w1", "Pra começar, me conta: qual é o seu principal objetivo neste momento?"),
+        ],
+      };
+    })(),
+  },
+  {
+    id: "pos_venda",
+    name: "Pós-venda e indicação",
+    description: "Agradece o cliente após o negócio ser ganho e, alguns dias depois, pede uma indicação.",
+    group: "Relacionamento",
+    icon: ThumbsUp,
+    flow: (() => {
+      const trigger = tplTrigger("negocios", "neg_ganho", "Negócio ganho", "Quando um negócio é marcado como ganho");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          tplMsg("m1", 360, "n1", "Parabéns pela decisão! 🎉 Estamos muito felizes em ter você com a gente."),
+          tplWait("w1", 640, "m1", { type: "dias", amount: 3 }),
+          tplMsg("m2", 920, "w1", "Como está sendo sua experiência até aqui? Se conhece alguém que também se beneficiaria, ficaríamos gratos pela indicação. 🙌"),
+        ],
+      };
+    })(),
+  },
+  {
+    id: "resgate_perdido",
+    name: "Resgate de negócio perdido",
+    description: "Espera 1 dia após um negócio ser perdido e tenta reengajar o lead.",
+    group: "Recuperação",
+    icon: RotateCcw,
+    flow: (() => {
+      const trigger = tplTrigger("negocios", "neg_perdido", "Negócio perdido", "Quando um negócio é marcado como perdido");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          tplWait("w1", 360, "n1", { type: "dias", amount: 1 }),
+          tplMsg("m1", 640, "w1", "Olá! Notei que não conseguimos seguir adiante desta vez. Posso te ajudar a esclarecer alguma dúvida ou rever as condições?"),
+        ],
+      };
+    })(),
+  },
+  {
+    id: "followup_proposta",
+    name: "Follow-up de proposta",
+    description: "Quando o negócio é movido de etapa, aguarda 2 dias e faz um follow-up da proposta.",
+    group: "Vendas",
+    icon: ArrowLeftRight,
+    flow: (() => {
+      const trigger = tplTrigger("negocios", "neg_movido", "Negócio movido", "Quando um negócio é movido para a etapa");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          tplWait("w1", 360, "n1", { type: "dias", amount: 2 }),
+          tplMsg("m1", 640, "w1", "Oi! Passando pra saber se você teve a chance de analisar a proposta. Fico à disposição para qualquer dúvida. 😊"),
+        ],
+      };
+    })(),
+  },
+  {
+    id: "lead_formulario_webhook",
+    name: "Lead Formulário Webhook",
+    description: "Recebe leads de formulário via webhook (HTTP): analisa o telefone, evita duplicar o lead por e-mail/telefone, cria o lead e o negócio e mapeia os campos e UTMs. Ajuste o pipeline/etapa e os campos conforme o seu formulário.",
+    group: "Captação",
+    icon: Globe,
+    flow: {
+      trigger: { categoryId: "http", triggerId: "http_webhook", label: "Webhook (HTTP)", description: "", configData: {} },
+      nodes: [
+        { id: "n1", type: "start", x: -274, y: -103, label: "Início", trigger: { categoryId: "http", triggerId: "http_webhook", label: "Webhook (HTTP)", description: "", configData: {} }, parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+        { id: "47f80bdc-6d2d-4cf6-9ebc-b58b8334f5fd", type: "campos", x: 44, y: -99, label: "Operações de campos", parentIds: ["n1"], errorParentIds: [], timeoutParentIds: [], fieldOps: [
+          { id: "fo1780949943823", type: "analise_telefone", phone: "{{gatilho.telefone}}", datasourceName: "phone-1", datasourceColor: "#6366F1", defaultCountry: "BR" },
+        ] },
+        { id: "b91d0749-d26a-405e-bf33-3d7049ee0cfd", type: "condicoes", x: 381, y: -197, label: "Condições", parentIds: ["47f80bdc-6d2d-4cf6-9ebc-b58b8334f5fd"], errorParentIds: [], timeoutParentIds: [], conditionItems: [
+          { id: "74abf544-7d1b-41bc-a384-db4f1f50b456", categoryId: "leads", conditionId: "com_email", label: "Lead com email existente", config: { email: "{{gatilho.email}}" } },
+        ] },
+        { id: "270c139f-2ed7-4f0d-8484-fa02af092d0a", type: "condicoes", x: 422, y: 108, label: "Condições", parentIds: [], errorParentIds: ["b91d0749-d26a-405e-bf33-3d7049ee0cfd"], timeoutParentIds: [], conditionItems: [
+          { id: "ci1780961144983", categoryId: "leads", conditionId: "com_telefone", label: "Lead com telefone existente", config: { telefone: "{{phone-1.phone}}" } },
+        ] },
+        { id: "294778fb-c1a5-4e9c-9013-d8dd9410701a", type: "campos", x: 430, y: 425, label: "Operações de campos", parentIds: [], errorParentIds: ["270c139f-2ed7-4f0d-8484-fa02af092d0a"], timeoutParentIds: [], fieldOps: [
+          { id: "092221bd-9823-4b25-81e6-93087451a6dc", type: "mapeamento", fieldKey: "lead.name",     fieldLabel: "Nome do lead", value: "{{gatilho.nome}}" },
+          { id: "e56d1c67-a64e-4a03-9054-bdb7ed7ac3af", type: "mapeamento", fieldKey: "lead.email",    fieldLabel: "E-mail",       value: "{{gatilho.email}}" },
+          { id: "828ee144-1fbf-433c-8fd9-29a414b9ec67", type: "mapeamento", fieldKey: "lead.whatsapp", fieldLabel: "Telefone",     value: "{{phone-1.phone}}" },
+          { id: "3d39a7fe-0209-40c5-bad7-1a9eb7546b72", type: "mapeamento", fieldKey: "lead.origin",   fieldLabel: "Origem",       value: "{{gatilho.origem}}" },
+        ] },
+        { id: "edcecf8b-a8c2-4340-c185-385389031851", type: "acoes", x: 832, y: 537, label: "Ação", parentIds: ["294778fb-c1a5-4e9c-9013-d8dd9410701a"], errorParentIds: [], timeoutParentIds: [], actionItems: [
+          { id: "ai1780949926048", categoryId: "leads", actionId: "criar_lead", label: "Criar lead", description: "Cria o lead com as informações guardadas nos parâmetros da sessão. Caso o lead já exista, não será criado um novo lead" },
+        ] },
+        { id: "e07410f6-6f3b-4e1a-a102-6a7562c3e195", type: "acoes", x: 1690, y: 66, label: "Ação", parentIds: [], errorParentIds: ["0456935a-642d-426e-9af2-053ba03b9e6f"], timeoutParentIds: [], actionItems: [
+          { id: "ai1780950024157", categoryId: "negocios", actionId: "criar_negocio", label: "Criar negócio", description: "Cria um novo negócio para o lead" },
+        ] },
+        { id: "0456935a-642d-426e-9af2-053ba03b9e6f", type: "condicoes", x: 1682, y: -205, label: "Condições", parentIds: ["n1780960791155"], errorParentIds: [], timeoutParentIds: [], conditionItems: [
+          { id: "4366358c-2f41-499c-8bdd-2272f3fa8394", categoryId: "negocios", conditionId: "neg_pipeline", label: "Lead possui negócio no pipeline" },
+        ] },
+        { id: "n1780960791155", type: "campos", x: 1248, y: -212, label: "Operações de campos", parentIds: ["edcecf8b-a8c2-4340-c185-385389031851", "270c139f-2ed7-4f0d-8484-fa02af092d0a", "b91d0749-d26a-405e-bf33-3d7049ee0cfd_74abf544-7d1b-41bc-a384-db4f1f50b456"], errorParentIds: [], timeoutParentIds: [], fieldOps: [
+          { id: "092221bd-9823-4b25-81e6-93087451a6dc", type: "mapeamento", fieldKey: "lead.name",         fieldLabel: "Nome do lead", value: "{{gatilho.nome}}" },
+          { id: "e56d1c67-a64e-4a03-9054-bdb7ed7ac3af", type: "mapeamento", fieldKey: "lead.email",        fieldLabel: "E-mail",       value: "{{gatilho.email}}" },
+          { id: "828ee144-1fbf-433c-8fd9-29a414b9ec67", type: "mapeamento", fieldKey: "lead.whatsapp",     fieldLabel: "Telefone",     value: "{{phone-1.phone}}" },
+          { id: "3d39a7fe-0209-40c5-bad7-1a9eb7546b72", type: "mapeamento", fieldKey: "lead.origin",       fieldLabel: "Origem",       value: "{{gatilho.origem}}" },
+          { id: "fo1780960840506", type: "mapeamento", fieldKey: "lead.utm_source",   fieldLabel: "UTM Source",   value: "{{gatilho.utm_source}}" },
+          { id: "fo1780960862361", type: "mapeamento", fieldKey: "lead.utm_medium",   fieldLabel: "UTM Medium",   value: "{{gatilho.utm_medium}}" },
+          { id: "fo1780960874256", type: "mapeamento", fieldKey: "lead.utm_campaign", fieldLabel: "UTM Campaign", value: "{{gatilho.utm_campaign}}" },
+          { id: "fo1780960884458", type: "mapeamento", fieldKey: "lead.utm_term",     fieldLabel: "UTM Term",     value: "{{gatilho.utm_term}}" },
+          { id: "fo1780960899397", type: "mapeamento", fieldKey: "lead.utm_content",  fieldLabel: "UTM Content",  value: "{{gatilho.utm_content}}" },
+          { id: "fo1780965196258", type: "mapeamento", fieldKey: "lead.company",      fieldLabel: "Empresa",      value: "{{gatilho.empresa}}" },
+        ] },
+        { id: "note1780950041404", type: "note", x: 363, y: -294, label: "Anotação", width: 818, height: 1087, noteText: "Altere o campo com os dados de entrada do seu Webhook", parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+        { id: "note1780950089555", type: "note", x: 1217, y: -287, label: "Anotação", width: 360, height: 528, noteText: "Edite conforme as perguntas do formulário.", noteColorIndex: 1, parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+        { id: "note1780950117317", type: "note", x: 1637, y: -285, label: "Anotação", width: 365, height: 648, noteText: "", noteColorIndex: 2, parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+      ],
+    },
+  },
+];
+
 function buildOrthPath(x1: number, y1: number, x2: number, y2: number): string {
   const dy = y2 - y1;
   if (Math.abs(dy) < 2) return `M ${x1} ${y1} H ${x2}`;
@@ -565,6 +706,164 @@ function fmtDateShort(iso: string) {
   catch { return iso; }
 }
 
+// ─── Mini-mapa do fluxo (pré-visualização nos cards da lista) ────────────────
+// Cabeçalho de cada nó (ícone + título + cor), espelhando o editor.
+const PREVIEW_HEADER: Record<string, { color: string; title: string; icon: React.ElementType }> = {
+  start:        { color: "#16A34A", title: "Início",              icon: Play },
+  mensagem:     { color: "#0EA5E9", title: "Mensagem",            icon: MessageCircle },
+  acoes:        { color: "#F97316", title: "Ação",                icon: Zap },
+  condicoes:    { color: "#8B5CF6", title: "Condições",           icon: Filter },
+  espera:       { color: "#3B82F6", title: "Espera",              icon: Clock },
+  randomizador: { color: "#F97316", title: "Randomizador",        icon: Shuffle },
+  api:          { color: "#3B82F6", title: "API",                 icon: Globe },
+  campos:       { color: "#22C55E", title: "Operações de campos", icon: Sliders },
+  ia:           { color: "#8B5CF6", title: "IA",                  icon: Bot },
+  javascript:   { color: "#3B82F6", title: "JavaScript",          icon: Code2 },
+};
+
+// Itens exibidos no corpo de cada nó (como no editor): ações, condições, campos,
+// blocos de mensagem, resumo da espera, etc.
+function previewBodyLines(n: CanvasNode): { icon?: React.ElementType; text: string }[] {
+  switch (n.type) {
+    case "start": return [{ text: n.trigger?.label ?? "Sem gatilho" }];
+    case "acoes": return (n.actionItems ?? []).map(it => {
+      const act = ACTION_CATEGORIES.find(c => c.id === it.categoryId)?.actions.find(a => a.id === it.actionId);
+      return { icon: act?.icon, text: it.label };
+    });
+    case "condicoes": return (n.conditionItems ?? []).map(it => ({ text: it.label }));
+    case "campos": return (n.fieldOps ?? []).map(op => {
+      switch (op.type) {
+        case "mapeamento":       return { text: op.fieldLabel || op.fieldKey || "Campo" };
+        case "analise_telefone": return { text: "Análise de telefone" };
+        case "loop_array":       return { text: "Loop em lista" };
+        case "formatacao_data":  return { text: "Formatação de data" };
+        default:                 return { text: "Operação" };
+      }
+    });
+    case "mensagem": return (n.subBlocks ?? []).map(sb => {
+      switch (sb.type) {
+        case "mensagem_texto":  return { text: sb.text?.trim() || "Mensagem de texto" };
+        case "entrada_usuario": return { text: "Entrada do usuário" };
+        case "atraso_tempo":    return { text: "Atraso" };
+        case "mensagem_audio":  return { text: "Áudio" };
+        case "arquivo_anexo":   return { text: "Arquivo (anexo)" };
+        case "arquivo_url":     return { text: "Arquivo (URL)" };
+        default:                return { text: "Bloco" };
+      }
+    });
+    case "espera": {
+      const e = n.espera;
+      if (!e) return [{ text: "Aguardar" }];
+      const txt =
+        e.type === "segundos"          ? `Aguardar ${e.amount ?? 0}s` :
+        e.type === "minutos"           ? `Aguardar ${e.amount ?? 0} min` :
+        e.type === "horas"             ? `Aguardar ${e.amount ?? 0} h` :
+        e.type === "dias"              ? `Aguardar ${e.amount ?? 0} dias` :
+        e.type === "intervalo_semana"  ? "Intervalo semanal" :
+        e.type === "dia_horario"       ? "Data/horário" : "Aguardar resposta";
+      return [{ text: txt }];
+    }
+    default: return [];
+  }
+}
+
+// Miniatura fiel do canvas: nós (ícone + título + itens), notas coloridas e
+// conexões ortogonais (mesma buildOrthPath do editor), num SVG que escala via
+// viewBox para caber no card. foreignObject permite reusar o HTML/ícones reais.
+function FlowPreview({ flow }: { flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null }) {
+  const all = flow?.nodes ?? [];
+  if (all.length === 0) {
+    return (
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#9CA3AF" }}>
+        Automação vazia
+      </div>
+    );
+  }
+  const HEADER_H = 40, LINE_H = 26;
+  const W = (n: CanvasNode) => n.type === "note" ? (n.width ?? 220) : n.type === "start" ? 248 : 270;
+  const H = (n: CanvasNode) => {
+    if (n.type === "note") return n.height ?? 140;
+    const lines = previewBodyLines(n).length;
+    return HEADER_H + (lines > 0 ? lines * LINE_H + 14 : 10);
+  };
+
+  const minX = Math.min(...all.map(n => n.x));
+  const minY = Math.min(...all.map(n => n.y));
+  const maxX = Math.max(...all.map(n => n.x + W(n)));
+  const maxY = Math.max(...all.map(n => n.y + H(n)));
+  const PAD = 60;
+  const vbX = minX - PAD, vbY = minY - PAD;
+  const vbW = (maxX - minX) + PAD * 2, vbH = (maxY - minY) + PAD * 2;
+
+  const byId = new Map(all.map(n => [n.id, n]));
+  // Portas compostas têm a forma "nodeId_sufixo"; o pai real é o trecho antes do "_".
+  const resolveParent = (pid: string): CanvasNode | undefined => {
+    const direct = byId.get(pid);
+    if (direct) return direct;
+    const us = pid.indexOf("_");
+    return us > 0 ? byId.get(pid.slice(0, us)) : undefined;
+  };
+  const edges: { d: string; err: boolean }[] = [];
+  for (const n of all) {
+    if (n.type === "note") continue;
+    const inX = n.x, inY = n.y + 20;
+    for (const pid of n.parentIds ?? [])      { const p = resolveParent(pid); if (p) edges.push({ d: buildOrthPath(p.x + W(p), p.y + 20, inX, inY), err: false }); }
+    for (const pid of n.errorParentIds ?? []) { const p = resolveParent(pid); if (p) edges.push({ d: buildOrthPath(p.x + W(p), p.y + 20, inX, inY), err: true }); }
+  }
+
+  const notes = all.filter(n => n.type === "note");
+  const flowNodes = all.filter(n => n.type !== "note");
+
+  return (
+    <svg viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+      {/* Notas (atrás das conexões, como no editor) */}
+      {notes.map(n => {
+        const c = NOTE_COLORS[n.noteColorIndex ?? 0];
+        return (
+          <foreignObject key={n.id} x={n.x} y={n.y} width={W(n)} height={H(n)}>
+            <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.4, color: c.text, overflow: "hidden" }}>
+              {n.noteText}
+            </div>
+          </foreignObject>
+        );
+      })}
+      {/* Conexões */}
+      {edges.map((e, i) => (
+        <path key={i} d={e.d} fill="none" stroke={e.err ? "#FCA5A5" : "#CBD5E1"} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      ))}
+      {/* Nós */}
+      {flowNodes.map(n => {
+        const h = PREVIEW_HEADER[n.type] ?? { color: "#9CA3AF", title: n.label, icon: Zap };
+        const Icon = h.icon;
+        const lines = previewBodyLines(n);
+        return (
+          <foreignObject key={n.id} x={n.x} y={n.y} width={W(n)} height={H(n)}>
+            <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: lines.length ? "1px solid #EEEEEE" : "none" }}>
+                <Icon size={16} color={h.color} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.title}</span>
+              </div>
+              {lines.length > 0 && (
+                <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+                  {lines.map((l, i) => {
+                    const LI = l.icon;
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", background: `${h.color}12`, border: `1px solid ${h.color}30`, borderRadius: 7, padding: "4px 7px", overflow: "hidden" }}>
+                        {LI ? <LI size={12} color={h.color} /> : null}
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </foreignObject>
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function AutomacoesPage() {
@@ -599,6 +898,7 @@ export default function AutomacoesPage() {
   const [newDesc, setNewDesc]           = useState("");
   const [newGroup, setNewGroup]         = useState("");
   const [startType, setStartType]       = useState<"blank" | "import" | "model">("blank");
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [creating, setCreating]         = useState(false);
   const [groupDropOpen, setGroupDropOpen] = useState(false);
   const [groupNewInput, setGroupNewInput] = useState("");
@@ -1102,16 +1402,29 @@ export default function AutomacoesPage() {
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
-    if (!newName.trim()) { toast.error("Informe um nome"); return; }
     if (!user || !company) return;
-    if (startType === "model") { toast.info("Em breve"); return; }
-
     const { PLAN_LIMITS } = await import("@/data/plans");
     const limit = PLAN_LIMITS[company.plan]?.automations ?? null;
     if (limit !== null && automations.length >= limit) {
       emitPlanLimit("automações");
       return;
     }
+
+    // Define o flow, o nome e o grupo conforme a forma de começar.
+    let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null } = { nodes: [START_NODE], trigger: null };
+    let name = newName.trim();
+    let group = newGroup.trim();
+    if (startType === "model") {
+      const tpl = AUTOMATION_TEMPLATES.find(t => t.id === selectedTemplate);
+      if (!tpl) { toast.error("Selecione um modelo"); return; }
+      // Clona o flow do modelo para não mutar a constante ao editar depois.
+      const cloned = JSON.parse(JSON.stringify(tpl.flow)) as { nodes: CanvasNode[]; trigger: TriggerConfig };
+      flow = { nodes: sanitizeImportedNodes(cloned.nodes), trigger: cloned.trigger };
+      if (!name) name = tpl.name;
+      if (!group) group = tpl.group;
+    }
+    if (!name) { toast.error("Informe um nome"); return; }
+
     setCreating(true);
     try {
       const { data, error } = await supabase
@@ -1119,11 +1432,11 @@ export default function AutomacoesPage() {
         .insert({
           owner_id: user.id,
           company_id: company.id,
-          name: newName.trim(),
+          name,
           description: newDesc.trim(),
-          group_name: newGroup.trim() || "Automação",
+          group_name: group || "Automação",
           active: false,
-          flow: { nodes: [START_NODE], trigger: null },
+          flow,
         })
         .select()
         .single();
@@ -1131,7 +1444,7 @@ export default function AutomacoesPage() {
       const rec = data as AutomationRecord;
       setAutomations(prev => [rec, ...prev]);
       setCreateOpen(false);
-      setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank");
+      setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank"); setSelectedTemplate(null);
       setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput("");
       toast.success("Automação criada");
       openEditor(rec.id);
@@ -1792,21 +2105,9 @@ export default function AutomacoesPage() {
                 {/* Automation cards */}
                 {filteredAutomations.map(auto => (
                   <div key={auto.id} style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
-                    {/* Mini canvas preview */}
-                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
-                      <div style={{ opacity: 0.15, fontSize: 10, color: "#374151", transform: "scale(0.35)", transformOrigin: "center", pointerEvents: "none", userSelect: "none" }}>
-                        <div style={{ background: "#FFFFFF", border: "1px dashed #CCCCCC", borderRadius: 8, padding: "8px 12px", width: 200 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-                            <Play size={10} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
-                            <span style={{ fontSize: 11, fontWeight: 700 }}>Início</span>
-                          </div>
-                          {auto.flow?.trigger ? (
-                            <div style={{ fontSize: 9, color: "#374151" }}>{auto.flow.trigger.label}</div>
-                          ) : (
-                            <div style={{ fontSize: 9, color: "#9CA3AF" }}>Sem gatilho</div>
-                          )}
-                        </div>
-                      </div>
+                    {/* Mini-mapa do fluxo */}
+                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid #E5E5E5", position: "relative", overflow: "hidden" }}>
+                      <FlowPreview flow={auto.flow} />
                       {auto.active && (
                         <div style={{ position: "absolute", top: 8, right: 8, background: "#DCFCE7", color: "#15803D", fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4 }}>
                           Ativo
@@ -1863,19 +2164,31 @@ export default function AutomacoesPage() {
             <aside style={{ width: 270, minWidth: 270, height: "80%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", marginLeft: 10, alignSelf: "center", border: "1px solid #E5E7EB", borderRadius: 8 }}>
               <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
-                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Clique para adicionar ao canvas</div>
+                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Arraste para o canvas ou clique para adicionar</div>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {ACTION_TYPES.map(at => {
                   const Icon = at.icon;
                   const isComingSoon = COMING_SOON_ACTIONS.has(at.id);
                   return (
-                    <button key={at.id} disabled={isComingSoon} onClick={() => {
+                    <button key={at.id} disabled={isComingSoon}
+                      draggable={!isComingSoon}
+                      onDragStart={(e) => {
+                        if (isComingSoon) { e.preventDefault(); return; }
+                        e.dataTransfer.setData("application/x-block-type", at.id);
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
                       if (isComingSoon) return;
-                      const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x: 340 + Math.random() * 60, y: 80 + nodes.length * 30, label: at.label };
+                      // Posiciona no centro da viewport atual, com leve cascata diagonal
+                      // para que cliques sucessivos não fiquem empilhados no mesmo ponto.
+                      const count = nodes.length;
+                      const x = Math.round((-pan.x + 300) / zoom) + (count % 6) * 36;
+                      const y = Math.round((-pan.y + 140) / zoom) + (count % 6) * 36;
+                      const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x, y, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed #E5E7EB", borderRadius: 5, cursor: isComingSoon ? "default" : "pointer", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
+                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed #E5E7EB", borderRadius: 5, cursor: isComingSoon ? "default" : "grab", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
                       onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.background = "#D1FAE5"; e.currentTarget.style.borderColor = "hsl(163, 77%, 31%)"; e.currentTarget.style.borderRadius = "5px"; } }}
                       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E7EB"; }}
                     >
@@ -2055,7 +2368,21 @@ export default function AutomacoesPage() {
             ref={canvasRef}
             onMouseDown={onCanvasMouseDown}
             onWheel={onWheel}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const type = e.dataTransfer.getData("application/x-block-type");
+              if (!type || COMING_SOON_ACTIONS.has(type)) return;
+              const at = ACTION_TYPES.find(a => a.id === type);
+              if (!at || !canvasRef.current) return;
+              const rect = canvasRef.current.getBoundingClientRect();
+              // Converte o ponto solto para coordenadas do canvas (mesma fórmula do pan/zoom).
+              // Centraliza o bloco (~260px) no cursor e o desloca para que o cursor caia no topo.
+              const x = (e.clientX - rect.left - pan.x) / zoom - 130;
+              const y = (e.clientY - rect.top - pan.y) / zoom - 24;
+              const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x, y, label: at.label };
+              setNodes(prev => [...prev, newNode]);
+            }}
             style={{ position: "absolute", inset: 0, cursor: "grab" }}
           >
             <div style={{ position: "absolute", transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
@@ -2493,12 +2820,13 @@ export default function AutomacoesPage() {
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
 
       {/* Create modal */}
-      <Dialog open={createOpen} onOpenChange={v => { setCreateOpen(v); if (!v) { setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank"); setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput(""); } }}>
-        <DialogContent className="sm:max-w-[480px]">
+      <Dialog open={createOpen} onOpenChange={v => { setCreateOpen(v); if (!v) { setNewName(""); setNewDesc(""); setNewGroup(""); setStartType("blank"); setSelectedTemplate(null); setGroupDropOpen(false); setGroupCreating(false); setGroupNewInput(""); } }}>
+        <DialogContent className={startType === "model" ? "sm:max-w-[860px]" : "sm:max-w-[480px]"}>
           <DialogHeader>
             <DialogTitle>Criar nova automação</DialogTitle>
           </DialogHeader>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", gap: 18, alignItems: "stretch" }}>
+          <div style={{ flex: startType === "model" ? "0 0 360px" : 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <Label className="text-xs font-medium">Nome</Label>
               <Input
@@ -2633,6 +2961,38 @@ export default function AutomacoesPage() {
                 })}
               </div>
             </div>
+          </div>
+          {startType === "model" && (
+            <div style={{ flex: 1, minWidth: 0, borderLeft: "1px solid hsl(var(--border))", paddingLeft: 18, display: "flex", flexDirection: "column" }}>
+              <Label className="text-xs font-medium mb-2 block">Escolha um modelo</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", maxHeight: 380, paddingRight: 4 }}>
+                {AUTOMATION_TEMPLATES.map(tpl => {
+                  const Icon = tpl.icon;
+                  const sel = selectedTemplate === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => { setSelectedTemplate(tpl.id); if (!newName.trim()) setNewName(tpl.name); if (!newDesc.trim()) setNewDesc(tpl.description); }}
+                      style={{ display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", border: `1.5px solid ${sel ? "hsl(var(--primary))" : "#E5E5E5"}`, borderRadius: 10, padding: "10px 12px", background: sel ? "hsl(var(--primary) / 0.04)" : "#FFFFFF", cursor: "pointer" }}
+                    >
+                      <div style={{ width: 30, height: 30, borderRadius: 8, background: "hsl(var(--primary) / 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Icon size={15} color="hsl(var(--primary))" />
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ flex: 1 }}>{tpl.name}</span>
+                          {sel && <CheckCircle2 size={14} color="hsl(var(--primary))" />}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4, marginTop: 2 }}>{tpl.description}</div>
+                        <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>Gatilho: {tpl.flow.trigger.label} · Grupo: {tpl.group}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
@@ -5287,10 +5647,16 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         return { ...c, fields };
       }
       if (c.id === "campos_neg") {
-        return { ...c, fields: [] as VarField[] };
+        const fields: VarField[] = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_neg.${i.id}`, label: i.label, icon: i.fieldType === "date" ? "📅" : i.fieldType === "boolean" ? "☑" : "T" }))
+        );
+        return { ...c, fields };
       }
       if (c.id === "campos_empresa") {
-        return { ...c, fields: [] as VarField[] };
+        const fields: VarField[] = customFieldGroups.flatMap(g =>
+          g.items.map(i => ({ key: `campo_empresa.${i.id}`, label: i.label, icon: i.fieldType === "date" ? "📅" : i.fieldType === "boolean" ? "☑" : "T" }))
+        );
+        return { ...c, fields };
       }
       if (c.id === "ia") {
         const iaNodes = nodes.filter(n => n.type === "ia");

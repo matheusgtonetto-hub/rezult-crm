@@ -21,7 +21,7 @@ interface CRMContextType {
   activePipelineId: string;
   setActivePipelineId: (id: string) => void;
   activePipeline: Pipeline | null;
-  addPipeline: (name: string, category: PipelineCategory, columns: Omit<PipelineColumn, "leadIds">[], description?: string) => Promise<void>;
+  addPipeline: (name: string, category: PipelineCategory, columns: Omit<PipelineColumn, "leadIds">[], description?: string) => Promise<string | undefined>;
   updatePipeline: (id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description">>) => void;
   deletePipeline: (id: string) => void;
 
@@ -599,7 +599,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     colDefs: Omit<PipelineColumn, "leadIds">[],
     description?: string
   ) => {
-    if (!user || !company) return;
+    if (!user || !company) return undefined;
 
     const limit = PLAN_LIMITS[company.plan]?.pipelines ?? null;
     if (limit !== null && pipelines.length >= limit) {
@@ -613,7 +613,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
 
-    if (pErr || !pData) { toast.error("Erro ao criar pipeline."); return; }
+    if (pErr || !pData) { toast.error("Erro ao criar pipeline."); return undefined; }
 
     const colsPayload = colDefs.map((c, i) => ({
       pipeline_id: pData.id,
@@ -638,6 +638,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     setPipelines(prev => [...prev, newPipeline]);
     setActivePipelineId(newPipeline.id);
+    return newPipeline.id;
   }, [user, company, pipelines.length]);
 
   const updatePipeline = useCallback((id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description">>) => {
