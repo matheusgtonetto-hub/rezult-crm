@@ -26,6 +26,7 @@ import {
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
   Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
   Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -4008,6 +4009,179 @@ interface ApiKey {
   last_used_at: string | null;
 }
 
+interface AiProviderKey {
+  id: string;
+  provider: string;
+  api_key: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Provedores de IA suportados (modelo BYOK — o cliente usa a chave da própria conta).
+const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string }[] = [
+  { id: "openai",    name: "OpenAI (ChatGPT)",   placeholder: "sk-...",     help: "platform.openai.com/api-keys" },
+  { id: "anthropic", name: "Anthropic (Claude)", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys" },
+  { id: "google",    name: "Google (Gemini)",    placeholder: "AIza...",    help: "aistudio.google.com/app/apikey" },
+];
+
+// Cadastro das chaves de IA dos clientes (usadas pelo Bloco de IA das automações).
+// Uma chave por provedor por empresa (upsert por company_id+provider).
+function AiProviderKeysCard() {
+  const { company } = useCompany();
+  const { user } = useAuth();
+  const [keys, setKeys] = useState<AiProviderKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [provider, setProvider] = useState<string>("openai");
+  const [keyInput, setKeyInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [visible, setVisible] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<AiProviderKey | null>(null);
+
+  const load = useCallback(async () => {
+    if (!company) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("ai_provider_keys")
+      .select("id, provider, api_key, active, created_at, updated_at")
+      .eq("company_id", company.id)
+      .order("created_at", { ascending: true });
+    setKeys((data as AiProviderKey[]) ?? []);
+    setLoading(false);
+  }, [company]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const providerName = (id: string) => AI_PROVIDERS.find(p => p.id === id)?.name ?? id;
+  const current = AI_PROVIDERS.find(p => p.id === provider);
+
+  const handleSave = async () => {
+    if (!company || !user) return;
+    const val = keyInput.trim();
+    if (!val) { toast.error("Cole a API Key."); return; }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("ai_provider_keys")
+      .upsert(
+        { company_id: company.id, owner_id: user.id, provider, api_key: val, active: true, updated_at: new Date().toISOString() },
+        { onConflict: "company_id,provider" },
+      )
+      .select("id, provider, api_key, active, created_at, updated_at")
+      .single();
+    setSaving(false);
+    if (error) { toast.error("Erro ao salvar a chave."); return; }
+    setKeys(prev => [...prev.filter(k => k.provider !== provider), data as AiProviderKey]);
+    setKeyInput("");
+    toast.success(`Chave do ${providerName(provider)} salva.`);
+  };
+
+  const handleToggle = async (k: AiProviderKey) => {
+    const { error } = await supabase.from("ai_provider_keys").update({ active: !k.active }).eq("id", k.id);
+    if (error) { toast.error("Erro ao atualizar a chave."); return; }
+    setKeys(prev => prev.map(x => x.id === k.id ? { ...x, active: !k.active } : x));
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("ai_provider_keys").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error("Erro ao remover a chave."); return; }
+    setKeys(prev => prev.filter(x => x.id !== deleteTarget.id));
+    toast.success("Chave removida.");
+    setDeleteTarget(null);
+  };
+
+  const toggleVisible = (id: string) =>
+    setVisible(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
+  const maskKey = (key: string) => key.length <= 8 ? "••••••••" : key.slice(0, 4) + "••••••••••••" + key.slice(-4);
+
+  return (
+    <Card>
+      <SectionTitle
+        title="Provedores de IA"
+        subtitle="Cadastre as chaves das IAs que você já possui para liberar o Bloco de IA nas automações. O uso é cobrado diretamente pelo provedor na sua própria conta."
+      />
+
+      {/* Formulário: selecionar provedor + colar chave */}
+      <div className="flex flex-col sm:flex-row gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+        <select
+          value={provider}
+          onChange={e => setProvider(e.target.value)}
+          className="h-9 rounded-md border border-card-border bg-background px-3 text-sm focus:outline-none focus:border-primary sm:w-52 shrink-0"
+        >
+          {AI_PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <Input
+          type="password"
+          placeholder={`API Key (${current?.placeholder})`}
+          value={keyInput}
+          onChange={e => setKeyInput(e.target.value)}
+          className="border-card-border text-sm h-9 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+          onKeyDown={e => e.key === "Enter" && handleSave()}
+        />
+        <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleSave} disabled={saving}>
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground mt-2 mb-4">
+        Obtenha sua chave em <span className="font-mono">{current?.help}</span>. Cadastrar uma chave já existente para o mesmo provedor a substitui.
+      </p>
+
+      {/* Lista de chaves cadastradas */}
+      {loading ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
+      ) : keys.length === 0 ? (
+        <div className="text-center py-8">
+          <Sparkles size={32} className="mx-auto mb-2 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">Nenhuma chave de IA cadastrada ainda.</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">Selecione o provedor e cole sua API Key acima.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {keys.map(k => {
+            const vis = visible.has(k.id);
+            return (
+              <div key={k.id} className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Sparkles size={16} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{providerName(k.provider)}</p>
+                  <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">{vis ? k.api_key : maskKey(k.api_key)}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => toggleVisible(k.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground" title={vis ? "Ocultar" : "Mostrar"}>
+                    {vis ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                  <Switch checked={k.active} onCheckedChange={() => handleToggle(k)} className="data-[state=checked]:bg-primary scale-75" />
+                  <button onClick={() => setDeleteTarget(k)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive" title="Excluir">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover chave</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remover a chave do {deleteTarget ? providerName(deleteTarget.provider) : ""}? As automações que usam o Bloco de IA desse provedor deixarão de funcionar.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function ApiSection() {
   const { company } = useCompany();
   const { user } = useAuth();
@@ -4092,8 +4266,11 @@ function ApiSection() {
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
-        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gere chaves de API para permitir integrações seguras com os serviços da nossa plataforma.</p>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Cadastre as chaves de IA dos seus provedores e gere chaves para integrações via webhook.</p>
       </div>
+
+      {/* Provedores de IA (BYOK) */}
+      <AiProviderKeysCard />
 
       {/* Webhook endpoint */}
       <Card>

@@ -137,6 +137,23 @@ interface ApiConfig {
   requests: ApiRequest[];
 }
 
+// Ações do bloco de IA (BYOK). O resultado vira datasource {{outputVar.resposta}}.
+interface IaAction {
+  id: string;
+  type: "assistente_chat" | "gerar_texto" | "invocar_agente" | "transcricao_audio" | "intencao" | "sentimento" | "extrator_params";
+  provider: "openai" | "anthropic" | "google";
+  model: string;
+  outputVar: string;
+  instructions?: string;
+  audioSource?: string;
+  language?: string;
+  intencoes?: { id: string; nome: string; detalhes?: string; exemplos?: string }[];
+  sentimentos?: { id: string; nome: string; detalhes?: string }[];
+  parametros?: { id: string; nome: string; tipo: string; info?: string }[];
+  agentId?: string;
+  maxTokens?: number;
+}
+
 interface FieldOpMapeamento {
   id: string;
   type: "mapeamento";
@@ -186,6 +203,7 @@ interface CanvasNode {
   randomBranches?: RandomBranch[];
   espera?: EsperaConfig;
   apiConfig?: ApiConfig;
+  iaActions?: IaAction[];
   fieldOps?: FieldOperation[];
   subBlocks?: SubBlock[];
   connectionId?: string; // conexão (whatsapp_connections) escolhida no bloco Mensagem
@@ -1164,6 +1182,82 @@ async function executeFlow(
         queue.push(...(children.get(node.id) ?? []));
       }
 
+    // ── IA ───────────────────────────────────────────────────────────────────
+    } else if (node.type === "ia") {
+      const actions = node.iaActions ?? [];
+      const leadData = payload.lead_id
+        ? ((await supabase.from("leads").select("*").eq("id", payload.lead_id).single()).data as Record<string, unknown> | null)
+        : null;
+      const vars = await buildVarContext(supabase, leadData, payload);
+      // Transcrição da conversa do lead (quando houver telefone), p/ ações "com base na conversa".
+      let conversa = await buildConversationContext(supabase, company_id, (leadData?.whatsapp as string) || (leadData?.phone as string) || "");
+
+      const errors: string[] = [];
+      let ranAny = false;
+      const dsStore = (payload.context.datasources ??= {});
+      const branchTargets: string[] = []; // portas de saída a disparar (intenção/sentimento)
+
+      for (const action of actions) {
+        try {
+          if (action.type === "assistente_chat" || action.type === "gerar_texto") {
+            const text = await runIaTextAction(supabase, company_id, action, vars, conversa);
+            dsStore[action.outputVar || "ia"] = { resposta: text };
+            ranAny = true;
+
+          } else if (action.type === "intencao") {
+            const opts = (action.intencoes ?? []).filter((o) => (o.nome ?? "").trim());
+            const matchedId = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const matched = opts.find((o) => o.id === matchedId);
+            dsStore[action.outputVar || "ia"] = { intencao: matched?.nome ?? "nenhuma", id: matched?.id ?? "" };
+            branchTargets.push(matchedId ? `${node.id}_${matchedId}` : `${node.id}_${action.id}-none`);
+            ranAny = true;
+
+          } else if (action.type === "sentimento") {
+            const opts = (action.sentimentos ?? []).filter((o) => (o.nome ?? "").trim());
+            const matchedId = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const matched = opts.find((o) => o.id === matchedId);
+            dsStore[action.outputVar || "ia"] = { sentimento: matched?.nome ?? "" };
+            if (matchedId) branchTargets.push(`${node.id}_${matchedId}`);
+            ranAny = true;
+
+          } else if (action.type === "extrator_params") {
+            const obj = await runIaExtractParams(supabase, company_id, action, vars, conversa);
+            dsStore[action.outputVar || "ia"] = obj;
+            ranAny = true;
+
+          } else if (action.type === "transcricao_audio") {
+            const text = await runIaTranscription(supabase, company_id, action,
+              (leadData?.whatsapp as string) || (leadData?.phone as string) || "");
+            dsStore[action.outputVar || "ia"] = { texto: text };
+            // Acrescenta a transcrição ao contexto para ações seguintes no mesmo nó
+            if (text) conversa = conversa ? `${conversa}\nCliente (áudio): ${text}` : `Cliente (áudio): ${text}`;
+            ranAny = true;
+
+          } else {
+            // Invocar Agente — depende do cadastro de Agentes (Em breve)
+            errors.push(`Ação "${action.type}" ainda não é executada pelo motor`);
+          }
+        } catch (err) {
+          errors.push(`${action.outputVar}: ${String(err instanceof Error ? err.message : err)}`);
+          console.error(`[node ${node.id}] IA action ${action.type} failed:`, err);
+        }
+      }
+
+      const status = errors.length > 0 ? (ranAny ? "alert" : "error") : "success";
+      await supabase.from("automation_logs").insert({
+        automation_id: automationId, company_id, lead_id: getLogLeadId(),
+        node_id: node.id, status,
+        error_message: errors.length > 0 ? errors.join("; ") : null,
+      });
+
+      if (errors.length > 0 && !ranAny) {
+        const errNext = errorChildren.get(node.id) ?? [];
+        if (errNext.length > 0) { queue.push(...errNext); continue; }
+      }
+      // Saídas de ramificação (intenção/sentimento) + "Próximo passo" geral
+      for (const t of branchTargets) queue.push(...(children.get(t) ?? []));
+      queue.push(...(children.get(node.id) ?? []));
+
     // ── Randomizador ───────────────────────────────────────────────────────
     } else if (node.type === "randomizador") {
       const branches: RandomBranch[] = node.randomBranches ?? [
@@ -1461,6 +1555,251 @@ interface ZapiCreds {
   instanceId: string;
   token: string;
   clientToken: string | null;
+}
+
+// Executa o bloco de IA: lê a chave do provedor (BYOK) da empresa, interpola o
+// prompt com as variáveis do contexto e chama a API do provedor escolhido.
+// Busca a chave ativa do provedor de IA (BYOK) da empresa.
+async function getAiKey(
+  supabase: SupabaseClient,
+  companyId: string,
+  provider: string,
+): Promise<string> {
+  const { data } = await supabase
+    .from("ai_provider_keys")
+    .select("api_key, active")
+    .eq("company_id", companyId)
+    .eq("provider", provider)
+    .maybeSingle();
+  const row = data as { api_key?: string; active?: boolean } | null;
+  if (!row?.api_key) throw new Error(`Nenhuma chave de API cadastrada para ${provider}. Configure em Configurações → Chaves de API.`);
+  if (row.active === false) throw new Error(`A chave de API do ${provider} está desativada.`);
+  return row.api_key;
+}
+
+// Chamada genérica ao provedor de IA. Retorna o texto da resposta.
+async function callAiProvider(
+  provider: string,
+  apiKey: string,
+  model: string,
+  system: string,
+  userPrompt: string,
+  maxTokens: number,
+): Promise<string> {
+  if (provider === "openai") {
+    const messages: { role: string; content: string }[] = [];
+    if (system) messages.push({ role: "system", content: system });
+    messages.push({ role: "user", content: userPrompt });
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 }),
+    });
+    if (!resp.ok) throw new Error(`OpenAI HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
+    const data = await resp.json();
+    return String(data?.choices?.[0]?.message?.content ?? "").trim();
+  }
+
+  if (provider === "anthropic") {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: maxTokens, ...(system ? { system } : {}), messages: [{ role: "user", content: userPrompt }] }),
+    });
+    if (!resp.ok) throw new Error(`Anthropic HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
+    const data = await resp.json();
+    const parts = Array.isArray(data?.content) ? data.content : [];
+    return parts.filter((p: { type?: string }) => p.type === "text").map((p: { text?: string }) => p.text ?? "").join("").trim();
+  }
+
+  // google (gemini)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+      generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens },
+    }),
+  });
+  if (!resp.ok) throw new Error(`Google HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
+  const data = await resp.json();
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
+}
+
+// Monta a transcrição recente da conversa de WhatsApp do lead (filtrada pelo dono do
+// tenant para não vazar entre empresas). Vazio quando não há telefone/mensagens.
+async function buildConversationContext(
+  supabase: SupabaseClient,
+  companyId: string,
+  phone: string,
+): Promise<string> {
+  const digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.length < 8) return "";
+  const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
+  const ownerId = (comp as { owner_id?: string } | null)?.owner_id;
+  if (!ownerId) return "";
+  const last8 = digits.slice(-8);
+  const { data: msgs } = await supabase
+    .from("whatsapp_messages")
+    .select("body, type, from_me, created_at, phone")
+    .eq("owner_id", ownerId)
+    .ilike("phone", `%${last8}`)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const rows = ((msgs ?? []) as { body?: string; type?: string; from_me?: boolean }[]).reverse();
+  const lines = rows.map((m) => {
+    const who = m.from_me ? "Atendente" : "Cliente";
+    const content = m.type === "audio" ? "[áudio]" : m.type === "image" ? "[imagem]" : m.type === "document" ? "[documento]" : (m.body ?? "");
+    return content.trim() ? `${who}: ${content}` : "";
+  }).filter(Boolean);
+  return lines.join("\n");
+}
+
+// Ações de IA de texto: "Assistente de chat" e "Gere um texto com base na conversa".
+async function runIaTextAction(
+  supabase: SupabaseClient,
+  companyId: string,
+  action: IaAction,
+  vars: Record<string, string>,
+  conversa: string,
+): Promise<string> {
+  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const instr = interpolate(action.instructions ?? "", vars).trim();
+  if (!instr && !conversa) throw new Error("Ação de IA sem instruções");
+  const system = action.type === "assistente_chat"
+    ? "Você é um assistente de atendimento ao cliente. Responda de forma cordial, objetiva e útil, em português, com base na conversa e nas instruções."
+    : "Você gera texto conforme as instruções, em português, usando a conversa como contexto quando fornecida.";
+  const userPrompt = [
+    conversa ? `Conversa atual:\n${conversa}` : "",
+    instr ? `Instruções:\n${instr}` : "",
+  ].filter(Boolean).join("\n\n");
+  const maxTokens = action.maxTokens && action.maxTokens > 0 ? action.maxTokens : 500;
+  return await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, maxTokens);
+}
+
+// Extrai o primeiro objeto JSON de um texto possivelmente "sujo" (markdown, prosa).
+function parseFirstJson(raw: string): Record<string, unknown> | null {
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
+}
+
+// Classificação (Intenção/Sentimento): a IA escolhe a opção que melhor corresponde à
+// conversa e devolve o id dela (ou null se nenhuma). Usado para rotear ramificações.
+async function runIaClassify(
+  supabase: SupabaseClient,
+  companyId: string,
+  action: IaAction,
+  vars: Record<string, string>,
+  conversa: string,
+  options: { id: string; nome: string; detalhes?: string; exemplos?: string }[],
+): Promise<string | null> {
+  if (options.length === 0) return null;
+  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const kind = action.type === "sentimento" ? "sentimento" : "intenção";
+  const list = options.map((o) =>
+    `- id="${o.id}" | nome="${o.nome}"${o.detalhes ? ` | quando: ${o.detalhes}` : ""}${(o as { exemplos?: string }).exemplos ? ` | exemplos: ${(o as { exemplos?: string }).exemplos}` : ""}`
+  ).join("\n");
+  const extra = interpolate(action.instructions ?? "", vars).trim();
+  const system = `Você é um classificador de ${kind}. Analise a conversa e escolha a ÚNICA opção que melhor corresponde. Responda APENAS com JSON válido no formato {"id":"<id da opção escolhida>"}. Se nenhuma corresponder, responda {"id":"none"}.`;
+  const userPrompt = [
+    conversa ? `Conversa:\n${conversa}` : "Conversa: (sem mensagens)",
+    `Opções de ${kind}:\n${list}`,
+    extra ? `Considere também: ${extra}` : "",
+  ].filter(Boolean).join("\n\n");
+  const raw = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 60);
+  const parsed = parseFirstJson(raw);
+  const id = parsed?.id ? String(parsed.id) : "none";
+  if (id === "none" || !options.some((o) => o.id === id)) return null;
+  return id;
+}
+
+// Extrator de parâmetros: a IA devolve um JSON com cada parâmetro pedido. Cada chave
+// fica disponível para os blocos seguintes como {{<outputVar>.<nome>}}.
+async function runIaExtractParams(
+  supabase: SupabaseClient,
+  companyId: string,
+  action: IaAction,
+  vars: Record<string, string>,
+  conversa: string,
+): Promise<Record<string, string>> {
+  const params = (action.parametros ?? []).filter((p) => (p.nome ?? "").trim());
+  if (params.length === 0) return {};
+  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const list = params.map((p) => `- "${p.nome}" (tipo: ${p.tipo})${p.info ? `: ${p.info}` : ""}`).join("\n");
+  const extra = interpolate(action.instructions ?? "", vars).trim();
+  const system = `Você extrai informações estruturadas de uma conversa. Responda APENAS com JSON válido cujas chaves são EXATAMENTE os nomes dos parâmetros pedidos. Use null quando o valor não estiver presente na conversa. Não invente dados.`;
+  const userPrompt = [
+    conversa ? `Conversa:\n${conversa}` : "Conversa: (sem mensagens)",
+    `Parâmetros a extrair:\n${list}`,
+    extra ? `Considere também: ${extra}` : "",
+  ].filter(Boolean).join("\n\n");
+  const raw = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 400);
+  const parsed = parseFirstJson(raw);
+  if (!parsed) return {};
+  // Mantém apenas as chaves pedidas (evita campos extras alucinados) e normaliza p/ string
+  const out: Record<string, string> = {};
+  for (const p of params) {
+    const v = parsed[p.nome];
+    out[p.nome] = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  }
+  return out;
+}
+
+// Transcrição de áudio (Whisper / OpenAI). Busca os áudios da conversa do lead em
+// whatsapp_messages (media_url) e transcreve. Requer chave da OpenAI cadastrada.
+async function runIaTranscription(
+  supabase: SupabaseClient,
+  companyId: string,
+  action: IaAction,
+  phone: string,
+): Promise<string> {
+  const apiKey = await getAiKey(supabase, companyId, "openai");
+  const digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.length < 8) return "";
+  const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
+  const ownerId = (comp as { owner_id?: string } | null)?.owner_id;
+  if (!ownerId) return "";
+  const last8 = digits.slice(-8);
+  const { data: msgs } = await supabase
+    .from("whatsapp_messages")
+    .select("media_url, type, created_at, phone")
+    .eq("owner_id", ownerId)
+    .eq("type", "audio")
+    .ilike("phone", `%${last8}`)
+    .order("created_at", { ascending: false })
+    .limit(action.audioSource === "ultimo" ? 1 : 8);
+  const urls = ((msgs ?? []) as { media_url?: string }[]).map((m) => m.media_url).filter((u): u is string => !!u).reverse();
+  if (urls.length === 0) return "";
+
+  const language = action.language && action.language !== "auto" ? action.language : undefined;
+  const texts: string[] = [];
+  for (const url of urls) {
+    try {
+      const audioResp = await fetch(url);
+      if (!audioResp.ok) continue;
+      const blob = await audioResp.blob();
+      const form = new FormData();
+      form.append("file", blob, "audio.ogg");
+      form.append("model", "whisper-1");
+      if (language) form.append("language", language);
+      const tr = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}` },
+        body: form,
+      });
+      if (!tr.ok) { console.error(`Whisper HTTP ${tr.status}: ${(await tr.text().catch(() => "")).slice(0, 200)}`); continue; }
+      const data = await tr.json();
+      const t = String(data?.text ?? "").trim();
+      if (t) texts.push(t);
+    } catch (err) {
+      console.error("Transcrição de áudio falhou:", err);
+    }
+  }
+  return texts.join("\n");
 }
 
 async function sendZapi(

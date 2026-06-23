@@ -12,6 +12,7 @@ import {
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
   Braces, FileDown, Brackets, RefreshCw, Loader2, Square,
+  MessageSquareText, Smile, ListChecks,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,6 +90,30 @@ type ApiRequest = {
 };
 type ApiConfig = { requests: ApiRequest[] };
 
+// Bloco de IA (BYOK): cada nó contém uma lista de ações de IA. Usa a chave do
+// provedor cadastrada em ai_provider_keys. O resultado de cada ação fica disponível
+// para os blocos seguintes como {{<outputVar>.resposta}} (ou campos extraídos).
+type IaProvider = "openai" | "anthropic" | "google";
+type IaActionType = "assistente_chat" | "gerar_texto" | "invocar_agente" | "transcricao_audio" | "intencao" | "sentimento" | "extrator_params";
+type IaIntencao = { id: string; nome: string; detalhes?: string; exemplos?: string };
+type IaSentimento = { id: string; nome: string; detalhes?: string };
+type IaParametro = { id: string; nome: string; tipo: string; info?: string };
+type IaAction = {
+  id: string;
+  type: IaActionType;
+  provider: IaProvider;
+  model: string;
+  outputVar: string;
+  instructions?: string;        // assistente_chat, gerar_texto, transcricao, instruções adicionais do agente
+  audioSource?: string;         // transcricao_audio
+  language?: string;            // transcricao_audio
+  intencoes?: IaIntencao[];     // intencao
+  sentimentos?: IaSentimento[]; // sentimento
+  parametros?: IaParametro[];   // extrator_params
+  agentId?: string;             // invocar_agente
+  maxTokens?: number;
+};
+
 type FieldOpMapeamento     = { id: string; type: "mapeamento";       fieldKey: string; fieldLabel: string; value: string };
 type FieldOpLoopArray      = { id: string; type: "loop_array";       datasourceName: string; datasourceColor: string; paramKey: string; paramLabel: string };
 type FieldOpAnaliseTel     = { id: string; type: "analise_telefone"; phone: string; datasourceName: string; datasourceColor: string; defaultCountry: string };
@@ -113,6 +138,7 @@ type CanvasNode = {
   espera?: EsperaConfig;
   randomBranches?: RandomBranch[];
   apiConfig?: ApiConfig;
+  iaActions?: IaAction[];
   fieldOps?: FieldOperation[];
   noteText?: string;
   noteColorIndex?: number;
@@ -255,7 +281,42 @@ const ACTION_TYPES = [
 
 // Blocos disponíveis na paleta porém ainda não executáveis pelo motor — exibidos
 // com selo "EM BREVE" e desabilitados (mesmo padrão do gatilho MCP Server Tool).
-const COMING_SOON_ACTIONS = new Set<string>(["ia", "javascript"]);
+const COMING_SOON_ACTIONS = new Set<string>(["javascript"]);
+
+// Modelos por provedor de IA (BYOK). Mantém os mais recentes/recomendados de cada um.
+const IA_MODELS: Record<IaProvider, { id: string; label: string }[]> = {
+  openai: [
+    { id: "gpt-4o-mini", label: "GPT-4o mini (rápido e barato)" },
+    { id: "gpt-4o",      label: "GPT-4o" },
+    { id: "gpt-4.1",     label: "GPT-4.1" },
+  ],
+  anthropic: [
+    { id: "claude-sonnet-4-6",         label: "Claude Sonnet 4.6 (equilibrado)" },
+    { id: "claude-opus-4-8",           label: "Claude Opus 4.8 (mais capaz)" },
+    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (rápido)" },
+  ],
+  google: [
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (rápido)" },
+    { id: "gemini-1.5-pro",   label: "Gemini 1.5 Pro" },
+    { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+  ],
+};
+const IA_PROVIDER_LABELS: Record<IaProvider, string> = {
+  openai: "OpenAI (ChatGPT)", anthropic: "Anthropic (Claude)", google: "Google (Gemini)",
+};
+
+// Catálogo de ações de IA (picker do bloco de IA). `soon` = exibida mas desabilitada.
+// `branch` = a ação gera portas de saída no nó (intenção/sentimento).
+const IA_ACTION_TYPES: { id: IaActionType; label: string; desc: string; icon: React.ElementType; soon?: boolean; branch?: boolean }[] = [
+  { id: "assistente_chat",  label: "Assistente de chat",            desc: "Gere uma resposta como um assistente com base na conversa atual", icon: MessageCircle },
+  { id: "gerar_texto",      label: "Gere um texto com base na conversa", desc: "Gera um texto com base na conversa atual",                    icon: Sparkles },
+  { id: "invocar_agente",   label: "Invocar Agente",                desc: "Invoca um agente para processar a conversa atual",                icon: Bot, soon: true },
+  { id: "transcricao_audio", label: "Transcrição de áudio",         desc: "Transcreve os áudios do chat para texto",                         icon: Mic },
+  { id: "intencao",         label: "Intenção de conversa",          desc: "Identifica a intenção do usuário na conversa atual",              icon: MessageSquareText, branch: true },
+  { id: "sentimento",       label: "Sentimento da conversa",        desc: "Identifica o sentimento do usuário na conversa atual",            icon: Smile, branch: true },
+  { id: "extrator_params",  label: "Extrator de parâmetros",        desc: "Extrai parâmetros da conversa atual",                             icon: ListChecks },
+];
+const IA_ACTION_LABEL: Record<IaActionType, string> = Object.fromEntries(IA_ACTION_TYPES.map(a => [a.id, a.label])) as Record<IaActionType, string>;
 
 const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; description: string; actions: ActionCatItem[] }[] = [
   {
@@ -762,6 +823,8 @@ function previewBodyLines(n: CanvasNode): { icon?: React.ElementType; text: stri
         e.type === "dia_horario"       ? "Data/horário" : "Aguardar resposta";
       return [{ text: txt }];
     }
+    case "ia":
+      return (n.iaActions ?? []).map(a => ({ text: IA_ACTION_LABEL[a.type] }));
     default: return [];
   }
 }
@@ -931,6 +994,7 @@ export default function AutomacoesPage() {
   const [selectedCondPickerCat, setSelectedCondPickerCat] = useState(CONDITION_CATEGORIES[0].id);
   const [espePickerOpen, setEspePickerOpen] = useState(false);
   const [selectedEspePickerCat, setSelectedEspePickerCat] = useState("tempo");
+  const [iaPickerNode, setIaPickerNode] = useState<string | null>(null);
   const [triggerPanel, setTriggerPanel] = useState(false);
   const [apiPickerTrigger, setApiPickerTrigger] = useState(0);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
@@ -1818,6 +1882,31 @@ export default function AutomacoesPage() {
     ));
   };
 
+  const addIaAction = (nodeId: string, type: IaActionType): string => {
+    const node = nodes.find(n => n.id === nodeId);
+    const idx = (node?.iaActions?.length ?? 0) + 1;
+    const newAction: IaAction = {
+      id: `ia${Date.now()}`, type, provider: "openai", model: IA_MODELS.openai[0].id, outputVar: `AI-${idx}`,
+      ...(type === "intencao" ? { intencoes: [] } : {}),
+      ...(type === "sentimento" ? { sentimentos: [] } : {}),
+      ...(type === "extrator_params" ? { parametros: [] } : {}),
+      ...(type === "transcricao_audio" ? { audioSource: "todos", language: "pt" } : {}),
+    };
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, iaActions: [...(n.iaActions ?? []), newAction] } : n));
+    return newAction.id;
+  };
+
+  const removeIaAction = (nodeId: string, actionId: string) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, iaActions: (n.iaActions ?? []).filter(a => a.id !== actionId) } : n));
+  };
+
+  const updateIaAction = (nodeId: string, actionId: string, data: Partial<IaAction>) => {
+    setNodes(prev => prev.map(n => n.id === nodeId
+      ? { ...n, iaActions: (n.iaActions ?? []).map(a => a.id === actionId ? { ...a, ...data } : a) }
+      : n
+    ));
+  };
+
   const addRandomBranch = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     const idx = node?.randomBranches?.length ?? 4;
@@ -2234,6 +2323,18 @@ export default function AutomacoesPage() {
             />
           )}
 
+          {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "ia" && (
+            <IaPanel
+              node={nodes.find(n => n.id === nodePanel)!}
+              onClose={() => setNodePanel(null)}
+              onDelete={() => { setNodes(prev => prev.filter(n => n.id !== nodePanel)); setNodePanel(null); }}
+              onDuplicate={() => { const n = nodes.find(x => x.id === nodePanel); if (n) setNodes(prev => [...prev, { ...n, id: `n${Date.now()}`, x: n.x + 20, y: n.y + 20 }]); }}
+              updateAction={(actionId, data) => updateIaAction(nodePanel, actionId, data)}
+              removeAction={(actionId) => removeIaAction(nodePanel, actionId)}
+              onAddAction={() => setIaPickerNode(nodePanel)}
+            />
+          )}
+
           {nodePanel && nodes.find(n => n.id === nodePanel)?.type === "espera" && (
             <EsperaPanel
               node={nodes.find(n => n.id === nodePanel)!}
@@ -2402,6 +2503,12 @@ export default function AutomacoesPage() {
                       x1 = pp?.x ?? realParent.x + 290;
                       y1 = pp?.y ?? realParent.y + 110 + branchIdx * 31;
                       stroke = BRANCH_COLORS[branchIdx % BRANCH_COLORS.length];
+                    } else if (realParent.type === "ia") {
+                      // Portas de ramificação do bloco de IA (intenção/sentimento + "-none").
+                      // A posição exata vem do portPosMap (medido do DOM); fallback aproximado.
+                      x1 = pp?.x ?? realParent.x + 287;
+                      y1 = pp?.y ?? realParent.y + 90;
+                      stroke = suffix.endsWith("-none") ? "#16A34A" : "#06B6D4";
                     } else {
                       return null;
                     }
@@ -2509,6 +2616,9 @@ export default function AutomacoesPage() {
                       const branchIdx = branches.findIndex(b => b.id === suffix);
                       x1 = pp?.x ?? realParent.x + 290;
                       y1 = pp?.y ?? realParent.y + 110 + branchIdx * 31;
+                    } else if (realParent.type === "ia") {
+                      x1 = pp?.x ?? realParent.x + 287;
+                      y1 = pp?.y ?? realParent.y + 90;
                     } else {
                       return null;
                     }
@@ -2581,7 +2691,9 @@ export default function AutomacoesPage() {
                     onOpenAcoesPicker={n.type === "acoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setAcoesPickerOpen(true); } : undefined}
                     onOpenCondicoesPicker={n.type === "condicoes" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setCondicoesPickerOpen(true); } : undefined}
                     onOpenApiPicker={n.type === "api" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setApiPickerTrigger(t => t + 1); } : undefined}
+                    onOpenIaPicker={n.type === "ia" ? () => { setSelectedNode(n.id); setNodePanel(n.id); setIaPickerNode(n.id); } : undefined}
                     onRemoveApiRequest={n.type === "api" ? (reqId) => removeApiRequest(n.id, reqId) : undefined}
+                    onRemoveIaAction={n.type === "ia" ? (actionId) => removeIaAction(n.id, actionId) : undefined}
                     removeSubBlock={n.type === "mensagem" ? (blockId) => removeSubBlock(n.id, blockId) : undefined}
                     removeActionItem={n.type === "acoes" ? (itemId) => removeActionItem(n.id, itemId) : undefined}
                     removeConditionItem={n.type === "condicoes" ? (itemId) => removeConditionItem(n.id, itemId) : undefined}
@@ -3048,6 +3160,45 @@ export default function AutomacoesPage() {
                   </>
                 );
               })()}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Picker de ações de IA */}
+      <Dialog open={!!iaPickerNode} onOpenChange={v => !v && setIaPickerNode(null)}>
+        <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", height: 480 }}>
+            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação de IA</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderLeft: "2px solid hsl(var(--primary))", background: "#F0FDF4", fontSize: 12, fontWeight: 600, color: "hsl(var(--primary))" }}>
+                <MessageCircle size={14} /> Mensagens
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 2 }}>Mensagens</div>
+              <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 14 }}>Adicione ações de IA baseadas em mensagens</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {IA_ACTION_TYPES.map(t => {
+                  const Icon = t.icon;
+                  return (
+                    <button key={t.id} disabled={t.soon}
+                      onClick={() => { if (t.soon || !iaPickerNode) return; const node = iaPickerNode; addIaAction(node, t.id); setNodePanel(node); setIaPickerNode(null); }}
+                      style={{ display: "flex", alignItems: "flex-start", gap: 10, textAlign: "left", padding: "11px 12px", border: "1px solid #E5E5E5", borderRadius: 10, background: "#FFF", cursor: t.soon ? "default" : "pointer", opacity: t.soon ? 0.55 : 1 }}
+                      onMouseEnter={e => { if (!t.soon) e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; }}>
+                      <Icon size={16} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111", display: "flex", alignItems: "center", gap: 6 }}>
+                          {t.label}
+                          {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px" }}>EM BREVE</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -4156,7 +4307,7 @@ const SUB_BLOCK_LABELS: Record<SubBlockType, string> = {
   arquivo_url:     "Arquivo URL Dinâmica",
 };
 
-function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onTimeoutPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onRemoveApiRequest, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
+function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDragStart, onTimeoutPortDragStart, onConditionPortDragStart, onBranchPortDragStart, onDragStart, onDelete, onDuplicate, onAddNote, onOpenAcoesPicker, onOpenCondicoesPicker, onOpenApiPicker, onOpenIaPicker, onRemoveApiRequest, onRemoveIaAction, removeSubBlock, removeActionItem, removeConditionItem, stats, onStatClick, portDragging, portHovered, onAddRandomBranch, onRemoveRandomBranch }: {
   node: CanvasNode;
   selected: boolean;
   onSelect: () => void;
@@ -4172,7 +4323,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   onOpenAcoesPicker?: () => void;
   onOpenCondicoesPicker?: () => void;
   onOpenApiPicker?: () => void;
+  onOpenIaPicker?: () => void;
   onRemoveApiRequest?: (reqId: string) => void;
+  onRemoveIaAction?: (actionId: string) => void;
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   removeConditionItem?: (itemId: string) => void;
@@ -4539,6 +4692,114 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.type === "ia") {
+    const PURPLE = "#8B5CF6";
+    const acts = node.iaActions ?? [];
+    return (
+      <div data-node onMouseDown={onDragStart}
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? PURPLE : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        {inputPort}
+        {selected && toolbar}
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+          <Bot size={15} color={PURPLE} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>IA</span>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {acts.length === 0 && (
+            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Utilize ações com inteligência artificial. Clique para adicionar uma ação com IA:</div>
+          )}
+          {acts.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              {acts.map(a => {
+                const AIcon = IA_ACTION_TYPES.find(t => t.id === a.type)?.icon ?? Bot;
+                return (
+                  <div key={a.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8 }}>
+                      <AIcon size={13} color={PURPLE} style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_LABEL[a.type]}</div>
+                        <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_TYPES.find(t => t.id === a.type)?.desc}</div>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF", background: PURPLE, borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{a.outputVar}</span>
+                      <button
+                        data-action
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); onRemoveIaAction?.(a.id); }}
+                        title="Remover ação"
+                        style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "#C4B5FD")}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                    {a.type === "intencao" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5 }}>
+                        {(a.intencoes ?? []).map((it, i) => (
+                          <div key={it.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 7 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: it.nome.trim() ? "#0E7490" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{it.nome.trim() || `Intenção ${i + 1}`}</span>
+                            <div data-port data-from-node={`${node.id}_${it.id}`} onMouseDown={e => onConditionPortDragStart?.(e, it.id)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
+                          </div>
+                        ))}
+                        <div style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#F0FDF4", border: "0.5px solid #BBF7D0", borderRadius: 7 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "#16A34A" }}>Nenhuma intenção encontrada</span>
+                          <div data-port data-from-node={`${node.id}_${a.id}-none`} onMouseDown={e => onConditionPortDragStart?.(e, `${a.id}-none`)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#BBF7D0", border: "2px solid #16A34A", cursor: "crosshair", zIndex: 3 }} />
+                        </div>
+                      </div>
+                    )}
+                    {a.type === "sentimento" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5 }}>
+                        {(a.sentimentos ?? []).map((s, i) => (
+                          <div key={s.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 7 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: s.nome.trim() ? "#0E7490" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{s.nome.trim() || `Sentimento ${i + 1}`}</span>
+                            <div data-port data-from-node={`${node.id}_${s.id}`} onMouseDown={e => onConditionPortDragStart?.(e, s.id)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {a.type === "extrator_params" && (a.parametros ?? []).length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 4, paddingLeft: 2 }}>
+                        {(a.parametros ?? []).map(p => (
+                          <span key={p.id} style={{ fontSize: 9, fontWeight: 600, color: "#7C3AED", background: "#EDE9FE", border: "0.5px solid #DDD6FE", borderRadius: 4, padding: "1px 6px" }}>{p.nome || "param"}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <button data-action onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onOpenIaPicker?.(); }}
+            style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: PURPLE, fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+            <Plus size={13} /> Adicionar ação com IA
+          </button>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: "#EF4444" }}>Caso ocorra erro na execução da IA</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: PURPLE, fontWeight: 500 }}>Próximo passo</span>
+              <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#DDD6FE", border: `2px solid ${PURPLE}`, cursor: "crosshair", zIndex: 3 }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          <div style={{ textAlign: "center", padding: "4px 8px", flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0.00</div>
+            <div style={{ color: PURPLE }}>Média Tokens</div>
+          </div>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: PURPLE, label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -5188,6 +5449,240 @@ const DAYS_OF_WEEK = [
   { id: "qua", label: "Qua" }, { id: "qui", label: "Qui" }, { id: "sex", label: "Sex" },
   { id: "sab", label: "Sab" },
 ];
+
+// ─── Editores das ações de IA com ramificação/extração (Fase 2/3) ──────────────
+
+const IA_ADD_BTN: React.CSSProperties = { width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 12, fontWeight: 600, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 };
+const IA_ITEM_BOX: React.CSSProperties = { border: "1px solid #E5E5E5", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#FFF" };
+
+function IaItemHeader({ index, color, onRemove }: { index: number; color: string; onRemove: () => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color }}>#{index + 1}</span>
+      <button onClick={onRemove} title="Remover" style={{ width: 22, height: 22, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
+        onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}>
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
+
+function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; inputStyle: React.CSSProperties; labelStyle: React.CSSProperties }) {
+  const items = a.intencoes ?? [];
+  const set = (next: IaIntencao[]) => updateAction(a.id, { intencoes: next });
+  return (
+    <div>
+      <label style={labelStyle}>Intenções a identificar</label>
+      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>Cada intenção vira uma saída no bloco. A IA roteia para a que melhor corresponder à conversa.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((it, i) => (
+          <div key={it.id} style={IA_ITEM_BOX}>
+            <IaItemHeader index={i} color="#8B5CF6" onRemove={() => set(items.filter(x => x.id !== it.id))} />
+            <input value={it.nome} onChange={e => set(items.map(x => x.id === it.id ? { ...x, nome: e.target.value } : x))} placeholder="Nome da intenção (ex: Quer comprar)" style={inputStyle} />
+            <textarea value={it.detalhes ?? ""} onChange={e => set(items.map(x => x.id === it.id ? { ...x, detalhes: e.target.value } : x))} rows={2} placeholder="Quando essa intenção se aplica" style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+            <textarea value={it.exemplos ?? ""} onChange={e => set(items.map(x => x.id === it.id ? { ...x, exemplos: e.target.value } : x))} rows={2} placeholder="Exemplos de frases (opcional)" style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+          </div>
+        ))}
+      </div>
+      <button onClick={() => set([...items, { id: `int${Date.now()}`, nome: "", detalhes: "", exemplos: "" }])} style={IA_ADD_BTN}
+        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        <Plus size={13} /> Adicionar intenção
+      </button>
+      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.intencao}}`}</span>.</p>
+    </div>
+  );
+}
+
+function IaSentimentoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; inputStyle: React.CSSProperties; labelStyle: React.CSSProperties }) {
+  const items = a.sentimentos ?? [];
+  const set = (next: IaSentimento[]) => updateAction(a.id, { sentimentos: next });
+  return (
+    <div>
+      <label style={labelStyle}>Sentimentos a identificar</label>
+      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>Cada sentimento vira uma saída no bloco. A IA roteia para o que melhor corresponder.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((s, i) => (
+          <div key={s.id} style={IA_ITEM_BOX}>
+            <IaItemHeader index={i} color="#06B6D4" onRemove={() => set(items.filter(x => x.id !== s.id))} />
+            <input value={s.nome} onChange={e => set(items.map(x => x.id === s.id ? { ...x, nome: e.target.value } : x))} placeholder="Nome do sentimento (ex: Satisfeito)" style={inputStyle} />
+            <textarea value={s.detalhes ?? ""} onChange={e => set(items.map(x => x.id === s.id ? { ...x, detalhes: e.target.value } : x))} rows={2} placeholder="Quando esse sentimento se aplica (opcional)" style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+          </div>
+        ))}
+      </div>
+      <button onClick={() => set([...items, { id: `sen${Date.now()}`, nome: "", detalhes: "" }])} style={IA_ADD_BTN}
+        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        <Plus size={13} /> Adicionar sentimento
+      </button>
+      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.sentimento}}`}</span>.</p>
+    </div>
+  );
+}
+
+const IA_PARAM_TIPOS = [
+  { id: "texto", label: "Texto" },
+  { id: "numero", label: "Número" },
+  { id: "email", label: "E-mail" },
+  { id: "telefone", label: "Telefone" },
+  { id: "data", label: "Data" },
+  { id: "booleano", label: "Sim/Não" },
+];
+
+function IaParamsEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; inputStyle: React.CSSProperties; labelStyle: React.CSSProperties }) {
+  const items = a.parametros ?? [];
+  const set = (next: IaParametro[]) => updateAction(a.id, { parametros: next });
+  return (
+    <div>
+      <label style={labelStyle}>Parâmetros a extrair</label>
+      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>A IA extrai cada valor da conversa. Use o nome como campo do resultado.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((p, i) => (
+          <div key={p.id} style={IA_ITEM_BOX}>
+            <IaItemHeader index={i} color="#8B5CF6" onRemove={() => set(items.filter(x => x.id !== p.id))} />
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={p.nome} onChange={e => set(items.map(x => x.id === p.id ? { ...x, nome: e.target.value } : x))} placeholder="Nome (ex: cidade)" style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
+              <select value={p.tipo} onChange={e => set(items.map(x => x.id === p.id ? { ...x, tipo: e.target.value } : x))} style={{ ...inputStyle, flex: "0 0 38%" }}>
+                {IA_PARAM_TIPOS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+            <input value={p.info ?? ""} onChange={e => set(items.map(x => x.id === p.id ? { ...x, info: e.target.value } : x))} placeholder="Descrição/instrução (opcional)" style={inputStyle} />
+          </div>
+        ))}
+      </div>
+      <button onClick={() => set([...items, { id: `prm${Date.now()}`, nome: "", tipo: "texto", info: "" }])} style={IA_ADD_BTN}
+        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        <Plus size={13} /> Adicionar parâmetro
+      </button>
+      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Cada valor fica disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.nome}}`}</span>.</p>
+    </div>
+  );
+}
+
+const IA_AUDIO_SOURCES = [
+  { id: "todos", label: "Todos os áudios da conversa" },
+  { id: "ultimo", label: "Apenas o último áudio" },
+];
+const IA_AUDIO_LANGS = [
+  { id: "pt", label: "Português" },
+  { id: "auto", label: "Detectar automaticamente" },
+  { id: "en", label: "Inglês" },
+  { id: "es", label: "Espanhol" },
+];
+
+function IaTranscricaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; inputStyle: React.CSSProperties; labelStyle: React.CSSProperties }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div>
+        <label style={labelStyle}>Áudios a transcrever</label>
+        <select value={a.audioSource ?? "todos"} onChange={e => updateAction(a.id, { audioSource: e.target.value })} style={inputStyle}>
+          {IA_AUDIO_SOURCES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={labelStyle}>Idioma</label>
+        <select value={a.language ?? "pt"} onChange={e => updateAction(a.id, { language: e.target.value })} style={inputStyle}>
+          {IA_AUDIO_LANGS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+        </select>
+      </div>
+      <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Usa a Whisper da OpenAI — requer uma chave da <strong>OpenAI</strong> cadastrada. Resultado em <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.texto}}`}</span>.</p>
+    </div>
+  );
+}
+
+function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAction, onAddAction }: {
+  node: CanvasNode;
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  updateAction: (actionId: string, data: Partial<IaAction>) => void;
+  removeAction: (actionId: string) => void;
+  onAddAction: () => void;
+}) {
+  const actions = node.iaActions ?? [];
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", background: "#FFF" };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 };
+
+  return (
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0 }}>
+            <ArrowLeft size={16} style={{ flexShrink: 0 }} /> <span>Inteligência Artificial</span>
+          </button>
+          <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+              <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
+                onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <Icon size={13} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>Ações de IA usando a chave do provedor cadastrada em Configurações → Chaves de API.</p>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        {actions.length === 0 && (
+          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Nenhuma ação de IA ainda. Clique em "Adicionar ação com IA" para começar.</div>
+        )}
+        {actions.map(a => {
+          const Icon = IA_ACTION_TYPES.find(t => t.id === a.type)?.icon ?? Bot;
+          const isText = a.type === "assistente_chat" || a.type === "gerar_texto";
+          return (
+            <div key={a.id} style={{ border: "1px solid #EDE9FE", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 12, background: "#FCFAFF" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon size={15} color="#8B5CF6" />
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#111" }}>{IA_ACTION_LABEL[a.type]}</span>
+                <button onClick={() => removeAction(a.id)} title="Remover ação" style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+              <div>
+                <label style={labelStyle}>Modelo de IA</label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <select value={a.provider} onChange={e => { const p = e.target.value as IaProvider; updateAction(a.id, { provider: p, model: IA_MODELS[p][0].id }); }} style={{ ...inputStyle, flex: "0 0 38%" }}>
+                    {(Object.keys(IA_MODELS) as IaProvider[]).map(p => <option key={p} value={p}>{IA_PROVIDER_LABELS[p]}</option>)}
+                  </select>
+                  <select value={a.model} onChange={e => updateAction(a.id, { model: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 0 }}>
+                    {IA_MODELS[a.provider].map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Fonte de dados com o resultado</label>
+                <span style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#FFF", background: "#8B5CF6", borderRadius: 6, padding: "3px 10px" }}>{a.outputVar}</span>
+              </div>
+              {isText ? (
+                <div>
+                  <label style={labelStyle}>{a.type === "assistente_chat" ? "Instruções do assistente" : "Instruções"}</label>
+                  <textarea value={a.instructions ?? ""} onChange={e => updateAction(a.id, { instructions: e.target.value })} rows={5} placeholder="Descreva o que a IA deve fazer. Use {{gatilho.nome}}, {{lead.name}} ou saídas de outros blocos." style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+                  <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Resultado disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.resposta}}`}</span>.</p>
+                </div>
+              ) : a.type === "intencao" ? (
+                <IaIntencaoEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
+              ) : a.type === "sentimento" ? (
+                <IaSentimentoEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
+              ) : a.type === "extrator_params" ? (
+                <IaParamsEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
+              ) : a.type === "transcricao_audio" ? (
+                <IaTranscricaoEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
+              ) : (
+                <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>A configuração específica desta ação será liberada em breve.</p>
+              )}
+            </div>
+          );
+        })}
+        <button onClick={onAddAction}
+          style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 13, fontWeight: 600, padding: "10px 0", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+          <Plus size={14} /> Adicionar ação com IA
+        </button>
+      </div>
+    </aside>
+  );
+}
 
 function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpenPicker }: {
   node: CanvasNode;
