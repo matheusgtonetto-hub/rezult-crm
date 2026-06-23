@@ -67,11 +67,10 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
+      <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
         <div
-          className="w-full max-w-[420px] bg-card rounded-2xl p-10 text-center"
-          style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
-        >
+          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300"
+                  >
           <div className="flex justify-center mb-6"><Logo size="md" showIcon /></div>
 
           <div className="flex justify-center mb-4">
@@ -88,7 +87,7 @@ export default function LoginPage() {
                 <br />Verifique sua caixa de entrada e clique no link para redefinir sua senha.
               </p>
               <Button
-                className="w-full h-12 rounded-lg font-semibold mt-8"
+                className="w-full h-auto py-[10px] rounded-[5px] font-semibold mt-8"
                 onClick={() => setScreen("login")}
               >
                 Voltar para o login
@@ -102,27 +101,27 @@ export default function LoginPage() {
               </p>
 
               <form onSubmit={handleForgot} className="space-y-4 mt-8 text-left">
-                <div className="space-y-1.5">
-                  <Label htmlFor="forgot-email" className="text-[13px] font-normal">E-mail</Label>
+                <div className="space-y-[3px]">
+                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-black">E-mail</Label>
                   <Input
                     id="forgot-email"
                     type="email"
                     placeholder="seu@email.com"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
-                    className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     autoFocus
                   />
                 </div>
 
-                <Button type="submit" className="w-full h-12 rounded-lg font-semibold" disabled={forgotLoading}>
+                <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" disabled={forgotLoading}>
                   {forgotLoading ? "Enviando..." : "Enviar link de recuperação"}
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-11 rounded-lg"
+                  className="w-full h-auto py-[10px] rounded-[5px]"
                   onClick={() => setScreen("login")}
                 >
                   Voltar para o login
@@ -136,12 +135,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
-      <div
-        className="w-full max-w-[420px] bg-card rounded-2xl p-10"
-        style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
-      >
-        <div className="flex justify-center mb-5"><Logo size="md" showIcon /></div>
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
+      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
+        {/* Rotating border light */}
+        <div
+          className="absolute inset-[-100%]"
+          style={{
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            animation: "spin-border 4s linear infinite",
+          }}
+        />
+        <div
+        className="relative w-full bg-card rounded-[7px] p-[30px]"
+              >
+        <div className="flex justify-center items-center mb-[15px]">
+          <Logo size="md" showIcon />
+          <span className="text-[28px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
+        </div>
 
         {emailConfirmed && (
           <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
@@ -154,34 +164,34 @@ export default function LoginPage() {
         )}
 
         <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo</h1>
-        <p className="text-[17px] font-medium text-muted-foreground text-center mt-[3px]">
+        <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
           Faça login para acessar sua conta
         </p>
 
-        <form onSubmit={handleLogin} className="space-y-4 mt-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-[13px] font-normal">E-mail</Label>
+        <form onSubmit={handleLogin} className="space-y-3 mt-[15px]">
+          <div className="space-y-[3px]">
+            <Label htmlFor="email" className="text-[13px] font-normal text-black">E-mail</Label>
             <Input
               id="email"
               type="email"
-              placeholder="exemplo@gmail.com"
+              placeholder="email@gmail.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="h-11 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoComplete="email"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-[13px] font-normal">Senha</Label>
+          <div className="space-y-[3px]">
+            <Label htmlFor="password" className="text-[13px] font-normal text-black">Senha</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPwd ? "text" : "password"}
-                placeholder="••••••"
+                placeholder="Insira sua senha"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="h-11 rounded-lg pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="current-password"
               />
               <button
@@ -205,25 +215,26 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <Button type="submit" className="w-full h-12 rounded-lg font-semibold" disabled={loading}>
+          <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" disabled={loading}>
             {loading ? "Aguarde..." : "Entrar"}
           </Button>
 
-          <div className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">ou</span>
-            <div className="flex-1 h-px bg-border" />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-[12px] text-muted-foreground">ou</span>
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-lg font-medium border-card-border text-foreground"
+            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             Criar uma conta
           </Button>
         </form>
+        </div>
       </div>
     </div>
   );

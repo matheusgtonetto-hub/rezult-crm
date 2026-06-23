@@ -846,20 +846,23 @@ export default function LeadDetailPage() {
     setPendingStageAdvance(null);
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     const html = newNoteDivRef.current?.innerHTML ?? "";
     if (!html.trim() || html === "<br>") return;
-    addActivity(lead.id, {
-      id: `a-${Date.now()}`,
-      date: new Date().toISOString(),
-      type: "note",
-      description: html,
-      userName: profile?.full_name || undefined,
-    });
-    if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
-    setNewNote("");
-    setNewNoteActive(false);
-    toast.success("Anotação salva!");
+    try {
+      await addActivity(lead.id, {
+        date: new Date().toISOString(),
+        type: "note",
+        description: html,
+        userName: profile?.full_name || undefined,
+      });
+      if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
+      setNewNote("");
+      setNewNoteActive(false);
+      toast.success("Anotação salva!");
+    } catch {
+      toast.error("Erro ao salvar anotação. Tente novamente.");
+    }
   };
 
   const applyNewNoteFormat = (cmd: string, val?: string) => {
@@ -1061,24 +1064,24 @@ export default function LeadDetailPage() {
             <>
               <button
                 onClick={handleWon}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ background: "#128A68", color: "#FFFFFF" }}
+                className="flex items-center gap-1.5 text-xs font-semibold"
+                style={{ background: "#128A68", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
               >
-                <Trophy size={12} /> Ganho
+                Ganho
               </button>
               <button
                 onClick={handleOpenRecovery}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ background: "#F59E0B", color: "#FFFFFF" }}
+                className="flex items-center gap-1.5 text-xs font-semibold"
+                style={{ background: "#F59E0B", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
               >
-                <ArrowRightLeft size={12} /> Recuperação
+                Recuperação
               </button>
               <button
                 onClick={handleLost}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ background: "#E24B4A", color: "#FFFFFF" }}
+                className="flex items-center gap-1.5 text-xs font-semibold"
+                style={{ background: "#E24B4A", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
               >
-                <XCircle size={12} /> Perdido
+                Perdido
               </button>
             </>
           )}
@@ -1247,6 +1250,7 @@ export default function LeadDetailPage() {
                 background: "#FFFFFF",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                border: "1px solid #E5E7EB",
               }}
             >
               <button
@@ -1268,7 +1272,7 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[key] && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
                   {key === "negocio" && (
                     <div className="pt-2 space-y-2">
                       <EditableField
@@ -1571,6 +1575,7 @@ export default function LeadDetailPage() {
                 background: "#FFFFFF",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                border: "1px solid #E5E7EB",
               }}
             >
               <button
@@ -1592,7 +1597,7 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[g.id] !== false && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#F0F0F0" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
                   {g.items.length === 0 ? (
                     <p className="text-[11px] text-[#AAAAAA] text-center py-4">
                       Adicione perguntas em Configurações → Campos adicionais.
@@ -1646,6 +1651,7 @@ export default function LeadDetailPage() {
             background: "#FFFFFF",
             borderRadius: 10,
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            border: "1px solid #E5E7EB",
             minWidth: 0,
             marginRight: "clamp(0px, calc((100vw - 960px) * 0.30), 60px)",
           }}
@@ -1704,7 +1710,8 @@ export default function LeadDetailPage() {
                   />
                   {newNoteActive && (
                     <>
-                      <div className="flex items-center gap-0.5 pt-2 mt-2 border-t border-card-border">
+                      <div className="flex items-center justify-between gap-0.5 pt-2 mt-2 border-t border-card-border">
+                        <div className="flex items-center gap-0.5">
                         {[
                           { icon: <Bold size={13} />, title: "Negrito", cmd: "bold" },
                           { icon: <Italic size={13} />, title: "Itálico", cmd: "italic" },
@@ -1726,9 +1733,7 @@ export default function LeadDetailPage() {
                             </button>
                           );
                         })}
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">{noteActivities.length}/100 notas</span>
+                        </div>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
@@ -1780,9 +1785,9 @@ export default function LeadDetailPage() {
                         <div className="flex-1 min-w-0">
                       <div
                         style={{
-                          background: n.pinned ? "#FFFBEB" : "#FAFAF7",
-                          border: n.pinned ? "1px solid #FCD34D" : "1px solid #E5E5E5",
-                          borderRadius: 10,
+                          background: "#FFFBEB",
+                          border: "1px solid #FCD34D",
+                          borderRadius: 5,
                           padding: 15,
                         }}
                       >

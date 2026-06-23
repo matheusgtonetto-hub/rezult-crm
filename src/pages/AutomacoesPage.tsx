@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -1020,6 +1021,7 @@ export default function AutomacoesPage() {
   const portDragRef  = useRef<{ fromNodeId: string; startX: number; startY: number } | null>(null);
   const nodeDragRef  = useRef<{ nodeId: string; startX: number; startY: number; baseX: number; baseY: number; hasDragged: boolean; onSelect: () => void } | null>(null);
   const resizeDragRef = useRef<{ nodeId: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
+  const wheelThrottleRef = useRef<number>(0);
   // Always-fresh refs to avoid stale closures in mouse event handlers
   const stateRef = useRef({ pan, zoom, nodes });
   stateRef.current = { pan, zoom, nodes };
@@ -1437,14 +1439,40 @@ export default function AutomacoesPage() {
   }, []);
 
   const onWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setZoom(z => Math.max(0.4, Math.min(2, z + delta)));
+    const now = Date.now();
+    if (now - wheelThrottleRef.current < 32) return;
+    wheelThrottleRef.current = now;
+
+    const { pan, zoom } = stateRef.current;
+    const multiplier = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 300 : 1;
+    const delta = -(e.deltaY * multiplier) * 0.0025;
+    const newZoom = Math.max(0.4, Math.min(2.5, zoom + delta));
+    if (newZoom === zoom) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) { setZoom(newZoom); return; }
+
+    // Ponto do canvas sob o cursor (coordenadas canvas)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const canvasX = (mouseX - pan.x) / zoom;
+    const canvasY = (mouseY - pan.y) / zoom;
+
+    // Ajusta pan para manter esse ponto fixo após o zoom
+    setZoom(newZoom);
+    setPan({ x: mouseX - canvasX * newZoom, y: mouseY - canvasY * newZoom });
   };
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
     if (!user || !company) return;
+    const { PLAN_LIMITS } = await import("@/data/plans");
+    const limit = PLAN_LIMITS[company.plan]?.automations ?? null;
+    if (limit !== null && automations.length >= limit) {
+      emitPlanLimit("automações");
+      return;
+    }
 
     // Define o flow, o nome e o grupo conforme a forma de começar.
     let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null } = { nodes: [START_NODE], trigger: null };
@@ -1975,7 +2003,7 @@ export default function AutomacoesPage() {
   const Sidebar = () => (
     <>
       {!leftCollapsed ? (
-        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
+        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
           <div style={{ padding: 12, borderBottom: "1px solid #E5E5E5" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
@@ -1993,12 +2021,13 @@ export default function AutomacoesPage() {
                 title="Filtrar por estado"
               />
             </div>
-            <button
+            <Button
               onClick={() => setCreateOpen(true)}
-              style={{ width: "100%", marginTop: 8, background: "hsl(var(--primary))", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}
+              size="sm"
+              className="w-full justify-center rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold mt-2"
             >
-              <Plus size={14} /> Adicionar automação
-            </button>
+              <Plus size={14} className="mr-1.5" /> Adicionar automação
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
@@ -2053,7 +2082,7 @@ export default function AutomacoesPage() {
                           <button
                             key={item.id}
                             onClick={() => requestLeave(() => openEditor(item.id))}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
+                            className={`w-full flex items-center gap-2 px-3 py-[6px] rounded-[10px] text-[14px] font-medium transition-colors ${
                               sel
                                 ? "bg-sidebar-accent border-l-[3px] border-primary"
                                 : "text-foreground hover:bg-muted/50"
@@ -2098,7 +2127,7 @@ export default function AutomacoesPage() {
   // ─── RENDER ───────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))", overflow: "hidden" }}>
       {/* Left sidebar — sempre visível */}
       {Sidebar()}
 
@@ -2106,7 +2135,7 @@ export default function AutomacoesPage() {
       {view === "list" && (
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Header */}
-          <div style={{ padding: "20px 28px 0", background: "#F4F6F8" }}>
+          <div style={{ padding: "20px 28px 0", background: "hsl(var(--background))" }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111111", margin: 0 }}>Fluxo de automações</h1>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
               <div style={{ display: "flex", gap: 0 }}>
@@ -2221,8 +2250,8 @@ export default function AutomacoesPage() {
 
           {/* Default: Blocos básicos (when no node selected) */}
           {!nodePanel && !triggerPanel && (
-            <aside style={{ width: 220, minWidth: 220, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
+            <aside style={{ width: 270, minWidth: 270, height: "80%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", marginLeft: 10, alignSelf: "center", border: "1px solid #E5E7EB", borderRadius: 8 }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Arraste para o canvas ou clique para adicionar</div>
               </div>
@@ -2248,14 +2277,14 @@ export default function AutomacoesPage() {
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x, y, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", background: "transparent", border: "none", cursor: isComingSoon ? "default" : "grab", textAlign: "left", borderBottom: "0.5px solid #F5F5F5", opacity: isComingSoon ? 0.6 : 1 }}
-                      onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed #E5E7EB", borderRadius: 5, cursor: isComingSoon ? "default" : "grab", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
+                      onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.background = "#D1FAE5"; e.currentTarget.style.borderColor = "hsl(163, 77%, 31%)"; e.currentTarget.style.borderRadius = "5px"; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E7EB"; }}
                     >
-                      <div style={{ width: 28, height: 28, borderRadius: 7, background: `${at.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon size={14} color={at.color} />
                       </div>
-                      <span style={{ fontSize: 13, color: "#374151", flex: 1 }}>{at.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{at.label}</span>
                       {isComingSoon && (
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                       )}
@@ -2386,7 +2415,7 @@ export default function AutomacoesPage() {
           )}
 
           {/* Canvas area — flex: 1, encolhe quando painel está aberto */}
-          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "#F4F6F8", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
 
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
@@ -2476,7 +2505,7 @@ export default function AutomacoesPage() {
               <svg style={{ position: "absolute", top: 0, left: 0, width: 9999, height: 9999, overflow: "visible" }}>
                 {nodes.flatMap(n => (n.parentIds ?? []).map(pid => ({ n, pid }))).map(({ n, pid }) => {
                   const parent = nodes.find(p => p.id === pid);
-                  let x1: number, y1: number, stroke = "#CCCCCC";
+                  let x1: number, y1: number, stroke = "#9CA3AF";
                   if (parent) {
                     const pp = portPosMap[pid];
                     x1 = pp?.x ?? (parent.type === "start" ? parent.x + 244 : parent.x + 260);
@@ -2525,7 +2554,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "parent", fromId: pid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke={isSel ? "#3B82F6" : stroke} strokeWidth={isSel ? 2.5 : 2} fill="none" strokeLinecap="round" strokeDasharray="5,5" style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2549,7 +2578,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="7,7" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="5,5" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2572,7 +2601,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "timeout", fromId: tpid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={isSel ? 3 : 2.5} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2581,7 +2610,7 @@ export default function AutomacoesPage() {
                   <path
                     d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
                     stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
-                    strokeLinecap="round" strokeDasharray="7,7"
+                    strokeLinecap="round" strokeDasharray="5,5"
                     style={{ pointerEvents: "none" }}
                   />
                 )}
@@ -2768,7 +2797,7 @@ export default function AutomacoesPage() {
 
           {/* Zoom controls */}
           <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
-            <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
+            <button onClick={() => setZoom(z => Math.min(2.5, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
             <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} style={zoomBtn}><Minus size={14} /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtn}><Maximize2 size={14} /></button>
           </div>
@@ -4085,19 +4114,19 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       data-node
       onMouseDown={onDragStart}
       style={{
-        position: "absolute", left: node.x, top: node.y, width: 260,
+        position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
         background: "#FFFFFF",
-        border: `${selected ? 2 : 1.5}px dashed ${selected ? "hsl(var(--primary))" : "#CCCCCC"}`,
-        borderRadius: 12, padding: 14, cursor: "grab",
+        border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
+        borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 10, borderBottom: "1px solid #E5E5E5" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 14px 10px", borderBottom: "1px solid #E5E5E5" }}>
         <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
         <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
       </div>
-      <div style={{ paddingTop: 10 }}>
+      <div style={{ padding: "10px 14px 14px" }}>
         {node.trigger ? (
           <div
             style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
@@ -4146,28 +4175,21 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 10, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.s ?? 0} Sucessos</button>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.a ?? 0} Alertas</button>
-        <button
-          data-action
-          onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-          style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-          onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-        >{stats?.e ?? 0} Erros</button>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        {([
+          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
+        ]).map(({ key, count, color, label }) => (
+          <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+            style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+            <div style={{ color }}>{label}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -4391,10 +4413,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         data-node
         onMouseDown={onDragStart}
         style={{
-          position: "absolute", left: node.x, top: node.y, width: 270,
+          position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`,
           borderRadius: 12, cursor: "grab",
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
@@ -4471,11 +4493,11 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
         </div>
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           {([
-            { key: "success" as const, count: stats?.s ?? 0, color: "#F97316", label: "Sucessos" },
-            { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
-            { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
           ]).map(({ key, count, color, label }) => (
             <button
               key={key}
@@ -4498,7 +4520,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const items = node.conditionItems ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 260, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#8B5CF6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#8B5CF6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4569,23 +4591,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
 
           {/* Stats */}
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 10, paddingTop: 8, borderTop: "0.5px solid #F3F4F6", fontSize: 11 }}>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
+          ]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+              style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-              style={{ background: "none", border: "none", padding: "2px 6px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default" }}
-              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
-          </div>
+            >
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -4595,7 +4616,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const espera = node.espera;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 250, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4634,7 +4655,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const branches = node.randomBranches ?? DEFAULT_BRANCHES;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 290, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#F97316" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4675,23 +4696,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           >
             <Plus size={11} /> Adicionar ramificação
           </button>
-          <div style={{ display: "flex", justifyContent: "space-around", marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.s ?? 0) > 0) onStatClick?.("success"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "hsl(var(--primary))", fontWeight: 600, cursor: (stats?.s ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.s ?? 0) > 0) e.currentTarget.style.background = "hsl(var(--primary) / 0.08)"; }}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([
+            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
+          ]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
+              style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.s ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Sucessos</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.a ?? 0) > 0) onStatClick?.("alert"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#F59E0B", fontWeight: 600, cursor: (stats?.a ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.a ?? 0) > 0) e.currentTarget.style.background = "#FEF3C7"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.a ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Alertas</span></button>
-            <button data-action onClick={(e) => { e.stopPropagation(); if ((stats?.e ?? 0) > 0) onStatClick?.("error"); }}
-              style={{ background: "none", border: "none", padding: "2px 4px", borderRadius: 4, color: "#EF4444", fontWeight: 600, cursor: (stats?.e ?? 0) > 0 ? "pointer" : "default", fontSize: 11 }}
-              onMouseEnter={e => { if ((stats?.e ?? 0) > 0) e.currentTarget.style.background = "#FEE2E2"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-            >{stats?.e ?? 0}<br /><span style={{ fontSize: 10, fontWeight: 400, color: "#6B7280" }}>Erros</span></button>
-          </div>
+            >
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ color }}>{label}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -4809,7 +4829,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const apiRequests = node.apiConfig?.requests ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4861,8 +4881,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
               <div style={{ color }}>{label}</div>
@@ -4877,7 +4897,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const ops = node.fieldOps ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 270, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? "#22C55E" : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#22C55E" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
         <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
@@ -4928,8 +4948,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "#22C55E", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
               <div style={{ color }}>{label}</div>
@@ -4946,10 +4966,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         data-node
         onMouseDown={onDragStart}
         style={{
-          position: "absolute", left: node.x, top: node.y, width: 240,
+          position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
           background: "#FFFFFF",
-          border: `${selected ? 2 : 1}px solid ${selected ? "hsl(var(--primary))" : "#E5E5E5"}`,
+          border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
           borderRadius: 12, padding: 14, cursor: "grab",
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
@@ -4982,7 +5002,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
         background: "#FFFFFF",
-        border: `${selected ? 2 : 1}px solid ${selected ? "#3B82F6" : "#E5E5E5"}`,
+        border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`,
         borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
@@ -5064,11 +5084,11 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       </div>
 
       {/* Footer metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
         {([
-          { key: "success" as const, count: stats?.s ?? 0, color: "#3B82F6", label: "Sucessos" },
-          { key: "alert"   as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas"  },
-          { key: "error"   as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros"    },
+          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
         ]).map(({ key, count, color, label }) => (
           <button
             key={key}

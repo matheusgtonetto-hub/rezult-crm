@@ -33,7 +33,7 @@
     --accent-foreground: 0 0% 6.7%;   /* #111111 */
 
     /* BACKGROUNDS / SURFACES */
-    --background: 210 14% 97%;           /* #F4F6F8 */
+    --background: 0 0% 96%;              /* #F5F5F5 */
     --foreground: 0 0% 6.7%;          /* #111111 */
 
     --card: 0 0% 100%;                /* #FFFFFF */
@@ -81,7 +81,7 @@
     --sidebar-foreground: 0 0% 30%;            /* #4D4D4D */
     --sidebar-primary: 163 77% 31%;           /* #128A68 */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 165 77% 30% / 0.15;     /* #128A68 @ 15% */
+    --sidebar-accent: 150 24% 95%;             /* #EFF5F2 */
     --sidebar-accent-foreground: 0 0% 6.7%;   /* #111111 */
     --sidebar-border: 40 10% 91%;             /* #E8E7E0 */
     --sidebar-ring: 163 77% 31%;              /* #128A68 */
@@ -118,6 +118,16 @@
   .glow-rz {
     animation: rzShine 4s ease-in-out infinite;
   }
+}
+
+@keyframes banner-btn-attention {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+
+@keyframes spin-border {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 @keyframes pilotGlow {

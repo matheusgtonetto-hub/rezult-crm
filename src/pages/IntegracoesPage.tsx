@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import {
   Search, Plus, X, Copy, Check, RefreshCw, Loader2,
   ShoppingBag, ChevronLeft, ToggleLeft, ToggleRight, Trash2, AlertTriangle,
@@ -138,6 +139,14 @@ export default function IntegracoesPage() {
 
   const createIntegration = async (type: string) => {
     if (!user || !company || creating) return;
+
+    const { PLAN_LIMITS } = await import("@/data/plans");
+    const limit = PLAN_LIMITS[company.plan]?.webhooks ?? null;
+    if (limit !== null && integrations.length >= limit) {
+      emitPlanLimit("integrações");
+      return;
+    }
+
     setCreating(true);
     const { data, error } = await supabase.from("webhook_integrations").insert({
       owner_id: user.id,

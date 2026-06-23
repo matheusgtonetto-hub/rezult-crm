@@ -4,6 +4,8 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { PLAN_LIMITS } from "@/data/plans";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 
 export interface Company {
   id: string;
@@ -133,6 +135,14 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const addWhatsAppConnection = useCallback(async (data: Omit<WhatsAppConnection, "id" | "createdAt">): Promise<WhatsAppConnection> => {
     if (!user) throw new Error("Não autenticado");
+
+    const plan = selectedCompany?.plan ?? "free";
+    const limit = PLAN_LIMITS[plan]?.connections ?? null;
+    if (limit !== null && whatsappConnections.length >= limit) {
+      emitPlanLimit("conexões");
+      throw new Error("plan-limit");
+    }
+
     const { data: row, error } = await supabase
       .from("whatsapp_connections")
       .insert({
@@ -243,12 +253,15 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => setUserPermissions((data?.permissions as string[]) ?? []));
   }, [company?.id, user?.id]);
 
-  const isFreePlan = company?.plan === "free";
+  const PAID_PLANS = ["silver", "platinum", "emerald"];
 
   const planExpired = useMemo(() => {
     if (!company) return false;
     return new Date(company.plan_expires_at) < new Date();
   }, [company]);
+
+  // isFreePlan = true quando não há empresa, plano não é pago, ou plano pago expirou
+  const isFreePlan = !company || !PAID_PLANS.includes(company.plan ?? "") || planExpired;
 
   const planDaysLeft = useMemo(() => {
     if (!company || company.plan !== "free" || planExpired) return null;

@@ -4,7 +4,7 @@ CRM de vendas B2B brasileiro. SaaS com multi-tenancy por empresa. Stack: React +
 
 ## Contexto do Produto
 
-- Planos: Starter (R$297/mês), Essential (R$460/mês), Pro (R$807/mês)
+- Planos: Silver (R$237/mês), Platinum (R$399/mês), Emerald (R$747/mês) — com desconto semestral (-15%) e anual (-30%)
 - Mercado: PMEs brasileiras com times de vendas
 - UI 100% em português brasileiro
 - Cada empresa é isolada por RLS no Supabase (multi-tenant)
@@ -119,6 +119,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
 | `ai_provider_keys` | Chaves de IA dos clientes (BYOK) usadas pelo Bloco de IA (`company_id`, `owner_id`, `provider` openai/anthropic/google, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. Gerenciada em Configurações → Chaves de API |
+| `subscriptions` | Assinatura Stripe da empresa (`company_id`, `owner_user_id`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan_name`, `billing_period`, `status`, `trial_ends_at`, `current_period_start`, `current_period_end`, `canceled_at`) |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
@@ -206,6 +207,53 @@ leads (INSERT/UPDATE)
 - Ao criar nova página, registrar a rota em `App.tsx`
 - Ao criar nova tabela no Supabase, documentar aqui na seção Banco de Dados
 - Commits em português, descritivos
+
+## Planos e Pagamentos (Stripe)
+
+O plano é vinculado à **empresa** (não ao usuário). Todos os membros da empresa compartilham o mesmo plano.
+
+### Preços
+
+| Plano (chave interna) | Mensal | Semestral (total) | Anual (total) |
+|----------------------|--------|-------------------|---------------|
+| Silver (`silver`) | R$ 237 | R$ 1.209 | R$ 1.989 |
+| Platinum (`platinum`) | R$ 399 | R$ 2.035 | R$ 3.352 |
+| Emerald (`emerald`) | R$ 747 | R$ 3.810 | R$ 6.272 |
+
+> As chaves internas (`silver`, `platinum`, `emerald`) são usadas no banco e no Stripe metadata — **nunca alterar sem migration SQL**.
+
+### Price IDs Stripe (test mode)
+
+| Plano | Mensal | Semestral | Anual |
+|-------|--------|-----------|-------|
+| Silver | `price_1Tbp3sHLGbQg56rmYk9RbtKj` | `price_1Tbp3sHLGbQg56rm6sleoFHK` | `price_1Tbp3sHLGbQg56rmuvxhNhoQ` |
+| Platinum | `price_1Tbp7lHLGbQg56rmxz4NpynU` | `price_1Tbp7lHLGbQg56rmnvtsYz4a` | `price_1Tbp7lHLGbQg56rmJcvQ4GY5` |
+| Emerald | `price_1TbpAAHLGbQg56rmh1i1HdvY` | `price_1TbpAAHLGbQg56rmzhs7ffCL` | `price_1TbpAAHLGbQg56rmYRFZlZ3I` |
+
+### Fluxo de assinatura
+
+1. Usuário clica em um plano → **SEMPRE** redireciona para o checkout do Stripe via `create-checkout-session`
+2. Stripe webhook (`stripe-webhook`) recebe o evento e atualiza `subscriptions` e `companies`
+3. Para assinantes existentes, passa `stripe_customer_id` para evitar criar cliente duplicado no Stripe
+
+### Edge Functions Stripe
+
+| Função | Uso |
+|--------|-----|
+| `create-checkout-session` | Cria sessão de checkout. Aceita `customerId` opcional para reutilizar cliente existente |
+| `create-portal-session` | Abre o Customer Portal do Stripe para gerenciar assinatura ativa |
+| `stripe-webhook` | Recebe eventos do Stripe e sincroniza `subscriptions` + `companies` |
+| `update-subscription` | Atualiza assinatura via API do Stripe — **NÃO usar para mudança de plano via UI** (sempre usar checkout) |
+
+### Páginas de plano
+
+- `/planos` — seleção de plano para novos usuários (trial 7 dias)
+- `/setup` — seleção inicial de plano após criar empresa
+- `/configuracoes` → seção "Planos e Pagamentos" — upgrade/downgrade para assinantes existentes
+
+### Regra crítica
+
+**NUNCA** chamar `update-subscription` diretamente ao trocar de plano pela UI. Sempre redirecionar para o checkout do Stripe (`create-checkout-session`), mesmo para usuários com assinatura ativa.
 
 ## Skills disponíveis
 

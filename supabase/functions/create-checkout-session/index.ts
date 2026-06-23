@@ -29,6 +29,7 @@ serve(async (req) => {
     userEmail: string;
     planName: string;
     billingPeriod: string;
+    customerId?: string;
   };
   try {
     body = await req.json();
@@ -36,7 +37,7 @@ serve(async (req) => {
     return json({ error: "invalid json" }, 400);
   }
 
-  const { priceId, companyId, userId, userEmail, planName, billingPeriod } = body;
+  const { priceId, companyId, userId, userEmail, planName, billingPeriod, customerId } = body;
   if (!priceId || !companyId || !userId || !userEmail) {
     return json({ error: "missing required fields" }, 400);
   }
@@ -45,7 +46,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
-      customer_email: userEmail,
+      ...(customerId ? { customer: customerId } : { customer_email: userEmail }),
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         metadata: { companyId, userId, planName, billingPeriod },

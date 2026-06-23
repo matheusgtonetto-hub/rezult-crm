@@ -2344,11 +2344,22 @@ async function executeAction(
         .single();
       const ownerIdLead = (companyRowLead as Record<string, unknown> | null)?.owner_id as string | null ?? null;
 
+      // Calcula próximo deal_number da empresa
+      const { data: maxRow } = await supabase
+        .from("leads")
+        .select("deal_number")
+        .eq("owner_id", ownerIdLead ?? "")
+        .order("deal_number", { ascending: false })
+        .limit(1)
+        .single();
+      const nextDealNumber = ((maxRow as { deal_number?: number } | null)?.deal_number ?? 1000) + 1;
+
       const insertLead: Record<string, unknown> = {
         ...stagedLead,
         owner_id: ownerIdLead,
         company_id: company_id,
         status: "open",
+        deal_number: nextDealNumber,
       };
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
       {

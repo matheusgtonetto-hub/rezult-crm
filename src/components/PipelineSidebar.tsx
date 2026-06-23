@@ -98,14 +98,13 @@ export function PipelineSidebar() {
   };
 
   return (
-    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10">
+    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10 border-r border-gray-200">
       <div className="px-4 pt-4 pb-3 border-b border-card-border space-y-3">
         <p className="text-base font-semibold text-foreground tracking-tight text-center">Pipelines</p>
         <Button
           onClick={() => setShowNew(true)}
-          variant="outline"
           size="sm"
-          className="w-full justify-start rounded-lg border-card-border bg-card font-medium"
+          className="w-full justify-center rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold"
         >
           <Plus size={14} className="mr-2" />
           Nova pipeline

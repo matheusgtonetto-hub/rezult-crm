@@ -31,7 +31,8 @@ import {
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLANS } from "@/data/plans";
+import { PLANS, PLAN_LIMITS } from "@/data/plans";
+import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
@@ -62,7 +63,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
 ];
 
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-card border border-card-border rounded-xl p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-card border border-gray-200 rounded-[8px] p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -113,10 +114,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-[200px] bg-card border-r border-card-border flex flex-col shrink-0">
+      <aside className="w-[230px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 text-[13px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
+          className="flex items-center gap-2 text-[14px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
@@ -127,7 +128,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-2 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[14px] px-4 py-2 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
@@ -143,7 +144,7 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-8">
+        <div className="max-w-5xl mx-auto p-8">
           {active === "perfil"  && <PerfilSection setPwOpen={setPwOpen} />}
           {active === "empresa" && <EmpresaSection />}
           {active === "planos"  && <PlanosSection />}
@@ -171,7 +172,7 @@ export default function SettingsPage() {
 function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
   const { profile, updateProfile, uploadAvatar, updateTheme } = useProfile();
   const { user, signOut } = useAuth();
-  const { company } = useCompany();
+  const { company, availableCompanies } = useCompany();
   const [name, setName]       = useState(profile?.full_name ?? "");
   const [phone, setPhone]     = useState(maskPhone(profile?.phone ?? ""));
   const [theme, setTheme]     = useState<"light" | "dark">(profile?.theme ?? "light");
@@ -252,7 +253,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </h2>
               <CheckCircle2 size={16} className="text-primary" />
             </div>
-            <p className="text-[13px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
+            <p className="text-[14px] text-muted-foreground mt-[1.5px]">{authEmail}</p>
             {createdDate && (
               <p className="text-xs text-muted-foreground mt-1">Conta criada em {createdDate}</p>
             )}
@@ -263,8 +264,9 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
         </div>
       </Card>
 
-      {/* Seção Informações */}
+      {/* Card único: Informações + Preferências + Imagem de perfil */}
       <Card>
+        {/* Informações */}
         <SectionTitle title="Informações" subtitle="Suas informações de cadastro e login" />
         <div className="grid grid-cols-2 gap-4">
 
@@ -329,19 +331,9 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           </div>
         </div>
 
-        <div className="flex justify-end mt-5 pt-4 border-t border-card-border">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-primary hover:bg-primary/90 min-w-[100px]"
-          >
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
-        </div>
-      </Card>
+        <hr className="border-card-border my-[30px]" />
 
-      {/* Preferências */}
-      <Card>
+        {/* Preferências */}
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-foreground">Preferências</p>
@@ -360,10 +352,10 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
             </Select>
           </div>
         </div>
-      </Card>
 
-      {/* Imagem de perfil */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
+        {/* Imagem de perfil */}
         <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
@@ -377,29 +369,49 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <Upload size={20} className="text-muted-foreground mx-auto mb-1" />
-            <p className="text-[13px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF · max 2MB</p>
           </div>
         </div>
+
+        <div className="flex justify-end mt-5 pt-4 border-t border-card-border">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-primary hover:bg-primary/90 min-w-[100px]"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
       </Card>
 
-      {company && (
+      {availableCompanies.length > 0 && (
         <Card>
-          <SectionTitle title="Empresa" subtitle="Empresa vinculada à sua conta" />
+          <SectionTitle title="Empresa" subtitle={availableCompanies.length > 1 ? "Empresas vinculadas à sua conta" : "Empresa vinculada à sua conta"} />
           <div className="border border-card-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold">
-                  {company.name?.[0]?.toUpperCase() ?? "E"}
+            {availableCompanies.map((c, i) => (
+              <div
+                key={c.id}
+                className={`flex items-center justify-between px-4 py-3 hover:bg-muted/50 ${i > 0 ? "border-t border-card-border" : ""}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                    {c.logo_url
+                      ? <img src={c.logo_url} alt={c.name} className="w-full h-full object-contain" />
+                      : c.name?.[0]?.toUpperCase() ?? "E"}
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-medium text-foreground">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {{"free":"Free","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[c.plan] ?? c.plan}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[13px] font-medium text-foreground">{company.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {{"free":"Trial gratuito","pro":"Plano Pro","enterprise":"Plano Enterprise","starter":"Plano Starter"}[company.plan] ?? company.plan}
-                  </p>
-                </div>
+                {c.id === company?.id && (
+                  <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">Ativa</span>
+                )}
               </div>
-            </div>
+            ))}
           </div>
         </Card>
       )}
@@ -608,7 +620,7 @@ function EmpresaSection() {
               <CheckCircle2 size={16} className="text-primary" />
             </div>
             {company?.email && (
-              <p className="text-[13px] text-muted-foreground mt-[1.5px]">{company.email}</p>
+              <p className="text-[14px] text-muted-foreground mt-[1.5px]">{company.email}</p>
             )}
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -650,8 +662,9 @@ function EmpresaSection() {
 
       {isFullAdmin && empresaTab === "informacoes" && <>
 
-      {/* Informações principais */}
+      {/* Card único com todas as informações */}
       <Card>
+        {/* Informações principais */}
         <SectionTitle title="Informações" subtitle="Principais informações sobre sua empresa" />
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -674,10 +687,10 @@ function EmpresaSection() {
             <PhoneInput value={phone} onChange={setPhone} />
           </div>
         </div>
-      </Card>
 
-      {/* Logo */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
+        {/* Logo */}
         <SectionTitle title="Logo da empresa" subtitle="Faça o upload do logotipo da sua empresa aqui" />
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-white text-2xl font-bold shrink-0 overflow-hidden border border-card-border">
@@ -691,17 +704,16 @@ function EmpresaSection() {
           >
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
             <Upload size={20} className="text-muted-foreground mx-auto mb-1" />
-            <p className="text-[13px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+            <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
             <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG · max 2MB</p>
           </div>
         </div>
-      </Card>
 
-      {/* Documentos */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
+        {/* Documentos */}
         <SectionTitle title="Documentos" subtitle="Cadastre os dados da sua empresa" />
         <div className="space-y-4">
-          {/* Tipo de pessoa */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">Tipo de Pessoa</label>
             <div className="flex gap-2">
@@ -721,8 +733,6 @@ function EmpresaSection() {
               ))}
             </div>
           </div>
-
-          {/* Documento */}
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
               {docType === "pj" ? "CNPJ" : "CPF"}
@@ -735,10 +745,10 @@ function EmpresaSection() {
             />
           </div>
         </div>
-      </Card>
 
-      {/* Endereço */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
+        {/* Endereço */}
         <SectionTitle title="Endereço" subtitle="Endereço completo da sua empresa" />
         <div className="space-y-4">
           <div>
@@ -753,13 +763,11 @@ function EmpresaSection() {
               )}
             </div>
           </div>
-
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Endereço</label>
             <Input value={address} onChange={e => setAddress(e.target.value)}
               placeholder="Rua, Avenida..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Número</label>
@@ -772,13 +780,11 @@ function EmpresaSection() {
                 placeholder="Apto, Sala..." className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
           </div>
-
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Bairro</label>
             <Input value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
               placeholder="Bairro" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Cidade</label>
@@ -813,7 +819,7 @@ function EmpresaSection() {
                 Excluir permanentemente esta empresa e todos os seus dados. Esta ação não pode ser desfeita.
               </p>
               {isOwner && (
-                <p className="text-[13px] text-[#D97706] mt-1">
+                <p className="text-[14px] text-[#D97706] mt-1">
                   Esta é sua única empresa. Após a exclusão, você precisará cadastrar uma nova.
                 </p>
               )}
@@ -1075,6 +1081,14 @@ function EquipeSection() {
 
   const handleAddMember = async () => {
     if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
+
+    const plan = company?.plan ?? "free";
+    const limit = PLAN_LIMITS[plan]?.members ?? null;
+    if (limit !== null && members.length >= limit) {
+      emitPlanLimit("membros");
+      return;
+    }
+
     setInviting(true);
     const permsToSend = isAdminInvite ? ["admin"] : invitePerms;
     const { data, error } = await supabase.rpc("add_member_to_company", {
@@ -1189,7 +1203,7 @@ function EquipeSection() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] font-medium text-foreground truncate">
+                      <p className="text-[14px] font-medium text-foreground truncate">
                         {m.full_name || "—"}
                         {isSelf && <span className="text-muted-foreground font-normal ml-1">(você)</span>}
                       </p>
@@ -1269,7 +1283,7 @@ function EquipeSection() {
                     <Mail size={14} className="text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-muted-foreground truncate">{inv.email}</p>
+                    <p className="text-[14px] text-muted-foreground truncate">{inv.email}</p>
                     <p className="text-[11px] text-muted-foreground">
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
@@ -1390,18 +1404,12 @@ function EquipeSection() {
 
 /* ---------------- PLANOS E PAGAMENTOS ---------------- */
 const PLAN_LABELS: Record<string, string> = {
-  free:       "Trial gratuito",
-  starter:    "Starter",
-  essential:  "Essential",
-  pro:        "Pro",
+  free:     "Free",
+  silver:   "Silver",
+  platinum: "Platinum",
+  emerald:  "Emerald",
 };
 
-const PLAN_LIMITS: Record<string, { leads: number | null; members: number | null; connections: number | null; automations: number | null; pipelines: number | null }> = {
-  free:      { leads: 500,    members: 1,    connections: 1,  automations: 3,  pipelines: 2  },
-  starter:   { leads: 5000,   members: 4,    connections: 3,  automations: 8,  pipelines: 5  },
-  essential: { leads: 100000, members: 15,   connections: 10, automations: 20, pipelines: 20 },
-  pro:       { leads: null,   members: null, connections: null, automations: null, pipelines: null },
-};
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
@@ -1432,9 +1440,9 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
 // ── Dados dos planos para o dialog de upgrade ────────────────────────────────
 
 const UPGRADE_PRICES = {
-  starter:   { monthly: "price_1Tbp3sHLGbQg56rmYk9RbtKj", semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK", annual: "price_1Tbp3sHLGbQg56rmuvxhNhoQ" },
-  essential: { monthly: "price_1Tbp7lHLGbQg56rmxz4NpynU", semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a", annual: "price_1Tbp7lHLGbQg56rmJcvQ4GY5" },
-  pro:       { monthly: "price_1TbpAAHLGbQg56rmh1i1HdvY", semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL", annual: "price_1TbpAAHLGbQg56rmYRFZlZ3I" },
+  silver:   { monthly: "price_1Tbp3sHLGbQg56rmYk9RbtKj", semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK", annual: "price_1Tbp3sHLGbQg56rmuvxhNhoQ" },
+  platinum: { monthly: "price_1Tbp7lHLGbQg56rmxz4NpynU", semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a", annual: "price_1Tbp7lHLGbQg56rmJcvQ4GY5" },
+  emerald:  { monthly: "price_1TbpAAHLGbQg56rmh1i1HdvY", semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL", annual: "price_1TbpAAHLGbQg56rmYRFZlZ3I" },
 } as const;
 
 type UpgradePlanKey = keyof typeof UPGRADE_PRICES;
@@ -1442,8 +1450,8 @@ type UpgradePeriod  = "monthly" | "semiannual" | "annual";
 
 const UPGRADE_PLAN_INFO = [
   {
-    key: "starter" as UpgradePlanKey,
-    name: "Starter",
+    key: "silver" as UpgradePlanKey,
+    name: "Silver",
     rawMonthly: 237,
     prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
@@ -1459,8 +1467,8 @@ const UPGRADE_PLAN_INFO = [
     ],
   },
   {
-    key: "essential" as UpgradePlanKey,
-    name: "Essential",
+    key: "platinum" as UpgradePlanKey,
+    name: "Platinum",
     badge: "Mais popular",
     rawMonthly: 399,
     prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
@@ -1479,8 +1487,8 @@ const UPGRADE_PLAN_INFO = [
     ],
   },
   {
-    key: "pro" as UpgradePlanKey,
-    name: "Pro",
+    key: "emerald" as UpgradePlanKey,
+    name: "Emerald",
     rawMonthly: 747,
     prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
@@ -1539,7 +1547,7 @@ function PlanosSection() {
       .then(({ count }) => setIntegrationsCount(count ?? 0));
   }, [user, company]);
 
-  const connectionsCount = whatsappConnections.length + (googleConnected ? 1 : 0);
+  const connectionsCount = whatsappConnections.length;
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
 
@@ -1573,7 +1581,7 @@ function PlanosSection() {
       const customerId = subRow?.stripe_customer_id as string | null;
       if (!customerId) {
         throw new Error(
-          "Nenhuma assinatura Stripe encontrada. Conclua um checkout antes de gerenciar o plano."
+          "Nenhuma assinatura encontrada. Conclua a contratação de um plano em upgrade."
         );
       }
 
@@ -1624,9 +1632,6 @@ function PlanosSection() {
     if (!company) { toast.error("Nenhuma empresa encontrada."); return; }
 
     const priceId = UPGRADE_PRICES[confirmPlan][upgradePeriod];
-    const hasActiveSub = !!(subscription?.stripe_subscription_id &&
-      (subscription.status === "active" || subscription.status === "trialing"));
-
     setUpgradeLoading(confirmPlan);
     setConfirmPlan(null);
 
@@ -1637,53 +1642,32 @@ function PlanosSection() {
       ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
     };
 
-    if (hasActiveSub) {
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/update-subscription`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            subscriptionId: subscription!.stripe_subscription_id,
-            newPriceId:     priceId,
-            planName:       confirmPlan,
-            billingPeriod:  upgradePeriod,
-            companyId:      company.id,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error ?? "Erro ao atualizar plano.");
-        toast.success("Plano atualizado com sucesso!");
-        refetchSubscription();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao atualizar plano.");
-      } finally {
-        setUpgradeLoading(null);
-      }
-    } else {
-      const tab = window.open("", "_blank");
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            priceId,
-            companyId:     company.id,
-            userId:        user.id,
-            userEmail:     user.email ?? "",
-            planName:      confirmPlan,
-            billingPeriod: upgradePeriod,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
-        if (tab) tab.location.href = data.url;
-        else window.open(data.url, "_blank");
-      } catch (err) {
-        tab?.close();
-        toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
-      } finally {
-        setUpgradeLoading(null);
-      }
+    const tab = window.open("", "_blank");
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          priceId,
+          companyId:     company.id,
+          userId:        user.id,
+          userEmail:     user.email ?? "",
+          planName:      confirmPlan,
+          billingPeriod: upgradePeriod,
+          ...(subscription?.stripe_customer_id
+            ? { customerId: subscription.stripe_customer_id }
+            : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
+      if (tab) tab.location.href = data.url;
+      else window.open(data.url, "_blank");
+    } catch (err) {
+      tab?.close();
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
+    } finally {
+      setUpgradeLoading(null);
     }
   };
 
@@ -1705,7 +1689,7 @@ function PlanosSection() {
         </div>
         {/* Toggle de período */}
         <div className="flex justify-center">
-          <div className="flex gap-0.5 p-1 rounded-xl bg-muted w-fit">
+          <div className="flex gap-1 p-1 rounded-xl bg-white border border-primary w-fit">
             {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
               const disc = UPGRADE_PERIOD_DISCOUNT[period];
               return (
@@ -1716,13 +1700,18 @@ function PlanosSection() {
                   className={cn(
                     "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
                     upgradePeriod === period
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-white text-foreground hover:text-foreground"
                   )}
                 >
                   {UPGRADE_PERIOD_LABELS[period]}
                   {disc && (
-                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    <span className={cn(
+                      "text-[9px] font-bold px-1 py-0.5 rounded-full",
+                      upgradePeriod === period
+                        ? "bg-white/20 text-white"
+                        : "bg-emerald-100 text-emerald-700"
+                    )}>
                       {disc}
                     </span>
                   )}
@@ -1741,7 +1730,7 @@ function PlanosSection() {
                 key={plan.key}
                 className={cn(
                   "relative flex flex-col rounded-xl p-5 transition-all bg-white",
-                  isCurrent ? "border border-primary" : "border border-gray-200"
+                  isCurrent ? "border border-primary" : plan.badge ? "border border-primary" : "border border-gray-200"
                 )}
               >
                 {plan.badge && !isCurrent && (
@@ -1754,15 +1743,15 @@ function PlanosSection() {
                     Plano atual
                   </span>
                 )}
-                <p className="text-[16px] font-bold text-foreground">{plan.name}</p>
+                <p className="text-[20px] font-bold text-foreground">{plan.name}</p>
                 {upgradePeriod === "monthly" ? (
-                  <div className="mt-3 mb-3">
+                  <div className="mt-2 mb-2">
                     <span className="text-2xl font-bold text-emerald-600">{plan.prices.monthly}</span>
                     <span className="text-xs text-muted-foreground ml-1">/mês</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 mt-2 mb-1">
+                    <div className="flex items-center gap-2 mt-2 mb-0">
                       <span className="text-[12px] text-muted-foreground line-through">R$ {plan.rawMonthly},00</span>
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                         Economize {plan.savings[upgradePeriod as "semiannual" | "annual"]}
@@ -1785,7 +1774,7 @@ function PlanosSection() {
                 <ul className="space-y-1.5 flex-1 mb-4">
                   {plan.features.map(f => (
                     <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-foreground">
-                      <CircleCheck size={14} className={cn("mt-0.5 shrink-0 stroke-white", isCurrent ? "fill-primary" : "fill-emerald-600")} />
+                      <Check size={13} className={cn("mt-0.5 shrink-0", plan.badge ? "text-primary" : "text-emerald-600")} />
                       {f}
                     </li>
                   ))}
@@ -1879,7 +1868,7 @@ function PlanosSection() {
                     : logoInitial}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground">{company.name}</p>
+                  <p className="text-[14px] font-semibold text-foreground">{company.name}</p>
                   {company.email && (
                     <p className="text-xs text-muted-foreground truncate">{company.email}</p>
                   )}
@@ -1922,21 +1911,21 @@ function PlanosSection() {
         <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Renova em</p>
-            <p className="text-[13px] font-semibold text-foreground">
-              {company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
+            <p className="text-[14px] font-semibold text-foreground">
+              {planKey === "free" ? "Free" : company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Valor</p>
-            <p className="text-[13px] font-semibold text-foreground">
-              {planDef?.pricing.mensal ?? (planKey === "free" ? "Grátis" : "—")}
+            <p className="text-[14px] font-semibold text-foreground">
+              {planDef?.pricing.mensal ?? (planKey === "free" ? "Free" : "—")}
             </p>
           </div>
           <div className="w-px bg-border self-stretch" />
           <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Frequência</p>
-            <p className="text-[13px] font-semibold text-foreground">
+            <p className="text-[14px] font-semibold text-foreground">
               {subscription?.billing_period === "semiannual" ? "Semestral"
                : subscription?.billing_period === "annual" ? "Anual"
                : "Mensal"}
@@ -1947,7 +1936,7 @@ function PlanosSection() {
             <p className="text-[12px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
               <CreditCard size={13} className="text-muted-foreground shrink-0" />
-              <p className="text-[13px] font-semibold text-foreground">Cartão de crédito</p>
+              <p className="text-[14px] font-semibold text-foreground">Cartão de crédito</p>
             </div>
           </div>
         </div>
@@ -1961,7 +1950,7 @@ function PlanosSection() {
                 {planDef.features.map(f => (
                   <div key={f} className="flex items-center gap-2">
                     <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
-                    <p className="text-[13px] leading-[1.4] text-foreground">{f}</p>
+                    <p className="text-[14px] leading-[1.4] text-foreground">{f}</p>
                   </div>
                 ))}
               </div>
@@ -1977,7 +1966,7 @@ function PlanosSection() {
             <UsageCard label="Pipelines"   current={pipelinesCount}    limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />
             <UsageCard label="Conexões"    current={connectionsCount}  limit={limits.connections} icon={<Link2 size={14} className="text-primary" />} />
             <UsageCard label="Automações"  current={automationsCount}  limit={limits.automations} icon={<Zap   size={14} className="text-primary" />} />
-            <UsageCard label="Integrações" current={integrationsCount} limit={3}                  icon={<Plug  size={14} className="text-primary" />} />
+            <UsageCard label="Integrações" current={integrationsCount} limit={limits.webhooks}     icon={<Plug  size={14} className="text-primary" />} />
           </div>
         </div>
       </Card>
@@ -2042,7 +2031,7 @@ function TagsSection() {
     <>
       <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {crmTags.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
@@ -2063,11 +2052,11 @@ function TagsSection() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: t.color + "22" }}>
                         <Tag size={14} style={{ color: t.color }} />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{t.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{t.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{t.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{t.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {t.created_at
                       ? new Date(t.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2219,7 +2208,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2241,14 +2230,14 @@ function ProdutosSection() {
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <ShoppingCart size={14} className="text-primary" />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{p.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{p.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{p.sku || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">{p.sku || "—"}</TableCell>
                   <TableCell>
-                    <span className="text-[13px] font-semibold text-primary">{fmt(p.defaultValue)}</span>
+                    <span className="text-[14px] font-semibold text-primary">{fmt(p.defaultValue)}</span>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {p.created_at
                       ? new Date(p.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2369,7 +2358,7 @@ function MotivosSection() {
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
@@ -2390,11 +2379,11 @@ function MotivosSection() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
                         <SquareX size={14} style={{ color: "#E24B4A" }} />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{r.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{r.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{r.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{r.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {r.created_at
                       ? new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2526,7 +2515,7 @@ function ListasSection() {
     <>
       <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      <div className="bg-white border border-card-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {crmLists.length === 0 ? (
           <div className="py-10 text-center">
             <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -2551,11 +2540,11 @@ function ListasSection() {
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <List size={14} className="text-primary" />
                       </div>
-                      <span className="text-[13px] font-medium text-foreground">{l.name}</span>
+                      <span className="text-[14px] font-medium text-foreground">{l.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">{l.description || "—"}</TableCell>
-                  <TableCell className="text-[13px] text-muted-foreground">
+                  <TableCell className="text-[14px] text-muted-foreground">{l.description || "—"}</TableCell>
+                  <TableCell className="text-[14px] text-muted-foreground">
                     {l.created_at
                       ? new Date(l.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
                       : "—"}
@@ -2634,7 +2623,7 @@ function ListasSection() {
                       {lead.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-foreground truncate">{lead.name}</p>
+                      <p className="text-[14px] font-medium text-foreground truncate">{lead.name}</p>
                       {stageName(lead.id) && (
                         <p className="text-xs text-muted-foreground truncate">{stageName(lead.id)}</p>
                       )}
@@ -2735,13 +2724,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-white border border-card-border rounded-xl px-4 py-10 text-center">
+          <div className="bg-white border border-gray-200 rounded-xl px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-white border border-card-border rounded-xl overflow-hidden">
+          <div key={g.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -2751,7 +2740,7 @@ function CamposSection() {
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <FormInput size={13} className="text-primary" />
                 </div>
-                <span className="text-[13px] font-semibold text-foreground">{g.name}</span>
+                <span className="text-[14px] font-semibold text-foreground">{g.name}</span>
                 {g.isDefault && <Badge className="text-[10px] bg-primary/10 text-primary border-0">padrão</Badge>}
                 <Badge variant="secondary" className="text-[10px]">{g.items.length} perguntas</Badge>
                 <ChevronDown
@@ -2779,7 +2768,7 @@ function CamposSection() {
                 {g.items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50">
                     <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0 ml-2" />
-                    <span className="flex-1 text-[13px] text-foreground">{item.label}</span>
+                    <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
                     <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
                     <button
                       onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
@@ -4385,7 +4374,7 @@ function ApiSection() {
               const visible = visibleKeys.has(k.id);
               const masked  = k.key.slice(0, 12) + "••••••••••••••••••••••••";
               return (
-                <div key={k.id} className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
+                <div key={k.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{k.label}</p>
                     <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
@@ -4679,7 +4668,7 @@ function McpSection() {
       </div>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted border border-gray-200 rounded-lg p-4 font-mono text-xs text-muted-foreground">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -4694,10 +4683,10 @@ function ArmazenamentoSection() {
   const navigate = useNavigate();
 
   const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
-    free:      { bytes: 500  * 1024 * 1024,         label: "500 MB" },
-    starter:   { bytes: 2   * 1024 * 1024 * 1024,   label: "2 GB"   },
-    essential: { bytes: 5   * 1024 * 1024 * 1024,   label: "5 GB"   },
-    pro:       { bytes: 20  * 1024 * 1024 * 1024,   label: "20 GB"  },
+    free:     { bytes: 500  * 1024 * 1024,         label: "500 MB" },
+    silver:   { bytes: 2   * 1024 * 1024 * 1024,   label: "2 GB"   },
+    platinum: { bytes: 5   * 1024 * 1024 * 1024,   label: "5 GB"   },
+    emerald:  { bytes: 20  * 1024 * 1024 * 1024,   label: "20 GB"  },
   };
 
   const plan = company?.plan ?? "free";

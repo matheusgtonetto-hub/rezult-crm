@@ -60,10 +60,11 @@ function initials(name: string) {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  free:       "Trial gratuito",
-  pro:        "Plano Pro",
+  free:     "Free",
+  silver:   "Plano Silver",
+  platinum: "Plano Platinum",
+  emerald:  "Plano Emerald",
   enterprise: "Plano Enterprise",
-  starter:    "Plano Starter",
 };
 
 const SIDEBAR_BG = "hsl(var(--primary))";

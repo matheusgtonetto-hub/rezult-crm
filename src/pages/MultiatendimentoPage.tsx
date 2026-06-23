@@ -1918,11 +1918,11 @@ export default function MultiatendimentoPage() {
 
   return (
     <div
-      style={{ display: "flex", height: "100vh", width: "100%", background: "#F4F6F8" }}
+      style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))" }}
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
-      <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
+      <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px" }}>
@@ -2085,7 +2085,7 @@ export default function MultiatendimentoPage() {
       </aside>
 
       {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "#F4F6F8", minWidth: 0 }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "hsl(var(--background))", minWidth: 0 }}>
         {active && cs ? (
           <>
             {/* header */}
