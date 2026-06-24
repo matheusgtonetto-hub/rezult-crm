@@ -696,13 +696,26 @@ export default function MultiatendimentoPage() {
   };
 
   // Etapas reais do pipeline vinculado ao lead ativo.
-  // Tenta por ID primeiro (conversas abertas pelo pipeline); se não achar,
-  // busca pelo telefone (conversas de backfill com UUID aleatório como id).
-  const linkedLead     = activeId ? leads[activeId] : null;
-  const linkedLeadByPhone = !linkedLead && active?.phone
-    ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""))
-    : null;
-  const effectiveLead  = linkedLead ?? linkedLeadByPhone ?? null;
+  // Resolução robusta do lead vinculado a uma conversa, em ordem de confiabilidade:
+  //  1) por ID (conversas abertas pelo pipeline usam o id do lead como id da conversa)
+  //  2) por telefone (conversas de WhatsApp têm UUID aleatório como id)
+  //  3) por número do negócio (#deal), quando a conversa guarda um deal_number real
+  // Unificada para que a UI e o "atrelar tag/lista/atividade" usem exatamente o mesmo lead.
+  const resolveLeadForConv = (conv?: Conversation | null): Lead | null => {
+    if (!conv) return null;
+    if (leads[conv.id]) return leads[conv.id];
+    if (conv.phone) {
+      const byPhone = Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
+      if (byPhone) return byPhone;
+    }
+    const dn = (conv.dealNumber ?? "").replace(/\D/g, "");
+    if (dn) {
+      const byDeal = Object.values(leads).find(l => String(l.dealNumber ?? "").replace(/\D/g, "") === dn);
+      if (byDeal) return byDeal;
+    }
+    return null;
+  };
+  const effectiveLead  = resolveLeadForConv(active);
 
   // Anotações da conversa → gravadas como atividade "note" no negócio vinculado,
   // ficando visíveis na aba Anotações do card do negócio na pipeline.
@@ -1413,7 +1426,7 @@ export default function MultiatendimentoPage() {
       entryDate: new Date().toISOString().split("T")[0],
       notes: "",
       activities: [],
-      tags: [],
+      tags: active.tags ?? [], // herda as tags já marcadas na conversa
     });
     setNegocioLoading(false);
     if (ok) {
@@ -1428,7 +1441,7 @@ export default function MultiatendimentoPage() {
     // ActivityDialog retorna leadId: undefined quando defaultLead foi passado — usar lead vinculado
     const resolvedLeadId = data.leadId ?? (() => {
       if (!active) return undefined;
-      const ll = leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+      const ll = resolveLeadForConv(active);
       return ll?.id;
     })();
     if (!resolvedLeadId) { toast.error("Nenhum negócio vinculado para salvar a atividade."); return; }
@@ -1455,8 +1468,7 @@ export default function MultiatendimentoPage() {
     if (!conv) return;
     const convTags = conv.tags ?? [];
     if (convTags.length === 0) return;
-    const linkedLead = leads[activeId]
-      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
+    const linkedLead = resolveLeadForConv(conv);
     if (!linkedLead) return;
     const leadTags = linkedLead.tags ?? [];
     const toAdd = convTags.filter(t => !leadTags.includes(t));
@@ -1476,21 +1488,22 @@ export default function MultiatendimentoPage() {
     await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
 
     // Sincroniza tags no lead vinculado (para aparecer no card do pipeline)
-    const linkedLead = leads[activeId]
-      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+    const linkedLead = resolveLeadForConv(active);
     if (linkedLead) {
       const leadTags = linkedLead.tags ?? [];
       const nextLeadTags = leadTags.includes(tagName)
         ? leadTags.filter(t => t !== tagName)
         : [...leadTags, tagName];
       await updateLead(linkedLead.id, { tags: nextLeadTags });
+    } else if (!current.includes(tagName)) {
+      // Marcou uma tag mas não há negócio/lead vinculado a esta conversa.
+      toast.info("Tag salva na conversa. Crie um negócio para vinculá-la ao lead.");
     }
   }
 
   async function toggleConvList(listId: string) {
     if (!activeId || !active) return;
-    const linkedLead = leads[activeId]
-      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+    const linkedLead = resolveLeadForConv(active);
     if (!linkedLead) return;
     const list = crmLists.find(l => l.id === listId);
     if (!list) return;
@@ -1684,8 +1697,7 @@ export default function MultiatendimentoPage() {
       .then(({ error }) => { if (error) console.error("updateCs assignedTo:", error); });
 
     // Atualiza o responsável no lead vinculado (aparece no card do Pipeline)
-    const linkedLead = leads[activeId]
-      ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active?.phone ?? ""));
+    const linkedLead = resolveLeadForConv(active);
     if (linkedLead) {
       updateLead(linkedLead.id, { responsible: memberName });
       // Registra nas anotações do negócio (visível em Detalhes do negócio)
@@ -2563,8 +2575,7 @@ export default function MultiatendimentoPage() {
 
                 {/* Listas inline + picker */}
                 {(() => {
-                  const linkedLead = leads[activeId]
-                    ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+                  const linkedLead = resolveLeadForConv(active);
                   const convLists = crmLists.filter(l => linkedLead && l.leadIds.includes(linkedLead.id));
                   return (
                     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 4 }}>
@@ -2802,7 +2813,7 @@ export default function MultiatendimentoPage() {
 
             {/* PRÓXIMA ATIVIDADE */}
             {(() => {
-              const ll = leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? ""));
+              const ll = resolveLeadForConv(active);
               const now = new Date();
               const nextAct = ll?.activities
                 .filter(a => a.scheduledAt && !a.completedAt && !a.noShowAt && new Date(a.scheduledAt) >= now)
@@ -3362,7 +3373,7 @@ export default function MultiatendimentoPage() {
       {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
       {showScheduleDialog && (() => {
         const linkedLead = active
-          ? (leads[activeId] ?? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", active.phone ?? "")))
+          ? resolveLeadForConv(active)
           : undefined;
         return (
           <ActivityDialog
