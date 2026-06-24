@@ -5506,7 +5506,7 @@ function IaVarTextarea({ value, onChange, rows = 5, placeholder }: { value: stri
         style={{ width: "100%", padding: "8px 34px 8px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", background: "#FFF", resize: "vertical", fontFamily: "inherit" }} />
       <button type="button" onClick={() => setVarOpen(o => !o)} title="Inserir variável"
         style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 5, border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
-        {"{"}
+        <Braces size={13} />
       </button>
       {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
     </div>
@@ -5895,7 +5895,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                   style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
                   <button title="Copiar" style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
-                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{"{}"}</button>
+                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}><Braces size={12} /></button>
                 </div>
               </div>
               <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
@@ -6544,7 +6544,7 @@ function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) 
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid #E5E7EB", position: "relative" }}>
         <button onClick={() => setVarOpen(o => !o)} title="Inserir variável"
           style={{ width: 24, height: 24, borderRadius: 5, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {"{"}
+          <Braces size={13} />
         </button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
       </div>
@@ -6643,7 +6643,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
               <div style={{ position: "relative" }}>
                 <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
                   style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 11, fontWeight: 700 }}>
-                  {"{"}
+                  <Braces size={13} />
                 </button>
                 {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
               </div>
@@ -6726,7 +6726,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
               style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 5, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 12, fontWeight: 700 }}>
-              {"{"}
+              <Braces size={13} />
             </button>
             {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
           </div>
@@ -6904,7 +6904,7 @@ function CamposValueInput({ value, onChange, placeholder }: {
             onMouseDown={e => e.preventDefault()}
             onClick={() => { setEditing(true); setVarOpen(o => !o); }}
             style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
-          >{"{}"}</button>
+          ><Braces size={13} /></button>
           {varOpen && <VarPicker onInsert={insertVar} onClose={() => { setVarOpen(false); }} />}
         </div>
       </div>
@@ -7405,7 +7405,7 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
         <button
           onClick={() => setVarOpen(o => !o)}
           style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
-        >{"{}"}</button>
+        ><Braces size={13} /></button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
       </div>
     </div>
