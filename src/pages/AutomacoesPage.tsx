@@ -6136,6 +6136,33 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
 
 // ─── ApiPanel ─────────────────────────────────────────────────────────────────
 
+// Saídas dos blocos de IA como variáveis insertáveis ({{outputVar.campo}}), seguindo o
+// que o runner persiste em datasources. Usado tanto em "Campos de IA" quanto em
+// "Entrada de dados" (a IA é uma fonte de dados, igual às saídas de API).
+function iaOutputFields(nodes: CanvasNode[]): VarField[] {
+  return nodes.filter(n => n.type === "ia").flatMap(n =>
+    (n.iaActions ?? []).flatMap((a): VarField[] => {
+      const out = a.outputVar;
+      if (a.type === "assistente_chat" || a.type === "gerar_texto")
+        return [{ key: `${out}.resposta`, label: `${out} — resposta`, icon: "T" }];
+      if (a.type === "intencao")
+        return [
+          { key: `${out}.intencao`, label: `${out} — intenção`, icon: "T" },
+          { key: `${out}.id`, label: `${out} — id da intenção`, icon: "T" },
+        ];
+      if (a.type === "sentimento")
+        return [{ key: `${out}.sentimento`, label: `${out} — sentimento`, icon: "T" }];
+      if (a.type === "transcricao_audio")
+        return [{ key: `${out}.texto`, label: `${out} — transcrição`, icon: "T" }];
+      if (a.type === "extrator_params")
+        return (a.parametros ?? []).filter(p => (p.nome ?? "").trim()).map(p => ({
+          key: `${out}.${p.nome}`, label: `${out} — ${p.nome}`, icon: "T" as const,
+        }));
+      return [];
+    })
+  );
+}
+
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
   const { nodes, customFieldGroups, trigger, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
@@ -6192,31 +6219,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         return { ...c, fields };
       }
       if (c.id === "ia") {
-        // As saídas seguem o outputVar de cada ação (ex.: AI-1.resposta), igual ao que o
-        // runner persiste em datasources. Antes apontava p/ ia.<nodeId>.* (interpolava vazio).
-        const iaNodes = nodes.filter(n => n.type === "ia");
-        const fields: VarField[] = iaNodes.flatMap(n =>
-          (n.iaActions ?? []).flatMap(a => {
-            const out = a.outputVar;
-            if (a.type === "assistente_chat" || a.type === "gerar_texto")
-              return [{ key: `${out}.resposta`, label: `${out} — resposta`, icon: "T" }];
-            if (a.type === "intencao")
-              return [
-                { key: `${out}.intencao`, label: `${out} — intenção`, icon: "T" },
-                { key: `${out}.id`, label: `${out} — id da intenção`, icon: "T" },
-              ];
-            if (a.type === "sentimento")
-              return [{ key: `${out}.sentimento`, label: `${out} — sentimento`, icon: "T" }];
-            if (a.type === "transcricao_audio")
-              return [{ key: `${out}.texto`, label: `${out} — transcrição`, icon: "T" }];
-            if (a.type === "extrator_params")
-              return (a.parametros ?? []).filter(p => (p.nome ?? "").trim()).map(p => ({
-                key: `${out}.${p.nome}`, label: `${out} — ${p.nome}`, icon: "T" as const,
-              }));
-            return [];
-          })
-        );
-        return { ...c, fields };
+        return { ...c, fields: iaOutputFields(nodes) };
       }
       if (c.id === "entrada") {
         const webhookFields: VarField[] = trigger?.triggerId === "http_webhook"
@@ -6248,11 +6251,11 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                 };
               })
           );
-        return { ...c, fields: [...webhookFields, ...apiFields, ...camposFields] };
+        return { ...c, fields: [...webhookFields, ...apiFields, ...camposFields, ...iaOutputFields(nodes)] };
       }
       return c;
     });
-  }, [nodes, customFieldGroups]);
+  }, [nodes, customFieldGroups, trigger]);
 
   const activeCat = categories.find(c => c.id === cat) ?? categories[0];
   const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
