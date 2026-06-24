@@ -5488,6 +5488,41 @@ function IaItemHeader({ index, color, onRemove }: { index: number; color: string
   );
 }
 
+// Textarea com botão de VarPicker (insere {{variável}} na posição do cursor).
+function IaVarTextarea({ value, onChange, rows = 5, placeholder }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const insertVar = (v: string) => {
+    const ta = taRef.current;
+    if (!ta) { onChange((value ?? "") + v); return; }
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const next = (value ?? "").substring(0, s) + v + (value ?? "").substring(e);
+    onChange(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+  return (
+    <div style={{ position: "relative" }}>
+      <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+        style={{ width: "100%", padding: "8px 34px 8px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", background: "#FFF", resize: "vertical", fontFamily: "inherit" }} />
+      <button type="button" onClick={() => setVarOpen(o => !o)} title="Inserir variável"
+        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 5, border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
+        {"{"}
+      </button>
+      {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+    </div>
+  );
+}
+
+// Bloco "Instruções adicionais" reutilizado pelos editores de intenção/sentimento/extrator.
+function IaExtraInstructions({ a, updateAction, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; labelStyle: React.CSSProperties }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <label style={labelStyle}>Instruções adicionais (opcional)</label>
+      <IaVarTextarea value={a.instructions ?? ""} onChange={(v) => updateAction(a.id, { instructions: v })} rows={3} placeholder="Contexto extra para a IA. Use {{lead.name}}, {{gatilho.x}} ou saídas de outros blocos." />
+    </div>
+  );
+}
+
 function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAction; updateAction: (id: string, data: Partial<IaAction>) => void; inputStyle: React.CSSProperties; labelStyle: React.CSSProperties }) {
   const items = a.intencoes ?? [];
   const set = (next: IaIntencao[]) => updateAction(a.id, { intencoes: next });
@@ -5509,6 +5544,7 @@ function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAc
         onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
         <Plus size={13} /> Adicionar intenção
       </button>
+      <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
       <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.intencao}}`}</span>.</p>
     </div>
   );
@@ -5534,6 +5570,7 @@ function IaSentimentoEditor({ a, updateAction, inputStyle, labelStyle }: { a: Ia
         onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
         <Plus size={13} /> Adicionar sentimento
       </button>
+      <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
       <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.sentimento}}`}</span>.</p>
     </div>
   );
@@ -5573,6 +5610,7 @@ function IaParamsEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaActi
         onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
         <Plus size={13} /> Adicionar parâmetro
       </button>
+      <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
       <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Cada valor fica disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.nome}}`}</span>.</p>
     </div>
   );
@@ -5677,7 +5715,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
               {isText ? (
                 <div>
                   <label style={labelStyle}>{a.type === "assistente_chat" ? "Instruções do assistente" : "Instruções"}</label>
-                  <textarea value={a.instructions ?? ""} onChange={e => updateAction(a.id, { instructions: e.target.value })} rows={5} placeholder="Descreva o que a IA deve fazer. Use {{gatilho.nome}}, {{lead.name}} ou saídas de outros blocos." style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+                  <IaVarTextarea value={a.instructions ?? ""} onChange={(v) => updateAction(a.id, { instructions: v })} rows={5} placeholder="Descreva o que a IA deve fazer. Use {{gatilho.nome}}, {{lead.name}} ou saídas de outros blocos." />
                   <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Resultado disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.resposta}}`}</span>.</p>
                 </div>
               ) : a.type === "intencao" ? (
