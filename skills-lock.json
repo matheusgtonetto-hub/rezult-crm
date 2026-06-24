@@ -7,6 +7,12 @@
       "skillPath": "tools/image/ai-image-generation/SKILL.md",
       "computedHash": "8aec5218368ccd863f5281f3d27bf4a00b8e03e4f6dc805188063eeefb4b264a"
     },
+    "belt": {
+      "source": "belt-sh/cli",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/belt/SKILL.md",
+      "computedHash": "49d07aca8deb1f9ada4273c6e065a17219d335b1e7bdf7b11e59f2da6192497c"
+    },
     "brainstorming": {
       "source": "obra/superpowers",
       "sourceType": "github",
