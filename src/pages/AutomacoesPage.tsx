@@ -6154,11 +6154,30 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         return { ...c, fields };
       }
       if (c.id === "ia") {
+        // As saídas seguem o outputVar de cada ação (ex.: AI-1.resposta), igual ao que o
+        // runner persiste em datasources. Antes apontava p/ ia.<nodeId>.* (interpolava vazio).
         const iaNodes = nodes.filter(n => n.type === "ia");
-        const fields: VarField[] = iaNodes.flatMap(n => [
-          { key: `ia.${n.id}.resposta`, label: `${n.label} — resposta`, icon: "T" },
-          { key: `ia.${n.id}.tokens`, label: `${n.label} — tokens`, icon: "#" },
-        ]);
+        const fields: VarField[] = iaNodes.flatMap(n =>
+          (n.iaActions ?? []).flatMap(a => {
+            const out = a.outputVar;
+            if (a.type === "assistente_chat" || a.type === "gerar_texto")
+              return [{ key: `${out}.resposta`, label: `${out} — resposta`, icon: "T" }];
+            if (a.type === "intencao")
+              return [
+                { key: `${out}.intencao`, label: `${out} — intenção`, icon: "T" },
+                { key: `${out}.id`, label: `${out} — id da intenção`, icon: "T" },
+              ];
+            if (a.type === "sentimento")
+              return [{ key: `${out}.sentimento`, label: `${out} — sentimento`, icon: "T" }];
+            if (a.type === "transcricao_audio")
+              return [{ key: `${out}.texto`, label: `${out} — transcrição`, icon: "T" }];
+            if (a.type === "extrator_params")
+              return (a.parametros ?? []).filter(p => (p.nome ?? "").trim()).map(p => ({
+                key: `${out}.${p.nome}`, label: `${out} — ${p.nome}`, icon: "T" as const,
+              }));
+            return [];
+          })
+        );
         return { ...c, fields };
       }
       if (c.id === "entrada") {
