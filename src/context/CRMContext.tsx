@@ -568,6 +568,23 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activities", filter: `company_id=eq.${companyId}` },
+        (payload) => {
+          // Atividades criadas no backend (automações, outros usuários) aparecem ao vivo.
+          const row = payload.new as Record<string, unknown>;
+          const leadId = row.lead_id as string;
+          if (!leadId) return;
+          const act = dbToActivity(row);
+          setLeads(prev => {
+            const lead = prev[leadId];
+            if (!lead) return prev;
+            if ((lead.activities ?? []).some(a => a.id === act.id)) return prev; // dedup
+            return { ...prev, [leadId]: { ...lead, activities: [...(lead.activities ?? []), act] } };
+          });
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
