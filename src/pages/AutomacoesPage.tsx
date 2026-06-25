@@ -1794,6 +1794,7 @@ export default function AutomacoesPage() {
     setLogsPanelLoading(true);
     setLogsPanelEntries([]);
     setLogsPanelSelectedEntry(null);
+    setLogsPanelPath([]);
     setLogsPanelLeadFilter("");
 
     const { data: logRows } = await supabase
@@ -2737,7 +2738,7 @@ export default function AutomacoesPage() {
               })}
 
               {/* ── Path overlay chips — mostra o caminho do lead no canvas ── */}
-              {logsPanelPath.length > 0 && logsPanelPath.map((entry, i) => {
+              {logsPanel && logsPanelPath.length > 0 && logsPanelPath.map((entry, i) => {
                 const nd = nodes.find(n => n.id === entry.node_id);
                 if (!nd) return null;
                 const sColor = entry.status === "success" ? "#16A34A" : entry.status === "alert" ? "#D97706" : "#DC2626";
@@ -2833,7 +2834,7 @@ export default function AutomacoesPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   ><RefreshCw size={13} /></button>
-                  <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); }}
+                  <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); setLogsPanelPath([]); }}
                     style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
