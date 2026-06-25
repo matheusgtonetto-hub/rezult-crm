@@ -2570,6 +2570,7 @@ async function executeAction(
       const { data: lead } = await supabase.from("leads").select("owner_id").eq("id", lead_id).single();
       await supabase.from("activities").insert({
         owner_id: lead?.owner_id,
+        company_id,
         lead_id,
         type: "note",
         description: comentario,
@@ -2597,6 +2598,7 @@ async function executeAction(
       };
       await supabase.from("activities").insert({
         owner_id: lead?.owner_id,
+        company_id,
         lead_id,
         type: tipoMap[cfg.tipo as string] ?? "note",
         title: titulo,
