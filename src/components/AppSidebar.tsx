@@ -21,6 +21,8 @@ import {
   Wallet,
   CalendarDays,
   ChevronRight,
+  GraduationCap,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -87,6 +89,7 @@ export function AppSidebar() {
   const userName = profile?.full_name || userEmail.split("@")[0];
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const [dbNotifs, setDbNotifs] = useState<DbNotif[]>([]);
 
@@ -453,19 +456,48 @@ export function AppSidebar() {
             </PopoverContent>
           </Popover>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
+          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+            <PopoverTrigger asChild>
               <button
                 className={itemBase}
-                style={{ ...itemSize, color: ICON_INACTIVE }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; }}
+                style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
+                onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
+                onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
+                aria-label="Ajuda"
               >
                 <Info size={18} strokeWidth={1.75} />
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Ajuda</TooltipContent>
-          </Tooltip>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="end"
+              sideOffset={8}
+              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-card-border">
+                <p className="text-sm font-semibold text-foreground">Ajuda</p>
+              </div>
+              <a
+                href="https://ajuda.rezultcrm.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setHelpOpen(false)}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
+              >
+                <div className="mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <GraduationCap size={16} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground leading-snug flex items-center gap-1">
+                    Tutoriais <ExternalLink size={11} className="text-muted-foreground" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Acesse tutoriais e aprenda a usar a plataforma
+                  </p>
+                </div>
+              </a>
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
             <TooltipTrigger asChild>

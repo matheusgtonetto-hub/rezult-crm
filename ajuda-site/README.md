@@ -1,0 +1,42 @@
+# Central de Ajuda — ajuda.rezultcrm.com
+
+Site estático (HTML/CSS puro, sem build) da Central de Ajuda do Rezult CRM.
+É a página aberta pelo botão **Ajuda → Tutoriais** dentro do app.
+
+## Estrutura
+
+```
+ajuda-site/
+├── index.html      # Página única de tutoriais (CSS embutido)
+├── favicon.svg     # Ícone "R" da marca
+└── vercel.json     # Headers/cache para deploy estático
+```
+
+## Rodar localmente
+
+Como é estático, basta abrir o `index.html` no navegador. Ou servir:
+
+```bash
+npx serve ajuda-site
+# ou
+python -m http.server 5500 --directory ajuda-site
+```
+
+## Deploy em ajuda.rezultcrm.com (Vercel)
+
+Recomenda-se um **projeto Vercel separado** do app principal (para não misturar com app.rezultcrm.com):
+
+1. No painel da Vercel → **New Project**.
+2. Conecte o mesmo repositório do CRM.
+3. Em **Root Directory**, selecione `ajuda-site`.
+4. **Framework Preset**: `Other` (sem build). Build Command vazio; Output Directory `.`.
+5. Após o deploy, em **Settings → Domains**, adicione `ajuda.rezultcrm.com`.
+6. No DNS do domínio `rezultcrm.com`, crie um registro **CNAME** `ajuda` apontando para `cname.vercel-dns.com` (a Vercel mostra o valor exato).
+
+> Alternativa: mover esta pasta para um repositório próprio (`rezult-ajuda`) e deployar isolado. O conteúdo é autossuficiente.
+
+## Conteúdo
+
+A página já traz a estrutura por temas (Primeiros passos, Pipeline, Multiatendimento,
+Automações, Leads, Configurações). Os cards estão marcados como **EM BREVE** —
+basta transformar cada um em link para o respectivo tutorial conforme forem criados.
