@@ -7416,6 +7416,44 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
   );
 }
 
+function AcoesFieldTextarea({ value, onChange, placeholder, rows = 4 }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  const [varOpen, setVarOpen] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const insertVar = (v: string) => {
+    const el = taRef.current;
+    if (!el) { onChange(value + v); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.substring(0, s) + v + value.substring(e);
+    onChange(next);
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+  return (
+    <div style={{ position: "relative" }}>
+      <textarea
+        ref={taRef}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        style={{ width: "100%", padding: "8px 38px 8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+      />
+      <button
+        type="button"
+        onClick={() => setVarOpen(o => !o)}
+        title="Inserir variável"
+        style={{ position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", zIndex: 2 }}
+      ><Braces size={13} /></button>
+      {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
+    </div>
+  );
+}
+
 function AcoesSelect({ value, onChange, options, placeholder }: {
   value: string;
   onChange: (v: string) => void;
@@ -7598,7 +7636,7 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
               options={[...lossReasons.map(lr => ({ value: lr.id, label: lr.name })), { value: "outro", label: "Outro" }]}
             />
           </>)}
-          {grp(<>{lbl("Justificativa")}<textarea value={(cfg.justificativa as string) ?? ""} onChange={e => set("justificativa", e.target.value)} placeholder="Digite a justificativa..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} /></>)}
+          {grp(<>{lbl("Justificativa")}<AcoesFieldTextarea value={(cfg.justificativa as string) ?? ""} onChange={v => set("justificativa", v)} placeholder="Digite a justificativa..." rows={4} /></>)}
         </>
       );
 
@@ -7744,7 +7782,7 @@ function LeadsConfigForm({ item, updateActionItem, crmTags, addTag, crmLists, te
     case "comentario_lead":
       return grp(<>
         {lbl("Comentário")}
-        <textarea value={(cfg.comentario as string) ?? ""} onChange={e => set("comentario", e.target.value)} placeholder="Digite o comentário..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+        <AcoesFieldTextarea value={(cfg.comentario as string) ?? ""} onChange={v => set("comentario", v)} placeholder="Digite o comentário..." rows={4} />
       </>);
 
     case "transf_atend_lead":
@@ -7789,7 +7827,7 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
     case "sugestao_resposta":
       return grp(<>
         {lbl("Texto da sugestão")}
-        <textarea value={(cfg.sugestao as string) ?? ""} onChange={e => set("sugestao", e.target.value)} placeholder="Digite a sugestão de resposta..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+        <AcoesFieldTextarea value={(cfg.sugestao as string) ?? ""} onChange={v => set("sugestao", v)} placeholder="Digite a sugestão de resposta..." rows={4} />
       </>);
 
     case "transf_dep":
@@ -7849,13 +7887,13 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
     case "retornar_resultado":
       return grp(<>
         {lbl("Conteúdo do resultado")}
-        <textarea value={(cfg.resultado as string) ?? ""} onChange={e => set("resultado", e.target.value)} placeholder="Digite o conteúdo ou use {{variavel}}..." rows={4} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+        <AcoesFieldTextarea value={(cfg.resultado as string) ?? ""} onChange={v => set("resultado", v)} placeholder="Digite o conteúdo ou use {{variavel}}..." rows={4} />
       </>);
 
     case "enviar_notificacao":
       return grp(<>
         {lbl("Mensagem da notificação")}
-        <textarea value={(cfg.mensagem as string) ?? ""} onChange={e => set("mensagem", e.target.value)} placeholder="Digite a mensagem da notificação..." rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+        <AcoesFieldTextarea value={(cfg.mensagem as string) ?? ""} onChange={v => set("mensagem", v)} placeholder="Digite a mensagem da notificação..." rows={3} />
       </>);
 
     default:
@@ -7883,7 +7921,7 @@ function AtividadesConfigForm({ item, updateActionItem }: {
       </>)}
       {grp(<>
         {lbl("Descrição")}
-        <textarea value={(cfg.descricao as string) ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="Descreva a atividade..." rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+        <AcoesFieldTextarea value={(cfg.descricao as string) ?? ""} onChange={v => set("descricao", v)} placeholder="Descreva a atividade..." rows={3} />
       </>)}
     </>
   );
