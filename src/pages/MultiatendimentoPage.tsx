@@ -716,6 +716,9 @@ export default function MultiatendimentoPage() {
     return null;
   };
   const effectiveLead  = resolveLeadForConv(active);
+  // Quando há lead vinculado, ele é a fonte da verdade das tags (mesmas em todas as
+  // conversas/instâncias do lead); sem lead, usa as tags da própria conversa.
+  const convTags       = effectiveLead?.tags ?? active?.tags ?? [];
 
   // Anotações da conversa → gravadas como atividade "note" no negócio vinculado,
   // ficando visíveis na aba Anotações do card do negócio na pipeline.
@@ -1461,43 +1464,63 @@ export default function MultiatendimentoPage() {
     setShowScheduleDialog(false);
   }
 
-  // Ao trocar de conversa, sincroniza tags da conversa → lead (backfill)
+  // Ao trocar de conversa, reconcilia as tags do lead e de TODAS as conversas dele
+  // (várias instâncias → mesmo lead). Usa a união para não perder nada; remoções
+  // explícitas são propagadas em toggleConvTag.
   useEffect(() => {
     if (!activeId) return;
     const conv = convList.find(c => c.id === activeId);
     if (!conv) return;
-    const convTags = conv.tags ?? [];
-    if (convTags.length === 0) return;
     const linkedLead = resolveLeadForConv(conv);
     if (!linkedLead) return;
     const leadTags = linkedLead.tags ?? [];
-    const toAdd = convTags.filter(t => !leadTags.includes(t));
-    if (toAdd.length > 0) updateLead(linkedLead.id, { tags: [...leadTags, ...toAdd] });
+    const siblings = convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id);
+    const union = Array.from(new Set([...leadTags, ...siblings.flatMap(c => c.tags ?? [])]));
+    if (union.length === 0) return;
+    // Atualiza o lead se faltam tags
+    if (union.length !== leadTags.length) updateLead(linkedLead.id, { tags: union });
+    // Espelha nas conversas desatualizadas (estado + banco)
+    const staleIds = siblings
+      .filter(c => { const t = c.tags ?? []; return t.length !== union.length || union.some(x => !t.includes(x)); })
+      .map(c => c.id);
+    if (staleIds.length > 0) {
+      setConvList(prev => prev.map(c => staleIds.includes(c.id) ? { ...c, tags: union } : c));
+      supabase.from("whatsapp_conversations").update({ tags: union }).in("id", staleIds)
+        .then(({ error }) => { if (error) console.error("sync tags conversas:", error); });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
   async function toggleConvTag(tagName: string) {
     if (!activeId || !active) return;
 
-    // Atualiza tags da conversa
-    const current = active.tags ?? [];
-    const next = current.includes(tagName)
-      ? current.filter(t => t !== tagName)
-      : [...current, tagName];
-    setConvList(prev => prev.map(c => c.id === activeId ? { ...c, tags: next } : c));
-    await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
-
-    // Sincroniza tags no lead vinculado (para aparecer no card do pipeline)
     const linkedLead = resolveLeadForConv(active);
+
     if (linkedLead) {
+      // O lead é a fonte da verdade: um mesmo lead pode ter várias conversas (uma por
+      // instância). As tags vivem no lead e são espelhadas em todas as conversas dele.
       const leadTags = linkedLead.tags ?? [];
-      const nextLeadTags = leadTags.includes(tagName)
+      const nextTags = leadTags.includes(tagName)
         ? leadTags.filter(t => t !== tagName)
         : [...leadTags, tagName];
-      await updateLead(linkedLead.id, { tags: nextLeadTags });
-    } else if (!current.includes(tagName)) {
-      // Marcou uma tag mas não há negócio/lead vinculado a esta conversa.
-      toast.info("Tag salva na conversa. Crie um negócio para vinculá-la ao lead.");
+      await updateLead(linkedLead.id, { tags: nextTags });
+
+      // Propaga para todas as conversas vinculadas a este lead (qualquer instância).
+      const siblingIds = convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id).map(c => c.id);
+      const ids = siblingIds.length > 0 ? siblingIds : [activeId];
+      setConvList(prev => prev.map(c => ids.includes(c.id) ? { ...c, tags: nextTags } : c));
+      await supabase.from("whatsapp_conversations").update({ tags: nextTags }).in("id", ids);
+    } else {
+      // Sem lead vinculado: a tag fica só na conversa.
+      const current = active.tags ?? [];
+      const next = current.includes(tagName)
+        ? current.filter(t => t !== tagName)
+        : [...current, tagName];
+      setConvList(prev => prev.map(c => c.id === activeId ? { ...c, tags: next } : c));
+      await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
+      if (!current.includes(tagName)) {
+        toast.info("Tag salva na conversa. Crie um negócio para vinculá-la ao lead.");
+      }
     }
   }
 
@@ -2496,7 +2519,7 @@ export default function MultiatendimentoPage() {
                   </div>
                   {/* Tags inline + picker */}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 5 }}>
-                    {(active.tags ?? []).slice(0, 4).map(tagName => {
+                    {convTags.slice(0, 4).map(tagName => {
                       const tag = crmTags.find(t => t.name === tagName);
                       return (
                         <span
@@ -2508,8 +2531,8 @@ export default function MultiatendimentoPage() {
                         </span>
                       );
                     })}
-                    {(active.tags ?? []).length > 4 && (
-                      <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{(active.tags ?? []).length - 4}</span>
+                    {convTags.length > 4 && (
+                      <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convTags.length - 4}</span>
                     )}
                     {/* Botão "+" */}
                     <div style={{ position: "relative" }}>
@@ -2543,7 +2566,7 @@ export default function MultiatendimentoPage() {
                             {crmTags
                               .filter(t => !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()))
                               .map(tag => {
-                                const isActive = (active.tags ?? []).includes(tag.name);
+                                const isActive = convTags.includes(tag.name);
                                 return (
                                   <button
                                     key={tag.id}
