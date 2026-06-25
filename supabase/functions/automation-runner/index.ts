@@ -1194,35 +1194,40 @@ async function executeFlow(
 
       const errors: string[] = [];
       let ranAny = false;
+      let tokensTotal = 0;
       const dsStore = (payload.context.datasources ??= {});
       const branchTargets: string[] = []; // portas de saída a disparar (intenção/sentimento)
 
       for (const action of actions) {
         try {
           if (action.type === "assistente_chat" || action.type === "gerar_texto") {
-            const text = await runIaTextAction(supabase, company_id, action, vars, conversa);
+            const { text, tokens } = await runIaTextAction(supabase, company_id, action, vars, conversa);
             dsStore[action.outputVar || "ia"] = { resposta: text };
+            tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "intencao") {
             const opts = (action.intencoes ?? []).filter((o) => (o.nome ?? "").trim());
-            const matchedId = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
             const matched = opts.find((o) => o.id === matchedId);
             dsStore[action.outputVar || "ia"] = { intencao: matched?.nome ?? "nenhuma", id: matched?.id ?? "" };
             branchTargets.push(matchedId ? `${node.id}_${matchedId}` : `${node.id}_${action.id}-none`);
+            tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "sentimento") {
             const opts = (action.sentimentos ?? []).filter((o) => (o.nome ?? "").trim());
-            const matchedId = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
             const matched = opts.find((o) => o.id === matchedId);
             dsStore[action.outputVar || "ia"] = { sentimento: matched?.nome ?? "" };
             if (matchedId) branchTargets.push(`${node.id}_${matchedId}`);
+            tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "extrator_params") {
-            const obj = await runIaExtractParams(supabase, company_id, action, vars, conversa);
+            const { obj, tokens } = await runIaExtractParams(supabase, company_id, action, vars, conversa);
             dsStore[action.outputVar || "ia"] = obj;
+            tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "transcricao_audio") {
@@ -1248,6 +1253,7 @@ async function executeFlow(
         automation_id: automationId, company_id, lead_id: getLogLeadId(),
         node_id: node.id, status,
         error_message: errors.length > 0 ? errors.join("; ") : null,
+        tokens: tokensTotal > 0 ? tokensTotal : null,
       });
 
       if (errors.length > 0 && !ranAny) {
@@ -1577,7 +1583,7 @@ async function getAiKey(
   return row.api_key;
 }
 
-// Chamada genérica ao provedor de IA. Retorna o texto da resposta.
+// Chamada genérica ao provedor de IA. Retorna o texto da resposta + tokens consumidos.
 async function callAiProvider(
   provider: string,
   apiKey: string,
@@ -1585,7 +1591,7 @@ async function callAiProvider(
   system: string,
   userPrompt: string,
   maxTokens: number,
-): Promise<string> {
+): Promise<{ text: string; tokens: number }> {
   if (provider === "openai") {
     const messages: { role: string; content: string }[] = [];
     if (system) messages.push({ role: "system", content: system });
@@ -1597,7 +1603,7 @@ async function callAiProvider(
     });
     if (!resp.ok) throw new Error(`OpenAI HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
     const data = await resp.json();
-    return String(data?.choices?.[0]?.message?.content ?? "").trim();
+    return { text: String(data?.choices?.[0]?.message?.content ?? "").trim(), tokens: Number(data?.usage?.total_tokens ?? 0) };
   }
 
   if (provider === "anthropic") {
@@ -1609,7 +1615,8 @@ async function callAiProvider(
     if (!resp.ok) throw new Error(`Anthropic HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
     const data = await resp.json();
     const parts = Array.isArray(data?.content) ? data.content : [];
-    return parts.filter((p: { type?: string }) => p.type === "text").map((p: { text?: string }) => p.text ?? "").join("").trim();
+    const text = parts.filter((p: { type?: string }) => p.type === "text").map((p: { text?: string }) => p.text ?? "").join("").trim();
+    return { text, tokens: Number(data?.usage?.input_tokens ?? 0) + Number(data?.usage?.output_tokens ?? 0) };
   }
 
   // google (gemini)
@@ -1626,7 +1633,8 @@ async function callAiProvider(
   if (!resp.ok) throw new Error(`Google HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
   const data = await resp.json();
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  return parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
+  const text = parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
+  return { text, tokens: Number(data?.usageMetadata?.totalTokenCount ?? 0) };
 }
 
 // Monta a transcrição recente da conversa de WhatsApp do lead (filtrada pelo dono do
@@ -1665,7 +1673,7 @@ async function runIaTextAction(
   action: IaAction,
   vars: Record<string, string>,
   conversa: string,
-): Promise<string> {
+): Promise<{ text: string; tokens: number }> {
   const apiKey = await getAiKey(supabase, companyId, action.provider);
   const instr = interpolate(action.instructions ?? "", vars).trim();
   if (!instr && !conversa) throw new Error("Ação de IA sem instruções");
@@ -1696,8 +1704,8 @@ async function runIaClassify(
   vars: Record<string, string>,
   conversa: string,
   options: { id: string; nome: string; detalhes?: string; exemplos?: string }[],
-): Promise<string | null> {
-  if (options.length === 0) return null;
+): Promise<{ id: string | null; tokens: number }> {
+  if (options.length === 0) return { id: null, tokens: 0 };
   const apiKey = await getAiKey(supabase, companyId, action.provider);
   const kind = action.type === "sentimento" ? "sentimento" : "intenção";
   const list = options.map((o) =>
@@ -1710,11 +1718,11 @@ async function runIaClassify(
     `Opções de ${kind}:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const raw = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 60);
+  const { text: raw, tokens } = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 60);
   const parsed = parseFirstJson(raw);
   const id = parsed?.id ? String(parsed.id) : "none";
-  if (id === "none" || !options.some((o) => o.id === id)) return null;
-  return id;
+  if (id === "none" || !options.some((o) => o.id === id)) return { id: null, tokens };
+  return { id, tokens };
 }
 
 // Extrator de parâmetros: a IA devolve um JSON com cada parâmetro pedido. Cada chave
@@ -1725,9 +1733,9 @@ async function runIaExtractParams(
   action: IaAction,
   vars: Record<string, string>,
   conversa: string,
-): Promise<Record<string, string>> {
+): Promise<{ obj: Record<string, string>; tokens: number }> {
   const params = (action.parametros ?? []).filter((p) => (p.nome ?? "").trim());
-  if (params.length === 0) return {};
+  if (params.length === 0) return { obj: {}, tokens: 0 };
   const apiKey = await getAiKey(supabase, companyId, action.provider);
   const list = params.map((p) => `- "${p.nome}" (tipo: ${p.tipo})${p.info ? `: ${p.info}` : ""}`).join("\n");
   const extra = interpolate(action.instructions ?? "", vars).trim();
@@ -1737,16 +1745,16 @@ async function runIaExtractParams(
     `Parâmetros a extrair:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const raw = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 400);
+  const { text: raw, tokens } = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 400);
   const parsed = parseFirstJson(raw);
-  if (!parsed) return {};
+  if (!parsed) return { obj: {}, tokens };
   // Mantém apenas as chaves pedidas (evita campos extras alucinados) e normaliza p/ string
   const out: Record<string, string> = {};
   for (const p of params) {
     const v = parsed[p.nome];
     out[p.nome] = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
   }
-  return out;
+  return { obj: out, tokens };
 }
 
 // Transcrição de áudio (Whisper / OpenAI). Busca os áudios da conversa do lead em

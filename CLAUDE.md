@@ -115,7 +115,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `tags` | Tags de leads |
 | `activities` | Histórico de atividades de um lead |
 | `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
-| `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`) — escrito pela Edge Function via service role |
+| `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`, `tokens` int — tokens consumidos pelo nó de IA) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
 | `ai_provider_keys` | Chaves de IA dos clientes (BYOK) usadas pelo Bloco de IA (`company_id`, `owner_id`, `provider` openai/anthropic/google, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. Gerenciada em Configurações → Chaves de API |

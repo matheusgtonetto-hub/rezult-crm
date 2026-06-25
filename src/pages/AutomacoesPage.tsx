@@ -987,7 +987,7 @@ export default function AutomacoesPage() {
   const [hoveredInputPort, setHoveredInputPort] = useState<string | null>(null);
   const [portPosMap, setPortPosMap] = useState<Record<string, { x: number; y: number }>>({});
   const [selectedConn, setSelectedConn] = useState<{ nodeId: string; type: "parent" | "error" | "timeout"; fromId: string } | null>(null);
-  const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number }>>({});
+  const [nodeStats, setNodeStats]       = useState<Record<string, { s: number; a: number; e: number; tokAvg?: number }>>({});
   const [nodePanel, setNodePanel]       = useState<string | null>(null);
   const [acoesPickerOpen, setAcoesPickerOpen] = useState(false);
   const [selectedActionPickerCat, setSelectedActionPickerCat] = useState(ACTION_CATEGORIES[0].id);
@@ -1133,16 +1133,26 @@ export default function AutomacoesPage() {
   const refreshNodeStats = useCallback(async (id: string) => {
     const { data } = await supabase
       .from("automation_logs")
-      .select("node_id, status")
+      .select("node_id, status, tokens")
       .eq("automation_id", id)
       .limit(5000);
     if (!data) return;
-    const stats: Record<string, { s: number; a: number; e: number }> = {};
+    const stats: Record<string, { s: number; a: number; e: number; tokAvg?: number }> = {};
+    const tok: Record<string, { sum: number; count: number }> = {};
     for (const row of data) {
       if (!stats[row.node_id]) stats[row.node_id] = { s: 0, a: 0, e: 0 };
       if (row.status === "success") stats[row.node_id].s++;
       else if (row.status === "alert") stats[row.node_id].a++;
       else if (row.status === "error") stats[row.node_id].e++;
+      const t = (row as { tokens?: number | null }).tokens;
+      if (typeof t === "number" && t > 0) {
+        if (!tok[row.node_id]) tok[row.node_id] = { sum: 0, count: 0 };
+        tok[row.node_id].sum += t;
+        tok[row.node_id].count++;
+      }
+    }
+    for (const [nid, v] of Object.entries(tok)) {
+      if (stats[nid] && v.count > 0) stats[nid].tokAvg = v.sum / v.count;
     }
     setNodeStats(stats);
   }, []);
@@ -4352,7 +4362,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   removeSubBlock?: (blockId: string) => void;
   removeActionItem?: (itemId: string) => void;
   removeConditionItem?: (itemId: string) => void;
-  stats?: { s: number; a: number; e: number };
+  stats?: { s: number; a: number; e: number; tokAvg?: number };
   onStatClick?: (status: "success" | "alert" | "error") => void;
   portDragging?: "normal" | "error" | null;
   portHovered?: boolean;
@@ -4812,7 +4822,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         </div>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
           <div style={{ textAlign: "center", padding: "4px 8px", flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>0.00</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.tokAvg ? Math.round(stats.tokAvg).toLocaleString("pt-BR") : "0"}</div>
             <div style={{ color: PURPLE }}>Média Tokens</div>
           </div>
           {([{ key: "success" as const, count: stats?.s ?? 0, color: PURPLE, label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
