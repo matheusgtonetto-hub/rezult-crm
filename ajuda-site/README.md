@@ -64,14 +64,19 @@ cada um em sua própria página:
 Além da série, o card **Modelos de automação** leva a um **sub-hub** próprio
 (mesmo padrão visual da home), com um tutorial por modelo:
 
-| Página | Tema |
-|--------|------|
-| `automacoes-modelos.html`          | Modelos de automação — **hub** (grade de cards) |
-| `automacoes-modelos-webhook.html`  | Modelo: Lead Formulário Webhook |
+Os modelos ficam numa **subpasta** (sub-URL `/automacoes-modelos/...`):
+
+| Arquivo | URL | Tema |
+|---------|-----|------|
+| `automacoes-modelos/index.html`        | `/automacoes-modelos`              | Modelos — **hub** (grade de cards) |
+| `automacoes-modelos/leads-webhook.html`| `/automacoes-modelos/leads-webhook`| Modelo: Lead Formulário Webhook |
 
 > Por enquanto o hub de modelos tem só o card do **Lead Formulário Webhook**.
-> Para publicar outro modelo, adicione um `<a class="card">` em `automacoes-modelos.html`
-> apontando para a nova página do tutorial.
+> Para publicar outro modelo, crie `automacoes-modelos/<slug>.html` e adicione um
+> `<a class="card" href="/automacoes-modelos/<slug>">` em `automacoes-modelos/index.html`.
+>
+> ⚠️ Páginas dentro de `automacoes-modelos/` devem referenciar assets por caminho
+> **absoluto** (`/assets/styles.css`, `/favicon.svg`), pois estão um nível abaixo da raiz.
 
 Os "prints" dos blocos são **mockups em HTML/CSS** (classes `.mock-canvas` / `.mock-node`
 em `assets/styles.css`) — nítidos e sempre alinhados com a identidade visual. Para trocar

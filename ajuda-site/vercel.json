@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/automacoes-modelos-webhook", "destination": "/automacoes-modelos/leads-webhook", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/favicon.svg",
