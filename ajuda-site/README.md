@@ -7,17 +7,29 @@ Site estático (HTML/CSS puro, sem build) da Central de Ajuda do Rezult CRM.
 
 ```
 ajuda-site/
-├── index.html        # Home da Central de Ajuda (grade de temas)
-├── automacoes.html   # Hub de tutoriais de Automações (cards EM BREVE)
+├── index.html              # Home da Central de Ajuda (grade de temas)
+├── automacoes/             # Tema "Automações" (tudo sob /automacoes/...)
+│   ├── index.html          #   /automacoes        — hub
+│   ├── introducao.html     #   /automacoes/introducao
+│   ├── gatilhos.html       #   /automacoes/gatilhos
+│   ├── acoes.html          #   /automacoes/acoes
+│   ├── condicoes-espera.html
+│   ├── bloco-ia.html
+│   └── modelos/            #   /automacoes/modelos — sub-hub de modelos
+│       ├── index.html
+│       └── leads-webhook.html
 ├── assets/
-│   └── styles.css    # CSS compartilhado entre todas as páginas
-├── favicon.svg       # Ícone "R" da marca
-└── vercel.json       # Headers/cache para deploy estático
+│   └── styles.css          # CSS compartilhado entre todas as páginas
+├── favicon.svg             # Ícone "R" da marca
+└── vercel.json             # cleanUrls, redirects e cache
 ```
 
-> Cada tema da home é um **hub** (ex.: `automacoes.html`) com uma grade de cards;
-> cada card vira um artigo próprio quando o tutorial for publicado. O CSS é único
-> em `assets/styles.css` — toda página nova só precisa linká-lo.
+> Cada tema da home é um **hub** numa pasta própria (ex.: `automacoes/`) servido em
+> `/<tema>` via `index.html`; cada card vira um artigo em `/<tema>/<slug>`.
+>
+> ⚠️ Como as páginas ficam abaixo da raiz, **sempre** referencie assets e links
+> internos por caminho **absoluto** (`/assets/styles.css`, `/favicon.svg`,
+> `/automacoes/gatilhos`). O CSS é único em `assets/styles.css`.
 
 ## Rodar localmente
 
@@ -49,33 +61,29 @@ Leads, Configurações). Os temas ainda sem conteúdo ficam marcados como **EM B
 
 ### Automações (publicado)
 
-O hub `automacoes.html` reúne os temas de Automações. A série linear tem 5 tutoriais,
-cada um em sua própria página:
+O hub `/automacoes` reúne os temas de Automações. A série linear tem 5 tutoriais:
 
-| Página | Tema |
-|--------|------|
-| `automacoes-introducao.html`       | Introdução às automações (1 de 5) |
-| `automacoes-gatilhos.html`         | Gatilhos (2 de 5) |
-| `automacoes-acoes.html`            | Ações (3 de 5) |
-| `automacoes-condicoes-espera.html` | Condições & Espera (4 de 5) |
-| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial (5 de 5) |
+| URL | Arquivo | Tema |
+|-----|---------|------|
+| `/automacoes/introducao`       | `automacoes/introducao.html`       | Introdução (1 de 5) |
+| `/automacoes/gatilhos`         | `automacoes/gatilhos.html`         | Gatilhos (2 de 5) |
+| `/automacoes/acoes`            | `automacoes/acoes.html`            | Ações (3 de 5) |
+| `/automacoes/condicoes-espera` | `automacoes/condicoes-espera.html` | Condições & Espera (4 de 5) |
+| `/automacoes/bloco-ia`         | `automacoes/bloco-ia.html`         | Bloco de Inteligência Artificial (5 de 5) |
 
 Além da série, o card **Modelos de automação** leva a um **sub-hub** próprio
-(mesmo padrão visual da home), com um tutorial por modelo:
+(`/automacoes/modelos`), com um tutorial por modelo:
 
-Os modelos ficam numa **subpasta** (sub-URL `/automacoes-modelos/...`):
-
-| Arquivo | URL | Tema |
-|---------|-----|------|
-| `automacoes-modelos/index.html`        | `/automacoes-modelos`              | Modelos — **hub** (grade de cards) |
-| `automacoes-modelos/leads-webhook.html`| `/automacoes-modelos/leads-webhook`| Modelo: Lead Formulário Webhook |
+| URL | Arquivo | Tema |
+|-----|---------|------|
+| `/automacoes/modelos`               | `automacoes/modelos/index.html`        | Modelos — **hub** (grade de cards) |
+| `/automacoes/modelos/leads-webhook` | `automacoes/modelos/leads-webhook.html`| Modelo: Lead Formulário Webhook |
 
 > Por enquanto o hub de modelos tem só o card do **Lead Formulário Webhook**.
-> Para publicar outro modelo, crie `automacoes-modelos/<slug>.html` e adicione um
-> `<a class="card" href="/automacoes-modelos/<slug>">` em `automacoes-modelos/index.html`.
+> Para publicar outro modelo, crie `automacoes/modelos/<slug>.html` e adicione um
+> `<a class="card" href="/automacoes/modelos/<slug>">` em `automacoes/modelos/index.html`.
 >
-> ⚠️ Páginas dentro de `automacoes-modelos/` devem referenciar assets por caminho
-> **absoluto** (`/assets/styles.css`, `/favicon.svg`), pois estão um nível abaixo da raiz.
+> As URLs antigas (`/automacoes-*`) continuam funcionando via **redirects 301** em `vercel.json`.
 
 Os "prints" dos blocos são **mockups em HTML/CSS** (classes `.mock-canvas` / `.mock-node`
 em `assets/styles.css`) — nítidos e sempre alinhados com a identidade visual. Para trocar

@@ -3,7 +3,14 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    { "source": "/automacoes-modelos-webhook", "destination": "/automacoes-modelos/leads-webhook", "permanent": true }
+    { "source": "/automacoes-introducao", "destination": "/automacoes/introducao", "permanent": true },
+    { "source": "/automacoes-gatilhos", "destination": "/automacoes/gatilhos", "permanent": true },
+    { "source": "/automacoes-acoes", "destination": "/automacoes/acoes", "permanent": true },
+    { "source": "/automacoes-condicoes-espera", "destination": "/automacoes/condicoes-espera", "permanent": true },
+    { "source": "/automacoes-bloco-ia", "destination": "/automacoes/bloco-ia", "permanent": true },
+    { "source": "/automacoes-modelos", "destination": "/automacoes/modelos", "permanent": true },
+    { "source": "/automacoes-modelos/leads-webhook", "destination": "/automacoes/modelos/leads-webhook", "permanent": true },
+    { "source": "/automacoes-modelos-webhook", "destination": "/automacoes/modelos/leads-webhook", "permanent": true }
   ],
   "headers": [
     {
