@@ -49,11 +49,12 @@ Leads, Configurações). Os temas ainda sem conteúdo ficam marcados como **EM B
 
 ### Automações (publicado)
 
-O hub `automacoes.html` lista 6 tutoriais completos, cada um em sua própria página:
+O hub `automacoes.html` lista 7 tutoriais completos, cada um em sua própria página:
 
 | Página | Tema |
 |--------|------|
 | `automacoes-introducao.html`       | Introdução às automações |
+| `automacoes-modelos.html`          | Modelos de automação |
 | `automacoes-gatilhos.html`         | Gatilhos |
 | `automacoes-acoes.html`            | Ações |
 | `automacoes-condicoes-espera.html` | Condições & Espera |
