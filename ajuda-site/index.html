@@ -9,123 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --primary: #128A68;
-      --primary-dark: #0E6E53;
-      --primary-soft: #E7F5F0;
-      --ink: #0F172A;
-      --muted: #64748B;
-      --border: #E5E7EB;
-      --bg: #F7FAF9;
-      --card: #FFFFFF;
-      --radius: 16px;
-      --shadow: 0 1px 3px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.05);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: var(--bg);
-      line-height: 1.55;
-      -webkit-font-smoothing: antialiased;
-    }
-    a { color: inherit; text-decoration: none; }
-    .container { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
-
-    /* Header */
-    header {
-      position: sticky; top: 0; z-index: 50;
-      background: rgba(255,255,255,.85);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -.02em; }
-    .brand .logo {
-      width: 32px; height: 32px; border-radius: 9px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 800; font-size: 16px;
-    }
-    .brand small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-top: -2px; }
-    .nav-actions { display: flex; align-items: center; gap: 18px; }
-    .nav-actions a { font-size: 14px; font-weight: 500; color: var(--muted); transition: color .15s; }
-    .nav-actions a:hover { color: var(--ink); }
-    .btn {
-      display: inline-flex; align-items: center; gap: 7px;
-      background: var(--primary); color: #fff; font-weight: 600; font-size: 14px;
-      padding: 9px 16px; border-radius: 10px; transition: background .15s, transform .15s;
-    }
-    .btn:hover { background: var(--primary-dark); }
-    .btn svg { width: 15px; height: 15px; }
-
-    /* Hero */
-    .hero { padding: 72px 0 48px; text-align: center; }
-    .eyebrow {
-      display: inline-flex; align-items: center; gap: 7px;
-      background: var(--primary-soft); color: var(--primary-dark);
-      font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; margin-bottom: 22px;
-    }
-    .hero h1 { font-size: clamp(32px, 5vw, 46px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
-    .hero h1 span { color: var(--primary); }
-    .hero p { color: var(--muted); font-size: 18px; max-width: 580px; margin: 18px auto 0; }
-
-    .search {
-      margin: 34px auto 0; max-width: 560px;
-      display: flex; align-items: center; gap: 10px;
-      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      padding: 14px 18px; box-shadow: var(--shadow);
-    }
-    .search svg { width: 20px; height: 20px; color: var(--muted); flex-shrink: 0; }
-    .search input { flex: 1; border: none; outline: none; font-size: 15px; font-family: inherit; color: var(--ink); background: transparent; }
-    .search input::placeholder { color: #9CA3AF; }
-
-    /* Sections */
-    .section { padding: 28px 0 64px; }
-    .section-head { margin-bottom: 26px; }
-    .section-head h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
-    .section-head p { color: var(--muted); font-size: 15px; margin-top: 4px; }
-
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    @media (max-width: 880px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
-
-    .card {
-      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 22px; transition: transform .15s, box-shadow .15s, border-color .15s;
-      display: flex; flex-direction: column; gap: 12px; cursor: pointer;
-    }
-    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #D1FAE5; }
-    .card .ic {
-      width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft);
-      display: flex; align-items: center; justify-content: center; color: var(--primary);
-    }
-    .card .ic svg { width: 22px; height: 22px; }
-    .card h3 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
-    .card p { color: var(--muted); font-size: 14px; }
-    .card .meta { margin-top: auto; font-size: 12px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 5px; }
-    .soon { font-size: 10px; font-weight: 700; color: var(--primary-dark); background: var(--primary-soft); border-radius: 6px; padding: 2px 7px; letter-spacing: .03em; }
-
-    /* CTA */
-    .cta {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      border-radius: 22px; padding: 48px 40px; text-align: center; color: #fff; margin-bottom: 64px;
-    }
-    .cta h2 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
-    .cta p { opacity: .9; font-size: 16px; margin: 10px auto 24px; max-width: 480px; }
-    .cta .btn { background: #fff; color: var(--primary-dark); }
-    .cta .btn:hover { background: #F0FDF4; }
-
-    /* Footer */
-    footer { border-top: 1px solid var(--border); padding: 32px 0; }
-    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-    .foot small { color: var(--muted); font-size: 13px; }
-    .foot-links { display: flex; gap: 22px; }
-    .foot-links a { color: var(--muted); font-size: 13px; transition: color .15s; }
-    .foot-links a:hover { color: var(--ink); }
-  </style>
+  <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
   <header>
@@ -189,11 +73,11 @@
             <span class="meta"><span class="soon">EM BREVE</span></span>
           </a>
 
-          <a class="card">
+          <a class="card" href="automacoes.html">
             <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
             <h3>Automações</h3>
             <p>Monte fluxos com gatilhos, ações, condições e o bloco de Inteligência Artificial.</p>
-            <span class="meta"><span class="soon">EM BREVE</span></span>
+            <span class="meta">Ver tutoriais <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
           </a>
 
           <a class="card">

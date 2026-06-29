@@ -478,7 +478,7 @@ export function AppSidebar() {
                 <p className="text-sm font-semibold text-foreground">Ajuda</p>
               </div>
               <a
-                href="https://ajuda.rezultcrm.com"
+                href="https://help.rezultcrm.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setHelpOpen(false)}

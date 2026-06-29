@@ -7,10 +7,17 @@ Site estático (HTML/CSS puro, sem build) da Central de Ajuda do Rezult CRM.
 
 ```
 ajuda-site/
-├── index.html      # Página única de tutoriais (CSS embutido)
-├── favicon.svg     # Ícone "R" da marca
-└── vercel.json     # Headers/cache para deploy estático
+├── index.html        # Home da Central de Ajuda (grade de temas)
+├── automacoes.html   # Hub de tutoriais de Automações (cards EM BREVE)
+├── assets/
+│   └── styles.css    # CSS compartilhado entre todas as páginas
+├── favicon.svg       # Ícone "R" da marca
+└── vercel.json       # Headers/cache para deploy estático
 ```
+
+> Cada tema da home é um **hub** (ex.: `automacoes.html`) com uma grade de cards;
+> cada card vira um artigo próprio quando o tutorial for publicado. O CSS é único
+> em `assets/styles.css` — toda página nova só precisa linká-lo.
 
 ## Rodar localmente
 
