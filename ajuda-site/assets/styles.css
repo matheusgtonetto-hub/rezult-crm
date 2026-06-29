@@ -212,6 +212,19 @@ footer { border-top: 1px solid var(--border); padding: 32px 0; }
 .mock-conn { color: #94A3B8; flex-shrink: 0; display: flex; align-items: center; }
 .mock-conn svg { width: 26px; height: 26px; }
 
+/* Bloco de código (Apps Script) */
+.codeblock { position: relative; background: #0F172A; color: #E2E8F0; border-radius: 12px; padding: 16px 18px; overflow-x: auto; margin: 18px 0; border: 1px solid #1E293B; }
+.codeblock pre { margin: 0; font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.65; white-space: pre; tab-size: 2; }
+.codeblock .cm { color: #64748B; font-style: italic; }
+.codeblock .kw { color: #93C5FD; }
+.codeblock .str { color: #86EFAC; }
+.codeblock-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 -8px; }
+.codeblock-head .fname { font-size: 12px; font-weight: 700; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.codeblock-head .fname svg { width: 14px; height: 14px; }
+
+/* Bloco "parte" — divisória de etapa grande */
+.part-tag { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--primary-dark); background: var(--primary-soft); padding: 5px 12px; border-radius: 999px; }
+
 /* tabela simples */
 .tbl-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--border); border-radius: 12px; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 460px; }
