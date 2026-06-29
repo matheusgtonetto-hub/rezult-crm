@@ -49,18 +49,29 @@ Leads, Configurações). Os temas ainda sem conteúdo ficam marcados como **EM B
 
 ### Automações (publicado)
 
-O hub `automacoes.html` lista 7 tutoriais completos, cada um em sua própria página:
+O hub `automacoes.html` reúne os temas de Automações. A série linear tem 6 tutoriais,
+cada um em sua própria página:
 
 | Página | Tema |
 |--------|------|
-| `automacoes-introducao.html`       | Introdução às automações |
-| `automacoes-modelos.html`          | Modelos de automação (hub dos modelos) |
+| `automacoes-introducao.html`       | Introdução às automações (1 de 6) |
+| `automacoes-gatilhos.html`         | Gatilhos (2 de 6) |
+| `automacoes-acoes.html`            | Ações (3 de 6) |
+| `automacoes-condicoes-espera.html` | Condições & Espera (4 de 6) |
+| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial (5 de 6) |
+| `automacoes-exemplo-pratico.html`  | Exemplo prático — boas-vindas (6 de 6) |
+
+Além da série, o card **Modelos de automação** leva a um **sub-hub** próprio
+(mesmo padrão visual da home), com um tutorial por modelo:
+
+| Página | Tema |
+|--------|------|
+| `automacoes-modelos.html`          | Modelos de automação — **hub** (grade de cards) |
 | `automacoes-modelos-webhook.html`  | Modelo: Lead Formulário Webhook |
-| `automacoes-gatilhos.html`         | Gatilhos |
-| `automacoes-acoes.html`            | Ações |
-| `automacoes-condicoes-espera.html` | Condições & Espera |
-| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial |
-| `automacoes-exemplo-pratico.html`  | Exemplo prático (boas-vindas) |
+
+> Por enquanto o hub de modelos tem só o card do **Lead Formulário Webhook**.
+> Para publicar outro modelo, adicione um `<a class="card">` em `automacoes-modelos.html`
+> apontando para a nova página do tutorial.
 
 Os "prints" dos blocos são **mockups em HTML/CSS** (classes `.mock-canvas` / `.mock-node`
 em `assets/styles.css`) — nítidos e sempre alinhados com a identidade visual. Para trocar
