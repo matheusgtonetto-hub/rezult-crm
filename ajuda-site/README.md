@@ -49,17 +49,16 @@ Leads, Configurações). Os temas ainda sem conteúdo ficam marcados como **EM B
 
 ### Automações (publicado)
 
-O hub `automacoes.html` reúne os temas de Automações. A série linear tem 6 tutoriais,
+O hub `automacoes.html` reúne os temas de Automações. A série linear tem 5 tutoriais,
 cada um em sua própria página:
 
 | Página | Tema |
 |--------|------|
-| `automacoes-introducao.html`       | Introdução às automações (1 de 6) |
-| `automacoes-gatilhos.html`         | Gatilhos (2 de 6) |
-| `automacoes-acoes.html`            | Ações (3 de 6) |
-| `automacoes-condicoes-espera.html` | Condições & Espera (4 de 6) |
-| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial (5 de 6) |
-| `automacoes-exemplo-pratico.html`  | Exemplo prático — boas-vindas (6 de 6) |
+| `automacoes-introducao.html`       | Introdução às automações (1 de 5) |
+| `automacoes-gatilhos.html`         | Gatilhos (2 de 5) |
+| `automacoes-acoes.html`            | Ações (3 de 5) |
+| `automacoes-condicoes-espera.html` | Condições & Espera (4 de 5) |
+| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial (5 de 5) |
 
 Além da série, o card **Modelos de automação** leva a um **sub-hub** próprio
 (mesmo padrão visual da home), com um tutorial por modelo:
