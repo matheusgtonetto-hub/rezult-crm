@@ -54,7 +54,8 @@ O hub `automacoes.html` lista 7 tutoriais completos, cada um em sua própria pá
 | Página | Tema |
 |--------|------|
 | `automacoes-introducao.html`       | Introdução às automações |
-| `automacoes-modelos.html`          | Modelos de automação |
+| `automacoes-modelos.html`          | Modelos de automação (hub dos modelos) |
+| `automacoes-modelos-webhook.html`  | Modelo: Lead Formulário Webhook |
 | `automacoes-gatilhos.html`         | Gatilhos |
 | `automacoes-acoes.html`            | Ações |
 | `automacoes-condicoes-espera.html` | Condições & Espera |

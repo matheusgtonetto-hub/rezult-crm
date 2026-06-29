@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modelo: Lead Formulário Webhook · Automações · Central de Ajuda · Rezult CRM</title>
+  <meta name="description" content="Tutorial completo do modelo Lead Formulário Webhook: receba leads de formulário via HTTP, evite duplicados e crie lead e negócio automaticamente." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="logo">R</span>
+        <span>Rezult CRM <small>Central de Ajuda</small></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/automacoes">Automações</a>
+        <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Ir para o app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Você está em">
+        <a href="/">Central de Ajuda</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes">Automações</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes-modelos">Modelos</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="current">Lead Formulário Webhook</span>
+      </nav>
+    </div>
+
+    <article class="article">
+      <div class="article-hero">
+        <span class="kicker">Modelo de automação · Captação</span>
+        <h1>Lead Formulário Webhook</h1>
+        <p class="lead">Este modelo conecta um formulário externo (landing page, site, anúncio) direto ao seu CRM. Quando alguém preenche o formulário, o lead entra sozinho — sem duplicar contatos — e já vira um negócio na sua pipeline, com origem e UTMs preenchidos.</p>
+        <div class="article-meta">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 10 min de leitura</span>
+          <span>Nível: avançado</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <nav class="toc" aria-label="Neste tutorial">
+        <h4>Neste tutorial</h4>
+        <ol>
+          <li><a href="#oque">O que este modelo faz</a></li>
+          <li><a href="#webhook">Entendendo o webhook</a></li>
+          <li><a href="#fluxo">O fluxo, bloco a bloco</a></li>
+          <li><a href="#campos">Os dados que chegam do formulário</a></li>
+          <li><a href="#config">Configurando para o seu formulário</a></li>
+          <li><a href="#testar">Testar e ativar</a></li>
+          <li><a href="#problemas">Solução de problemas</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="oque">
+          <h2><span class="num">1.</span> O que este modelo faz</h2>
+          <p>É a ponte entre <strong>“alguém preencheu meu formulário”</strong> e <strong>“tenho um lead e um negócio organizados no CRM”</strong>. Em vez de digitar contatos na mão (ou perder leads no meio do caminho), o formulário envia os dados e a automação cuida do resto:</p>
+          <ul>
+            <li><strong>Recebe</strong> os dados do formulário por um webhook (HTTP);</li>
+            <li><strong>Trata o telefone</strong> (formata e padroniza o número);</li>
+            <li><strong>Evita duplicados</strong>: se já existe lead com aquele e-mail ou telefone, não cria outro;</li>
+            <li><strong>Cria o lead</strong> e mapeia nome, e-mail, telefone, origem, empresa e UTMs;</li>
+            <li><strong>Cria o negócio</strong> na pipeline, caso o lead ainda não tenha um.</li>
+          </ul>
+          <div class="callout warn">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+            <p><strong>É um modelo avançado</strong> Diferente dos outros, ele usa webhook, operações de campos e condições encadeadas. Não tem problema: este guia explica cada parte. Se você ainda não viu, vale ler antes <a class="inline" href="/automacoes-gatilhos">Gatilhos</a> e <a class="inline" href="/automacoes-condicoes-espera">Condições</a>.</p>
+          </div>
+        </section>
+
+        <section id="webhook">
+          <h2><span class="num">2.</span> Entendendo o webhook</h2>
+          <p>Um <strong>webhook</strong> é simplesmente um “endereço de entrega” (uma URL). Você entrega essa URL ao seu formulário; toda vez que alguém envia o formulário, ele faz uma chamada para essa URL levando os dados preenchidos. A automação fica escutando esse endereço e dispara quando os dados chegam.</p>
+          <ol class="steps">
+            <li><strong>Pegue a URL do webhook</strong><p>No gatilho <em>Requisição HTTP (Webhook)</em> da automação, o sistema exibe a URL exclusiva para receber os envios.</p></li>
+            <li><strong>Cole no seu formulário/integração</strong><p>Na ferramenta do seu formulário (landing page, Typeform, RD, etc.) ou num conector como Zapier/Make, configure o envio (POST) para essa URL.</p></li>
+            <li><strong>Os campos chegam como variáveis</strong><p>Cada campo enviado vira uma variável <code>{{gatilho.algumaCoisa}}</code> — por exemplo <code>{{gatilho.nome}}</code>, <code>{{gatilho.email}}</code>.</p></li>
+          </ol>
+        </section>
+
+        <section id="fluxo">
+          <h2><span class="num">3.</span> O fluxo, bloco a bloco</h2>
+          <p>O modelo já vem montado assim (da esquerda para a direita):</p>
+
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#128A68; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+                  <div><div class="mn-title">Webhook (HTTP)</div><div class="mn-sub">Gatilho</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#22C55E; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+                  <div><div class="mn-title">Análise de telefone</div><div class="mn-sub">Operações de campos</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#8B5CF6; width:236px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg></div>
+                  <div><div class="mn-title">Já existe esse lead?</div><div class="mn-sub">Condições (e-mail / telefone)</div></div>
+                </div>
+                <div class="mock-ports">
+                  <div class="mock-port green"><span>Não existe → criar</span><span class="pin"></span></div>
+                  <div class="mock-port"><span>Já existe → não duplica</span><span class="pin"></span></div>
+                </div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#F97316; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div>
+                  <div><div class="mn-title">Criar lead</div><div class="mn-sub">Ação</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#F97316; width:230px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 3l3 3-3 3M7 21l-3-3 3-3"/></svg></div>
+                  <div><div class="mn-title">Mapear campos + Criar negócio</div><div class="mn-sub">Campos + Ação</div></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Fluxo do modelo: <b>Webhook → Análise de telefone → Já existe? → Criar lead → Mapear + Criar negócio</b>.</figcaption>
+          </figure>
+
+          <h3>O que cada bloco faz</h3>
+          <ol class="steps">
+            <li><strong>Webhook (Gatilho)</strong><p>Recebe o envio do formulário. Os campos chegam como <code>{{gatilho.nome}}</code>, <code>{{gatilho.email}}</code>, <code>{{gatilho.telefone}}</code>, etc.</p></li>
+            <li><strong>Análise de telefone</strong><p>Pega o <code>{{gatilho.telefone}}</code>, limpa e padroniza o número (país padrão Brasil) e guarda o resultado em <code>{{phone-1.phone}}</code> — um telefone confiável para comparar e salvar.</p></li>
+            <li><strong>Condição: lead com e-mail existente?</strong><p>Verifica se já há um lead com aquele e-mail. Se já existe, evita criar duplicado.</p></li>
+            <li><strong>Condição: lead com telefone existente?</strong><p>Se não achou pelo e-mail, tenta pelo telefone (<code>{{phone-1.phone}}</code>). Dupla checagem = menos contatos repetidos.</p></li>
+            <li><strong>Mapear campos do lead</strong><p>Preenche os dados do novo lead: nome, e-mail, telefone e origem.</p></li>
+            <li><strong>Criar lead</strong><p>Cria o contato com os dados mapeados (se ele ainda não existir).</p></li>
+            <li><strong>Mapear campos completos + Criar negócio</strong><p>Completa o lead com UTMs e empresa e, se ele ainda não tiver negócio na pipeline, cria um.</p></li>
+          </ol>
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>As anotações coloridas no canvas</strong> O modelo vem com lembretes fixados, como <em>“Altere o campo com os dados de entrada do seu Webhook”</em> e <em>“Edite conforme as perguntas do formulário”</em>. Eles indicam exatamente onde você precisa personalizar.</p>
+          </div>
+        </section>
+
+        <section id="campos">
+          <h2><span class="num">4.</span> Os dados que chegam do formulário</h2>
+          <p>O modelo já espera estes campos vindos do webhook. Se o seu formulário usar outros nomes, basta ajustar (veja a próxima seção):</p>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Variável recebida</th><th>Vai para o campo</th></tr>
+            <tr><td><code>{{gatilho.nome}}</code></td><td>Nome do lead</td></tr>
+            <tr><td><code>{{gatilho.email}}</code></td><td>E-mail</td></tr>
+            <tr><td><code>{{gatilho.telefone}}</code> → <code>{{phone-1.phone}}</code></td><td>Telefone (após análise)</td></tr>
+            <tr><td><code>{{gatilho.origem}}</code></td><td>Origem</td></tr>
+            <tr><td><code>{{gatilho.empresa}}</code></td><td>Empresa</td></tr>
+            <tr><td><code>{{gatilho.utm_source}}</code></td><td>UTM Source</td></tr>
+            <tr><td><code>{{gatilho.utm_medium}}</code></td><td>UTM Medium</td></tr>
+            <tr><td><code>{{gatilho.utm_campaign}}</code></td><td>UTM Campaign</td></tr>
+            <tr><td><code>{{gatilho.utm_term}}</code></td><td>UTM Term</td></tr>
+            <tr><td><code>{{gatilho.utm_content}}</code></td><td>UTM Content</td></tr>
+          </table></div>
+        </section>
+
+        <section id="config">
+          <h2><span class="num">5.</span> Configurando para o seu formulário</h2>
+          <ol class="steps">
+            <li><strong>Crie a automação a partir do modelo</strong><p><span class="kbd">Nova automação</span> → <strong>Modelo</strong> → <em>Lead Formulário Webhook</em>.</p></li>
+            <li><strong>Copie a URL do webhook</strong><p>Abra o gatilho e copie a URL gerada. Cole-a na configuração de envio do seu formulário/integração.</p></li>
+            <li><strong>Alinhe os nomes dos campos</strong><p>Confira se os nomes que o seu formulário envia batem com os esperados (<code>nome</code>, <code>email</code>, <code>telefone</code>…). Se forem diferentes, edite as variáveis nos blocos de <em>Operações de campos</em> para usar os nomes corretos.</p></li>
+            <li><strong>Ajuste a análise de telefone</strong><p>Se o seu público não for do Brasil, troque o país padrão da <em>análise de telefone</em> para formatar o número certo.</p></li>
+            <li><strong>Defina pipeline e etapa do negócio</strong><p>No bloco <em>Criar negócio</em>, escolha em qual pipeline e etapa o novo negócio deve nascer.</p></li>
+            <li><strong>Salve</strong><p>Clique em <span class="kbd">Salvar</span>.</p></li>
+          </ol>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8L12 14.6 7 18.2l1.9-5.8L4 8.8h6.1z"/></svg></span>
+            <p><strong>Não precisa usar todos os campos</strong> Se o seu formulário não tem UTMs ou empresa, deixe essas variáveis em branco — elas simplesmente não preenchem nada. O essencial é nome + e-mail e/ou telefone.</p>
+          </div>
+        </section>
+
+        <section id="testar">
+          <h2><span class="num">6.</span> Testar e ativar</h2>
+          <ol class="steps">
+            <li><strong>Ative a automação</strong><p>Ligue o interruptor <span class="kbd">Ativa</span>.</p></li>
+            <li><strong>Faça um envio de teste</strong><p>Preencha o formulário de verdade (com um e-mail seu) ou envie um teste pela ferramenta de integração.</p></li>
+            <li><strong>Confira no CRM</strong><p>O lead deve aparecer com nome, e-mail e telefone corretos, e um negócio deve ter sido criado na pipeline escolhida.</p></li>
+            <li><strong>Teste o anti-duplicado</strong><p>Envie o mesmo formulário de novo. Desta vez <em>não</em> deve criar um lead repetido — o contato é reaproveitado.</p></li>
+          </ol>
+        </section>
+
+        <section id="problemas">
+          <h2><span class="num">7.</span> Solução de problemas</h2>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Sintoma</th><th>O que verificar</th></tr>
+            <tr><td>Nada acontece ao enviar</td><td>a automação está <em>Ativa</em>? A URL do webhook foi colada certa no formulário?</td></tr>
+            <tr><td>Lead criado sem nome/e-mail</td><td>os nomes dos campos do formulário batem com <code>{{gatilho.nome}}</code>, <code>{{gatilho.email}}</code>? Ajuste o mapeamento.</td></tr>
+            <tr><td>Telefone errado/torto</td><td>confira o país padrão na <em>análise de telefone</em> e se o formulário envia o DDD.</td></tr>
+            <tr><td>Negócio não foi criado</td><td>a pipeline/etapa foi definida no bloco <em>Criar negócio</em>? O lead já tinha negócio na pipeline?</td></tr>
+            <tr><td>Leads duplicados</td><td>verifique se o formulário envia e-mail <em>ou</em> telefone — a checagem usa esses dois campos.</td></tr>
+          </table></div>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <p><strong>Dica:</strong> use as estatísticas de cada bloco para ver onde o fluxo parou. Um bloco com erro mostra onde ajustar o mapeamento ou a configuração.</p>
+          </div>
+        </section>
+
+        <nav class="pager">
+          <a class="prev" href="/automacoes-modelos"><span class="dir">← Anterior</span><span class="ttl">Modelos de automação</span></a>
+          <a class="next" href="/automacoes"><span class="dir">Concluir →</span><span class="ttl">Voltar ao hub de Automações</span></a>
+        </nav>
+      </div>
+    </article>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta">
+          <h2>Capture leads automaticamente</h2>
+          <p>Crie a automação a partir do modelo e conecte o webhook ao seu formulário.</p>
+          <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">Ir para o app</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <small>© <span id="year"></span> Rezult CRM. Todos os direitos reservados.</small>
+      <div class="foot-links">
+        <a href="/automacoes-modelos">Modelos</a>
+        <a href="https://app.rezultcrm.com" target="_blank" rel="noopener">Acessar o app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

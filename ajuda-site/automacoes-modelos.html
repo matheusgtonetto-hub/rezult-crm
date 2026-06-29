@@ -104,15 +104,45 @@
 
         <section id="catalogo">
           <h2><span class="num">3.</span> Modelos disponíveis</h2>
-          <p>Estes são os modelos prontos. Todos usam apenas peças genéricas (gatilho + mensagem + espera), então funcionam em qualquer empresa — você só ajusta os textos e os detalhes.</p>
-          <div class="tbl-wrap"><table class="tbl">
-            <tr><th>Modelo</th><th>Grupo</th><th>O que faz</th></tr>
-            <tr><td>Boas-vindas a novo lead</td><td>Atendimento</td><td>quando um lead é criado, envia uma saudação, espera 2 minutos e faz uma pergunta de qualificação</td></tr>
-            <tr><td>Pós-venda e indicação</td><td>Relacionamento</td><td>quando um negócio é ganho, agradece e, 3 dias depois, pede uma indicação</td></tr>
-            <tr><td>Resgate de negócio perdido</td><td>Recuperação</td><td>1 dia após um negócio ser perdido, tenta reengajar o lead</td></tr>
-            <tr><td>Follow-up de proposta</td><td>Vendas</td><td>quando o negócio muda de etapa, aguarda 2 dias e faz o follow-up da proposta</td></tr>
-            <tr><td>Lead Formulário Webhook</td><td>Captação</td><td>recebe leads de formulário via webhook (HTTP), evita duplicar por e-mail/telefone, cria o lead e o negócio e mapeia os campos/UTMs</td></tr>
-          </table></div>
+          <p>Estes são os modelos prontos. A maioria usa peças genéricas (gatilho + mensagem + espera) e funciona em qualquer empresa — você só ajusta os textos. Clique em um modelo para abrir o tutorial detalhado (à medida que forem publicados).</p>
+
+          <div class="grid">
+            <div class="card" style="cursor:default;">
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg></div>
+              <h3>Boas-vindas a novo lead</h3>
+              <p>Saudação + espera de 2 min + pergunta de qualificação. <em>Grupo: Atendimento.</em></p>
+              <span class="meta"><span class="soon">EM BREVE</span></span>
+            </div>
+
+            <div class="card" style="cursor:default;">
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l1 12H4L5 9z"/><path d="M9 13l2 2 4-4"/></svg></div>
+              <h3>Pós-venda e indicação</h3>
+              <p>Agradece no ganho e pede indicação 3 dias depois. <em>Grupo: Relacionamento.</em></p>
+              <span class="meta"><span class="soon">EM BREVE</span></span>
+            </div>
+
+            <div class="card" style="cursor:default;">
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 3-5.5L3 8"/></svg></div>
+              <h3>Resgate de negócio perdido</h3>
+              <p>1 dia após perder, tenta reengajar o lead. <em>Grupo: Recuperação.</em></p>
+              <span class="meta"><span class="soon">EM BREVE</span></span>
+            </div>
+
+            <div class="card" style="cursor:default;">
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3M9 7V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/></svg></div>
+              <h3>Follow-up de proposta</h3>
+              <p>Move de etapa, aguarda 2 dias e faz o follow-up. <em>Grupo: Vendas.</em></p>
+              <span class="meta"><span class="soon">EM BREVE</span></span>
+            </div>
+
+            <a class="card" href="automacoes-modelos-webhook.html">
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+              <h3>Lead Formulário Webhook</h3>
+              <p>Recebe leads de formulário via webhook, evita duplicar e cria lead + negócio. <em>Grupo: Captação.</em></p>
+              <span class="meta">Ler tutorial <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+            </a>
+          </div>
+
           <div class="callout note">
             <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
             <p><strong>O modelo é só o ponto de partida</strong> Depois de criado, ele vira uma automação normal e independente. Editar, apagar ou desativar não afeta o modelo original nem as outras automações.</p>
