@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloco de Inteligência Artificial · Automações · Central de Ajuda · Rezult CRM</title>
+  <meta name="description" content="O bloco de IA classifica intenção e sentimento, extrai dados, transcreve áudios e gera respostas — usando sua própria chave (OpenAI, Anthropic ou Google)." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="logo">R</span>
+        <span>Rezult CRM <small>Central de Ajuda</small></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/automacoes">Automações</a>
+        <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Ir para o app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Você está em">
+        <a href="/">Central de Ajuda</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes">Automações</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="current">Bloco de IA</span>
+      </nav>
+    </div>
+
+    <article class="article">
+      <div class="article-hero">
+        <span class="kicker">Tutorial 5 de 6 · Automações</span>
+        <h1>Bloco de Inteligência Artificial</h1>
+        <p class="lead">É o bloco mais poderoso. Com ele, a automação “lê” a conversa do cliente e <strong>entende</strong> o que está acontecendo: qual a intenção, o sentimento, quais dados foram ditos — e pode até escrever respostas. Você usa a sua própria chave de IA (OpenAI, Anthropic ou Google).</p>
+        <div class="article-meta">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 11 min de leitura</span>
+          <span>Nível: intermediário</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <nav class="toc" aria-label="Neste tutorial">
+        <h4>Neste tutorial</h4>
+        <ol>
+          <li><a href="#oque">O que é o bloco de IA</a></li>
+          <li><a href="#chave">Passo zero: cadastrar sua chave (BYOK)</a></li>
+          <li><a href="#usar">Adicionando o bloco no fluxo</a></li>
+          <li><a href="#acoes">As ações de IA, uma a uma</a></li>
+          <li><a href="#saida">Usando o resultado da IA (variáveis)</a></li>
+          <li><a href="#ramos">Intenção e Sentimento: caminhos diferentes</a></li>
+          <li><a href="#tokens">Custo e tokens</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="oque">
+          <h2><span class="num">1.</span> O que é o bloco de IA</h2>
+          <p>Os blocos comuns reagem a regras fixas. O bloco de <strong>IA</strong> vai além: ele interpreta texto em linguagem natural. Na prática, ele consegue:</p>
+          <ul>
+            <li><strong>Entender a intenção</strong> do cliente (quer comprar? tirar dúvida? reclamar?);</li>
+            <li><strong>Medir o sentimento</strong> (positivo, neutro, negativo);</li>
+            <li><strong>Extrair dados</strong> da conversa (nome, e-mail, produto de interesse);</li>
+            <li><strong>Transcrever áudios</strong> do WhatsApp em texto;</li>
+            <li><strong>Gerar respostas</strong> escritas com base na conversa.</li>
+          </ul>
+        </section>
+
+        <section id="chave">
+          <h2><span class="num">2.</span> Passo zero: cadastrar sua chave (BYOK)</h2>
+          <p>O bloco usa o modelo <strong>BYOK</strong> — <em>“traga sua própria chave”</em> (Bring Your Own Key). Você conecta sua conta de IA, e o consumo é cobrado diretamente pelo provedor (OpenAI, Anthropic ou Google). Assim você tem controle total do custo.</p>
+          <ol class="steps">
+            <li><strong>Crie uma chave no provedor</strong><p>Na sua conta da OpenAI, Anthropic ou Google, gere uma <em>API Key</em> e garanta que há crédito disponível.</p></li>
+            <li><strong>Abra Configurações → Chaves de API</strong><p>No app, vá em <span class="kbd">Configurações</span> → <span class="kbd">Chaves de API</span>.</p></li>
+            <li><strong>Cole a chave e salve</strong><p>Escolha o provedor, cole a chave e ative. Cada empresa pode ter uma chave por provedor.</p></li>
+          </ol>
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>Sem chave, o bloco não roda</strong> Se nenhuma chave ativa estiver cadastrada para o provedor escolhido, o bloco de IA falha na execução. É o primeiro item a conferir se algo não funcionar.</p>
+          </div>
+        </section>
+
+        <section id="usar">
+          <h2><span class="num">3.</span> Adicionando o bloco no fluxo</h2>
+          <ol class="steps">
+            <li><strong>Adicione o bloco “IA”</strong><p>No <span class="kbd">+</span>, escolha <strong>IA</strong>.</p></li>
+            <li><strong>Escolha o provedor e o modelo</strong><p>Selecione, por exemplo, <em>OpenAI → GPT-4o mini</em> (rápido e econômico). Cada provedor oferece modelos mais rápidos/baratos ou mais capazes.</p></li>
+            <li><strong>Adicione uma ou mais ações de IA</strong><p>Dentro do bloco, clique em <span class="kbd">+ Adicionar ação de IA</span> e escolha o que a IA deve fazer (ver próxima seção). Cada ação tem seu botão de lixeira para remover.</p></li>
+            <li><strong>Dê instruções</strong><p>Em vários casos você pode escrever instruções extras para guiar a IA (tom de voz, regras). Esses campos também aceitam variáveis <code>{ }</code>.</p></li>
+          </ol>
+
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#8B5CF6; width:300px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M8 4h8M9 14h.01M15 14h.01M9 17h6"/></svg></div>
+                  <div><div class="mn-title">IA · OpenAI</div><div class="mn-sub">GPT-4o mini</div></div>
+                </div>
+                <div class="mn-body">
+                  <div class="mock-row"><span class="mock-chip">🗣️ Intenção de conversa</span></div>
+                  <div class="mock-row"><span class="mock-chip">😊 Sentimento</span></div>
+                </div>
+                <div class="mock-ports">
+                  <div class="mock-port"><span>Intenção: Comprar</span><span class="pin"></span></div>
+                  <div class="mock-port"><span>Intenção: Dúvida</span><span class="pin"></span></div>
+                  <div class="mock-port green"><span>Nenhuma intenção</span><span class="pin"></span></div>
+                </div>
+                <div class="mn-body" style="border-top:1px dashed var(--border);">
+                  <div class="mock-row" style="font-size:11.5px;color:#94A3B8;">Média Tokens: 312</div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Bloco de IA com duas ações. A ação de <b>Intenção</b> cria portas de saída — uma por intenção configurada — além de <b>Nenhuma intenção</b>.</figcaption>
+          </figure>
+        </section>
+
+        <section id="acoes">
+          <h2><span class="num">4.</span> As ações de IA, uma a uma</h2>
+
+          <h3>🗣️ Intenção de conversa</h3>
+          <p>Você cadastra uma lista de intenções possíveis (ex.: <em>Comprar</em>, <em>Dúvida</em>, <em>Reclamação</em>). A IA lê a conversa e decide qual encaixa melhor. <strong>Cada intenção vira uma porta de saída</strong> no bloco, mais uma porta <em>“Nenhuma intenção”</em> — então o fluxo segue por caminhos diferentes para cada caso.</p>
+
+          <h3>😊 Sentimento da conversa</h3>
+          <p>A IA classifica o humor do cliente (ex.: positivo, neutro, negativo). Assim como a intenção, gera <strong>portas de saída</strong> para você tratar cada sentimento de um jeito — por exemplo, escalar para um humano quando for negativo.</p>
+
+          <h3>🧾 Extrator de parâmetros</h3>
+          <p>Você define os campos que quer capturar (ex.: <code>nome</code>, <code>email</code>, <code>produto</code>). A IA lê a conversa e preenche cada um. Ótimo para qualificar o lead sem formulário.</p>
+
+          <h3>🎙️ Transcrição de áudio</h3>
+          <p>Converte os áudios enviados pelo cliente em texto. Útil para registrar o que foi dito e alimentar outras ações de IA.</p>
+
+          <h3>✍️ Gerar texto / 💬 Assistente de chat</h3>
+          <p>Geram uma resposta escrita com base na conversa atual. Use o resultado para sugerir uma resposta ao atendente ou compor uma mensagem.</p>
+
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>Invocar Agente</strong> aparece no construtor marcado como <em>“Em breve”</em> — será habilitado em uma próxima atualização.</p>
+          </div>
+        </section>
+
+        <section id="saida">
+          <h2><span class="num">5.</span> Usando o resultado da IA (variáveis)</h2>
+          <p>Cada bloco de IA tem um <strong>nome de saída</strong> (por padrão algo como <code>AI-1</code>). O que a IA produzir fica guardado nesse nome e pode ser reaproveitado nos blocos seguintes como variável <code>{{ }}</code>:</p>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Variável</th><th>Contém</th></tr>
+            <tr><td><code>{{AI-1.resposta}}</code></td><td>o texto gerado (assistente / gerar texto)</td></tr>
+            <tr><td><code>{{AI-1.intencao}}</code></td><td>a intenção identificada</td></tr>
+            <tr><td><code>{{AI-1.sentimento}}</code></td><td>o sentimento identificado</td></tr>
+            <tr><td><code>{{AI-1.texto}}</code></td><td>a transcrição do áudio</td></tr>
+            <tr><td><code>{{AI-1.nome}}</code>, <code>{{AI-1.email}}</code>…</td><td>cada parâmetro extraído (pelo nome que você deu)</td></tr>
+          </table></div>
+          <p>Esses valores aparecem automaticamente no seletor de variáveis <code>{ }</code> dos blocos seguintes — por exemplo, dentro de uma Ação de comentário ou de uma Mensagem.</p>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8L12 14.6 7 18.2l1.9-5.8L4 8.8h6.1z"/></svg></span>
+            <p><strong>Exemplo</strong> Coloque um bloco de IA com <em>Gerar texto</em> e, logo depois, uma Ação <em>Adicionar comentário no lead</em> com o conteúdo <code>{{AI-1.resposta}}</code>. A IA escreve, e a anotação aparece sozinha na aba <em>Anotações</em> do lead.</p>
+          </div>
+        </section>
+
+        <section id="ramos">
+          <h2><span class="num">6.</span> Intenção e Sentimento: caminhos diferentes</h2>
+          <p>As ações de <strong>Intenção</strong> e <strong>Sentimento</strong> são especiais porque <strong>ramificam o fluxo</strong>. Em vez de uma saída única, o bloco mostra uma porta para cada opção que você cadastrou:</p>
+          <ol>
+            <li>Cadastre as intenções (ex.: <em>Comprar</em>, <em>Dúvida</em>, <em>Reclamação</em>).</li>
+            <li>O bloco passa a exibir uma porta por intenção + a porta <em>“Nenhuma intenção”</em>.</li>
+            <li>Ligue cada porta ao caminho certo: <em>Comprar</em> → criar negócio; <em>Reclamação</em> → notificar gestor; <em>Nenhuma</em> → enviar mensagem padrão.</li>
+          </ol>
+          <p>É a forma mais natural de montar um atendimento que “entende” o cliente e reage de acordo.</p>
+        </section>
+
+        <section id="tokens">
+          <h2><span class="num">7.</span> Custo e tokens</h2>
+          <p>Toda chamada de IA consome <strong>tokens</strong> (a “unidade de medida” do texto processado), e isso é cobrado pelo seu provedor. Para você acompanhar, o rodapé do bloco mostra a <strong>Média Tokens</strong> — a média de tokens gastos por execução, calculada a partir do consumo real registrado.</p>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg></span>
+            <p><strong>Economize:</strong> prefira modelos “mini/flash” para tarefas simples (classificar intenção, extrair dados) e reserve os modelos mais caros para quando precisar de respostas elaboradas. Instruções curtas e objetivas também reduzem o consumo.</p>
+          </div>
+          <p>Você já conhece todas as peças. No próximo tutorial, montamos uma automação completa do começo ao fim.</p>
+        </section>
+
+        <nav class="pager">
+          <a class="prev" href="/automacoes-condicoes-espera"><span class="dir">← Anterior</span><span class="ttl">Condições &amp; Espera</span></a>
+          <a class="next" href="/automacoes-exemplo-pratico"><span class="dir">Próximo →</span><span class="ttl">Exemplo prático</span></a>
+        </nav>
+      </div>
+    </article>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta">
+          <h2>Conecte sua chave de IA</h2>
+          <p>Vá em Configurações → Chaves de API e ative seu provedor para testar o bloco.</p>
+          <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">Ir para o app</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <small>© <span id="year"></span> Rezult CRM. Todos os direitos reservados.</small>
+      <div class="foot-links">
+        <a href="/automacoes">Automações</a>
+        <a href="https://app.rezultcrm.com" target="_blank" rel="noopener">Acessar o app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Condições &amp; Espera · Automações · Central de Ajuda · Rezult CRM</title>
+  <meta name="description" content="Crie ramificações Sim/Não com Condições e controle o tempo do fluxo com o bloco de Espera: segundos, horas, dias, janelas da semana e data marcada." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="logo">R</span>
+        <span>Rezult CRM <small>Central de Ajuda</small></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/automacoes">Automações</a>
+        <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Ir para o app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Você está em">
+        <a href="/">Central de Ajuda</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes">Automações</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="current">Condições &amp; Espera</span>
+      </nav>
+    </div>
+
+    <article class="article">
+      <div class="article-hero">
+        <span class="kicker">Tutorial 4 de 6 · Automações</span>
+        <h1>Condições &amp; Espera</h1>
+        <p class="lead">Até aqui o fluxo seguia em linha reta. Com <strong>Condições</strong> você cria bifurcações (caminhos diferentes conforme a situação) e com <strong>Espera</strong> você controla o tempo — pausando o fluxo por segundos, horas ou até dias.</p>
+        <div class="article-meta">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 9 min de leitura</span>
+          <span>Nível: intermediário</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <nav class="toc" aria-label="Neste tutorial">
+        <h4>Neste tutorial</h4>
+        <ol>
+          <li><a href="#condicao">Condições: o caminho “Sim / Não”</a></li>
+          <li><a href="#tipos-cond">Quais condições existem</a></li>
+          <li><a href="#espera">Espera: controlando o tempo</a></li>
+          <li><a href="#tipos-espera">Tipos de espera</a></li>
+          <li><a href="#juntos">Condição + Espera trabalhando juntos</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="condicao">
+          <h2><span class="num">1.</span> Condições: o caminho “Sim / Não”</h2>
+          <p>Uma <strong>Condição</strong> faz uma pergunta de sim ou não sobre a situação atual — por exemplo: <em>“o lead já tem a tag Cliente?”</em>. Conforme a resposta, o fluxo segue por um de dois caminhos: a saída <strong>Sim</strong> (verdadeiro) ou a saída <strong>Não</strong> (falso).</p>
+
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#8B5CF6; width:288px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg></div>
+                  <div><div class="mn-title">Condição</div><div class="mn-sub">Lead possui a tag “Cliente”?</div></div>
+                </div>
+                <div class="mock-ports">
+                  <div class="mock-port green"><span>Sim</span><span class="pin"></span></div>
+                  <div class="mock-port"><span>Não</span><span class="pin"></span></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>O bloco de Condição tem <b>duas portas de saída</b>: ligue cada uma ao caminho que deve seguir.</figcaption>
+          </figure>
+
+          <ol class="steps">
+            <li><strong>Adicione o bloco “Condições”</strong><p>No <span class="kbd">+</span>, escolha <strong>Condições</strong> e selecione a verificação desejada.</p></li>
+            <li><strong>Configure a pergunta</strong><p>Defina o que checar (qual tag, qual etapa, qual valor de campo).</p></li>
+            <li><strong>Ligue as duas saídas</strong><p>Conecte a porta <strong>Sim</strong> ao que deve acontecer quando for verdade, e a porta <strong>Não</strong> ao caminho alternativo. Uma saída pode ficar vazia (o fluxo simplesmente termina ali).</p></li>
+          </ol>
+        </section>
+
+        <section id="tipos-cond">
+          <h2><span class="num">2.</span> Quais condições existem</h2>
+          <p>As condições são agrupadas por contexto. Estas são as principais:</p>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Categoria</th><th>Exemplos de verificação</th></tr>
+            <tr><td>💼 Negócios</td><td>está ganho? está perdido? possui o produto X? tem atendente?</td></tr>
+            <tr><td>👤 Leads</td><td>lead existe? possui a tag X? tem e-mail/telefone/CPF? já tem negócio na pipeline/etapa?</td></tr>
+            <tr><td>🧩 Campos</td><td>campo igual a um valor? campo contém um texto? campo entre dois números?</td></tr>
+            <tr><td>⏰ Tempo</td><td>a hora atual está dentro dos dias e horários escolhidos?</td></tr>
+            <tr><td>💬 Conversas</td><td>conversa tem atendente? foi finalizada? está em um departamento? janela aberta?</td></tr>
+          </table></div>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8L12 14.6 7 18.2l1.9-5.8L4 8.8h6.1z"/></svg></span>
+            <p><strong>Encadeie condições</strong> Você pode ligar uma condição na saída de outra para criar regras mais finas, como “É cliente? → Sim → Comprou nos últimos 30 dias?”.</p>
+          </div>
+        </section>
+
+        <section id="espera">
+          <h2><span class="num">3.</span> Espera: controlando o tempo</h2>
+          <p>Nem tudo deve acontecer no mesmo segundo. O bloco <strong>Espera</strong> coloca uma pausa no fluxo: ele segura a execução pelo tempo que você definir e só então libera o próximo bloco. Perfeito para follow-ups (“espere 2 dias e mande a mensagem”).</p>
+
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#3B82F6;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+                  <div><div class="mn-title">Espera</div><div class="mn-sub">Aguardar antes de continuar</div></div>
+                </div>
+                <div class="mn-body">
+                  <div class="mock-field"><span class="lbl">Aguardar</span> 2 dias</div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+            </div>
+            <figcaption>Uma espera de <b>2 dias</b>: o fluxo pausa e retoma sozinho depois do prazo.</figcaption>
+          </figure>
+        </section>
+
+        <section id="tipos-espera">
+          <h2><span class="num">4.</span> Tipos de espera</h2>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Tipo</th><th>Como funciona</th></tr>
+            <tr><td>Segundos / minutos / horas / dias</td><td>uma pausa simples pela duração escolhida</td></tr>
+            <tr><td>Intervalo na semana</td><td>aguarda até cair dentro de uma janela (ex.: só em horário comercial, seg–sex). Se já estiver na janela, continua na hora</td></tr>
+            <tr><td>Data e horário marcados</td><td>agenda a continuação para uma data/hora específica</td></tr>
+            <tr><td>Até o usuário parar de responder</td><td>espera um tempo após a última interação do contato</td></tr>
+          </table></div>
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>Esperas longas são confiáveis</strong> Mesmo uma espera de vários dias é retomada automaticamente no horário certo — você não precisa deixar nada aberto. O sistema “acorda” o fluxo sozinho quando o prazo chega.</p>
+          </div>
+        </section>
+
+        <section id="juntos">
+          <h2><span class="num">5.</span> Condição + Espera trabalhando juntos</h2>
+          <p>O poder real aparece quando você combina os dois. Um exemplo clássico de recuperação de venda:</p>
+          <ol>
+            <li><strong>Gatilho:</strong> Negócio movido para “Proposta enviada”.</li>
+            <li><strong>Espera:</strong> 2 dias.</li>
+            <li><strong>Condição:</strong> o negócio já está “ganho”?
+              <ul>
+                <li><strong>Sim →</strong> o fluxo termina (cliente fechou, tudo certo).</li>
+                <li><strong>Não →</strong> Ação: enviar lembrete e criar tarefa de ligação para o vendedor.</li>
+              </ul>
+            </li>
+          </ol>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg></span>
+            <p><strong>Essa é a base de quase toda automação inteligente:</strong> esperar o tempo certo, checar a situação naquele momento e só então agir — sem incomodar quem já fechou.</p>
+          </div>
+          <p>Agora vamos ao bloco mais poderoso de todos: a <strong>Inteligência Artificial</strong>.</p>
+        </section>
+
+        <nav class="pager">
+          <a class="prev" href="/automacoes-acoes"><span class="dir">← Anterior</span><span class="ttl">Ações</span></a>
+          <a class="next" href="/automacoes-bloco-ia"><span class="dir">Próximo →</span><span class="ttl">Bloco de IA</span></a>
+        </nav>
+      </div>
+    </article>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta">
+          <h2>Crie sua primeira bifurcação</h2>
+          <p>Adicione uma condição “Sim/Não” e uma espera em uma automação de teste.</p>
+          <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">Ir para o app</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <small>© <span id="year"></span> Rezult CRM. Todos os direitos reservados.</small>
+      <div class="foot-links">
+        <a href="/automacoes">Automações</a>
+        <a href="https://app.rezultcrm.com" target="_blank" rel="noopener">Acessar o app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

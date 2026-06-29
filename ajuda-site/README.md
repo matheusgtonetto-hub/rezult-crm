@@ -44,6 +44,22 @@ Recomenda-se um **projeto Vercel separado** do app principal (para não misturar
 
 ## Conteúdo
 
-A página já traz a estrutura por temas (Primeiros passos, Pipeline, Multiatendimento,
-Automações, Leads, Configurações). Os cards estão marcados como **EM BREVE** —
-basta transformar cada um em link para o respectivo tutorial conforme forem criados.
+A home traz os temas (Primeiros passos, Pipeline, Multiatendimento, Automações,
+Leads, Configurações). Os temas ainda sem conteúdo ficam marcados como **EM BREVE**.
+
+### Automações (publicado)
+
+O hub `automacoes.html` lista 6 tutoriais completos, cada um em sua própria página:
+
+| Página | Tema |
+|--------|------|
+| `automacoes-introducao.html`       | Introdução às automações |
+| `automacoes-gatilhos.html`         | Gatilhos |
+| `automacoes-acoes.html`            | Ações |
+| `automacoes-condicoes-espera.html` | Condições & Espera |
+| `automacoes-bloco-ia.html`         | Bloco de Inteligência Artificial |
+| `automacoes-exemplo-pratico.html`  | Exemplo prático (boas-vindas) |
+
+Os "prints" dos blocos são **mockups em HTML/CSS** (classes `.mock-canvas` / `.mock-node`
+em `assets/styles.css`) — nítidos e sempre alinhados com a identidade visual. Para trocar
+por capturas reais, substitua o bloco `.mock-canvas` dentro de cada `<figure>` por uma `<img>`.

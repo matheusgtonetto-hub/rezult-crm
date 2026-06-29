@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exemplo prático · Automações · Central de Ajuda · Rezult CRM</title>
+  <meta name="description" content="Monte do zero uma automação de boas-vindas para todo novo lead, juntando gatilho, mensagem, ação e espera — com teste passo a passo." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="logo">R</span>
+        <span>Rezult CRM <small>Central de Ajuda</small></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/automacoes">Automações</a>
+        <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Ir para o app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Você está em">
+        <a href="/">Central de Ajuda</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes">Automações</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="current">Exemplo prático</span>
+      </nav>
+    </div>
+
+    <article class="article">
+      <div class="article-hero">
+        <span class="kicker">Tutorial 6 de 6 · Automações</span>
+        <h1>Exemplo prático: boas-vindas automático</h1>
+        <p class="lead">Hora de juntar tudo. Vamos montar, do zero, uma automação que recebe todo novo lead com uma mensagem de boas-vindas, organiza o contato e ainda agenda um follow-up. Siga clicando junto no app.</p>
+        <div class="article-meta">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 10 min de leitura</span>
+          <span>Nível: prático</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <nav class="toc" aria-label="Neste tutorial">
+        <h4>Neste tutorial</h4>
+        <ol>
+          <li><a href="#objetivo">O que vamos construir</a></li>
+          <li><a href="#passos">Montando passo a passo</a></li>
+          <li><a href="#resultado">O fluxo final</a></li>
+          <li><a href="#testar">Testando antes de ativar</a></li>
+          <li><a href="#proximos">Próximos passos</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="objetivo">
+          <h2><span class="num">1.</span> O que vamos construir</h2>
+          <p>A regra de negócio é simples: <em>sempre que um lead novo entrar, dar as boas-vindas, marcar como novo e garantir um retorno em 2 dias.</em> Em blocos:</p>
+          <ul>
+            <li><strong>Gatilho:</strong> Lead criado.</li>
+            <li><strong>Mensagem:</strong> texto de boas-vindas com o nome do cliente.</li>
+            <li><strong>Ação:</strong> adicionar a tag <code>Novo lead</code> + notificar o vendedor.</li>
+            <li><strong>Espera:</strong> 2 dias.</li>
+            <li><strong>Ação:</strong> criar uma atividade de follow-up.</li>
+          </ul>
+        </section>
+
+        <section id="passos">
+          <h2><span class="num">2.</span> Montando passo a passo</h2>
+          <ol class="steps">
+            <li><strong>Crie a automação</strong><p>Menu <span class="kbd">Automações</span> → <span class="kbd">Nova automação</span> → comece em branco. Nomeie como <em>“Boas-vindas — novo lead”</em>.</p></li>
+            <li><strong>Configure o gatilho</strong><p>Clique no bloco de início → categoria <strong>Leads</strong> → <strong>Lead criado</strong>. Não precisa de filtro: queremos todo lead novo.</p></li>
+            <li><strong>Adicione a mensagem de boas-vindas</strong><p>No <span class="kbd">+</span>, escolha <strong>Mensagem → Mensagem de texto</strong>. Escreva o texto e use o ícone <code>{ }</code> para inserir o nome:</p>
+              <div class="mock-field" style="margin-top:8px;">Olá <code>{{lead.nome}}</code>! 👋 Que bom ter você por aqui. Em breve um especialista vai falar com você. 😊</div>
+            </li>
+            <li><strong>Empilhe as ações de organização</strong><p>Adicione um bloco <strong>Ações</strong> com duas ações: <em>Adicionar tags</em> → <code>Novo lead</code>; e <em>Enviar notificação</em> → “Novo lead recebido: <code>{{lead.nome}}</code>”.</p></li>
+            <li><strong>Adicione a espera</strong><p>No <span class="kbd">+</span>, escolha <strong>Espera</strong> → <em>2 dias</em>.</p></li>
+            <li><strong>Crie o follow-up</strong><p>Adicione um bloco <strong>Ações</strong> → <em>Criar atividade</em>: título “Ligar para <code>{{lead.nome}}</code>”, vinculada ao lead.</p></li>
+            <li><strong>Salve</strong><p>Clique em <span class="kbd">Salvar</span>. Deixe a automação <strong>desativada</strong> por enquanto — vamos testar antes.</p></li>
+          </ol>
+        </section>
+
+        <section id="resultado">
+          <h2><span class="num">3.</span> O fluxo final</h2>
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#128A68; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+                  <div><div class="mn-title">Lead criado</div><div class="mn-sub">Gatilho</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#0EA5E9; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-9A8.4 8.4 0 1 1 21 11.5z"/></svg></div>
+                  <div><div class="mn-title">Boas-vindas</div><div class="mn-sub">Mensagem</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#F97316; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+                  <div><div class="mn-title">Tag + Notificar</div><div class="mn-sub">Ações</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#3B82F6; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+                  <div><div class="mn-title">2 dias</div><div class="mn-sub">Espera</div></div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#F97316; width:210px;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+                  <div><div class="mn-title">Follow-up</div><div class="mn-sub">Criar atividade</div></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Fluxo completo: <b>Lead criado → Boas-vindas → Tag + Notificar → Espera 2 dias → Follow-up</b>.</figcaption>
+          </figure>
+        </section>
+
+        <section id="testar">
+          <h2><span class="num">4.</span> Testando antes de ativar</h2>
+          <ol class="steps">
+            <li><strong>Ative a automação</strong><p>Ligue o interruptor <span class="kbd">Ativa</span>.</p></li>
+            <li><strong>Crie um lead de teste</strong><p>Cadastre um lead fictício (com seu próprio número, se quiser ver a mensagem chegar).</p></li>
+            <li><strong>Confira os resultados imediatos</strong><p>A mensagem deve sair, a tag <code>Novo lead</code> deve aparecer no contato e a notificação deve chegar. Verifique também as estatísticas dos blocos (devem marcar 1 sucesso cada).</p></li>
+            <li><strong>Valide a espera</strong><p>O bloco de follow-up só roda 2 dias depois — é esperado que ele ainda apareça como “pendente” no teste imediato. Para um teste rápido, troque temporariamente a espera para alguns minutos.</p></li>
+          </ol>
+          <div class="callout warn">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+            <p><strong>Não deu certo?</strong> Cheque, nesta ordem: (1) a automação está <em>Ativa</em>? (2) o gatilho corresponde mesmo ao que você fez? (3) os blocos estão <em>conectados</em> por linhas até o fim? (4) as estatísticas mostram erro em algum bloco?</p>
+          </div>
+        </section>
+
+        <section id="proximos">
+          <h2><span class="num">5.</span> Próximos passos</h2>
+          <p>Com essa base você consegue criar praticamente qualquer fluxo. Algumas evoluções naturais:</p>
+          <ul>
+            <li>Adicionar uma <a class="inline" href="/automacoes-condicoes-espera">Condição</a> antes do follow-up: só criar a tarefa se o lead ainda não virou negócio.</li>
+            <li>Trocar a mensagem fixa por um <a class="inline" href="/automacoes-bloco-ia">Bloco de IA</a> que entende a primeira resposta do cliente e direciona o atendimento.</li>
+            <li>Encadear automações com a ação <em>Iniciar outra automação</em>.</li>
+          </ul>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <p><strong>Parabéns!</strong> Você concluiu a série de Automações. Volte ao <a class="inline" href="/automacoes">hub de Automações</a> sempre que precisar revisar um conceito.</p>
+          </div>
+        </section>
+
+        <nav class="pager">
+          <a class="prev" href="/automacoes-bloco-ia"><span class="dir">← Anterior</span><span class="ttl">Bloco de IA</span></a>
+          <a class="next" href="/automacoes"><span class="dir">Concluir →</span><span class="ttl">Voltar ao hub</span></a>
+        </nav>
+      </div>
+    </article>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta">
+          <h2>Mãos à obra</h2>
+          <p>Abra o app e construa sua automação de boas-vindas seguindo este guia.</p>
+          <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">Ir para o app</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <small>© <span id="year"></span> Rezult CRM. Todos os direitos reservados.</small>
+      <div class="foot-links">
+        <a href="/automacoes">Automações</a>
+        <a href="https://app.rezultcrm.com" target="_blank" rel="noopener">Acessar o app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
