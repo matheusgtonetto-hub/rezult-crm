@@ -221,6 +221,10 @@ footer { border-top: 1px solid var(--border); padding: 32px 0; }
 .codeblock-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 -8px; }
 .codeblock-head .fname { font-size: 12px; font-weight: 700; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .codeblock-head .fname svg { width: 14px; height: 14px; }
+.copy-btn { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--primary-dark); background: var(--primary-soft); border: 1px solid #CDEBE0; border-radius: 8px; padding: 6px 11px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.copy-btn:hover { background: #D7F0E7; }
+.copy-btn svg { width: 14px; height: 14px; }
+.copy-btn.copied { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* Bloco "parte" — divisória de etapa grande */
 .part-tag { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--primary-dark); background: var(--primary-soft); padding: 5px 12px; border-radius: 999px; }
