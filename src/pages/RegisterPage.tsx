@@ -99,7 +99,6 @@ export default function RegisterPage() {
         <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[20px]">
           <div className="flex justify-center items-center mb-[15px]">
             <Logo size="md" showIcon />
-            <span className="text-[28px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
           </div>
 
           <h1 className="text-[23px] font-semibold text-foreground text-center">Crie sua conta</h1>
@@ -202,7 +201,7 @@ export default function RegisterPage() {
                 <span className="text-[12px] text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
                   Li e concordo com os{" "}
                   <a
-                    href="https://datacrazy.io/termos"
+                    href="https://www.rezultcrm.com/termo"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
@@ -223,7 +222,7 @@ export default function RegisterPage() {
                 <span className="text-[12px] text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
                   Li e concordo com a{" "}
                   <a
-                    href="https://datacrazy.io/politica-de-privacidade"
+                    href="https://www.rezultcrm.com/politica"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}

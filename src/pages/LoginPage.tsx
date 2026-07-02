@@ -150,7 +150,6 @@ export default function LoginPage() {
               >
         <div className="flex justify-center items-center mb-[15px]">
           <Logo size="md" showIcon />
-          <span className="text-[28px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
         </div>
 
         {emailConfirmed && (

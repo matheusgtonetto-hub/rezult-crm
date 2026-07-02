@@ -19,7 +19,6 @@ import {
   Plus,
   UserCircle,
   BrainCircuit,
-  Wallet,
   CalendarDays,
   ChevronRight,
   GraduationCap,
@@ -143,8 +142,8 @@ export function AppSidebar() {
       ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageCircle }] : []),
-    { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },
-    { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const, locked: true },
+    { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const },
+    { to: "/agentes", label: "Agentes", icon: BrainCircuit, badge: "IA" as const },
   ];
 
   const itemBase =
@@ -369,24 +368,6 @@ export function AppSidebar() {
           }}
         />
         <div className="flex flex-col items-center" style={{ gap: 4 }}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={`${itemBase} cursor-not-allowed relative`}
-                style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
-              >
-                <Wallet size={18} strokeWidth={1.75} />
-                <span
-                  className="absolute top-0 right-0 rounded-[3px] flex items-center justify-center font-semibold leading-none whitespace-nowrap"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 5.5, height: 8, padding: "0 2px" }}
-                >
-                  EM BREVE
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Rezult Pay · Em breve</TooltipContent>
-          </Tooltip>
-
           <Popover open={notifOpen} onOpenChange={setNotifOpen}>
             <PopoverTrigger asChild>
               <button
