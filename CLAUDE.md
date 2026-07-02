@@ -120,6 +120,8 @@ Atualizações: optimistic state + upsert no Supabase.
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
 | `ai_provider_keys` | Chaves de IA dos clientes (BYOK) usadas pelo Bloco de IA (`company_id`, `owner_id`, `provider` openai/anthropic/google, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. Gerenciada em Configurações → Chaves de API |
 | `subscriptions` | Assinatura Stripe da empresa (`company_id`, `owner_user_id`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan_name`, `billing_period`, `status`, `trial_ends_at`, `current_period_start`, `current_period_end`, `canceled_at`) |
+| `disparos` | Execução em massa de uma automação (gatilho `lead_manual`) sobre leads filtrados (`owner_id`, `company_id`, `title`, `automation_id`, `status` criado/agendado/em_andamento/pausado/concluido/erro, `rhythm` normal/turbo/lento/humano, `filters` jsonb, `scheduled_at`, `confirm_filters`, `total_leads`) |
+| `disparo_itens` | Um lead dentro de um disparo (`disparo_id`, `company_id`, `owner_id`, `lead_id`, `lead_name`, `lead_phone`, `status` nao_iniciado/pendente/em_execucao/concluido/erro, `error_message`) — escrito pela Edge Function `disparo-runner` |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
@@ -195,6 +197,18 @@ leads (INSERT/UPDATE)
 
 ### Ações implementadas (executam no banco via service role)
 `mover_etapa`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `enviar_notificacao`, `iniciar_automacao`
+
+---
+
+## Motor de Disparos
+
+"Disparos" (ícone de foguete na sidebar, rota `/disparos`) executam uma automação **em massa** sobre leads filtrados, em lotes, no ritmo escolhido.
+
+- **Elegibilidade**: só automações com gatilho `lead_manual` (Execução manual por lead) podem ser disparadas, e precisam estar **ativas** (o `automation-runner` só roda automações ativas).
+- **Frontend**: `src/pages/DisparosPage.tsx` (lista), `DisparoDetailPage.tsx` (detalhe + realtime), `src/components/disparos/CreateDisparoWizard.tsx` (wizard 4 etapas) e `LeadFilterPanel.tsx` (filtro avançado). Camada de dados/tipos/filtro em `src/data/disparos.ts`.
+- **Execução**: Edge Function `supabase/functions/disparo-runner/index.ts`, acionada pela UI (JWT, ao clicar "Iniciar") e por **pg_cron a cada minuto** (`20260630000002_disparos_cron.sql`) com o `automation_secret`. Processa 1 lote por passagem: pega itens `nao_iniciado` (tamanho do lote por ritmo), marca `pendente`→`em_execucao`, chama o `automation-runner` (modo normal, secret) com `{ trigger_type: "lead_manual", automation_id, lead_id }` por lead, e marca `concluido`/`erro`. Quando não sobram itens → disparo `concluido`.
+- **Ritmos** (lote/passagem): turbo 40, normal 25, lento 12, humano 3.
+- **Migrations**: `20260630000001_disparos.sql` (tabelas, RLS, realtime), `20260630000002_disparos_cron.sql` (pg_cron). `disparo-runner` está em `config.toml` com `verify_jwt = false`.
 
 ---
 

@@ -11,6 +11,7 @@ import {
   LogOut,
   MessageCircle,
   Network,
+  Rocket,
   Filter,
   Brain,
   Bell,
@@ -138,6 +139,8 @@ export function AppSidebar() {
     { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
+    ...(canAny("automacoes:admin", "automacoes:member")
+      ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageCircle }] : []),
     { to: "/pilot",   label: "Pilot",   icon: Brain,        badge: "IA" as const, locked: true },

@@ -24,6 +24,8 @@ import AgentesPage from "./pages/AgentesPage";
 import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
 import AutomacoesPage from "./pages/AutomacoesPage";
+import DisparosPage from "./pages/DisparosPage";
+import DisparoDetailPage from "./pages/DisparoDetailPage";
 import CompanyRegisterPage from "./pages/CompanyRegisterPage";
 import SetupPage from "./pages/SetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -93,6 +95,8 @@ function AppRoutes() {
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />
             <Route path="/automacoes/:id" element={<AutomacoesPage />} />
+            <Route path="/disparos" element={<DisparosPage />} />
+            <Route path="/disparos/:id" element={<DisparoDetailPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
             <Route path="/configuracoes/:section" element={<SettingsPage />} />

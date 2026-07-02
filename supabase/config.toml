@@ -31,3 +31,8 @@ verify_jwt = false
 # senão o gateway barra as mensagens recebidas (texto/áudio/imagem/documento).
 [functions.zapi-webhook]
 verify_jwt = false
+
+# O disparo-runner se autentica sozinho: pelo segredo do motor (chamadas do pg_cron)
+# ou pelo JWT do usuário (chamada da UI ao iniciar). Gateway não deve exigir JWT.
+[functions.disparo-runner]
+verify_jwt = false
