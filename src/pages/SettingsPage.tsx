@@ -1440,9 +1440,9 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
 // ── Dados dos planos para o dialog de upgrade ────────────────────────────────
 
 const UPGRADE_PRICES = {
-  silver:   { monthly: "price_1Tbp3sHLGbQg56rmYk9RbtKj", semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK", annual: "price_1Tbp3sHLGbQg56rmuvxhNhoQ" },
-  platinum: { monthly: "price_1Tbp7lHLGbQg56rmxz4NpynU", semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a", annual: "price_1Tbp7lHLGbQg56rmJcvQ4GY5" },
-  emerald:  { monthly: "price_1TbpAAHLGbQg56rmh1i1HdvY", semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL", annual: "price_1TbpAAHLGbQg56rmYRFZlZ3I" },
+  silver:   { monthly: "price_1TougzHxAJVer2B2OhFa2dMf", semiannual: "price_1TougyHxAJVer2B2XcQObtEA", annual: "price_1TougzHxAJVer2B2pYF5yixE" },
+  platinum: { monthly: "price_1TougzHxAJVer2B21QUlvqh7", semiannual: "price_1Touh0HxAJVer2B2nc56t9f1", annual: "price_1TougyHxAJVer2B2U6e9SlEV" },
+  emerald:  { monthly: "price_1TougyHxAJVer2B2UWGevkxv", semiannual: "price_1TougzHxAJVer2B247BGzYO9", annual: "price_1TougzHxAJVer2B2pePEiWPm" },
 } as const;
 
 type UpgradePlanKey = keyof typeof UPGRADE_PRICES;

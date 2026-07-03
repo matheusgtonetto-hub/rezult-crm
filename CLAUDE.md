@@ -236,13 +236,13 @@ O plano é vinculado à **empresa** (não ao usuário). Todos os membros da empr
 
 > As chaves internas (`silver`, `platinum`, `emerald`) são usadas no banco e no Stripe metadata — **nunca alterar sem migration SQL**.
 
-### Price IDs Stripe (test mode)
+### Price IDs Stripe (live mode)
 
 | Plano | Mensal | Semestral | Anual |
 |-------|--------|-----------|-------|
-| Silver | `price_1Tbp3sHLGbQg56rmYk9RbtKj` | `price_1Tbp3sHLGbQg56rm6sleoFHK` | `price_1Tbp3sHLGbQg56rmuvxhNhoQ` |
-| Platinum | `price_1Tbp7lHLGbQg56rmxz4NpynU` | `price_1Tbp7lHLGbQg56rmnvtsYz4a` | `price_1Tbp7lHLGbQg56rmJcvQ4GY5` |
-| Emerald | `price_1TbpAAHLGbQg56rmh1i1HdvY` | `price_1TbpAAHLGbQg56rmzhs7ffCL` | `price_1TbpAAHLGbQg56rmYRFZlZ3I` |
+| Silver | `price_1TougzHxAJVer2B2OhFa2dMf` | `price_1TougyHxAJVer2B2XcQObtEA` | `price_1TougzHxAJVer2B2pYF5yixE` |
+| Platinum | `price_1TougzHxAJVer2B21QUlvqh7` | `price_1Touh0HxAJVer2B2nc56t9f1` | `price_1TougyHxAJVer2B2U6e9SlEV` |
+| Emerald | `price_1TougyHxAJVer2B2UWGevkxv` | `price_1TougzHxAJVer2B247BGzYO9` | `price_1TougzHxAJVer2B2pePEiWPm` |
 
 ### Fluxo de assinatura
 
