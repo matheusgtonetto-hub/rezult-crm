@@ -44,7 +44,6 @@ serve(async (req) => {
 
   try {
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "subscription",
       ...(customerId ? { customer: customerId } : { customer_email: userEmail }),
       line_items: [{ price: priceId, quantity: 1 }],
@@ -52,7 +51,9 @@ serve(async (req) => {
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },
+      allow_promotion_codes: true,
       success_url: "https://app.rezultcrm.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+      cancel_url: "https://app.rezultcrm.com/planos",
     });
 
     return json({ url: session.url });
