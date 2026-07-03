@@ -53,7 +53,7 @@ serve(async (req) => {
       metadata: { companyId, userId, planName, billingPeriod },
       allow_promotion_codes: true,
       success_url: "https://app.rezultcrm.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://app.rezultcrm.com/planos",
+      cancel_url: "https://app.rezultcrm.com/configuracoes/planos",
     });
 
     return json({ url: session.url });
