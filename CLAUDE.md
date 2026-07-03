@@ -115,6 +115,8 @@ Atualizações: optimistic state + upsert no Supabase.
 | `tags` | Tags de leads |
 | `activities` | Histórico de atividades de um lead |
 | `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
+| `whatsapp_connections` | Conexões WhatsApp da empresa (usadas pelo Bloco Mensagem) |
+| `whatsapp_messages` | Mensagens enviadas/recebidas pelo Bloco Mensagem — escrito pela Edge Function |
 | `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`, `tokens` int — tokens consumidos pelo nó de IA) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
@@ -136,67 +138,153 @@ Todas as tabelas têm RLS habilitado. Políticas padrão: `auth.uid() = owner_id
 - Tipos centralizados em `src/data/mockData.ts`
 - Prioridades: `"Alta" | "Média" | "Baixa"`
 - Status de task: `"Pendente" | "Concluída"`
-- Origens de lead: `"Instagram" | "Facebook Ads" | "Indicação" | "Site" | "Outro"`
+- Origens de lead: `"Instagram" | "Facebook Ads" | "Google Ads" | "Meta Ads" | "TikTok Ads" | "LinkedIn Ads" | "YouTube Ads" | "Email Marketing" | "Orgânico" | "WhatsApp" | "Evento" | "Indicação" | "Site" | "Outro"` — o runner normaliza sinônimos automaticamente (ex: "ig" → "Instagram")
 - Tema: salvo em `profiles.theme` (`"light" | "dark" | "system"`), aplicado via classe no `<html>`
 
 ## Motor de Automações
 
-Automações são salvas em `automations.flow` (JSONB) e **executadas de verdade** por uma Supabase Edge Function.
-
-### Arquitetura
-
-```
-leads (INSERT/UPDATE)
-  → PostgreSQL trigger leads_automation_trigger
-    → pg_net → POST /functions/v1/automation-runner
-      → filtra automações ativas da empresa
-      → confere configData do gatilho (tag específica, etapa, atendente…)
-      → executa actionItems dos nós "acoes" em sequência
-```
+Automações são salvas em `automations.flow` (JSONB) e **executadas de verdade** por uma Supabase Edge Function (~2.700 linhas). **Não editar o runner sem ler esta seção completa — a função tem múltiplas rotas e tipos de nó que interagem entre si.**
 
 ### Arquivo da Edge Function
 `supabase/functions/automation-runner/index.ts`
 
-### SQL Migration
-`supabase/migrations/automation_engine_setup.sql`
+### SQL Migrations
+- `supabase/migrations/automation_engine_setup.sql` — setup principal (trigger PostgreSQL, pg_net, automation_runner_config)
+- `supabase/migrations/20260529000001_automation_pending.sql` — tabela `automation_pending` + job pg_cron para retomar esperas
+
+### Rotas da Edge Function
+
+O runner é uma única Edge Function com múltiplos pontos de entrada por path:
+
+| Rota | Auth | Quando é chamada |
+|------|------|-----------------|
+| `POST /automation-runner` | `AUTOMATION_SECRET` no header | PostgreSQL trigger via pg_net (eventos do banco) |
+| `POST /automation-runner/manual` | JWT do usuário | UI executa automação manualmente em 1 lead |
+| `POST /automation-runner/webhook/<automationId>` | Sem auth (token no body opcional) | Webhook externo por automação (`http_webhook`) |
+| `POST /automation-runner/mcp-trigger` | Chave MCP | Ferramenta MCP dispara automação (`mcp_tool`) |
+| `POST /automation-runner/resume-reply` | Service key | `zapi-webhook` chama ao receber resposta do contato (Bloco Mensagem → Entrada do usuário) |
+| `POST /automation-runner` com `{ resume: true }` | `AUTOMATION_SECRET` | pg_cron chama a cada minuto para retomar `automation_pending` |
+
+### Arquitetura geral
+
+```
+Evento do banco (INSERT/UPDATE em leads)
+  → PostgreSQL trigger leads_automation_trigger
+    → pg_net → POST /automation-runner  (Authorization: Bearer AUTOMATION_SECRET)
+      → runTrigger(): filtra automações ativas da empresa com trigger_type correspondente
+      → confere configData do gatilho (tag, etapa, atendente, campo…)
+      → executa nós do flow em sequência
+
+Gatilho manual (UI)
+  → POST /automation-runner/manual  (Authorization: Bearer <JWT>)
+    → handleManual(): trigger_type="lead_manual", automation_id obrigatório
+
+Webhook externo
+  → POST /automation-runner/webhook/<automationId>
+    → handleWebhook(): trigger_type="http_webhook", interpola campos do body no contexto
+
+Ferramenta MCP
+  → POST /automation-runner/mcp-trigger
+    → handleMcpTrigger(): trigger_type="mcp_tool"
+
+Resposta WhatsApp (Entrada do usuário)
+  → zapi-webhook recebe mensagem do contato
+    → POST /automation-runner/resume-reply
+      → handleResumeReply(): retoma o flow a partir do sub-bloco que aguardava resposta
+
+Retomada de esperas (pg_cron — 1x/min)
+  → POST /automation-runner  com body { resume: true }
+    → handleResume(): processa registros vencidos em automation_pending
+```
+
+### Tipos de nós do flow (`automations.flow.nodes[].type`)
+
+| Tipo | O que faz |
+|------|-----------|
+| `start` | Ignorado (ponto de entrada visual) |
+| `note` | Ignorado (anotação no canvas) |
+| `acoes` | Executa lista de `actionItems` em sequência |
+| `condicoes` | Avalia `conditionItems`; segue branch `true` ou `false` |
+| `espera` | Pausa o flow pelo tempo/janela configurada em `espera` |
+| `api` | Executa requisições HTTP definidas em `apiConfig.requests`; resposta vira datasource |
+| `campos` | Operações de campo: `mapeamento` (escreve valor no lead) ou `analise_telefone` (parse de número) |
+| `ia` | Bloco de IA BYOK: executa `iaActions` usando chave do provedor em `ai_provider_keys` |
+| `randomizador` | Distribui execução entre branches por percentual (`randomBranches`) |
+| `mensagem` | Envia mensagens WhatsApp via `subBlocks`; pode pausar para aguardar resposta |
+
+### Bloco de IA (`ia`)
+
+Usa a chave BYOK da empresa em `ai_provider_keys`. Cada `IaAction` em `iaActions`:
+
+| Tipo | Descrição |
+|------|-----------|
+| `assistente_chat` | Chat com histórico de conversa WhatsApp do lead |
+| `gerar_texto` | Geração de texto livre com instruções |
+| `invocar_agente` | Chama um agente configurado (`agentId`) |
+| `transcricao_audio` | Transcreve áudio de `whatsapp_messages` via OpenAI Whisper |
+| `intencao` | Classifica intenção do lead entre opções configuradas |
+| `sentimento` | Classifica sentimento entre opções configuradas |
+| `extrator_params` | Extrai parâmetros estruturados da conversa |
+
+Provedores: `openai`, `anthropic`, `google`. Resultado disponível como `{{outputVar.resposta}}` nos nós seguintes.
+
+### Bloco Mensagem (`mensagem`)
+
+Envia via WhatsApp usando a conexão definida em `node.connectionId` (tabela `whatsapp_connections`). Sub-blocos (`subBlocks`) processados em sequência:
+
+| Sub-bloco | O que faz |
+|-----------|-----------|
+| `mensagem_texto` | Envia texto (suporta botões de resposta rápida) |
+| `mensagem_audio` | Envia arquivo de áudio |
+| `arquivo_anexo` | Envia arquivo por URL direta |
+| `arquivo_url` | Envia arquivo por URL com download prévio |
+| `atraso_tempo` | Pausa N segundos entre sub-blocos (inline se ≤ 90s, senão `automation_pending`) |
+| `entrada_usuario` | Envia mensagem e **pausa o flow** aguardando resposta do contato → `resume-reply` retoma quando `zapi-webhook` receber a mensagem; timeout configu rável |
+
+Mensagens são gravadas em `whatsapp_messages`. Respostas do contato chegam via `zapi-webhook` → `resume-reply`.
+
+### Bloco Espera (`espera`)
+
+| Tipo | Comportamento |
+|------|--------------|
+| `segundos` ≤ 90s | `setTimeout` inline (Edge Function aguarda) |
+| `segundos` > 90s | Insere em `automation_pending`, pg_cron retoma |
+| `minutos`, `horas`, `dias` | Insere em `automation_pending`, pg_cron retoma |
+| `intervalo_semana` | Se dentro da janela: continua; senão, agenda para próximo início de janela |
+| `dia_horario` | Agenda para data/hora configurada (campo do lead ou data fixa) |
+| `usuario_parou` | Agenda para `now() + amount segundos` |
+
+### Gatilhos implementados
+
+**Do PostgreSQL** (via `leads_automation_trigger` + pg_net):
+`lead_criado`, `neg_criado`, `neg_movido`, `neg_ganho`, `neg_perdido`, `neg_restaurado`, `atend_atribuido`, `atend_retirado`, `tag_adicionada`, `tag_removida`, `campo_alterado`
+
+**Da UI / externos**:
+- `lead_manual` — execução manual por lead (rota `/manual`, JWT)
+- `http_webhook` — webhook externo por automação (rota `/webhook/<id>`)
+- `mcp_tool` — ferramenta MCP (rota `/mcp-trigger`)
+- `outra_automacao` — disparado internamente pela ação `iniciar_automacao`
+
+### Ações implementadas (nó `acoes`)
+
+`mover_etapa`, `duplicar_negocio`, `criar_lead`, `criar_negocio`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `enviar_notificacao`, `iniciar_automacao`
+
+### Variáveis de contexto interpoladas
+
+O runner interpola `{{variavel}}` nos textos. Fontes disponíveis:
+- Campos do lead (`{{lead.nome}}`, `{{lead.whatsapp}}`, `{{lead.email}}`, campos adicionais…)
+- Saídas de blocos de IA (`{{outputVar.resposta}}`)
+- Saídas de blocos API (`{{datasource.campo}}`)
+- Dados de análise de telefone (`{{datasource.phone}}`, `.country`, `.valid`…)
+- Respostas do usuário capturadas por Entrada do usuário (`{{varName}}`)
+- Gatilho: `{{gatilho.tipo}}`, `{{gatilho.tag}}`, `{{gatilho.etapa}}`…
 
 ### Setup (uma vez por projeto Supabase)
 
-1. **Deploy da Edge Function**
-   - No painel Supabase → Edge Functions → New Function → nome: `automation-runner`
-   - Cole o conteúdo de `supabase/functions/automation-runner/index.ts`
-   - Em Secrets, adicione: `AUTOMATION_SECRET=<valor-aleatorio>` (openssl rand -hex 32)
-
-2. **SQL Migration**
-   - Abra `supabase/migrations/automation_engine_setup.sql`
-   - Preencha `REPLACE_WITH_YOUR_SUPABASE_URL` e `REPLACE_WITH_A_RANDOM_SECRET` (mesmo valor do secret acima)
-   - Execute no SQL Editor do Supabase
-
-3. **Verificar extensão pg_net**
-   - Dashboard → Database → Extensions → pg_net (deve estar habilitado por padrão no Supabase)
-
-4. **Bloco Espera — setup adicional (uma vez)**
-   - Execute `supabase/migrations/20260529000001_automation_pending.sql` no SQL Editor do Supabase
-   - Isso cria a tabela `automation_pending` e um job pg_cron que chama a Edge Function a cada minuto para retomar automações pausadas
-   - Pré-requisito: `automation_runner_config` já deve ter `supabase_url` e `automation_secret` (feito na migration principal)
-   - Verifique pg_cron: Dashboard → Database → Extensions → pg_cron
-
-### Como funciona o bloco Espera na execução
-
-| Tipo | Comportamento no runner |
-|------|------------------------|
-| `segundos` ≤ 90s | `setTimeout` inline — a Edge Function aguarda antes de continuar |
-| `segundos` > 90s | Insere em `automation_pending`, pg_cron retoma após o delay |
-| `minutos`, `horas`, `dias` | Insere em `automation_pending`, pg_cron retoma após o delay |
-| `intervalo_semana` | Se já dentro da janela: continua imediatamente; senão, agenda para o próximo início de janela |
-| `dia_horario` | Agenda para a data/hora configurada (se no futuro); se inválida, continua imediatamente |
-| `usuario_parou` | Agenda para `now() + amount segundos` |
-
-### Gatilhos implementados (disparam do PostgreSQL)
-`lead_criado`, `neg_criado`, `neg_movido`, `neg_ganho`, `neg_perdido`, `neg_restaurado`, `atend_atribuido`, `atend_retirado`, `tag_adicionada`, `tag_removida`
-
-### Ações implementadas (executam no banco via service role)
-`mover_etapa`, `ganhar_negocio`, `restaurar_negocio`, `perder_negocio`, `transf_atend_neg`, `transf_atend_lead`, `remover_atend_neg`, `remover_atend_lead`, `add_produto_neg`, `rem_produto_neg`, `remover_negocio`, `adicionar_tags`, `remover_tags`, `adicionar_listas`, `remover_listas`, `comentario_lead`, `deletar_lead`, `criar_atividade`, `enviar_notificacao`, `iniciar_automacao`
+1. **Deploy da Edge Function** — Supabase → Edge Functions → `automation-runner`. Secret: `AUTOMATION_SECRET=<openssl rand -hex 32>`
+2. **SQL Migration principal** — `automation_engine_setup.sql` (preencher URL e secret)
+3. **Migration esperas** — `20260529000001_automation_pending.sql`
+4. **Extensões necessárias** — `pg_net` (triggers) e `pg_cron` (retomada de esperas)
 
 ---
 
