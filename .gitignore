@@ -26,9 +26,13 @@ dist-ssr
 .claude/skills/
 .vercel
 
+# Variáveis de ambiente (nunca versionar)
+.env
+.env.*
+!.env.example
+
 # Tooling de IA / rascunhos locais (não versionar)
 .agents/
 .superpowers/
 skills-lock.json
-.env.backup-local
 teste rezult.dc
