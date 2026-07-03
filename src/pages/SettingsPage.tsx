@@ -1642,7 +1642,6 @@ function PlanosSection() {
       ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
     };
 
-    const tab = window.open("", "_blank");
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
         method: "POST",
@@ -1661,12 +1660,9 @@ function PlanosSection() {
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
-      if (tab) tab.location.href = data.url;
-      else window.open(data.url, "_blank");
+      window.location.href = data.url;
     } catch (err) {
-      tab?.close();
       toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
-    } finally {
       setUpgradeLoading(null);
     }
   };
