@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import DOMPurify from "dompurify";
 import { toast } from "sonner";
 import fixWebmDuration from "fix-webm-duration";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -2920,7 +2921,7 @@ export default function MultiatendimentoPage() {
                       <div key={n.id} style={{ background: "#FFF", border: "1px solid #EEE", borderRadius: 8, padding: "8px 10px" }}>
                         <div
                           style={{ fontSize: 12, color: "#333", lineHeight: 1.5, wordBreak: "break-word" }}
-                          dangerouslySetInnerHTML={{ __html: n.description }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
                         />
                         <div style={{ fontSize: 10, color: "#AAA", marginTop: 4 }}>
                           {n.userName ? `${n.userName} · ` : ""}{new Date(n.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}

@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
@@ -847,7 +848,7 @@ export default function LeadDetailPage() {
   };
 
   const handleSaveNote = async () => {
-    const html = newNoteDivRef.current?.innerHTML ?? "";
+    const html = DOMPurify.sanitize(newNoteDivRef.current?.innerHTML ?? "");
     if (!html.trim() || html === "<br>") return;
     try {
       await addActivity(lead.id, {
@@ -1889,7 +1890,7 @@ export default function LeadDetailPage() {
                                   className="rounded-md h-7 text-xs"
                                   style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
                                   onClick={() => {
-                                    const html = editingDivRef.current?.innerHTML ?? "";
+                                    const html = DOMPurify.sanitize(editingDivRef.current?.innerHTML ?? "");
                                     if (html.trim()) {
                                       updateActivity(lead.id, n.id, html);
                                       toast.success("Anotação atualizada!");
@@ -1906,7 +1907,7 @@ export default function LeadDetailPage() {
                           <div
                             className="text-sm note-content"
                             style={{ color: "#111111" }}
-                            dangerouslySetInnerHTML={{ __html: n.description }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
                           />
                         )}
                       </div>
