@@ -101,7 +101,7 @@ header {
 
 /* Logo / brand — espelha o markup do site principal */
 .logo, .brand {
-  display: inline-flex; align-items: center; gap: 11px;
+  display: inline-flex; align-items: flex-start; gap: 11px;
   color: var(--text);
 }
 
@@ -110,12 +110,12 @@ header {
   background: var(--primary);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 20px var(--glow-soft);
-  flex-shrink: 0;
+  flex-shrink: 0; margin-top: 1px;
 }
 .logo-mark span { font-weight: 700; font-size: 13px; letter-spacing: -0.05em; color: var(--on-primary); }
 
 .logo-word {
-  display: flex; flex-direction: column; gap: 0;
+  display: block;
   font-weight: 600; font-size: 19px; letter-spacing: -0.04em; line-height: 1;
 }
 .logo-word b { font-weight: 600; color: var(--primary); }
