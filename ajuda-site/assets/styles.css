@@ -99,25 +99,12 @@ header {
 
 .nav { display: flex; align-items: center; justify-content: space-between; width: 100%; }
 
-/* Logo / brand */
-.brand {
-  display: flex; align-items: center; gap: 11px;
-  font-weight: 600; font-size: 17px; letter-spacing: -0.035em;
+/* Logo / brand — espelha o markup do site principal */
+.logo, .brand {
+  display: inline-flex; align-items: center; gap: 11px;
   color: var(--text);
 }
 
-/* Legado: <span class="logo">R</span> */
-.brand .logo {
-  width: 34px; height: 34px; border-radius: 11px;
-  background: var(--primary);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 20px var(--glow-soft);
-  font-weight: 800; font-size: 15px;
-  color: var(--on-primary);
-  flex-shrink: 0;
-}
-
-/* Novo markup: <span class="logo-mark"><span>RZ</span></span> */
 .logo-mark {
   width: 34px; height: 34px; border-radius: 11px;
   background: var(--primary);
@@ -127,12 +114,14 @@ header {
 }
 .logo-mark span { font-weight: 700; font-size: 13px; letter-spacing: -0.05em; color: var(--on-primary); }
 
-.brand > span:not(.logo):not(.logo-mark) {
+.logo-word {
   display: flex; flex-direction: column; gap: 0;
+  font-weight: 600; font-size: 19px; letter-spacing: -0.04em; line-height: 1;
 }
-.brand > span:not(.logo):not(.logo-mark) small {
+.logo-word b { font-weight: 600; color: var(--primary); }
+.logo-word small {
   display: block; font-size: 11px; font-weight: 500;
-  color: var(--text-subtle); letter-spacing: 0; margin-top: -1px;
+  color: var(--text-subtle); letter-spacing: 0; margin-top: 3px; line-height: 1;
 }
 
 .nav-actions { display: flex; align-items: center; gap: 18px; }
