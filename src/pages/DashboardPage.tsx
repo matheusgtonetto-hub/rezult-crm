@@ -12,6 +12,13 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { OriginPanel } from "@/components/dashboard/OriginPanel";
+import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel";
+import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
+import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
+import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
+import { fmt, pct, parseEntryDate, tooltip, deltaPct, usePriorPeriod } from "@/components/dashboard/useDashboardHelpers";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   stage_change: "Mudança de etapa",
@@ -27,17 +34,9 @@ const ACTIVITY_LABELS: Record<string, string> = {
   email: "E-mail",
 };
 
-const ORIGIN_COLORS: Record<string, string> = {
-  "Instagram": "#E1306C",
-  "Facebook Ads": "#1877F2",
-  "Indicação": "#10B981",
-  "Site": "#6366F1",
-  "Outro": "#94A3B8",
-};
-
 export default function DashboardPage() {
   const {
-    leads, columns, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons,
+    leads, columns, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons, crmTags,
   } = useCRM();
 
   const [dateRange, setDateRange] = useState<DateRangeValue>({
@@ -52,69 +51,84 @@ export default function DashboardPage() {
   const wonLeads = allLeads.filter(l => l.dealStatus === "won");
   const lostLeads = allLeads.filter(l => l.dealStatus === "lost");
 
-  const fmt = (v: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-  const pct = (n: number, d: number) =>
-    d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "—";
-
   // Normaliza para início e fim do dia no fuso local
   const periodCutoff = new Date(dateRange.from);
   periodCutoff.setHours(0, 0, 0, 0);
   const periodTo = new Date(dateRange.to);
   periodTo.setHours(23, 59, 59, 999);
 
-  // Parseia entryDate (string YYYY-MM-DD) como hora local, não UTC
-  // entryDate vazio → retorna null (lead sem data é sempre incluído)
-  const parseEntryDate = (d: string) => (d ? new Date(d + "T00:00:00") : null);
   const inPeriod = (d: Date) => d >= periodCutoff && d <= periodTo;
 
-  const periodLeads = useMemo(
-    () => allLeads.filter(l => {
-      const d = parseEntryDate(l.entryDate);
-      return d !== null && inPeriod(d);
-    }),
-    [allLeads, dateRange],
-  );
+  const { priorFrom, priorTo } = usePriorPeriod(dateRange);
+  const inPriorPeriod = (d: Date) => d >= priorFrom && d <= priorTo;
 
-  const { wonInPeriod, lostInPeriod, revenueInPeriod } = useMemo(() => {
+  // periodLeads e priorPeriodLeads classificados numa única passada sobre allLeads
+  // (evita duas iterações .filter() completas quando o objetivo é só comparar os dois períodos).
+  const { periodLeads, priorPeriodLeads } = useMemo(() => {
+    const cur: typeof allLeads = [];
+    const prior: typeof allLeads = [];
+    allLeads.forEach(l => {
+      const d = parseEntryDate(l.entryDate);
+      if (d === null) return;
+      if (inPeriod(d)) cur.push(l);
+      else if (inPriorPeriod(d)) prior.push(l);
+    });
+    return { periodLeads: cur, priorPeriodLeads: prior };
+  }, [allLeads, dateRange]);
+
+  const { wonInPeriod, lostInPeriod, revenueInPeriod, wonPrior, lostPrior, revenuePrior } = useMemo(() => {
     const wonIds = new Set<string>();
     const lostIds = new Set<string>();
+    const wonPriorIds = new Set<string>();
+    const lostPriorIds = new Set<string>();
     allLeads.forEach(lead => {
       lead.activities.forEach(act => {
-        if (!inPeriod(new Date(act.date))) return;
-        if (act.type === "won") wonIds.add(lead.id);
-        if (act.type === "lost") lostIds.add(lead.id);
+        const d = new Date(act.date);
+        if (inPeriod(d)) {
+          if (act.type === "won") wonIds.add(lead.id);
+          if (act.type === "lost") lostIds.add(lead.id);
+        } else if (inPriorPeriod(d)) {
+          if (act.type === "won") wonPriorIds.add(lead.id);
+          if (act.type === "lost") lostPriorIds.add(lead.id);
+        }
       });
     });
     const w = wonLeads.filter(l => wonIds.has(l.id));
     const lo = lostLeads.filter(l => lostIds.has(l.id));
-    return { wonInPeriod: w, lostInPeriod: lo, revenueInPeriod: w.reduce((s, l) => s + l.value, 0) };
+    const wp = wonLeads.filter(l => wonPriorIds.has(l.id));
+    const lp = lostLeads.filter(l => lostPriorIds.has(l.id));
+    return {
+      wonInPeriod: w, lostInPeriod: lo, revenueInPeriod: w.reduce((s, l) => s + l.value, 0),
+      wonPrior: wp, lostPrior: lp, revenuePrior: wp.reduce((s, l) => s + l.value, 0),
+    };
   }, [allLeads, wonLeads, lostLeads, dateRange]);
 
+  // Chave por ano+mês (não só mês) — evita misturar anos diferentes na mesma barra
+  // quando o período selecionado cruza uma virada de ano ou passa de 12 meses.
   const monthlyData = useMemo(() => {
-    const months = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-    const data = months.map(mes => ({ mes, novos: 0, ganhos: 0, perdidos: 0 }));
+    const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+    const map = new Map<string, { key: string; mes: string; novos: number; ganhos: number; perdidos: number }>();
+    const bucketFor = (d: Date) => {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      let entry = map.get(key);
+      if (!entry) {
+        entry = { key, mes: `${monthNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 };
+        map.set(key, entry);
+      }
+      return entry;
+    };
     allLeads.forEach(lead => {
       const e = parseEntryDate(lead.entryDate);
-      if (e && e >= periodCutoff && e <= periodTo) data[e.getMonth()].novos++;
+      if (e && e >= periodCutoff && e <= periodTo) bucketFor(e).novos++;
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
-        if (act.type === "won") data[d.getMonth()].ganhos++;
-        if (act.type === "lost") data[d.getMonth()].perdidos++;
+        if (act.type === "won") bucketFor(d).ganhos++;
+        if (act.type === "lost") bucketFor(d).perdidos++;
       });
     });
-    return data;
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [allLeads, dateRange]);
-
-  const originData = useMemo(() => {
-    const map = new Map<string, number>();
-    periodLeads.forEach(l => {
-      const o = l.origin || "Outro";
-      map.set(o, (map.get(o) || 0) + 1);
-    });
-    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [periodLeads]);
 
   const lossReasonData = useMemo(() => {
     const map = new Map<string, number>();
@@ -125,9 +139,19 @@ export default function DashboardPage() {
     return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
   }, [lostInPeriod, lossReasons]);
 
+  // Considera responsibles[] (múltiplos responsáveis) quando presente, com fallback para
+  // o campo singular responsible — antes só o singular era considerado, o que sub-contava
+  // negócios com mais de um responsável. Nota: isso conta receita/negócio uma vez POR
+  // responsável (atribuição, não rateio) — um negócio com 2 responsáveis aparece inteiro
+  // na linha de cada um, por design, não é bug de soma duplicada.
+  const leadsForMember = (ml: typeof periodLeads, m: string) => ml.filter(l => {
+    const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+    return resps.includes(m);
+  });
+
   const agentPerformance = useMemo(() => {
     return teamMembers.map(m => {
-      const ml = periodLeads.filter(l => l.responsible === m);
+      const ml = leadsForMember(periodLeads, m);
       const won = ml.filter(l => l.dealStatus === "won");
       const lost = ml.filter(l => l.dealStatus === "lost").length;
       const totalValue = won.reduce((s, l) => s + l.value, 0);
@@ -147,7 +171,7 @@ export default function DashboardPage() {
 
   const donutData = useMemo(() => {
     return teamMembers.map(m => {
-      const ml = periodLeads.filter(l => l.responsible === m);
+      const ml = leadsForMember(periodLeads, m);
       const value = donutMode === "value" ? ml.reduce((s, l) => s + l.value, 0) : ml.length;
       return { name: m, value, color: memberColors[m] || "#888" };
     }).filter(d => d.value > 0);
@@ -273,51 +297,58 @@ export default function DashboardPage() {
 
         {/* ──────────── NEGÓCIOS ──────────── */}
         <TabsContent value="negocios" className="space-y-4 mt-0">
-          {/* KPIs de negócios — todos os pipelines, filtrados pelo período */}
+          {/* KPIs de negócios — todos os pipelines, filtrados pelo período, com variação vs. período anterior */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                label: "Total de negócios",
-                value: periodLeads.length,
-                sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
-                icon: DollarSign,
-                color: "text-primary",
-              },
-              {
-                label: "Total de ganhos",
-                value: wonInPeriod.length,
-                sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
-                conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
-                icon: Trophy,
-                color: "text-success",
-              },
-              {
-                label: "Total perdidos",
-                value: lostInPeriod.length,
-                sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
-                conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
-                icon: TrendingUp,
-                color: "text-destructive",
-              },
-              {
-                label: "Total em aberto",
-                value: periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").length,
-                sub: fmt(periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open").reduce((s, l) => s + l.value, 0)),
-                icon: Clock,
-                color: "text-primary",
-              },
-            ].map(c => (
-              <div key={c.label} className="bg-card rounded-xl p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{c.label}</span>
-                  <c.icon size={15} className={c.color} />
-                </div>
-                <p className="text-2xl leading-none font-bold text-foreground">{c.value}</p>
-                <p className="text-[12px] text-muted-foreground mt-2">{c.sub}</p>
-                {"conv" in c && c.conv && (
-                  <p className={`text-[11px] font-semibold mt-1.5 ${c.color}`}>{c.conv}</p>
-                )}
-              </div>
+            {(() => {
+              const openInPeriod = periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
+              const openPrior = priorPeriodLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
+              return [
+                {
+                  label: "Total de negócios",
+                  value: periodLeads.length,
+                  sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
+                  icon: DollarSign,
+                  color: "text-primary",
+                  delta: deltaPct(periodLeads.length, priorPeriodLeads.length),
+                },
+                {
+                  label: "Total de ganhos",
+                  value: wonInPeriod.length,
+                  sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
+                  conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
+                  icon: Trophy,
+                  color: "text-success",
+                  delta: deltaPct(wonInPeriod.length, wonPrior.length),
+                },
+                {
+                  label: "Total perdidos",
+                  value: lostInPeriod.length,
+                  sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
+                  conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
+                  icon: TrendingUp,
+                  color: "text-destructive",
+                  delta: deltaPct(lostInPeriod.length, lostPrior.length),
+                },
+                {
+                  label: "Total em aberto",
+                  value: openInPeriod.length,
+                  sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
+                  icon: Clock,
+                  color: "text-primary",
+                  delta: deltaPct(openInPeriod.length, openPrior.length),
+                },
+              ];
+            })().map(c => (
+              <KpiCard
+                key={c.label}
+                label={c.label}
+                value={c.value}
+                sub={c.sub}
+                conv={"conv" in c ? c.conv : undefined}
+                icon={c.icon}
+                color={c.color}
+                deltaPct={c.delta}
+              />
             ))}
           </div>
 
@@ -342,24 +373,7 @@ export default function DashboardPage() {
 
           {/* Origins + Loss reasons */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Origem dos leads</h3>
-              {originData.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sem dados no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={originData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} width={90} />
-                    <Tooltip contentStyle={tooltip} />
-                    <Bar dataKey="value" name="Leads" radius={[0, 4, 4, 0]}>
-                      {originData.map((e, i) => <Cell key={i} fill={ORIGIN_COLORS[e.name] ?? "hsl(var(--primary))"} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+            <OriginPanel periodLeads={periodLeads} />
 
             <div className="bg-card border border-gray-200 rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Motivos de perda</h3>
@@ -483,6 +497,13 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          <UtmAttributionPanel periodLeads={periodLeads} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />
+            <NoNextActionPanel allLeads={allLeads} />
+          </div>
         </TabsContent>
 
         {/* ──────────── ATIVIDADES ──────────── */}
@@ -859,6 +880,8 @@ export default function DashboardPage() {
                     );
                   })()}
                 </div>
+
+                <StageVelocityPanel funnelPipeline={funnelPipeline} allLeads={allLeads} funnelResponsible={funnelResponsible} />
 
                 {/* Conversion table */}
                 <div className="bg-card border border-gray-200 rounded-xl p-4">
