@@ -112,7 +112,7 @@ header {
   box-shadow: 0 0 20px var(--glow-soft);
   flex-shrink: 0; margin-top: 1px;
 }
-.logo-mark span { font-weight: 700; font-size: 13px; letter-spacing: -0.05em; color: var(--on-primary); }
+.logo-mark span { font-weight: 700; font-size: 13px; letter-spacing: -0.05em; color: #fff; }
 
 .logo-word {
   display: block;
