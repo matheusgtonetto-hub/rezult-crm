@@ -943,9 +943,12 @@ export default function MultiatendimentoPage() {
           const d = new Date(m.momment ?? m.created_at);
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-          // Mensagens de sistema: busca conversa pelo ID direto (phone = conv ID) ou por telefone
+          // Mensagens de sistema: casa por ID direto, ou por telefone E instância (cada
+          // instância do mesmo lead é uma conversa separada e recebe seu próprio evento).
           if (m.type === "system") {
-            const sysConv = convListRef.current.find(c => c.id === msgPhone || phonesMatch(c.phone ?? "", msgPhone));
+            const sysConv = convListRef.current.find(c =>
+              c.id === msgPhone || (phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst))
+            );
             if (sysConv) {
               setConvStates(prev => {
                 const cur = prev[sysConv.id];
@@ -1697,60 +1700,63 @@ export default function MultiatendimentoPage() {
   function handleTransfer(memberName: string) {
     if (!activeId || !user) return;
     const fromName = user.email?.split("@")[0] ?? "Você";
-    const msgId = crypto.randomUUID();
     const sysText = `Atendimento transferido para ${memberName} por ${fromName}`;
-    const sysMsg: Msg = {
-      id:   msgId,
-      from: "system",
-      time: nowTime(),
-      kind: "system",
-      text: sysText,
-      date: "Hoje",
-    };
+    const timeStr = nowTime();
 
-    // Functional update garante que usamos o estado mais recente (evita closure stale)
+    // Conversas-alvo: TODAS as conversas do mesmo lead (uma por instância). Assim o
+    // evento de transferência aparece no histórico de qualquer instância. Sem lead
+    // vinculado, apenas a conversa ativa.
+    const linkedLead = resolveLeadForConv(active);
+    const targets = linkedLead
+      ? convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id)
+      : (active ? [active] : []);
+    if (active && !targets.some(c => c.id === activeId)) targets.push(active);
+
+    for (const conv of targets) {
+      const msgId = crypto.randomUUID();
+      const sysMsg: Msg = { id: msgId, from: "system", time: timeStr, kind: "system", text: sysText, date: "Hoje" };
+      // Em memória apenas se a conversa já estiver carregada (a ativa sempre está).
+      setConvStates(prev => {
+        const cur = prev[conv.id];
+        if (!cur) return prev;
+        if (cur.messages.some(x => x.id === msgId)) return prev;
+        return { ...prev, [conv.id]: { ...cur, messages: [...cur.messages, sysMsg] } };
+      });
+      // Persiste com a INSTÂNCIA da conversa — a query de histórico filtra por phone + instance_id.
+      const phoneForSystem = (conv.phone ?? "").replace(/\D/g, "") || conv.id;
+      supabase.from("whatsapp_messages").insert({
+        id:          msgId,
+        owner_id:    tenantId,
+        instance_id: conv.instanceId ?? "system",
+        phone:       phoneForSystem,
+        from_me:     false,
+        body:        sysText,
+        type:        "system",
+        momment:     Date.now(),
+        sender_name: null,
+      }).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
+    }
+
+    // assignedTo é por conversa: atualiza só a conversa ativa (a que foi transferida).
     setConvStates(prev => {
       const cur = prev[activeId] ?? DEFAULT_CS;
-      return { ...prev, [activeId]: { ...cur, assignedTo: memberName, messages: [...cur.messages, sysMsg] } };
+      return { ...prev, [activeId]: { ...cur, assignedTo: memberName } };
     });
-
-    // Persiste assignedTo na conversa
     supabase.from("whatsapp_conversations")
       .update({ assigned_to: memberName })
       .eq("id", activeId)
       .then(({ error }) => { if (error) console.error("updateCs assignedTo:", error); });
 
-    // Atualiza o responsável no lead vinculado (aparece no card do Pipeline)
-    const linkedLead = resolveLeadForConv(active);
+    // Responsável do lead + atividade FIXA (evento de sistema, não anotação editável).
     if (linkedLead) {
       updateLead(linkedLead.id, { responsible: memberName });
-      // Registra nas anotações do negócio (visível em Detalhes do negócio)
       addActivity(linkedLead.id, {
-        type: "note",
+        type: "transfer",
         date: new Date().toISOString(),
         description: sysText,
         userName: fromName,
       });
     }
-
-    // Persiste mensagem de sistema no banco para sobreviver a page refresh
-    const phoneForSystem = active?.phone?.replace(/\D/g, "") || activeId;
-    supabase.from("whatsapp_messages").insert({
-      id:          msgId,
-      owner_id:    tenantId,
-      instance_id: instances[0]?.instanceId ?? "system",
-      phone:       phoneForSystem,
-      from_me:     false,
-      body:        sysText,
-      type:        "system",
-      momment:     Date.now(),
-      sender_name: null,
-    }).then(({ error }) => {
-      if (error) {
-        console.error("Erro ao salvar evento de transferência:", error);
-        toast.error(`Erro ao salvar histórico: ${error.message}`);
-      }
-    });
 
     toast.success(`Atendimento transferido para ${memberName}`);
     setShowTransferDialog(false);

@@ -106,6 +106,7 @@ const ACT_META: Record<ActivityType, { color: string; bg: string; label: string;
   email:        { color: "#F59E0B", bg: "#FEF3C7", label: "E-mail",          Icon: Mail },
   follow_up:    { color: "#8B5CF6", bg: "#EDE9FE", label: "Follow-up",       Icon: RefreshCw },
   task:         { color: "#666",    bg: "#F5F5F5", label: "Tarefa",          Icon: CheckSquare },
+  transfer:     { color: "#8B5CF6", bg: "#EDE9FE", label: "Transferência",   Icon: ArrowLeftRight },
 };
 
 const formatBRL = (v: number) =>

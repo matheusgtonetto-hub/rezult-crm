@@ -3,7 +3,7 @@
 export type Priority = "Alta" | "Média" | "Baixa";
 export type LeadOrigin = "Instagram" | "Facebook Ads" | "Google Ads" | "Meta Ads" | "TikTok Ads" | "LinkedIn Ads" | "YouTube Ads" | "Email Marketing" | "Orgânico" | "WhatsApp" | "Evento" | "Indicação" | "Site" | "Outro";
 export type TaskStatus = "Pendente" | "Concluída";
-export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created" | "meeting" | "call" | "follow_up" | "task" | "email";
+export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created" | "meeting" | "call" | "follow_up" | "task" | "email" | "transfer";
 export type PipelineCategory = string;
 
 export interface PipelineGroup {

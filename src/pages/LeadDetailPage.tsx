@@ -978,7 +978,7 @@ export default function LeadDetailPage() {
   const SCHEDULED_TYPES: ActivityType[] = ["meeting", "call", "whatsapp", "email", "follow_up", "task"];
 
   const unifiedActivities = [...lead.activities]
-    .filter(a => a.type === "note" || a.type === "stage_change" || a.type === "won" || a.type === "lost" || SCHEDULED_TYPES.includes(a.type))
+    .filter(a => a.type === "note" || a.type === "stage_change" || a.type === "transfer" || a.type === "won" || a.type === "lost" || SCHEDULED_TYPES.includes(a.type))
     .sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
@@ -2158,9 +2158,11 @@ export default function LeadDetailPage() {
                     );
                   }
 
-                  // History entry (stage_change, won, lost)
+                  // History entry (stage_change, transfer, won, lost)
                   const meta = item.type === "stage_change"
                     ? { c: "#378ADD", I: ArrowRightLeft }
+                    : item.type === "transfer"
+                    ? { c: "#8B5CF6", I: ArrowRightLeft }
                     : item.type === "won"
                     ? { c: "#128A68", I: Trophy }
                     : { c: "#E24B4A", I: XCircle };
