@@ -503,7 +503,7 @@ export default function SetupPage() {
 
                           <ul className="space-y-1 flex-1 mb-3">
                             {(SETUP_PLAN_FEATURES[plan.key] ?? plan.features).map((f) => (
-                              <li key={f} className="flex items-start gap-2 text-[11px] text-foreground">
+                              <li key={f} className="flex items-start gap-2 text-[12px] text-foreground">
                                 <CircleCheck size={12} className="mt-0.5 shrink-0 fill-primary stroke-white" />
                                 {f}
                               </li>
