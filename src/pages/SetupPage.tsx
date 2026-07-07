@@ -63,6 +63,12 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
   emerald:  { semestral: "R$ 3.810,00",  anual: "R$ 6.272,00"  },
 };
 
+function renderFeature(text: string) {
+  const match = text.match(/^(\d+\s+\w+|\w+)([\s\S]*)$/);
+  if (!match) return <>{text}</>;
+  return <><strong className="font-semibold">{match[1]}</strong>{match[2]}</>;
+}
+
 const SETUP_PLAN_FEATURES: Record<string, string[]> = {
   silver: [
     "4 membros na empresa.",
@@ -71,6 +77,8 @@ const SETUP_PLAN_FEATURES: Record<string, string[]> = {
     "3 conexões multiatendimento.",
     "5 pipelines com até 8 etapas.",
     "3 integrações via Webhook.",
+    "Acesso à API e MCP.",
+    "Dashboards detalhados da operação.",
   ],
   platinum: [
     "15 membros na empresa.",
@@ -79,6 +87,8 @@ const SETUP_PLAN_FEATURES: Record<string, string[]> = {
     "10 conexões multiatendimento.",
     "20 pipelines com até 15 etapas.",
     "15 integrações via Webhook.",
+    "Acesso à API e MCP.",
+    "Dashboards detalhados da operação.",
   ],
   emerald: [
     "Membros ilimitados na empresa.",
@@ -87,6 +97,8 @@ const SETUP_PLAN_FEATURES: Record<string, string[]> = {
     "Conexões ilimitadas.",
     "Pipelines ilimitadas.",
     "Integrações ilimitadas.",
+    "Acesso à API e MCP.",
+    "Dashboards detalhados da operação.",
   ],
 };
 
@@ -505,7 +517,7 @@ export default function SetupPage() {
                             {(SETUP_PLAN_FEATURES[plan.key] ?? plan.features).map((f) => (
                               <li key={f} className="flex items-start gap-2 text-[12px] text-foreground">
                                 <CircleCheck size={12} className="mt-0.5 shrink-0 fill-primary stroke-white" />
-                                {f}
+                                {renderFeature(f)}
                               </li>
                             ))}
                           </ul>
