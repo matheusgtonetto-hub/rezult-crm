@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
@@ -1439,14 +1440,10 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
 
 // ── Dados dos planos para o dialog de upgrade ────────────────────────────────
 
-const UPGRADE_PRICES = {
-  silver:   { monthly: "price_1TougzHxAJVer2B2OhFa2dMf", semiannual: "price_1TougyHxAJVer2B2XcQObtEA", annual: "price_1TougzHxAJVer2B2pYF5yixE" },
-  platinum: { monthly: "price_1TougzHxAJVer2B21QUlvqh7", semiannual: "price_1Touh0HxAJVer2B2nc56t9f1", annual: "price_1TougyHxAJVer2B2U6e9SlEV" },
-  emerald:  { monthly: "price_1TougyHxAJVer2B2UWGevkxv", semiannual: "price_1TougzHxAJVer2B247BGzYO9", annual: "price_1TougzHxAJVer2B2pePEiWPm" },
-} as const;
+const UPGRADE_PRICES = STRIPE_PRICES;
 
-type UpgradePlanKey = keyof typeof UPGRADE_PRICES;
-type UpgradePeriod  = "monthly" | "semiannual" | "annual";
+type UpgradePlanKey = StripePlanKey;
+type UpgradePeriod  = StripeBillingPeriod;
 
 const UPGRADE_PLAN_INFO = [
   {

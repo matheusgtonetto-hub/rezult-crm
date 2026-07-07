@@ -4,6 +4,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { PLANS, type PlanDefinition } from "@/data/plans";
+import { STRIPE_PRICES } from "@/data/stripePrices";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,24 +35,6 @@ import {
 
 type Step = 1 | 2;
 type BillingTab = "mensal" | "semestral" | "anual";
-
-const STRIPE_PRICES = {
-  silver: {
-    monthly:    "price_1Tbp3sHLGbQg56rmYk9RbtKj",
-    semiannual: "price_1Tbp3sHLGbQg56rm6sleoFHK",
-    annual:     "price_1Tbp3sHLGbQg56rmuvxhNhoQ",
-  },
-  platinum: {
-    monthly:    "price_1Tbp7lHLGbQg56rmxz4NpynU",
-    semiannual: "price_1Tbp7lHLGbQg56rmnvtsYz4a",
-    annual:     "price_1Tbp7lHLGbQg56rmJcvQ4GY5",
-  },
-  emerald: {
-    monthly:    "price_1TbpAAHLGbQg56rmh1i1HdvY",
-    semiannual: "price_1TbpAAHLGbQg56rmzhs7ffCL",
-    annual:     "price_1TbpAAHLGbQg56rmYRFZlZ3I",
-  },
-} as const;
 
 type PlanKey = keyof typeof STRIPE_PRICES;
 

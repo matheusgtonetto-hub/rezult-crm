@@ -267,14 +267,6 @@ export default function DashboardPage() {
     });
   }, [funnelPipeline, allLeads, leads, dateRange, funnelResponsible]);
 
-  const tooltip = {
-    backgroundColor: "hsl(var(--card))",
-    border: "1px solid hsl(var(--card-border))",
-    borderRadius: 8,
-    color: "hsl(var(--foreground))",
-    fontSize: 12,
-  };
-
   const periodLabel = `${dateRange.from.toLocaleDateString("pt-BR")} – ${dateRange.to.toLocaleDateString("pt-BR")}`;
 
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
@@ -357,18 +349,22 @@ export default function DashboardPage() {
             <h3 className="text-sm font-semibold text-foreground mb-4">
               Evolução no período — {periodLabel}
             </h3>
-            <ResponsiveContainer width="100%" height={230}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
-                <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={tooltip} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="novos" name="Novos" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            {monthlyData.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={230}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltip} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Origins + Loss reasons */}
