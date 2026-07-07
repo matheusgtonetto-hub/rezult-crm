@@ -108,23 +108,31 @@ export default function DashboardPage() {
   const monthlyData = useMemo(() => {
     const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
     const map = new Map<string, { key: string; mes: string; novos: number; ganhos: number; perdidos: number }>();
-    const bucketFor = (d: Date) => {
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      let entry = map.get(key);
-      if (!entry) {
-        entry = { key, mes: `${monthNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 };
-        map.set(key, entry);
-      }
-      return entry;
-    };
+
+    // Pré-popula todos os meses do período para que meses sem dados apareçam com zero.
+    const cursor = new Date(periodCutoff);
+    cursor.setDate(1);
+    while (cursor <= periodTo) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
     allLeads.forEach(lead => {
       const e = parseEntryDate(lead.entryDate);
-      if (e && e >= periodCutoff && e <= periodTo) bucketFor(e).novos++;
+      if (e && e >= periodCutoff && e <= periodTo) {
+        const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}`;
+        const bucket = map.get(key);
+        if (bucket) bucket.novos++;
+      }
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
-        if (act.type === "won") bucketFor(d).ganhos++;
-        if (act.type === "lost") bucketFor(d).perdidos++;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const bucket = map.get(key);
+        if (!bucket) return;
+        if (act.type === "won") bucket.ganhos++;
+        if (act.type === "lost") bucket.perdidos++;
       });
     });
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
