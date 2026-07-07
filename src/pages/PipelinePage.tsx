@@ -981,73 +981,78 @@ export default function PipelinePage() {
                                                   </div>
                                                 ) : <div />;
                                               })()}
-                                              <Popover
-                                                open={wpPopoverLeadId === leadId}
-                                                onOpenChange={open => setWpPopoverLeadId(open ? leadId : null)}
-                                              >
-                                                <PopoverTrigger asChild>
-                                                  <button
-                                                    onClick={e => {
-                                                      e.stopPropagation();
-                                                      setWpPopoverLeadId(wpPopoverLeadId === leadId ? null : leadId);
-                                                    }}
-                                                    className="flex items-center justify-center transition-colors hover:bg-muted"
-                                                    style={{ width: 24, height: 24, borderRadius: 6 }}
-                                                    aria-label="Abrir chat WhatsApp"
-                                                  >
-                                                    <WhatsAppIcon size={18} />
-                                                  </button>
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                  className="w-60 p-3"
-                                                  align="end"
-                                                  onClick={e => e.stopPropagation()}
+                                              {zapiInstances.length === 0 && lead.whatsapp ? (
+                                                // Sem conexão mas tem número → abre WhatsApp Web direto
+                                                <button
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    window.open(`https://wa.me/${lead.whatsapp!.replace(/\D/g, "")}`, "_blank");
+                                                  }}
+                                                  className="flex items-center justify-center transition-colors hover:bg-muted"
+                                                  style={{ width: 24, height: 24, borderRadius: 6 }}
+                                                  aria-label="Abrir no WhatsApp Web"
                                                 >
-                                                  <p className="text-xs font-semibold text-[#111] mb-3">Enviar via WhatsApp</p>
-                                                  {zapiInstances.length > 0 ? (
-                                                    <div className="space-y-2">
-                                                      {zapiInstances.map(inst => (
-                                                        <label key={inst.instanceId} className="flex items-center gap-2 cursor-pointer">
-                                                          <input
-                                                            type="radio"
-                                                            name={`wp-inst-${leadId}`}
-                                                            checked={selectedZapiInstance === inst.instanceId}
-                                                            onChange={() => setSelectedZapiInstance(inst.instanceId)}
-                                                            className="accent-[#128A68]"
-                                                          />
-                                                          <span className="text-xs text-[#535353]">{inst.label}</span>
-                                                        </label>
-                                                      ))}
-                                                      <Button
-                                                        size="sm"
-                                                        className="w-full bg-[#128A68] hover:bg-[#128A68]/90 h-7 text-xs mt-1"
-                                                        onClick={e => {
-                                                          e.stopPropagation();
-                                                          openChat(leadId);
-                                                          setWpPopoverLeadId(null);
-                                                        }}
-                                                      >
-                                                        Abrir chat
-                                                      </Button>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="space-y-2">
-                                                      <p className="text-xs text-[#AAAAAA]">Nenhuma instância WhatsApp conectada.</p>
-                                                      <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="w-full h-7 text-xs border-[#EEEEEE]"
-                                                        onClick={e => {
-                                                          e.stopPropagation();
-                                                          navigate("/configuracoes");
-                                                        }}
-                                                      >
-                                                        Conectar WhatsApp
-                                                      </Button>
-                                                    </div>
-                                                  )}
-                                                </PopoverContent>
-                                              </Popover>
+                                                  <WhatsAppIcon size={18} />
+                                                </button>
+                                              ) : (
+                                                // Tem conexão ativa OU sem número → popover
+                                                <Popover
+                                                  open={wpPopoverLeadId === leadId}
+                                                  onOpenChange={open => setWpPopoverLeadId(open ? leadId : null)}
+                                                >
+                                                  <PopoverTrigger asChild>
+                                                    <button
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        setWpPopoverLeadId(wpPopoverLeadId === leadId ? null : leadId);
+                                                      }}
+                                                      className="flex items-center justify-center transition-colors hover:bg-muted"
+                                                      style={{ width: 24, height: 24, borderRadius: 6 }}
+                                                      aria-label="Abrir chat WhatsApp"
+                                                    >
+                                                      <WhatsAppIcon size={18} />
+                                                    </button>
+                                                  </PopoverTrigger>
+                                                  <PopoverContent
+                                                    className="w-60 p-3"
+                                                    align="end"
+                                                    onClick={e => e.stopPropagation()}
+                                                  >
+                                                    <p className="text-xs font-semibold text-[#111] mb-3">Enviar via WhatsApp</p>
+                                                    {zapiInstances.length > 0 ? (
+                                                      <div className="space-y-2">
+                                                        {zapiInstances.map(inst => (
+                                                          <label key={inst.instanceId} className="flex items-center gap-2 cursor-pointer">
+                                                            <input
+                                                              type="radio"
+                                                              name={`wp-inst-${leadId}`}
+                                                              checked={selectedZapiInstance === inst.instanceId}
+                                                              onChange={() => setSelectedZapiInstance(inst.instanceId)}
+                                                              className="accent-[#128A68]"
+                                                            />
+                                                            <span className="text-xs text-[#535353]">{inst.label}</span>
+                                                          </label>
+                                                        ))}
+                                                        <Button
+                                                          size="sm"
+                                                          className="w-full bg-[#128A68] hover:bg-[#128A68]/90 h-7 text-xs mt-1"
+                                                          onClick={e => {
+                                                            e.stopPropagation();
+                                                            openChat(leadId);
+                                                            setWpPopoverLeadId(null);
+                                                          }}
+                                                        >
+                                                          Abrir chat
+                                                        </Button>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="space-y-2">
+                                                        <p className="text-xs text-[#AAAAAA]">Adicione um número de telefone ao lead para contato via WhatsApp.</p>
+                                                      </div>
+                                                    )}
+                                                  </PopoverContent>
+                                                </Popover>
+                                              )}
                                             </div>
 
                                             {/* Footer: tags + tag button */}

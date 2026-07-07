@@ -6,6 +6,7 @@ import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useProfile } from "@/context/ProfileContext";
+import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import {
@@ -485,6 +486,8 @@ export default function LeadDetailPage() {
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { profile } = useProfile();
+  const { whatsappConnections } = useCompany();
+  const hasActiveWaConnection = whatsappConnections.some(c => c.connected);
 
   const lead = id ? leads[id] : undefined;
   const pipeline = useMemo(
@@ -1366,7 +1369,15 @@ export default function LeadDetailPage() {
                         onSave={v => updateField("whatsapp", v)}
                         rightAdornment={
                           <button
-                            onClick={(e) => { e.stopPropagation(); openChat(lead.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasActiveWaConnection) {
+                                openChat(lead.id);
+                              } else {
+                                const phone = lead.whatsapp?.replace(/\D/g, "");
+                                if (phone) window.open(`https://wa.me/${phone}`, "_blank");
+                              }
+                            }}
                             className="hover:opacity-80 transition-opacity"
                             aria-label="Abrir chat"
                           >
