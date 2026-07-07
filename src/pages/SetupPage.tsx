@@ -63,11 +63,6 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
   emerald:  { semestral: "R$ 3.810,00",  anual: "R$ 6.272,00"  },
 };
 
-function renderFeature(text: string) {
-  const match = text.match(/^(\d+\s+[^\s]+|[^\s]+)([\s\S]*)$/);
-  if (!match) return <>{text}</>;
-  return <><strong className="font-semibold text-primary">{match[1]}</strong>{match[2]}</>;
-}
 
 const SETUP_PLAN_FEATURES: Record<string, string[]> = {
   silver: [
@@ -517,7 +512,7 @@ export default function SetupPage() {
                             {(SETUP_PLAN_FEATURES[plan.key] ?? plan.features).map((f) => (
                               <li key={f} className="flex items-start gap-2 text-[12px] text-foreground">
                                 <CircleCheck size={12} className="mt-0.5 shrink-0 fill-primary stroke-white" />
-                                {renderFeature(f)}
+                                {f}
                               </li>
                             ))}
                           </ul>
