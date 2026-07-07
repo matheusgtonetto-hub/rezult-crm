@@ -1134,7 +1134,7 @@ function EquipeSection() {
     const memberId = confirmRemove.id;
     setConfirmRemove(null);
     setRemoving(memberId);
-    const { data, error } = await supabase.rpc("remove_member_from_company", { member_id: memberId });
+    const { data, error } = await supabase.rpc("remove_member_from_company", { member_id: memberId, p_company_id: company!.id });
     setRemoving(null);
     if (error) { toast.error("Erro ao remover membro."); return; }
     if (data === "no_permission") { toast.error("Você não tem permissão para remover membros."); return; }
@@ -1164,6 +1164,7 @@ function EquipeSection() {
     const { data, error } = await supabase.rpc("update_member_permissions", {
       p_member_id: editMember.id,
       p_permissions: editPerms,
+      p_company_id: company!.id,
     });
     setSavingEdit(false);
     if (error) { toast.error("Erro ao salvar permissões."); return; }
