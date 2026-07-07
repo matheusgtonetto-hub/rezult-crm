@@ -87,10 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setSession(s);
-      // Aceita convites pendentes para usuários que já têm conta
-      if (s?.user) {
-        supabase.rpc("accept_my_pending_invites").catch(() => {});
-      }
     });
 
     (async () => {
@@ -106,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       setSession(data.session);
-      // Aceita convites pendentes na restauração de sessão existente
+      // Aceita convites pendentes ao restaurar sessão (uma vez por carregamento)
       if (data.session?.user) {
         supabase.rpc("accept_my_pending_invites").catch(() => {});
       }
