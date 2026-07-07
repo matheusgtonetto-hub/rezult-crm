@@ -102,10 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       setSession(data.session);
-      // Aceita convites pendentes ao restaurar sessão (uma vez por carregamento)
-      if (data.session?.user) {
-        supabase.rpc("accept_my_pending_invites").catch(() => {});
-      }
 
       // Implicit flow: detect recovery type from hash params directly
       if (data.session && isCallback && hashToken && hashType === "recovery") {
