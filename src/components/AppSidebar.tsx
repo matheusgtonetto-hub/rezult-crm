@@ -130,7 +130,8 @@ export function AppSidebar() {
   const notifCount = notifications.length + dbNotifs.length;
 
   const navItems: NavItem[] = [
-    { to: "/dashboard",        label: "Dashboard",        icon: LayoutDashboard },
+    ...(canAny("dashboard:admin", "dashboard:member")
+      ? [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")

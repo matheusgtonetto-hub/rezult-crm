@@ -27,7 +27,7 @@ import {
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
   Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
   Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
-  Sparkles,
+  Sparkles, LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -901,27 +901,19 @@ interface PendingInvite {
 
 const PERMISSION_GROUPS = [
   {
+    id: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    description: "Permissões de acesso ao dashboard da empresa.",
+    options: [
+      { id: "dashboard:admin",  label: "Administrador do Dashboard", description: "Acessa todos os dados do dashboard, incluindo métricas de todos os atendentes." },
+      { id: "dashboard:member", label: "Membro do Dashboard",        description: "Acessa o dashboard com visualização dos dados da empresa." },
+    ],
+  },
+  {
     id: "pipelines", label: "Pipelines", icon: Filter,
     description: "Permissões relacionadas à administração de pipelines.",
     options: [
       { id: "pipelines:admin",  label: "Administrador de Pipelines", description: "Permite a criação, modificação, duplicação e configuração de pipelines." },
       { id: "pipelines:member", label: "Membro de Pipelines",        description: "Possibilita a manutenção de negócios na pipeline." },
-    ],
-  },
-  {
-    id: "automacoes", label: "Automações", icon: Network,
-    description: "Permissões relacionadas ao fluxo de automações",
-    options: [
-      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
-      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
-    ],
-  },
-  {
-    id: "cadastros", label: "Cadastros auxiliares", icon: Tag,
-    description: "Permissões relacionadas aos cadastros auxiliares",
-    options: [
-      { id: "cadastros:admin",  label: "Administrador de Cadastros Auxiliares", description: "Permite acesso a criação, edição e exclusão dos auxiliares, como: produtos, tags, listas, etc." },
-      { id: "cadastros:member", label: "Membro de Cadastros Auxiliares",        description: "Permite acesso à listagem de auxiliares, como: produtos, tags, listas etc." },
     ],
   },
   {
@@ -932,6 +924,14 @@ const PERMISSION_GROUPS = [
       { id: "leads:operator",   label: "Operador de Leads",          description: "Permite criação e alteração de leads (usar em conjunto com Membro de leads restrito)." },
       { id: "leads:member",     label: "Membro de Leads",            description: "Permite acesso à listagem de leads." },
       { id: "leads:restricted", label: "Membro de Leads (restrito)", description: "Acessa os leads o qual o usuário é responsável e os negócios que o usuário é o atendente responsável." },
+    ],
+  },
+  {
+    id: "automacoes", label: "Automações", icon: Network,
+    description: "Permissões relacionadas ao fluxo de automações",
+    options: [
+      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
+      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
     ],
   },
   {
@@ -957,11 +957,20 @@ const PERMISSION_GROUPS = [
       { id: "atividades:admin", label: "Administrador de Atividades", description: "Permite acesso ao calendário de atividade de todos atendentes." },
     ],
   },
+  {
+    id: "cadastros", label: "Cadastros auxiliares", icon: Tag,
+    description: "Permissões relacionadas aos cadastros auxiliares",
+    options: [
+      { id: "cadastros:admin",  label: "Administrador de Cadastros Auxiliares", description: "Permite acesso a criação, edição e exclusão dos auxiliares, como: produtos, tags, listas, etc." },
+      { id: "cadastros:member", label: "Membro de Cadastros Auxiliares",        description: "Permite acesso à listagem de auxiliares, como: produtos, tags, listas etc." },
+    ],
+  },
 ];
 
 const PERM_MODULE_LABELS: Record<string, string> = {
-  pipelines: "Pipelines", automacoes: "Automações", cadastros: "Cadastros",
-  leads: "Leads", impulsos: "Impulsos", multiatendimento: "Multi", atividades: "Atividades",
+  dashboard: "Dashboard", pipelines: "Pipelines", leads: "Leads",
+  automacoes: "Automações", impulsos: "Impulsos", multiatendimento: "Multi",
+  atividades: "Atividades", cadastros: "Cadastros",
 };
 
 function permSummary(permissions: string[]): string {
