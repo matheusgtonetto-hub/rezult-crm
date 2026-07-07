@@ -1081,7 +1081,7 @@ function EquipeSection() {
   }, [company?.id]);
 
   const loadPendingInvites = useCallback(async () => {
-    if (!isAdmin || !company?.id) return;
+    if (!company?.id) return;
     const { data, error } = await supabase
       .from("company_invites")
       .select("id, email, created_at")
@@ -1090,7 +1090,7 @@ function EquipeSection() {
       .order("created_at", { ascending: false });
     if (error) console.error("[EquipeSection] loadPendingInvites error:", error);
     setPendingInvites((data ?? []) as PendingInvite[]);
-  }, [isAdmin, company?.id]);
+  }, [company?.id]);
 
   useEffect(() => { loadMembers(); }, [loadMembers]);
   useEffect(() => { loadPendingInvites(); }, [loadPendingInvites]);
@@ -1110,6 +1110,7 @@ function EquipeSection() {
     const { data, error } = await supabase.rpc("add_member_to_company", {
       member_email: inviteEmail.trim().toLowerCase(),
       member_permissions: permsToSend,
+      p_company_id: company!.id,
     });
     setInviting(false);
 
@@ -1155,7 +1156,7 @@ function EquipeSection() {
 
   const handleCancelInvite = async (email: string) => {
     setCanceling(email);
-    const { error } = await supabase.rpc("cancel_company_invite", { invite_email: email });
+    const { error } = await supabase.rpc("cancel_company_invite", { invite_email: email, p_company_id: company!.id });
     setCanceling(null);
     if (error) { toast.error("Erro ao cancelar convite."); return; }
     toast.success("Convite cancelado.");

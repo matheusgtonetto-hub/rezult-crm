@@ -525,7 +525,32 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "leads", filter: `company_id=eq.${companyId}` },
         (payload) => {
-          if (payload.eventType === "UPDATE") {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as Record<string, unknown>;
+            const leadId = row.id as string;
+            const colId = (row.column_id as string) ?? null;
+            const pipeId = (row.pipeline_id as string) ?? null;
+
+            setLeads(prev => {
+              if (prev[leadId]) return prev; // já foi adicionado de forma otimista pelo próprio usuário
+              return { ...prev, [leadId]: dbToLead(row, []) };
+            });
+
+            setPipelines(prev => {
+              for (const p of prev) {
+                if (p.columns.some(c => c.id === colId && c.leadIds.includes(leadId))) return prev;
+              }
+              return prev.map(p => {
+                if (p.id !== pipeId) return p;
+                return {
+                  ...p,
+                  columns: p.columns.map(c =>
+                    c.id === colId ? { ...c, leadIds: [...c.leadIds, leadId] } : c
+                  ),
+                };
+              });
+            });
+          } else if (payload.eventType === "UPDATE") {
             const row = payload.new as Record<string, unknown>;
             const leadId = row.id as string;
             const newColId = (row.column_id as string) ?? null;
@@ -814,6 +839,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const newLead: Lead = {
       ...lead,
       id: realId,
+      activities: [], // Realtime adiciona as atividades ao vivo com IDs reais
       created_at: (data as Record<string, unknown>).created_at as string | undefined,
     };
     setLeads(prev => ({ ...prev, [realId]: newLead }));
@@ -984,12 +1010,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const description = productName
       ? `Negócio marcado como ganho. Produto: ${productName} · Valor: ${fmtBRL(value ?? 0)}`
       : "Negócio marcado como ganho.";
-    const act = { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "won" as const, description, userName: currentUserName || undefined };
-    setLeads(prev => ({
-      ...prev,
-      [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
-    }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "won", description: act.description, date: act.date, user_name: act.userName ?? null })
+    const date = new Date().toISOString();
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "won", description, date, user_name: currentUserName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadWon activity error:", error.message); });
   }, [user, company, currentUserName]);
 
@@ -1001,12 +1023,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const description = reason
       ? `Negócio marcado como perdido. Motivo: ${reason}`
       : "Negócio marcado como perdido.";
-    const act = { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "lost" as const, description, userName: currentUserName || undefined };
-    setLeads(prev => ({
-      ...prev,
-      [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
-    }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "lost", description: act.description, date: act.date, user_name: act.userName ?? null })
+    const date = new Date().toISOString();
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "lost", description, date, user_name: currentUserName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadLost activity error:", error.message); });
   }, [user, company, currentUserName]);
 
@@ -1015,12 +1033,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open" } }));
     supabase.from("leads").update({ status: "open" }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadOpen error:", error.message); });
-    const act = { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "stage_change" as const, description: "Negócio reaberto.", userName: currentUserName || undefined };
-    setLeads(prev => ({
-      ...prev,
-      [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), act] },
-    }));
-    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "stage_change", description: act.description, date: act.date, user_name: act.userName ?? null })
+    const date = new Date().toISOString();
+    supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "stage_change", description: "Negócio reaberto.", date, user_name: currentUserName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadOpen activity error:", error.message); });
   }, [user, company, currentUserName]);
 
@@ -1302,49 +1316,28 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // ── Activities ─────────────────────────────────────────────────────────────
 
   const addActivity = useCallback(async (leadId: string, activity: Omit<Activity, "id">): Promise<void> => {
-    const tempId = `a-${Date.now()}`;
-    const full: Activity = { ...activity, id: tempId };
-    setLeads(prev => ({
-      ...prev,
-      [leadId]: { ...prev[leadId], activities: [...(prev[leadId]?.activities ?? []), full] },
-    }));
-    if (user && company) {
-      const { data, error } = await supabase.from("activities").insert({
-        owner_id: company.owner_id,
-        company_id: company.id,
-        lead_id: leadId,
-        type: activity.type,
-        description: activity.description,
-        date: activity.date,
-        user_name: activity.userName ?? null,
-        title: activity.title ?? null,
-        scheduled_at: activity.scheduledAt ?? null,
-        duration_minutes: activity.durationMinutes ?? null,
-        contact_email: activity.contactEmail ?? null,
-        meet_link: activity.meetLink ?? null,
-        participants: activity.participants ? JSON.stringify(activity.participants) : null,
-        gcal_event_id: activity.gcalEventId ?? null,
-      }).select().single();
-      if (error) {
-        console.error("addActivity error:", error.message);
-        // Reverte o estado otimista em caso de erro
-        setLeads(prev => ({
-          ...prev,
-          [leadId]: { ...prev[leadId], activities: prev[leadId]?.activities.filter(a => a.id !== tempId) ?? [] },
-        }));
-        throw error;
-      }
-      if (data) {
-          const realId = (data as Record<string, unknown>).id as string;
-          setLeads(prev => ({
-            ...prev,
-            [leadId]: {
-              ...prev[leadId],
-              activities: prev[leadId]?.activities.map(a => a.id === tempId ? { ...a, id: realId } : a) ?? [],
-            },
-          }));
-      }
+    if (!user || !company) return;
+    const { error } = await supabase.from("activities").insert({
+      owner_id: company.owner_id,
+      company_id: company.id,
+      lead_id: leadId,
+      type: activity.type,
+      description: activity.description,
+      date: activity.date,
+      user_name: activity.userName ?? null,
+      title: activity.title ?? null,
+      scheduled_at: activity.scheduledAt ?? null,
+      duration_minutes: activity.durationMinutes ?? null,
+      contact_email: activity.contactEmail ?? null,
+      meet_link: activity.meetLink ?? null,
+      participants: activity.participants ? JSON.stringify(activity.participants) : null,
+      gcal_event_id: activity.gcalEventId ?? null,
+    });
+    if (error) {
+      console.error("addActivity error:", error.message);
+      throw error;
     }
+    // Realtime adiciona a atividade ao estado com o ID real do banco
   }, [user, company]);
 
   const completeActivity = useCallback((leadId: string, activityId: string) => {
