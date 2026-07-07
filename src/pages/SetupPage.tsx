@@ -367,7 +367,6 @@ export default function SetupPage() {
             <div className="w-[280px] shrink-0 flex flex-col pl-[35px] pr-[20px] pt-10 pb-10">
               <div className="flex items-center mb-5">
                 <Logo size="sm" showIcon />
-                <span className="text-[22px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
               </div>
 
               <h2 className="text-[15px] font-semibold text-foreground mb-1">Configure sua conta</h2>
