@@ -112,7 +112,6 @@ export default function Verify2FAPage() {
         <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[24px] text-center">
           <div className="flex justify-center items-center mb-[15px]">
             <Logo size="md" showIcon />
-            <span className="text-[28px] text-primary leading-none ml-1" style={{ letterSpacing: "-0.030em", fontWeight: 650 }}>CRM</span>
           </div>
 
           <h1 className="text-[22px] font-semibold text-foreground">Verifique seu e-mail</h1>
