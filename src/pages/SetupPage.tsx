@@ -64,9 +64,9 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
 };
 
 function renderFeature(text: string) {
-  const match = text.match(/^(\d+\s+\w+|\w+)([\s\S]*)$/);
+  const match = text.match(/^(\d+\s+[^\s]+|[^\s]+)([\s\S]*)$/);
   if (!match) return <>{text}</>;
-  return <><strong className="font-semibold">{match[1]}</strong>{match[2]}</>;
+  return <><strong className="font-semibold text-primary">{match[1]}</strong>{match[2]}</>;
 }
 
 const SETUP_PLAN_FEATURES: Record<string, string[]> = {
