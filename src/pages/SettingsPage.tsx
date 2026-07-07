@@ -1161,12 +1161,14 @@ function EquipeSection() {
   const handleSavePermissions = async () => {
     if (!editMember) return;
     setSavingEdit(true);
-    const { error } = await supabase.rpc("update_member_permissions", {
+    const { data, error } = await supabase.rpc("update_member_permissions", {
       p_member_id: editMember.id,
       p_permissions: editPerms,
     });
     setSavingEdit(false);
     if (error) { toast.error("Erro ao salvar permissões."); return; }
+    if (data === "no_permission") { toast.error("Você não tem permissão para editar membros."); return; }
+    if (data === "cannot_edit_owner") { toast.error("As permissões do dono da empresa não podem ser alteradas."); return; }
     toast.success("Permissões atualizadas!");
     setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, permissions: editPerms } : m));
     setEditMember(null);
