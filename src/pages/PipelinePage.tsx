@@ -122,11 +122,23 @@ export default function PipelinePage() {
   const myName = profile?.full_name ?? "";
 
   // "Visualizando como:" — só usado por admins; [] = todos os leads
+  // Usa sessionStorage para resetar ao sair da sessão (não persiste entre logins).
+  // Na primeira abertura da sessão, inicializa com o próprio usuário logado.
   const [viewAsUser, setViewAsUser] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("pipeline_filter_viewAsUser") ?? "[]"); } catch { return []; }
+    try {
+      const saved = sessionStorage.getItem("pipeline_filter_viewAsUser");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
 
-  useEffect(() => { localStorage.setItem("pipeline_filter_viewAsUser", JSON.stringify(viewAsUser)); }, [viewAsUser]);
+  useEffect(() => {
+    if (myName && !sessionStorage.getItem("pipeline_filter_viewAsUser_init")) {
+      sessionStorage.setItem("pipeline_filter_viewAsUser_init", "1");
+      setViewAsUser([myName]);
+    }
+  }, [myName]);
+
+  useEffect(() => { sessionStorage.setItem("pipeline_filter_viewAsUser", JSON.stringify(viewAsUser)); }, [viewAsUser]);
 
   function toggleViewAsUser(val: string) {
     setViewAsUser(prev =>
@@ -242,15 +254,15 @@ export default function PipelinePage() {
       return next;
     }, { replace: true });
   };
-  const [sortKey, setSortKey] = useState<SortKey>(() => (localStorage.getItem("pipeline_filter_sort") as SortKey) ?? "recent");
-  const [status, setStatus] = useState<StatusFilter>(() => (localStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
-  const [dateFrom, setDateFrom] = useState(() => localStorage.getItem("pipeline_filter_dateFrom") ?? "");
-  const [dateTo, setDateTo] = useState(() => localStorage.getItem("pipeline_filter_dateTo") ?? "");
+  const [sortKey, setSortKey] = useState<SortKey>(() => (sessionStorage.getItem("pipeline_filter_sort") as SortKey) ?? "recent");
+  const [status, setStatus] = useState<StatusFilter>(() => (sessionStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
+  const [dateFrom, setDateFrom] = useState(() => sessionStorage.getItem("pipeline_filter_dateFrom") ?? "");
+  const [dateTo, setDateTo] = useState(() => sessionStorage.getItem("pipeline_filter_dateTo") ?? "");
 
-  useEffect(() => { localStorage.setItem("pipeline_filter_sort", sortKey); }, [sortKey]);
-  useEffect(() => { localStorage.setItem("pipeline_filter_status", status); }, [status]);
-  useEffect(() => { localStorage.setItem("pipeline_filter_dateFrom", dateFrom); }, [dateFrom]);
-  useEffect(() => { localStorage.setItem("pipeline_filter_dateTo", dateTo); }, [dateTo]);
+  useEffect(() => { sessionStorage.setItem("pipeline_filter_sort", sortKey); }, [sortKey]);
+  useEffect(() => { sessionStorage.setItem("pipeline_filter_status", status); }, [status]);
+  useEffect(() => { sessionStorage.setItem("pipeline_filter_dateFrom", dateFrom); }, [dateFrom]);
+  useEffect(() => { sessionStorage.setItem("pipeline_filter_dateTo", dateTo); }, [dateTo]);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
