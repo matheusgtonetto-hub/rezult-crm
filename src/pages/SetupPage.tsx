@@ -65,23 +65,28 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
 
 const SETUP_PLAN_FEATURES: Record<string, string[]> = {
   silver: [
-    "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
-    "Cadastro de 4 membros na empresa.",
-    "8 automações para otimizar interações com leads.",
-    "Multiatendimento com até 3 conexões (WhatsApp, Instagram e outros).",
+    "4 membros na empresa.",
+    "5 mil leads com controle de tags.",
+    "8 automações para interações.",
+    "3 conexões multiatendimento.",
+    "5 pipelines com até 8 etapas.",
+    "3 integrações via Webhook.",
   ],
   platinum: [
-    "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
-    "Cadastro de 15 membros na empresa.",
-    "20 automações para otimizar interações com leads.",
-    "Multiatendimento com até 10 conexões (WhatsApp, Instagram e outros).",
+    "15 membros na empresa.",
+    "100 mil leads com tags.",
+    "20 automações para interações.",
+    "10 conexões multiatendimento.",
+    "20 pipelines com até 15 etapas.",
+    "15 integrações via Webhook.",
   ],
   emerald: [
-    "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
-    "Cadastro ilimitado de membros na empresa.",
-    "Automações ilimitadas para otimizar interações com leads.",
-    "Multiatendimento com conexões ilimitadas (WhatsApp, Instagram e outros).",
-    "Integrações com Webhooks ilimitadas para conectar outras ferramentas.",
+    "Membros ilimitados na empresa.",
+    "Leads ilimitados com tags.",
+    "Automações ilimitadas.",
+    "Conexões ilimitadas.",
+    "Pipelines ilimitadas.",
+    "Integrações ilimitadas.",
   ],
 };
 
@@ -236,6 +241,7 @@ export default function SetupPage() {
   const [confirmPlan, setConfirmPlan] = useState<PlanKey | null>(null);
   const [confirming, setConfirming]   = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [planConfirmed, setPlanConfirmed] = useState(false);
 
   const handleNext = () => {
     if (step < 2) setStep((s) => (s + 1) as Step);
@@ -281,6 +287,7 @@ export default function SetupPage() {
       if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão de pagamento.");
       window.open(data.url, "_blank");
       setConfirmPlan(null);
+      setPlanConfirmed(true);
       setSuccessOpen(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
@@ -548,7 +555,7 @@ export default function SetupPage() {
                     onClick={() => navigate("/dashboard")}
                     className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
                   >
-                    Concluir
+                    {planConfirmed ? "Acessar" : "Teste Grátis"}
                   </Button>
                 )}
               </div>
