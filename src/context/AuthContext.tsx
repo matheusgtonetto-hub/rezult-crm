@@ -87,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setSession(s);
+      // Aceita convites pendentes para usuários que já têm conta
+      if (s?.user) {
+        supabase.rpc("accept_my_pending_invites").catch(() => {});
+      }
     });
 
     (async () => {
@@ -102,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       setSession(data.session);
+      // Aceita convites pendentes na restauração de sessão existente
+      if (data.session?.user) {
+        supabase.rpc("accept_my_pending_invites").catch(() => {});
+      }
 
       // Implicit flow: detect recovery type from hash params directly
       if (data.session && isCallback && hashToken && hashType === "recovery") {
