@@ -84,7 +84,14 @@ type Step = 1 | 2 | 3 | 4;
 export default function CompanyRegisterPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refetchCompany } = useCompany();
+  const { company, companyLoading, refetchCompany } = useCompany();
+
+  // Membro convidado: já tem empresa, não precisa cadastrar
+  useEffect(() => {
+    if (!companyLoading && company) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [companyLoading, company, navigate]);
 
   const [step, setStep]               = useState<Step>(1);
   const [submitting, setSubmitting]   = useState(false);
