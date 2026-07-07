@@ -448,6 +448,11 @@ function maskCEP(v: string) {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+function stripDdi(v: string) {
+  // Remove prefixo DDI (+XX ou +XXX) salvo pelo cadastro de empresa (ex: "+55(11) 9...")
+  return v.replace(/^\+\d{1,3}/, "");
+}
+
 function maskPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
   if (d.length <= 2)  return d.length ? `(${d}` : "";
@@ -524,7 +529,7 @@ function EmpresaSection() {
     setName(company.name ?? "");
     setEmail(company.email ?? "");
     setNiche(company.niche ?? "");
-    setPhone(maskPhone(company.phone ?? ""));
+    setPhone(maskPhone(stripDdi(company.phone ?? "")));
     setDocType((company.document_type as "pj" | "pf") ?? "pj");
     setDocument(company.document ?? "");
     setZipCode(company.zip_code ?? "");
