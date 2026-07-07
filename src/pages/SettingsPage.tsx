@@ -1048,6 +1048,7 @@ function EquipeSection() {
   const [isAdminInvite, setIsAdminInvite] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<Member | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [editPerms, setEditPerms] = useState<string[]>([]);
@@ -1128,12 +1129,17 @@ function EquipeSection() {
     setAddOpen(false);
   };
 
-  const handleRemove = async (memberId: string) => {
-    if (memberId === user?.id) { toast.error("Você não pode remover a si mesmo."); return; }
+  const handleRemove = async () => {
+    if (!confirmRemove) return;
+    const memberId = confirmRemove.id;
+    setConfirmRemove(null);
     setRemoving(memberId);
-    const { error } = await supabase.rpc("remove_member_from_company", { member_id: memberId });
+    const { data, error } = await supabase.rpc("remove_member_from_company", { member_id: memberId });
     setRemoving(null);
     if (error) { toast.error("Erro ao remover membro."); return; }
+    if (data === "no_permission") { toast.error("Você não tem permissão para remover membros."); return; }
+    if (data === "cannot_remove_owner") { toast.error("O dono da empresa não pode ser removido."); return; }
+    if (data === "cannot_remove_self") { toast.error("Você não pode remover a si mesmo."); return; }
     toast.success("Membro removido da equipe.");
     setMembers(prev => prev.filter(m => m.id !== memberId));
   };
@@ -1246,7 +1252,7 @@ function EquipeSection() {
                         Editar permissões
                       </button>
                       <button
-                        onClick={() => handleRemove(m.id)}
+                        onClick={() => setConfirmRemove(m)}
                         disabled={removing === m.id}
                         className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors disabled:opacity-50"
                         title="Remover da equipe"
@@ -1313,6 +1319,22 @@ function EquipeSection() {
           )}
         </Card>
       )}
+
+      {/* Dialog: Confirmar remoção de membro */}
+      <Dialog open={!!confirmRemove} onOpenChange={v => { if (!v) setConfirmRemove(null); }}>
+        <DialogContent className="max-w-sm bg-white">
+          <DialogHeader>
+            <DialogTitle>Remover membro da equipe?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mt-1">
+            Tem certeza que deseja remover <span className="font-semibold text-foreground">{confirmRemove?.full_name || confirmRemove?.email}</span> da equipe? O acesso ao sistema será revogado imediatamente.
+          </p>
+          <div className="flex gap-2 w-full pt-4">
+            <Button variant="outline" onClick={() => setConfirmRemove(null)} className="flex-1 border-card-border">Cancelar</Button>
+            <Button variant="destructive" onClick={handleRemove} className="flex-1">Remover</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
