@@ -530,7 +530,7 @@ export default function PipelinePage() {
                     {memberAvatars[viewAsUser[0]] ? (
                       <img src={memberAvatars[viewAsUser[0]]} alt={viewAsUser[0]} className="rounded-full object-cover shrink-0" style={{ width: 18, height: 18 }} />
                     ) : (
-                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser[0]] ?? "#AAAAAA", fontSize: 9 }}>
+                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser[0]] ?? "hsl(var(--muted))", fontSize: 9 }}>
                         {viewAsUser[0][0].toUpperCase()}
                       </div>
                     )}
@@ -554,7 +554,7 @@ export default function PipelinePage() {
                     onClick={() => setViewAsUser([])}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
                   >
-                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.length === 0 ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.length === 0 ? "hsl(var(--primary))" : "transparent" }}>
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.length === 0 ? "2px solid hsl(var(--primary))" : "1.5px solid hsl(var(--border))", background: viewAsUser.length === 0 ? "hsl(var(--primary))" : "transparent" }}>
                       {viewAsUser.length === 0 && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
                     <span className="text-xs" style={{ fontWeight: viewAsUser.length === 0 ? 600 : 400 }}>Todos os leads</span>
@@ -563,7 +563,7 @@ export default function PipelinePage() {
                     onClick={() => toggleViewAsUser("__no_responsible__")}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
                   >
-                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.includes("__no_responsible__") ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.includes("__no_responsible__") ? "hsl(var(--primary))" : "transparent" }}>
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.includes("__no_responsible__") ? "2px solid hsl(var(--primary))" : "1.5px solid hsl(var(--border))", background: viewAsUser.includes("__no_responsible__") ? "hsl(var(--primary))" : "transparent" }}>
                       {viewAsUser.includes("__no_responsible__") && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
                     <span className="text-xs" style={{ fontWeight: viewAsUser.includes("__no_responsible__") ? 600 : 400 }}>Sem responsável</span>
@@ -571,7 +571,7 @@ export default function PipelinePage() {
                   {teamMembers.map(name => {
                     const selected = viewAsUser.includes(name);
                     const avatar = memberAvatars[name];
-                    const color = memberColors[name] ?? "#AAAAAA";
+                    const color = memberColors[name] ?? "hsl(var(--muted-foreground))";
                     return (
                       <button key={name} onClick={() => toggleViewAsUser(name)} className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted">
                         <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
@@ -582,7 +582,7 @@ export default function PipelinePage() {
                         ) : (
                           <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 22, height: 22, background: color, fontSize: 9 }}>{name[0].toUpperCase()}</div>
                         )}
-                        <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
+                        <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))", fontWeight: selected ? 600 : 400 }}>
                           {name}{name === myName ? " (você)" : ""}
                         </span>
                       </button>
@@ -716,7 +716,7 @@ export default function PipelinePage() {
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
                                 className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 transition-colors ${
-                                  snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
+                                  snapshot.isDraggingOver ? "bg-[hsl(var(--muted))]" : ""
                                 }`}
                               >
                                 {/* Top color line */}
@@ -762,7 +762,7 @@ export default function PipelinePage() {
                                       </PopoverContent>
                                     </Popover>
                                     <div className="min-w-0">
-                                      <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
+                                      <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))" }}>
                                         {col.title}
                                       </h3>
                                       <p className="mt-0.5 whitespace-nowrap" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
@@ -808,7 +808,7 @@ export default function PipelinePage() {
                                     const lead = leads[leadId];
                                     if (!lead) return null;
                                     const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
-                                    const respColor = memberColors[lead.responsible] || "#888888";
+                                    const respColor = memberColors[lead.responsible] || "hsl(var(--muted-foreground))";
                                     return (
                                       <Draggable
                                         key={leadId}
@@ -845,7 +845,7 @@ export default function PipelinePage() {
                                               </div>
                                               <div className="flex items-center gap-1 shrink-0">
                                                 {lead.dealStatus === "won" && (
-                                                  <Trophy size={12} style={{ color: "#128A68" }} />
+                                                  <Trophy size={12} style={{ color: "hsl(var(--primary))" }} />
                                                 )}
                                                 {lead.dealStatus === "lost" && (
                                                   <XCircle size={12} style={{ color: "#E24B4A" }} />
@@ -871,7 +871,7 @@ export default function PipelinePage() {
                                                 >
                                                   {leadResps.length === 0 ? (
                                                     <>
-                                                      <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-white" style={{ fontSize: 8, fontWeight: 700, backgroundColor: "#AAAAAA" }}>S</div>
+                                                      <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-white" style={{ fontSize: 8, fontWeight: 700, backgroundColor: "hsl(var(--muted))" }}>S</div>
                                                       <span>Sem responsável</span>
                                                     </>
                                                   ) : (
@@ -890,7 +890,7 @@ export default function PipelinePage() {
                                                           );
                                                         })}
                                                         {leadResps.length > 3 && (
-                                                          <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 16, height: 16, background: "#E5E5E5", color: "#555", fontSize: 7, marginLeft: -4, outline: "1.5px solid hsl(var(--card))" }}>
+                                                          <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 16, height: 16, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", fontSize: 7, marginLeft: -4, outline: "1.5px solid hsl(var(--card))" }}>
                                                             +{leadResps.length - 3}
                                                           </div>
                                                         )}
@@ -924,7 +924,7 @@ export default function PipelinePage() {
                                                 {teamMembers.map(name => {
                                                   const selected = leadResps.includes(name);
                                                   const avatar = memberAvatars[name];
-                                                  const color = memberColors[name] ?? "#AAAAAA";
+                                                  const color = memberColors[name] ?? "hsl(var(--muted-foreground))";
                                                   return (
                                                     <button
                                                       key={name}
@@ -1018,7 +1018,7 @@ export default function PipelinePage() {
                                                     align="end"
                                                     onClick={e => e.stopPropagation()}
                                                   >
-                                                    <p className="text-xs font-semibold text-[#111] mb-3">Enviar via WhatsApp</p>
+                                                    <p className="text-xs font-semibold text-[hsl(var(--foreground))] mb-3">Enviar via WhatsApp</p>
                                                     {zapiInstances.length > 0 ? (
                                                       <div className="space-y-2">
                                                         {zapiInstances.map(inst => (
@@ -1030,12 +1030,12 @@ export default function PipelinePage() {
                                                               onChange={() => setSelectedZapiInstance(inst.instanceId)}
                                                               className="accent-[#128A68]"
                                                             />
-                                                            <span className="text-xs text-[#535353]">{inst.label}</span>
+                                                            <span className="text-xs text-[hsl(var(--foreground))]">{inst.label}</span>
                                                           </label>
                                                         ))}
                                                         <Button
                                                           size="sm"
-                                                          className="w-full bg-[#128A68] hover:bg-[#128A68]/90 h-7 text-xs mt-1"
+                                                          className="w-full bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 h-7 text-xs mt-1"
                                                           onClick={e => {
                                                             e.stopPropagation();
                                                             openChat(leadId);
@@ -1047,7 +1047,7 @@ export default function PipelinePage() {
                                                       </div>
                                                     ) : (
                                                       <div className="space-y-2">
-                                                        <p className="text-xs text-[#AAAAAA]">Adicione um número de telefone ao lead para contato via WhatsApp.</p>
+                                                        <p className="text-xs text-[hsl(var(--muted-foreground))]">Adicione um número de telefone ao lead para contato via WhatsApp.</p>
                                                       </div>
                                                     )}
                                                   </PopoverContent>
@@ -1066,7 +1066,7 @@ export default function PipelinePage() {
                                                       <span
                                                         key={tagName}
                                                         className="text-[10px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
-                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "#888" }}
+                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "hsl(var(--muted))" }}
                                                       >
                                                         {tagName}
                                                       </span>
@@ -1122,8 +1122,8 @@ export default function PipelinePage() {
                                                 className="flex items-center justify-center gap-1.5 -mx-3 -mb-3 mt-3 py-1.5 rounded-b-xl text-xs font-semibold"
                                                 style={
                                                   lead.dealStatus === "won"
-                                                    ? { background: "#DCFCE7", color: "#128A68" }
-                                                    : { background: "#FEE2E2", color: "#E24B4A" }
+                                                    ? { background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }
+                                                    : { background: "hsl(var(--destructive-soft))", color: "#E24B4A" }
                                                 }
                                               >
                                                 {lead.dealStatus === "won"
@@ -1184,11 +1184,11 @@ export default function PipelinePage() {
         <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
           <AlertDialogContent className="max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle className={pendingAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
+              <AlertDialogTitle className={pendingAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-[hsl(var(--destructive-soft-fg))]" : "flex items-center justify-center gap-2 text-primary"}>
                 {pendingAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
                 {pendingAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
               </AlertDialogTitle>
-              <hr className="border-gray-300" />
+              <hr className="border-border" />
               <AlertDialogDescription className="pl-[10px]">
                 {pendingAdvance?.isSkipping ? (
                   <>
@@ -1299,7 +1299,7 @@ export default function PipelinePage() {
                     return;
                   }
                   const id = `col-${Date.now()}`;
-                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA" });
+                  addColumn(activePipeline.id, { id, title: name, color: "hsl(var(--muted-foreground))" });
                   toast.success("Coluna criada.");
                   setShowNewColumn(false);
                 }}
