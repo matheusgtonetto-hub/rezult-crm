@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,18 @@ export default function LeadsPage() {
 
   // Drawer de detalhes do lead
   const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
+
+  // Abre o drawer do lead vindo por URL (?lead=<id>), ex.: link do Multiatendimento.
+  // Limpa o param depois para não reabrir em refresh/navegação.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams.get("lead");
+    if (leadParam && leads[leadParam]) {
+      setDrawerLeadId(leadParam);
+      searchParams.delete("lead");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, leads, setSearchParams]);
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);

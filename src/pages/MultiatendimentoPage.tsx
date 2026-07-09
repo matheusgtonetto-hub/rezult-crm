@@ -2522,7 +2522,7 @@ export default function MultiatendimentoPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>
-                    <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate("/leads")} />
+                    <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate(effectiveLead ? `/leads?lead=${effectiveLead.id}` : "/leads")} />
                   </div>
                   {/* Tags inline + picker */}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 5 }}>
