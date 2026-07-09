@@ -1335,7 +1335,7 @@ function EquipeSection() {
 
       {/* Dialog: Confirmar remoção de membro */}
       <Dialog open={!!confirmRemove} onOpenChange={v => { if (!v) setConfirmRemove(null); }}>
-        <DialogContent className="max-w-sm bg-white">
+        <DialogContent className="max-w-sm bg-card">
           <DialogHeader>
             <DialogTitle>Remover membro da equipe?</DialogTitle>
           </DialogHeader>
