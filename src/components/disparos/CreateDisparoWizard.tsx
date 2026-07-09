@@ -118,7 +118,7 @@ export function CreateDisparoWizard({
                       style={{
                         background: done ? "hsl(var(--primary))" : active ? "hsl(var(--primary) / 0.12)" : "transparent",
                         color: done ? "#fff" : active ? "hsl(var(--primary))" : "#94A3B8",
-                        border: active ? "1.5px solid hsl(var(--primary))" : done ? "none" : "1.5px solid #CBD5E1",
+                        border: active ? "1.5px solid hsl(var(--primary))" : done ? "none" : "1.5px solid hsl(var(--border))",
                       }}
                     >
                       {done ? <Check size={13} /> : s.n}
@@ -143,7 +143,7 @@ export function CreateDisparoWizard({
                     type="button"
                     onClick={() => setType("automation")}
                     className="w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-colors"
-                    style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "#E5E7EB", background: type === "automation" ? "hsl(var(--primary) / 0.04)" : "#fff" }}
+                    style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "hsl(var(--border))", background: type === "automation" ? "hsl(var(--primary) / 0.04)" : "hsl(var(--card))" }}
                   >
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Workflow size={20} className="text-primary" />
@@ -152,7 +152,7 @@ export function CreateDisparoWizard({
                       <p className="text-sm font-semibold">Disparo de automação</p>
                       <p className="text-xs text-muted-foreground">Execute automações completas para nutrir e engajar seus leads de forma eficaz.</p>
                     </div>
-                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "#CBD5E1" }}>
+                    <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "hsl(var(--border))" }}>
                       {type === "automation" && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
                   </button>
@@ -180,8 +180,8 @@ export function CreateDisparoWizard({
                     {filteredAutos.map(a => (
                       <button key={a.id} type="button" onClick={() => setAutomationId(a.id)}
                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-colors"
-                        style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "#E5E7EB", background: automationId === a.id ? "hsl(var(--primary) / 0.04)" : "#fff" }}>
-                        <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0" style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "#CBD5E1" }}>
+                        style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "hsl(var(--border))", background: automationId === a.id ? "hsl(var(--primary) / 0.04)" : "hsl(var(--card))" }}>
+                        <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0" style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "hsl(var(--border))" }}>
                           {automationId === a.id && <div className="w-2 h-2 rounded-full bg-primary" />}
                         </div>
                         <span className="text-sm font-medium">{a.name}</span>
@@ -248,7 +248,7 @@ export function CreateDisparoWizard({
                     <span className="text-primary">ℹ</span>
                     Verifique nas configurações da conexão da automação o limite de mensagens por segundo para definir o melhor tamanho do lote.
                   </p>
-                  <p className="text-xs text-amber-600 flex items-start gap-1.5 mt-1 mb-4">⚠ Concorrência com APIs externas pode impactar a taxa de envio de mensagens/seg.</p>
+                  <p className="text-xs text-[hsl(var(--warning-soft-fg))] flex items-start gap-1.5 mt-1 mb-4">⚠ Concorrência com APIs externas pode impactar a taxa de envio de mensagens/seg.</p>
 
                   <label className="flex items-start gap-2.5 mb-3 cursor-pointer">
                     <Checkbox checked={scheduleOn} onCheckedChange={v => setScheduleOn(!!v)} className="mt-0.5" />

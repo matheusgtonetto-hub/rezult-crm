@@ -213,7 +213,7 @@ export default function CompanyRegisterPage() {
   // ─── Loading screen ───────────────────────────────────────────────────────────
   if (submitting) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "hsl(var(--muted))" }}>
         <div className="w-full max-w-[420px] text-center">
           <div className="flex justify-center mb-8">
             <Logo size="md" showIcon />
@@ -237,13 +237,13 @@ export default function CompanyRegisterPage() {
   const stepProgress = (step / 4) * 100;
 
   return (
-    <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "#EFF5F2" }}>
+    <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "hsl(var(--muted))" }}>
       <div className="relative w-full max-w-[1000px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border light */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, hsl(var(--primary)) 65%, #4ade80 75%, hsl(var(--primary)) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
@@ -312,7 +312,7 @@ export default function CompanyRegisterPage() {
             {/* ── Step 1 ── */}
             {step === 1 && (
               <div className="space-y-[3px]">
-                <Label htmlFor="company-name" className="text-[13px] font-normal text-black">Nome da empresa</Label>
+                <Label htmlFor="company-name" className="text-[13px] font-normal text-foreground">Nome da empresa</Label>
                 <Input
                   id="company-name"
                   type="text"
@@ -330,7 +330,7 @@ export default function CompanyRegisterPage() {
             {step === 2 && (
               <div className="space-y-3">
                 <div className="space-y-[3px]">
-                  <Label htmlFor="company-email" className="text-[13px] font-normal text-black">E-mail da empresa</Label>
+                  <Label htmlFor="company-email" className="text-[13px] font-normal text-foreground">E-mail da empresa</Label>
                   <Input
                     id="company-email"
                     type="email"
@@ -341,8 +341,8 @@ export default function CompanyRegisterPage() {
                   />
                 </div>
                 <div className="space-y-[3px]">
-                  <Label className="text-[13px] font-normal text-black">Telefone</Label>
-                  <div className="flex items-center border border-input rounded-[5px] focus-within:border-primary transition-colors bg-white">
+                  <Label className="text-[13px] font-normal text-foreground">Telefone</Label>
+                  <div className="flex items-center border border-input rounded-[5px] focus-within:border-primary transition-colors bg-card">
                     <div className="relative shrink-0">
                       <select
                         value={ddi}
@@ -386,7 +386,7 @@ export default function CompanyRegisterPage() {
                       "hover:border-primary/60 hover:bg-primary/5",
                       niche === label
                         ? "border-primary bg-primary/5 text-primary"
-                        : "border-gray-300 text-foreground"
+                        : "border-border text-foreground"
                     )}
                   >
                     <span className="text-[12px] font-medium leading-tight">{label}</span>
@@ -401,8 +401,8 @@ export default function CompanyRegisterPage() {
                 {/* Linha 1: País + CEP */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-[3px]">
-                    <Label className="text-[13px] font-normal text-black">País</Label>
-                    <div className="relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors">
+                    <Label className="text-[13px] font-normal text-foreground">País</Label>
+                    <div className="relative flex items-center border border-input rounded-[5px] bg-card focus-within:border-primary transition-colors">
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
@@ -420,7 +420,7 @@ export default function CompanyRegisterPage() {
                     </div>
                   </div>
                   <div className="space-y-[3px]">
-                    <Label htmlFor="zip" className="text-[13px] font-normal text-black">CEP</Label>
+                    <Label htmlFor="zip" className="text-[13px] font-normal text-foreground">CEP</Label>
                     <div className="relative">
                       <Input
                         id="zip"
@@ -443,7 +443,7 @@ export default function CompanyRegisterPage() {
                 {/* Linha 2: Endereço + Número + Complemento */}
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2">
                   <div className="space-y-[3px]">
-                    <Label htmlFor="address" className="text-[13px] font-normal text-black">Endereço</Label>
+                    <Label htmlFor="address" className="text-[13px] font-normal text-foreground">Endereço</Label>
                     <Input
                       id="address"
                       type="text"
@@ -454,7 +454,7 @@ export default function CompanyRegisterPage() {
                     />
                   </div>
                   <div className="space-y-[3px] w-[90px]">
-                    <Label htmlFor="number" className="text-[13px] font-normal text-black">Número</Label>
+                    <Label htmlFor="number" className="text-[13px] font-normal text-foreground">Número</Label>
                     <Input
                       id="number"
                       type="text"
@@ -465,7 +465,7 @@ export default function CompanyRegisterPage() {
                     />
                   </div>
                   <div className="space-y-[3px] w-[120px]">
-                    <Label htmlFor="complement" className="text-[13px] font-normal text-black">Complemento</Label>
+                    <Label htmlFor="complement" className="text-[13px] font-normal text-foreground">Complemento</Label>
                     <Input
                       id="complement"
                       type="text"
@@ -480,7 +480,7 @@ export default function CompanyRegisterPage() {
                 {/* Linha 3: Bairro + Cidade + UF */}
                 <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <div className="space-y-[3px]">
-                    <Label htmlFor="neighborhood" className="text-[13px] font-normal text-black">Bairro</Label>
+                    <Label htmlFor="neighborhood" className="text-[13px] font-normal text-foreground">Bairro</Label>
                     <Input
                       id="neighborhood"
                       type="text"
@@ -491,7 +491,7 @@ export default function CompanyRegisterPage() {
                     />
                   </div>
                   <div className="space-y-[3px]">
-                    <Label htmlFor="city" className="text-[13px] font-normal text-black">Cidade</Label>
+                    <Label htmlFor="city" className="text-[13px] font-normal text-foreground">Cidade</Label>
                     <Input
                       id="city"
                       type="text"
@@ -502,7 +502,7 @@ export default function CompanyRegisterPage() {
                     />
                   </div>
                   <div className="space-y-[3px] w-[70px]">
-                    <Label htmlFor="uf" className="text-[13px] font-normal text-black">UF</Label>
+                    <Label htmlFor="uf" className="text-[13px] font-normal text-foreground">UF</Label>
                     <Input
                       id="uf"
                       type="text"

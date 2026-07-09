@@ -99,13 +99,13 @@ export default function Verify2FAPage() {
   const isComplete = digits.every(d => d !== "");
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "hsl(var(--muted))" }}>
       <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border light */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, hsl(var(--primary)) 65%, #4ade80 75%, hsl(var(--primary)) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
@@ -115,7 +115,7 @@ export default function Verify2FAPage() {
           </div>
 
           <h1 className="text-[22px] font-semibold text-foreground">Verifique seu e-mail</h1>
-          <p className="text-[14px] text-gray-500 mt-[1px] leading-snug font-normal">
+          <p className="text-[14px] text-muted-foreground mt-[1px] leading-snug font-normal">
             Enviamos um código de 6 dígitos para
           </p>
           {email && (
@@ -134,7 +134,7 @@ export default function Verify2FAPage() {
                 value={digit}
                 onChange={e => handleChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(i, e)}
-                className="w-8 h-9 text-center text-[16px] font-semibold border border-gray-300 rounded-[5px] bg-white focus:outline-none focus:border-primary transition-colors"
+                className="w-8 h-9 text-center text-[16px] font-semibold border border-border rounded-[5px] bg-card focus:outline-none focus:border-primary transition-colors"
               />
             ))}
           </div>

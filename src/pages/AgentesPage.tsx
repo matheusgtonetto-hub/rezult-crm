@@ -104,15 +104,15 @@ function TreeNode({
         {!isRoot && (
           <span
             className="absolute left-[-14px] top-1/2 w-3"
-            style={{ background: "#E5E5E5", height: "1.5px" }}
+            style={{ background: "hsl(var(--muted))", height: "1.5px" }}
           />
         )}
         <button
           onClick={() => onSelect(agent.id)}
           className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${
             isSelected
-              ? "border-[#128A68] bg-[#E1F5EE]"
-              : "border-[#EEEEEE] bg-white hover:bg-[#F5F5F5]"
+              ? "border-[hsl(var(--primary))] bg-[hsl(var(--muted))]"
+              : "border-[hsl(var(--border))] bg-card hover:bg-[hsl(var(--muted))]"
           }`}
         >
           <div
@@ -123,14 +123,14 @@ function TreeNode({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-semibold text-[#111111] truncate">{agent.role}</span>
+              <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] truncate">{agent.role}</span>
               <Circle
                 size={8}
                 fill={agent.active ? "#128A68" : "#CCCCCC"}
-                color={agent.active ? "#128A68" : "#CCCCCC"}
+                color={agent.active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
               />
             </div>
-            <div className="text-[11px] text-[#AAAAAA] truncate">{agent.user}</div>
+            <div className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">{agent.user}</div>
           </div>
           <span
             className="text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0"
@@ -145,7 +145,7 @@ function TreeNode({
         <div className="relative pl-5 mt-1.5 space-y-1.5">
           <span
             className="absolute left-[18px] top-0 bottom-5 pointer-events-none"
-            style={{ background: "#E5E5E5", width: "1.5px" }}
+            style={{ background: "hsl(var(--muted))", width: "1.5px" }}
           />
           {children.map(child => (
             <TreeNode
@@ -191,13 +191,13 @@ const MOCK_ANALYSES = [
 ];
 
 const ANALYSIS_BADGE: Record<string, { bg: string; fg: string; label: string }> = {
-  good: { bg: "#E1F5EE", fg: "#128A68", label: "Positivo" },
-  warning: { bg: "#FEF3C7", fg: "#92400E", label: "Atenção" },
-  critical: { bg: "#FEE2E2", fg: "#991B1B", label: "Crítico" },
+  good: { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))", label: "Positivo" },
+  warning: { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))", label: "Atenção" },
+  critical: { bg: "hsl(var(--destructive-soft))", fg: "hsl(var(--destructive-soft-fg))", label: "Crítico" },
 };
 
 function FileIcon({ type }: { type: string }) {
-  const color = type === "pdf" ? "#E24B4A" : type === "docx" ? "#378ADD" : "#AAAAAA";
+  const color = type === "pdf" ? "#E24B4A" : type === "docx" ? "#378ADD" : "hsl(var(--muted-foreground))";
   return <FileText size={18} color={color} />;
 }
 
@@ -223,7 +223,7 @@ export default function AgentesPage() {
 
   // Switcher de visualização (simulação de perfil de acesso — substituir por auth real)
   const RoleSwitcher = () => (
-    <div className="inline-flex items-center bg-[#F5F5F5] border border-[#E5E5E5] rounded-full p-1">
+    <div className="inline-flex items-center bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-full p-1">
       {[
         { v: "admin" as const,       l: "Admin / Gestor" },
         { v: "user-sdr" as const,    l: "SDR" },
@@ -234,8 +234,8 @@ export default function AgentesPage() {
           onClick={() => setViewMode(opt.v)}
           className={`text-[11px] px-3 py-1 rounded-full transition-all font-medium ${
             viewMode === opt.v
-              ? "bg-white text-[#128A68] shadow-sm border border-[#E0E0E0]"
-              : "text-[#999] hover:text-[#444]"
+              ? "bg-card text-[hsl(var(--primary))] shadow-sm border border-[hsl(var(--border))]"
+              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
           }`}
         >
           {opt.l}
@@ -249,7 +249,7 @@ export default function AgentesPage() {
       <div>
         <div className="px-6 pt-5 flex items-center justify-between max-w-[1400px] mx-auto">
           <div>
-            <p className="text-[11px] text-[#AAAAAA] uppercase tracking-wide font-medium">
+            <p className="text-[11px] text-[hsl(var(--muted-foreground))] uppercase tracking-wide font-medium">
               Simulando perfil de acesso
             </p>
           </div>
@@ -294,16 +294,16 @@ export default function AgentesPage() {
     return (
       <div className="p-6 max-w-[1400px] mx-auto">
         <div className="flex flex-col items-center justify-center py-32 text-center">
-          <Network size={64} color="#E5E5E5" />
-          <h2 className="text-[20px] font-bold text-[#111111] mt-4">
+          <Network size={64} color="hsl(var(--muted-foreground))" />
+          <h2 className="text-[20px] font-bold text-[hsl(var(--foreground))] mt-4">
             Crie a estrutura de inteligência da sua equipe
           </h2>
-          <p className="text-[13px] text-[#AAAAAA] mt-2 max-w-[420px]">
+          <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-2 max-w-[420px]">
             Adicione os cargos da sua empresa e vincule um agente de IA a cada profissional
           </p>
           <Button
             onClick={() => setOpenDialog(true)}
-            className="bg-[#128A68] hover:bg-[#128A68]/90 text-white mt-6"
+            className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white mt-6"
           >
             <Plus size={16} /> Criar primeiro agente
           </Button>
@@ -318,8 +318,8 @@ export default function AgentesPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111] leading-tight">Agentes</h1>
-          <p className="text-[13px] text-[#AAAAAA] mt-1">
+          <h1 className="text-[20px] font-bold text-[hsl(var(--foreground))] leading-tight">Agentes</h1>
+          <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-1">
             Configure a estrutura de inteligência comercial da sua empresa
           </p>
         </div>
@@ -327,7 +327,7 @@ export default function AgentesPage() {
           <RoleSwitcher />
           <Button
             onClick={() => setOpenDialog(true)}
-            className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+            className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white"
           >
             <Plus size={16} /> Novo agente
           </Button>
@@ -336,8 +336,8 @@ export default function AgentesPage() {
 
       <div className="grid grid-cols-[380px_1fr] gap-6">
         {/* Left: Org tree */}
-        <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
-          <h2 className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold mb-3">
+        <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4">
+          <h2 className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold mb-3">
             Estrutura da equipe
           </h2>
           <div className="space-y-1.5">
@@ -353,27 +353,27 @@ export default function AgentesPage() {
           </div>
           <button
             onClick={() => setOpenDialog(true)}
-            className="w-full mt-4 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#128A68] hover:border-[#128A68] transition-colors"
+            className="w-full mt-4 py-2.5 rounded-lg border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[12px] font-medium hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))] transition-colors"
           >
             + Adicionar cargo
           </button>
         </div>
 
         {/* Right: Config panel */}
-        <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1">
+        <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1">
           {!selected ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <Bot size={64} color="#E5E5E5" />
-              <p className="text-[#AAAAAA] text-[14px] mt-4">
+              <Bot size={64} color="hsl(var(--muted-foreground))" />
+              <p className="text-[hsl(var(--muted-foreground))] text-[14px] mt-4">
                 Selecione um agente para configurar
               </p>
             </div>
           ) : (
             <Tabs defaultValue="perfil" className="w-full">
-              <div className="px-6 pt-5 pb-0 border-b border-[#EEEEEE]">
+              <div className="px-6 pt-5 pb-0 border-b border-[hsl(var(--border))]">
                 <div className="mb-4">
-                  <h2 className="text-[16px] font-bold text-[#111111]">{selected.role}</h2>
-                  <p className="text-[12px] text-[#AAAAAA]">{selected.user}</p>
+                  <h2 className="text-[16px] font-bold text-[hsl(var(--foreground))]">{selected.role}</h2>
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">{selected.user}</p>
                 </div>
                 <TabsList className="bg-transparent p-0 h-auto gap-1">
                   {[
@@ -385,7 +385,7 @@ export default function AgentesPage() {
                     <TabsTrigger
                       key={t.v}
                       value={t.v}
-                      className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
+                      className="data-[state=active]:bg-[hsl(var(--muted))] data-[state=active]:text-[hsl(var(--primary))] data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
                     >
                       {t.l}
                     </TabsTrigger>
@@ -396,14 +396,14 @@ export default function AgentesPage() {
               {/* PERFIL */}
               <TabsContent value="perfil" className="p-6 space-y-6 mt-0">
                 <section>
-                  <h3 className="text-[13px] font-semibold text-[#111111] mb-3">Identidade do Agente</h3>
+                  <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">Identidade do Agente</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-[12px] text-[#666]">Nome do agente</Label>
+                      <Label className="text-[12px] text-[hsl(var(--muted-foreground))]">Nome do agente</Label>
                       <Input defaultValue={`Agent ${selected.type} — ${selected.user.split(" ")[0]}`} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                     </div>
                     <div>
-                      <Label className="text-[12px] text-[#666]">Tipo de agente</Label>
+                      <Label className="text-[12px] text-[hsl(var(--muted-foreground))]">Tipo de agente</Label>
                       <Select defaultValue={selected.type}>
                         <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -415,7 +415,7 @@ export default function AgentesPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[12px] text-[#666]">Usuário vinculado</Label>
+                      <Label className="text-[12px] text-[hsl(var(--muted-foreground))]">Usuário vinculado</Label>
                       <Select defaultValue={selected.user}>
                         <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -424,21 +424,21 @@ export default function AgentesPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[12px] text-[#666]">Nível hierárquico</Label>
+                      <Label className="text-[12px] text-[hsl(var(--muted-foreground))]">Nível hierárquico</Label>
                       <Input type="number" defaultValue={selected.level} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-4 p-3 bg-[#F5F5F5] rounded-lg">
+                  <div className="flex items-center justify-between mt-4 p-3 bg-[hsl(var(--muted))] rounded-lg">
                     <div>
-                      <div className="text-[13px] font-medium text-[#111111]">Agente ativo</div>
-                      <div className="text-[11px] text-[#AAAAAA]">Quando inativo, não realiza análises</div>
+                      <div className="text-[13px] font-medium text-[hsl(var(--foreground))]">Agente ativo</div>
+                      <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Quando inativo, não realiza análises</div>
                     </div>
                     <Switch defaultChecked={selected.active} />
                   </div>
                 </section>
 
                 <section key={selected.id}>
-                  <h3 className="text-[13px] font-semibold text-[#111111] mb-3">Acesso a Dados</h3>
+                  <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">Acesso a Dados</h3>
                   <div className="space-y-2.5">
                     {[
                       { label: "Conversas WhatsApp do usuário", tip: "Lê as conversas de WhatsApp do profissional vinculado para análises e sugestões" },
@@ -452,7 +452,7 @@ export default function AgentesPage() {
                       return (
                         <Tooltip key={label}>
                           <TooltipTrigger asChild>
-                            <label className="flex items-center gap-2.5 text-[13px] text-[#111111] cursor-pointer">
+                            <label className="flex items-center gap-2.5 text-[13px] text-[hsl(var(--foreground))] cursor-pointer">
                               <Checkbox defaultChecked={checked} />
                               {label}
                             </label>
@@ -465,7 +465,7 @@ export default function AgentesPage() {
                 </section>
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => toast.success("Perfil salvo")} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                  <Button onClick={() => toast.success("Perfil salvo")} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">
                     Salvar perfil
                   </Button>
                 </div>
@@ -474,31 +474,31 @@ export default function AgentesPage() {
               {/* KB */}
               <TabsContent value="kb" className="p-6 space-y-6 mt-0">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#111111]">Materiais de treinamento</h3>
-                  <p className="text-[12px] text-[#AAAAAA]">
+                  <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Materiais de treinamento</h3>
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
                     Faça upload dos materiais que vão treinar este agente
                   </p>
                 </div>
 
-                <div className="border-2 border-dashed border-[#CCCCCC] rounded-xl p-8 text-center hover:border-[#128A68] hover:bg-[#E1F5EE]/30 transition-colors cursor-pointer">
-                  <Upload size={32} className="mx-auto text-[#AAAAAA]" />
-                  <p className="text-[13px] text-[#111111] font-medium mt-2">
+                <div className="border-2 border-dashed border-[hsl(var(--border))] rounded-xl p-8 text-center hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))]/30 transition-colors cursor-pointer">
+                  <Upload size={32} className="mx-auto text-[hsl(var(--muted-foreground))]" />
+                  <p className="text-[13px] text-[hsl(var(--foreground))] font-medium mt-2">
                     Arraste arquivos ou clique para selecionar
                   </p>
-                  <p className="text-[11px] text-[#AAAAAA] mt-1">
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">
                     PDF, DOCX, TXT — máx 10MB por arquivo
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   {MOCK_FILES.map(f => (
-                    <div key={f.name} className="group flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                    <div key={f.name} className="group flex items-center gap-3 p-3 bg-card border border-[hsl(var(--border))] rounded-lg hover:bg-[hsl(var(--muted))] transition-colors">
                       <FileIcon type={f.type} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] text-[#111111] truncate">{f.name}</div>
-                        <div className="text-[11px] text-[#AAAAAA]">{f.size} · {f.date}</div>
+                        <div className="text-[13px] text-[hsl(var(--foreground))] truncate">{f.name}</div>
+                        <div className="text-[11px] text-[hsl(var(--muted-foreground))]">{f.size} · {f.date}</div>
                       </div>
-                      <button className="opacity-0 group-hover:opacity-100 text-[#AAAAAA] hover:text-[#E24B4A] transition-opacity">
+                      <button className="opacity-0 group-hover:opacity-100 text-[hsl(var(--muted-foreground))] hover:text-[#E24B4A] transition-opacity">
                         <X size={16} />
                       </button>
                     </div>
@@ -506,7 +506,7 @@ export default function AgentesPage() {
                 </div>
 
                 <section>
-                  <h3 className="text-[13px] font-semibold text-[#111111] mb-2">Links e referências</h3>
+                  <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-2">Links e referências</h3>
                   <div className="flex gap-2">
                     <Input
                       value={newLink}
@@ -528,10 +528,10 @@ export default function AgentesPage() {
                   </div>
                   <div className="space-y-1.5 mt-3">
                     {links.map((l, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded-lg">
-                        <LinkIcon size={14} className="text-[#AAAAAA]" />
-                        <span className="flex-1 text-[12px] text-[#111111] truncate">{l}</span>
-                        <button onClick={() => setLinks(prev => prev.filter((_, j) => j !== i))} className="text-[#AAAAAA] hover:text-[#E24B4A]">
+                      <div key={i} className="flex items-center gap-2 p-2 bg-[hsl(var(--muted))] rounded-lg">
+                        <LinkIcon size={14} className="text-[hsl(var(--muted-foreground))]" />
+                        <span className="flex-1 text-[12px] text-[hsl(var(--foreground))] truncate">{l}</span>
+                        <button onClick={() => setLinks(prev => prev.filter((_, j) => j !== i))} className="text-[hsl(var(--muted-foreground))] hover:text-[#E24B4A]">
                           <X size={14} />
                         </button>
                       </div>
@@ -543,41 +543,41 @@ export default function AgentesPage() {
               {/* COMPORTAMENTO */}
               <TabsContent value="comportamento" className="p-6 space-y-6 mt-0">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#111111]">Como este agente deve atuar</h3>
-                  <p className="text-[12px] text-[#AAAAAA]">
+                  <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Como este agente deve atuar</h3>
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
                     Programe o comportamento, tom e prioridades do agente
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-[12px] text-[#666]">Instruções principais</Label>
+                  <Label className="text-[12px] text-[hsl(var(--muted-foreground))]">Instruções principais</Label>
                   <Textarea
                     value={instructions}
                     onChange={e => setInstructions(e.target.value.slice(0, 2000))}
                     placeholder="Ex: Você é o agente SDR da empresa Rezult. Seu objetivo é supervisionar as conversas de qualificação do Carlos. Sempre que identificar que o lead não foi perguntado sobre orçamento, alerte o SDR. Use um tom direto mas amigável. Nunca sugira descontos sem autorização do coordenador..."
                     className="mt-1 min-h-[200px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
-                  <div className="text-right text-[11px] text-[#AAAAAA] mt-1">
+                  <div className="text-right text-[11px] text-[hsl(var(--muted-foreground))] mt-1">
                     {instructions.length} / 2000
                   </div>
                 </div>
 
                 <section>
-                  <h3 className="text-[13px] font-semibold text-[#111111] mb-2">Regras de comportamento</h3>
+                  <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-2">Regras de comportamento</h3>
                   <div className="space-y-2">
                     {rules.map(r => (
-                      <div key={r.id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div key={r.id} className="flex items-center gap-3 p-3 bg-card border border-[hsl(var(--border))] rounded-lg">
                         <Switch
                           checked={r.on}
                           onCheckedChange={v => setRules(prev => prev.map(x => x.id === r.id ? { ...x, on: v } : x))}
                         />
-                        <span className={`flex-1 text-[13px] ${r.on ? "text-[#111111]" : "text-[#AAAAAA]"}`}>
+                        <span className={`flex-1 text-[13px] ${r.on ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"}`}>
                           {r.text}
                         </span>
-                        <button className="text-[#AAAAAA] hover:text-[#128A68]"><Pencil size={14} /></button>
+                        <button className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]"><Pencil size={14} /></button>
                         <button
                           onClick={() => setRules(prev => prev.filter(x => x.id !== r.id))}
-                          className="text-[#AAAAAA] hover:text-[#E24B4A]"
+                          className="text-[hsl(var(--muted-foreground))] hover:text-[#E24B4A]"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -586,14 +586,14 @@ export default function AgentesPage() {
                   </div>
                   <button
                     onClick={() => setRules(prev => [...prev, { id: String(Date.now()), on: true, text: "Nova regra" }])}
-                    className="w-full mt-3 py-2.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#F5F5F5] text-[#AAAAAA] text-[12px] font-medium hover:text-[#128A68] hover:border-[#128A68] transition-colors"
+                    className="w-full mt-3 py-2.5 rounded-lg border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[12px] font-medium hover:text-[hsl(var(--primary))] hover:border-[hsl(var(--primary))] transition-colors"
                   >
                     + Adicionar regra
                   </button>
                 </section>
 
                 <section>
-                  <h3 className="text-[13px] font-semibold text-[#111111] mb-2">Tom de voz</h3>
+                  <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-2">Tom de voz</h3>
                   <div className="grid grid-cols-3 gap-3">
                     {TONE_OPTIONS.map(opt => {
                       const Icon = opt.icon;
@@ -604,8 +604,8 @@ export default function AgentesPage() {
                           onClick={() => setTone(opt.id)}
                           className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
                             sel
-                              ? "border-[#128A68] bg-[#E1F5EE] text-[#128A68]"
-                              : "border-[#EEEEEE] bg-white text-[#666] hover:bg-[#F5F5F5]"
+                              ? "border-[hsl(var(--primary))] bg-[hsl(var(--muted))] text-[hsl(var(--primary))]"
+                              : "border-[hsl(var(--border))] bg-card text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"
                           }`}
                         >
                           <Icon size={20} />
@@ -617,7 +617,7 @@ export default function AgentesPage() {
                 </section>
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => toast.success("Comportamento salvo")} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                  <Button onClick={() => toast.success("Comportamento salvo")} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">
                     Salvar comportamento
                   </Button>
                 </div>
@@ -626,8 +626,8 @@ export default function AgentesPage() {
               {/* PERFORMANCE */}
               <TabsContent value="performance" className="p-6 space-y-6 mt-0">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#111111]">Performance do agente</h3>
-                  <p className="text-[12px] text-[#AAAAAA]">
+                  <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Performance do agente</h3>
+                  <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
                     Resultados do profissional vinculado a este agente
                   </p>
                 </div>
@@ -647,15 +647,15 @@ export default function AgentesPage() {
                         { label: "Score do agente", value: "8.4/10" },
                       ]
                   ).map(m => (
-                    <div key={m.label} className="bg-white border border-[#EEEEEE] rounded-lg p-3">
-                      <div className="text-[10px] uppercase text-[#AAAAAA] tracking-wide">{m.label}</div>
-                      <div className="text-[24px] font-bold text-[#111111] mt-1">{m.value}</div>
+                    <div key={m.label} className="bg-card border border-[hsl(var(--border))] rounded-lg p-3">
+                      <div className="text-[10px] uppercase text-[hsl(var(--muted-foreground))] tracking-wide">{m.label}</div>
+                      <div className="text-[24px] font-bold text-[hsl(var(--foreground))] mt-1">{m.value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-                  <h4 className="text-[13px] font-semibold text-[#111111] mb-3">
+                <div className="bg-card border border-[hsl(var(--border))] rounded-lg p-4">
+                  <h4 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">
                     Evolução do score nos últimos 30 dias
                   </h4>
                   <svg viewBox="0 0 400 100" className="w-full h-24">
@@ -669,18 +669,18 @@ export default function AgentesPage() {
                 </div>
 
                 <section>
-                  <h4 className="text-[13px] font-semibold text-[#111111] mb-2">
+                  <h4 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-2">
                     Últimas análises do agente
                   </h4>
                   <div className="space-y-2">
                     {MOCK_ANALYSES.map(a => {
                       const badge = ANALYSIS_BADGE[a.level];
                       return (
-                        <div key={a.id} className="flex items-start gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
-                          <FileType size={16} className="text-[#AAAAAA] mt-0.5 shrink-0" />
+                        <div key={a.id} className="flex items-start gap-3 p-3 bg-card border border-[hsl(var(--border))] rounded-lg">
+                          <FileType size={16} className="text-[hsl(var(--muted-foreground))] mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-[#111111]">{a.text}</div>
-                            <div className="text-[11px] text-[#AAAAAA] mt-0.5">{a.time}</div>
+                            <div className="text-[13px] text-[hsl(var(--foreground))]">{a.text}</div>
+                            <div className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">{a.time}</div>
                           </div>
                           <span
                             className="text-[10px] font-semibold px-2 py-0.5 rounded shrink-0"
@@ -744,7 +744,7 @@ export default function AgentesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg">
               <Label className="text-[13px]">Ativar agente imediatamente</Label>
               <Switch
                 checked={draft.active}
@@ -754,7 +754,7 @@ export default function AgentesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={createAgent} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+            <Button onClick={createAgent} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">
               Criar agente
             </Button>
           </DialogFooter>

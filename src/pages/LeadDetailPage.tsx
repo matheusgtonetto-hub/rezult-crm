@@ -237,7 +237,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   return (
     <div ref={wrapRef} className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Cidade</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Cidade</label>
       {editing ? (
         <input
           ref={inputRef}
@@ -248,18 +248,18 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setRect(null); }
           }}
           placeholder="Digite o nome da cidade…"
-          style={{ width: "100%", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+          style={{ width: "100%", border: "1px solid hsl(var(--primary))", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "hsl(var(--foreground))", background: "hsl(var(--card))" }}
         />
       ) : hasValue ? (
         <div
-          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[hsl(var(--muted))] transition-colors"
           onClick={openEdit}
         >
-          <span style={{ fontSize: 13, color: "#111111" }}>{value}</span>
-          <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
+          <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{value}</span>
+          <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="hsl(var(--muted-foreground))" />
         </div>
       ) : (
-        <button onClick={openEdit} className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full" style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}>
+        <button onClick={openEdit} className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[hsl(var(--muted))] transition-colors w-full" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontStyle: "italic" }}>
           + Adicionar
         </button>
       )}
@@ -272,8 +272,8 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             top: dropTop,
             left: rect!.left,
             width: rect!.width,
-            background: "#FFF",
-            border: "1px solid #E5E5E5",
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
             borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             zIndex: 99999,
@@ -282,19 +282,19 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
           }}
         >
           {loading && filtered.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Carregando cidades…</div>
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Carregando cidades…</div>
           ) : filtered.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Nenhuma cidade encontrada</div>
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhuma cidade encontrada</div>
           ) : filtered.map(c => (
             <button
               key={`${c.nome}-${c.sigla}`}
               onMouseDown={e => { e.preventDefault(); commit(`${c.nome} - ${c.sigla}`); }}
-              style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13, color: "#111", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+              style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13, color: "hsl(var(--foreground))", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               <span>{c.nome}</span>
-              <span style={{ fontSize: 11, color: "#AAA", fontWeight: 700 }}>{c.sigla}</span>
+              <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 700 }}>{c.sigla}</span>
             </button>
           ))}
         </div>,
@@ -349,7 +349,7 @@ function EditableField({
 
   return (
     <div className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>{label}</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>{label}</label>
       {editing ? (
         <Input
           ref={inputRef}
@@ -365,22 +365,22 @@ function EditableField({
         />
       ) : hasValue ? (
         <div
-          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[hsl(var(--muted))] transition-colors"
           onClick={() => setEditing(true)}
         >
-          <span className={valueClassName} style={{ fontSize: 13, color: "#111111", ...valueStyle }}>
+          <span className={valueClassName} style={{ fontSize: 13, color: "hsl(var(--foreground))", ...valueStyle }}>
             {display ? display(String(value)) : String(value)}
           </span>
           <div className="flex items-center gap-1.5">
             {rightAdornment}
-            <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
+            <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="hsl(var(--muted-foreground))" />
           </div>
         </div>
       ) : (
         <button
           onClick={() => setEditing(true)}
-          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
-          style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[hsl(var(--muted))] transition-colors w-full"
+          style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontStyle: "italic" }}
         >
           + Adicionar
         </button>
@@ -394,15 +394,15 @@ function UtmSection({ lead, updateField }: { lead: import("@/data/mockData").Lea
   const hasAny = !!(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.utmTerm || lead.utmContent);
   return (
     <>
-      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
+      <div style={{ borderTop: "1px solid hsl(var(--border))", margin: "8px 0 4px" }} />
       <button
         onClick={() => setOpen(v => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: "2px 0" }}
       >
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#AAA", letterSpacing: 0.5 }}>
-          PARÂMETROS UTM{hasAny && !open ? <span style={{ marginLeft: 6, background: "#E1F5EE", color: "#128A68", borderRadius: 100, padding: "1px 6px", fontSize: 10 }}>preenchido</span> : null}
+        <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--muted-foreground))", letterSpacing: 0.5 }}>
+          PARÂMETROS UTM{hasAny && !open ? <span style={{ marginLeft: 6, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", borderRadius: 100, padding: "1px 6px", fontSize: 10 }}>preenchido</span> : null}
         </span>
-        <ChevronDown size={13} color="#AAA" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
+        <ChevronDown size={13} color="hsl(var(--muted-foreground))" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
       </button>
       {open && (
         <div className="space-y-2 pt-1">
@@ -422,7 +422,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
   const [title, setTitle] = useState("");
   if (!open) {
     return (
-      <Button size="sm" className="rounded-md h-8" style={{ background: "#128A68", color: "#FFFFFF" }} onClick={() => setOpen(true)}>
+      <Button size="sm" className="rounded-md h-8" style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }} onClick={() => setOpen(true)}>
         <Plus size={14} className="mr-1" /> Nova tarefa
       </Button>
     );
@@ -440,7 +440,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
         placeholder="Título da tarefa..."
         className="h-8 text-sm rounded-md focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
       />
-      <Button size="sm" className="h-8 rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}
+      <Button size="sm" className="h-8 rounded-md" style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
         onClick={() => { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }}
       >
         Salvar
@@ -759,7 +759,7 @@ export default function LeadDetailPage() {
 
   if (!lead) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-3" style={{ background: "#F4F6F8" }}>
+      <div className="flex flex-col items-center justify-center h-screen gap-3" style={{ background: "hsl(var(--muted))" }}>
         <p className="text-sm text-muted-foreground">Lead não encontrado.</p>
         <Button onClick={() => navigate("/pipeline")} variant="outline" className="rounded-lg">
           <ArrowLeft size={14} className="mr-1.5" /> Voltar ao pipeline
@@ -790,7 +790,7 @@ export default function LeadDetailPage() {
     });
   };
 
-  const respColor = memberColors[lead.responsible] || "#888888";
+  const respColor = memberColors[lead.responsible] || "hsl(var(--muted-foreground))";
   const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
   const initials = lead.name
     .split(" ")
@@ -1014,14 +1014,14 @@ export default function LeadDetailPage() {
 
   return (
     <>
-    <div style={{ background: "#F4F6F8", minHeight: "100vh" }}>
+    <div style={{ background: "hsl(var(--muted))", minHeight: "100vh" }}>
       {/* TOPBAR */}
       <div
         style={{
           paddingTop: 9,
           paddingBottom: 9,
-          background: "#FFFFFF",
-          borderBottom: "1px solid #EEEEEE",
+          background: "hsl(var(--card))",
+          borderBottom: "1px solid hsl(var(--border))",
           position: "sticky",
           top: 0,
           zIndex: 30,
@@ -1031,8 +1031,8 @@ export default function LeadDetailPage() {
         {/* Esquerda */}
         <button
           onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors"
-          style={{ color: "#111111" }}
+          className="flex items-center gap-1.5 text-sm hover:bg-[hsl(var(--muted))] rounded-md px-2 py-1.5 transition-colors"
+          style={{ color: "hsl(var(--foreground))" }}
         >
           <ArrowLeft size={16} />
           <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
@@ -1047,8 +1047,8 @@ export default function LeadDetailPage() {
                 className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-semibold"
                 style={
                   lead.dealStatus === "won"
-                    ? { background: "#DCFCE7", color: "#128A68" }
-                    : { background: "#FEE2E2", color: "#E24B4A" }
+                    ? { background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }
+                    : { background: "hsl(var(--destructive-soft))", color: "#E24B4A" }
                 }
               >
                 {lead.dealStatus === "won"
@@ -1069,7 +1069,7 @@ export default function LeadDetailPage() {
               <button
                 onClick={handleWon}
                 className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ background: "#128A68", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
+                style={{ background: "hsl(var(--primary))", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
               >
                 Ganho
               </button>
@@ -1091,13 +1091,13 @@ export default function LeadDetailPage() {
           )}
 
           {/* Divisor */}
-          <div className="w-px h-6 bg-[#EEEEEE] mx-1" />
+          <div className="w-px h-6 bg-[hsl(var(--muted))] mx-1" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
                 {leadResps.length === 0 ? (
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "#AAAAAA" }}>S</div>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "hsl(var(--muted))" }}>S</div>
                 ) : (
                   <div className="flex items-center shrink-0">
                     {leadResps.slice(0, 3).map((name, idx) => {
@@ -1110,7 +1110,7 @@ export default function LeadDetailPage() {
                       );
                     })}
                     {leadResps.length > 3 && (
-                      <div className="rounded-full flex items-center justify-center font-semibold text-[9px]" style={{ width: 28, height: 28, background: "#E5E5E5", color: "#555", marginLeft: -8, outline: "2px solid hsl(var(--background))" }}>+{leadResps.length - 3}</div>
+                      <div className="rounded-full flex items-center justify-center font-semibold text-[9px]" style={{ width: 28, height: 28, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", marginLeft: -8, outline: "2px solid hsl(var(--background))" }}>+{leadResps.length - 3}</div>
                     )}
                   </div>
                 )}
@@ -1147,13 +1147,13 @@ export default function LeadDetailPage() {
                   }}
                   className="flex items-center gap-2"
                 >
-                  <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: selected ? (memberColors[m] || "#128A68") : "transparent" }}>
+                  <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: selected ? (memberColors[m] || "hsl(var(--primary))") : "transparent" }}>
                     {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
                   {memberAvatars[m] ? (
                     <img src={memberAvatars[m]} alt={m} className="w-6 h-6 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: memberColors[m] || "#888" }}>{m[0]}</div>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: memberColors[m] || "hsl(var(--muted))" }}>{m[0]}</div>
                   )}
                   <div className="flex flex-col leading-tight">
                     <span className="text-xs font-medium" style={{ fontWeight: selected ? 600 : 400 }}>{m}</span>
@@ -1165,7 +1165,7 @@ export default function LeadDetailPage() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-md hover:bg-[#F0F0F0] flex items-center justify-center text-muted-foreground">
+              <button className="w-8 h-8 rounded-md hover:bg-[hsl(var(--muted))] flex items-center justify-center text-muted-foreground">
                 <MoreHorizontal size={16} />
               </button>
             </DropdownMenuTrigger>
@@ -1184,8 +1184,8 @@ export default function LeadDetailPage() {
       <div
         style={{
           height: 52,
-          background: "#FFFFFF",
-          borderBottom: "1px solid #E5E5E5",
+          background: "hsl(var(--card))",
+          borderBottom: "1px solid hsl(var(--border))",
           paddingLeft: 16,
           paddingRight: 16,
         }}
@@ -1194,7 +1194,7 @@ export default function LeadDetailPage() {
         {/* Esquerda — nome e funil */}
         <div className="flex flex-col justify-self-start min-w-0">
           <div className="flex items-baseline gap-1">
-            <span className="font-bold truncate" style={{ fontSize: 16, color: "#111111" }}>{lead.name}</span>
+            <span className="font-bold truncate" style={{ fontSize: 16, color: "hsl(var(--foreground))" }}>{lead.name}</span>
             <span className="text-[11px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
           </div>
           <span className="text-[10px] text-muted-foreground truncate">
@@ -1207,8 +1207,8 @@ export default function LeadDetailPage() {
           {stages.map((s, idx) => {
             const isActive = idx === activeIdx;
             const isPast = idx < activeIdx;
-            const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
-            const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
+            const bg = isActive ? "hsl(var(--primary))" : isPast ? "hsl(var(--muted))" : "hsl(var(--muted))";
+            const color = isActive ? "#FFFFFF" : isPast ? "hsl(var(--success-soft-fg))" : "hsl(var(--muted-foreground))";
             const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
             const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
             return (
@@ -1231,7 +1231,7 @@ export default function LeadDetailPage() {
                 >
                   {s.title}
                 </div>
-                <span style={{ fontSize: 9, color: "#AAAAAA", marginTop: 2 }}>
+                <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
                   {days} {days === 1 ? "dia" : "dias"}
                 </span>
               </button>
@@ -1251,23 +1251,23 @@ export default function LeadDetailPage() {
             <section
               key={key}
               style={{
-                background: "#FFFFFF",
+                background: "hsl(var(--card))",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                border: "1px solid #E5E7EB",
+                border: "1px solid hsl(var(--border))",
               }}
             >
               <button
                 onClick={() => toggleSection(key)}
-                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[hsl(var(--muted))] transition-colors rounded-t-[10px]"
+                style={{ borderLeft: "3px solid hsl(var(--primary))", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--primary))", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {SECTION_TITLES[key]}
                 </span>
                 <ChevronDown
                   size={14}
-                  color="#128A68"
+                  color="hsl(var(--primary))"
                   style={{
                     transform: openSections[key] ? "rotate(0deg)" : "rotate(-90deg)",
                     transition: "transform 0.2s",
@@ -1276,7 +1276,7 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[key] && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "hsl(var(--border))" }}>
                   {key === "negocio" && (
                     <div className="pt-2 space-y-2">
                       <EditableField
@@ -1284,15 +1284,15 @@ export default function LeadDetailPage() {
                         value={lead.value ?? 0}
                         type="number"
                         display={v => formatBRL(Number(v) || 0)}
-                        valueStyle={{ color: "#000000", fontWeight: 700, fontSize: 15 }}
+                        valueStyle={{ color: "hsl(var(--foreground))", fontWeight: 700, fontSize: 15 }}
                         onSave={v => updateField("value", Number(v.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0)}
                       />
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Pipeline</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Pipeline</label>
+                        <p style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{pipeline.name}</p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Produto</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Produto</label>
                         <Select
                           value={lead.productId || "none"}
                           onValueChange={v => {
@@ -1314,7 +1314,7 @@ export default function LeadDetailPage() {
                         </Select>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Responsáveis</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Responsáveis</label>
                         <div className="border rounded-md p-1.5 space-y-0.5 max-h-[110px] overflow-y-auto" style={{ borderColor: "hsl(var(--border))" }}>
                           {teamMembers.map(m => {
                             const sel = leadResps.includes(m);
@@ -1328,7 +1328,7 @@ export default function LeadDetailPage() {
                                 }}
                                 className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left hover:bg-muted transition-colors"
                               >
-                                <div className="flex items-center justify-center rounded shrink-0" style={{ width: 13, height: 13, border: sel ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: sel ? (memberColors[m] || "#128A68") : "transparent" }}>
+                                <div className="flex items-center justify-center rounded shrink-0" style={{ width: 13, height: 13, border: sel ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: sel ? (memberColors[m] || "hsl(var(--primary))") : "transparent" }}>
                                   {sel && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                 </div>
                                 <span className="text-xs truncate" style={{ fontWeight: sel ? 600 : 400 }}>{m}</span>
@@ -1338,14 +1338,14 @@ export default function LeadDetailPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Data de entrada</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Data de entrada</label>
+                        <p style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Próxima atividade</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>Próxima atividade</label>
+                        <p style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>
                           {(() => {
                             const next = (lead.activities ?? [])
                               .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
@@ -1387,10 +1387,10 @@ export default function LeadDetailPage() {
                       />
                       {/* Multi-email */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>E-mail</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600 }}>E-mail</label>
                         {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
-                          <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors">
-                            <span style={{ fontSize: 13, color: "#111111" }}>{em}</span>
+                          <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[hsl(var(--muted))] transition-colors">
+                            <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{em}</span>
                             <button
                               onClick={() => {
                                 const updated = (lead.emails ?? (lead.email ? [lead.email] : [])).filter((_, i) => i !== idx);
@@ -1398,7 +1398,7 @@ export default function LeadDetailPage() {
                               }}
                               className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
                             >
-                              <X size={12} color="#AAAAAA" />
+                              <X size={12} color="hsl(var(--muted-foreground))" />
                             </button>
                           </div>
                         ))}
@@ -1429,8 +1429,8 @@ export default function LeadDetailPage() {
                         ) : (
                           <button
                             onClick={() => setAddEmailMode(true)}
-                            className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
-                            style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+                            className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[hsl(var(--muted))] transition-colors w-full"
+                            style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontStyle: "italic" }}
                           >
                             + Adicionar
                           </button>
@@ -1445,7 +1445,7 @@ export default function LeadDetailPage() {
                     const defaultGroup = customFieldGroups.find(g => g.isDefault);
                     if (!defaultGroup || defaultGroup.items.length === 0) {
                       return (
-                        <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                        <p className="text-[11px] text-[hsl(var(--muted-foreground))] text-center py-4">
                           Adicione perguntas em Configurações → Campos adicionais.
                         </p>
                       );
@@ -1463,9 +1463,9 @@ export default function LeadDetailPage() {
                             const isYes = val === "Sim";
                             return (
                               <div key={f.id} className="flex items-center justify-between gap-2">
-                                <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                                <label className="block" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{f.label}</label>
                                 <div className="flex items-center gap-2">
-                                  <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                  <span style={{ fontSize: 12, color: isYes ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                                     {isYes ? "Sim" : "Não"}
                                   </span>
                                   <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
@@ -1505,7 +1505,7 @@ export default function LeadDetailPage() {
                       </div>
                       <UtmSection lead={lead} updateField={updateField} />
 
-                      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
+                      <div style={{ borderTop: "1px solid hsl(var(--border))", margin: "8px 0 4px" }} />
 
                       <div className="space-y-2">
                         <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
@@ -1516,13 +1516,13 @@ export default function LeadDetailPage() {
                               <span
                                 key={tagName}
                                 className="text-[10px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
-                                style={{ background: t?.color || "#888" }}
+                                style={{ background: t?.color || "hsl(var(--muted))" }}
                               >
                                 {tagName}
                                 <button
                                   type="button"
                                   onClick={() => updateField("tags", (lead.tags || []).filter(x => x !== tagName))}
-                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-white/25"
+                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-card/25"
                                   style={{ width: 13, height: 13 }}
                                   aria-label={`Remover tag ${tagName}`}
                                 >
@@ -1541,7 +1541,7 @@ export default function LeadDetailPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-md h-8 text-xs"
-                              style={{ borderColor: "#128A68", color: "#128A68" }}
+                              style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}
                             >
                               <Plus size={12} className="mr-1" /> Tag
                             </Button>
@@ -1584,23 +1584,23 @@ export default function LeadDetailPage() {
             <section
               key={g.id}
               style={{
-                background: "#FFFFFF",
+                background: "hsl(var(--card))",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                border: "1px solid #E5E7EB",
+                border: "1px solid hsl(var(--border))",
               }}
             >
               <button
                 onClick={() => toggleSection(g.id)}
-                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[hsl(var(--muted))] transition-colors rounded-t-[10px]"
+                style={{ borderLeft: "3px solid hsl(var(--primary))", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--primary))", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {g.name}
                 </span>
                 <ChevronDown
                   size={14}
-                  color="#128A68"
+                  color="hsl(var(--primary))"
                   style={{
                     transform: openSections[g.id] !== false ? "rotate(0deg)" : "rotate(-90deg)",
                     transition: "transform 0.2s",
@@ -1609,9 +1609,9 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[g.id] !== false && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "hsl(var(--border))" }}>
                   {g.items.length === 0 ? (
-                    <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                    <p className="text-[11px] text-[hsl(var(--muted-foreground))] text-center py-4">
                       Adicione perguntas em Configurações → Campos adicionais.
                     </p>
                   ) : (
@@ -1627,9 +1627,9 @@ export default function LeadDetailPage() {
                           const isYes = val === "Sim";
                           return (
                             <div key={f.id} className="flex items-center justify-between gap-2">
-                              <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                              <label className="block" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{f.label}</label>
                               <div className="flex items-center gap-2">
-                                <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                <span style={{ fontSize: 12, color: isYes ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                                   {isYes ? "Sim" : "Não"}
                                 </span>
                                 <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
@@ -1660,16 +1660,16 @@ export default function LeadDetailPage() {
         <section
           style={{
             flex: 1,
-            background: "#FFFFFF",
+            background: "hsl(var(--card))",
             borderRadius: 10,
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-            border: "1px solid #E5E7EB",
+            border: "1px solid hsl(var(--border))",
             minWidth: 0,
             marginRight: "clamp(0px, calc((100vw - 960px) * 0.30), 60px)",
           }}
         >
           {/* Tabs */}
-          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "#E5E5E5" }}>
+          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "hsl(var(--border))" }}>
             {TABS.map(t => {
               const active = tab === t.key;
               return (
@@ -1678,9 +1678,9 @@ export default function LeadDetailPage() {
                   onClick={() => setTab(t.key)}
                   className="px-3 py-3 text-sm transition-colors"
                   style={{
-                    color: active ? "#128A68" : "#333333",
+                    color: active ? "hsl(var(--primary))" : "hsl(var(--foreground))",
                     fontWeight: active ? 600 : 400,
-                    borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
+                    borderBottom: active ? "2px solid hsl(var(--primary))" : "2px solid transparent",
                     marginBottom: -1,
                   }}
                 >
@@ -1695,9 +1695,9 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div
                   style={{
-                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
+                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "hsl(var(--border))"}`,
                     borderRadius: 10,
-                    background: "#FAFAFA",
+                    background: "hsl(var(--muted))",
                     padding: 12,
                     transition: "border-color 0.15s",
                   }}
@@ -1712,9 +1712,9 @@ export default function LeadDetailPage() {
                     onMouseUp={handleNewNoteKey}
                     onSelect={handleNewNoteKey}
                     data-placeholder="Escreva uma anotação, @nome..."
-                    className="note-content bg-white border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+                    className="note-content bg-card border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
                     style={{
-                      color: "#111111",
+                      color: "hsl(var(--foreground))",
                       minHeight: newNoteActive ? 80 : 38,
                       wordBreak: "break-word",
                       transition: "min-height 0.15s",
@@ -1789,15 +1789,15 @@ export default function LeadDetailPage() {
                     return (
                       <div key={n.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "#F5F5F4", border: "1px solid #E5E5E5" }}>
-                            <StickyNote size={10} color="#888888" />
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}>
+                            <StickyNote size={10} color="hsl(var(--muted-foreground))" />
                           </div>
-                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "hsl(var(--muted))", minHeight: 12 }} />}
                         </div>
                         <div className="flex-1 min-w-0">
                       <div
                         style={{
-                          background: "#FFFBEB",
+                          background: "hsl(var(--warning-soft))",
                           border: "1px solid #FCD34D",
                           borderRadius: 5,
                           padding: 15,
@@ -1809,15 +1809,15 @@ export default function LeadDetailPage() {
                           ) : (
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                              style={{ background: memberColors[authorName] || "#888888" }}
+                              style={{ background: memberColors[authorName] || "hsl(var(--muted))" }}
                             >
                               {authorName?.[0] ?? "?"}
                             </div>
                           ); })()}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{n.userName ?? lead.responsible}</span>
+                          <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>{n.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
                           {n.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--warning-soft))", color: "#D97706" }}>
                               Fixada
                             </span>
                           )}
@@ -1827,7 +1827,7 @@ export default function LeadDetailPage() {
                               className="flex items-center justify-center rounded-md transition-colors"
                               style={{
                                 width: 24, height: 24,
-                                background: n.pinned ? "#FEF3C7" : "transparent",
+                                background: n.pinned ? "hsl(var(--warning-soft))" : "transparent",
                                 color: n.pinned ? "#D97706" : undefined,
                               }}
                               title={n.pinned ? "Desafixar anotação" : "Fixar anotação no topo"}
@@ -1863,8 +1863,8 @@ export default function LeadDetailPage() {
                               onKeyUp={handleEditKey}
                               onMouseUp={handleEditKey}
                               onSelect={handleEditKey}
-                              className="note-content bg-white border border-card-border rounded-md text-sm mt-1 px-3 py-2 min-h-[70px] outline-none focus:ring-1 focus:ring-primary"
-                              style={{ color: "#111111", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                              className="note-content bg-card border border-card-border rounded-md text-sm mt-1 px-3 py-2 min-h-[70px] outline-none focus:ring-1 focus:ring-primary"
+                              style={{ color: "hsl(var(--foreground))", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                             />
                             <div className="flex items-center justify-between pt-2 mt-2 border-t border-card-border">
                               <div className="flex items-center gap-0.5">
@@ -1917,7 +1917,7 @@ export default function LeadDetailPage() {
                         ) : (
                           <div
                             className="text-sm note-content"
-                            style={{ color: "#111111" }}
+                            style={{ color: "hsl(var(--foreground))" }}
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
                           />
                         )}
@@ -1947,16 +1947,16 @@ export default function LeadDetailPage() {
                     return (
                       <div key={item.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "#DCFCE7" : isNoShow ? "#FEF3C7" : isOverdue ? "#FEE2E2" : "#ECFDF5", border: `1px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "rgba(18,138,104,0.4)"}` }}>
-                            <TypeIcon size={10} color={isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#128A68"} />
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "hsl(var(--success-soft))" : isNoShow ? "hsl(var(--warning-soft))" : isOverdue ? "hsl(var(--destructive-soft))" : "hsl(var(--success-soft))", border: `1px solid ${isCompleted ? "hsl(var(--primary))" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "rgba(18,138,104,0.4)"}` }}>
+                            <TypeIcon size={10} color={isCompleted ? "hsl(var(--primary))" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "hsl(var(--primary))"} />
                           </div>
-                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "hsl(var(--muted))", minHeight: 12 }} />}
                         </div>
                         <div className="flex-1 min-w-0">
                       <div
                         className="group"
                         style={{
-                          background: item.pinned ? "#FFFBEB" : "#FAFAF7",
+                          background: item.pinned ? "hsl(var(--warning-soft))" : "hsl(var(--muted))",
                           border: item.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted
@@ -1980,35 +1980,35 @@ export default function LeadDetailPage() {
                           ) : (
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                              style={{ background: memberColors[authorName] || "#888888" }}
+                              style={{ background: memberColors[authorName] || "hsl(var(--muted))" }}
                             >
                               {authorName?.[0] ?? "?"}
                             </div>
                           ); })()}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{item.userName ?? lead.responsible}</span>
+                          <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>{item.userName ?? lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
                           {item.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--warning-soft))", color: "#D97706" }}>
                               Fixada
                             </span>
                           )}
                           <div className="ml-auto flex items-center gap-1">
                             {isCompleted ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }}>Realizada</span>
                             ) : isNoShow ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--warning-soft))", color: "#D97706" }}>No-show</span>
                             ) : (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                                 {typeLabels[item.type] ?? item.type}
                               </span>
                             )}
                             <button
                               onClick={() => pinActivity(lead.id, item.id, !item.pinned)}
                               className="flex items-center justify-center rounded-md transition-colors"
-                              style={{ width: 24, height: 24, background: item.pinned ? "#FEF3C7" : "transparent" }}
+                              style={{ width: 24, height: 24, background: item.pinned ? "hsl(var(--warning-soft))" : "transparent" }}
                               title={item.pinned ? "Desafixar atividade" : "Fixar atividade"}
                             >
-                              <Pin size={13} style={{ color: item.pinned ? "#D97706" : "#AAAAAA" }} />
+                              <Pin size={13} style={{ color: item.pinned ? "#D97706" : "hsl(var(--muted-foreground))" }} />
                             </button>
                             <button
                               onClick={() => openEditActivityDialog(item)}
@@ -2039,8 +2039,8 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
-                                  background: isCompleted ? "#128A68" : isNoShow ? "#FEF9C3" : "transparent",
+                                  border: `2px solid ${isCompleted ? "hsl(var(--primary))" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "hsl(var(--border))"}`,
+                                  background: isCompleted ? "hsl(var(--primary))" : isNoShow ? "hsl(var(--warning-soft))" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
@@ -2052,10 +2052,10 @@ export default function LeadDetailPage() {
                               {!isCompleted && !isNoShow ? (
                                 <>
                                   <DropdownMenuItem onClick={() => completeActivity(lead.id, item.id)} className="text-xs">
-                                    <Check size={12} className="mr-2 text-green-600" /> Marcar como realizada
+                                    <Check size={12} className="mr-2 text-[hsl(var(--success-soft-fg))]" /> Marcar como realizada
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => markNoShow(lead.id, item.id)} className="text-xs">
-                                    <X size={12} className="mr-2 text-amber-600" /> No-show
+                                    <X size={12} className="mr-2 text-[hsl(var(--warning-soft-fg))]" /> No-show
                                   </DropdownMenuItem>
                                 </>
                               ) : (
@@ -2071,27 +2071,27 @@ export default function LeadDetailPage() {
 
                           <div className="flex-1 min-w-0 space-y-1.5">
                             {/* Título */}
-                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{item.title || item.description}</p>
+                            <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>{item.title || item.description}</p>
                             {/* Tarefa + Data e hora */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[10px] text-muted-foreground">Tarefa</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <TypeIcon size={11} className="text-muted-foreground shrink-0" />
-                                  <span className="text-xs" style={{ color: "#111111" }}>{typeLabels[item.type] ?? item.type}</span>
+                                  <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>{typeLabels[item.type] ?? item.type}</span>
                                 </div>
                               </div>
                               {scheduledDate && (
                                 <div>
                                   <p className="text-[10px] text-muted-foreground">Data e hora</p>
-                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(item.scheduledAt!)}</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "hsl(var(--foreground))" }}>{fmtActivityDate(item.scheduledAt!)}</p>
                                 </div>
                               )}
                             </div>
                             {/* Badge vencida */}
                             {isOverdue && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--destructive-soft))", color: "#E24B4A" }}>Vencida</span>
                               </div>
                             )}
                             {/* Participantes + Link */}
@@ -2106,7 +2106,7 @@ export default function LeadDetailPage() {
                                           {memberAvatars[item.participants[0]] ? (
                                             <img src={memberAvatars[item.participants[0]]} alt={item.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
                                           ) : (
-                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[item.participants[0]] ?? "#AAAAAA" }}>
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[item.participants[0]] ?? "hsl(var(--muted))" }}>
                                               {item.participants[0][0].toUpperCase()}
                                             </div>
                                           )}
@@ -2126,7 +2126,7 @@ export default function LeadDetailPage() {
                                                   {memberAvatars[email] ? (
                                                     <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
                                                   ) : (
-                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "hsl(var(--muted))" }}>
                                                       {email[0].toUpperCase()}
                                                     </div>
                                                   )}
@@ -2158,7 +2158,7 @@ export default function LeadDetailPage() {
                             {item.title && item.description && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground">Descrição</p>
-                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{item.description}</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "hsl(var(--foreground))" }}>{item.description}</p>
                               </div>
                             )}
                           </div>
@@ -2187,10 +2187,10 @@ export default function LeadDetailPage() {
                         >
                           <Icon size={10} color="#FFFFFF" />
                         </div>
-                        {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                        {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "hsl(var(--muted))", minHeight: 12 }} />}
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
-                        <p className="font-medium" style={{ color: "#111111", fontSize: 13 }}>{item.description}</p>
+                        <p className="font-medium" style={{ color: "hsl(var(--foreground))", fontSize: 13 }}>{item.description}</p>
                         <p className="text-muted-foreground mt-0.5" style={{ fontSize: 11 }}>
                           {fmtActivityDate(item.date)}
                           {item.userName && <> · <span className="font-medium">{item.userName}</span></>}
@@ -2200,7 +2200,7 @@ export default function LeadDetailPage() {
                   );
                 })}
 
-                <div className="text-xs italic text-center py-2" style={{ color: "#AAAAAA" }}>
+                <div className="text-xs italic text-center py-2" style={{ color: "hsl(var(--muted-foreground))" }}>
                   {(() => {
                     const d = lead.created_at ? new Date(lead.created_at) : null;
                     if (!d || isNaN(d.getTime())) return "Negócio criado";
@@ -2239,7 +2239,7 @@ export default function LeadDetailPage() {
                       ) : (
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0"
-                          style={{ fontSize: 9, fontWeight: 700, background: memberColors[m] || "#888" }}
+                          style={{ fontSize: 9, fontWeight: 700, background: memberColors[m] || "hsl(var(--muted))" }}
                         >
                           {m[0]}
                         </div>
@@ -2292,7 +2292,7 @@ export default function LeadDetailPage() {
                         key={act.id}
                         className="group"
                         style={{
-                          background: act.pinned ? "#FFFBEB" : "#FAFAF7",
+                          background: act.pinned ? "hsl(var(--warning-soft))" : "hsl(var(--muted))",
                           border: act.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted
@@ -2313,30 +2313,30 @@ export default function LeadDetailPage() {
                               {lead.responsible?.[0] ?? "?"}
                             </div>
                           )}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
+                          <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>{lead.responsible}</span>
                           <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(act.date)}</span>
                           {act.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--warning-soft))", color: "#D97706" }}>
                               Fixada
                             </span>
                           )}
                           <div className="ml-auto flex items-center gap-1">
                             {isCompleted ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }}>Realizada</span>
                             ) : isNoShow ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--warning-soft))", color: "#D97706" }}>No-show</span>
                             ) : (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                                 {actTypeLabels[act.type] ?? act.type}
                               </span>
                             )}
                             <button
                               onClick={() => pinActivity(lead.id, act.id, !act.pinned)}
                               className="flex items-center justify-center rounded-md transition-colors"
-                              style={{ width: 24, height: 24, background: act.pinned ? "#FEF3C7" : "transparent" }}
+                              style={{ width: 24, height: 24, background: act.pinned ? "hsl(var(--warning-soft))" : "transparent" }}
                               title={act.pinned ? "Desafixar atividade" : "Fixar atividade"}
                             >
-                              <Pin size={13} style={{ color: act.pinned ? "#D97706" : "#AAAAAA" }} />
+                              <Pin size={13} style={{ color: act.pinned ? "#D97706" : "hsl(var(--muted-foreground))" }} />
                             </button>
                             <button
                               onClick={() => openEditActivityDialog(act)}
@@ -2364,8 +2364,8 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
-                                  background: isCompleted ? "#128A68" : isNoShow ? "#D97706" : "transparent",
+                                  border: `2px solid ${isCompleted ? "hsl(var(--primary))" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "hsl(var(--border))"}`,
+                                  background: isCompleted ? "hsl(var(--primary))" : isNoShow ? "#D97706" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
@@ -2377,10 +2377,10 @@ export default function LeadDetailPage() {
                               {!isCompleted && !isNoShow && (
                                 <>
                                   <DropdownMenuItem onClick={() => completeActivity(lead.id, act.id)}>
-                                    <Check size={13} className="mr-2 text-green-600" /> Marcar como realizada
+                                    <Check size={13} className="mr-2 text-[hsl(var(--success-soft-fg))]" /> Marcar como realizada
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => markNoShow(lead.id, act.id)}>
-                                    <X size={13} className="mr-2 text-amber-600" /> No-show
+                                    <X size={13} className="mr-2 text-[hsl(var(--warning-soft-fg))]" /> No-show
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -2393,27 +2393,27 @@ export default function LeadDetailPage() {
                           </DropdownMenu>
                           <div className="flex-1 min-w-0 space-y-1.5">
                             {/* Título */}
-                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{act.title || act.description}</p>
+                            <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>{act.title || act.description}</p>
                             {/* Tarefa + Data e hora */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[10px] text-muted-foreground">Tarefa</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <ActTypeIcon size={11} className="text-muted-foreground shrink-0" />
-                                  <span className="text-xs" style={{ color: "#111111" }}>{actTypeLabels[act.type] ?? act.type}</span>
+                                  <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>{actTypeLabels[act.type] ?? act.type}</span>
                                 </div>
                               </div>
                               {scheduledDate && (
                                 <div>
                                   <p className="text-[10px] text-muted-foreground">Data e hora</p>
-                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(act.scheduledAt!)}</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "hsl(var(--foreground))" }}>{fmtActivityDate(act.scheduledAt!)}</p>
                                 </div>
                               )}
                             </div>
                             {/* Badge vencida */}
                             {isOverdue && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--destructive-soft))", color: "#E24B4A" }}>Vencida</span>
                               </div>
                             )}
                             {/* Participantes + Link */}
@@ -2428,7 +2428,7 @@ export default function LeadDetailPage() {
                                           {memberAvatars[act.participants[0]] ? (
                                             <img src={memberAvatars[act.participants[0]]} alt={act.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
                                           ) : (
-                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[act.participants[0]] ?? "#AAAAAA" }}>
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[act.participants[0]] ?? "hsl(var(--muted))" }}>
                                               {act.participants[0][0].toUpperCase()}
                                             </div>
                                           )}
@@ -2448,7 +2448,7 @@ export default function LeadDetailPage() {
                                                   {memberAvatars[email] ? (
                                                     <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
                                                   ) : (
-                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "hsl(var(--muted))" }}>
                                                       {email[0].toUpperCase()}
                                                     </div>
                                                   )}
@@ -2480,7 +2480,7 @@ export default function LeadDetailPage() {
                             {act.title && act.description && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground">Descrição</p>
-                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{act.description}</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "hsl(var(--foreground))" }}>{act.description}</p>
                               </div>
                             )}
                           </div>
@@ -2490,7 +2490,7 @@ export default function LeadDetailPage() {
                   })}
 
                 {leadTasks.length === 0 ? (
-                  <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
+                  <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "hsl(var(--border))" }}>
                     <p className="text-sm text-muted-foreground">Nenhuma tarefa para este lead</p>
                   </div>
                 ) : (
@@ -2503,7 +2503,7 @@ export default function LeadDetailPage() {
                       <div
                         key={t.id}
                         className="flex items-center gap-3 p-3 rounded-lg"
-                        style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+                        style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                       >
                         <Checkbox
                           checked={done}
@@ -2511,12 +2511,12 @@ export default function LeadDetailPage() {
                         />
                         <div
                           className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-                          style={{ background: "#E1F5EE", color: "#128A68" }}
+                          style={{ background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }}
                         >
                           <CheckSquare size={14} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`} style={{ color: done ? undefined : "#111111" }}>
+                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`} style={{ color: done ? undefined : "hsl(var(--foreground))" }}>
                             {t.title}
                           </p>
                           <p className="text-xs text-muted-foreground">{dueLabel}{dueLabel && " · "}{t.responsible}</p>
@@ -2524,8 +2524,8 @@ export default function LeadDetailPage() {
                         <Badge
                           className="border-0 text-[10px]"
                           style={{
-                            background: done ? "#E1F5EE" : "#FEF3C7",
-                            color: done ? "#085041" : "#92400E",
+                            background: done ? "hsl(var(--success-soft))" : "hsl(var(--warning-soft))",
+                            color: done ? "hsl(var(--success-soft-fg))" : "hsl(var(--warning-soft-fg))",
                           }}
                         >
                           {done ? "Concluída" : "Pendente"}
@@ -2540,10 +2540,10 @@ export default function LeadDetailPage() {
 
             {tab === "email" && (
               <div className="text-center py-16 px-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-50 mb-4">
-                  <Mail size={26} className="text-amber-400" />
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[hsl(var(--warning-soft))] mb-4">
+                  <Mail size={26} className="text-[hsl(var(--warning-soft-fg))]" />
                 </div>
-                <p className="text-sm font-semibold text-gray-700 mb-1">Em breve</p>
+                <p className="text-sm font-semibold text-foreground mb-1">Em breve</p>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   A integração de e-mail está sendo desenvolvida e será disponibilizada em breve.
                 </p>
@@ -2556,11 +2556,11 @@ export default function LeadDetailPage() {
                 <input ref={fileUploadRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" />
                 <div
                   className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
-                  style={{ borderColor: uploading ? "#128A68" : "#E5E5E5" }}
+                  style={{ borderColor: uploading ? "hsl(var(--primary))" : "hsl(var(--border))" }}
                   onClick={() => !uploading && fileUploadRef.current?.click()}
                 >
-                  <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "#128A68" : "#AAAAAA" }} />
-                  <p className="text-sm font-medium" style={{ color: "#111111" }}>
+                  <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                  <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                     {uploading ? "Enviando…" : "Clique para enviar um arquivo"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, XLSX, imagens</p>
@@ -2572,17 +2572,17 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enviados manualmente</p>
                     <div className="space-y-2">
                       {uploadedFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
-                          <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "#128A68" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+                          <div className="w-9 h-9 rounded-md bg-[hsl(var(--muted))] flex items-center justify-center shrink-0" style={{ color: "hsl(var(--primary))" }}>
                             {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-sm font-medium truncate" style={{ color: "hsl(var(--foreground))" }}>{f.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {formatBytes(f.size)} · {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.uploadedBy}
                             </p>
                           </div>
-                          <button onClick={() => handleDownloadFile(f)} className="text-muted-foreground hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Baixar">
+                          <button onClick={() => handleDownloadFile(f)} className="text-muted-foreground hover:text-[hsl(var(--primary))] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Baixar">
                             <Download size={14} />
                           </button>
                           <button onClick={() => handleDeleteFile(f)} disabled={deletingFileId === f.id} className="text-muted-foreground hover:text-[#E24B4A] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">
@@ -2600,17 +2600,17 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Via WhatsApp</p>
                     <div className="space-y-2">
                       {waFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
-                          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "#F0FDF4", color: "#25D366" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+                          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "hsl(var(--success-soft))", color: "#25D366" }}>
                             {f.type === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-sm font-medium truncate" style={{ color: "hsl(var(--foreground))" }}>{f.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.senderName} · {f.fromMe ? "Enviado" : "Recebido"}
                             </p>
                           </div>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#E1F5EE", color: "#128A68" }}>WhatsApp</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "hsl(var(--success-soft))", color: "hsl(var(--primary))" }}>WhatsApp</span>
                         </div>
                       ))}
                     </div>
@@ -2635,11 +2635,11 @@ export default function LeadDetailPage() {
     <AlertDialog open={!!pendingStageAdvance} onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
-          <AlertDialogTitle className={pendingStageAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
+          <AlertDialogTitle className={pendingStageAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-[hsl(var(--destructive-soft-fg))]" : "flex items-center justify-center gap-2 text-primary"}>
             {pendingStageAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
             {pendingStageAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
           </AlertDialogTitle>
-          <hr className="border-gray-300" />
+          <hr className="border-border" />
           <AlertDialogDescription className="pl-[10px]">
             {pendingStageAdvance?.isSkipping ? (
               <>
@@ -2776,7 +2776,7 @@ export default function LeadDetailPage() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trophy size={16} style={{ color: "#128A68" }} />
+            <Trophy size={16} style={{ color: "hsl(var(--primary))" }} />
             Confirmar ganho
           </DialogTitle>
         </DialogHeader>
@@ -2784,7 +2784,7 @@ export default function LeadDetailPage() {
         <div className="space-y-4">
           {/* Produto */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
               Produto{lead.productId ? "" : " *"}
             </label>
             {lead.productId ? (
@@ -2820,7 +2820,7 @@ export default function LeadDetailPage() {
 
           {/* Transferência de funil */}
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
               Transferir para outro funil{" "}
               <span className="font-normal text-muted-foreground">(opcional)</span>
             </label>
@@ -2847,7 +2847,7 @@ export default function LeadDetailPage() {
               const firstCol = target?.columns[0];
               return firstCol ? (
                 <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                  <span style={{ color: "#128A68" }}>→</span>
+                  <span style={{ color: "hsl(var(--primary))" }}>→</span>
                   Entrará em <strong className="text-foreground">{target?.name}</strong> na etapa <strong className="text-foreground">{firstCol.title}</strong>
                 </p>
               ) : null;
@@ -2862,7 +2862,7 @@ export default function LeadDetailPage() {
           <Button
             className="rounded-lg"
             disabled={!lead.productId && (!wonProductId || wonProductId === "none")}
-            style={{ background: "#128A68", color: "#FFFFFF" }}
+            style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
             onClick={handleConfirmWon}
           >
             <Trophy size={14} className="mr-1.5" />

@@ -19,8 +19,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       className="text-xs font-medium px-2.5 py-1 rounded-full border transition-colors"
       style={{
-        borderColor: active ? "hsl(var(--primary))" : "#E5E7EB",
-        background: active ? "hsl(var(--primary) / 0.08)" : "#fff",
+        borderColor: active ? "hsl(var(--primary))" : "hsl(var(--border))",
+        background: active ? "hsl(var(--primary) / 0.08)" : "hsl(var(--card))",
         color: active ? "hsl(var(--primary))" : "#475569",
       }}
     >

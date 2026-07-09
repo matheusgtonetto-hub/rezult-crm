@@ -36,7 +36,7 @@ export function OriginPanel({ periodLeads }: OriginPanelProps) {
   const maxRevenue = Math.max(...originData.map(o => o.revenue), 1);
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4">
       <h3 className="text-sm font-semibold text-foreground mb-4">Origem dos leads</h3>
       {originData.length === 0 ? (
         <p className="text-xs text-muted-foreground">Sem dados no período.</p>

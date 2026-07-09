@@ -102,13 +102,13 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
                 onMouseLeave={() => picking && setHover(null)}
                 onClick={() => handleClick(day)}
               >
-                {showRangeBg && <div className="absolute inset-y-[4px] inset-x-0 bg-blue-50" />}
-                {showLeftHalf && <div className="absolute inset-y-[4px] left-0 right-[50%] bg-blue-50" />}
-                {showRightHalf && <div className="absolute inset-y-[4px] left-[50%] right-0 bg-blue-50" />}
+                {showRangeBg && <div className="absolute inset-y-[4px] inset-x-0 bg-[hsl(var(--info-soft))]" />}
+                {showLeftHalf && <div className="absolute inset-y-[4px] left-0 right-[50%] bg-[hsl(var(--info-soft))]" />}
+                {showRightHalf && <div className="absolute inset-y-[4px] left-[50%] right-0 bg-[hsl(var(--info-soft))]" />}
                 <span className={[
                   "relative z-10 w-8 h-8 flex items-center justify-center rounded-full text-xs",
                   isSelected ? "bg-blue-500 text-white font-semibold" : "",
-                  !isSelected && !isOther ? "hover:bg-gray-100" : "",
+                  !isSelected && !isOther ? "hover:bg-muted" : "",
                   isOther ? "text-muted-foreground/40" : "text-foreground",
                 ].join(" ")}>
                   {format(day, "d")}

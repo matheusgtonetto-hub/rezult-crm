@@ -100,7 +100,7 @@ export function EditDisparoDialog({
             <span className="text-primary">ℹ</span>
             Verifique nas configurações da conexão da automação o limite de mensagens por segundo para definir o melhor tamanho do lote neste disparo.
           </p>
-          <p className="text-xs text-amber-600 flex items-start gap-1.5 mt-1">⚠ Concorrência com as APIs externas podem impactar a taxa de envio de mensagens/seg.</p>
+          <p className="text-xs text-[hsl(var(--warning-soft-fg))] flex items-start gap-1.5 mt-1">⚠ Concorrência com as APIs externas podem impactar a taxa de envio de mensagens/seg.</p>
         </div>
 
         <label className="flex items-start gap-2.5 cursor-pointer">

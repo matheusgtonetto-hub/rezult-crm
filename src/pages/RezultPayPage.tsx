@@ -46,14 +46,14 @@ type Status = "pago" | "pendente" | "vencido" | "cancelado";
 type Method = "cartao" | "pix" | "boleto";
 
 const STATUS_BADGE: Record<Status, { bg: string; fg: string; label: string }> = {
-  pago: { bg: "#E1F5EE", fg: "#085041", label: "Pago" },
-  pendente: { bg: "#FAEEDA", fg: "#633806", label: "Pendente" },
-  vencido: { bg: "#FCEBEB", fg: "#A32D2D", label: "Vencido" },
-  cancelado: { bg: "#F5F5F5", fg: "#535353", label: "Cancelado" },
+  pago: { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))", label: "Pago" },
+  pendente: { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))", label: "Pendente" },
+  vencido: { bg: "hsl(var(--muted))", fg: "hsl(var(--destructive-soft-fg))", label: "Vencido" },
+  cancelado: { bg: "hsl(var(--muted))", fg: "hsl(var(--foreground))", label: "Cancelado" },
 };
 
 function MethodIcon({ method, size = 14 }: { method: Method; size?: number }) {
-  if (method === "cartao") return <CreditCard size={size} color="#128A68" />;
+  if (method === "cartao") return <CreditCard size={size} color="hsl(var(--primary))" />;
   if (method === "pix") return <QrCode size={size} color="#378ADD" />;
   return <Banknote size={size} color="#F59E0B" />;
 }
@@ -139,15 +139,15 @@ function StatusBadge({ status }: { status: Status }) {
 
 function MetricCard({ label, value, hint, icon, accent }: { label: string; value: string; hint: string; icon: React.ReactNode; accent: string }) {
   return (
-    <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
+    <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4">
       <div className="flex items-start justify-between">
-        <span className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">{label}</span>
+        <span className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold">{label}</span>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${accent}1A` }}>
           {icon}
         </div>
       </div>
-      <div className="text-[24px] font-bold text-[#111111] mt-2">{value}</div>
-      <div className="text-[12px] text-[#666] mt-1">{hint}</div>
+      <div className="text-[24px] font-bold text-[hsl(var(--foreground))] mt-2">{value}</div>
+      <div className="text-[12px] text-[hsl(var(--muted-foreground))] mt-1">{hint}</div>
     </div>
   );
 }
@@ -162,19 +162,19 @@ function StackedBarChart() {
           const h = (total / max) * 160;
           return (
             <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
-              <div className="text-[10px] text-[#AAAAAA]">{BRL(total).replace("R$", "").trim()}</div>
+              <div className="text-[10px] text-[hsl(var(--muted-foreground))]">{BRL(total).replace("R$", "").trim()}</div>
               <div className="w-full flex flex-col-reverse rounded-t-md overflow-hidden" style={{ height: h }}>
-                <div style={{ background: "#128A68", height: `${(m.cartao / total) * 100}%` }} />
+                <div style={{ background: "hsl(var(--primary))", height: `${(m.cartao / total) * 100}%` }} />
                 <div style={{ background: "#378ADD", height: `${(m.pix / total) * 100}%` }} />
                 <div style={{ background: "#F59E0B", height: `${(m.boleto / total) * 100}%` }} />
               </div>
-              <div className="text-[11px] text-[#666] font-medium">{m.month}</div>
+              <div className="text-[11px] text-[hsl(var(--muted-foreground))] font-medium">{m.month}</div>
             </div>
           );
         })}
       </div>
-      <div className="flex items-center gap-4 mt-3 text-[11px] text-[#666] justify-center">
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#128A68" }} /> Cartão</span>
+      <div className="flex items-center gap-4 mt-3 text-[11px] text-[hsl(var(--muted-foreground))] justify-center">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "hsl(var(--primary))" }} /> Cartão</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#378ADD" }} /> Pix</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#F59E0B" }} /> Boleto</span>
       </div>
@@ -227,18 +227,18 @@ export default function RezultPayPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111] leading-tight">Rezult Pay</h1>
-          <p className="text-[13px] text-[#AAAAAA] mt-1">
+          <h1 className="text-[20px] font-bold text-[hsl(var(--foreground))] leading-tight">Rezult Pay</h1>
+          <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-1">
             Gestão financeira completa da sua operação comercial
           </p>
         </div>
-        <Button onClick={() => setOpenNew(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+        <Button onClick={() => setOpenNew(true)} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">
           <Plus size={16} /> Nova cobrança
         </Button>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-transparent p-0 h-auto gap-1 border-b border-[#EEEEEE] w-full justify-start rounded-none mb-5">
+        <TabsList className="bg-transparent p-0 h-auto gap-1 border-b border-[hsl(var(--border))] w-full justify-start rounded-none mb-5">
           {[
             { v: "overview", l: "Visão Geral" },
             { v: "charges", l: "Cobranças" },
@@ -249,7 +249,7 @@ export default function RezultPayPage() {
             <TabsTrigger
               key={t.v}
               value={t.v}
-              className="data-[state=active]:bg-transparent data-[state=active]:text-[#128A68] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#128A68] rounded-none text-[13px] px-3 py-2 -mb-px"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-[hsl(var(--primary))] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none text-[13px] px-3 py-2 -mb-px"
             >
               {t.l}
             </TabsTrigger>
@@ -272,34 +272,34 @@ export default function RezultPayPage() {
           </div>
 
           <div className="grid grid-cols-4 gap-4">
-            <MetricCard label="Total recebido" value={BRL(26920)} hint="+12% vs mês anterior" icon={<ArrowUpRight size={14} color="#128A68" />} accent="#128A68" />
+            <MetricCard label="Total recebido" value={BRL(26920)} hint="+12% vs mês anterior" icon={<ArrowUpRight size={14} color="hsl(var(--primary))" />} accent="#128A68" />
             <MetricCard label="Total em aberto" value={BRL(32200)} hint="6 cobranças pendentes" icon={<Clock size={14} color="#F59E0B" />} accent="#F59E0B" />
             <MetricCard label="Total vencido" value={BRL(4500)} hint="2 cobranças vencidas" icon={<AlertCircle size={14} color="#E24B4A" />} accent="#E24B4A" />
-            <MetricCard label="Previsão do mês" value={BRL(58120)} hint="Recebido + em aberto" icon={<BarChart3 size={14} color="#128A68" />} accent="#128A68" />
+            <MetricCard label="Previsão do mês" value={BRL(58120)} hint="Recebido + em aberto" icon={<BarChart3 size={14} color="hsl(var(--primary))" />} accent="#128A68" />
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-5">
-            <h3 className="text-[14px] font-semibold text-[#111111] mb-4">Recebimentos mensais</h3>
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-5">
+            <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))] mb-4">Recebimentos mensais</h3>
             <StackedBarChart />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-5">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Cobranças recentes</h3>
+            <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-5">
+              <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))] mb-3">Cobranças recentes</h3>
               <div className="space-y-2">
                 {CHARGES.slice(0, 5).map(c => (
-                  <div key={c.id} className="flex items-center gap-3 py-2 border-b border-[#F0F0F0] last:border-0">
+                  <div key={c.id} className="flex items-center gap-3 py-2 border-b border-[hsl(var(--border))] last:border-0">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: colorFromString(c.client) }}>
                       {initials(c.client)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-[#111111] truncate">{c.client}</div>
-                      <div className="text-[11px] text-[#AAAAAA] flex items-center gap-1.5">
+                      <div className="text-[13px] font-medium text-[hsl(var(--foreground))] truncate">{c.client}</div>
+                      <div className="text-[11px] text-[hsl(var(--muted-foreground))] flex items-center gap-1.5">
                         <MethodIcon method={c.method} size={11} /> {METHOD_LABEL[c.method]} · {c.due}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[13px] font-semibold text-[#128A68]">{BRL(c.amount)}</div>
+                      <div className="text-[13px] font-semibold text-[hsl(var(--primary))]">{BRL(c.amount)}</div>
                       <div className="mt-0.5"><StatusBadge status={c.status} /></div>
                     </div>
                   </div>
@@ -307,22 +307,22 @@ export default function RezultPayPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-5">
-              <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Próximos vencimentos</h3>
+            <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-5">
+              <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))] mb-3">Próximos vencimentos</h3>
               <div className="space-y-2">
                 {UPCOMING.map(u => {
                   const badgeColor = u.days < 0
-                    ? { bg: "#FCEBEB", fg: "#A32D2D", label: `${Math.abs(u.days)}d vencido` }
+                    ? { bg: "hsl(var(--muted))", fg: "hsl(var(--destructive-soft-fg))", label: `${Math.abs(u.days)}d vencido` }
                     : u.days <= 3
-                      ? { bg: "#FAEEDA", fg: "#633806", label: `em ${u.days}d` }
-                      : { bg: "#E1F5EE", fg: "#085041", label: `em ${u.days}d` };
+                      ? { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))", label: `em ${u.days}d` }
+                      : { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))", label: `em ${u.days}d` };
                   return (
-                    <div key={u.name} className="flex items-center gap-3 py-2 border-b border-[#F0F0F0] last:border-0">
+                    <div key={u.name} className="flex items-center gap-3 py-2 border-b border-[hsl(var(--border))] last:border-0">
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium text-[#111111] truncate">{u.name}</div>
-                        <div className="text-[11px] text-[#AAAAAA]">Vence em {u.due}</div>
+                        <div className="text-[13px] font-medium text-[hsl(var(--foreground))] truncate">{u.name}</div>
+                        <div className="text-[11px] text-[hsl(var(--muted-foreground))]">Vence em {u.due}</div>
                       </div>
-                      <div className="text-[13px] font-semibold text-[#111111]">{BRL(u.amount)}</div>
+                      <div className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{BRL(u.amount)}</div>
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded shrink-0" style={{ background: badgeColor.bg, color: badgeColor.fg }}>
                         {badgeColor.label}
                       </span>
@@ -336,9 +336,9 @@ export default function RezultPayPage() {
 
         {/* CHARGES */}
         <TabsContent value="charges" className="space-y-4 mt-0">
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4 flex flex-wrap items-center gap-2">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4 flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AAAAAA]" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
               <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou valor" className="pl-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -360,15 +360,15 @@ export default function RezultPayPage() {
                 <SelectItem value="boleto">Boleto</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-[#128A68] text-[#128A68] hover:bg-[#E1F5EE]">
+            <Button variant="outline" className="border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))]">
               <Download size={14} /> Exportar
             </Button>
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 overflow-hidden">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
+                <tr className="bg-[hsl(var(--muted))] text-[11px] uppercase text-[hsl(var(--muted-foreground))] tracking-wide">
                   <th className="px-3 py-3 text-left w-8"><Checkbox /></th>
                   <th className="px-3 py-3 text-left font-semibold">Cliente</th>
                   <th className="px-3 py-3 text-left font-semibold">Negócio</th>
@@ -381,7 +381,7 @@ export default function RezultPayPage() {
               </thead>
               <tbody>
                 {filteredCharges.map(c => (
-                  <tr key={c.id} className="border-t border-[#F0F0F0] hover:bg-[#FAFAFA]">
+                  <tr key={c.id} className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]">
                     <td className="px-3 py-3"><Checkbox /></td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
@@ -389,24 +389,24 @@ export default function RezultPayPage() {
                           {initials(c.client)}
                         </div>
                         <div>
-                          <div className="font-medium text-[#111111]">{c.client}</div>
-                          <div className="text-[11px] text-[#AAAAAA]">{c.company}</div>
+                          <div className="font-medium text-[hsl(var(--foreground))]">{c.client}</div>
+                          <div className="text-[11px] text-[hsl(var(--muted-foreground))]">{c.company}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <a href="/pipeline" className="text-[#128A68] hover:underline font-medium">{c.deal}</a>
+                      <a href="/pipeline" className="text-[hsl(var(--primary))] hover:underline font-medium">{c.deal}</a>
                     </td>
-                    <td className="px-3 py-3 font-semibold text-[#111111]">{BRL(c.amount)}</td>
+                    <td className="px-3 py-3 font-semibold text-[hsl(var(--foreground))]">{BRL(c.amount)}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5"><MethodIcon method={c.method} /> {METHOD_LABEL[c.method]}</div>
                     </td>
-                    <td className="px-3 py-3 text-[#666]">{c.due}</td>
+                    <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{c.due}</td>
                     <td className="px-3 py-3"><StatusBadge status={c.status} /></td>
                     <td className="px-3 py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="w-7 h-7 rounded-md hover:bg-[#F0F0F0] flex items-center justify-center text-[#666]">
+                          <button className="w-7 h-7 rounded-md hover:bg-[hsl(var(--muted))] flex items-center justify-center text-[hsl(var(--muted-foreground))]">
                             <MoreHorizontal size={16} />
                           </button>
                         </DropdownMenuTrigger>
@@ -423,7 +423,7 @@ export default function RezultPayPage() {
                   </tr>
                 ))}
                 {filteredCharges.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-10 text-[#AAAAAA]">Nenhuma cobrança encontrada</td></tr>
+                  <tr><td colSpan={8} className="text-center py-10 text-[hsl(var(--muted-foreground))]">Nenhuma cobrança encontrada</td></tr>
                 )}
               </tbody>
             </table>
@@ -433,20 +433,20 @@ export default function RezultPayPage() {
         {/* SUBSCRIPTIONS */}
         <TabsContent value="subs" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-[16px] font-semibold text-[#111111]">Assinaturas recorrentes</h2>
-            <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"><Plus size={16} /> Nova assinatura</Button>
+            <h2 className="text-[16px] font-semibold text-[hsl(var(--foreground))]">Assinaturas recorrentes</h2>
+            <Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white"><Plus size={16} /> Nova assinatura</Button>
           </div>
           <div className="grid grid-cols-4 gap-4">
-            <MetricCard label="MRR" value={BRL(12400)} hint="Receita recorrente mensal" icon={<TrendingUp size={14} color="#128A68" />} accent="#128A68" />
-            <MetricCard label="Assinantes ativos" value="8" hint="Clientes recorrentes" icon={<Check size={14} color="#128A68" />} accent="#128A68" />
+            <MetricCard label="MRR" value={BRL(12400)} hint="Receita recorrente mensal" icon={<TrendingUp size={14} color="hsl(var(--primary))" />} accent="#128A68" />
+            <MetricCard label="Assinantes ativos" value="8" hint="Clientes recorrentes" icon={<Check size={14} color="hsl(var(--primary))" />} accent="#128A68" />
             <MetricCard label="Churn do mês" value="1" hint="Cancelamento" icon={<ArrowDownRight size={14} color="#E24B4A" />} accent="#E24B4A" />
-            <MetricCard label="LTV médio" value={BRL(18600)} hint="Valor por cliente" icon={<BarChart3 size={14} color="#128A68" />} accent="#128A68" />
+            <MetricCard label="LTV médio" value={BRL(18600)} hint="Valor por cliente" icon={<BarChart3 size={14} color="hsl(var(--primary))" />} accent="#128A68" />
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 overflow-hidden">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
+                <tr className="bg-[hsl(var(--muted))] text-[11px] uppercase text-[hsl(var(--muted-foreground))] tracking-wide">
                   <th className="px-3 py-3 text-left font-semibold">Cliente</th>
                   <th className="px-3 py-3 text-left font-semibold">Plano</th>
                   <th className="px-3 py-3 text-left font-semibold">Valor</th>
@@ -459,27 +459,27 @@ export default function RezultPayPage() {
               <tbody>
                 {SUBSCRIPTIONS.map(s => {
                   const stColor = s.status === "Ativa"
-                    ? { bg: "#E1F5EE", fg: "#085041" }
+                    ? { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))" }
                     : s.status === "Pausada"
-                      ? { bg: "#FAEEDA", fg: "#633806" }
-                      : { bg: "#FCEBEB", fg: "#A32D2D" };
+                      ? { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))" }
+                      : { bg: "hsl(var(--muted))", fg: "hsl(var(--destructive-soft-fg))" };
                   return (
-                    <tr key={s.id} className="border-t border-[#F0F0F0] hover:bg-[#FAFAFA]">
+                    <tr key={s.id} className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]">
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: colorFromString(s.client) }}>
                             {initials(s.client)}
                           </div>
-                          <span className="font-medium text-[#111111]">{s.client}</span>
+                          <span className="font-medium text-[hsl(var(--foreground))]">{s.client}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-[#666]">{s.plan}</td>
-                      <td className="px-3 py-3 font-semibold text-[#111111]">{BRL(s.value)}<span className="text-[11px] font-normal text-[#AAAAAA]">/{s.cycle === "Anual" ? "ano" : "mês"}</span></td>
-                      <td className="px-3 py-3 text-[#666]">{s.next}</td>
-                      <td className="px-3 py-3 text-[#666]">{s.cycle}</td>
+                      <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{s.plan}</td>
+                      <td className="px-3 py-3 font-semibold text-[hsl(var(--foreground))]">{BRL(s.value)}<span className="text-[11px] font-normal text-[hsl(var(--muted-foreground))]">/{s.cycle === "Anual" ? "ano" : "mês"}</span></td>
+                      <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{s.next}</td>
+                      <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{s.cycle}</td>
                       <td className="px-3 py-3"><span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{ background: stColor.bg, color: stColor.fg }}>{s.status}</span></td>
                       <td className="px-3 py-3">
-                        <button className="w-7 h-7 rounded-md hover:bg-[#F0F0F0] flex items-center justify-center text-[#666]">
+                        <button className="w-7 h-7 rounded-md hover:bg-[hsl(var(--muted))] flex items-center justify-center text-[hsl(var(--muted-foreground))]">
                           <MoreHorizontal size={16} />
                         </button>
                       </td>
@@ -494,7 +494,7 @@ export default function RezultPayPage() {
         {/* COMMISSIONS */}
         <TabsContent value="commissions" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-[16px] font-semibold text-[#111111]">Comissões do time</h2>
+            <h2 className="text-[16px] font-semibold text-[hsl(var(--foreground))]">Comissões do time</h2>
             <div className="flex items-center gap-2">
               <Select defaultValue="abr">
                 <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
@@ -504,29 +504,29 @@ export default function RezultPayPage() {
                   <SelectItem value="fev">Fevereiro 2026</SelectItem>
                 </SelectContent>
               </Select>
-              <Button className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Processar comissões</Button>
+              <Button className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">Processar comissões</Button>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
-              <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Total a pagar</div>
-              <div className="text-[24px] font-bold text-[#111111] mt-2">{BRL(4836)}</div>
+            <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold">Total a pagar</div>
+              <div className="text-[24px] font-bold text-[hsl(var(--foreground))] mt-2">{BRL(4836)}</div>
             </div>
-            <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
-              <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Total pago</div>
-              <div className="text-[24px] font-bold text-[#128A68] mt-2">{BRL(2100)}</div>
+            <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold">Total pago</div>
+              <div className="text-[24px] font-bold text-[hsl(var(--primary))] mt-2">{BRL(2100)}</div>
             </div>
-            <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-4">
-              <div className="text-[11px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Vendedores com comissão</div>
-              <div className="text-[24px] font-bold text-[#111111] mt-2">3</div>
+            <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold">Vendedores com comissão</div>
+              <div className="text-[24px] font-bold text-[hsl(var(--foreground))] mt-2">3</div>
             </div>
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 overflow-hidden">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 overflow-hidden">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="bg-[#FAFAFA] text-[11px] uppercase text-[#AAAAAA] tracking-wide">
+                <tr className="bg-[hsl(var(--muted))] text-[11px] uppercase text-[hsl(var(--muted-foreground))] tracking-wide">
                   <th className="px-3 py-3 text-left font-semibold">Vendedor</th>
                   <th className="px-3 py-3 text-left font-semibold">Negócios</th>
                   <th className="px-3 py-3 text-left font-semibold">Valor vendido</th>
@@ -538,32 +538,32 @@ export default function RezultPayPage() {
               </thead>
               <tbody>
                 {COMMISSIONS.map(k => (
-                  <tr key={k.id} className="border-t border-[#F0F0F0] hover:bg-[#FAFAFA]">
+                  <tr key={k.id} className="border-t border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]">
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: colorFromString(k.name) }}>
                           {initials(k.name)}
                         </div>
                         <div>
-                          <div className="font-medium text-[#111111]">{k.name}</div>
-                          <div className="text-[11px] text-[#AAAAAA]">{k.role}</div>
+                          <div className="font-medium text-[hsl(var(--foreground))]">{k.name}</div>
+                          <div className="text-[11px] text-[hsl(var(--muted-foreground))]">{k.role}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-[#666]">{k.deals}</td>
-                    <td className="px-3 py-3 text-[#111111] font-medium">{BRL(k.sold)}</td>
-                    <td className="px-3 py-3 text-[#666]">{k.pct}%</td>
-                    <td className="px-3 py-3 font-semibold text-[#128A68]">{BRL(k.value)}</td>
+                    <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{k.deals}</td>
+                    <td className="px-3 py-3 text-[hsl(var(--foreground))] font-medium">{BRL(k.sold)}</td>
+                    <td className="px-3 py-3 text-[hsl(var(--muted-foreground))]">{k.pct}%</td>
+                    <td className="px-3 py-3 font-semibold text-[hsl(var(--primary))]">{BRL(k.value)}</td>
                     <td className="px-3 py-3">
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{
-                        background: k.status === "Pago" ? "#E1F5EE" : "#FAEEDA",
-                        color: k.status === "Pago" ? "#085041" : "#633806",
+                        background: k.status === "Pago" ? "hsl(var(--success-soft))" : "hsl(var(--warning-soft))",
+                        color: k.status === "Pago" ? "hsl(var(--success-soft-fg))" : "hsl(var(--warning-soft-fg))",
                       }}>{k.status}</span>
                     </td>
                     <td className="px-3 py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="w-7 h-7 rounded-md hover:bg-[#F0F0F0] flex items-center justify-center text-[#666]">
+                          <button className="w-7 h-7 rounded-md hover:bg-[hsl(var(--muted))] flex items-center justify-center text-[hsl(var(--muted-foreground))]">
                             <MoreHorizontal size={16} />
                           </button>
                         </DropdownMenuTrigger>
@@ -579,15 +579,15 @@ export default function RezultPayPage() {
             </table>
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 p-5">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-[14px] font-semibold text-[#111111]">Regras de comissão</h3>
-                <p className="text-[12px] text-[#AAAAAA]">Configurações atuais aplicadas ao time</p>
+                <h3 className="text-[14px] font-semibold text-[hsl(var(--foreground))]">Regras de comissão</h3>
+                <p className="text-[12px] text-[hsl(var(--muted-foreground))]">Configurações atuais aplicadas ao time</p>
               </div>
-              <Button variant="outline" className="border-[#128A68] text-[#128A68] hover:bg-[#E1F5EE]">Editar regras</Button>
+              <Button variant="outline" className="border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))]">Editar regras</Button>
             </div>
-            <div className="space-y-2 text-[13px] text-[#111111]">
+            <div className="space-y-2 text-[13px] text-[hsl(var(--foreground))]">
               <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#185FA5]" /> <strong>Closer:</strong> 10% sobre valor fechado</div>
               <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#854F0B]" /> <strong>SDR:</strong> 5% sobre valor dos leads que qualificou e fecharam</div>
               <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#534AB7]" /> <strong>Coordenador:</strong> 8% sobre equipe</div>
@@ -598,7 +598,7 @@ export default function RezultPayPage() {
         {/* STATEMENT */}
         <TabsContent value="statement" className="space-y-4 mt-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-[16px] font-semibold text-[#111111]">Extrato de transações</h2>
+            <h2 className="text-[16px] font-semibold text-[hsl(var(--foreground))]">Extrato de transações</h2>
             <div className="flex items-center gap-2">
               <Select defaultValue="abr">
                 <SelectTrigger className="w-[140px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
@@ -611,26 +611,26 @@ export default function RezultPayPage() {
             </div>
           </div>
 
-          <div className="rounded-xl p-5 text-white" style={{ background: "linear-gradient(135deg, #128A68, #0a5544)" }}>
+          <div className="rounded-xl p-5 text-white" style={{ background: "linear-gradient(135deg, hsl(var(--primary)), #0a5544)" }}>
             <div className="text-[12px] uppercase tracking-wide opacity-80 font-semibold">Saldo disponível</div>
             <div className="text-[32px] font-bold mt-1">{BRL(22420)}</div>
             <div className="text-[12px] opacity-80 mt-1">Atualizado agora</div>
           </div>
 
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 overflow-hidden">
+          <div className="bg-card border border-[hsl(var(--border))] rounded-xl shadow-elev-1 overflow-hidden">
             {TRANSACTIONS.map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA]">
-                <div className="text-[11px] text-[#AAAAAA] w-[100px] shrink-0">{t.date}</div>
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]">
+                <div className="text-[11px] text-[hsl(var(--muted-foreground))] w-[100px] shrink-0">{t.date}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] text-[#111111] truncate">{t.desc}</div>
+                  <div className="text-[13px] text-[hsl(var(--foreground))] truncate">{t.desc}</div>
                 </div>
-                <div className="w-[80px] flex items-center gap-1.5 text-[12px] text-[#666]">
-                  {t.method ? <><MethodIcon method={t.method} size={12} /> {METHOD_LABEL[t.method]}</> : <span className="text-[#CCCCCC]">—</span>}
+                <div className="w-[80px] flex items-center gap-1.5 text-[12px] text-[hsl(var(--muted-foreground))]">
+                  {t.method ? <><MethodIcon method={t.method} size={12} /> {METHOD_LABEL[t.method]}</> : <span className="text-[hsl(var(--muted-foreground))]">—</span>}
                 </div>
-                <div className={`w-[110px] text-right text-[13px] font-semibold ${t.amount >= 0 ? "text-[#128A68]" : "text-[#E24B4A]"}`}>
+                <div className={`w-[110px] text-right text-[13px] font-semibold ${t.amount >= 0 ? "text-[hsl(var(--primary))]" : "text-[#E24B4A]"}`}>
                   {t.amount >= 0 ? "+" : ""}{BRL(t.amount)}
                 </div>
-                <div className="w-[110px] text-right text-[12px] text-[#AAAAAA]">{BRL(t.balance)}</div>
+                <div className="w-[110px] text-right text-[12px] text-[hsl(var(--muted-foreground))]">{BRL(t.balance)}</div>
               </div>
             ))}
           </div>
@@ -646,7 +646,7 @@ export default function RezultPayPage() {
 
           <div className="space-y-5">
             <section>
-              <h3 className="text-[12px] uppercase tracking-wide text-[#AAAAAA] font-semibold mb-2">Cliente</h3>
+              <h3 className="text-[12px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold mb-2">Cliente</h3>
               <Input
                 value={draft.client}
                 onChange={e => setDraft({ ...draft, client: e.target.value })}
@@ -654,11 +654,11 @@ export default function RezultPayPage() {
                 className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               {draft.client && (
-                <div className="flex items-center gap-2 mt-2 p-2 bg-[#F5F5F5] rounded-lg">
+                <div className="flex items-center gap-2 mt-2 p-2 bg-[hsl(var(--muted))] rounded-lg">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: colorFromString(draft.client) }}>
                     {initials(draft.client)}
                   </div>
-                  <div className="text-[12px] text-[#111111] flex-1">{draft.client}</div>
+                  <div className="text-[12px] text-[hsl(var(--foreground))] flex-1">{draft.client}</div>
                   <Select value={draft.deal} onValueChange={v => setDraft({ ...draft, deal: v })}>
                     <SelectTrigger className="w-[130px] h-8 text-[12px] focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Vincular negócio" /></SelectTrigger>
                     <SelectContent>
@@ -672,7 +672,7 @@ export default function RezultPayPage() {
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-[12px] uppercase tracking-wide text-[#AAAAAA] font-semibold">Cobrança</h3>
+              <h3 className="text-[12px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold">Cobrança</h3>
               <div>
                 <Label className="text-[12px]">Descrição/produto</Label>
                 <Input value={draft.desc} onChange={e => setDraft({ ...draft, desc: e.target.value })} className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
@@ -711,8 +711,8 @@ export default function RezultPayPage() {
                   </Select>
                 </div>
               )}
-              <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                <div className="text-[13px] text-[#111111]">Cobrança recorrente</div>
+              <div className="flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg">
+                <div className="text-[13px] text-[hsl(var(--foreground))]">Cobrança recorrente</div>
                 <Switch checked={draft.recurring} onCheckedChange={v => setDraft({ ...draft, recurring: v })} />
               </div>
               {draft.recurring && (
@@ -728,14 +728,14 @@ export default function RezultPayPage() {
             </section>
 
             <section>
-              <h3 className="text-[12px] uppercase tracking-wide text-[#AAAAAA] font-semibold mb-2">Notificação</h3>
+              <h3 className="text-[12px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-semibold mb-2">Notificação</h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                  <div className="text-[13px] text-[#111111]">Enviar link por WhatsApp</div>
+                <div className="flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg">
+                  <div className="text-[13px] text-[hsl(var(--foreground))]">Enviar link por WhatsApp</div>
                   <Switch checked={draft.notifyWpp} onCheckedChange={v => setDraft({ ...draft, notifyWpp: v })} />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                  <div className="text-[13px] text-[#111111]">Enviar por e-mail</div>
+                <div className="flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg">
+                  <div className="text-[13px] text-[hsl(var(--foreground))]">Enviar por e-mail</div>
                   <Switch checked={draft.notifyEmail} onCheckedChange={v => setDraft({ ...draft, notifyEmail: v })} />
                 </div>
               </div>
@@ -744,7 +744,7 @@ export default function RezultPayPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNew(false)}>Cancelar</Button>
-            <Button onClick={createCharge} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Criar cobrança</Button>
+            <Button onClick={createCharge} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90 text-white">Criar cobrança</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

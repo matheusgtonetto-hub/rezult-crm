@@ -27,7 +27,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "hsl(var(--card))",
           borderRadius: 16,
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
@@ -79,10 +79,10 @@ export function PlanLimitModal({ resource, onClose }: Props) {
 
         {/* Corpo */}
         <div style={{ padding: "24px", textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 8 }}>
             Continue crescendo
           </div>
-          <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", lineHeight: 1.55 }}>
             Para continuar adicionando {resource}, atualize seu plano e desbloqueie recursos avançados.
           </p>
 
@@ -96,7 +96,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
               fontSize: 13,
               fontWeight: 600,
               color: "#fff",
-              background: "#128A68",
+              background: "hsl(var(--primary))",
               border: "none",
               cursor: "pointer",
             }}
@@ -112,7 +112,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
               background: "none",
               border: "none",
               fontSize: 13,
-              color: "#6B7280",
+              color: "hsl(var(--muted-foreground))",
               cursor: "pointer",
               padding: "4px 0",
             }}

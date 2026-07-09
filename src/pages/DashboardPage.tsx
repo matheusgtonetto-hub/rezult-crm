@@ -172,7 +172,7 @@ export default function DashboardPage() {
         convRate: closed > 0 ? (won.length / closed * 100).toFixed(0) : "—",
         totalValue,
         avgTicket: won.length > 0 ? totalValue / won.length : 0,
-        color: memberColors[m] || "#888",
+        color: memberColors[m] || "hsl(var(--muted-foreground))",
       };
     }).sort((a, b) => b.totalValue - a.totalValue);
   }, [periodLeads, teamMembers, memberColors]);
@@ -181,7 +181,7 @@ export default function DashboardPage() {
     return teamMembers.map(m => {
       const ml = leadsForMember(periodLeads, m);
       const value = donutMode === "value" ? ml.reduce((s, l) => s + l.value, 0) : ml.length;
-      return { name: m, value, color: memberColors[m] || "#888" };
+      return { name: m, value, color: memberColors[m] || "hsl(var(--muted-foreground))" };
     }).filter(d => d.value > 0);
   }, [periodLeads, teamMembers, memberColors, donutMode]);
 
@@ -286,7 +286,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <div className="flex items-center gap-3">
-          <TabsList className="bg-card border border-gray-200 rounded-lg">
+          <TabsList className="bg-card border border-border rounded-lg">
             <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
             <TabsTrigger value="atividades" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Atividades</TabsTrigger>
             <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funil</TabsTrigger>
@@ -353,7 +353,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly line */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">
               Evolução no período — {periodLabel}
             </h3>
@@ -379,7 +379,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <OriginPanel periodLeads={periodLeads} />
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Motivos de perda</h3>
               {lossReasonData.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhum negócio perdido registrado.</p>
@@ -406,7 +406,7 @@ export default function DashboardPage() {
 
           {/* Stage bar + Donut */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Leads por etapa (situação atual)</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={barData}>
@@ -421,7 +421,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Por atendente</h3>
                 <div className="flex gap-1 bg-muted rounded-lg p-0.5">
@@ -442,7 +442,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Agent table */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
             {agentPerformance.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
@@ -485,7 +485,7 @@ export default function DashboardPage() {
 
           {/* Top products */}
           {topProducts.length > 0 && (
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Produtos com mais negócios</h3>
               <div className="space-y-3">
                 {topProducts.map((p, i) => (
@@ -520,7 +520,7 @@ export default function DashboardPage() {
               { label: "Ligações", value: activityStats.calls, icon: Phone, color: "text-foreground" },
               { label: "E-mails", value: activityStats.emails, icon: Mail, color: "text-primary" },
             ].map(c => (
-              <div key={c.label} className="bg-card border border-gray-200 rounded-xl p-4">
+              <div key={c.label} className="bg-card border border-border rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <c.icon size={15} className={c.color} />
                   <span className="text-xs text-muted-foreground">{c.label}</span>
@@ -532,7 +532,7 @@ export default function DashboardPage() {
 
           {/* By type + Meeting stats */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Por tipo de atividade</h3>
               {activityStats.byType.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
@@ -549,7 +549,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Reuniões no período</h3>
               <div className="space-y-3">
                 {[
@@ -584,7 +584,7 @@ export default function DashboardPage() {
 
           {/* Upcoming meetings + Overdue tasks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4">Próximas reuniões</h3>
               {activityStats.upcoming.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma reunião agendada.</p>
@@ -610,7 +610,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 Tarefas atrasadas
                 {overdueTasks.length > 0 && (
@@ -645,7 +645,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent activities */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-semibold text-foreground mb-4">Atividades recentes</h3>
             {activityStats.recent.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
@@ -701,9 +701,9 @@ export default function DashboardPage() {
           </div>
 
           {!funnelPipeline ? (
-            <div className="bg-card border border-gray-200 rounded-xl p-8 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
+            <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
           ) : funnelData.length === 0 ? (
-            <div className="bg-card border border-gray-200 rounded-xl p-8 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
+            <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
@@ -765,7 +765,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-card border border-gray-200 rounded-xl p-6">
+                <div className="bg-card border border-border rounded-xl p-6">
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
                   {(() => {
@@ -888,7 +888,7 @@ export default function DashboardPage() {
                 <StageVelocityPanel funnelPipeline={funnelPipeline} allLeads={allLeads} funnelResponsible={funnelResponsible} />
 
                 {/* Conversion table */}
-                <div className="bg-card border border-gray-200 rounded-xl p-4">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Tabela de conversão</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
