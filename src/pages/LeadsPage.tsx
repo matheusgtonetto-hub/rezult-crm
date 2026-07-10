@@ -131,8 +131,8 @@ export default function LeadsPage() {
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
-  // Ticket médio vendido por contato (agrupa deals ganhos pelo mesmo whatsapp)
-  const avgTicketByPhone = useMemo(() => {
+  // Ticket médio e total vendido por contato (agrupa deals ganhos pelo mesmo whatsapp)
+  const ticketByPhone = useMemo(() => {
     const map: Record<string, number[]> = {};
     Object.values(leads).forEach(l => {
       if (l.dealStatus === "won" && l.value > 0 && l.whatsapp) {
@@ -140,13 +140,16 @@ export default function LeadsPage() {
         if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
       }
     });
-    const avg: Record<string, number> = {};
-    Object.entries(map).forEach(([k, vals]) => { avg[k] = vals.reduce((a, b) => a + b, 0) / vals.length; });
-    return avg;
+    const result: Record<string, { avg: number; total: number }> = {};
+    Object.entries(map).forEach(([k, vals]) => {
+      const total = vals.reduce((a, b) => a + b, 0);
+      result[k] = { avg: total / vals.length, total };
+    });
+    return result;
   }, [leads]);
 
   const fmtBRL = (v: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
   // Seleção
   const selectedLeads = filtered.filter(l => selectedIds.has(l.id));
@@ -332,9 +335,13 @@ export default function LeadsPage() {
                         <span className="truncate block">{lead.name}</span>
                         {(() => {
                           const key = lead.whatsapp?.replace(/\D/g, "");
-                          const avg = (key ? avgTicketByPhone[key] : undefined) ?? 0;
+                          const data = key ? ticketByPhone[key] : undefined;
+                          const avg = data?.avg ?? 0;
+                          const total = data?.total ?? 0;
                           return (
-                            <span className="text-xs text-muted-foreground font-normal">{fmtBRL(avg)}</span>
+                            <span className="text-xs font-normal text-green-600">
+                              Ticket médio {fmtBRL(avg)} ({fmtBRL(total)})
+                            </span>
                           );
                         })()}
                       </div>
