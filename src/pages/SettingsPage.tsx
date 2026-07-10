@@ -348,7 +348,12 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="light">Claro</SelectItem>
-                <SelectItem value="dark">Escuro</SelectItem>
+                <SelectItem value="dark" disabled>
+                  <span className="flex items-center gap-2">
+                    Escuro
+                    <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1.5 py-0.5 leading-none">Em breve</span>
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
