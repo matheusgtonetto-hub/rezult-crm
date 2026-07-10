@@ -304,7 +304,7 @@ export default function LeadsPage() {
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
                   <TableCell className="font-medium text-foreground">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-[10px] min-w-0">
                       <div onClick={e => e.stopPropagation()} className="shrink-0">
                         <Checkbox
                           checked={selectedIds.has(lead.id)}
