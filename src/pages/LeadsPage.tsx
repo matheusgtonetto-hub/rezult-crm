@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
@@ -130,6 +130,23 @@ export default function LeadsPage() {
   };
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
+
+  // Ticket médio vendido por contato (agrupa deals ganhos pelo mesmo whatsapp)
+  const avgTicketByPhone = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    Object.values(leads).forEach(l => {
+      if (l.dealStatus === "won" && l.value > 0 && l.whatsapp) {
+        const key = l.whatsapp.replace(/\D/g, "");
+        if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
+      }
+    });
+    const avg: Record<string, number> = {};
+    Object.entries(map).forEach(([k, vals]) => { avg[k] = vals.reduce((a, b) => a + b, 0) / vals.length; });
+    return avg;
+  }, [leads]);
+
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
 
   // Seleção
   const selectedLeads = filtered.filter(l => selectedIds.has(l.id));
@@ -311,7 +328,16 @@ export default function LeadsPage() {
                           onCheckedChange={() => toggleSelect(lead.id)}
                         />
                       </div>
-                      <span className="truncate">{lead.name}</span>
+                      <div className="min-w-0">
+                        <span className="truncate block">{lead.name}</span>
+                        {(() => {
+                          const key = lead.whatsapp?.replace(/\D/g, "");
+                          const avg = key ? avgTicketByPhone[key] : undefined;
+                          return avg != null ? (
+                            <span className="text-xs text-muted-foreground font-normal">{fmtBRL(avg)}</span>
+                          ) : null;
+                        })()}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
