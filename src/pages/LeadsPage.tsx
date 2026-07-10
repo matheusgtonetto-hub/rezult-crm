@@ -331,7 +331,7 @@ export default function LeadsPage() {
                           onCheckedChange={() => toggleSelect(lead.id)}
                         />
                       </div>
-                      <div className="min-w-0" style={{ lineHeight: 1 }}>
+                      <div className="min-w-0" style={{ lineHeight: 1.1 }}>
                         <span className="truncate block">{lead.name}</span>
                         {(() => {
                           const key = lead.whatsapp?.replace(/\D/g, "");
