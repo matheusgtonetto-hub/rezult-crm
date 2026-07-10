@@ -470,7 +470,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         id: r.id as string,
         name: r.name as string,
         description: (r.description as string) ?? "",
-        color: (r.color as string) ?? "hsl(var(--primary))",
+        color: (r.color as string) ?? "#128A68",
         created_at: (r.created_at as string) ?? undefined,
       }));
 

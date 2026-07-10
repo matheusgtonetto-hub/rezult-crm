@@ -242,7 +242,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               style={{
                 width: 32,
                 height: 32,
-                background: "hsl(var(--primary))",
+                background: "#128A68",
                 opacity: 0.6,
               }}
               title={l.name}
@@ -256,8 +256,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             style={{
               width: 32,
               height: 32,
-              background: "hsl(var(--primary))",
-              border: "2px solid hsl(var(--primary))",
+              background: "#128A68",
+              border: "2px solid #128A68",
               boxShadow: "0 0 0 2px #FFFFFF inset",
             }}
             title={lead.name}
@@ -284,27 +284,27 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           style={{
             height: 52,
             padding: "0 12px",
-            background: "hsl(var(--card))",
-            borderColor: "hsl(var(--border))",
+            background: "#FFFFFF",
+            borderColor: "#E5E5E5",
           }}
         >
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
-            style={{ background: "hsl(var(--primary))" }}
+            style={{ background: "#128A68" }}
           >
             {getInitials(lead.name)}
           </div>
           <div className="min-w-0 flex-1">
             <div
               className="truncate"
-              style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.2 }}
+              style={{ fontSize: 14, fontWeight: 600, color: "#111", lineHeight: 1.2 }}
               title={lead.name}
             >
               {lead.name}
             </div>
             <div
               className="flex items-center gap-2 truncate"
-              style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", lineHeight: 1.2 }}
+              style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
             >
               <span>WhatsApp</span>
               <button
@@ -313,7 +313,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                   setSelectedLeadId(leadId);
                 }}
                 className="hover:underline"
-                style={{ color: "hsl(var(--primary))", fontWeight: 500 }}
+                style={{ color: "#128A68", fontWeight: 500 }}
               >
                 Ver no pipeline →
               </button>
@@ -350,14 +350,14 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         <div
           ref={msgsRef}
           className="flex-1 overflow-y-auto"
-          style={{ background: "hsl(var(--muted))", padding: 12 }}
+          style={{ background: "#FAFAFA", padding: 12 }}
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
-              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "#AAA", textAlign: "center" }}>
                 Nenhuma mensagem ainda
               </div>
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: "#CCC", textAlign: "center" }}>
                 Envie uma mensagem para iniciar a conversa
               </div>
             </div>
@@ -366,7 +366,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               <div className="flex justify-center mb-3">
                 <span
                   className="text-[11px] px-3 py-1 rounded-full"
-                  style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}
+                  style={{ background: "#E5E5E5", color: "#666" }}
                 >
                   Hoje
                 </span>
@@ -381,7 +381,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                     >
                       <div
                         className="mb-0.5"
-                        style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}
+                        style={{ fontSize: 11, color: "#AAAAAA" }}
                       >
                         {isLead ? lead.name : m.author} · {m.time}
                       </div>
@@ -391,9 +391,9 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           padding: "8px 12px",
                           fontSize: 13,
                           lineHeight: 1.4,
-                          background: isLead ? "hsl(var(--card))" : "hsl(var(--primary-hover))",
-                          color: isLead ? "hsl(var(--foreground))" : "#FFFFFF",
-                          border: isLead ? "1px solid hsl(var(--border))" : "none",
+                          background: isLead ? "#FFFFFF" : "#0F6E56",
+                          color: isLead ? "#111111" : "#FFFFFF",
+                          border: isLead ? "1px solid #E5E5E5" : "none",
                           borderRadius: isLead
                             ? "4px 16px 16px 16px"
                             : "16px 4px 16px 16px",
@@ -415,26 +415,26 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           style={{
             height: 52,
             padding: "8px 12px",
-            background: "hsl(var(--card))",
-            borderColor: "hsl(var(--border))",
+            background: "#FFFFFF",
+            borderColor: "#E5E5E5",
           }}
         >
           <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary" aria-label="Anexar">
-            <Paperclip size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+            <Paperclip size={16} style={{ color: "#AAAAAA" }} />
           </button>
           <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary" aria-label="Emoji">
-            <Smile size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+            <Smile size={16} style={{ color: "#AAAAAA" }} />
           </button>
           <button
             className="flex items-center justify-center"
             style={{
-              background: "hsl(var(--success-soft))",
+              background: "#E1F5EE",
               padding: 4,
               borderRadius: 6,
             }}
             aria-label="IA"
           >
-            <Sparkles size={14} style={{ color: "hsl(var(--primary))" }} />
+            <Sparkles size={14} style={{ color: "#128A68" }} />
           </button>
           <input
             type="text"
@@ -445,7 +445,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             }}
             placeholder="Mensagem..."
             className="flex-1 bg-transparent outline-none border-none min-w-0"
-            style={{ fontSize: 13, fontFamily: "Inter, sans-serif", color: "hsl(var(--foreground))" }}
+            style={{ fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111" }}
           />
           <button
             onClick={handleSend}
@@ -455,8 +455,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: draft.trim() ? "hsl(var(--primary-hover))" : "hsl(var(--muted))",
-              color: draft.trim() ? "#FFFFFF" : "hsl(var(--muted-foreground))",
+              background: draft.trim() ? "#0F6E56" : "#E5E5E5",
+              color: draft.trim() ? "#FFFFFF" : "#AAAAAA",
             }}
             aria-label="Enviar"
           >

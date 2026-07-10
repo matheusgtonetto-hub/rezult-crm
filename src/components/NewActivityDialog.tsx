@@ -38,11 +38,11 @@ const ACTIVITY_TYPES: {
   label: string;
   color: string;
 }[] = [
-  { type: "meeting",   icon: CalendarDays,   label: "Reunião",   color: "text-[hsl(var(--info-soft-fg))] bg-blue-500/10 border-blue-500/30 data-[selected=true]:bg-blue-500 data-[selected=true]:text-white data-[selected=true]:border-blue-500" },
-  { type: "call",      icon: Phone,          label: "Ligação",   color: "text-[hsl(var(--success-soft-fg))] bg-green-500/10 border-green-500/30 data-[selected=true]:bg-green-500 data-[selected=true]:text-white data-[selected=true]:border-green-500" },
-  { type: "whatsapp",  icon: MessageCircle,  label: "WhatsApp",  color: "text-[hsl(var(--success-soft-fg))] bg-emerald-500/10 border-emerald-500/30 data-[selected=true]:bg-emerald-500 data-[selected=true]:text-white data-[selected=true]:border-emerald-500" },
-  { type: "email",     icon: Mail,           label: "E-mail",    color: "text-[hsl(var(--warning-soft-fg))] bg-orange-500/10 border-orange-500/30 data-[selected=true]:bg-orange-500 data-[selected=true]:text-white data-[selected=true]:border-orange-500" },
-  { type: "follow_up", icon: RefreshCw,      label: "Follow-up", color: "text-[hsl(var(--purple-soft-fg))] bg-purple-500/10 border-purple-500/30 data-[selected=true]:bg-purple-500 data-[selected=true]:text-white data-[selected=true]:border-purple-500" },
+  { type: "meeting",   icon: CalendarDays,   label: "Reunião",   color: "text-blue-500 bg-blue-500/10 border-blue-500/30 data-[selected=true]:bg-blue-500 data-[selected=true]:text-white data-[selected=true]:border-blue-500" },
+  { type: "call",      icon: Phone,          label: "Ligação",   color: "text-green-500 bg-green-500/10 border-green-500/30 data-[selected=true]:bg-green-500 data-[selected=true]:text-white data-[selected=true]:border-green-500" },
+  { type: "whatsapp",  icon: MessageCircle,  label: "WhatsApp",  color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/30 data-[selected=true]:bg-emerald-500 data-[selected=true]:text-white data-[selected=true]:border-emerald-500" },
+  { type: "email",     icon: Mail,           label: "E-mail",    color: "text-orange-500 bg-orange-500/10 border-orange-500/30 data-[selected=true]:bg-orange-500 data-[selected=true]:text-white data-[selected=true]:border-orange-500" },
+  { type: "follow_up", icon: RefreshCw,      label: "Follow-up", color: "text-purple-500 bg-purple-500/10 border-purple-500/30 data-[selected=true]:bg-purple-500 data-[selected=true]:text-white data-[selected=true]:border-purple-500" },
 ];
 
 const DURATION_OPTIONS = [

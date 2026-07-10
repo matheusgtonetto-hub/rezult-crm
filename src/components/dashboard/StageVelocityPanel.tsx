@@ -45,7 +45,7 @@ export function StageVelocityPanel({ funnelPipeline, allLeads, funnelResponsible
   if (!funnelPipeline) return null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-gray-200 rounded-xl p-4">
       <h3 className="text-sm font-semibold text-foreground mb-1">Tempo médio por etapa</h3>
       <p className="text-xs text-muted-foreground mb-4">
         Quantos dias, em média, os negócios que estão hoje em cada etapa já estão parados nela.

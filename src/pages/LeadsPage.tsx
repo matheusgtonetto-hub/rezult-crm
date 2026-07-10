@@ -233,7 +233,7 @@ export default function LeadsPage() {
                               );
                             })}
                             {resps.length > 3 && (
-                              <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", fontSize: 9, marginLeft: -6, outline: "2px solid hsl(var(--card))" }}>
+                              <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: "#E5E5E5", color: "#555", fontSize: 9, marginLeft: -6, outline: "2px solid hsl(var(--card))" }}>
                                 +{resps.length - 3}
                               </div>
                             )}
@@ -263,7 +263,7 @@ export default function LeadsPage() {
                         : (lead.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "hsl(var(--muted))" }}>
+                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
                                 {tagName}
                               </span>
                             );
@@ -381,7 +381,7 @@ export default function LeadsPage() {
           </div>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDealTarget(null)}>Cancelar</Button>
-            <Button onClick={confirmDeal} className="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/90">Criar negócio</Button>
+            <Button onClick={confirmDeal} className="bg-[#128A68] hover:bg-[#128A68]/90">Criar negócio</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

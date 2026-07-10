@@ -67,9 +67,9 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "hsl(var(--muted))" }}>
+      <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
         <div
-          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-border"
+          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300"
                   >
           <div className="flex justify-center mb-6"><Logo size="md" showIcon /></div>
 
@@ -102,7 +102,7 @@ export default function LoginPage() {
 
               <form onSubmit={handleForgot} className="space-y-4 mt-8 text-left">
                 <div className="space-y-[3px]">
-                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-foreground">E-mail</Label>
+                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-black">E-mail</Label>
                   <Input
                     id="forgot-email"
                     type="email"
@@ -135,13 +135,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "hsl(var(--muted))" }}>
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
       <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border light */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, hsl(var(--primary)) 65%, #4ade80 75%, hsl(var(--primary)) 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
@@ -153,8 +153,8 @@ export default function LoginPage() {
         </div>
 
         {emailConfirmed && (
-          <div className="flex items-start gap-3 bg-[hsl(var(--success-soft))] border border-green-200 rounded-xl px-4 py-3 mb-6">
-            <CheckCircle2 size={18} className="text-[hsl(var(--success-soft-fg))] mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
+            <CheckCircle2 size={18} className="text-green-600 mt-0.5 shrink-0" />
             <p className="text-sm text-green-800 leading-snug">
               <span className="font-semibold">E-mail confirmado com sucesso!</span>
               <br />Faça login para continuar.
@@ -163,13 +163,13 @@ export default function LoginPage() {
         )}
 
         <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo</h1>
-        <p className="text-[15px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 600 }}>
+        <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
           Faça login para acessar sua conta
         </p>
 
         <form onSubmit={handleLogin} className="space-y-3 mt-[15px]">
           <div className="space-y-[3px]">
-            <Label htmlFor="email" className="text-[13px] font-normal text-foreground">E-mail</Label>
+            <Label htmlFor="email" className="text-[13px] font-normal text-black">E-mail</Label>
             <Input
               id="email"
               type="email"
@@ -182,7 +182,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-[3px]">
-            <Label htmlFor="password" className="text-[13px] font-normal text-foreground">Senha</Label>
+            <Label htmlFor="password" className="text-[13px] font-normal text-black">Senha</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -219,15 +219,15 @@ export default function LoginPage() {
           </Button>
 
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-muted" />
+            <div className="flex-1 h-px bg-gray-200" />
             <span className="text-[12px] text-muted-foreground">ou</span>
-            <div className="flex-1 h-px bg-muted" />
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-card border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
+            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             Criar uma conta

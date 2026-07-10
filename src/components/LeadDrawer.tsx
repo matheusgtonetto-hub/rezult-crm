@@ -48,7 +48,7 @@ function InlineField({
 
   return (
     <div className="group">
-      <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "block", marginBottom: 2 }}>{label}</span>
+      <span style={{ fontSize: 10, color: "#AAA", display: "block", marginBottom: 2 }}>{label}</span>
       {editing ? (
         options ? (
           <select
@@ -56,7 +56,7 @@ function InlineField({
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            style={{ width: "100%", border: "1px solid hsl(var(--primary))", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
           >
             {options.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -68,7 +68,7 @@ function InlineField({
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); } }}
-            style={{ width: "100%", border: "1px solid hsl(var(--primary))", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
           />
         )
       ) : (
@@ -77,10 +77,10 @@ function InlineField({
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "text", padding: "4px 0", minHeight: 22, borderBottom: "1px solid transparent" }}
           className="hover:border-b-[#E0E0E0]"
         >
-          <span style={{ fontSize: 13, color: draft ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", fontStyle: draft ? "normal" : "italic" }}>
+          <span style={{ fontSize: 13, color: draft ? "#222" : "#BBBBBB", fontStyle: draft ? "normal" : "italic" }}>
             {draft || `+ ${label}`}
           </span>
-          <Pencil size={11} color="hsl(var(--muted-foreground))" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ flexShrink: 0 }} />
+          <Pencil size={11} color="#BBBBBB" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ flexShrink: 0 }} />
         </div>
       )}
     </div>
@@ -98,12 +98,12 @@ const ACT_META: Record<ActivityType, { color: string; bg: string; label: string;
   note:         { color: "#666",    bg: "#F5F5F5", label: "Anotação",        Icon: StickyNote },
   stage_change: { color: "#378ADD", bg: "#EBF3FC", label: "Etapa alterada",  Icon: ArrowRightLeft },
   whatsapp:     { color: "#128A68", bg: "#E6F5F0", label: "WhatsApp",        Icon: MessageCircle },
-  won:          { color: "#22C55E", bg: "hsl(var(--success-soft))", label: "Ganho",           Icon: Trophy },
-  lost:         { color: "#EF4444", bg: "hsl(var(--destructive-soft))", label: "Perdido",         Icon: XCircle },
+  won:          { color: "#22C55E", bg: "#DCFCE7", label: "Ganho",           Icon: Trophy },
+  lost:         { color: "#EF4444", bg: "#FEE2E2", label: "Perdido",         Icon: XCircle },
   created:      { color: "#888",    bg: "#F5F5F5", label: "Criado",          Icon: PlusCircle },
   meeting:      { color: "#378ADD", bg: "#EBF3FC", label: "Reunião",         Icon: CalendarDays },
-  call:         { color: "#22C55E", bg: "hsl(var(--success-soft))", label: "Ligação",         Icon: Phone },
-  email:        { color: "#F59E0B", bg: "hsl(var(--warning-soft))", label: "E-mail",          Icon: Mail },
+  call:         { color: "#22C55E", bg: "#DCFCE7", label: "Ligação",         Icon: Phone },
+  email:        { color: "#F59E0B", bg: "#FEF3C7", label: "E-mail",          Icon: Mail },
   follow_up:    { color: "#8B5CF6", bg: "#EDE9FE", label: "Follow-up",       Icon: RefreshCw },
   task:         { color: "#666",    bg: "#F5F5F5", label: "Tarefa",          Icon: CheckSquare },
   transfer:     { color: "#8B5CF6", bg: "#EDE9FE", label: "Transferência",   Icon: ArrowLeftRight },
@@ -329,19 +329,19 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   // ── Styles helpers ──────────────────────────────────────────────────
   const tab = (active: boolean) => ({
     fontSize: 12 as const, fontWeight: 600 as const,
-    color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+    color: active ? "#128A68" : "#888",
     padding: "10px 12px",
     background: "none" as const, border: "none" as const, cursor: "pointer" as const,
-    borderBottom: active ? "2px solid hsl(var(--primary))" : "2px solid transparent",
+    borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
     transition: "color 0.15s",
   });
 
   const historyTabStyle = (active: boolean) => ({
     fontSize: 13 as const, fontWeight: 600 as const,
-    color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+    color: active ? "#128A68" : "#888",
     padding: "0 0 12px",
     background: "none" as const, border: "none" as const, cursor: "pointer" as const,
-    borderBottom: active ? "2px solid hsl(var(--primary))" : "2px solid transparent",
+    borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
   });
 
   const ORIGINS: LeadOrigin[] = ["Instagram","Facebook Ads","Meta Ads","Google Ads","TikTok Ads","LinkedIn Ads","YouTube Ads","Email Marketing","Orgânico","WhatsApp","Evento","Indicação","Site","Outro"];
@@ -353,31 +353,31 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
         className="p-0 border-l border-card-border overflow-hidden"
         style={{ width: "min(95vw, 1020px)", maxWidth: "none", boxShadow: "-4px 0 40px rgba(0,0,0,0.08)" }}
       >
-        <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "hsl(var(--card))" }}>
+        <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#FFF" }}>
 
           {/* ══════════════ LEFT: Profile ══════════════ */}
-          <div style={{ width: 290, flexShrink: 0, borderRight: "1px solid hsl(var(--border))", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <div style={{ width: 290, flexShrink: 0, borderRight: "1px solid #F0F0F0", overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
             {/* Avatar + name */}
-            <div style={{ padding: "28px 20px 18px", background: "linear-gradient(135deg,#128A6808 0%,hsl(var(--card)) 100%)", borderBottom: "1px solid hsl(var(--border))", textAlign: "center" }}>
+            <div style={{ padding: "28px 20px 18px", background: "linear-gradient(135deg,#128A6808 0%,#FFF 100%)", borderBottom: "1px solid #F0F0F0", textAlign: "center" }}>
               <div style={{ width: 72, height: 72, borderRadius: "50%", background: color, color: "#FFF", fontSize: 26, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}>
                 {initials}
               </div>
-              <h2 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))", lineHeight: 1.3 }}>{lead.name}</h2>
-              {lead.company && <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 3 }}>{lead.company}</p>}
+              <h2 style={{ fontWeight: 700, fontSize: 15, color: "#111", lineHeight: 1.3 }}>{lead.name}</h2>
+              {lead.company && <p style={{ fontSize: 12, color: "#888", marginTop: 3 }}>{lead.company}</p>}
 
               {/* Tags */}
               {lead.tags && lead.tags.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 10 }}>
                   {lead.tags.map(t => (
-                    <span key={t} style={{ background: "#128A6818", color: "hsl(var(--primary))", fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 100 }}>{t}</span>
+                    <span key={t} style={{ background: "#128A6818", color: "#128A68", fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 100 }}>{t}</span>
                   ))}
                 </div>
               )}
 
               {/* Pipeline / Stage */}
               {stage && (
-                <span style={{ display: "inline-block", marginTop: 8, fontSize: 10, fontWeight: 600, color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))", padding: "3px 10px", borderRadius: 100 }}>
+                <span style={{ display: "inline-block", marginTop: 8, fontSize: 10, fontWeight: 600, color: "#888", background: "#F5F5F5", padding: "3px 10px", borderRadius: 100 }}>
                   {pipeline?.name} · {stage.title}
                 </span>
               )}
@@ -388,32 +388,32 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                   <div style={{ width: 22, height: 22, borderRadius: "50%", background: color, color: "#FFF", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {lead.responsible[0]}
                   </div>
-                  <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{lead.responsible}</span>
+                  <span style={{ fontSize: 12, color: "#555" }}>{lead.responsible}</span>
                 </div>
               )}
 
               {/* Value */}
               {!!lead.value && (
-                <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--primary))", marginTop: 8 }}>{formatBRL(lead.value)}</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#128A68", marginTop: 8 }}>{formatBRL(lead.value)}</p>
               )}
 
               {/* Action buttons */}
               <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
                 <button
                   onClick={() => { onClose(); navigate(`/pipeline/lead/${leadId}`); }}
-                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "hsl(var(--primary))", border: "1px solid #128A6830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#128A68", border: "1px solid #128A6830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >
                   <ExternalLink size={11} /> Ver completo
                 </button>
                 <button
                   onClick={openManualAuto}
-                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "hsl(var(--purple-soft-fg))", border: "1px solid #6B21A830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#6B21A8", border: "1px solid #6B21A830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >
                   <Zap size={11} /> Automação
                 </button>
                 <button
                   onClick={() => { markLeadWon(leadId); toast.success("Negócio ganho!"); onClose(); }}
-                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#FFF", border: "none", borderRadius: 8, padding: "7px 0", background: "hsl(var(--primary))", cursor: "pointer" }}
+                  style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "#FFF", border: "none", borderRadius: 8, padding: "7px 0", background: "#128A68", cursor: "pointer" }}
                 >
                   ✓ Ganho
                 </button>
@@ -421,25 +421,25 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
               {/* Manual automation picker */}
               {manualAutoOpen && (
-                <div style={{ marginTop: 8, border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden", background: "hsl(var(--card))" }}>
+                <div style={{ marginTop: 8, border: "1px solid #E5E5E5", borderRadius: 8, overflow: "hidden", background: "#FFF" }}>
                   <div style={{ padding: "8px 12px", background: "#F9FAFB", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--foreground))" }}>Executar automação</span>
-                    <button onClick={() => setManualAutoOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))", fontSize: 14, lineHeight: 1 }}>✕</button>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>Executar automação</span>
+                    <button onClick={() => setManualAutoOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 14, lineHeight: 1 }}>✕</button>
                   </div>
                   {manualAutoLoading ? (
-                    <div style={{ padding: 12, textAlign: "center", color: "hsl(var(--muted-foreground))" }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /></div>
+                    <div style={{ padding: 12, textAlign: "center", color: "#AAA" }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /></div>
                   ) : manualAutoList.length === 0 ? (
-                    <div style={{ padding: 12, fontSize: 12, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>Nenhuma automação com gatilho manual ativa</div>
+                    <div style={{ padding: 12, fontSize: 12, color: "#9CA3AF", textAlign: "center" }}>Nenhuma automação com gatilho manual ativa</div>
                   ) : (
                     manualAutoList.map(a => (
                       <button
                         key={a.id}
                         onClick={() => runManualAuto(a.id)}
-                        style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", borderBottom: "1px solid hsl(var(--border))", cursor: "pointer", fontSize: 12, color: "hsl(var(--foreground))", display: "flex", alignItems: "center", gap: 6 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                        style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", fontSize: 12, color: "#111", display: "flex", alignItems: "center", gap: 6 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}
                       >
-                        <Zap size={11} color="hsl(var(--purple-soft-fg))" /> {a.name}
+                        <Zap size={11} color="#6B21A8" /> {a.name}
                       </button>
                     ))
                   )}
@@ -448,13 +448,13 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
             </div>
 
             {/* Notes */}
-            <div style={{ padding: "14px 16px", borderBottom: "1px solid hsl(var(--border))" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid #F0F0F0" }}>
               <button
                 onClick={() => setNotesOpen(v => !v)}
                 style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: notesOpen ? 8 : 0 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: 0.5 }}>Notas</span>
-                <ChevronRight size={13} color="hsl(var(--muted-foreground))" style={{ transform: notesOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.2s" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 0.5 }}>Notas</span>
+                <ChevronRight size={13} color="#AAA" style={{ transform: notesOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.2s" }} />
               </button>
               {notesOpen && (
                 <textarea
@@ -472,13 +472,13 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     updateLead(leadId, { notes: localNotes });
                   }}
                   placeholder="Adicionar notas..."
-                  style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "hsl(var(--foreground))", resize: "vertical", minHeight: 72, outline: "none", fontFamily: "inherit", lineHeight: 1.5, boxSizing: "border-box" }}
+                  style={{ width: "100%", border: "1px solid #E8E8E8", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "#333", resize: "vertical", minHeight: 72, outline: "none", fontFamily: "inherit", lineHeight: 1.5, boxSizing: "border-box" }}
                 />
               )}
             </div>
 
             {/* Details tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid hsl(var(--border))", padding: "0 4px" }}>
+            <div style={{ display: "flex", borderBottom: "1px solid #F0F0F0", padding: "0 4px" }}>
               <button style={tab(detailsTab === "perfil")}    onClick={() => setDetailsTab("perfil")}>Perfil</button>
               <button style={tab(detailsTab === "endereco")}  onClick={() => setDetailsTab("endereco")}>Endereço</button>
               <button style={tab(detailsTab === "campos")}    onClick={() => setDetailsTab("campos")}>Campos</button>
@@ -508,7 +508,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
               {detailsTab === "campos" && (() => {
                 const allItems = customFieldGroups.flatMap(g => g.items);
-                if (allItems.length === 0) return <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
+                if (allItems.length === 0) return <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
                 return (
                   <>
                     {allItems.map(f => (
@@ -532,7 +532,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
             {/* History tabs */}
-            <div style={{ padding: "16px 20px 0", borderBottom: "1px solid hsl(var(--border))", display: "flex", gap: 20, flexShrink: 0 }}>
+            <div style={{ padding: "16px 20px 0", borderBottom: "1px solid #F0F0F0", display: "flex", gap: 20, flexShrink: 0 }}>
               {(["historico","atividades","negocios","arquivos","atendimentos"] as HistoryTab[]).map(k => (
                 <button key={k} style={historyTabStyle(historyTab === k)} onClick={() => setHistoryTab(k)}>
                   {{ historico:"Histórico", atividades:"Atividades", negocios:"Negócios", arquivos:"Arquivos", atendimentos:"Atendimentos" }[k]}
@@ -547,8 +547,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                     <div>
-                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))" }}>Histórico</h3>
-                      <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Veja o histórico do seu lead</p>
+                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Histórico</h3>
+                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Veja o histórico do seu lead</p>
                     </div>
                   </div>
 
@@ -559,12 +559,12 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       onChange={e => setNewNote(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && saveNote()}
                       placeholder="Adicionar comentário..."
-                      style={{ flex: 1, border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", color: "hsl(var(--foreground))", background: "hsl(var(--muted))" }}
+                      style={{ flex: 1, border: "1px solid #E8E8E8", borderRadius: 8, padding: "9px 12px", fontSize: 13, outline: "none", color: "#111", background: "#FAFAFA" }}
                     />
                     <button
                       onClick={saveNote}
                       disabled={!newNote.trim()}
-                      style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: newNote.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))", border: "none", borderRadius: 8, padding: "9px 18px", cursor: newNote.trim() ? "pointer" : "default", transition: "background 0.15s" }}
+                      style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: newNote.trim() ? "#128A68" : "#CCC", border: "none", borderRadius: 8, padding: "9px 18px", cursor: newNote.trim() ? "pointer" : "default", transition: "background 0.15s" }}
                     >
                       Salvar
                     </button>
@@ -572,30 +572,30 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
                   {/* Timeline */}
                   {sortedActs.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <StickyNote size={32} style={{ margin: "0 auto 10px", opacity: 0.3 }} />
                       <p style={{ fontSize: 13 }}>Nenhum histórico registrado</p>
                     </div>
                   ) : (
                     <div style={{ position: "relative" }}>
-                      <div style={{ position: "absolute", left: 15, top: 16, bottom: 0, width: 2, background: "hsl(var(--muted))" }} />
+                      <div style={{ position: "absolute", left: 15, top: 16, bottom: 0, width: 2, background: "#F0F0F0" }} />
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {sortedActs.map(act => {
                           const m = ACT_META[act.type] ?? ACT_META.note;
                           const Icon = m.Icon;
                           return (
                             <div key={act.id} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0" }}>
-                              <div style={{ width: 32, height: 32, borderRadius: "50%", background: m.bg, color: m.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1, border: "2.5px solid hsl(var(--card))", boxShadow: "0 0 0 1.5px #E8E8E8" }}>
+                              <div style={{ width: 32, height: 32, borderRadius: "50%", background: m.bg, color: m.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1, border: "2.5px solid #FFF", boxShadow: "0 0 0 1.5px #E8E8E8" }}>
                                 <Icon size={13} />
                               </div>
-                              <div style={{ flex: 1, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "10px 14px" }}>
+                              <div style={{ flex: 1, background: "#FAFAFA", border: "1px solid #F0F0F0", borderRadius: 10, padding: "10px 14px" }}>
                                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                                  <p style={{ fontSize: 13, color: "hsl(var(--foreground))", lineHeight: 1.4, flex: 1 }}>{act.description}</p>
-                                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(act.date)}</span>
+                                  <p style={{ fontSize: 13, color: "#111", lineHeight: 1.4, flex: 1 }}>{act.description}</p>
+                                  <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(act.date)}</span>
                                 </div>
                                 <div style={{ marginTop: 4, display: "flex", gap: 6, alignItems: "center" }}>
-                                  <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{m.label}</span>
-                                  {act.userName && <><span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>·</span><span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{act.userName}</span></>}
+                                  <span style={{ fontSize: 10, color: "#AAA" }}>{m.label}</span>
+                                  {act.userName && <><span style={{ fontSize: 10, color: "#DDD" }}>·</span><span style={{ fontSize: 10, color: "#888" }}>{act.userName}</span></>}
                                 </div>
                               </div>
                             </div>
@@ -610,25 +610,25 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               {/* ── ATIVIDADES ── */}
               {historyTab === "atividades" && (
                 <div>
-                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))", marginBottom: 16 }}>Atividades</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111", marginBottom: 16 }}>Atividades</h3>
                   {tasks.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <CheckSquare size={32} style={{ margin: "0 auto 10px", opacity: 0.3 }} />
                       <p style={{ fontSize: 13 }}>Nenhuma atividade registrada</p>
                     </div>
                   ) : tasks.map(t => (
-                    <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", border: "1px solid hsl(var(--border))", borderRadius: 10, marginBottom: 8, background: "hsl(var(--muted))" }}>
+                    <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", border: "1px solid #F0F0F0", borderRadius: 10, marginBottom: 8, background: "#FAFAFA" }}>
                       <Checkbox
                         checked={t.status === "Concluída"}
                         onCheckedChange={() => updateTask(t.id, { status: t.status === "Concluída" ? "Pendente" : "Concluída" })}
                         className="rounded-full"
                       />
                       <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 13, color: t.status === "Concluída" ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))", textDecoration: t.status === "Concluída" ? "line-through" : "none" }}>{t.title}</p>
-                        {t.dueDate && <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{new Date(t.dueDate).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>}
+                        <p style={{ fontSize: 13, color: t.status === "Concluída" ? "#AAA" : "#111", textDecoration: t.status === "Concluída" ? "line-through" : "none" }}>{t.title}</p>
+                        {t.dueDate && <p style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{new Date(t.dueDate).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>}
                       </div>
                       {t.status === "Concluída" && (
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#22C55E", background: "hsl(var(--success-soft))", padding: "2px 8px", borderRadius: 100 }}>Concluída</span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#22C55E", background: "#DCFCE7", padding: "2px 8px", borderRadius: 100 }}>Concluída</span>
                       )}
                     </div>
                   ))}
@@ -640,8 +640,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                     <div>
-                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))" }}>Negócios</h3>
-                      <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{relatedLeads.length} negócio{relatedLeads.length !== 1 ? "s" : ""} encontrado{relatedLeads.length !== 1 ? "s" : ""}</p>
+                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Negócios</h3>
+                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{relatedLeads.length} negócio{relatedLeads.length !== 1 ? "s" : ""} encontrado{relatedLeads.length !== 1 ? "s" : ""}</p>
                     </div>
                     <button
                       onClick={() => {
@@ -650,7 +650,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                         setNewDealStage(first?.columns[0]?.id ?? "");
                         setShowNewDeal(v => !v);
                       }}
-                      style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))", border: `1px solid ${showNewDeal ? "hsl(var(--border))" : "#128A6830"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "#888" : "#128A68", border: `1px solid ${showNewDeal ? "#E0E0E0" : "#128A6830"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
                     >
                       <PlusCircle size={13} />
                       {showNewDeal ? "Cancelar" : "Novo negócio"}
@@ -659,11 +659,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
                   {/* Formulário inline de novo negócio */}
                   {showNewDeal && (
-                    <div style={{ border: "1px solid #128A6830", borderRadius: 12, padding: "16px", marginBottom: 16, background: "hsl(var(--muted))" }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 12 }}>Criar negócio para <span style={{ color: "hsl(var(--primary))" }}>{lead.name}</span></p>
+                    <div style={{ border: "1px solid #128A6830", borderRadius: 12, padding: "16px", marginBottom: 16, background: "#F9FFF9" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 12 }}>Criar negócio para <span style={{ color: "#128A68" }}>{lead.name}</span></p>
 
                       <div style={{ marginBottom: 10 }}>
-                        <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", display: "block", marginBottom: 4 }}>Pipeline</label>
+                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Pipeline</label>
                         <select
                           value={newDealPipeline}
                           onChange={e => {
@@ -671,18 +671,18 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                             const p = pipelines.find(p => p.id === e.target.value);
                             setNewDealStage(p?.columns[0]?.id ?? "");
                           }}
-                          style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+                          style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#FFF", color: "#111" }}
                         >
                           {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
 
                       <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", display: "block", marginBottom: 4 }}>Etapa</label>
+                        <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Etapa</label>
                         <select
                           value={newDealStage}
                           onChange={e => setNewDealStage(e.target.value)}
-                          style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+                          style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#FFF", color: "#111" }}
                         >
                           {(newDealPipelineObj?.columns ?? []).map(c => (
                             <option key={c.id} value={c.id}>{c.title}</option>
@@ -693,14 +693,14 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       <button
                         onClick={createDeal}
                         disabled={!newDealPipeline || !newDealStage || newDealCreating}
-                        style={{ width: "100%", padding: "9px", background: (!newDealPipeline || !newDealStage || newDealCreating) ? "hsl(var(--muted))" : "hsl(var(--primary))", color: "#FFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (!newDealPipeline || !newDealStage || newDealCreating) ? "default" : "pointer", transition: "background 0.15s" }}
+                        style={{ width: "100%", padding: "9px", background: (!newDealPipeline || !newDealStage || newDealCreating) ? "#CCC" : "#128A68", color: "#FFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (!newDealPipeline || !newDealStage || newDealCreating) ? "default" : "pointer", transition: "background 0.15s" }}
                       >
                         {newDealCreating ? "Criando…" : "✓ Criar negócio"}
                       </button>
                     </div>
                   )}
                   {relatedLeads.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <Briefcase size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
                       <p style={{ fontSize: 13 }}>Nenhum negócio encontrado</p>
                     </div>
@@ -709,54 +709,54 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     const lStage    = lPipeline?.columns.find(c => c.id === l.stage);
                     const isWon     = l.dealStatus === "won";
                     const isLost    = l.dealStatus === "lost";
-                    const statusColor = isWon ? "#22C55E" : isLost ? "#EF4444" : "hsl(var(--primary))";
-                    const statusBg    = isWon ? "hsl(var(--success-soft))" : isLost ? "hsl(var(--destructive-soft))" : "hsl(var(--muted))";
+                    const statusColor = isWon ? "#22C55E" : isLost ? "#EF4444" : "#128A68";
+                    const statusBg    = isWon ? "#DCFCE7" : isLost ? "#FEE2E2" : "#E6F5F0";
                     const statusLabel = isWon ? "Ganho" : isLost ? "Perdido" : "Em aberto";
                     const movePipelineObj = pipelines.find(p => p.id === movePipeline);
                     return (
                       <div
                         key={l.id}
-                        style={{ position: "relative", border: "1px solid hsl(var(--border))", borderRadius: 12, padding: "14px 16px", marginBottom: 10, background: l.id === leadId ? "hsl(var(--muted))" : "hsl(var(--muted))", borderLeft: l.id === leadId ? "3px solid hsl(var(--primary))" : "1px solid hsl(var(--border))" }}
+                        style={{ position: "relative", border: "1px solid #F0F0F0", borderRadius: 12, padding: "14px 16px", marginBottom: 10, background: l.id === leadId ? "#F9FFF9" : "#FAFAFA", borderLeft: l.id === leadId ? "3px solid #128A68" : "1px solid #F0F0F0" }}
                         onClick={() => { if (dealMenuId === l.id || moveDealId === l.id || actDealId === l.id || prodDealId === l.id || confirmDelDealId === l.id) return; onClose(); navigate(`/pipeline/lead/${l.id}`); }}
                       >
                         {/* Header */}
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                           <div style={{ flex: 1, cursor: "pointer" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--primary))" }}>#{l.dealNumber}</span>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))" }}>{l.name}</span>
-                              {l.id === leadId && <span style={{ fontSize: 9, fontWeight: 700, color: "hsl(var(--muted-foreground))", background: "hsl(var(--muted))", padding: "1px 6px", borderRadius: 100 }}>ESTE</span>}
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68" }}>#{l.dealNumber}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{l.name}</span>
+                              {l.id === leadId && <span style={{ fontSize: 9, fontWeight: 700, color: "#888", background: "#F0F0F0", padding: "1px 6px", borderRadius: 100 }}>ESTE</span>}
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                              {lPipeline && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))", padding: "2px 8px", borderRadius: 100 }}>{lPipeline.name}</span>}
-                              {lStage && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", background: lStage.color + "20", padding: "2px 8px", borderRadius: 100 }}>{lStage.title}</span>}
+                              {lPipeline && <span style={{ fontSize: 11, color: "#555", background: "#F5F5F5", padding: "2px 8px", borderRadius: 100 }}>{lPipeline.name}</span>}
+                              {lStage && <span style={{ fontSize: 11, color: "#555", background: lStage.color + "20", padding: "2px 8px", borderRadius: 100 }}>{lStage.title}</span>}
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flexShrink: 0 }}>
                             <div style={{ textAlign: "right" }}>
-                              {!!l.value && <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--primary))" }}>{formatBRL(l.value)}</p>}
+                              {!!l.value && <p style={{ fontSize: 13, fontWeight: 700, color: "#128A68" }}>{formatBRL(l.value)}</p>}
                               <span style={{ fontSize: 10, fontWeight: 600, color: statusColor, background: statusBg, padding: "2px 8px", borderRadius: 100, display: "inline-block", marginTop: 4 }}>{statusLabel}</span>
                             </div>
                             {/* ··· menu button */}
                             <button
                               onMouseDown={e => e.stopPropagation()}
                               onClick={e => { e.stopPropagation(); setDealMenuId(dealMenuId === l.id ? null : l.id); setMoveDealId(null); setActDealId(null); setProdDealId(null); setConfirmDelDealId(null); }}
-                              style={{ width: 26, height: 26, border: "1px solid hsl(var(--border))", borderRadius: 6, background: "hsl(var(--card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "hsl(var(--muted-foreground))", flexShrink: 0, marginTop: 2 }}
+                              style={{ width: 26, height: 26, border: "1px solid #E5E7EB", borderRadius: 6, background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0, marginTop: 2 }}
                             ><MoreHorizontal size={14} /></button>
                           </div>
                         </div>
 
                         {l.responsible && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid hsl(var(--border))" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid #F0F0F0" }}>
                             <div style={{ width: 18, height: 18, borderRadius: "50%", background: colorFromName(l.responsible), color: "#FFF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{l.responsible[0]}</div>
-                            <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{l.responsible}</span>
-                            {l.entryDate && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginLeft: "auto" }}>{new Date(l.entryDate).toLocaleDateString("pt-BR")}</span>}
+                            <span style={{ fontSize: 11, color: "#666" }}>{l.responsible}</span>
+                            {l.entryDate && <span style={{ fontSize: 11, color: "#AAA", marginLeft: "auto" }}>{new Date(l.entryDate).toLocaleDateString("pt-BR")}</span>}
                           </div>
                         )}
 
                         {/* Dropdown menu */}
                         {dealMenuId === l.id && (
-                          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: 42, right: 16, zIndex: 50, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: "4px 0", minWidth: 200 }}>
+                          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: 42, right: 16, zIndex: 50, background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: "4px 0", minWidth: 200 }}>
                             {[
                               { icon: <ArrowLeftRight size={14} />, label: "Mover negócio", action: () => { setMoveDealId(l.id); const p = lPipeline ?? pipelines[0]; setMovePipeline(p?.id ?? ""); setMoveStage(l.stage ?? p?.columns[0]?.id ?? ""); setDealMenuId(null); } },
                               { icon: <CalendarPlus size={14} />,  label: "Criar atividade",  action: () => { setActDealId(l.id); setActTitle(""); setDealMenuId(null); } },
@@ -775,12 +775,12 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
                         {/* Mover negócio */}
                         {moveDealId === l.id && (
-                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10 }}>
-                            <p style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 8 }}>Mover negócio</p>
-                            <select value={movePipeline} onChange={e => { setMovePipeline(e.target.value); const p = pipelines.find(p2 => p2.id === e.target.value); setMoveStage(p?.columns[0]?.id ?? ""); }} style={{ width: "100%", marginBottom: 6, border: "1px solid hsl(var(--border))", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Mover negócio</p>
+                            <select value={movePipeline} onChange={e => { setMovePipeline(e.target.value); const p = pipelines.find(p2 => p2.id === e.target.value); setMoveStage(p?.columns[0]?.id ?? ""); }} style={{ width: "100%", marginBottom: 6, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
                               {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
-                            <select value={moveStage} onChange={e => setMoveStage(e.target.value)} style={{ width: "100%", marginBottom: 10, border: "1px solid hsl(var(--border))", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                            <select value={moveStage} onChange={e => setMoveStage(e.target.value)} style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
                               {(movePipelineObj?.columns ?? []).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                             <div style={{ display: "flex", gap: 6 }}>
@@ -802,47 +802,47 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                                 await updateLead(l.id, { pipelineId: movePipeline, stage: moveStage });
                                 setMoveDealId(null);
                                 toast.success("Negócio movido!");
-                              }} style={{ flex: 1, padding: "7px", background: "hsl(var(--primary))", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
-                              <button onClick={e => { e.stopPropagation(); setMoveDealId(null); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                              }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
+                              <button onClick={e => { e.stopPropagation(); setMoveDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>
                         )}
 
                         {/* Criar atividade */}
                         {actDealId === l.id && (
-                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10 }}>
-                            <p style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 8 }}>Criar atividade</p>
-                            <input value={actTitle} onChange={e => setActTitle(e.target.value)} placeholder="Título da atividade" style={{ width: "100%", marginBottom: 10, border: "1px solid hsl(var(--border))", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }} />
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Criar atividade</p>
+                            <input value={actTitle} onChange={e => setActTitle(e.target.value)} placeholder="Título da atividade" style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }} />
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={async e => { e.stopPropagation(); if (!actTitle.trim()) return; await addActivity(l.id, { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "note", description: actTitle.trim() }); setActDealId(null); toast.success("Atividade criada!"); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--primary))", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Criar</button>
-                              <button onClick={e => { e.stopPropagation(); setActDealId(null); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                              <button onClick={async e => { e.stopPropagation(); if (!actTitle.trim()) return; await addActivity(l.id, { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "note", description: actTitle.trim() }); setActDealId(null); toast.success("Atividade criada!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Criar</button>
+                              <button onClick={e => { e.stopPropagation(); setActDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>
                         )}
 
                         {/* Produtos */}
                         {prodDealId === l.id && (
-                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10 }}>
-                            <p style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 8 }}>Produto do negócio</p>
-                            <select defaultValue={l.productId ?? ""} id={`prod-sel-${l.id}`} style={{ width: "100%", marginBottom: 10, border: "1px solid hsl(var(--border))", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Produto do negócio</p>
+                            <select defaultValue={l.productId ?? ""} id={`prod-sel-${l.id}`} style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }}>
                               <option value="">Sem produto</option>
                               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={async e => { e.stopPropagation(); const sel = (document.getElementById(`prod-sel-${l.id}`) as HTMLSelectElement)?.value ?? ""; await updateLead(l.id, { productId: sel || undefined }); setProdDealId(null); toast.success("Produto atualizado!"); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--primary))", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
-                              <button onClick={e => { e.stopPropagation(); setProdDealId(null); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                              <button onClick={async e => { e.stopPropagation(); const sel = (document.getElementById(`prod-sel-${l.id}`) as HTMLSelectElement)?.value ?? ""; await updateLead(l.id, { productId: sel || undefined }); setProdDealId(null); toast.success("Produto atualizado!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar</button>
+                              <button onClick={e => { e.stopPropagation(); setProdDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>
                         )}
 
                         {/* Confirmar exclusão */}
                         {confirmDelDealId === l.id && (
-                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "hsl(var(--destructive-soft))", border: "1px solid #FECACA", borderRadius: 10 }}>
-                            <p style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--destructive-soft-fg))", marginBottom: 8 }}>Excluir negócio #{l.dealNumber}?</p>
-                            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>Esta ação não pode ser desfeita.</p>
+                          <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", marginBottom: 8 }}>Excluir negócio #{l.dealNumber}?</p>
+                            <p style={{ fontSize: 11, color: "#6B7280", marginBottom: 10 }}>Esta ação não pode ser desfeita.</p>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button onClick={e => { e.stopPropagation(); deleteLead(l.id); setConfirmDelDealId(null); toast.success("Negócio excluído!"); }} style={{ flex: 1, padding: "7px", background: "#EF4444", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Excluir</button>
-                              <button onClick={e => { e.stopPropagation(); setConfirmDelDealId(null); }} style={{ flex: 1, padding: "7px", background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDelDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>
                         )}
@@ -855,14 +855,14 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               {/* ── ARQUIVOS ── */}
               {historyTab === "arquivos" && (
                 <div>
-                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))", marginBottom: 16 }}>Arquivos</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111", marginBottom: 16 }}>Arquivos</h3>
                   {filesLoading ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "#AAA" }}>
                       <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
                       <span style={{ fontSize: 13 }}>Carregando arquivos…</span>
                     </div>
                   ) : leadFiles.length === 0 && waFiles.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <FileText size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
                       <p style={{ fontSize: 13 }}>Nenhum arquivo encontrado</p>
                     </div>
@@ -870,17 +870,17 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     <>
                       {leadFiles.length > 0 && (
                         <>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Enviados manualmente</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Enviados manualmente</p>
                           {leadFiles.map(f => (
-                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid hsl(var(--border))", borderRadius: 10, marginBottom: 8, background: "hsl(var(--muted))" }}>
-                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #F0F0F0", borderRadius: 10, marginBottom: 8, background: "#FAFAFA" }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 {f.mimeType?.startsWith("image") ? <Image size={18} color="#378ADD" /> : <FileText size={18} color="#378ADD" />}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</p>
-                                <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{f.size ? `${(f.size / 1024).toFixed(0)} KB` : ""} · {fmtDate(f.createdAt)}</p>
+                                <p style={{ fontSize: 13, color: "#111", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</p>
+                                <p style={{ fontSize: 11, color: "#AAA" }}>{f.size ? `${(f.size / 1024).toFixed(0)} KB` : ""} · {fmtDate(f.createdAt)}</p>
                               </div>
-                              <button onClick={() => downloadFile(f)} style={{ padding: "6px", background: "none", border: "none", cursor: "pointer", color: "hsl(var(--primary))", borderRadius: 6 }}>
+                              <button onClick={() => downloadFile(f)} style={{ padding: "6px", background: "none", border: "none", cursor: "pointer", color: "#128A68", borderRadius: 6 }}>
                                 <Download size={15} />
                               </button>
                             </div>
@@ -889,15 +889,15 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       )}
                       {waFiles.length > 0 && (
                         <>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: 0.5, margin: "12px 0 8px" }}>Do WhatsApp</p>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: 0.5, margin: "12px 0 8px" }}>Do WhatsApp</p>
                           {waFiles.map(f => (
-                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid hsl(var(--border))", borderRadius: 10, marginBottom: 8, background: "hsl(var(--muted))" }}>
-                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                {f.type === "image" ? <Image size={18} color="hsl(var(--primary))" /> : <FileText size={18} color="hsl(var(--primary))" />}
+                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: "1px solid #F0F0F0", borderRadius: 10, marginBottom: 8, background: "#FAFAFA" }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#E6F5F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                {f.type === "image" ? <Image size={18} color="#128A68" /> : <FileText size={18} color="#128A68" />}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: 500 }}>{f.type === "image" ? "Imagem" : "Documento"}</p>
-                                <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{f.fromMe ? "Enviado" : "Recebido"} · {fmtDate(f.createdAt)}</p>
+                                <p style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{f.type === "image" ? "Imagem" : "Documento"}</p>
+                                <p style={{ fontSize: 11, color: "#AAA" }}>{f.fromMe ? "Enviado" : "Recebido"} · {fmtDate(f.createdAt)}</p>
                               </div>
                             </div>
                           ))}
@@ -913,49 +913,49 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                     <div>
-                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "hsl(var(--foreground))" }}>Atendimentos</h3>
-                      <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Conversas no WhatsApp</p>
+                      <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Atendimentos</h3>
+                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Conversas no WhatsApp</p>
                     </div>
                     <button
                       onClick={() => { onClose(); navigate("/multiatendimento"); }}
-                      style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--primary))", border: "1px solid #128A6830", borderRadius: 8, padding: "5px 12px", background: "transparent", cursor: "pointer" }}
+                      style={{ fontSize: 11, fontWeight: 600, color: "#128A68", border: "1px solid #128A6830", borderRadius: 8, padding: "5px 12px", background: "transparent", cursor: "pointer" }}
                     >
                       Abrir chat
                     </button>
                   </div>
                   {convsLoading ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 8, color: "#AAA" }}>
                       <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
                       <span style={{ fontSize: 13 }}>Carregando atendimentos…</span>
                     </div>
                   ) : convs.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#AAA" }}>
                       <MessageCircle size={32} style={{ margin: "0 auto 10px", opacity: 0.25 }} />
                       <p style={{ fontSize: 13 }}>Nenhuma conversa encontrada</p>
-                      <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>As conversas aparecem após o primeiro contato no Multiatendimento</p>
+                      <p style={{ fontSize: 12, color: "#AAA", marginTop: 4 }}>As conversas aparecem após o primeiro contato no Multiatendimento</p>
                     </div>
                   ) : convs.map(c => (
                     <div
                       key={c.id}
                       onClick={() => { onClose(); navigate("/multiatendimento", { state: { openConvId: c.id } }); }}
-                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid hsl(var(--border))", borderRadius: 12, marginBottom: 8, background: "hsl(var(--muted))", cursor: "pointer" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid #F0F0F0", borderRadius: 12, marginBottom: 8, background: "#FAFAFA", cursor: "pointer" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F0F9F6")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#FAFAFA")}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: "50%", background: colorFromName(c.name || "?"), color: "#FFF", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         {(c.name || "?")[0]?.toUpperCase()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || c.phone}</p>
-                          {c.last_msg_at && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(c.last_msg_at)}</span>}
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || c.phone}</p>
+                          {c.last_msg_at && <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(c.last_msg_at)}</span>}
                         </div>
-                        {c.preview && <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{c.preview}</p>}
+                        {c.preview && <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{c.preview}</p>}
                         <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: c.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))", background: c.finished ? "hsl(var(--background))" : "hsl(var(--muted))", padding: "2px 8px", borderRadius: 100 }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: c.finished ? "#AAA" : "#128A68", background: c.finished ? "#F5F5F5" : "#E6F5F0", padding: "2px 8px", borderRadius: 100 }}>
                             {c.finished ? "Arquivado" : "Em aberto"}
                           </span>
-                          {!c.read && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: "hsl(var(--primary))", padding: "2px 8px", borderRadius: 100 }}>Nova</span>}
+                          {!c.read && <span style={{ fontSize: 10, fontWeight: 700, color: "#FFF", background: "#128A68", padding: "2px 8px", borderRadius: 100 }}>Nova</span>}
                         </div>
                       </div>
                     </div>

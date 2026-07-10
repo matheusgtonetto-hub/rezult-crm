@@ -40,8 +40,8 @@ export function FloatingChatManager() {
                 key={w.leadId}
                 className="flex items-center cursor-pointer transition-shadow hover:shadow-md"
                 style={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  background: "#FFFFFF",
+                  border: "1px solid #E5E5E5",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                   borderRadius: 100,
                   padding: "6px 12px 6px 6px",
@@ -51,19 +51,19 @@ export function FloatingChatManager() {
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white relative shrink-0"
-                  style={{ background: "hsl(var(--primary))" }}
+                  style={{ background: "#128A68" }}
                 >
                   {getInitials(lead.name)}
                   {w.unread && (
                     <span
                       className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse"
-                      style={{ background: "#25D366", border: "2px solid hsl(var(--card))" }}
+                      style={{ background: "#25D366", border: "2px solid #FFF" }}
                     />
                   )}
                 </div>
                 <span
                   className="truncate max-w-[120px]"
-                  style={{ fontSize: 12, color: "hsl(var(--foreground))", fontWeight: 600 }}
+                  style={{ fontSize: 12, color: "#111", fontWeight: 600 }}
                 >
                   {lead.name}
                 </span>

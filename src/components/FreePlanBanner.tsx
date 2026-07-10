@@ -50,8 +50,8 @@ export function FreePlanBanner() {
         </p>
         <Button
           size="sm"
-          className="h-8 text-xs font-semibold rounded-lg text-foreground shrink-0"
-          style={{ background: "hsl(var(--card))", animation: "banner-btn-attention 1.2s ease-in-out infinite" }}
+          className="h-8 text-xs font-semibold rounded-lg text-black shrink-0"
+          style={{ background: "#ffffff", animation: "banner-btn-attention 1.2s ease-in-out infinite" }}
           onClick={() => navigate("/configuracoes/planos")}
         >
           Fazer upgrade agora!
@@ -119,8 +119,8 @@ export function FreePlanBanner() {
                   </div>
 
                   {save ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[hsl(var(--success-soft-fg))] bg-[hsl(var(--success-soft))] border border-emerald-200 rounded-full px-2 py-0.5 w-fit mb-4">
-                      <Zap size={10} className="text-[hsl(var(--success-soft-fg))]" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit mb-4">
+                      <Zap size={10} className="text-emerald-600" />
                       economize {save}
                     </span>
                   ) : (
@@ -134,7 +134,7 @@ export function FreePlanBanner() {
                           size={13}
                           className={cn(
                             "mt-0.5 shrink-0",
-                            plan.badge ? "text-primary" : "text-[hsl(var(--success-soft-fg))]"
+                            plan.badge ? "text-primary" : "text-emerald-600"
                           )}
                         />
                         {f}

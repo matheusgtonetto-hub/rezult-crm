@@ -42,12 +42,12 @@ const PT_MONTHS = [
 
 
 const TYPE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  meeting:   { bg: "hsl(var(--info-soft))", color: "hsl(var(--info-soft-fg))", border: "#3B82F6" },
-  call:      { bg: "hsl(var(--success-soft))", color: "hsl(var(--success-soft-fg))", border: "#10B981" },
-  follow_up: { bg: "hsl(var(--warning-soft))", color: "hsl(var(--warning-soft-fg))", border: "#F59E0B" },
-  task:      { bg: "hsl(var(--muted))", color: "hsl(var(--purple-soft-fg))", border: "#8B5CF6" },
+  meeting:   { bg: "#DBEAFE", color: "#1D4ED8", border: "#3B82F6" },
+  call:      { bg: "#D1FAE5", color: "#065F46", border: "#10B981" },
+  follow_up: { bg: "#FEF3C7", color: "#92400E", border: "#F59E0B" },
+  task:      { bg: "#EDE9FE", color: "#5B21B6", border: "#8B5CF6" },
 };
-const DEFAULT_STYLE = { bg: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "hsl(var(--border))" };
+const DEFAULT_STYLE = { bg: "#F3F4F6", color: "#374151", border: "#9CA3AF" };
 
 // ─── Helpers de data (sem libs externas) ─────────────────────────────────────
 
@@ -101,9 +101,9 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
   return (
     <div
       style={{
-        background: "hsl(var(--card))",
+        background: "#FFFFFF",
         borderRadius: 12,
-        border: "1px solid hsl(var(--border))",
+        border: "1px solid #E5E5E5",
         overflow: "hidden",
       }}
     >
@@ -112,15 +112,15 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          background: "hsl(var(--muted))",
-          borderBottom: "1px solid hsl(var(--border))",
+          background: "#FAFAFA",
+          borderBottom: "1px solid #E5E5E5",
         }}
       >
         {PT_DAYS_SHORT.map(d => (
           <div
             key={d}
             className="text-center py-2 text-[11px] font-semibold"
-            style={{ color: "hsl(var(--muted-foreground))" }}
+            style={{ color: "#888" }}
           >
             {d}
           </div>
@@ -141,8 +141,8 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                 height: 110,
                 overflow: "hidden",
                 padding: "6px 8px",
-                borderRight: "1px solid hsl(var(--border))",
-                borderBottom: "1px solid hsl(var(--border))",
+                borderRight: "1px solid #F0F0F0",
+                borderBottom: "1px solid #F0F0F0",
               }}
             >
               <div className="flex justify-end mb-1">
@@ -157,7 +157,7 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                     fontSize: 11,
                     fontWeight: isToday ? 700 : 400,
                     background: isToday ? "hsl(var(--primary))" : "transparent",
-                    color: isToday ? "#FFFFFF" : inMonth ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                    color: isToday ? "#FFFFFF" : inMonth ? "#111111" : "#CCCCCC",
                   }}
                 >
                   {day.getDate()}
@@ -169,11 +169,11 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                   const now = new Date();
                   const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
                   const s = overdue
-                    ? { bg: "hsl(var(--destructive-soft))", color: "hsl(var(--destructive-soft-fg))" }
+                    ? { bg: "#FEE2E2", color: "#B91C1C" }
                     : evt.isCompleted
-                    ? { bg: "hsl(var(--success-soft))", color: "hsl(var(--success-soft-fg))" }
+                    ? { bg: "#D1FAE5", color: "#065F46" }
                     : evt.isNoShow
-                    ? { bg: "hsl(var(--destructive-soft))", color: "hsl(var(--destructive-soft-fg))" }
+                    ? { bg: "#FEE2E2", color: "#991B1B" }
                     : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
                   return (
                     <button
@@ -193,7 +193,7 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                   );
                 })}
                 {dayEvts.length > 3 && (
-                  <span className="text-[9px] px-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <span className="text-[9px] px-1" style={{ color: "#AAAAAA" }}>
                     +{dayEvts.length - 3} mais
                   </span>
                 )}
@@ -230,9 +230,9 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
   return (
     <div
       style={{
-        background: "hsl(var(--card))",
+        background: "#FFFFFF",
         borderRadius: 12,
-        border: "1px solid hsl(var(--border))",
+        border: "1px solid #E5E5E5",
         overflow: "hidden",
         height: "calc(100vh - 148px)",
         display: "flex",
@@ -254,9 +254,9 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
             pointerEvents: "none",
           }}
         >
-          <CalendarDays size={32} style={{ color: "hsl(var(--muted-foreground))" }} />
-          <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Nenhuma atividade agendada</p>
-          <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Clique em "Nova atividade" para agendar uma reunião ou tarefa</p>
+          <CalendarDays size={32} style={{ color: "#CCCCCC" }} />
+          <p style={{ fontSize: 14, color: "#AAAAAA", fontWeight: 500 }}>Nenhuma atividade agendada</p>
+          <p style={{ fontSize: 12, color: "#CCCCCC" }}>Clique em "Nova atividade" para agendar uma reunião ou tarefa</p>
         </div>
       )}
       {/* Cabeçalho com dias */}
@@ -264,8 +264,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
         style={{
           display: "grid",
           gridTemplateColumns: `52px repeat(${cols}, 1fr)`,
-          background: "hsl(var(--muted))",
-          borderBottom: "1px solid hsl(var(--border))",
+          background: "#FAFAFA",
+          borderBottom: "1px solid #E5E5E5",
           flexShrink: 0,
         }}
       >
@@ -274,7 +274,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
           const isToday = sameDay(day, today);
           return (
             <div key={day.toISOString()} className="text-center py-2">
-              <div className="text-[11px] font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
+              <div className="text-[11px] font-semibold" style={{ color: "#888" }}>
                 {PT_DAYS_SHORT[day.getDay()]}
               </div>
               <div
@@ -287,7 +287,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   borderRadius: "50%",
                   margin: "2px auto 0",
                   background: isToday ? "hsl(var(--primary))" : "transparent",
-                  color: isToday ? "#FFFFFF" : "hsl(var(--foreground))",
+                  color: isToday ? "#FFFFFF" : "#111111",
                   fontWeight: isToday ? 700 : 500,
                   fontSize: 13,
                 }}
@@ -320,7 +320,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   paddingRight: 8,
                   paddingTop: 4,
                   fontSize: 10,
-                  color: "hsl(var(--muted-foreground))",
+                  color: "#AAAAAA",
                 }}
               >
                 {pad2(h)}:00
@@ -338,8 +338,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                 key={day.toISOString()}
                 style={{
                   position: "relative",
-                  borderLeft: "1px solid hsl(var(--border))",
-                  background: isToday ? "hsl(var(--primary) / 0.06)" : "hsl(var(--card))",
+                  borderLeft: "1px solid #F0F0F0",
+                  background: isToday ? "#FAFFFD" : "#FFFFFF",
                   height: HOUR_H * 24,
                 }}
               >
@@ -353,7 +353,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                       left: 0,
                       right: 0,
                       height: 1,
-                      background: "hsl(var(--muted))",
+                      background: "#F0F0F0",
                     }}
                   />
                 ))}
@@ -367,11 +367,11 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   const now = new Date();
                   const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
                   const s = overdue
-                    ? { bg: "hsl(var(--destructive-soft))", color: "hsl(var(--destructive-soft-fg))", border: "#F87171" }
+                    ? { bg: "#FEE2E2", color: "#B91C1C", border: "#F87171" }
                     : evt.isCompleted
-                    ? { bg: "hsl(var(--success-soft))", color: "hsl(var(--success-soft-fg))", border: "#34D399" }
+                    ? { bg: "#D1FAE5", color: "#065F46", border: "#34D399" }
                     : evt.isNoShow
-                    ? { bg: "hsl(var(--destructive-soft))", color: "hsl(var(--destructive-soft-fg))", border: "#F87171" }
+                    ? { bg: "#FEE2E2", color: "#991B1B", border: "#F87171" }
                     : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
 
                   return (
@@ -658,15 +658,15 @@ export default function CalendarPage() {
       {/* Header */}
       <div
         style={{
-          background: "hsl(var(--card))",
-          borderBottom: "1px solid hsl(var(--border))",
+          background: "#FFFFFF",
+          borderBottom: "1px solid #E5E5E5",
           padding: "14px 24px",
         }}
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <CalendarDays size={18} style={{ color: "hsl(var(--primary))" }} />
-            <h1 className="text-base font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+            <h1 className="text-base font-semibold" style={{ color: "#111111" }}>
               Calendário
             </h1>
           </div>
@@ -683,7 +683,7 @@ export default function CalendarPage() {
             <button
               onClick={() => setCur(new Date())}
               className="text-xs px-2.5 py-1 rounded-md border transition-colors hover:bg-muted"
-              style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+              style={{ borderColor: "#E5E5E5", color: "#555" }}
             >
               Hoje
             </button>
@@ -696,7 +696,7 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <span className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+          <span className="text-sm font-semibold" style={{ color: "#111111" }}>
             {periodLabel()}
           </span>
 
@@ -710,7 +710,7 @@ export default function CalendarPage() {
                 <div className="flex items-center" style={{ gap: -4 }}>
                   {selectedUsers.slice(0, 5).map((name, idx) => {
                     const avatar = memberAvatars[name];
-                    const color = memberColors[name] ?? "hsl(var(--muted-foreground))";
+                    const color = memberColors[name] ?? "#AAAAAA";
                     return (
                       <div
                         key={name}
@@ -719,7 +719,7 @@ export default function CalendarPage() {
                           marginLeft: idx === 0 ? 0 : -6,
                           zIndex: 5 - idx,
                           position: "relative",
-                          outline: `2px solid hsl(var(--card))`,
+                          outline: `2px solid #FFFFFF`,
                           borderRadius: "50%",
                         }}
                       >
@@ -746,12 +746,12 @@ export default function CalendarPage() {
                       className="rounded-full flex items-center justify-center font-semibold"
                       style={{
                         width: 26, height: 26,
-                        background: "hsl(var(--muted))",
-                        color: "hsl(var(--muted-foreground))",
+                        background: "#E5E5E5",
+                        color: "#555",
                         fontSize: 10,
                         marginLeft: -6,
                         zIndex: 0,
-                        border: "2px solid hsl(var(--card))",
+                        border: "2px solid #FFFFFF",
                       }}
                     >
                       +{selectedUsers.length - 5}
@@ -767,9 +767,9 @@ export default function CalendarPage() {
                   onClick={() => setUserPickerOpen(v => !v)}
                   className="flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-colors hover:bg-muted"
                   style={{
-                    borderColor: userPickerOpen ? "hsl(var(--primary))" : "hsl(var(--border))",
-                    color: "hsl(var(--muted-foreground))",
-                    background: userPickerOpen ? "hsl(var(--primary) / 0.06)" : "hsl(var(--card))",
+                    borderColor: userPickerOpen ? "hsl(var(--primary))" : "#E5E5E5",
+                    color: "#555",
+                    background: userPickerOpen ? "hsl(var(--primary) / 0.06)" : "#FFFFFF",
                   }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -808,7 +808,7 @@ export default function CalendarPage() {
                     {teamMembers.map(name => {
                       const selected = selectedUsers.includes(name);
                       const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "hsl(var(--muted-foreground))";
+                      const color = memberColors[name] ?? "#AAAAAA";
                       const isMe = name === myName;
                       return (
                         <button
@@ -843,7 +843,7 @@ export default function CalendarPage() {
                           )}
 
                           {/* Nome */}
-                          <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))", fontWeight: selected ? 600 : 400 }}>
+                          <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
                             {name}{isMe ? " (você)" : ""}
                           </span>
                         </button>
@@ -856,13 +856,13 @@ export default function CalendarPage() {
 
             {/* Separador */}
             {teamMembers.length > 0 && (
-              <div style={{ width: 1, height: 20, background: "hsl(var(--muted))" }} />
+              <div style={{ width: 1, height: 20, background: "#E5E5E5" }} />
             )}
 
             {/* Toggle de vista */}
             <div
               className="flex rounded-lg overflow-hidden"
-              style={{ border: "1px solid hsl(var(--border))" }}
+              style={{ border: "1px solid #E5E5E5" }}
             >
               {(["dia", "semana", "mes"] as CalView[]).map(v => (
                 <button
@@ -870,8 +870,8 @@ export default function CalendarPage() {
                   onClick={() => setView(v)}
                   className="text-xs px-3 py-1.5 transition-colors"
                   style={{
-                    background: view === v ? "hsl(var(--primary))" : "hsl(var(--card))",
-                    color: view === v ? "#FFFFFF" : "hsl(var(--muted-foreground))",
+                    background: view === v ? "hsl(var(--primary))" : "#FFFFFF",
+                    color: view === v ? "#FFFFFF" : "#555",
                     fontWeight: view === v ? 600 : 400,
                   }}
                 >
@@ -885,7 +885,7 @@ export default function CalendarPage() {
               disabled={syncing}
               title="Sincronizar com Google Calendar"
               className="flex items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-50"
-              style={{ width: 32, height: 32, borderColor: "hsl(var(--border))" }}
+              style={{ width: 32, height: 32, borderColor: "#E5E5E5" }}
             >
               <RefreshCw size={14} className={`text-muted-foreground ${syncing ? "animate-spin" : ""}`} />
             </button>

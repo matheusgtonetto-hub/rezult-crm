@@ -65,17 +65,17 @@ function phoneVariants(raw: string): string[] {
 }
 
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
-  Rafael:      { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))" },
-  Mariana:     { bg: "hsl(var(--muted))", fg: "hsl(var(--info-soft-fg))" },
-  Carlos:      { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))" },
-  SDR:         { bg: "hsl(var(--muted))", fg: "hsl(var(--foreground))" },
-  "Follow-up": { bg: "hsl(var(--destructive-soft))", fg: "hsl(var(--destructive-soft-fg))" },
-  Proposta:    { bg: "hsl(var(--info-soft))", fg: "hsl(var(--info-soft-fg))" },
-  Negociação:  { bg: "hsl(var(--muted))", fg: "hsl(var(--purple-soft-fg))" },
-  Reunião:     { bg: "hsl(var(--warning-soft))", fg: "hsl(var(--warning-soft-fg))" },
-  Fechado:     { bg: "hsl(var(--muted))", fg: "hsl(var(--success-soft-fg))" },
+  Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
+  Mariana:     { bg: "#EDE9FE", fg: "#534AB7" },
+  Carlos:      { bg: "#FEF3C7", fg: "#854F0B" },
+  SDR:         { bg: "#F5F5F5", fg: "#535353" },
+  "Follow-up": { bg: "#FEE2E2", fg: "#A32D2D" },
+  Proposta:    { bg: "#DBEAFE", fg: "#185FA5" },
+  Negociação:  { bg: "#F3E8FF", fg: "#6D28D9" },
+  Reunião:     { bg: "#FEF3C7", fg: "#854F0B" },
+  Fechado:     { bg: "#E1F5EE", fg: "#128A68" },
 };
-const tagStyle = (label: string) => TAG_STYLES[label] || { bg: "hsl(var(--muted))", fg: "hsl(var(--foreground))" };
+const tagStyle = (label: string) => TAG_STYLES[label] || { bg: "#F5F5F5", fg: "#535353" };
 
 /* ── types ────────────────────────────────────────────────────────────── */
 type Channel = "whatsapp" | "instagram";
@@ -138,13 +138,13 @@ function makeInitialConvStates(): Record<string, ConvState> {
 function ChannelBadge({ channel }: { channel: Channel }) {
   if (channel === "whatsapp") {
     return (
-      <span style={{ position: "absolute", bottom: -2, right: -2, borderRadius: "50%", border: "2px solid hsl(var(--card))", background: "hsl(var(--card))", lineHeight: 0 }}>
+      <span style={{ position: "absolute", bottom: -2, right: -2, borderRadius: "50%", border: "2px solid #FFF", background: "#FFF", lineHeight: 0 }}>
         <svg viewBox="0 0 24 24" width={12} height={12}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
       </span>
     );
   }
   return (
-    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: "#E1306C", border: "2px solid hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 7, fontWeight: 700 }}>I</span>
+    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: "#E1306C", border: "2px solid #FFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 7, fontWeight: 700 }}>I</span>
   );
 }
 
@@ -154,7 +154,7 @@ function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }
     <div style={{ display: "flex", alignItems: "center", gap: 2, height: 18 }}>
       {heights.map((h, i) => {
         const played = (i + 1) / heights.length <= progress;
-        return <div key={i} style={{ width: 2, height: h, background: light ? "hsl(var(--card))" : "hsl(var(--primary))", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 1, transition: "opacity 0.1s" }} />;
+        return <div key={i} style={{ width: 2, height: h, background: light ? "#FFF" : "#128A68", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 1, transition: "opacity 0.1s" }} />;
       })}
     </div>
   );
@@ -203,7 +203,7 @@ function AudioBubble({ duration, src, light }: { duration: string; src?: string;
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
-  const fg = light ? "#FFF" : "hsl(var(--primary))";
+  const fg = light ? "#FFF" : "#128A68";
 
   const fmt = (s: number) =>
     (isFinite(s) && s > 0)
@@ -222,7 +222,7 @@ function AudioBubble({ duration, src, light }: { duration: string; src?: string;
   const label = src ? fmt((playing || cur > 0) ? cur : dur) : (duration || "00:00");
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "hsl(var(--background))", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "#F5F5F5", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
       {src && (
         <audio
           ref={audioRef}
@@ -267,16 +267,16 @@ function AudioBubble({ duration, src, light }: { duration: string; src?: string;
 function Section({ title, children, defaultOpen = false, action }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+    <div style={{ borderBottom: "1px solid #F0F0F0" }}>
       <button
         onClick={() => setOpen(!open)}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer" }}
-        onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+        onMouseEnter={e => (e.currentTarget.style.background = "#F9F9F9")}
         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <ChevronDown size={14} color="hsl(var(--muted-foreground))" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{title}</span>
+          <ChevronDown size={14} color="#AAA" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{title}</span>
         </div>
         {action}
       </button>
@@ -287,9 +287,9 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
 
 function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string }) {
   const [hovered, setHovered] = useState(false);
-  const bg     = isActive ? "hsl(var(--muted))" : "hsl(var(--muted))";
-  const fg     = isActive ? "hsl(var(--primary))" : "hsl(var(--foreground))";
-  const border = isActive ? "1px solid hsl(var(--primary))" : "1px solid transparent";
+  const bg     = isActive ? "#E1F5EE" : "#F5F5F5";
+  const fg     = isActive ? "#128A68" : "#535353";
+  const border = isActive ? "1px solid #128A68" : "1px solid transparent";
   return (
     <div style={{ position: "relative", display: "flex", flex: 1, minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
@@ -305,7 +305,7 @@ function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIco
           {label}
           <div style={{
             position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
-            borderWidth: "4px 4px 0", borderStyle: "solid", borderColor: "hsl(var(--foreground)) transparent transparent",
+            borderWidth: "4px 4px 0", borderStyle: "solid", borderColor: "#111 transparent transparent",
           }} />
         </div>
       )}
@@ -324,7 +324,7 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: "transparent", color: hover ? "hsl(var(--primary))" : "hsl(var(--foreground))", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "#128A68" : "#E5E5E5"}`, background: "transparent", color: hover ? "#128A68" : "#111", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
     >
       <Icon size={12} /> {label}
     </button>
@@ -1834,7 +1834,7 @@ export default function MultiatendimentoPage() {
   const bulkItemStyle = (disabled = false): React.CSSProperties => ({
     display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
     background: "none", border: "none", padding: "8px 10px", borderRadius: 8,
-    fontSize: 13, color: disabled ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))", cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 13, color: disabled ? "#CCC" : "#333", cursor: disabled ? "not-allowed" : "pointer",
   });
 
   const toggleConvSelected = (id: string) =>
@@ -1916,24 +1916,24 @@ export default function MultiatendimentoPage() {
   ) => {
     const open = fltSecOpen[secKey] ?? false;
     return (
-      <div style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+      <div style={{ borderBottom: "1px solid #F0F0F0" }}>
         <button onClick={() => setFltSecOpen(p => ({ ...p, [secKey]: !open }))} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: "14px 0", cursor: "pointer" }}>
           <div style={{ textAlign: "left" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{title}</div>
-            <div style={{ fontSize: 12, color: selected.length ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", marginTop: 2 }}>{selected.length ? `${selected.length} selecionado(s)` : summary}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{title}</div>
+            <div style={{ fontSize: 12, color: selected.length ? "#128A68" : "#AAA", marginTop: 2 }}>{selected.length ? `${selected.length} selecionado(s)` : summary}</div>
           </div>
-          <ChevronDown size={16} color="hsl(var(--muted-foreground))" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+          <ChevronDown size={16} color="#AAA" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
         </button>
         {open && (
           <div style={{ paddingBottom: 12, display: "flex", flexDirection: "column", gap: 2, maxHeight: 200, overflowY: "auto" }}>
-            {options.length === 0 && <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", padding: "4px 0" }}>Nenhum item cadastrado</div>}
+            {options.length === 0 && <div style={{ fontSize: 12, color: "#CCC", padding: "4px 0" }}>Nenhum item cadastrado</div>}
             {options.map(o => {
               const on = selected.includes(o.value);
               return (
                 <button key={o.value} onClick={() => toggleInArray(setter, o.value)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                  <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "hsl(var(--primary))" : "hsl(var(--border))"), background: on ? "hsl(var(--primary))" : "hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                  <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
                   {o.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: o.color, flexShrink: 0 }} />}
-                  <span style={{ fontSize: 13, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
+                  <span style={{ fontSize: 13, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
                 </button>
               );
             })}
@@ -1964,36 +1964,36 @@ export default function MultiatendimentoPage() {
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
-      <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column", background: "hsl(var(--card))", position: "relative", zIndex: 2, overflow: "hidden" }}>
-        <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid hsl(var(--border))" }}>
+      <aside style={{ width: 300, minWidth: 300, maxWidth: 300, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
+        <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #F0F0F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px" }}>
-              <Search size={14} color="hsl(var(--muted-foreground))" />
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px" }}>
+              <Search size={14} color="#AAA" />
               <input
                 placeholder="Pesquise seus contatos"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "hsl(var(--foreground))" }}
+                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}>
-                  <X size={12} color="hsl(var(--muted-foreground))" />
+                  <X size={12} color="#AAA" />
                 </button>
               )}
             </div>
             <button
               onClick={() => setNewConvOpen(true)}
               title="Nova conversa"
-              style={{ background: "hsl(var(--primary))", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ background: "#128A68", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
               <UserPlus size={14} color="#FFF" />
             </button>
             <button
               onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
               title="Configurações do multiatendimento"
-              style={{ background: "transparent", border: "1px solid hsl(var(--border))", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
-              <Settings size={14} color="hsl(var(--muted-foreground))" />
+              <Settings size={14} color="#666" />
             </button>
           </div>
 
@@ -2005,36 +2005,36 @@ export default function MultiatendimentoPage() {
 
           {/* barra: Filtros + ações em massa (⋯) */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 10 }}>
-            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+            <span style={{ fontSize: 12, color: "#888" }}>
               {selectionMode ? `${selectedConvs.length} selecionada${selectedConvs.length === 1 ? "" : "s"}` : `${filteredConversations.length} conversa${filteredConversations.length === 1 ? "" : "s"}`}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 onClick={() => setFilterPanelOpen(true)}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "hsl(var(--success-soft))" : "transparent", border: "1px solid " + (activeAdvCount ? "hsl(var(--primary))" : "hsl(var(--border))"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "#E1F5EE" : "transparent", border: "1px solid " + (activeAdvCount ? "#128A68" : "#E5E5E5"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "#128A68" : "#666", cursor: "pointer" }}
               >
                 <Filter size={13} /> Filtros
-                {activeAdvCount > 0 && <span style={{ background: "hsl(var(--primary))", color: "#FFF", borderRadius: 999, fontSize: 10, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
+                {activeAdvCount > 0 && <span style={{ background: "#128A68", color: "#FFF", borderRadius: 999, fontSize: 10, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
               </button>
               <div style={{ position: "relative" }}>
                 <button
                   onClick={(e) => { e.stopPropagation(); setBulkMenuOpen(v => !v); }}
                   title="Ações em massa"
-                  style={{ background: "transparent", border: "1px solid hsl(var(--border))", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                  style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                 >
-                  <MoreHorizontal size={16} color="hsl(var(--muted-foreground))" />
+                  <MoreHorizontal size={16} color="#666" />
                 </button>
                 {bulkMenuOpen && (
-                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 50, padding: 6 }}>
+                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 50, padding: 6 }}>
                     <button onClick={() => { setSelectionMode(v => { const nv = !v; if (!nv) setSelectedConvs([]); return nv; }); setBulkMenuOpen(false); }} style={bulkItemStyle()}>
-                      <Eye size={14} color="hsl(var(--primary))" /> {selectionMode ? "Desabilitar seleção" : "Habilitar seleção"}
+                      <Eye size={14} color="#128A68" /> {selectionMode ? "Desabilitar seleção" : "Habilitar seleção"}
                     </button>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px 4px" }}>Ações em massa</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px 4px" }}>Ações em massa</div>
                     {[
-                      { key: "finish", icon: <CheckCircle2 size={14} color="hsl(var(--muted-foreground))" />, label: "Finalizar conversas", onClick: () => bulkFinish() },
-                      { key: "agent",  icon: <UserCheck size={14} color="hsl(var(--muted-foreground))" />,    label: "Transferir atendente", onClick: () => { setBulkAction("agent"); } },
-                      { key: "dept",   icon: <Folder size={14} color="hsl(var(--muted-foreground))" />,       label: "Transferir departamento", onClick: () => { setBulkAction("dept"); } },
-                      { key: "auto",   icon: <Zap size={14} color="hsl(var(--muted-foreground))" />,          label: "Executar automação", onClick: () => { setAutoModalConvs([...selectedConvs]); } },
+                      { key: "finish", icon: <CheckCircle2 size={14} color="#666" />, label: "Finalizar conversas", onClick: () => bulkFinish() },
+                      { key: "agent",  icon: <UserCheck size={14} color="#666" />,    label: "Transferir atendente", onClick: () => { setBulkAction("agent"); } },
+                      { key: "dept",   icon: <Folder size={14} color="#666" />,       label: "Transferir departamento", onClick: () => { setBulkAction("dept"); } },
+                      { key: "auto",   icon: <Zap size={14} color="#666" />,          label: "Executar automação", onClick: () => { setAutoModalConvs([...selectedConvs]); } },
                     ].map(item => {
                       const disabled = !selectionMode || selectedConvs.length === 0;
                       return (
@@ -2051,32 +2051,32 @@ export default function MultiatendimentoPage() {
         </div>
 
         {selectionMode && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "hsl(var(--muted))", borderBottom: "1px solid hsl(var(--border))", flexShrink: 0 }}>
-            <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "hsl(var(--primary))" }}>
-              <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (allVisibleSelected ? "hsl(var(--primary))" : "hsl(var(--border))"), background: allVisibleSelected ? "hsl(var(--primary))" : "hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "#F8F8F8", borderBottom: "1px solid #EEEEEE", flexShrink: 0 }}>
+            <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#128A68" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (allVisibleSelected ? "#128A68" : "#CCC"), background: allVisibleSelected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {allVisibleSelected && <Check size={11} color="#FFF" />}
               </div>
               {allVisibleSelected ? "Desmarcar todas" : "Selecionar todas"}
             </button>
-            <button onClick={() => { setSelectionMode(false); setSelectedConvs([]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Sair</button>
+            <button onClick={() => { setSelectionMode(false); setSelectedConvs([]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#888" }}>Sair</button>
           </div>
         )}
 
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredConversations.length === 0 && (
             <div style={{ padding: "40px 16px", textAlign: "center" }}>
-              <MessageSquare size={32} color="hsl(var(--muted-foreground))" style={{ margin: "0 auto 8px" }} />
+              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
               {convList.length === 0 ? (
                 <>
-                  <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", marginBottom: 4 }}>Nenhuma conversa ainda</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
+                  <p style={{ fontSize: 13, color: "#AAA", marginBottom: 4 }}>Nenhuma conversa ainda</p>
+                  <p style={{ fontSize: 12, color: "#CCC", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
                   <button
                     onClick={() => setNewConvOpen(true)}
-                    style={{ background: "hsl(var(--primary))", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                   >+ Nova conversa</button>
                 </>
               ) : (
-                <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhuma conversa encontrada</p>
+                <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
               )}
             </div>
           )}
@@ -2089,12 +2089,12 @@ export default function MultiatendimentoPage() {
               <div
                 key={c.id}
                 onClick={() => { if (selectionMode) { toggleConvSelected(c.id); return; } setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "1px solid hsl(var(--border))", background: (selectionMode && selected) ? "hsl(var(--muted))" : isActive ? "hsl(var(--success-soft))" : "transparent", borderLeft: isActive ? "3px solid hsl(var(--primary))" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
-                onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "hsl(var(--muted))"; }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "#F9F9F9"; }}
                 onMouseLeave={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "transparent"; }}
               >
                 {selectionMode && (
-                  <div style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (selected ? "hsl(var(--primary))" : "hsl(var(--border))"), background: selected ? "hsl(var(--primary))" : "hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (selected ? "#128A68" : "#CCC"), background: selected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {selected && <Check size={12} color="#FFF" />}
                   </div>
                 )}
@@ -2104,20 +2104,20 @@ export default function MultiatendimentoPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "hsl(var(--primary))" : "hsl(var(--foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
+                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{c.time}</span>
-                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "hsl(var(--primary))" }} />}
+                      <span style={{ fontSize: 11, color: "#AAA" }}>{c.time}</span>
+                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}
                     </div>
                   </div>
-                  <p style={{ fontSize: 12, color: unread ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
+                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {c.tags.slice(0, 2).map((t, i) => {
                       const s = tagStyle(t);
                       return <span key={i} style={{ fontSize: 10, fontWeight: 600, background: s.bg, color: s.fg, padding: "2px 6px", borderRadius: 4 }}>{t}</span>;
                     })}
-                    {c.tags.length > 2 && <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>+{c.tags.length - 2}</span>}
-                    {cState?.finished && <span style={{ fontSize: 10, fontWeight: 600, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", padding: "2px 6px", borderRadius: 4 }}>✓ Finalizada</span>}
+                    {c.tags.length > 2 && <span style={{ fontSize: 10, color: "#AAA" }}>+{c.tags.length - 2}</span>}
+                    {cState?.finished && <span style={{ fontSize: 10, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "2px 6px", borderRadius: 4 }}>✓ Finalizada</span>}
                   </div>
                 </div>
               </div>
@@ -2131,12 +2131,12 @@ export default function MultiatendimentoPage() {
         {active && cs ? (
           <>
             {/* header */}
-            <div style={{ minHeight: 52, background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ minHeight: 52, background: "#FFF", borderBottom: "1px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))" }}>{convName(active)}</div>
-                  <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
+                  <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
                     <Filter size={10} />
                     {linkedPipeline?.name || active.pipeline || "Pipeline Comercial"}
                   </div>
@@ -2145,45 +2145,45 @@ export default function MultiatendimentoPage() {
                   <div style={{ position: "relative", marginTop: 4 }}>
                     <button
                       onClick={e => { e.stopPropagation(); setInstanceOpen(o => !o); }}
-                      style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "hsl(var(--success-soft))" : "hsl(var(--background))", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
+                      style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "#E1F5EE" : "#F5F5F5", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
                     >
                       <svg viewBox="0 0 24 24" width={12} height={12} style={{ flexShrink: 0 }}>
                         <circle cx="12" cy="12" r="12" fill={instances.length > 0 ? "#25D366" : "#CCC"} />
                         <path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
                       </svg>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: instances.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: instances.length > 0 ? "#128A68" : "#AAA" }}>
                         {instances.length > 0 ? (instances.find(i => i.instanceId === selectedInstance)?.label ?? instances[0].label) : "Sem instância conectada"}
                       </span>
-                      <ChevronDown size={10} color={instances.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"} />
+                      <ChevronDown size={10} color={instances.length > 0 ? "#128A68" : "#AAA"} />
                     </button>
                     {instanceOpen && (
-                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
+                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
                         {instances.length > 0 ? (
                           <>
-                            <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
+                            <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "#AAA", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
                             {instances.map(inst => (
                               <button key={inst.instanceId} onClick={() => switchActiveInstance(inst.instanceId)}
-                                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "hsl(var(--success-soft))" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                                onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "hsl(var(--muted))"; }}
+                                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "#E1F5EE" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "#F9F9F9"; }}
                                 onMouseLeave={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "transparent"; }}
                               >
                                 <svg viewBox="0 0 24 24" width={14} height={14}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
                                 <div>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "hsl(var(--primary))" : "hsl(var(--foreground))" }}>{inst.label}</div>
-                                  <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>Z-API</div>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "#128A68" : "#111" }}>{inst.label}</div>
+                                  <div style={{ fontSize: 10, color: "#AAA" }}>Z-API</div>
                                 </div>
-                                {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="hsl(var(--primary))" style={{ marginLeft: "auto" }} />}
+                                {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="#128A68" style={{ marginLeft: "auto" }} />}
                               </button>
                             ))}
-                            <div style={{ borderTop: "1px solid hsl(var(--border))", padding: "8px 12px" }}>
-                              <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "hsl(var(--primary))", fontWeight: 600, cursor: "pointer", padding: 0 }}>+ Gerenciar conexões</button>
+                            <div style={{ borderTop: "1px solid #F0F0F0", padding: "8px 12px" }}>
+                              <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0 }}>+ Gerenciar conexões</button>
                             </div>
                           </>
                         ) : (
                           <div style={{ padding: 16 }}>
-                            <p style={{ fontSize: 12, color: "hsl(var(--foreground))", fontWeight: 600, marginBottom: 4 }}>Nenhuma instância conectada</p>
-                            <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>Conecte um número em Configurações → Conexões.</p>
-                            <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "hsl(var(--primary))", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Ir para Conexões</button>
+                            <p style={{ fontSize: 12, color: "#111", fontWeight: 600, marginBottom: 4 }}>Nenhuma instância conectada</p>
+                            <p style={{ fontSize: 11, color: "#AAA", marginBottom: 10 }}>Conecte um número em Configurações → Conexões.</p>
+                            <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Ir para Conexões</button>
                           </div>
                         )}
                       </div>
@@ -2193,7 +2193,7 @@ export default function MultiatendimentoPage() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "hsl(var(--primary))", border: "1px solid hsl(var(--primary))", borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer" }}>
+                <span style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer" }}>
                   {active.dealNumber || `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
                 <ChatHeaderBtn icon={Eye} label="Marcar como lida" onClick={() => markAsRead(activeId)} />
@@ -2210,10 +2210,10 @@ export default function MultiatendimentoPage() {
                     onClick={e => { e.stopPropagation(); setMoreMenuOpen(o => !o); }}
                     style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
                   >
-                    <MoreHorizontal size={18} color="hsl(var(--muted-foreground))" />
+                    <MoreHorizontal size={18} color="#AAA" />
                   </button>
                   {moreMenuOpen && (
-                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
                       {[
                         { label: "Transferir", action: () => { setShowTransferDialog(true); setMoreMenuOpen(false); } },
                         { label: "Arquivar", action: () => { updateCs(activeId, { finished: true }); toast("Conversa arquivada"); setMoreMenuOpen(false); } },
@@ -2225,8 +2225,8 @@ export default function MultiatendimentoPage() {
                         } },
                       ].map(item => (
                         <button key={item.label} onClick={item.action}
-                          style={{ width: "100%", display: "block", padding: "10px 14px", background: "transparent", border: "none", textAlign: "left", fontSize: 13, color: "hsl(var(--foreground))", cursor: "pointer" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                          style={{ width: "100%", display: "block", padding: "10px 14px", background: "transparent", border: "none", textAlign: "left", fontSize: 13, color: "#111", cursor: "pointer" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >{item.label}</button>
                       ))}
@@ -2240,29 +2240,29 @@ export default function MultiatendimentoPage() {
             <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                  <MessageSquare size={40} color="hsl(var(--muted-foreground))" />
-                  <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhuma mensagem ainda</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Envie uma mensagem para iniciar a conversa</p>
+                  <MessageSquare size={40} color="#E5E5E5" />
+                  <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma mensagem ainda</p>
+                  <p style={{ fontSize: 12, color: "#CCC" }}>Envie uma mensagem para iniciar a conversa</p>
                 </div>
               )}
               {groupedMessages.map(([date, msgs]) => (
                 <div key={date}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-                    <div style={{ flex: 1, height: 0.5, background: "hsl(var(--muted))" }} />
-                    <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))", borderRadius: 100, padding: "3px 12px" }}>{date}</span>
-                    <div style={{ flex: 1, height: 0.5, background: "hsl(var(--muted))" }} />
+                    <div style={{ flex: 1, height: 0.5, background: "#E5E5E5" }} />
+                    <span style={{ fontSize: 11, color: "#AAA", background: "#F5F5F5", borderRadius: 100, padding: "3px 12px" }}>{date}</span>
+                    <div style={{ flex: 1, height: 0.5, background: "#E5E5E5" }} />
                   </div>
                   {msgs.map(m => {
                     if (m.kind === "system") {
                       return (
                         <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
-                          <div style={{ flex: 1, height: 0.5, background: "hsl(var(--muted))" }} />
-                          <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
-                            <UserCheck size={11} color="hsl(var(--muted-foreground))" />
+                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
+                          <span style={{ fontSize: 11, color: "#888", background: "#F0F0F0", border: "1px solid #E0E0E0", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                            <UserCheck size={11} color="#888" />
                             {m.text}
-                            <span style={{ color: "hsl(var(--muted-foreground))", marginLeft: 2 }}>· {m.time}</span>
+                            <span style={{ color: "#BBB", marginLeft: 2 }}>· {m.time}</span>
                           </span>
-                          <div style={{ flex: 1, height: 0.5, background: "hsl(var(--muted))" }} />
+                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
                         </div>
                       );
                     }
@@ -2273,10 +2273,10 @@ export default function MultiatendimentoPage() {
                           <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
                         <div style={{ maxWidth: "65%" }}>
-                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
+                          <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
                             {isAgent ? `${m.agent} • ${m.time}` : `${convName(active)} • ${m.time}`}
                           </div>
-                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "hsl(var(--primary))" : "hsl(var(--card))", color: isAgent ? "#FFF" : "hsl(var(--foreground))", border: isAgent ? "none" : "1px solid hsl(var(--border))", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                             {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
                             {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={isAgent} />}
                             {m.kind === "image" && (
@@ -2285,7 +2285,7 @@ export default function MultiatendimentoPage() {
                                   <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
                                 ) : (
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px" }}>
-                                    <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "hsl(var(--primary))"} />
+                                    <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "#128A68"} />
                                     <span style={{ fontSize: 13 }}>{m.caption || "Imagem"}</span>
                                   </div>
                                 )}
@@ -2304,15 +2304,15 @@ export default function MultiatendimentoPage() {
                                   title={`Baixar ${m.filename}`}
                                   style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none", cursor: "pointer" }}
                                 >
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <Download size={18} color={isAgent ? "#FFF" : "hsl(var(--primary))"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <Download size={18} color={isAgent ? "#FFF" : "#128A68"} />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.filename}</span>
                                 </a>
                               ) : (
                                 <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <FolderOpen size={18} color={isAgent ? "#FFF" : "hsl(var(--primary))"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <FolderOpen size={18} color={isAgent ? "#FFF" : "#128A68"} />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
                                 </div>
@@ -2329,15 +2329,15 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* rodapé */}
-            <div style={{ background: "hsl(var(--card))", borderTop: "1px solid hsl(var(--border))", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
+            <div style={{ background: "#FFF", borderTop: "1px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
               {/* painel de emojis */}
               {showEmoji && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {EMOJIS.map(e => (
                       <button key={e} onClick={() => insertEmoji(e)}
                         style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", borderRadius: 6, lineHeight: 1 }}
-                        onMouseEnter={ev => (ev.currentTarget.style.background = "hsl(var(--muted))")}
+                        onMouseEnter={ev => (ev.currentTarget.style.background = "#F5F5F5")}
                         onMouseLeave={ev => (ev.currentTarget.style.background = "none")}
                       >{e}</button>
                     ))}
@@ -2347,13 +2347,13 @@ export default function MultiatendimentoPage() {
 
               {/* painel de arquivos da conversa */}
               {showFiles && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>Arquivos da conversa</span>
-                    <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="hsl(var(--muted-foreground))" /></button>
+                    <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="#AAA" /></button>
                   </div>
                   {cs?.messages.filter(m => m.kind === "image" || m.kind === "file").length === 0 ? (
-                    <div style={{ textAlign: "center", color: "hsl(var(--muted-foreground))", fontSize: 13, padding: "16px 0" }}>Nenhum arquivo nesta conversa</div>
+                    <div style={{ textAlign: "center", color: "#AAA", fontSize: 13, padding: "16px 0" }}>Nenhum arquivo nesta conversa</div>
                   ) : (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {cs.messages.filter(m => m.kind === "image" || m.kind === "file").map(m => (
@@ -2362,13 +2362,13 @@ export default function MultiatendimentoPage() {
                         ) : (
                           // Com URL, o chip abre/baixa o arquivo; sem URL, só exibe o nome
                           (m as { url?: string }).url ? (
-                            <a key={m.id} href={(m as { url?: string }).url} target="_blank" rel="noopener noreferrer" download={(m as { filename: string }).filename} style={{ display: "flex", alignItems: "center", gap: 6, background: "hsl(var(--background))", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "inherit", textDecoration: "none", cursor: "pointer" }}>
-                              <Download size={14} color="hsl(var(--primary))" />
+                            <a key={m.id} href={(m as { url?: string }).url} target="_blank" rel="noopener noreferrer" download={(m as { filename: string }).filename} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "inherit", textDecoration: "none", cursor: "pointer" }}>
+                              <Download size={14} color="#128A68" />
                               <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{(m as { filename: string }).filename}</span>
                             </a>
                           ) : (
-                            <div key={m.id} title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 6, background: "hsl(var(--background))", borderRadius: 8, padding: "6px 10px", fontSize: 12, opacity: 0.7 }}>
-                              <FolderOpen size={14} color="hsl(var(--primary))" />
+                            <div key={m.id} title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, opacity: 0.7 }}>
+                              <FolderOpen size={14} color="#128A68" />
                               <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as { filename: string }).filename}</span>
                             </div>
                           )
@@ -2385,48 +2385,48 @@ export default function MultiatendimentoPage() {
               {/* toolbar de ações */}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
                 <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Paperclip size={18} color={cs.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))"} />
+                  <Paperclip size={18} color={cs.finished ? "#DDD" : "#AAA"} />
                 </span>
                 <span title="Agendar atividade" onClick={() => { if (!cs.finished) { setShowScheduleDialog(true); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <CalendarIcon size={18} color={cs.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))"} />
+                  <CalendarIcon size={18} color={cs.finished ? "#DDD" : "#AAA"} />
                 </span>
                 <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
-                  <FolderOpen size={18} color={showFiles ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"} />
+                  <FolderOpen size={18} color={showFiles ? "#128A68" : "#AAA"} />
                 </span>
                 <span title="Emoji" onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Smile size={18} color={showEmoji ? "hsl(var(--primary))" : (cs.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))")} />
+                  <Smile size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
                 </span>
                 <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { if (recording) stopRecording(); else startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Mic size={18} color={recording ? "hsl(var(--destructive-soft-fg))" : (cs.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))")} />
+                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")} />
                 </span>
                 <button
                   onClick={suggestAI}
                   disabled={cs.finished || aiLoading}
                   title="Sugestão de resposta com IA"
-                  style={{ background: "hsl(var(--success-soft))", borderRadius: 6, padding: 4, display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer", border: "none", opacity: aiLoading ? 0.6 : 1 }}
+                  style={{ background: "#E1F5EE", borderRadius: 6, padding: 4, display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer", border: "none", opacity: aiLoading ? 0.6 : 1 }}
                 >
-                  <Sparkles size={16} color="hsl(var(--primary))" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
+                  <Sparkles size={16} color="#128A68" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
                 </button>
                 <div style={{ position: "relative", display: "inline-flex" }}>
                   <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                    <Zap size={18} color={qmPickerOpen ? "hsl(var(--primary))" : (cs.finished ? "hsl(var(--muted-foreground))" : "hsl(var(--muted-foreground))")} />
+                    <Zap size={18} color={qmPickerOpen ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
                   </span>
                   {qmPickerOpen && (
                     <>
                       <div onClick={() => setQmPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 280, maxHeight: 260, overflowY: "auto", background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 280, maxHeight: 260, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
                         {qmList.length === 0 ? (
-                          <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Nenhuma mensagem rápida.<br />Crie em Configurações.</div>
+                          <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 12, color: "#AAA" }}>Nenhuma mensagem rápida.<br />Crie em Configurações.</div>
                         ) : qmList.map(q => (
                           <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
-                              {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--primary))", background: "hsl(var(--success-soft))", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                              {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
                             </div>
-                            <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                            <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
                           </button>
                         ))}
                       </div>
@@ -2442,25 +2442,25 @@ export default function MultiatendimentoPage() {
                   <span style={{ fontSize: 13, color: "#E53E3E", fontVariantNumeric: "tabular-nums" }}>
                     {String(Math.floor(recordingTime / 60)).padStart(2, "0")}:{String(recordingTime % 60).padStart(2, "0")}
                   </span>
-                  <span style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", flex: 1 }}>Gravando áudio…</span>
-                  <button onClick={cancelRecording} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>Cancelar</button>
-                  <button onClick={stopRecording} style={{ background: "hsl(var(--primary))", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
+                  <span style={{ fontSize: 13, color: "#AAA", flex: 1 }}>Gravando áudio…</span>
+                  <button onClick={cancelRecording} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                  <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
                   {shortcutSuggestions.length > 0 && (
-                    <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
+                    <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
                       {shortcutSuggestions.map(q => (
                         <button key={q.id} onMouseDown={e => { e.preventDefault(); expandShortcut(q); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
                           onMouseLeave={e => (e.currentTarget.style.background = "none")}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--primary))", background: "hsl(var(--success-soft))", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
                           </div>
-                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                          <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
                         </button>
                       ))}
                     </div>
@@ -2480,14 +2480,14 @@ export default function MultiatendimentoPage() {
                     }}
                     placeholder={cs.finished ? "Conversa finalizada — reabra para responder" : "Mensagem..."}
                     disabled={cs.finished}
-                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "hsl(var(--foreground))", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
                   />
                   <button
                     onClick={() => { sendMessage(); setShowEmoji(false); }}
                     disabled={!inputValue.trim() || cs.finished}
-                    style={{ background: inputValue.trim() && !cs.finished ? "hsl(var(--primary))" : "hsl(var(--muted))", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                    style={{ background: inputValue.trim() && !cs.finished ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
                   >
-                    <Send size={16} color={inputValue.trim() && !cs.finished ? "#FFF" : "hsl(var(--muted-foreground))"} />
+                    <Send size={16} color={inputValue.trim() && !cs.finished ? "#FFF" : "#AAA"} />
                   </button>
                 </div>
               )}
@@ -2495,9 +2495,9 @@ export default function MultiatendimentoPage() {
           </>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <MessageSquare size={64} color="hsl(var(--muted-foreground))" />
-            <div style={{ fontSize: 16, color: "hsl(var(--muted-foreground))" }}>Selecione uma conversa</div>
-            <div style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
+            <MessageSquare size={64} color="#E5E5E5" />
+            <div style={{ fontSize: 16, color: "#AAA" }}>Selecione uma conversa</div>
+            <div style={{ fontSize: 13, color: "#CCC" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
           </div>
         )}
       </section>
@@ -2512,17 +2512,17 @@ export default function MultiatendimentoPage() {
       />
 
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
-      <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "1px solid hsl(var(--border))", overflowY: "auto", background: "hsl(var(--card))" }}>
+      <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
         {active && cs && (
           <>
             {/* HEADER */}
-            <div style={{ padding: "16px", borderBottom: "1px solid hsl(var(--border))" }}>
+            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--foreground))" }}>{convName(active)}</span>
-                    <ExternalLink size={12} color="hsl(var(--muted-foreground))" style={{ cursor: "pointer" }} onClick={() => navigate(effectiveLead ? `/leads?lead=${effectiveLead.id}` : "/leads")} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>
+                    <ExternalLink size={12} color="#AAA" style={{ cursor: "pointer" }} onClick={() => navigate(effectiveLead ? `/leads?lead=${effectiveLead.id}` : "/leads")} />
                   </div>
                   {/* Tags inline + picker */}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 5 }}>
@@ -2532,14 +2532,14 @@ export default function MultiatendimentoPage() {
                         <span
                           key={tagName}
                           onClick={() => toggleConvTag(tagName)}
-                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "hsl(var(--muted-foreground))", border: `1px solid ${tag?.color || "hsl(var(--border))"}`, borderRadius: 100, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "#666", border: `1px solid ${tag?.color || "#E5E5E5"}`, borderRadius: 100, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {tagName}
                         </span>
                       );
                     })}
                     {convTags.length > 4 && (
-                      <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>+{convTags.length - 4}</span>
+                      <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convTags.length - 4}</span>
                     )}
                     {/* Botão "+" */}
                     <div style={{ position: "relative" }}>
@@ -2553,20 +2553,20 @@ export default function MultiatendimentoPage() {
                           setShowTagPicker(v => !v);
                           setTagSearch("");
                         }}
-                        style={{ width: 18, height: 18, borderRadius: "50%", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "hsl(var(--muted-foreground))" }}
+                        style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
                       >
                         <Plus size={10} />
                       </button>
 
                       {showTagPicker && (
-                        <div ref={tagPickerRef} style={{ position: "fixed", top: tagPickerPos.top, right: tagPickerPos.right, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
-                          <div style={{ padding: "8px 10px", borderBottom: "1px solid hsl(var(--border))" }}>
+                        <div ref={tagPickerRef} style={{ position: "fixed", top: tagPickerPos.top, right: tagPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
+                          <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
                             <input
                               value={tagSearch}
                               onChange={e => setTagSearch(e.target.value)}
                               placeholder="Pesquisar..."
                               autoFocus
-                              style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "hsl(var(--foreground))", background: "transparent" }}
+                              style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
                             />
                           </div>
                           <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -2578,22 +2578,22 @@ export default function MultiatendimentoPage() {
                                   <button
                                     key={tag.id}
                                     onClick={() => toggleConvTag(tag.name)}
-                                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: isActive ? "hsl(var(--muted))" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: isActive ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                                   >
                                     {isActive
-                                      ? <Check size={13} color="hsl(var(--primary))" />
+                                      ? <Check size={13} color="#128A68" />
                                       : <div style={{ width: 13 }} />}
                                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, display: "inline-block", flexShrink: 0 }} />
-                                    <span style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: isActive ? 600 : 400 }}>{tag.name}</span>
+                                    <span style={{ fontSize: 13, color: "#111", fontWeight: isActive ? 600 : 400 }}>{tag.name}</span>
                                   </button>
                                 );
                               })}
                             {crmTags.filter(t => !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
-                              <div style={{ padding: "10px 12px", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Nenhuma tag encontrada</div>
+                              <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma tag encontrada</div>
                             )}
                           </div>
-                          <div style={{ padding: "8px 12px", borderTop: "1px solid hsl(var(--border))", textAlign: "right" }}>
-                            <button onClick={() => { navigate("/configuracoes"); setShowTagPicker(false); }} style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                          <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
+                            <button onClick={() => { navigate("/configuracoes"); setShowTagPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                               Criar
                             </button>
                           </div>
@@ -2613,12 +2613,12 @@ export default function MultiatendimentoPage() {
                         <span
                           key={lst.id}
                           onClick={() => toggleConvList(lst.id)}
-                          style={{ background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", border: "1px solid #128A6820", borderRadius: 100, padding: "2px 7px", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
+                          style={{ background: "#E1F5EE", color: "#128A68", border: "1px solid #128A6820", borderRadius: 100, padding: "2px 7px", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
                         >
                           <List size={9} />{lst.name}
                         </span>
                       ))}
-                      {convLists.length > 3 && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>+{convLists.length - 3}</span>}
+                      {convLists.length > 3 && <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convLists.length - 3}</span>}
                       <div style={{ position: "relative" }}>
                         <button
                           ref={listBtnRef}
@@ -2630,17 +2630,17 @@ export default function MultiatendimentoPage() {
                             setShowListPicker(v => !v);
                             setListSearch("");
                           }}
-                          style={{ width: 18, height: 18, borderRadius: "50%", background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "hsl(var(--muted-foreground))" }}
+                          style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
                         ><Plus size={10} /></button>
                         {showListPicker && (
-                          <div ref={listPickerRef} style={{ position: "fixed", top: listPickerPos.top, right: listPickerPos.right, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
-                            <div style={{ padding: "8px 10px", borderBottom: "1px solid hsl(var(--border))" }}>
+                          <div ref={listPickerRef} style={{ position: "fixed", top: listPickerPos.top, right: listPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
+                            <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
                               <input
                                 value={listSearch}
                                 onChange={e => setListSearch(e.target.value)}
                                 placeholder="Pesquisar lista..."
                                 autoFocus
-                                style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "hsl(var(--foreground))", background: "transparent" }}
+                                style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
                               />
                             </div>
                             <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -2652,20 +2652,20 @@ export default function MultiatendimentoPage() {
                                     <button
                                       key={lst.id}
                                       onClick={() => toggleConvList(lst.id)}
-                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: inList ? "hsl(var(--muted))" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: inList ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                                     >
-                                      {inList ? <Check size={13} color="hsl(var(--primary))" /> : <div style={{ width: 13 }} />}
-                                      <List size={13} color="hsl(var(--primary))" />
-                                      <span style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: inList ? 600 : 400 }}>{lst.name}</span>
+                                      {inList ? <Check size={13} color="#128A68" /> : <div style={{ width: 13 }} />}
+                                      <List size={13} color="#128A68" />
+                                      <span style={{ fontSize: 13, color: "#111", fontWeight: inList ? 600 : 400 }}>{lst.name}</span>
                                     </button>
                                   );
                                 })}
                               {crmLists.filter(l => !listSearch || l.name.toLowerCase().includes(listSearch.toLowerCase())).length === 0 && (
-                                <div style={{ padding: "10px 12px", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Nenhuma lista encontrada</div>
+                                <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma lista encontrada</div>
                               )}
                             </div>
-                            <div style={{ padding: "8px 12px", borderTop: "1px solid hsl(var(--border))", textAlign: "right" }}>
-                              <button onClick={() => { navigate("/configuracoes"); setShowListPicker(false); }} style={{ fontSize: 12, color: "hsl(var(--primary))", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                            <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
+                              <button onClick={() => { navigate("/configuracoes"); setShowListPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                                 Criar
                               </button>
                             </div>
@@ -2680,15 +2680,15 @@ export default function MultiatendimentoPage() {
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
                   onClick={() => { setShowNegocioForm(v => !v); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
-                  style={{ flex: 1, background: showNegocioForm ? "hsl(var(--success-soft))" : "hsl(var(--background))", border: showNegocioForm ? "1px solid hsl(var(--primary))" : "none", borderRadius: 8, padding: "6px 10px", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "hsl(var(--muted))" : "hsl(var(--muted))")}
+                  style={{ flex: 1, background: showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
                 ><Plus size={12} /> Negócio</button>
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
-                  style={{ flex: 1, background: "hsl(var(--background))", border: "none", borderRadius: 8, padding: "6px 10px", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
                 ><Zap size={12} /> Automação</button>
                 <button
                   onClick={e => {
@@ -2697,39 +2697,39 @@ export default function MultiatendimentoPage() {
                     setShowListPicker(v => !v);
                     setListSearch("");
                   }}
-                  style={{ flex: 1, background: showListPicker ? "hsl(var(--success-soft))" : "hsl(var(--background))", border: showListPicker ? "1px solid hsl(var(--primary))" : "none", borderRadius: 8, padding: "6px 10px", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = showListPicker ? "hsl(var(--muted))" : "hsl(var(--muted))")}
+                  style={{ flex: 1, background: showListPicker ? "#E1F5EE" : "#F5F5F5", border: showListPicker ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = showListPicker ? "#E1F5EE" : "#F5F5F5")}
                 ><List size={12} /> Lista</button>
                 <button
                   onClick={() => setShowScheduleDialog(true)}
-                  style={{ flex: 1, background: "hsl(var(--background))", border: "none", borderRadius: 8, padding: "6px 10px", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
                 ><CalendarDays size={12} /> Agendar</button>
               </div>
 
               {/* Atendente responsável */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "hsl(var(--background))", borderRadius: 8 }}>
-                <UserCheck size={13} color="hsl(var(--primary))" />
-                <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Atendente:</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
+                <UserCheck size={13} color="#128A68" />
+                <span style={{ fontSize: 12, color: "#666" }}>Atendente:</span>
                 {cs.assignedTo ? (
                   <>
                     <div style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[cs.assignedTo] ?? colorFromString(cs.assignedTo), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
                       {initials(cs.assignedTo)}
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
                     <button
                       onClick={() => setShowTransferDialog(true)}
-                      style={{ background: "none", border: "none", fontSize: 11, color: "hsl(var(--primary))", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
                     >Transferir</button>
                   </>
                 ) : (
                   <>
-                    <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", flex: 1 }}>Sem atendente</span>
+                    <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem atendente</span>
                     <button
                       onClick={() => setShowTransferDialog(true)}
-                      style={{ background: "none", border: "none", fontSize: 11, color: "hsl(var(--primary))", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
                     >Atribuir</button>
                   </>
                 )}
@@ -2737,43 +2737,43 @@ export default function MultiatendimentoPage() {
 
               {/* Painel: + Negócio */}
               {showNegocioForm && (
-                <div style={{ marginTop: 12, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 2 }}>Novo negócio</div>
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo negócio</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>Nome</label>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
                     <input
                       value={negocioName}
                       onChange={e => setNegocioName(e.target.value)}
                       placeholder={convName(active)}
-                      style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "hsl(var(--foreground))", background: "hsl(var(--card))" }}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
                     />
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>Pipeline</label>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Pipeline</label>
                     <select
                       value={negocioPipelineId}
                       onChange={e => setNegocioPipelineId(e.target.value)}
-                      style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "hsl(var(--foreground))", background: "hsl(var(--card))", cursor: "pointer" }}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF", cursor: "pointer" }}
                     >
                       <option value="">Selecione...</option>
                       {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>Valor (opcional)</label>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Valor (opcional)</label>
                     <input
                       value={negocioValue}
                       onChange={e => setNegocioValue(e.target.value)}
                       placeholder="R$ 0,00"
-                      style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "hsl(var(--foreground))", background: "hsl(var(--card))" }}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
                     />
                   </div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
-                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>Cancelar</button>
+                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
                     <button
                       onClick={handleCreateNegocio}
                       disabled={negocioLoading || !negocioPipelineId}
-                      style={{ background: negocioLoading || !negocioPipelineId ? "hsl(var(--muted))" : "hsl(var(--primary))", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading || !negocioPipelineId ? "not-allowed" : "pointer" }}
+                      style={{ background: negocioLoading || !negocioPipelineId ? "#AAA" : "#128A68", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading || !negocioPipelineId ? "not-allowed" : "pointer" }}
                     >{negocioLoading ? "Criando…" : "Criar negócio"}</button>
                   </div>
                 </div>
@@ -2782,18 +2782,18 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* ETAPA NO PIPELINE */}
-            <div style={{ padding: "16px", borderBottom: "1px solid hsl(var(--border))" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--foreground))" }}>{activeStages[activeStageIdx] ?? "—"}</div>
-              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 14 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
+            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</div>
+              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
 
               <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <div style={{ position: "absolute", top: "50%", left: 5, right: 5, height: 2, background: "hsl(var(--muted))", transform: "translateY(-50%)" }} />
-                <div style={{ position: "absolute", top: "50%", left: 5, width: `calc(${(activeStageIdx / Math.max(activeStages.length - 1, 1)) * 100}% - 10px)`, height: 2, background: "hsl(var(--primary))", transform: "translateY(-50%)" }} />
+                <div style={{ position: "absolute", top: "50%", left: 5, right: 5, height: 2, background: "#E5E5E5", transform: "translateY(-50%)" }} />
+                <div style={{ position: "absolute", top: "50%", left: 5, width: `calc(${(activeStageIdx / Math.max(activeStages.length - 1, 1)) * 100}% - 10px)`, height: 2, background: "#128A68", transform: "translateY(-50%)" }} />
                 {activeStages.map((_, i) => {
-                  let bg = "hsl(var(--muted))";
+                  let bg = "#E5E5E5";
                   if (i < activeStageIdx) bg = "rgba(18,138,104,0.3)";
-                  if (i === activeStageIdx) bg = "hsl(var(--primary))";
+                  if (i === activeStageIdx) bg = "#128A68";
                   return <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: bg, position: "relative", zIndex: 1 }} />;
                 })}
               </div>
@@ -2808,7 +2808,7 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === 0}
-                  style={{ flex: 1, background: "hsl(var(--background))", border: "none", borderRadius: 8, padding: "8px", color: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 ><ArrowLeft size={12} /> Voltar</button>
                 <button
                   onClick={() => {
@@ -2820,11 +2820,11 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
-                  style={{ flex: 1, background: "hsl(var(--primary))", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
 
-              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 12, marginBottom: 4 }}>ou escolha a etapa diretamente</div>
+              <div style={{ fontSize: 11, color: "#AAA", marginTop: 12, marginBottom: 4 }}>ou escolha a etapa diretamente</div>
               <select
                 value={activeStages[activeStageIdx] ?? ""}
                 onChange={e => {
@@ -2835,7 +2835,7 @@ export default function MultiatendimentoPage() {
                     toast.success(`Lead movido para ${e.target.value} ✓`);
                   }
                 }}
-                style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "hsl(var(--foreground))", background: "hsl(var(--card))", outline: "none", cursor: "pointer" }}
+                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FFF", outline: "none", cursor: "pointer" }}
               >
                 {activeStages.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -2850,29 +2850,29 @@ export default function MultiatendimentoPage() {
                 .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
               const TYPE_LABEL: Record<string, string> = { meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp", follow_up: "Follow-up", task: "Tarefa" };
               return (
-                <div style={{ padding: "16px", borderBottom: "1px solid hsl(var(--border))" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
+                <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
                   {nextAct ? (
-                    <div style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: 12 }}>
+                    <div style={{ background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <CalendarIcon size={14} color="hsl(var(--primary))" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>
+                        <CalendarIcon size={14} color="#128A68" />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>
                           {new Date(nextAct.scheduledAt!).toLocaleDateString("pt-BR")} às {new Date(nextAct.scheduledAt!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      {nextAct.userName && <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 6 }}>Responsável: {nextAct.userName}</div>}
-                      <span style={{ display: "inline-block", background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 6 }}>{TYPE_LABEL[nextAct.type] ?? nextAct.type}</span>
-                      {nextAct.title && <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 4 }}>{nextAct.title}</div>}
-                      {nextAct.description && <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{nextAct.description}</div>}
+                      {nextAct.userName && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>Responsável: {nextAct.userName}</div>}
+                      <span style={{ display: "inline-block", background: "#E1F5EE", color: "#128A68", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 6 }}>{TYPE_LABEL[nextAct.type] ?? nextAct.type}</span>
+                      {nextAct.title && <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 4 }}>{nextAct.title}</div>}
+                      {nextAct.description && <div style={{ fontSize: 12, color: "#666" }}>{nextAct.description}</div>}
                     </div>
                   ) : (
                     <>
-                      <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>Sem atividades agendadas</div>
+                      <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
                       <button
                         onClick={() => setShowScheduleDialog(true)}
-                        style={{ background: "hsl(var(--success-soft))", border: "none", color: "hsl(var(--primary))", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--success-soft))")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+                        style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
                       ><Plus size={12} /> Agendar atividade</button>
                     </>
                   )}
@@ -2889,8 +2889,8 @@ export default function MultiatendimentoPage() {
                 ["Empresa",  effectiveLead?.company || active.company || "—"],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
-                  <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{k}</span>
-                  <span style={{ color: "hsl(var(--foreground))", textAlign: "right" }}>{v}</span>
+                  <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
+                  <span style={{ color: "#111", textAlign: "right" }}>{v}</span>
                 </div>
               ))}
             </Section>
@@ -2901,17 +2901,17 @@ export default function MultiatendimentoPage() {
                 value={noteDraft}
                 onChange={e => setNoteDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } }}
-                style={{ width: "100%", background: "hsl(var(--background))", borderRadius: 8, padding: 10, border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", minHeight: 80, resize: "vertical" }}
+                style={{ width: "100%", background: "#F5F5F5", borderRadius: 8, padding: 10, border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", minHeight: 80, resize: "vertical" }}
               />
               <button
                 onClick={addNote}
                 disabled={!noteDraft.trim()}
-                style={{ marginTop: 6, width: "100%", padding: "8px 0", borderRadius: 8, border: "none", background: noteDraft.trim() ? "hsl(var(--primary))" : "hsl(var(--muted))", color: noteDraft.trim() ? "#FFF" : "hsl(var(--muted-foreground))", fontSize: 13, fontWeight: 600, cursor: noteDraft.trim() ? "pointer" : "default" }}
+                style={{ marginTop: 6, width: "100%", padding: "8px 0", borderRadius: 8, border: "none", background: noteDraft.trim() ? "#128A68" : "#E5E5E5", color: noteDraft.trim() ? "#FFF" : "#AAA", fontSize: 13, fontWeight: 600, cursor: noteDraft.trim() ? "pointer" : "default" }}
               >
                 Adicionar anotação
               </button>
               {!effectiveLead && (
-                <div style={{ fontSize: 11, color: "hsl(var(--destructive-soft-fg))", marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: "#C2410C", marginTop: 6 }}>
                   Vincule esta conversa a um negócio para registrar anotações.
                 </div>
               )}
@@ -2924,12 +2924,12 @@ export default function MultiatendimentoPage() {
                 return (
                   <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                     {notes.map(n => (
-                      <div key={n.id} style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px" }}>
+                      <div key={n.id} style={{ background: "#FFF", border: "1px solid #EEE", borderRadius: 8, padding: "8px 10px" }}>
                         <div
-                          style={{ fontSize: 12, color: "hsl(var(--foreground))", lineHeight: 1.5, wordBreak: "break-word" }}
+                          style={{ fontSize: 12, color: "#333", lineHeight: 1.5, wordBreak: "break-word" }}
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
                         />
-                        <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                        <div style={{ fontSize: 10, color: "#AAA", marginTop: 4 }}>
                           {n.userName ? `${n.userName} · ` : ""}{new Date(n.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </div>
@@ -2940,26 +2940,26 @@ export default function MultiatendimentoPage() {
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
-              <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 10, padding: 12, cursor: "pointer" }}
+              <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
                 onClick={() => navigate("/pipeline")}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{convName(active)}</div>
-                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{active.company || "Sem empresa"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
+                    <div style={{ fontSize: 11, color: "#AAA" }}>{active.company || "Sem empresa"}</div>
                   </div>
                 </div>
                 {active.value ? (
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--primary))", marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#128A68", marginBottom: 4 }}>
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(active.value)}
                   </div>
                 ) : null}
-                <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginBottom: 4 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
-                <div style={{ height: 4, background: "hsl(var(--muted))", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "hsl(var(--primary))" }} />
+                <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
+                <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+                  <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
                 </div>
-                <div style={{ fontSize: 11, color: "hsl(var(--primary))", fontWeight: 600 }}>{active.dealNumber || `#${active.id.padStart(4, "0")}`}</div>
+                <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{active.dealNumber || `#${active.id.padStart(4, "0")}`}</div>
               </div>
             </Section>
           </>
@@ -2986,19 +2986,19 @@ export default function MultiatendimentoPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "hsl(var(--card))", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
+            style={{ background: "#FFF", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
           >
             {/* sidebar */}
-            <div style={{ width: 180, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-              <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid hsl(var(--border))" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))" }}>Multiatendimento</div>
-                <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Configurações</div>
+            <div style={{ width: 180, background: "#F8F8F8", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #EEEEEE" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Multiatendimento</div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Configurações</div>
               </div>
               {(["config", "dept", "agents", "quick"] as const).map((tab, i) => {
                 const labels = ["Configurações", "Departamento", "Atendentes", "Mensagens rápidas"];
                 const active2 = settingsTab === tab;
                 return (
-                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "hsl(var(--muted))" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "hsl(var(--primary))" : "hsl(var(--foreground))", borderLeft: active2 ? "3px solid hsl(var(--primary))" : "3px solid transparent", transition: "all 0.15s" }}>
+                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "#128A68" : "#444", borderLeft: active2 ? "3px solid #128A68" : "3px solid transparent", transition: "all 0.15s" }}>
                     {labels[i]}
                   </button>
                 );
@@ -3008,19 +3008,19 @@ export default function MultiatendimentoPage() {
             {/* content */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* header */}
-              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>
                     {settingsTab === "config" ? "Configurações" : settingsTab === "dept" ? "Departamentos" : settingsTab === "agents" ? "Atendentes" : "Mensagens rápidas"}
                   </div>
-                  <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
                     {settingsTab === "config" ? "Gerencie as configurações de atendimento" : settingsTab === "dept" ? "Organize suas equipes com departamentos" : settingsTab === "agents" ? "Gerencie os atendentes e suas permissões" : "Crie e gerencie mensagens rápidas"}
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "hsl(var(--primary))", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
-                  {settingsTab === "quick" && <button onClick={openNewQuickMessage} style={{ background: "hsl(var(--primary))", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
-                  <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="hsl(var(--muted-foreground))" /></button>
+                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
+                  {settingsTab === "quick" && <button onClick={openNewQuickMessage} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
+                  <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
                 </div>
               </div>
 
@@ -3043,15 +3043,15 @@ export default function MultiatendimentoPage() {
                           value: cfgTranscricao, onChange: (v: string) => { setCfgTranscricao(v); persistMuSettings({ audio_transcription: v }); },
                           options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
                       ].map((item, i) => (
-                        <div key={i} style={{ background: "hsl(var(--muted))", borderRadius: 12, padding: 14 }}>
+                        <div key={i} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
                             <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))" }}>{item.title}</div>
-                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{item.desc}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.title}</div>
+                              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
                             </div>
                           </div>
-                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", background: "hsl(var(--card))", outline: "none", cursor: "pointer" }}>
+                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
                             {item.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                         </div>
@@ -3061,33 +3061,33 @@ export default function MultiatendimentoPage() {
                     {/* coluna direita */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {/* Assinatura */}
-                      <div style={{ background: "hsl(var(--muted))", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color="#4285F4" /></div>
+                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color="#4285F4" /></div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))" }}>Assinatura obrigatória</div>
-                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Assinatura obrigatória</div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
                         </div>
                         <MuToggle checked={cfgAssinatura} onChange={() => { const nv = !cfgAssinatura; setCfgAssinatura(nv); persistMuSettings({ signature_required: nv }); }} />
                       </div>
 
                       {/* Informações ao finalizar */}
-                      <div style={{ background: "hsl(var(--muted))", borderRadius: 12, padding: 14 }}>
+                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--muted))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CheckCircle2 size={15} color="#4285F4" /></div>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CheckCircle2 size={15} color="#4285F4" /></div>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))" }}>Informações ao finalizar</div>
-                            <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Informações ao finalizar</div>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
                           </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                           {[
-                            { icon: <UserCheck size={13} color="hsl(var(--muted-foreground))" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
-                            { icon: <Folder size={13} color="hsl(var(--muted-foreground))" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
+                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
+                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
                           ].map((row, i) => (
                             <div key={i}>
-                              {i > 0 && <div style={{ height: 1, background: "hsl(var(--muted))", margin: "8px 0" }} />}
+                              {i > 0 && <div style={{ height: 1, background: "#EEEEEE", margin: "8px 0" }} />}
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "hsl(var(--foreground))" }}>{row.label}</span></div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
                                 <MuToggle checked={row.val} onChange={() => { const nv = !row.val; row.set(nv); persistMuSettings({ [row.col]: nv }); }} />
                               </div>
                             </div>
@@ -3108,45 +3108,45 @@ export default function MultiatendimentoPage() {
                   <div style={{ display: "flex", gap: 14, height: 380 }}>
                     {/* lista */}
                     <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "7px 10px", marginBottom: 4, flexShrink: 0 }}>
-                        <Search size={13} color="hsl(var(--muted-foreground))" />
-                        <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "hsl(var(--foreground))", flex: 1, minWidth: 0 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "7px 10px", marginBottom: 4, flexShrink: 0 }}>
+                        <Search size={13} color="#AAA" />
+                        <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#111", flex: 1, minWidth: 0 }} />
                       </div>
                       {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
-                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "hsl(var(--muted))" : "hsl(var(--muted))", borderLeft: selectedAgent === m ? "3px solid hsl(var(--primary))" : "3px solid transparent", flexShrink: 0 }}>
+                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid #128A68" : "3px solid transparent", flexShrink: 0 }}>
                           <div style={{ width: 28, height: 28, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(m)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
-                            {memberEmails[m] && <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
+                            {memberEmails[m] && <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
                           </div>
                         </button>
                       ))}
-                      {teamMembers.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "hsl(var(--muted-foreground))", fontSize: 12 }}>Nenhum atendente</div>}
+                      {teamMembers.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "#CCC", fontSize: 12 }}>Nenhum atendente</div>}
                     </div>
 
                     {/* detalhe */}
-                    <div style={{ flex: 1, background: "hsl(var(--muted))", borderRadius: 12, padding: 16, overflowY: "auto" }}>
+                    <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 12, padding: 16, overflowY: "auto" }}>
                       {selectedAgent ? (
                         <>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid hsl(var(--border))" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #EEEEEE" }}>
                             <div style={{ width: 38, height: 38, borderRadius: "50%", background: colorFromString(selectedAgent), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{initials(selectedAgent)}</div>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))" }}>{selectedAgent}</div>
-                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{memberEmails[selectedAgent] ?? ""}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedAgent}</div>
+                              <div style={{ fontSize: 11, color: "#888" }}>{memberEmails[selectedAgent] ?? ""}</div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Visualização do atendente</div>
-                          <div style={{ background: "hsl(var(--success-soft))", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "hsl(var(--primary))", marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Visualização do atendente</div>
+                          <div style={{ background: "#D1FAE5", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#128A68", marginBottom: 14 }}>
                             O atendente sempre pode ver as conversas atribuídas a ele
                           </div>
                           {[
                             { label: "Permitir ver conversas de outros atendentes", desc: "Permite o atendente ver as conversas com outros atendentes atribuídos" },
                             { label: "Desabilitar conversas sem atendentes", desc: "Não permite ver conversas que não possuem um atendente" },
                           ].map((item, i) => (
-                            <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "flex-start", gap: 10 }}>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))" }}>{item.label}</div>
-                                <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{item.desc}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.label}</div>
+                                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
                               </div>
                               <MuToggle checked={false} onChange={() => toast.info("Em breve")} />
                             </div>
@@ -3154,8 +3154,8 @@ export default function MultiatendimentoPage() {
                         </>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                          <UserCheck size={28} color="hsl(var(--muted-foreground))" />
-                          <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>Selecione um atendente</p>
+                          <UserCheck size={28} color="#E5E5E5" />
+                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Selecione um atendente</p>
                         </div>
                       )}
                     </div>
@@ -3173,30 +3173,30 @@ export default function MultiatendimentoPage() {
                     : qmList;
                   return (
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
-                        <Search size={14} color="hsl(var(--muted-foreground))" />
-                        <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "hsl(var(--foreground))", flex: 1 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+                        <Search size={14} color="#AAA" />
+                        <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
                       </div>
                       {filtered.length === 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
-                          <Zap size={32} color="hsl(var(--muted-foreground))" />
-                          <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: 0 }}>{qmList.length === 0 ? "Nenhuma mensagem rápida criada" : "Nenhum resultado encontrado"}</p>
-                          {qmList.length === 0 && <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>}
+                          <Zap size={32} color="#E5E5E5" />
+                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>{qmList.length === 0 ? "Nenhuma mensagem rápida criada" : "Nenhum resultado encontrado"}</p>
+                          {qmList.length === 0 && <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>}
                         </div>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           {filtered.map(q => (
-                            <div key={q.id} style={{ background: "hsl(var(--muted))", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            <div key={q.id} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{q.title}</span>
-                                  {q.shortcut && <span style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--primary))", background: "hsl(var(--success-soft))", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{q.title}</span>
+                                  {q.shortcut && <span style={{ fontSize: 11, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
                                 </div>
-                                <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
+                                <div style={{ fontSize: 12, color: "#888", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                                <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="hsl(var(--muted-foreground))" /></button>
-                                <button title="Excluir" onClick={() => deleteQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Trash2 size={15} color="hsl(var(--destructive-soft-fg))" /></button>
+                                <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="#888" /></button>
+                                <button title="Excluir" onClick={() => deleteQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Trash2 size={15} color="#E53E3E" /></button>
                               </div>
                             </div>
                           ))}
@@ -3218,28 +3218,28 @@ export default function MultiatendimentoPage() {
           onClick={() => !qmSaving && setQmModalOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ background: "hsl(var(--card))", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
-              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="hsl(var(--muted-foreground))" /></button>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
+              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
             </div>
             <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", display: "block", marginBottom: 6 }}>Título</label>
-                <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "hsl(var(--foreground))", outline: "none", boxSizing: "border-box" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Título</label>
+                <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "hsl(var(--muted-foreground))", fontWeight: 400 }}>(opcional)</span></label>
-                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "hsl(var(--foreground))", outline: "none", boxSizing: "border-box" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "#AAA", fontWeight: 400 }}>(opcional)</span></label>
+                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--foreground))", display: "block", marginBottom: 6 }}>Mensagem</label>
-                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "hsl(var(--foreground))", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Mensagem</label>
+                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
               </div>
             </div>
             <div style={{ padding: "14px 22px 18px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>Cancelar</button>
-              <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "hsl(var(--primary))", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
+              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
         </div>
@@ -3249,10 +3249,10 @@ export default function MultiatendimentoPage() {
       {filterPanelOpen && (
         <>
           <div onClick={() => setFilterPanelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 310 }} />
-          <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: 380, maxWidth: "90vw", background: "hsl(var(--card))", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 311, display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "hsl(var(--foreground))" }}>Filtros</div>
-              <button onClick={() => setFilterPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="hsl(var(--muted-foreground))" /></button>
+          <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: 380, maxWidth: "90vw", background: "#FFF", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 311, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>Filtros</div>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", padding: "0 22px" }}>
@@ -3262,9 +3262,9 @@ export default function MultiatendimentoPage() {
               {renderFilterChecklist("tags", "Tags", "Todas", crmTags.map(t => ({ value: t.name, label: t.name, color: t.color })), fltTags, setFltTags)}
 
               {/* Negócio na etapa */}
-              <div style={{ borderBottom: "1px solid hsl(var(--border))", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 8 }}>Negócio na etapa</div>
-                <select value={fltPipeline} onChange={e => { setFltPipeline(e.target.value); setFltStages([]); }} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: fltPipeline ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", background: "hsl(var(--card))", cursor: "pointer", outline: "none" }}>
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Negócio na etapa</div>
+                <select value={fltPipeline} onChange={e => { setFltPipeline(e.target.value); setFltStages([]); }} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: fltPipeline ? "#111" : "#888", background: "#FFF", cursor: "pointer", outline: "none" }}>
                   <option value="">Todos os pipelines</option>
                   {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -3277,8 +3277,8 @@ export default function MultiatendimentoPage() {
                         const on = fltStages.includes(col.id);
                         return (
                           <button key={col.id} onClick={() => toggleInArray(setFltStages, col.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                            <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "hsl(var(--primary))" : "hsl(var(--border))"), background: on ? "hsl(var(--primary))" : "hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
-                            <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{col.title}</span>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                            <span style={{ fontSize: 13, color: "#333" }}>{col.title}</span>
                           </button>
                         );
                       })}
@@ -3288,15 +3288,15 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* Janela em atendimento */}
-              <div style={{ borderBottom: "1px solid hsl(var(--border))", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 8 }}>Janela em atendimento</div>
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Janela em atendimento</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {([["all", "Todos"], ["in", "Dentro de 24h"], ["out", "Fora de 24h"]] as const).map(([v, l]) => {
                     const on = fltWindow === v;
                     return (
                       <button key={v} onClick={() => setFltWindow(v)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "hsl(var(--primary))" : "hsl(var(--border))"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "hsl(var(--primary))" }} />}</div>
-                        <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{l}</span>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "#128A68" : "#CCC"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}</div>
+                        <span style={{ fontSize: 13, color: "#333" }}>{l}</span>
                       </button>
                     );
                   })}
@@ -3304,24 +3304,24 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* Data da última mensagem */}
-              <div style={{ borderBottom: "1px solid hsl(var(--border))", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 8 }}>Data da última mensagem</div>
+              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Data da última mensagem</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", display: "block", marginBottom: 4 }}>De</label>
-                    <input type="date" value={fltDateFrom} onChange={e => setFltDateFrom(e.target.value)} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "hsl(var(--foreground))", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>De</label>
+                    <input type="date" value={fltDateFrom} onChange={e => setFltDateFrom(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", display: "block", marginBottom: 4 }}>Até</label>
-                    <input type="date" value={fltDateTo} onChange={e => setFltDateTo(e.target.value)} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "hsl(var(--foreground))", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Até</label>
+                    <input type="date" value={fltDateTo} onChange={e => setFltDateTo(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
                   </div>
                 </div>
               </div>
 
               {/* Ordem */}
               <div style={{ padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 8 }}>Ordem</div>
-                <select value={fltOrder} onChange={e => setFltOrder(e.target.value as "recent" | "old" | "name")} style={{ width: "100%", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "hsl(var(--foreground))", background: "hsl(var(--card))", cursor: "pointer", outline: "none" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Ordem</div>
+                <select value={fltOrder} onChange={e => setFltOrder(e.target.value as "recent" | "old" | "name")} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#111", background: "#FFF", cursor: "pointer", outline: "none" }}>
                   <option value="recent">Mais recentes</option>
                   <option value="old">Mais antigas</option>
                   <option value="name">Nome (A–Z)</option>
@@ -3329,9 +3329,9 @@ export default function MultiatendimentoPage() {
               </div>
             </div>
 
-            <div style={{ padding: "14px 22px", borderTop: "1px solid hsl(var(--border))", display: "flex", gap: 10, flexShrink: 0 }}>
-              <button onClick={clearAdvancedFilters} style={{ flex: 1, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>Limpar filtros</button>
-              <button onClick={() => setFilterPanelOpen(false)} style={{ flex: 1, background: "hsl(var(--primary))", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Aplicar filtros</button>
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #EEEEEE", display: "flex", gap: 10, flexShrink: 0 }}>
+              <button onClick={clearAdvancedFilters} style={{ flex: 1, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Limpar filtros</button>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Aplicar filtros</button>
             </div>
           </div>
         </>
@@ -3340,29 +3340,29 @@ export default function MultiatendimentoPage() {
       {/* ── MODAL: ações em massa (transferir atendente/departamento) ──── */}
       {(bulkAction === "agent" || bulkAction === "dept") && (
         <div onClick={() => setBulkAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "hsl(var(--card))", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
-                <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{selectedConvs.length} conversa(s) selecionada(s)</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{selectedConvs.length} conversa(s) selecionada(s)</div>
               </div>
-              <button onClick={() => setBulkAction(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="hsl(var(--muted-foreground))" /></button>
+              <button onClick={() => setBulkAction(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
               {bulkAction === "agent" && (teamMembers.length === 0
-                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhum atendente cadastrado</div>
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum atendente cadastrado</div>
                 : teamMembers.map(m => (
-                  <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                  <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                     <div style={{ width: 30, height: 30, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{initials(m)}</div>
-                    <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{m}</span>
+                    <span style={{ fontSize: 13, color: "#111" }}>{m}</span>
                   </button>
                 )))}
               {bulkAction === "dept" && (muDepts.length === 0
-                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhum departamento cadastrado</div>
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum departamento cadastrado</div>
                 : muDepts.map(d => (
-                  <button key={d.id} onClick={() => bulkAssignDept(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <Folder size={16} color="hsl(var(--primary))" />
-                    <span style={{ fontSize: 13, color: "hsl(var(--foreground))" }}>{d.name}</span>
+                  <button key={d.id} onClick={() => bulkAssignDept(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Folder size={16} color="#128A68" />
+                    <span style={{ fontSize: 13, color: "#111" }}>{d.name}</span>
                   </button>
                 )))}
             </div>
@@ -3373,29 +3373,29 @@ export default function MultiatendimentoPage() {
       {/* ── MODAL: executar automação (manual) ───────────────────────── */}
       {autoModalConvs !== null && (
         <div onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "hsl(var(--card))", borderRadius: 16, width: 400, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 400, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>Executar automação</div>
-                <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{autoModalConvs.length} conversa(s) · gatilho de execução manual</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Executar automação</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{autoModalConvs.length} conversa(s) · gatilho de execução manual</div>
               </div>
-              <button onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="hsl(var(--muted-foreground))" /></button>
+              <button onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
               {manualAutomations.length === 0 ? (
                 <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                  <Zap size={28} color="hsl(var(--muted-foreground))" style={{ margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", margin: "0 0 4px" }}>Nenhuma automação manual ativa</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", margin: 0 }}>Crie uma automação com o gatilho "Execução manual da automação por lead ou contato".</p>
+                  <Zap size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, color: "#AAA", margin: "0 0 4px" }}>Nenhuma automação manual ativa</p>
+                  <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Crie uma automação com o gatilho "Execução manual da automação por lead ou contato".</p>
                 </div>
               ) : manualAutomations.map(a => (
-                <button key={a.id} disabled={runningAutomation} onClick={() => runAutomationOnConvs(a.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 12px", background: "none", border: "none", borderRadius: 8, cursor: runningAutomation ? "default" : "pointer", textAlign: "left", opacity: runningAutomation ? 0.6 : 1 }} onMouseEnter={e => { if (!runningAutomation) e.currentTarget.style.background = "hsl(var(--muted))"; }} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "hsl(var(--success-soft))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Zap size={15} color="hsl(var(--primary))" /></div>
-                  <span style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: 500 }}>{a.name}</span>
+                <button key={a.id} disabled={runningAutomation} onClick={() => runAutomationOnConvs(a.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 12px", background: "none", border: "none", borderRadius: 8, cursor: runningAutomation ? "default" : "pointer", textAlign: "left", opacity: runningAutomation ? 0.6 : 1 }} onMouseEnter={e => { if (!runningAutomation) e.currentTarget.style.background = "#F5F5F5"; }} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Zap size={15} color="#128A68" /></div>
+                  <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{a.name}</span>
                 </button>
               ))}
             </div>
-            {runningAutomation && <div style={{ padding: "10px", textAlign: "center", fontSize: 12, color: "hsl(var(--primary))", borderTop: "1px solid hsl(var(--border))" }}>Executando…</div>}
+            {runningAutomation && <div style={{ padding: "10px", textAlign: "center", fontSize: 12, color: "#128A68", borderTop: "1px solid #EEEEEE" }}>Executando…</div>}
           </div>
         </div>
       )}
@@ -3424,8 +3424,8 @@ export default function MultiatendimentoPage() {
 }
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid hsl(var(--border))", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, color: "hsl(var(--foreground))", background: "hsl(var(--card))", outline: "none", width: "100%",
+  border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px",
+  fontSize: 13, color: "#111", background: "#FFF", outline: "none", width: "100%",
 };
 
 /* ── Toggle reutilizável para o modal de config ──────────────────────── */
@@ -3433,9 +3433,9 @@ function MuToggle({ checked, onChange }: { checked: boolean; onChange: () => voi
   return (
     <button
       onClick={onChange}
-      style={{ width: 42, height: 22, borderRadius: 11, background: checked ? "hsl(var(--primary))" : "hsl(var(--muted))", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+      style={{ width: 42, height: 22, borderRadius: 11, background: checked ? "#128A68" : "#D1D5DB", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
     >
-      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "hsl(var(--card))", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
     </button>
   );
 }
@@ -3472,33 +3472,33 @@ function TransferDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "hsl(var(--card))", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "#FFF", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))", display: "flex", alignItems: "center", gap: 7 }}>
-              <UserCheck size={16} color="hsl(var(--primary))" /> Transferir atendimento
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 7 }}>
+              <UserCheck size={16} color="#128A68" /> Transferir atendimento
             </div>
-            <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Selecione o atendente que receberá esta conversa</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione o atendente que receberá esta conversa</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <X size={18} color="hsl(var(--muted-foreground))" />
+            <X size={18} color="#AAA" />
           </button>
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid hsl(var(--border))" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "8px 12px" }}>
-            <Search size={14} color="hsl(var(--muted-foreground))" />
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="#AAA" />
             <input
               ref={inputRef}
               placeholder="Buscar atendente..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "hsl(var(--foreground))" }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
             />
-            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="hsl(var(--muted-foreground))" /></button>}
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
           </div>
         </div>
 
@@ -3506,8 +3506,8 @@ function TransferDialog({
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filtered.length === 0 && (
             <div style={{ padding: "32px 20px", textAlign: "center" }}>
-              <UserCheck size={28} color="hsl(var(--muted-foreground))" style={{ margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhum atendente encontrado</p>
+              <UserCheck size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum atendente encontrado</p>
             </div>
           )}
           {filtered.map(memberName => {
@@ -3519,9 +3519,9 @@ function TransferDialog({
               <button
                 key={memberName}
                 onClick={() => onTransfer(memberName)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isCurrentAssignee ? "hsl(var(--muted))" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                onMouseEnter={e => { if (!isCurrentAssignee) e.currentTarget.style.background = "hsl(var(--muted))"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = isCurrentAssignee ? "hsl(var(--muted))" : "transparent"; }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isCurrentAssignee ? "#F0FBF6" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={e => { if (!isCurrentAssignee) e.currentTarget.style.background = "#F5F5F5"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = isCurrentAssignee ? "#F0FBF6" : "transparent"; }}
               >
                 {/* avatar */}
                 {avatar ? (
@@ -3534,12 +3534,12 @@ function TransferDialog({
 
                 {/* info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{memberName}</div>
-                  {email && <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{memberName}</div>
+                  {email && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
                 </div>
 
                 {isCurrentAssignee && (
-                  <span style={{ fontSize: 11, fontWeight: 600, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", padding: "3px 8px", borderRadius: 100, flexShrink: 0 }}>Atual</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "3px 8px", borderRadius: 100, flexShrink: 0 }}>Atual</span>
                 )}
               </button>
             );
@@ -3547,7 +3547,7 @@ function TransferDialog({
         </div>
 
         {/* footer */}
-        <div style={{ padding: "10px 20px", borderTop: "1px solid hsl(var(--border))", fontSize: 11, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+        <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
           {filtered.length} atendente{filtered.length !== 1 ? "s" : ""} disponíve{filtered.length !== 1 ? "is" : "l"}
         </div>
       </div>
@@ -3589,31 +3589,31 @@ function NewConvDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "hsl(var(--card))", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "#FFF", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--foreground))" }}>Nova conversa</div>
-            <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Selecione um negócio do pipeline</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Nova conversa</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um negócio do pipeline</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <X size={18} color="hsl(var(--muted-foreground))" />
+            <X size={18} color="#AAA" />
           </button>
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid hsl(var(--border))" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "8px 12px" }}>
-            <Search size={14} color="hsl(var(--muted-foreground))" />
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="#AAA" />
             <input
               ref={inputRef}
               placeholder="Buscar por nome ou empresa..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "hsl(var(--foreground))" }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
             />
-            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="hsl(var(--muted-foreground))" /></button>}
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
           </div>
         </div>
 
@@ -3621,9 +3621,9 @@ function NewConvDialog({
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredLeads.length === 0 && (
             <div style={{ padding: "40px 20px", textAlign: "center" }}>
-              <MessageSquare size={32} color="hsl(var(--muted-foreground))" style={{ margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhum negócio encontrado</p>
-              <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Tente outro nome ou crie um lead no Pipeline</p>
+              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum negócio encontrado</p>
+              <p style={{ fontSize: 12, color: "#CCC", marginTop: 4 }}>Tente outro nome ou crie um lead no Pipeline</p>
             </div>
           )}
           {filteredLeads.map(lead => (
@@ -3631,7 +3631,7 @@ function NewConvDialog({
               key={lead.id}
               onClick={() => onSelect(lead.id)}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "hsl(var(--muted))")}
+              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               {/* avatar */}
@@ -3642,32 +3642,32 @@ function NewConvDialog({
               {/* info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
-                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
+                  <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  {lead.company && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{lead.company}</span>}
-                  {lead.company && <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>•</span>}
-                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
+                  {lead.company && <span style={{ fontSize: 11, color: "#666" }}>{lead.company}</span>}
+                  {lead.company && <span style={{ fontSize: 11, color: "#DDD" }}>•</span>}
+                  <span style={{ fontSize: 11, color: "#AAA" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
                 </div>
               </div>
 
               {/* valor */}
               {lead.value > 0 && (
-                <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--primary))", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#128A68", flexShrink: 0 }}>
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(lead.value)}
                 </div>
               )}
 
               {/* ícone seta */}
-              <div style={{ flexShrink: 0, color: "hsl(var(--muted-foreground))" }}>→</div>
+              <div style={{ flexShrink: 0, color: "#CCC" }}>→</div>
             </button>
           ))}
         </div>
 
         {/* footer */}
         {filteredLeads.length > 0 && (
-          <div style={{ padding: "10px 20px", borderTop: "1px solid hsl(var(--border))", fontSize: 11, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+          <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
             {filteredLeads.length} negócio{filteredLeads.length !== 1 ? "s" : ""} encontrado{filteredLeads.length !== 1 ? "s" : ""}
           </div>
         )}

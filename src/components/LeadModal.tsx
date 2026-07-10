@@ -247,7 +247,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                     style={{
                       borderColor: active ? t.color : "hsl(var(--border))",
                       background:  active ? `${t.color}18` : "transparent",
-                      color:       active ? t.color : "hsl(var(--muted-foreground))",
+                      color:       active ? t.color : "#888",
                     }}
                   >
                     {active && <X size={9} />}
@@ -296,7 +296,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                     >
                       <div
                         className="flex items-center justify-center rounded shrink-0"
-                        style={{ width: 14, height: 14, border: selected ? "2px solid hsl(var(--primary))" : "1.5px solid hsl(var(--border))", background: selected ? "hsl(var(--primary))" : "transparent" }}
+                        style={{ width: 14, height: 14, border: selected ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: selected ? "hsl(var(--primary))" : "transparent" }}
                       >
                         {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                       </div>

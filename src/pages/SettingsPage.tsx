@@ -64,7 +64,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
 ];
 
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-card border border-border rounded-[8px] p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-card border border-gray-200 rounded-[8px] p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -417,7 +417,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
         </Card>
       )}
 
-      <Card className="border-[#FECACA] bg-[hsl(var(--muted))]">
+      <Card className="border-[#FECACA] bg-[#FEF2F2]">
         <SectionTitle title="Excluir conta" subtitle="Você tem um prazo de 30 dias para poder restaurar sua conta." />
         <Button variant="outline" className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white">
           <Trash2 size={14} className="mr-2" /> Excluir conta
@@ -462,7 +462,7 @@ function maskPhone(v: string) {
 
 function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex items-center h-10 border border-card-border rounded-md overflow-hidden bg-card focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+    <div className="flex items-center h-10 border border-card-border rounded-md overflow-hidden bg-white focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
       <div className="flex items-center gap-1.5 px-3 h-full bg-muted/50 border-r border-card-border shrink-0 select-none">
         <span className="text-base leading-none">🇧🇷</span>
         <span className="text-sm text-muted-foreground font-medium">+55</span>
@@ -473,7 +473,7 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
         onChange={e => onChange(maskPhone(e.target.value))}
         placeholder="(11) 99999-0000"
         maxLength={15}
-        className="flex-1 px-3 h-full text-sm outline-none bg-card text-foreground placeholder:text-muted-foreground/50"
+        className="flex-1 px-3 h-full text-sm outline-none bg-white text-foreground placeholder:text-muted-foreground/50"
       />
     </div>
   );
@@ -731,7 +731,7 @@ function EmpresaSection() {
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors font-medium ${
                     docType === t
                       ? "bg-primary text-white border-primary"
-                      : "bg-card text-muted-foreground border-card-border hover:border-primary"
+                      : "bg-white text-muted-foreground border-card-border hover:border-primary"
                   }`}
                 >
                   {t === "pj" ? "Pessoa Jurídica" : "Pessoa Física"}
@@ -843,7 +843,7 @@ function EmpresaSection() {
       <Dialog open={deleteOpen} onOpenChange={o => { if (!deleting) setDeleteOpen(o); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[hsl(var(--destructive-soft-fg))]">Excluir empresa</DialogTitle>
+            <DialogTitle className="text-[#DC2626]">Excluir empresa</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -999,11 +999,11 @@ function PermissionsEditor({
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-border rounded-[8px] overflow-hidden bg-card">
+          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
             >
               <div className="flex-1 text-left">
                 <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
@@ -1021,7 +1021,7 @@ function PermissionsEditor({
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-card hover:bg-muted"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
                     >
                       <input
                         type="checkbox"
@@ -1233,12 +1233,12 @@ function EquipeSection() {
                         {isSelf && <span className="text-muted-foreground font-normal ml-1">(você)</span>}
                       </p>
                       {m.is_owner && (
-                        <span className="inline-flex items-center gap-1 bg-[hsl(var(--muted))] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
                           <Crown size={9} /> Admin
                         </span>
                       )}
                       {!m.is_owner && m.permissions.includes("admin") && (
-                        <span className="inline-flex items-center gap-1 bg-[hsl(var(--muted))] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
+                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
                           <Crown size={9} /> Admin
                         </span>
                       )}
@@ -1313,7 +1313,7 @@ function EquipeSection() {
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <span className="inline-flex items-center bg-[hsl(var(--muted))] text-[#D97706] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[10px] font-semibold shrink-0">
+                  <span className="inline-flex items-center bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[10px] font-semibold shrink-0">
                     Aguardando
                   </span>
                   <button
@@ -1335,7 +1335,7 @@ function EquipeSection() {
 
       {/* Dialog: Confirmar remoção de membro */}
       <Dialog open={!!confirmRemove} onOpenChange={v => { if (!v) setConfirmRemove(null); }}>
-        <DialogContent className="max-w-sm bg-card">
+        <DialogContent className="max-w-sm bg-white">
           <DialogHeader>
             <DialogTitle>Remover membro da equipe?</DialogTitle>
           </DialogHeader>
@@ -1351,7 +1351,7 @@ function EquipeSection() {
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
@@ -1363,7 +1363,7 @@ function EquipeSection() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
@@ -1371,7 +1371,7 @@ function EquipeSection() {
             <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
 
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[hsl(var(--muted))]" : "border-border bg-card hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
               <div className="flex-1">
                 <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
                   <Crown size={12} className="inline mr-1" />
@@ -1403,7 +1403,7 @@ function EquipeSection() {
 
       {/* Dialog: Editar permissões */}
       <Dialog open={!!editMember} onOpenChange={v => !v && setEditMember(null)}>
-        <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar permissões — {editMember?.full_name || editMember?.email}</DialogTitle>
           </DialogHeader>
@@ -1411,7 +1411,7 @@ function EquipeSection() {
             <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
 
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[hsl(var(--muted))]" : "border-border bg-card hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
               <div className="flex-1">
                 <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
                   <Crown size={12} className="inline mr-1" />
@@ -1460,7 +1460,7 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
   const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
   return (
-    <div className="bg-card border border-card-border rounded-xl p-4">
+    <div className="bg-white border border-card-border rounded-xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
@@ -1726,7 +1726,7 @@ function PlanosSection() {
         </div>
         {/* Toggle de período */}
         <div className="flex justify-center">
-          <div className="flex gap-1 p-1 rounded-xl bg-card border border-primary w-fit">
+          <div className="flex gap-1 p-1 rounded-xl bg-white border border-primary w-fit">
             {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
               const disc = UPGRADE_PERIOD_DISCOUNT[period];
               return (
@@ -1738,7 +1738,7 @@ function PlanosSection() {
                     "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
                     upgradePeriod === period
                       ? "bg-primary text-white shadow-sm"
-                      : "bg-card text-foreground hover:text-foreground"
+                      : "bg-white text-foreground hover:text-foreground"
                   )}
                 >
                   {UPGRADE_PERIOD_LABELS[period]}
@@ -1746,8 +1746,8 @@ function PlanosSection() {
                     <span className={cn(
                       "text-[9px] font-bold px-1 py-0.5 rounded-full",
                       upgradePeriod === period
-                        ? "bg-card/20 text-white"
-                        : "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-soft-fg))]"
+                        ? "bg-white/20 text-white"
+                        : "bg-emerald-100 text-emerald-700"
                     )}>
                       {disc}
                     </span>
@@ -1766,8 +1766,8 @@ function PlanosSection() {
               <div
                 key={plan.key}
                 className={cn(
-                  "relative flex flex-col rounded-xl p-5 transition-all bg-card",
-                  isCurrent ? "border border-primary" : plan.badge ? "border border-primary" : "border border-border"
+                  "relative flex flex-col rounded-xl p-5 transition-all bg-white",
+                  isCurrent ? "border border-primary" : plan.badge ? "border border-primary" : "border border-gray-200"
                 )}
               >
                 {plan.badge && !isCurrent && (
@@ -1783,23 +1783,23 @@ function PlanosSection() {
                 <p className="text-[20px] font-bold text-foreground">{plan.name}</p>
                 {upgradePeriod === "monthly" ? (
                   <div className="mt-2 mb-2">
-                    <span className="text-2xl font-bold text-[hsl(var(--success-soft-fg))]">{plan.prices.monthly}</span>
+                    <span className="text-2xl font-bold text-emerald-600">{plan.prices.monthly}</span>
                     <span className="text-xs text-muted-foreground ml-1">/mês</span>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-2 mt-2 mb-0">
                       <span className="text-[12px] text-muted-foreground line-through">R$ {plan.rawMonthly},00</span>
-                      <span className="text-[10px] font-semibold text-[hsl(var(--success-soft-fg))] bg-[hsl(var(--success-soft))] px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                         Economize {plan.savings[upgradePeriod as "semiannual" | "annual"]}
                       </span>
                     </div>
                     <div className="flex items-baseline justify-between mb-1">
                       <div>
-                        <span className="text-2xl font-bold text-[hsl(var(--success-soft-fg))]">{plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}</span>
+                        <span className="text-2xl font-bold text-emerald-600">{plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}</span>
                         <span className="text-xs text-muted-foreground ml-1">/mês</span>
                       </div>
-                      <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
                         {upgradePeriod === "semiannual" ? "Semestral" : "Anual"}
                       </span>
                     </div>
@@ -1811,7 +1811,7 @@ function PlanosSection() {
                 <ul className="space-y-1.5 flex-1 mb-4">
                   {plan.features.map(f => (
                     <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-foreground">
-                      <Check size={13} className={cn("mt-0.5 shrink-0", plan.badge ? "text-primary" : "text-[hsl(var(--success-soft-fg))]")} />
+                      <Check size={13} className={cn("mt-0.5 shrink-0", plan.badge ? "text-primary" : "text-emerald-600")} />
                       {f}
                     </li>
                   ))}
@@ -1858,7 +1858,7 @@ function PlanosSection() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Valor</span>
-                  <span className="font-semibold text-[hsl(var(--success-soft-fg))]">{price}</span>
+                  <span className="font-semibold text-emerald-600">{price}</span>
                 </div>
               </div>
               <DialogFooter className="gap-2">
@@ -2068,7 +2068,7 @@ function TagsSection() {
     <>
       <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {crmTags.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
@@ -2245,7 +2245,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2395,7 +2395,7 @@ function MotivosSection() {
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
@@ -2413,7 +2413,7 @@ function MotivosSection() {
                 <TableRow key={r.id} className="border-card-border hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "hsl(var(--destructive-soft))" }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
                         <SquareX size={14} style={{ color: "#E24B4A" }} />
                       </div>
                       <span className="text-[14px] font-medium text-foreground">{r.name}</span>
@@ -2552,7 +2552,7 @@ function ListasSection() {
     <>
       <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
         {crmLists.length === 0 ? (
           <div className="py-10 text-center">
             <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -2761,13 +2761,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-card border border-border rounded-xl px-4 py-10 text-center">
+          <div className="bg-white border border-gray-200 rounded-xl px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-card border border-border rounded-xl overflow-hidden">
+          <div key={g.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -3478,11 +3478,11 @@ function ConexoesSection() {
       {googleLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-card border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-                  <span className={`text-xs font-medium ${conn.connected ? "text-[hsl(var(--success-soft-fg))]" : "text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
@@ -3506,7 +3506,7 @@ function ConexoesSection() {
               </div>
             </div>
           ))}
-          <div className="bg-card border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
+          <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
             <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
           </div>
         </div>
@@ -3524,11 +3524,11 @@ function ConexoesSection() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-card border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-                  <span className={`text-xs font-medium ${conn.connected ? "text-[hsl(var(--success-soft-fg))]" : "text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
@@ -3553,11 +3553,11 @@ function ConexoesSection() {
             </div>
           ))}
           {googleConn && (
-            <div className="bg-card border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-bold text-[hsl(var(--success-soft-fg))]" style={{ fontSize: 11.5 }}>Conectado</span>
+                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
                 </div>
                 <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-[#4285F4]" style={{ fontSize: 11.5 }}>
                   calendar.google.com <ExternalLink size={11} />
@@ -3599,16 +3599,16 @@ function ConexoesSection() {
           <DialogTitle className="sr-only">Gerenciar conexão</DialogTitle>
           <div style={{ display: "flex", height: 540 }}>
             {/* Left sidebar */}
-            <div style={{ width: 170, flexShrink: 0, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column", padding: 12, gap: 2 }}>
+            <div style={{ width: 170, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 2 }}>
               {[
                 { id: "whatsapp", label: "Whatsapp", active: true },
                 { id: "instagram", label: "Instagram", active: false },
                 { id: "messenger", label: "Messenger", active: false },
                 { id: "universal", label: "Universal", active: false, badge: "Beta" },
               ].map(item => (
-                <div key={item.id} style={{ padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: item.active ? 600 : 400, color: item.active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", background: item.active ? "hsl(var(--card))" : "transparent", boxShadow: item.active ? "0 1px 3px rgba(0,0,0,0.08)" : "none", display: "flex", alignItems: "center", gap: 6, cursor: item.active ? "default" : "not-allowed" }}>
+                <div key={item.id} style={{ padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: item.active ? 600 : 400, color: item.active ? "#111" : "#AAAAAA", background: item.active ? "#FFF" : "transparent", boxShadow: item.active ? "0 1px 3px rgba(0,0,0,0.08)" : "none", display: "flex", alignItems: "center", gap: 6, cursor: item.active ? "default" : "not-allowed" }}>
                   {item.label}
-                  {item.badge && <span style={{ fontSize: 10, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", padding: "1px 6px", borderRadius: 999 }}>{item.badge}</span>}
+                  {item.badge && <span style={{ fontSize: 10, background: "#E8E8E8", color: "#777", padding: "1px 6px", borderRadius: 999 }}>{item.badge}</span>}
                 </div>
               ))}
             </div>
@@ -3616,33 +3616,33 @@ function ConexoesSection() {
             {/* Right panel */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
               {/* Header */}
-              <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+              <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {manageProvider === "dapi" ? <Zap size={11} color="#FFF" /> : <Webhook size={11} color="#FFF" />}
                     </div>
-                    <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
+                    <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
                   </div>
-                  <h2 style={{ fontSize: 17, fontWeight: 700, color: "hsl(var(--foreground))", margin: 0 }}>Atualizar conexão</h2>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: 0 }}>Atualizar conexão</h2>
                 </div>
-                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAA" }}>
                   <X size={16} />
                 </button>
               </div>
 
               {/* Connection name */}
               <div style={{ padding: "14px 24px 0" }}>
-                <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
+                <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
                 <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </div>
 
               {/* Tabs */}
-              <div style={{ padding: "0 24px", marginTop: 14, display: "flex", gap: 0, borderBottom: "1px solid hsl(var(--border))" }}>
+              <div style={{ padding: "0 24px", marginTop: 14, display: "flex", gap: 0, borderBottom: "1px solid #EEEEEE" }}>
                 {(["auth", "intervals", "config"] as const).map((tab, i) => {
                   const labels = ["Autenticação", "Intervalos", "Configurações"];
                   return (
-                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", borderBottom: manageTab === tab ? "2px solid hsl(var(--primary))" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
+                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "#128A68" : "#888", borderBottom: manageTab === tab ? "2px solid #128A68" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
                       {labels[i]}
                     </button>
                   );
@@ -3672,32 +3672,32 @@ function ConexoesSection() {
                 {manageTab === "auth" && manageProvider !== "dapi" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <div>
-                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
                       <div style={{ position: "relative" }}>
                         <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                        <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showInstId ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
                       <div style={{ position: "relative" }}>
                         <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 4 }}>Token de segurança</label>
+                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 4 }}>Token de segurança</label>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-                        <Lock size={12} color="hsl(var(--muted-foreground))" />
-                        <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>Acesse a página de Segurança para obter</span>
+                        <Lock size={12} color="#AAA" />
+                        <span style={{ fontSize: 11, color: "#AAA" }}>Acesse a página de Segurança para obter</span>
                       </div>
                       <div style={{ position: "relative" }}>
                         <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                        <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
                           {showClientTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
@@ -3712,16 +3712,16 @@ function ConexoesSection() {
                       { label: "Intervalo de envio dos atendentes", min: agentMin, max: agentMax, setMin: setAgentMin, setMax: setAgentMax, hasToggle: false },
                       { label: 'Intervalo da animação de "Digitando..."', min: typingMin, max: typingMax, setMin: setTypingMin, setMax: setTypingMax, hasToggle: true },
                     ].map((row, i) => (
-                      <div key={i} style={{ border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "14px 16px" }}>
+                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
-                            <p style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", margin: 0 }}>{row.label}</p>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{row.label}</p>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                              <span style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Entre</span>
-                              <input type="number" value={row.min} min={0} onChange={e => row.setMin(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
-                              <span style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>e</span>
-                              <input type="number" value={row.max} min={0} onChange={e => row.setMax(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
-                              <span style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>segundos</span>
+                              <span style={{ fontSize: 13, color: "#535353" }}>Entre</span>
+                              <input type="number" value={row.min} min={0} onChange={e => row.setMin(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "#535353" }}>e</span>
+                              <input type="number" value={row.max} min={0} onChange={e => row.setMax(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "#535353" }}>segundos</span>
                             </div>
                           </div>
                           {row.hasToggle && <Switch checked={typingEnabled} onCheckedChange={setTypingEnabled} />}
@@ -3737,12 +3737,12 @@ function ConexoesSection() {
                       { label: "Ouvir grupos", desc: "Receber mensagens enviadas em grupos", checked: listenGroups, onChange: setListenGroups, info: false },
                       { label: "Restaurar mensagens", desc: "Recuperar mensagens anteriores à conexão", checked: restoreMsg, onChange: setRestoreMsg, info: true },
                     ].map((item, i) => (
-                      <div key={i} style={{ border: "1px solid hsl(var(--border))", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div>
-                          <p style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", margin: 0 }}>{item.label}</p>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{item.label}</p>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{item.desc}</span>
-                            {item.info && <span title="Pode levar alguns minutos" style={{ cursor: "help", color: "hsl(var(--muted-foreground))" }}>ⓘ</span>}
+                            <span style={{ fontSize: 12, color: "#888" }}>{item.desc}</span>
+                            {item.info && <span title="Pode levar alguns minutos" style={{ cursor: "help", color: "#AAA" }}>ⓘ</span>}
                           </div>
                         </div>
                         <Switch checked={item.checked} onCheckedChange={item.onChange} />
@@ -3753,10 +3753,10 @@ function ConexoesSection() {
               </div>
 
               {/* Footer */}
-              <div style={{ padding: "12px 24px", borderTop: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+              <div style={{ padding: "12px 24px", borderTop: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#AAA" }}>
                   <Lock size={12} />
-                  <span>Ao continuar, você concorda com nossos <span style={{ color: "hsl(var(--primary))", cursor: "pointer" }}>Termos de Uso</span></span>
+                  <span>Ao continuar, você concorda com nossos <span style={{ color: "#128A68", cursor: "pointer" }}>Termos de Uso</span></span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Button variant="outline" className="border-card-border text-sm h-9" onClick={() => { handleDisconnect(); closeDialog(); }}>Remover</Button>
@@ -3775,7 +3775,7 @@ function ConexoesSection() {
           <DialogTitle className="sr-only">Criar conexão</DialogTitle>
           <div style={{ display: "flex", height: 440 }}>
             {/* Left sidebar */}
-            <div style={{ width: 160, flexShrink: 0, background: "hsl(var(--muted))", borderRight: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
+            <div style={{ width: 160, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
               {CONN_CATEGORIES.map(c => (
                 <button
                   key={c.id}
@@ -3783,7 +3783,7 @@ function ConexoesSection() {
                   style={{
                     textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: 500,
                     background: selectedCategory === c.id ? "rgba(18,138,104,0.1)" : "transparent",
-                    color: selectedCategory === c.id ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                    color: selectedCategory === c.id ? "#128A68" : "#535353",
                     border: "none", cursor: "pointer",
                   }}
                 >
@@ -3794,12 +3794,12 @@ function ConexoesSection() {
 
             {/* Right content */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", borderBottom: "1px solid hsl(var(--border))" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", borderBottom: "1px solid #F0F0F0" }}>
                 <div>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "hsl(var(--foreground))" }}>{selectedCat.label}</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{selectedCat.description}</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>{selectedCat.label}</p>
+                  <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{selectedCat.description}</p>
                 </div>
-                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAAAAA" }}>
                   <X size={16} />
                 </button>
               </div>
@@ -3817,7 +3817,7 @@ function ConexoesSection() {
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
-                        borderRadius: 12, border: `1.5px solid ${prov.available ? "hsl(var(--border))" : "hsl(var(--border))"}`,
+                        borderRadius: 12, border: `1.5px solid ${prov.available ? "#EEEEEE" : "#EEEEEE"}`,
                         textAlign: "left", background: "transparent", cursor: prov.available ? "pointer" : "not-allowed",
                         opacity: prov.available ? 1 : 0.5,
                       }}
@@ -3827,10 +3827,10 @@ function ConexoesSection() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))" }}>{prov.name}</span>
-                          {!prov.available && <span style={{ fontSize: 10, background: "hsl(var(--background))", color: "hsl(var(--muted-foreground))", padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>Em breve</span>}
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{prov.name}</span>
+                          {!prov.available && <span style={{ fontSize: 10, background: "#F5F5F5", color: "#AAAAAA", padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>Em breve</span>}
                         </div>
-                        <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{prov.desc}</p>
+                        <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{prov.desc}</p>
                       </div>
                     </button>
                   );
@@ -3856,69 +3856,69 @@ function ConexoesSection() {
             <>
               {/* Barra de progresso */}
               <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: -4 }}>
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "hsl(var(--primary))" }} />
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "hsl(var(--primary))" : "hsl(var(--muted))", transition: "background 0.2s" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "#128A68" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "#128A68" : "#EEEEEE", transition: "background 0.2s" }} />
               </div>
 
               {/* ── Slide 1: ID da Instância e Token ── */}
               {tutStep === 0 && (
                 <>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 2 }}>Onde fica o Instance ID e o Token?</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 10, lineHeight: 1.5 }}>
-                    Acesse <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600, textDecoration: "none" }}>app.z-api.io</a>, faça login e clique na sua instância. As credenciais ficam logo na tela principal.
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Instance ID e o Token?</p>
+                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
+                    Acesse <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ color: "#128A68", fontWeight: 600, textDecoration: "none" }}>app.z-api.io</a>, faça login e clique na sua instância. As credenciais ficam logo na tela principal.
                   </p>
 
                   {/* Caminho de navegação */}
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
                     {["app.z-api.io", "Instâncias", "Clique na instância"].map((item, i) => (
                       <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 10, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
-                        {i < 2 && <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 700 }}>›</span>}
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 2 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
                       </span>
                     ))}
                   </div>
 
                   {/* Mockup visual da tela da instância */}
-                  <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
                     {/* Barra do browser */}
                     <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
-                      <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/instances/sua-instancia</span>
+                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/instances/sua-instancia</span>
                     </div>
                     {/* Conteúdo mockup */}
-                    <div style={{ background: "hsl(var(--card))", padding: "14px 16px" }}>
+                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "hsl(var(--success-soft))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 12 }}>📱</span>
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--foreground))" }}>Minha Instância</span>
-                        <span style={{ fontSize: 10, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", padding: "1px 7px", borderRadius: 99, fontWeight: 600, marginLeft: "auto" }}>Conectada</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>Minha Instância</span>
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", padding: "1px 7px", borderRadius: 99, fontWeight: 600, marginLeft: "auto" }}>Conectada</span>
                       </div>
 
                       {/* Instance ID */}
                       <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "hsl(var(--success-soft))", border: "1.5px solid hsl(var(--primary))", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "hsl(var(--primary))", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
                             3C1B2A3D4E5F6G7H8I9J...
                           </div>
-                          <div style={{ background: "hsl(var(--primary))", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "hsl(var(--primary))", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
 
                       {/* Token */}
                       <div>
-                        <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "hsl(var(--success-soft))", border: "1.5px solid hsl(var(--primary))", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "hsl(var(--primary))", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
                             F9G8H7I6J5K4L3M2N1O0...
                           </div>
-                          <div style={{ background: "hsl(var(--primary))", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "hsl(var(--primary))", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
                       </div>
                     </div>
                   </div>
@@ -3928,8 +3928,8 @@ function ConexoesSection() {
               {/* ── Slide 2: Client-Token ── */}
               {tutStep === 1 && (
                 <>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 2 }}>Onde fica o Client-Token?</p>
-                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 10, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Client-Token?</p>
+                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
                     O Client-Token é um token de segurança da <strong>sua conta</strong> (não da instância). Fica nas configurações de segurança.
                   </p>
 
@@ -3937,40 +3937,40 @@ function ConexoesSection() {
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
                     {["app.z-api.io", "Seu avatar (topo)", "Segurança", "Token de Segurança da Conta"].map((item, i) => (
                       <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 10, background: "hsl(var(--success-soft))", color: "hsl(var(--primary))", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
-                        {i < 3 && <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 700 }}>›</span>}
+                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 3 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
                       </span>
                     ))}
                   </div>
 
                   {/* Mockup visual da tela de segurança */}
-                  <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
                     {/* Barra do browser */}
                     <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
-                      <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/security</span>
+                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/security</span>
                     </div>
                     {/* Conteúdo mockup */}
-                    <div style={{ background: "hsl(var(--card))", padding: "14px 16px" }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: 4 }}>Token de Segurança da Conta</p>
-                      <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 12, lineHeight: 1.4 }}>Adiciona uma camada extra de proteção às suas instâncias.</p>
+                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#111", marginBottom: 4 }}>Token de Segurança da Conta</p>
+                      <p style={{ fontSize: 10, color: "#888", marginBottom: 12, lineHeight: 1.4 }}>Adiciona uma camada extra de proteção às suas instâncias.</p>
 
                       {/* Client-Token field */}
                       <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
+                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "hsl(var(--success-soft))", border: "1.5px solid hsl(var(--primary))", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "hsl(var(--primary))", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
                             Bearer A1B2C3D4E5F6G7H8...
                           </div>
-                          <div style={{ background: "hsl(var(--primary))", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "hsl(var(--primary))", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
 
                       {/* Botão Configurar */}
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "hsl(var(--primary))", borderRadius: 8, padding: "6px 14px" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#128A68", borderRadius: 8, padding: "6px 14px" }}>
                         <span style={{ fontSize: 11, color: "#FFF", fontWeight: 600 }}>⚙ Configurar Agora</span>
                       </div>
                       <p style={{ fontSize: 9, color: "#E24B4A", fontWeight: 600, marginTop: 6 }}>👆 Se ainda não ativou, clique aqui primeiro</p>
@@ -3991,7 +3991,7 @@ function ConexoesSection() {
                   }}
                   style={{ accentColor: "#128A68", width: 14, height: 14, flexShrink: 0 }}
                 />
-                <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Não mostrar novamente</span>
+                <span style={{ fontSize: 12, color: "#888" }}>Não mostrar novamente</span>
               </label>
 
               <DialogFooter className="mt-4">
@@ -4083,9 +4083,9 @@ function ConexoesSection() {
           {step === "creds" && wizardProvider !== "dapi" && (
             <>
               {/* Banner informativo */}
-              <div style={{ background: "hsl(var(--muted))", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
-                <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--success-soft-fg))", marginBottom: 4 }}>Intervalo entre as mensagens</p>
-                <p style={{ fontSize: 11, fontWeight: 400, color: "hsl(var(--success-soft-fg))", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
+              <div style={{ background: "#F0FAF6", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "#0D5C3A", marginBottom: 4 }}>Intervalo entre as mensagens</p>
+                <p style={{ fontSize: 11, fontWeight: 400, color: "#376B55", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
               </div>
               <div className="space-y-3">
                 <div>
@@ -4132,9 +4132,9 @@ function ConexoesSection() {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 12 }}>
+              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
                 Ao continuar, você concorda com nossos{" "}
-                <button onClick={() => setShowTerms(true)} style={{ color: "hsl(var(--primary))", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
                   Termos de Uso
                 </button>.
               </p>
@@ -4161,7 +4161,7 @@ function ConexoesSection() {
                 ) : qrSrc ? (
                   <img src={qrSrc} alt="QR Code WhatsApp" className="w-52 h-52 rounded-xl border border-card-border object-contain" />
                 ) : (
-                  <div className="w-52 h-52 bg-[hsl(var(--muted))] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
+                  <div className="w-52 h-52 bg-[#FEF2F2] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
                     <p className="text-xs text-[#E24B4A] font-medium text-center">Falha ao carregar o QR Code</p>
                     <Button size="sm" variant="outline" className="text-xs h-7 border-card-border" onClick={() => fetchQr(form)}>
                       Tentar novamente
@@ -4198,7 +4198,7 @@ function ConexoesSection() {
           <DialogHeader>
             <DialogTitle>Termos de Uso</DialogTitle>
           </DialogHeader>
-          <div style={{ fontSize: 13, color: "hsl(var(--foreground))", lineHeight: 1.7 }} className="space-y-3">
+          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }} className="space-y-3">
             <p>Estes Termos de Uso estabelecem as condições para a utilização do serviço de CRM fornecido pelo Rezult. Ao acessar ou utilizar nossos serviços, você concorda integralmente com estes termos.</p>
             <p><strong>Definições</strong><br />Serviço: Refere-se ao sistema de CRM fornecido pelo Rezult.<br />Usuário: Qualquer indivíduo ou entidade que utilize o serviço.<br />Plataformas de Terceiros: Serviços externos integrados ao nosso sistema, como redes sociais e aplicativos de mensagens.</p>
             <p><strong>Elegibilidade</strong><br />Para utilizar nossos serviços, você deve: Ter pelo menos 18 anos ou possuir autorização legal adequada. Possuir permissão para operar contas nas plataformas de terceiros integradas ao nosso serviço.</p>
@@ -4213,7 +4213,7 @@ function ConexoesSection() {
             <p><strong>Encerramento e Suspensão</strong><br />Podemos suspender ou encerrar seu acesso ao serviço se identificarmos violações a estes termos, atividades suspeitas ou uso inadequado.</p>
             <p><strong>Disposições Gerais</strong><br />Estes termos constituem o acordo completo entre você e o Rezult em relação ao uso do serviço. Caso alguma disposição seja considerada inválida, as demais permanecerão em pleno vigor e efeito.</p>
             <p><strong>Lei Aplicável e Foro</strong><br />Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de Florianópolis, Estado de Santa Catarina, como competente para dirimir quaisquer questões oriundas deste instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
-            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "hsl(var(--primary))" }}>crm@rezultcrm.com</a></p>
+            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "#128A68" }}>crm@rezultcrm.com</a></p>
           </div>
           <DialogFooter className="mt-2">
             <Button className="bg-primary hover:bg-primary/90" onClick={() => setShowTerms(false)}>Fechar</Button>
@@ -4558,11 +4558,11 @@ function ApiSection() {
             <span className="hidden group-open:inline">▼</span>
             Ver exemplo cURL
           </summary>
-          <div className="mt-2 bg-[#1A1A2E] rounded-lg p-4 font-mono text-xs text-[hsl(var(--muted-foreground))] whitespace-pre overflow-x-auto relative">
+          <div className="mt-2 bg-[#1A1A2E] rounded-lg p-4 font-mono text-xs text-[#E0E0E0] whitespace-pre overflow-x-auto relative">
             {curlExample}
             <button
               onClick={() => { navigator.clipboard.writeText(curlExample); toast.success("Copiado!"); }}
-              className="absolute top-2 right-2 p-1.5 rounded bg-card/10 hover:bg-card/20 text-white"
+              className="absolute top-2 right-2 p-1.5 rounded bg-white/10 hover:bg-white/20 text-white"
             >
               <Copy size={12} />
             </button>
@@ -4617,7 +4617,7 @@ function ApiSection() {
               const visible = visibleKeys.has(k.id);
               const masked  = k.key.slice(0, 12) + "••••••••••••••••••••••••";
               return (
-                <div key={k.id} className="flex items-center gap-3 p-3 border border-border rounded-lg">
+                <div key={k.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{k.label}</p>
                     <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
@@ -4834,7 +4834,7 @@ function GoogleSheetsGuide() {
   return (
     <Card>
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "hsl(var(--muted))" }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#E8F5E9" }}>
           <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
             <rect x="6" y="4" width="36" height="40" rx="3" fill="#0F9D58" />
             <rect x="12" y="14" width="24" height="3" rx="1.5" fill="white" opacity="0.9" />
@@ -4846,7 +4846,7 @@ function GoogleSheetsGuide() {
           <p className="text-sm font-semibold text-foreground">Integração via Google Sheets</p>
           <p className="text-xs text-muted-foreground mt-0.5">Meta Lead Ads → Google Sheets → Rezult, sem custo adicional</p>
         </div>
-        <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "hsl(var(--muted))", color: "hsl(var(--success-soft-fg))" }}>
+        <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#E8F5E9", color: "#0F9D58" }}>
           GRATUITO
         </span>
       </div>
@@ -4860,7 +4860,7 @@ function GoogleSheetsGuide() {
       <div className="space-y-3 mb-5">
         {steps.map(s => (
           <div key={s.n} className="flex gap-3">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5" style={{ background: "hsl(var(--primary))", color: "#fff" }}>
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5" style={{ background: "#128A68", color: "#fff" }}>
               {s.n}
             </div>
             <div>
@@ -4879,13 +4879,13 @@ function GoogleSheetsGuide() {
           Ver código do Apps Script
         </summary>
         <div className="relative">
-          <div className="bg-[#1A1A2E] rounded-lg p-4 font-mono text-[11px] text-[hsl(var(--muted-foreground))] whitespace-pre overflow-x-auto leading-relaxed max-h-80 overflow-y-auto">
+          <div className="bg-[#1A1A2E] rounded-lg p-4 font-mono text-[11px] text-[#E0E0E0] whitespace-pre overflow-x-auto leading-relaxed max-h-80 overflow-y-auto">
             {APPS_SCRIPT}
           </div>
           <button
             onClick={handleCopy}
             className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium transition-colors"
-            style={{ background: copied ? "hsl(var(--primary))" : "rgba(255,255,255,0.15)", color: "#fff" }}
+            style={{ background: copied ? "#128A68" : "rgba(255,255,255,0.15)", color: "#fff" }}
           >
             {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
             {copied ? "Copiado!" : "Copiar"}
@@ -4893,9 +4893,9 @@ function GoogleSheetsGuide() {
         </div>
       </details>
 
-      <div className="mt-4 rounded-lg p-3 text-xs leading-relaxed" style={{ background: "hsl(var(--success-soft))", border: "1px solid #BBF7D0", color: "hsl(var(--success-soft-fg))" }}>
+      <div className="mt-4 rounded-lg p-3 text-xs leading-relaxed" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#166534" }}>
         <strong>Dica:</strong> O script detecta automaticamente os campos da planilha por sinônimos em português e inglês
-        (nome, telefone, e-mail). Se sua planilha usar nomes diferentes, edite o objeto <code className="font-mono bg-[hsl(var(--success-soft))] px-1 rounded">FIELD_MAP</code> no código.
+        (nome, telefone, e-mail). Se sua planilha usar nomes diferentes, edite o objeto <code className="font-mono bg-green-100 px-1 rounded">FIELD_MAP</code> no código.
       </div>
     </Card>
   );
@@ -4911,7 +4911,7 @@ function McpSection() {
       </div>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-muted border border-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted border border-gray-200 rounded-lg p-4 font-mono text-xs text-muted-foreground">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -5149,7 +5149,7 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
   const [pw, setPw] = useState("");
   const strength = pw.length === 0 ? 0 : pw.length < 6 ? 1 : pw.length < 10 ? 2 : 3;
   const strengthLabel = ["", "Fraca", "Média", "Forte"][strength];
-  const strengthColor = ["", "#E24B4A", "#F59E0B", "hsl(var(--primary))"][strength];
+  const strengthColor = ["", "#E24B4A", "#F59E0B", "#128A68"][strength];
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-[420px]">
@@ -5162,7 +5162,7 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
             <div>
               <div className="flex gap-1">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-1 flex-1 rounded-full" style={{ backgroundColor: i <= strength ? strengthColor : "hsl(var(--muted))" }} />
+                  <div key={i} className="h-1 flex-1 rounded-full" style={{ backgroundColor: i <= strength ? strengthColor : "#E5E5E5" }} />
                 ))}
               </div>
               <p className="text-xs mt-1" style={{ color: strengthColor }}>{strengthLabel}</p>

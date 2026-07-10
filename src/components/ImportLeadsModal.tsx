@@ -223,8 +223,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
               </>
             ) : parseError ? (
               <>
-                <AlertCircle size={28} className="mx-auto mb-2 text-[hsl(var(--destructive-soft-fg))]" />
-                <p className="text-sm font-medium text-[hsl(var(--destructive-soft-fg))]">{parseError}</p>
+                <AlertCircle size={28} className="mx-auto mb-2 text-red-500" />
+                <p className="text-sm font-medium text-red-600">{parseError}</p>
                 <p className="text-xs text-muted-foreground mt-1">{file.name}</p>
               </>
             ) : (
@@ -347,8 +347,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                           style={{
                             background:   active ? tag.color + "22" : "transparent",
-                            borderColor:  active ? tag.color : "hsl(var(--border))",
-                            color:        active ? tag.color : "hsl(var(--muted-foreground))",
+                            borderColor:  active ? tag.color : "#DDDDDD",
+                            color:        active ? tag.color : "#666",
                           }}
                         >
                           {active && <X size={10} />}
@@ -369,7 +369,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                     {teamMembers.map(name => {
                       const selected = selectedResponsibles.includes(name);
                       const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "hsl(var(--muted-foreground))";
+                      const color = memberColors[name] ?? "#AAAAAA";
                       return (
                         <button
                           key={name}

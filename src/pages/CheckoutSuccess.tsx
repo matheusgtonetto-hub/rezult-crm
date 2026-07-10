@@ -43,7 +43,7 @@ export default function CheckoutSuccessPage() {
   const isStillLoading = loading || (!subscription && attempts < 6);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: "hsl(var(--muted))" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: "#F0F4F8" }}>
       <div
         className="w-full max-w-md bg-card rounded-2xl p-8 text-center"
         style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}
@@ -60,8 +60,8 @@ export default function CheckoutSuccessPage() {
         ) : (
           <>
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-[hsl(var(--success-soft))] flex items-center justify-center">
-                <CheckCircle2 size={36} className="text-[hsl(var(--success-soft-fg))]" />
+              <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
+                <CheckCircle2 size={36} className="text-emerald-500" />
               </div>
             </div>
 

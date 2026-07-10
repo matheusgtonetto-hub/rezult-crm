@@ -20,7 +20,7 @@ const CARD_DEFS: { key: DisparoItemStatus; title: string; sub: string; icon: typ
   { key: "pendente",     title: "Pendentes",     sub: "Itens adicionados no fluxo",           icon: Loader, color: "#F97316" },
   { key: "em_execucao",  title: "Em execução",   sub: "Itens que iniciaram o fluxo",          icon: Play, color: "#0EA5E9" },
   { key: "concluido",    title: "Concluídos",    sub: "Itens que concluíram o fluxo",         icon: CheckCircle2, color: "#16A34A" },
-  { key: "erro",         title: "Com erro",      sub: "Itens que ocorreram erro",             icon: XCircle, color: "hsl(var(--destructive-soft-fg))" },
+  { key: "erro",         title: "Com erro",      sub: "Itens que ocorreram erro",             icon: XCircle, color: "#DC2626" },
 ];
 
 function summarizeFilter(f: LeadFilter): string[] {

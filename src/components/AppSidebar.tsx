@@ -210,7 +210,7 @@ export function AppSidebar() {
                   width: 14,
                   height: 14,
                   fontSize: 7,
-                  background: "hsl(var(--card))",
+                  background: "#FFFFFF",
                   color: "hsl(var(--primary))",
                 }}
               >
@@ -410,8 +410,8 @@ export function AppSidebar() {
                   key={n.id}
                   className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
                 >
-                  <div className="mt-0.5 w-7 h-7 rounded-full bg-[hsl(var(--warning-soft))] flex items-center justify-center shrink-0">
-                    <Bell size={14} className="text-[hsl(var(--warning-soft-fg))]" />
+                  <div className="mt-0.5 w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                    <Bell size={14} className="text-orange-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground leading-snug">Automação</p>
@@ -509,7 +509,7 @@ export function AppSidebar() {
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: profile?.avatar_url ? "transparent" : "hsl(var(--card))",
+                  background: profile?.avatar_url ? "transparent" : "#FFFFFF",
                   color: "hsl(var(--primary))",
                   marginTop: 4,
                 }}

@@ -176,11 +176,11 @@ function PermissionsEditor({ permissions, onChange }: { permissions: string[]; o
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-border rounded-[8px] overflow-hidden bg-card">
+          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
             >
               <div className="flex-1 text-left">
                 <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
@@ -198,7 +198,7 @@ function PermissionsEditor({ permissions, onChange }: { permissions: string[]; o
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-card hover:bg-muted"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
                     >
                       <input
                         type="checkbox"
@@ -348,7 +348,7 @@ export default function SetupPage() {
 
   return (
     <>
-      <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "hsl(var(--muted))" }}>
+      <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "#EFF5F2" }}>
         <div className={cn(
           "relative rounded-[7px] p-[1px] overflow-hidden w-full",
           step === 2 ? "max-w-[1100px]" : "max-w-[1000px]"
@@ -357,7 +357,7 @@ export default function SetupPage() {
           <div
             className="absolute inset-[-100%]"
             style={{
-              background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, hsl(var(--primary)) 65%, #4ade80 75%, hsl(var(--primary)) 85%, transparent 95%)",
+              background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
               animation: "spin-border 4s linear infinite",
             }}
           />
@@ -425,10 +425,10 @@ export default function SetupPage() {
               {/* ── Step 1: Invite ── */}
               {step === 1 && (
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="w-14 h-14 rounded-full bg-[hsl(var(--success-soft))] flex items-center justify-center mb-4">
-                    <Users size={26} className="text-[hsl(var(--success-soft-fg))]" />
+                  <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+                    <Users size={26} className="text-emerald-600" />
                   </div>
-                  <p className="text-[14px] text-muted-foreground max-w-sm mb-[30px]" style={{ fontWeight: 500 }}>{subtitle}</p>
+                  <p className="text-[14px] text-gray-500 max-w-sm mb-[30px]" style={{ fontWeight: 500 }}>{subtitle}</p>
                   <Button
                     type="button"
                     className="h-auto py-[10px] px-5 rounded-[5px] font-semibold gap-2"
@@ -444,7 +444,7 @@ export default function SetupPage() {
               {step === 2 && (
                 <div className="mt-1">
                   {/* Billing tabs */}
-                  <div className="flex gap-[3px] p-[3px] rounded-full bg-card border border-primary w-fit mb-3 mx-auto">
+                  <div className="flex gap-[3px] p-[3px] rounded-full bg-white border border-primary w-fit mb-3 mx-auto">
                     {(["anual", "semestral", "mensal"] as BillingTab[]).map((tab) => (
                       <button
                         key={tab}
@@ -470,8 +470,8 @@ export default function SetupPage() {
                         <div
                           key={plan.key}
                           className={cn(
-                            "relative flex flex-col rounded-[7px] border bg-card p-4 transition-all",
-                            plan.badge ? "border-primary" : "border-border"
+                            "relative flex flex-col rounded-[7px] border bg-white p-4 transition-all",
+                            plan.badge ? "border-primary" : "border-gray-300"
                           )}
                         >
                           {plan.badge && (
@@ -484,7 +484,7 @@ export default function SetupPage() {
                           <div className="flex items-center gap-1.5 min-w-0">
                             <h3 className="text-[16px] font-bold text-foreground shrink-0">{plan.name}</h3>
                             {save && (
-                              <span className="inline-flex items-center text-[10px] font-medium text-[hsl(var(--success-soft-fg))] bg-[hsl(var(--success-soft))] rounded-[8px] px-1.5 py-0.5 truncate">
+                              <span className="inline-flex items-center text-[10px] font-medium text-emerald-700 bg-emerald-50 rounded-[8px] px-1.5 py-0.5 truncate">
                                 <span className="truncate">Economize {save}</span>
                               </span>
                             )}
@@ -572,7 +572,7 @@ export default function SetupPage() {
 
       {/* ── Confirmation dialog ── */}
       <Dialog open={!!confirmPlan} onOpenChange={v => { if (!v) setConfirmPlan(null); }}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-card">
+        <DialogContent className="max-w-[400px] rounded-[7px] bg-white">
           <DialogHeader>
             <DialogTitle className="text-[16px]">Confirmar seleção de plano</DialogTitle>
           </DialogHeader>
@@ -583,7 +583,7 @@ export default function SetupPage() {
               const total = billingTab !== "mensal" ? SETUP_PLAN_TOTALS[confirmPlan]?.[billingTab as "semestral" | "anual"] : null;
               return (
                 <>
-                  <div className="flex items-center justify-between py-3 border-y border-border">
+                  <div className="flex items-center justify-between py-3 border-y border-gray-100">
                     <div>
                       <p className="text-[13px] font-semibold text-foreground">{plan.name} — {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">{price}/mês</p>
@@ -608,9 +608,9 @@ export default function SetupPage() {
 
       {/* ── Success dialog ── */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-card text-center">
+        <DialogContent className="max-w-[400px] rounded-[7px] bg-white text-center">
           <div className="flex flex-col items-center py-4 gap-4">
-            <div className="w-16 h-16 rounded-full bg-[hsl(var(--success-soft))] flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
               <CircleCheck size={36} className="fill-primary stroke-white" />
             </div>
             <div>
@@ -628,7 +628,7 @@ export default function SetupPage() {
 
       {/* ── Invite modal ── */}
       <Dialog open={inviteOpen} onOpenChange={v => { if (!v) { setInviteOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
@@ -640,14 +640,14 @@ export default function SetupPage() {
                 placeholder="joao@empresa.com"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoFocus
               />
             </div>
 
             <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
 
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[hsl(var(--muted))]" : "border-border bg-card hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
               <div className="flex-1">
                 <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
                   <Crown size={12} className="inline mr-1" />

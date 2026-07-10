@@ -226,10 +226,10 @@ export default function PilotPage() {
       {/* COLUNA 1 — HISTÓRICO */}
       <div
         className={`${historyOpen ? "w-[240px]" : "w-0"} transition-[width] duration-250 overflow-hidden shrink-0 border-r`}
-        style={{ borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--muted))" }}
+        style={{ borderColor: "#E5E5E5", backgroundColor: "hsl(var(--muted))" }}
       >
         <div className="w-[240px] h-full flex flex-col">
-          <div className="p-3 flex items-center justify-between border-b" style={{ borderColor: "hsl(var(--border))" }}>
+          <div className="p-3 flex items-center justify-between border-b" style={{ borderColor: "#E5E5E5" }}>
             <button
               onClick={newConversation}
               className="flex items-center gap-2 text-[13px] font-medium hover:opacity-80"
@@ -258,7 +258,7 @@ export default function PilotPage() {
               />
             ))}
 
-            <div className="my-3 border-t" style={{ borderColor: "hsl(var(--border))" }} />
+            <div className="my-3 border-t" style={{ borderColor: "#E5E5E5" }} />
 
             {/* Claude */}
             <p className="text-[10px] uppercase font-semibold px-2 py-2" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -270,7 +270,7 @@ export default function PilotPage() {
                 conv={c}
                 active={activeId === c.id}
                 accent="#111111"
-                icon={<Diamond size={10} style={{ color: "hsl(var(--foreground))" }} />}
+                icon={<Diamond size={10} style={{ color: "#111111" }} />}
                 onSelect={() => selectConversation(c)}
                 onDelete={() => deleteConversation(c.id)}
               />
@@ -282,7 +282,7 @@ export default function PilotPage() {
       {/* COLUNA 2 — CHAT */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-start justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "hsl(var(--border))" }}>
+        <div className="flex items-start justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "#E5E5E5" }}>
           <div className="flex items-start gap-2 w-[200px]">
             {!historyOpen && (
               <button
@@ -301,7 +301,7 @@ export default function PilotPage() {
           <div className="flex flex-col items-center flex-1">
             <div className="flex items-center gap-2">
               <Sparkles size={18} style={{ color: accent }} />
-              <h1 className="text-[18px] font-bold" style={{ color: "hsl(var(--foreground))" }}>Pilot</h1>
+              <h1 className="text-[18px] font-bold" style={{ color: "#111111" }}>Pilot</h1>
             </div>
             <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>
               Seu agente de inteligência comercial
@@ -310,7 +310,7 @@ export default function PilotPage() {
             <div className="flex items-center justify-center mt-3">
               <div
                 className="flex items-center rounded-full p-1 border"
-                style={{ backgroundColor: "hsl(var(--muted))", borderColor: "hsl(var(--border))" }}
+                style={{ backgroundColor: "hsl(var(--muted))", borderColor: "#E5E5E5" }}
               >
                 <button
                   onClick={() => setMode("agent")}
@@ -365,7 +365,7 @@ export default function PilotPage() {
                 >
                   {isAgent ? "RZ" : <Diamond size={28} />}
                 </div>
-                <h2 className="text-[24px] font-bold" style={{ color: "hsl(var(--foreground))" }}>
+                <h2 className="text-[24px] font-bold" style={{ color: "#111111" }}>
                   Como posso ajudar hoje?
                 </h2>
                 <p className="text-[13px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -380,16 +380,16 @@ export default function PilotPage() {
                       className="text-left px-4 py-3.5 rounded-xl border text-[13px] transition-colors"
                       style={{
                         backgroundColor: "hsl(var(--muted))",
-                        borderColor: "hsl(var(--border))",
+                        borderColor: "#E5E5E5",
                         color: "hsl(var(--muted-foreground))",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = accent;
                         e.currentTarget.style.color = accent;
-                        e.currentTarget.style.backgroundColor = isAgent ? "hsl(var(--muted))" : "hsl(var(--muted))";
+                        e.currentTarget.style.backgroundColor = isAgent ? "#E1F5EE" : "hsl(var(--muted))";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "hsl(var(--border))";
+                        e.currentTarget.style.borderColor = "#E5E5E5";
                         e.currentTarget.style.color = "hsl(var(--muted-foreground))";
                         e.currentTarget.style.backgroundColor = "hsl(var(--muted))";
                       }}
@@ -421,14 +421,14 @@ export default function PilotPage() {
                               : isAgent
                               ? "hsl(var(--secondary))"
                               : "hsl(var(--muted))",
-                          color: m.role === "user" ? "#FFFFFF" : "hsl(var(--foreground))",
+                          color: m.role === "user" ? "#FFFFFF" : "#111111",
                           borderRadius:
                             m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
                         }}
                       >
                         {renderMarkdown(m.content)}
                       </div>
-                      <span className="text-[11px] mt-1 px-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      <span className="text-[11px] mt-1 px-1" style={{ color: "#CCCCCC" }}>
                         {formatTime(m.timestamp)}
                       </span>
                     </div>
@@ -466,13 +466,13 @@ export default function PilotPage() {
         </div>
 
         {/* Input */}
-        <div className="border-t bg-background px-4 py-3 shrink-0" style={{ borderColor: "hsl(var(--border))" }}>
+        <div className="border-t bg-background px-4 py-3 shrink-0" style={{ borderColor: "#E5E5E5" }}>
           <div className="max-w-[720px] mx-auto flex items-end gap-2">
             <div
               className="flex-1 border rounded-xl px-4 py-3 transition-colors focus-within:border-2"
               style={{
                 backgroundColor: "hsl(var(--muted))",
-                borderColor: "hsl(var(--border))",
+                borderColor: "#E5E5E5",
               }}
               onFocus={(e) => (e.currentTarget.style.borderColor = accent)}
             >
@@ -481,7 +481,7 @@ export default function PilotPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onFocus={(e) => (e.currentTarget.parentElement!.style.borderColor = accent)}
-                onBlur={(e) => (e.currentTarget.parentElement!.style.borderColor = "hsl(var(--border))")}
+                onBlur={(e) => (e.currentTarget.parentElement!.style.borderColor = "#E5E5E5")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -491,7 +491,7 @@ export default function PilotPage() {
                 rows={1}
                 placeholder={isAgent ? "Pergunte ao seu agente..." : "Pergunte ao Claude..."}
                 className="w-full bg-transparent resize-none outline-none text-[14px] max-h-[112px]"
-                style={{ fontFamily: "Plus Jakarta Sans, system-ui, sans-serif", color: "hsl(var(--foreground))" }}
+                style={{ fontFamily: "Plus Jakarta Sans, system-ui, sans-serif", color: "#111111" }}
               />
             </div>
             <button
@@ -499,7 +499,7 @@ export default function PilotPage() {
               disabled={!input.trim()}
               className="w-9 h-9 rounded-[10px] flex items-center justify-center transition-colors disabled:cursor-not-allowed"
               style={{
-                backgroundColor: input.trim() ? accent : "hsl(var(--muted))",
+                backgroundColor: input.trim() ? accent : "#E5E5E5",
                 color: input.trim() ? "#FFFFFF" : "hsl(var(--muted-foreground))",
               }}
               aria-label="Enviar"
@@ -513,14 +513,14 @@ export default function PilotPage() {
       {/* COLUNA 3 — RELATÓRIOS */}
       <div
         className={`${reportsOpen ? "w-[280px]" : "w-0"} transition-[width] duration-250 overflow-hidden shrink-0 border-l`}
-        style={{ borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}
+        style={{ borderColor: "#E5E5E5", backgroundColor: "#FFFFFF" }}
       >
         <div className="w-[280px] h-full flex flex-col">
           {/* Header */}
-          <div className="p-3 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+          <div className="p-3 border-b" style={{ borderColor: "#E5E5E5" }}>
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="text-[14px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>Relatórios</h3>
+                <h3 className="text-[14px] font-semibold" style={{ color: "#111111" }}>Relatórios</h3>
                 <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>Gerado pelo seu agente</p>
               </div>
               <button onClick={() => setReportsOpen(false)} style={{ color: "hsl(var(--muted-foreground))" }} className="hover:text-foreground">
@@ -566,17 +566,17 @@ export default function PilotPage() {
                   <span>Score geral</span>
                   <span className="font-semibold">8.2 / 10</span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "hsl(var(--card))" }}>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#FFFFFF" }}>
                   <div className="h-full rounded-full" style={{ width: "82%", backgroundColor: "hsl(var(--primary))" }} />
                 </div>
               </div>
             </div>
 
             {/* Insights */}
-            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}>
+            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "#E5E5E5", backgroundColor: "#FFFFFF" }}>
               <div className="flex items-center gap-1.5 mb-3">
                 <Lightbulb size={14} style={{ color: "#F59E0B" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>Insights</span>
+                <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Insights</span>
               </div>
               <div className="space-y-2.5">
                 <Insight icon={<Check size={11} style={{ color: "hsl(var(--primary))" }} />} text="Meta diária atingida: 8 abordagens realizadas" time="hoje 18h00" />
@@ -587,10 +587,10 @@ export default function PilotPage() {
             </div>
 
             {/* Dica */}
-            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--muted))" }}>
+            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "#E5E5E5", backgroundColor: "#FAFAFA" }}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Star size={14} style={{ color: "#8B5CF6" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>Dica do dia</span>
+                <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Dica do dia</span>
               </div>
               <p className="text-[13px] leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
                 Baseado no seu histórico, leads que respondem em menos de 2 horas têm 3x mais chance de fechar. Tente responder o Carlos ainda hoje.
@@ -598,10 +598,10 @@ export default function PilotPage() {
             </div>
 
             {/* Próximas ações */}
-            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}>
+            <div className="rounded-xl border p-3.5 mb-3" style={{ borderColor: "#E5E5E5", backgroundColor: "#FFFFFF" }}>
               <div className="flex items-center gap-1.5 mb-3">
                 <CheckCircle2 size={14} style={{ color: "hsl(var(--primary))" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>Próximas ações</span>
+                <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>Próximas ações</span>
               </div>
               <div className="space-y-2">
                 {actions.map((a) => (
@@ -612,7 +612,7 @@ export default function PilotPage() {
                       }
                       className="w-4 h-4 rounded border flex items-center justify-center shrink-0"
                       style={{
-                        borderColor: a.done ? "hsl(var(--primary))" : "hsl(var(--border))",
+                        borderColor: a.done ? "hsl(var(--primary))" : "#CCCCCC",
                         backgroundColor: a.done ? "hsl(var(--primary))" : "transparent",
                       }}
                     >
@@ -621,7 +621,7 @@ export default function PilotPage() {
                     <span
                       className="flex-1 text-[12px]"
                       style={{
-                        color: a.done ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
+                        color: a.done ? "hsl(var(--muted-foreground))" : "#111111",
                         textDecoration: a.done ? "line-through" : "none",
                       }}
                     >
@@ -630,8 +630,8 @@ export default function PilotPage() {
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                       style={{
-                        backgroundColor: a.priority === "Alta" ? "hsl(var(--destructive-soft))" : "hsl(var(--warning-soft))",
-                        color: a.priority === "Alta" ? "#E24B4A" : "hsl(var(--warning-soft-fg))",
+                        backgroundColor: a.priority === "Alta" ? "#FEE2E2" : "#FEF3C7",
+                        color: a.priority === "Alta" ? "#E24B4A" : "#B45309",
                       }}
                     >
                       {a.priority}
@@ -643,12 +643,12 @@ export default function PilotPage() {
           </div>
 
           {/* Footer */}
-          <div className="p-3 border-t" style={{ borderColor: "hsl(var(--border))" }}>
+          <div className="p-3 border-t" style={{ borderColor: "#E5E5E5" }}>
             <p className="text-[11px] mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
               Última atualização: hoje às 18h32
             </p>
             <button
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-medium hover:bg-[hsl(var(--muted))]"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-medium hover:bg-[#E1F5EE]"
               style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}
             >
               <RefreshCw size={12} /> Atualizar
@@ -680,11 +680,11 @@ function ConvItem({
       onClick={onSelect}
       className="group flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors"
       style={{
-        backgroundColor: active ? "hsl(var(--success-soft))" : "transparent",
-        color: active ? accent : "hsl(var(--foreground))",
+        backgroundColor: active ? "#E1F5EE" : "transparent",
+        color: active ? accent : "#111111",
       }}
       onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.backgroundColor = "hsl(var(--muted))";
+        if (!active) e.currentTarget.style.backgroundColor = "#EBEBEB";
       }}
       onMouseLeave={(e) => {
         if (!active) e.currentTarget.style.backgroundColor = "transparent";
@@ -711,7 +711,7 @@ function ConvItem({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg p-2" style={{ backgroundColor: "hsl(var(--card))" }}>
+    <div className="rounded-lg p-2" style={{ backgroundColor: "#FFFFFF" }}>
       <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
       <p className="text-[15px] font-bold" style={{ color: "hsl(var(--primary))" }}>{value}</p>
     </div>
@@ -723,7 +723,7 @@ function Insight({ icon, text, time }: { icon: React.ReactNode; text: string; ti
     <div className="flex gap-2">
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] leading-snug" style={{ color: "hsl(var(--foreground))" }}>{text}</p>
+        <p className="text-[12px] leading-snug" style={{ color: "#111111" }}>{text}</p>
         <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{time}</p>
       </div>
     </div>

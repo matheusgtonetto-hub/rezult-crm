@@ -13,7 +13,7 @@ interface KpiCardProps {
 
 export function KpiCard({ label, value, sub, conv, icon: Icon, color, deltaPct }: KpiCardProps) {
   return (
-    <div className="bg-card rounded-xl p-4 border border-border">
+    <div className="bg-card rounded-xl p-4 border border-gray-200">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</span>
         <Icon size={15} className={color} />

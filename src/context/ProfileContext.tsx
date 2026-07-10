@@ -21,10 +21,7 @@ interface ProfileContextType {
 }
 
 function applyTheme(theme?: "light" | "dark") {
-  const isDark = theme === "dark";
-  document.documentElement.classList.toggle("dark", isDark);
-  // Persiste para aplicar instantaneamente no próximo carregamento (evita flash e "volta ao claro")
-  try { localStorage.setItem("theme", isDark ? "dark" : "light"); } catch { /* ignore */ }
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
@@ -72,10 +69,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(data as Profile);
         }
-        // Usa o tema do banco se existir; senão mantém a escolha local (localStorage).
-        // Evita "voltar ao claro" no refresh caso o save do tema não tenha persistido.
-        const stored = (localStorage.getItem("theme") as "light" | "dark" | null) ?? undefined;
-        applyTheme(data.theme ?? stored);
+        applyTheme(data.theme);
       } else {
         // No profile row yet — create it using auth metadata
         const name = metaName || authEmail.split("@")[0];

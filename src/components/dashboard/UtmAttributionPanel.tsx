@@ -29,7 +29,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
   const restCount = rows.length - top.length;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-gray-200 rounded-xl p-4">
       <h3 className="text-sm font-semibold text-foreground mb-1">Atribuição por campanha (UTM)</h3>
       <p className="text-xs text-muted-foreground mb-4">Origem e campanha declaradas no lead, ordenadas por receita.</p>
       {rows.length === 0 ? (

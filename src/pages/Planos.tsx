@@ -144,14 +144,14 @@ export default function PlanosPage() {
 
   if (companyLoading || subLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--muted))" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F0F4F8" }}>
         <Loader2 size={32} className="animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "hsl(var(--muted))" }}>
+    <div className="min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "#F0F4F8" }}>
       {/* Header */}
       <div className="w-full max-w-7xl flex items-center justify-between mb-8">
         <Logo size="md" showIcon />
@@ -195,8 +195,8 @@ export default function PlanosPage() {
                   className={cn(
                     "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
                     billingPeriod === period
-                      ? "bg-card/20 text-white"
-                      : "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-soft-fg))]"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-100 text-emerald-700"
                   )}
                 >
                   {discount}
@@ -220,7 +220,7 @@ export default function PlanosPage() {
                 "relative flex flex-col rounded-2xl border p-8 bg-card transition-all",
                 plan.badge
                   ? "border-primary shadow-md shadow-primary/10"
-                  : "border-border"
+                  : "border-gray-200"
               )}
             >
               {/* Popular badge */}
@@ -243,25 +243,25 @@ export default function PlanosPage() {
                 )}
               </div>
               {billingPeriod === "monthly" && (
-                <p className="text-xs font-medium text-[hsl(var(--success-soft-fg))] mb-1">
+                <p className="text-xs font-medium text-emerald-600 mb-1">
                   cobrança mensal recorrente
                 </p>
               )}
               {billingPeriod === "semiannual" && (
-                <p className="text-xs font-medium text-[hsl(var(--success-soft-fg))] mb-1">
+                <p className="text-xs font-medium text-emerald-600 mb-1">
                   cobrança semestral · equivale {plan.monthlyEquiv.semiannual}/mês
                 </p>
               )}
               {billingPeriod === "annual" && (
-                <p className="text-xs font-medium text-[hsl(var(--success-soft-fg))] mb-1">
+                <p className="text-xs font-medium text-emerald-600 mb-1">
                   cobrança anual · equivale {plan.monthlyEquiv.annual}/mês
                 </p>
               )}
 
               {/* Discount badge */}
               {PERIOD_DISCOUNT[billingPeriod] ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[hsl(var(--success-soft-fg))] bg-[hsl(var(--success-soft))] border border-emerald-200 rounded-full px-2 py-0.5 w-fit mb-4">
-                  <Zap size={10} className="text-[hsl(var(--success-soft-fg))]" />
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit mb-4">
+                  <Zap size={10} className="text-emerald-600" />
                   {PERIOD_DISCOUNT[billingPeriod]} de desconto
                 </span>
               ) : (
@@ -276,7 +276,7 @@ export default function PlanosPage() {
                       size={13}
                       className={cn(
                         "mt-0.5 shrink-0",
-                        plan.badge ? "text-primary" : "text-[hsl(var(--success-soft-fg))]"
+                        plan.badge ? "text-primary" : "text-emerald-600"
                       )}
                     />
                     {f}

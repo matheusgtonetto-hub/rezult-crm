@@ -15,9 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 const DEFAULT_COLUMNS = [
-  { id: "col-novo", title: "Novo", color: "hsl(var(--muted-foreground))" },
+  { id: "col-novo", title: "Novo", color: "#AAAAAA" },
   { id: "col-andamento", title: "Em andamento", color: "#378ADD" },
-  { id: "col-fechado", title: "Fechado", color: "hsl(var(--primary))" },
+  { id: "col-fechado", title: "Fechado", color: "#128A68" },
 ];
 
 export function PipelineSidebar() {
@@ -98,7 +98,7 @@ export function PipelineSidebar() {
   };
 
   return (
-    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10 border-r border-border">
+    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10 border-r border-gray-200">
       <div className="px-4 pt-4 pb-3 border-b border-card-border space-y-3">
         <p className="text-base font-semibold text-foreground tracking-tight text-center">Pipelines</p>
         <Button
