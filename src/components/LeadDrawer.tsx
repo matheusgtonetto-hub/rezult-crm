@@ -95,18 +95,18 @@ function colorFromName(name: string): string {
 }
 
 const ACT_META: Record<ActivityType, { color: string; bg: string; label: string; Icon: typeof StickyNote }> = {
-  note:         { color: "hsl(var(--muted-foreground))",    bg: "hsl(var(--muted))", label: "Anotação",        Icon: StickyNote },
-  stage_change: { color: "#378ADD", bg: "hsl(var(--muted))", label: "Etapa alterada",  Icon: ArrowRightLeft },
-  whatsapp:     { color: "hsl(var(--primary))", bg: "hsl(var(--muted))", label: "WhatsApp",        Icon: MessageCircle },
+  note:         { color: "#666",    bg: "#F5F5F5", label: "Anotação",        Icon: StickyNote },
+  stage_change: { color: "#378ADD", bg: "#EBF3FC", label: "Etapa alterada",  Icon: ArrowRightLeft },
+  whatsapp:     { color: "#128A68", bg: "#E6F5F0", label: "WhatsApp",        Icon: MessageCircle },
   won:          { color: "#22C55E", bg: "hsl(var(--success-soft))", label: "Ganho",           Icon: Trophy },
   lost:         { color: "#EF4444", bg: "hsl(var(--destructive-soft))", label: "Perdido",         Icon: XCircle },
-  created:      { color: "hsl(var(--muted-foreground))",    bg: "hsl(var(--muted))", label: "Criado",          Icon: PlusCircle },
-  meeting:      { color: "#378ADD", bg: "hsl(var(--muted))", label: "Reunião",         Icon: CalendarDays },
+  created:      { color: "#888",    bg: "#F5F5F5", label: "Criado",          Icon: PlusCircle },
+  meeting:      { color: "#378ADD", bg: "#EBF3FC", label: "Reunião",         Icon: CalendarDays },
   call:         { color: "#22C55E", bg: "hsl(var(--success-soft))", label: "Ligação",         Icon: Phone },
   email:        { color: "#F59E0B", bg: "hsl(var(--warning-soft))", label: "E-mail",          Icon: Mail },
-  follow_up:    { color: "#8B5CF6", bg: "hsl(var(--muted))", label: "Follow-up",       Icon: RefreshCw },
-  task:         { color: "hsl(var(--muted-foreground))",    bg: "hsl(var(--muted))", label: "Tarefa",          Icon: CheckSquare },
-  transfer:     { color: "#8B5CF6", bg: "hsl(var(--muted))", label: "Transferência",   Icon: ArrowLeftRight },
+  follow_up:    { color: "#8B5CF6", bg: "#EDE9FE", label: "Follow-up",       Icon: RefreshCw },
+  task:         { color: "#666",    bg: "#F5F5F5", label: "Tarefa",          Icon: CheckSquare },
+  transfer:     { color: "#8B5CF6", bg: "#EDE9FE", label: "Transferência",   Icon: ArrowLeftRight },
 };
 
 const formatBRL = (v: number) =>
@@ -422,7 +422,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               {/* Manual automation picker */}
               {manualAutoOpen && (
                 <div style={{ marginTop: 8, border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden", background: "hsl(var(--card))" }}>
-                  <div style={{ padding: "8px 12px", background: "hsl(var(--muted))", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ padding: "8px 12px", background: "#F9FAFB", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--foreground))" }}>Executar automação</span>
                     <button onClick={() => setManualAutoOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))", fontSize: 14, lineHeight: 1 }}>✕</button>
                   </div>

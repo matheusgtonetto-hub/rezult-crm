@@ -461,12 +461,12 @@ const MENSAGEM_CATEGORIES: { id: string; label: string; icon: React.ElementType;
 ];
 
 const NOTE_COLORS = [
-  { bg: "hsl(var(--muted))", header: "hsl(var(--warning-soft))", border: "#FDE047", borderSel: "#EAB308", text: "hsl(var(--warning-soft-fg))", headerText: "hsl(var(--warning-soft-fg))" },
-  { bg: "hsl(var(--muted))", header: "hsl(var(--info-soft))", border: "#93C5FD", borderSel: "#3B82F6", text: "hsl(var(--info-soft-fg))", headerText: "hsl(var(--info-soft-fg))" },
-  { bg: "hsl(var(--muted))", header: "hsl(var(--success-soft))", border: "#86EFAC", borderSel: "#22C55E", text: "hsl(var(--success-soft-fg))", headerText: "hsl(var(--success-soft-fg))" },
-  { bg: "hsl(var(--muted))", header: "hsl(var(--purple-soft))", border: "#F472B6", borderSel: "#EC4899", text: "hsl(var(--purple-soft-fg))", headerText: "hsl(var(--purple-soft-fg))" },
-  { bg: "hsl(var(--muted))", header: "hsl(var(--warning-soft))", border: "#FDBA74", borderSel: "#F97316", text: "hsl(var(--destructive-soft-fg))", headerText: "hsl(var(--destructive-soft-fg))" },
-  { bg: "hsl(var(--muted))", header: "hsl(var(--info-soft))", border: "#C4B5FD", borderSel: "#8B5CF6", text: "hsl(var(--purple-soft-fg))", headerText: "hsl(var(--purple-soft-fg))" },
+  { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
+  { bg: "#EFF6FF", header: "#BFDBFE", border: "#93C5FD", borderSel: "#3B82F6", text: "#1E40AF", headerText: "#1D4ED8" },
+  { bg: "#F0FDF4", header: "#BBF7D0", border: "#86EFAC", borderSel: "#22C55E", text: "#14532D", headerText: "#166534" },
+  { bg: "#FDF2F8", header: "#F9A8D4", border: "#F472B6", borderSel: "#EC4899", text: "#831843", headerText: "#9D174D" },
+  { bg: "#FFF7ED", header: "#FED7AA", border: "#FDBA74", borderSel: "#F97316", text: "#7C2D12", headerText: "#9A3412" },
+  { bg: "#FAF5FF", header: "#DDD6FE", border: "#C4B5FD", borderSel: "#8B5CF6", text: "#4C1D95", headerText: "#5B21B6" },
 ];
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };

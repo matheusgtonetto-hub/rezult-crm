@@ -1259,7 +1259,7 @@ export default function LeadDetailPage() {
             >
               <button
                 onClick={() => toggleSection(key)}
-                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[hsl(var(--muted))] transition-colors rounded-t-[10px]"
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
                 style={{ borderLeft: "3px solid hsl(var(--primary))", paddingLeft: 8 }}
               >
                 <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--primary))", letterSpacing: 0.4, textTransform: "uppercase" }}>
@@ -1592,7 +1592,7 @@ export default function LeadDetailPage() {
             >
               <button
                 onClick={() => toggleSection(g.id)}
-                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[hsl(var(--muted))] transition-colors rounded-t-[10px]"
+                className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
                 style={{ borderLeft: "3px solid hsl(var(--primary))", paddingLeft: 8 }}
               >
                 <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--primary))", letterSpacing: 0.4, textTransform: "uppercase" }}>
