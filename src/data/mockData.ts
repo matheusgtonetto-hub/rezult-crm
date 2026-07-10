@@ -74,6 +74,7 @@ export interface Lead {
   activities: Activity[];
   tags?: string[];
   dealStatus?: "open" | "won" | "lost";
+  contactId?: string;
   lossReasonId?: string;
   created_at?: string;
   // Dados pessoais

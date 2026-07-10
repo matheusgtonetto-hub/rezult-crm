@@ -268,6 +268,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       pipelineId: newDealPipeline,
       stage: newDealStage,
       dealStatus: "open",
+      contactId: lead!.id,
       activities: [{
         id: `a-${Date.now()}`,
         date: new Date().toISOString(),

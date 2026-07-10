@@ -185,6 +185,7 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     utmCampaign: (row.utm_campaign as string) ?? undefined,
     utmTerm:     (row.utm_term     as string) ?? undefined,
     utmContent:  (row.utm_content  as string) ?? undefined,
+    contactId:   (row.contact_id   as string) ?? undefined,
     activities,
   };
 }
@@ -811,6 +812,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         state: lead.state || null,
         position,
         status: "open",
+        contact_id: lead.contactId ?? null,
       })
       .select()
       .single();
@@ -903,6 +905,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if ("utmCampaign" in data) dbData.utm_campaign = data.utmCampaign ?? null;
     if ("utmTerm"     in data) dbData.utm_term     = data.utmTerm     ?? null;
     if ("utmContent"  in data) dbData.utm_content  = data.utmContent  ?? null;
+    if ("contactId"   in data) dbData.contact_id   = data.contactId   ?? null;
 
     if (Object.keys(dbData).length > 0) {
       const { error } = await supabase.from("leads").update(dbData).eq("id", id);

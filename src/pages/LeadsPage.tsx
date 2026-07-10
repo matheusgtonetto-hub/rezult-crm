@@ -111,6 +111,7 @@ export default function LeadsPage() {
       dealNumber: nextDealNumber(),
       pipelineId: dealPipeline,
       stage: dealStage,
+      contactId: dealTarget.id,
       activities: [{
         id: `a-${Date.now()}`,
         date: new Date().toISOString().split("T")[0],
@@ -131,12 +132,12 @@ export default function LeadsPage() {
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
-  // Ticket médio e total vendido por contato (agrupa deals ganhos pelo mesmo whatsapp)
-  const ticketByPhone = useMemo(() => {
+  // Ticket médio por contato — chave primária: contactId; fallback: whatsapp digits (legado)
+  const ticketByContact = useMemo(() => {
     const map: Record<string, number[]> = {};
     Object.values(leads).forEach(l => {
-      if (l.dealStatus === "won" && l.value > 0 && l.whatsapp) {
-        const key = l.whatsapp.replace(/\D/g, "");
+      if (l.dealStatus === "won" && l.value > 0) {
+        const key = l.contactId ?? (l.whatsapp ? l.whatsapp.replace(/\D/g, "") : null);
         if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
       }
     });
@@ -334,8 +335,8 @@ export default function LeadsPage() {
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
                         <span className="truncate block">{lead.name}</span>
                         {(() => {
-                          const key = lead.whatsapp?.replace(/\D/g, "");
-                          const avg = (key ? ticketByPhone[key]?.avg : undefined) ?? 0;
+                          const key = lead.id in ticketByContact ? lead.id : (lead.whatsapp?.replace(/\D/g, "") ?? null);
+                          const avg = (key ? ticketByContact[key]?.avg : undefined) ?? 0;
                           return (
                             <span style={{ fontSize: 9, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
                               Ticket médio <span className="text-green-600 ml-1">{fmtBRL(avg)}</span>
