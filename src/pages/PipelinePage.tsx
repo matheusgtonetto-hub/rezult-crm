@@ -372,12 +372,14 @@ export default function PipelinePage() {
         });
         if (search) {
           const q = search.toLowerCase();
+          const qDigits = q.replace(/\D/g, "");
           ids = ids.filter(id => {
             const l = leads[id];
             return (
               l.name.toLowerCase().includes(q) ||
               (l.company || "").toLowerCase().includes(q) ||
-              String(l.dealNumber || "").includes(q)
+              String(l.dealNumber || "").includes(q) ||
+              (qDigits.length >= 3 && (l.whatsapp || "").replace(/\D/g, "").includes(qDigits))
             );
           });
         }
@@ -670,7 +672,7 @@ export default function PipelinePage() {
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Pesquisar por nome, empresa ou #"
+              placeholder="Pesquisar por nome, empresa, telefone ou #"
               className="pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </div>
