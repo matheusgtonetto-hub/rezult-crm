@@ -132,7 +132,7 @@ export default function LeadsPage() {
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
-  // Ticket médio por contato — chave primária: contactId; fallback: whatsapp digits (legado)
+  // Dados de vendas por contato — chave primária: contactId; fallback: whatsapp digits (legado)
   const ticketByContact = useMemo(() => {
     const map: Record<string, number[]> = {};
     Object.values(leads).forEach(l => {
@@ -141,10 +141,10 @@ export default function LeadsPage() {
         if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
       }
     });
-    const result: Record<string, { avg: number; total: number }> = {};
+    const result: Record<string, { avg: number; total: number; count: number }> = {};
     Object.entries(map).forEach(([k, vals]) => {
       const total = vals.reduce((a, b) => a + b, 0);
-      result[k] = { avg: total / vals.length, total };
+      result[k] = { avg: total / vals.length, total, count: vals.length };
     });
     return result;
   }, [leads]);
@@ -312,7 +312,7 @@ export default function LeadsPage() {
                 <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Dados</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
@@ -403,10 +403,25 @@ export default function LeadsPage() {
                       }
                     </div>
                   </TableCell>
-                  <TableCell className="truncate">
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full whitespace-nowrap">
-                      {pipelines.find(p => p.id === lead.pipelineId)?.name || "—"}
-                    </span>
+                  <TableCell>
+                    {(() => {
+                      const key = lead.id in ticketByContact ? lead.id : (lead.whatsapp?.replace(/\D/g, "") ?? null);
+                      const d = key ? ticketByContact[key] : null;
+                      const total = d?.total ?? 0;
+                      const count = d?.count ?? 0;
+                      return (
+                        <div className="flex items-start gap-4">
+                          <div style={{ lineHeight: 1.25 }}>
+                            <div style={{ fontSize: 10 }} className="text-muted-foreground">Total:</div>
+                            <div style={{ fontSize: 12 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
+                          </div>
+                          <div style={{ lineHeight: 1.25 }}>
+                            <div style={{ fontSize: 12 }} className="font-semibold text-foreground">{count}</div>
+                            <div style={{ fontSize: 10 }} className="text-muted-foreground">Compras</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {(() => {
