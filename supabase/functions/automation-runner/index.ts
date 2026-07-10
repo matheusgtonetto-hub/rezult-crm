@@ -1340,7 +1340,7 @@ async function executeFlow(
       if (node.connectionId) {
         const { data: connRow } = await supabase
           .from("whatsapp_connections")
-          .select("instance_id, token, client_token, connected, owner_id")
+          .select("provider, instance_id, token, client_token, connected, owner_id")
           .eq("id", node.connectionId)
           .maybeSingle();
         const conn = connRow as Record<string, unknown> | null;
@@ -1359,6 +1359,7 @@ async function executeFlow(
           instanceId: String(conn.instance_id),
           token: String(conn.token),
           clientToken: conn.client_token ? String(conn.client_token) : null,
+          provider: String(conn.provider) === "dapi" ? "dapi" : "zapi",
         };
       } else {
         const { data: companyData } = await supabase
@@ -1376,6 +1377,7 @@ async function executeFlow(
           instanceId: String(zapi.zapi_instance_id),
           token: String(zapi.zapi_token),
           clientToken: zapi.zapi_client_token ? String(zapi.zapi_client_token) : null,
+          provider: "zapi",
         };
       }
 
@@ -1413,13 +1415,9 @@ async function executeFlow(
               const isLast = i === parts.length - 1;
               // Botões (se houver) vão anexados à última parte, via send-button-list
               if (isLast && buttons.length > 0) {
-                await sendZapi(creds, "send-button-list", {
-                  phone: rawPhone,
-                  message: parts[i],
-                  buttonList: { buttons: buttons.map((label, idx) => ({ id: String(idx + 1), label })) },
-                });
+                await sendWa(creds, { kind: "buttons", phone: rawPhone, message: parts[i], buttons });
               } else {
-                await sendZapi(creds, "send-text", { phone: rawPhone, message: parts[i] });
+                await sendWa(creds, { kind: "text", phone: rawPhone, message: parts[i] });
               }
               // Persiste no histórico de conversas (mesma tabela do multiatendimento)
               await supabase.from("whatsapp_messages").insert({
@@ -1462,16 +1460,16 @@ async function executeFlow(
             if (!fileUrl) { skipped.push(`${sb.type}: sem URL de arquivo`); continue; }
             let msgType = "document";
             if (sb.type === "mensagem_audio") {
-              await sendZapi(creds, "send-audio", { phone: rawPhone, audio: fileUrl });
+              await sendWa(creds, { kind: "audio", phone: rawPhone, url: fileUrl });
               msgType = "audio";
             } else {
               const ext = (fileUrl.split("?")[0].split(".").pop() ?? "").toLowerCase();
               const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp"].includes(ext);
               if (isImage) {
-                await sendZapi(creds, "send-image", { phone: rawPhone, image: fileUrl });
+                await sendWa(creds, { kind: "image", phone: rawPhone, url: fileUrl });
                 msgType = "image";
               } else {
-                await sendZapi(creds, `send-document/${ext || "pdf"}`, { phone: rawPhone, document: fileUrl, fileName: sb.fileName ?? `arquivo.${ext || "pdf"}` });
+                await sendWa(creds, { kind: "document", phone: rawPhone, url: fileUrl, fileName: sb.fileName ?? `arquivo.${ext || "pdf"}`, ext });
               }
             }
             await supabase.from("whatsapp_messages").insert({
@@ -1558,9 +1556,76 @@ async function executeFlow(
 // ─── Z-API (WhatsApp) helper ──────────────────────────────────────────────────
 
 interface ZapiCreds {
-  instanceId: string;
-  token: string;
+  instanceId: string;      // Z-API: instância · D-API: sessionId
+  token: string;           // Z-API: token da instância · D-API: API Key da conta
   clientToken: string | null;
+  provider?: "zapi" | "dapi"; // default: "zapi"
+}
+
+// Mensagem de WhatsApp em formato agnóstico de provedor. sendWa() traduz para
+// a API do provedor correto (Z-API ou D-API) a partir de creds.provider.
+type WaMsg =
+  | { kind: "text"; phone: string; message: string }
+  | { kind: "buttons"; phone: string; message: string; buttons: string[] }
+  | { kind: "audio"; phone: string; url: string }
+  | { kind: "image"; phone: string; url: string }
+  | { kind: "document"; phone: string; url: string; fileName: string; ext: string };
+
+async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<void> {
+  if (creds.provider === "dapi") { await sendDapi(creds, msg); return; }
+  // Z-API (comportamento original, byte-a-byte)
+  switch (msg.kind) {
+    case "text":
+      await sendZapi(creds, "send-text", { phone: msg.phone, message: msg.message });
+      break;
+    case "buttons":
+      await sendZapi(creds, "send-button-list", {
+        phone: msg.phone, message: msg.message,
+        buttonList: { buttons: msg.buttons.map((label, idx) => ({ id: String(idx + 1), label })) },
+      });
+      break;
+    case "audio":
+      await sendZapi(creds, "send-audio", { phone: msg.phone, audio: msg.url });
+      break;
+    case "image":
+      await sendZapi(creds, "send-image", { phone: msg.phone, image: msg.url });
+      break;
+    case "document":
+      await sendZapi(creds, `send-document/${msg.ext || "pdf"}`, { phone: msg.phone, document: msg.url, fileName: msg.fileName });
+      break;
+  }
+}
+
+// D-API: base https://api.d-api.cloud, auth por header Authorization: <API_KEY>,
+// corpo { sessionId, to, ... }. Botões não têm endpoint próprio → viram texto.
+async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
+  const sessionId = creds.instanceId;
+  const to = msg.phone;
+  let path = "text";
+  let body: Record<string, unknown> = {};
+  switch (msg.kind) {
+    case "text":
+      path = "text"; body = { sessionId, to, text: msg.message }; break;
+    case "buttons":
+      path = "text";
+      body = { sessionId, to, text: [msg.message, ...msg.buttons.map((b, i) => `${i + 1}. ${b}`)].filter(Boolean).join("\n") };
+      break;
+    case "audio":
+      path = "audio"; body = { sessionId, to, audio: msg.url }; break;
+    case "image":
+      path = "image"; body = { sessionId, to, image: msg.url }; break;
+    case "document":
+      path = "document"; body = { sessionId, to, document: msg.url, fileName: msg.fileName }; break;
+  }
+  const resp = await fetch(`https://api.d-api.cloud/api/v1/messages/send/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": creds.token },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`D-API send/${path} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
+  }
 }
 
 // Executa o bloco de IA: lê a chave do provedor (BYOK) da empresa, interpola o

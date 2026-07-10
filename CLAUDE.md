@@ -115,7 +115,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `tags` | Tags de leads |
 | `activities` | Histórico de atividades de um lead |
 | `automations` | Automações (`owner_id`, `company_id`, `name`, `description`, `group_name`, `active`, `flow` jsonb) |
-| `whatsapp_connections` | Conexões WhatsApp da empresa (usadas pelo Bloco Mensagem) |
+| `whatsapp_connections` | Conexões WhatsApp da empresa (usadas pelo Bloco Mensagem). `provider` = `dapi` \| `zapi` \| `cloud_api`. **D-API** (https://d-api.cloud): 1 API Key da conta + um `sessionId` criado pelo CRM → reaproveita `instance_id` (=sessionId) e `token` (=API Key), sem colunas novas. **Z-API**: `instance_id`/`token`/`client_token` |
 | `whatsapp_messages` | Mensagens enviadas/recebidas pelo Bloco Mensagem — escrito pela Edge Function |
 | `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`, `tokens` int — tokens consumidos pelo nó de IA) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
@@ -230,7 +230,7 @@ Provedores: `openai`, `anthropic`, `google`. Resultado disponível como `{{outpu
 
 ### Bloco Mensagem (`mensagem`)
 
-Envia via WhatsApp usando a conexão definida em `node.connectionId` (tabela `whatsapp_connections`). Sub-blocos (`subBlocks`) processados em sequência:
+Envia via WhatsApp usando a conexão definida em `node.connectionId` (tabela `whatsapp_connections`). O envio é **agnóstico de provedor**: `sendWa()` no runner traduz para a API certa conforme `connection.provider` — **Z-API** (`sendZapi`, `api.z-api.io/.../send-*`) ou **D-API** (`sendDapi`, `POST api.d-api.cloud/api/v1/messages/send/{text|image|audio|document}` com header `Authorization: <API Key>` e corpo `{ sessionId, to, ... }`). Sub-blocos (`subBlocks`) processados em sequência:
 
 | Sub-bloco | O que faz |
 |-----------|-----------|
@@ -241,7 +241,7 @@ Envia via WhatsApp usando a conexão definida em `node.connectionId` (tabela `wh
 | `atraso_tempo` | Pausa N segundos entre sub-blocos (inline se ≤ 90s, senão `automation_pending`) |
 | `entrada_usuario` | Envia mensagem e **pausa o flow** aguardando resposta do contato → `resume-reply` retoma quando `zapi-webhook` receber a mensagem; timeout configu rável |
 
-Mensagens são gravadas em `whatsapp_messages`. Respostas do contato chegam via `zapi-webhook` → `resume-reply`.
+Mensagens são gravadas em `whatsapp_messages`. Respostas do contato chegam via webhook do provedor → `resume-reply`: **Z-API** → `zapi-webhook`; **D-API** → `dapi-webhook` (traduz os eventos `messages.received`/`connection.status` da D-API para o mesmo insert + retomada). Ambos localizam o dono por `whatsapp_connections.instance_id`. Registrados em `config.toml` com `verify_jwt = false`.
 
 ### Bloco Espera (`espera`)
 

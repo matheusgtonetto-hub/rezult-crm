@@ -32,6 +32,10 @@ verify_jwt = false
 [functions.zapi-webhook]
 verify_jwt = false
 
+# A D-API chama este webhook externamente, sem JWT (mesmo motivo do zapi-webhook).
+[functions.dapi-webhook]
+verify_jwt = false
+
 # O disparo-runner se autentica sozinho: pelo segredo do motor (chamadas do pg_cron)
 # ou pelo JWT do usuário (chamada da UI ao iniciar). Gateway não deve exigir JWT.
 [functions.disparo-runner]

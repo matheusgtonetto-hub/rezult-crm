@@ -43,7 +43,7 @@ export interface Company {
 
 type CompanyUpdateData = Partial<Omit<Company, "id" | "owner_id" | "plan" | "plan_expires_at">>;
 
-export type WhatsAppProvider = "zapi" | "cloud_api";
+export type WhatsAppProvider = "dapi" | "zapi" | "cloud_api";
 
 export interface WhatsAppConnection {
   id: string;

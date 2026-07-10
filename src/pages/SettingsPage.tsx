@@ -2993,6 +2993,8 @@ const CONN_CATEGORIES = [
     label: "WhatsApp",
     description: "Crie conexões com a plataforma WhatsApp",
     providers: [
+      { id: "dapi", name: "D-API", desc: "Crie uma nova conexão com a API do D-API", available: true,
+        iconBg: "#0EA5E9", Icon: Zap },
       { id: "zapi", name: "Z-API", desc: "Crie uma nova conexão com a API do Z-API", available: true,
         iconBg: "#1A1A1A", Icon: Webhook },
     ],
@@ -3075,6 +3077,10 @@ function ConexoesSection() {
   const [tutStep, setTutStep]     = useState(0);
   const [skipTutorial, setSkipTutorial] = useState(() => localStorage.getItem("zapi_skip_tutorial") === "1");
   const [form, setForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
+  // Provedor do wizard em andamento (D-API usa só a API Key; o sessionId é gerado pelo CRM)
+  const [wizardProvider, setWizardProvider] = useState<"zapi" | "dapi">("zapi");
+  const [dapiApiKey, setDapiApiKey]         = useState("");
+  const dapiSessionRef                       = useRef("");
   const [qrSrc, setQrSrc]         = useState("");
   const [qrLoading, setQrLoading] = useState(false);
   const [polling, setPolling]     = useState(false);
@@ -3082,6 +3088,7 @@ function ConexoesSection() {
 
   // manage dialog state (editar conexão existente)
   const [editingConnId, setEditingConnId]         = useState<string | null>(null);
+  const [manageProvider, setManageProvider]       = useState<string>("zapi");
   const [manageTab, setManageTab]                 = useState<"auth" | "intervals" | "config">("auth");
   const [connName, setConnName]                   = useState("");
   const [showTerms, setShowTerms]                 = useState(false);
@@ -3210,6 +3217,122 @@ function ConexoesSection() {
     await configureZapiWebhook(creds);
   }
 
+  // ── D-API helpers ──────────────────────────────────────────────────
+  // A D-API usa 1 API Key da conta + um sessionId que o CRM cria via API.
+  // Mapeamento na tabela: provider='dapi', instance_id=sessionId, token=API Key.
+  const DAPI_BASE = "https://api.d-api.cloud/api/v1";
+  const DAPI_WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/dapi-webhook";
+  const dapiHeaders = (apiKey: string): HeadersInit => ({ "Content-Type": "application/json", "Authorization": apiKey });
+
+  async function createDapiSession(apiKey: string, sessionId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${DAPI_BASE}/sessions`, {
+        method: "POST",
+        headers: dapiHeaders(apiKey),
+        body: JSON.stringify({ sessionId, type: "unofficial", webhookUrl: DAPI_WEBHOOK_URL }),
+      });
+      if (res.ok) return true;
+      const t = await res.text().catch(() => "");
+      // Sessão já existe → idempotente, segue adiante
+      if (res.status === 409 || /exist|já existe|already/i.test(t)) return true;
+      toast.error(`D-API (${res.status}): ${t.slice(0, 180) || "falha ao criar a sessão"}`);
+      return false;
+    } catch {
+      toast.error("Erro de rede/CORS ao falar com a D-API. Confirme a API Key.");
+      return false;
+    }
+  }
+
+  async function fetchQrDapi(apiKey: string, sessionId: string) {
+    setQrLoading(true);
+    setQrSrc("");
+    try {
+      const res = await fetch(`${DAPI_BASE}/sessions/${sessionId}/qr`, { headers: dapiHeaders(apiKey) });
+      const d = await res.json().catch(() => ({} as Record<string, unknown>));
+      const node = (d?.data ?? d) as Record<string, unknown>;
+      const img = (node?.qrCodeImage ?? node?.qrImage ?? d?.qrCodeImage ?? d?.qrImage) as string | undefined;
+      if (typeof img === "string" && img) {
+        setQrSrc(img.startsWith("data:") ? img : `data:image/png;base64,${img}`);
+        return;
+      }
+      // Já conectada: sem QR — o polling finaliza a conexão
+      if (node?.connected === true || node?.status === "connected") return;
+      toast.error("Não foi possível gerar o QR Code da D-API. Verifique a API Key.");
+    } catch {
+      toast.error("Erro de rede/CORS ao gerar o QR Code da D-API.");
+    } finally {
+      setQrLoading(false);
+    }
+  }
+
+  async function pollStatusDapi(apiKey: string, sessionId: string): Promise<{ connected: boolean; phone: string }> {
+    try {
+      const res = await fetch(`${DAPI_BASE}/sessions/${sessionId}`, { headers: dapiHeaders(apiKey) });
+      const d = await res.json().catch(() => ({} as Record<string, unknown>));
+      const node = (d?.data ?? d) as Record<string, unknown>;
+      const connected = node?.connected === true || node?.status === "connected";
+      const phone = String(node?.phone ?? "").replace(/\D/g, "");
+      return { connected: !!connected, phone };
+    } catch {
+      return { connected: false, phone: "" };
+    }
+  }
+
+  async function finalizeDapi(apiKey: string, sessionId: string, phone: string) {
+    stopPoll();
+    setStep("done");
+    toast.success("WhatsApp conectado com sucesso!");
+    const newConn = await addWhatsAppConnection({
+      name:        connName.trim() || phone || "WhatsApp",
+      provider:    "dapi",
+      instanceId:  sessionId,   // sessionId da D-API
+      token:       apiKey,      // API Key da conta
+      clientToken: null,
+      phone:       phone || null,
+      connected:   true,
+      active:      true,
+    });
+    setEditingConnId(newConn.id);
+    setConnName(newConn.name);
+    setEditForm({ instanceId: sessionId, token: apiKey, clientToken: "" });
+    // O webhook já é configurado na criação da sessão (webhookUrl), mas reforça
+    await fetch(`${DAPI_BASE}/sessions/${sessionId}/webhook`, {
+      method: "POST", headers: dapiHeaders(apiKey), body: JSON.stringify({ webhookUrl: DAPI_WEBHOOK_URL }),
+    }).catch(() => { /* ignore */ });
+  }
+
+  function startPollDapi(apiKey: string, sessionId: string) {
+    pollNRef.current = 0;
+    setPollN(0);
+    setPolling(true);
+    timerRef.current = setInterval(async () => {
+      pollNRef.current += 1;
+      setPollN(pollNRef.current);
+      const r = await pollStatusDapi(apiKey, sessionId);
+      if (r.connected) {
+        await finalizeDapi(apiKey, sessionId, r.phone);
+      } else if (pollNRef.current >= 24) { // ~2 min
+        stopPoll();
+      }
+    }, 5_000);
+  }
+
+  async function handleGenerateDapi() {
+    if (!connName.trim()) { toast.error("Informe o nome da conexão."); return; }
+    if (!dapiApiKey.trim()) { toast.error("Informe a API Key da D-API."); return; }
+    const apiKey = dapiApiKey.trim();
+    const sessionId = dapiSessionRef.current
+      || `rezult_${(company?.id ?? "co").replace(/-/g, "").slice(0, 10)}_${Math.random().toString(36).slice(2, 8)}`;
+    dapiSessionRef.current = sessionId;
+    setStep("qr");
+    const ok = await createDapiSession(apiKey, sessionId);
+    if (!ok) { setStep("creds"); return; }
+    const st = await pollStatusDapi(apiKey, sessionId);
+    if (st.connected) { await finalizeDapi(apiKey, sessionId, st.phone); return; }
+    await fetchQrDapi(apiKey, sessionId);
+    startPollDapi(apiKey, sessionId);
+  }
+
   function startPoll(c: ZApiForm) {
     pollNRef.current    = 0;
     credsInFlight.current = c;
@@ -3229,6 +3352,7 @@ function ConexoesSection() {
 
   // ── dialog actions ─────────────────────────────────────────────────
   async function handleGenerateQr() {
+    if (wizardProvider === "dapi") { await handleGenerateDapi(); return; }
     if (!form.instanceId.trim() || !form.token.trim() || !form.clientToken.trim()) {
       toast.error("Preencha o ID da instância, o Token e o Client-Token.");
       return;
@@ -3242,6 +3366,11 @@ function ConexoesSection() {
   }
 
   async function handleRegenerate() {
+    if (wizardProvider === "dapi") {
+      await fetchQrDapi(dapiApiKey.trim(), dapiSessionRef.current);
+      startPollDapi(dapiApiKey.trim(), dapiSessionRef.current);
+      return;
+    }
     await fetchQr(form);
     startPoll(form);
   }
@@ -3249,7 +3378,13 @@ function ConexoesSection() {
   async function handleDisconnect() {
     if (!editingConnId) return;
     const conn = whatsappConnections.find(c => c.id === editingConnId);
-    if (conn) {
+    if (conn && conn.provider === "dapi") {
+      try {
+        await fetch(`${DAPI_BASE}/sessions/${conn.instanceId}/disconnect`, {
+          method: "POST", headers: dapiHeaders(conn.token),
+        });
+      } catch { /* ignore */ }
+    } else if (conn) {
       const creds: ZApiForm = { instanceId: conn.instanceId, token: conn.token, clientToken: conn.clientToken ?? "" };
       try { await fetch(`${zapiBase(creds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(creds) }); } catch { /* ignore */ }
     }
@@ -3265,6 +3400,7 @@ function ConexoesSection() {
     const conn = whatsappConnections.find(c => c.id === connId);
     if (!conn) return;
     setEditingConnId(connId);
+    setManageProvider(conn.provider);
     setConnName(conn.name);
     setEditForm({ instanceId: conn.instanceId, token: conn.token, clientToken: conn.clientToken ?? "" });
     setStep("done");
@@ -3314,6 +3450,12 @@ function ConexoesSection() {
 
   const selectedCat = CONN_CATEGORIES.find(c => c.id === selectedCategory) ?? CONN_CATEGORIES[0];
 
+  // Metadados de apresentação por provedor (rótulo + site exibidos no card)
+  const provMeta = (p?: string) =>
+    p === "dapi"        ? { label: "D-API", site: "d-api.cloud", url: "https://d-api.cloud" }
+    : p === "cloud_api" ? { label: "WhatsApp API", site: "developers.facebook.com", url: "https://developers.facebook.com" }
+    :                     { label: "Z-API", site: "z-api.io", url: "https://z-api.io" };
+
   const COMING_SOON = [
     { id: "asaas", platform: "Asaas",        category: "Financeiro", domain: "asaas.com",     name: "Cobranças Asaas",    description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.", iconBg: "#FF6B35", Icon: CreditCard },
     { id: "ig",   platform: "Instagram API", category: "Instagram",  domain: "instagram.com", name: "Instagram Mensagens",description: "Receba e responda mensagens diretas do Instagram diretamente no CRM.", iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: MessageSquare },
@@ -3344,17 +3486,17 @@ function ConexoesSection() {
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
-                <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                  z-api.io <ExternalLink size={11} />
+                <a href={provMeta(conn.provider).url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  {provMeta(conn.provider).site} <ExternalLink size={11} />
                 </a>
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center shrink-0">
-                  <Webhook size={18} color="hsl(var(--background))" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : "hsl(var(--foreground))" }}>
+                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{conn.phone || "Z-API"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
@@ -3390,17 +3532,17 @@ function ConexoesSection() {
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
-                <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                  z-api.io <ExternalLink size={11} />
+                <a href={provMeta(conn.provider).url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  {provMeta(conn.provider).site} <ExternalLink size={11} />
                 </a>
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center shrink-0">
-                  <Webhook size={18} color="hsl(var(--background))" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : "hsl(var(--foreground))" }}>
+                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{conn.phone || "Z-API"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
@@ -3477,10 +3619,10 @@ function ConexoesSection() {
               <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid hsl(var(--border))", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <div style={{ width: 20, height: 20, background: "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Webhook size={11} color="#FFF" />
+                    <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {manageProvider === "dapi" ? <Zap size={11} color="#FFF" /> : <Webhook size={11} color="#FFF" />}
                     </div>
-                    <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Z-API</span>
+                    <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
                   </div>
                   <h2 style={{ fontSize: 17, fontWeight: 700, color: "hsl(var(--foreground))", margin: 0 }}>Atualizar conexão</h2>
                 </div>
@@ -3509,7 +3651,25 @@ function ConexoesSection() {
 
               {/* Tab content */}
               <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
-                {manageTab === "auth" && (
+                {manageTab === "auth" && manageProvider === "dapi" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div>
+                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>Session ID</label>
+                      <Input value={editForm.instanceId} readOnly className="border-card-border font-mono text-sm bg-muted text-muted-foreground" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>API Key</label>
+                      <div style={{ position: "relative" }}>
+                        <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
+                          {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {manageTab === "auth" && manageProvider !== "dapi" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <div>
                       <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
@@ -3651,7 +3811,8 @@ function ConexoesSection() {
                       key={prov.id}
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
-                        if (prov.id === "zapi") { setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
+                        if (prov.id === "dapi") { setWizardProvider("dapi"); setDapiApiKey(""); dapiSessionRef.current = ""; setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
+                        if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                         if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
                       }}
                       style={{
@@ -3873,8 +4034,53 @@ function ConexoesSection() {
             </>
           )}
 
-          {/* Step 2 — Credentials */}
-          {step === "creds" && (
+          {/* Step 2 — Credentials (D-API) */}
+          {step === "creds" && wizardProvider === "dapi" && (
+            <>
+              <div style={{ background: "hsl(var(--muted))", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", marginBottom: 4 }}>Como conectar a D-API</p>
+                <p style={{ fontSize: 11, fontWeight: 400, color: "hsl(var(--muted-foreground))", lineHeight: 1.35 }}>
+                  Gere sua API Key no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. O CRM cria a sessão e gera o QR Code automaticamente.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Ex: Comercial"
+                    value={connName}
+                    onChange={e => setConnName(e.target.value)}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">API Key <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="API Key da sua conta D-API"
+                    value={dapiApiKey}
+                    onChange={e => setDapiApiKey(e.target.value)}
+                    type="password"
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 12 }}>
+                Ao continuar, você concorda com nossos{" "}
+                <button onClick={() => setShowTerms(true)} style={{ color: "hsl(var(--primary))", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                  Termos de Uso
+                </button>.
+              </p>
+              <DialogFooter className="mt-3">
+                <Button variant="outline" className="border-card-border" onClick={() => setStep("select")}>Voltar</Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateQr} disabled={qrLoading}>
+                  {qrLoading ? "Gerando..." : "Gerar QR Code"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 2 — Credentials (Z-API) */}
+          {step === "creds" && wizardProvider !== "dapi" && (
             <>
               {/* Banner informativo */}
               <div style={{ background: "hsl(var(--muted))", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
