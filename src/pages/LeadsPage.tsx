@@ -276,21 +276,23 @@ export default function LeadsPage() {
           <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead style={{ width: 36 }} className="p-0 pl-3">
-                  {someSelected && (
-                    <Checkbox
-                      checked={allSelected ? true : "indeterminate"}
-                      onCheckedChange={toggleSelectAll}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  )}
+                <TableHead className="text-muted-foreground" style={{ width: "20%" }}>
+                  <div className="flex items-center gap-2">
+                    {someSelected && (
+                      <Checkbox
+                        checked={allSelected ? true : "indeterminate"}
+                        onCheckedChange={toggleSelectAll}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    )}
+                    Nome
+                  </div>
                 </TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Nome</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "15%" }}>Responsável</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "15%" }}>Contato</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "17%" }}>Pipeline</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "11%" }}>Data de Criação</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -301,13 +303,17 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
-                  <TableCell className="p-0 pl-3" onClick={e => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.has(lead.id)}
-                      onCheckedChange={() => toggleSelect(lead.id)}
-                    />
+                  <TableCell className="font-medium text-foreground">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div onClick={e => e.stopPropagation()} className="shrink-0">
+                        <Checkbox
+                          checked={selectedIds.has(lead.id)}
+                          onCheckedChange={() => toggleSelect(lead.id)}
+                        />
+                      </div>
+                      <span className="truncate">{lead.name}</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="font-medium text-foreground truncate">{lead.name}</TableCell>
                   <TableCell>
                     {(() => {
                       const resps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
