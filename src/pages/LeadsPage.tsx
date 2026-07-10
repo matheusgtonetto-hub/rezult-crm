@@ -13,7 +13,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download } from "lucide-react";
+import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
 import { ImportLeadsModal } from "@/components/ImportLeadsModal";
@@ -243,7 +243,7 @@ export default function LeadsPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="p-1.5 rounded-md border border-card-border bg-card hover:bg-muted text-foreground transition-colors">
-                  <MoreHorizontal size={16} />
+                  <Menu size={16} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -276,7 +276,7 @@ export default function LeadsPage() {
           <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead style={{ width: 40 }} className="pl-4">
+                <TableHead style={{ width: 28 }} className="pl-3">
                   {someSelected && (
                     <Checkbox
                       checked={allSelected ? true : "indeterminate"}
@@ -301,7 +301,7 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
-                  <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
+                  <TableCell className="pl-3" onClick={e => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedIds.has(lead.id)}
                       onCheckedChange={() => toggleSelect(lead.id)}
