@@ -13,7 +13,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
 import { ImportLeadsModal } from "@/components/ImportLeadsModal";
 import { LeadDrawer } from "@/components/LeadDrawer";
@@ -39,6 +40,10 @@ export default function LeadsPage() {
 
   // Drawer de detalhes do lead
   const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
+
+  // Seleção de leads
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Abre o drawer do lead vindo por URL (?lead=<id>), ex.: link do Multiatendimento.
   // Limpa o param depois para não reabrir em refresh/navegação.
@@ -126,6 +131,53 @@ export default function LeadsPage() {
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
+  // Seleção
+  const selectedLeads = filtered.filter(l => selectedIds.has(l.id));
+  const allSelected   = filtered.length > 0 && filtered.every(l => selectedIds.has(l.id));
+  const someSelected  = filtered.some(l => selectedIds.has(l.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(l => l.id)));
+  };
+
+  const exportSelected = () => {
+    const headers = ["Nome", "Empresa", "WhatsApp", "Email", "Pipeline", "Etapa", "Tags", "Data de Criação"];
+    const rows = selectedLeads.map(l => [
+      l.name,
+      l.company || "",
+      l.whatsapp || "",
+      l.email || "",
+      pipelines.find(p => p.id === l.pipelineId)?.name || "",
+      colName(l.stage || ""),
+      (l.tags || []).join("; "),
+      l.created_at ? new Intl.DateTimeFormat("pt-BR").format(new Date(l.created_at)) : "",
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${selectedLeads.length} lead${selectedLeads.length > 1 ? "s" : ""} exportado${selectedLeads.length > 1 ? "s" : ""}.`);
+  };
+
+  const confirmBulkDelete = () => {
+    const count = selectedLeads.length;
+    selectedLeads.forEach(l => deleteLead(l.id));
+    setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
+    toast.success(`${count} lead${count > 1 ? "s" : ""} excluído${count > 1 ? "s" : ""}.`);
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -145,7 +197,7 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      <div className="flex gap-3 mb-4 flex-wrap">
+      <div className="flex gap-3 mb-4 flex-wrap items-center">
         <Input
           placeholder="Buscar por nome ou empresa..."
           value={search}
@@ -182,6 +234,33 @@ export default function LeadsPage() {
             ).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {someSelected && (
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-muted-foreground">
+              {selectedLeads.length} selecionado{selectedLeads.length > 1 ? "s" : ""}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1.5 rounded-md border border-card-border bg-card hover:bg-muted text-foreground transition-colors">
+                  <MoreHorizontal size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={exportSelected}>
+                  <Download size={14} className="mr-2" /> Exportar selecionados
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setBulkDeleteConfirm(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 size={14} className="mr-2" /> Excluir selecionados
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -197,12 +276,21 @@ export default function LeadsPage() {
           <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground" style={{ width: "20%" }}>Nome</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Pipeline</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
+                <TableHead style={{ width: 40 }} className="pl-4">
+                  {someSelected && (
+                    <Checkbox
+                      checked={allSelected ? true : "indeterminate"}
+                      onCheckedChange={toggleSelectAll}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  )}
+                </TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Nome</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "15%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "15%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "17%" }}>Pipeline</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "11%" }}>Data de Criação</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -213,6 +301,12 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
+                  <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(lead.id)}
+                      onCheckedChange={() => toggleSelect(lead.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium text-foreground truncate">{lead.name}</TableCell>
                   <TableCell>
                     {(() => {
@@ -382,6 +476,22 @@ export default function LeadsPage() {
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDealTarget(null)}>Cancelar</Button>
             <Button onClick={confirmDeal} className="bg-[#128A68] hover:bg-[#128A68]/90">Criar negócio</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation */}
+      <Dialog open={bulkDeleteConfirm} onOpenChange={v => !v && setBulkDeleteConfirm(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir leads selecionados</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir <strong>{selectedLeads.length} lead{selectedLeads.length > 1 ? "s" : ""}</strong>? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setBulkDeleteConfirm(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmBulkDelete}>Excluir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
