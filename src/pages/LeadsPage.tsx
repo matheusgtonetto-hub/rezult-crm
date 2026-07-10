@@ -276,7 +276,7 @@ export default function LeadsPage() {
           <Table className="table-fixed w-full overflow-hidden">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
-                <TableHead style={{ width: 28 }} className="pl-3">
+                <TableHead style={{ width: 36 }} className="p-0 pl-3">
                   {someSelected && (
                     <Checkbox
                       checked={allSelected ? true : "indeterminate"}
@@ -301,7 +301,7 @@ export default function LeadsPage() {
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => setDrawerLeadId(lead.id)}
                 >
-                  <TableCell className="pl-3" onClick={e => e.stopPropagation()}>
+                  <TableCell className="p-0 pl-3" onClick={e => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedIds.has(lead.id)}
                       onCheckedChange={() => toggleSelect(lead.id)}
