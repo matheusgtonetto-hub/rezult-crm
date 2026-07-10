@@ -332,10 +332,10 @@ export default function LeadsPage() {
                         <span className="truncate block">{lead.name}</span>
                         {(() => {
                           const key = lead.whatsapp?.replace(/\D/g, "");
-                          const avg = key ? avgTicketByPhone[key] : undefined;
-                          return avg != null ? (
+                          const avg = (key ? avgTicketByPhone[key] : undefined) ?? 0;
+                          return (
                             <span className="text-xs text-muted-foreground font-normal">{fmtBRL(avg)}</span>
-                          ) : null;
+                          );
                         })()}
                       </div>
                     </div>
