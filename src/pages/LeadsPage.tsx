@@ -337,7 +337,7 @@ export default function LeadsPage() {
                           const key = lead.whatsapp?.replace(/\D/g, "");
                           const avg = (key ? ticketByPhone[key]?.avg : undefined) ?? 0;
                           return (
-                            <span className="text-xs font-normal text-muted-foreground">
+                            <span style={{ fontSize: 8, fontWeight: 600 }} className="text-muted-foreground">
                               Ticket médio <span className="text-green-600">{fmtBRL(avg)}</span>
                             </span>
                           );
