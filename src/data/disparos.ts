@@ -25,7 +25,13 @@ export interface LeadFilter {
   country?: string;
   createdFrom?: string;
   createdTo?: string;
-  customFields?: Array<{ fieldId: string; value: string }>;
+  // op: "contem" (default, retrocompatível) | "igual" | "diferente"
+  customFields?: Array<{ fieldId: string; op?: "igual" | "contem" | "diferente"; value: string }>;
+  // Data de movimentação (entrada na etapa atual — stageEnteredAt)
+  movedFrom?: string;
+  movedTo?: string;
+  // Motivo de perda (lossReasonId)
+  lossReasons?: string[];
 }
 
 export interface Disparo {
@@ -132,11 +138,17 @@ export function leadMatchesFilter(lead: Lead, f: LeadFilter, ctx: { lists: CrmLi
   if (f.state && (lead.state ?? "").toLowerCase() !== f.state.toLowerCase()) return false;
   if (f.country && (lead.country ?? "").toLowerCase() !== f.country.toLowerCase()) return false;
   if (!inRange(lead.created_at ?? lead.entryDate, f.createdFrom, f.createdTo)) return false;
+  if (!inRange(lead.stageEnteredAt ?? lead.entryDate, f.movedFrom, f.movedTo)) return false;
+  if (f.lossReasons && f.lossReasons.length > 0 && !(lead.lossReasonId && f.lossReasons.includes(lead.lossReasonId))) return false;
   if (f.customFields && f.customFields.length > 0) {
     for (const cf of f.customFields) {
       if (!cf.value) continue;
-      const v = (lead.customFieldValues ?? {})[cf.fieldId] ?? "";
-      if (!v.toLowerCase().includes(cf.value.toLowerCase())) return false;
+      const v = ((lead.customFieldValues ?? {})[cf.fieldId] ?? "").toLowerCase();
+      const target = cf.value.toLowerCase();
+      const op = cf.op ?? "contem";
+      if (op === "igual" && v !== target) return false;
+      if (op === "contem" && !v.includes(target)) return false;
+      if (op === "diferente" && v === target) return false;
     }
   }
   return true;
@@ -153,6 +165,7 @@ export function isFilterEmpty(f: LeadFilter): boolean {
     (f.lists && f.lists.length) || (f.products && f.products.length) ||
     typeof f.valueMin === "number" || typeof f.valueMax === "number" ||
     f.city || f.state || f.country || f.createdFrom || f.createdTo ||
+    f.movedFrom || f.movedTo || (f.lossReasons && f.lossReasons.length) ||
     (f.customFields && f.customFields.some(c => c.value)) || f.search
   );
 }

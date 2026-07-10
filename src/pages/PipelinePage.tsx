@@ -9,6 +9,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
+import { leadMatchesFilter, isFilterEmpty, type LeadFilter } from "@/data/disparos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,7 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -258,11 +260,32 @@ export default function PipelinePage() {
   const [status, setStatus] = useState<StatusFilter>(() => (sessionStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
   const [dateFrom, setDateFrom] = useState(() => sessionStorage.getItem("pipeline_filter_dateFrom") ?? "");
   const [dateTo, setDateTo] = useState(() => sessionStorage.getItem("pipeline_filter_dateTo") ?? "");
+  // Filtro avançado ("Filtros"): persiste POR PIPELINE em localStorage, então
+  // sobrevive a trocar de página, recarregar e até fechar o navegador — cada
+  // pipeline lembra do seu próprio filtro.
+  const advKey = (pid?: string | null) => `pipeline_adv_filter_${pid ?? "default"}`;
+  const [advFilter, setAdvFilter] = useState<LeadFilter>(() => {
+    try { return JSON.parse(localStorage.getItem(advKey(activePipelineId)) ?? "{}"); } catch { return {}; }
+  });
+  const advPidRef = useRef(activePipelineId);
 
   useEffect(() => { sessionStorage.setItem("pipeline_filter_sort", sortKey); }, [sortKey]);
   useEffect(() => { sessionStorage.setItem("pipeline_filter_status", status); }, [status]);
   useEffect(() => { sessionStorage.setItem("pipeline_filter_dateFrom", dateFrom); }, [dateFrom]);
   useEffect(() => { sessionStorage.setItem("pipeline_filter_dateTo", dateTo); }, [dateTo]);
+  // Grava o filtro no pipeline atual (ignora a passada em que o pipeline acabou
+  // de trocar, para não sobrescrever a chave nova com o filtro antigo).
+  useEffect(() => {
+    if (advPidRef.current !== activePipelineId) return;
+    try { localStorage.setItem(advKey(activePipelineId), JSON.stringify(advFilter)); } catch { /* ignore */ }
+  }, [advFilter, activePipelineId]);
+  // Ao trocar de pipeline, recarrega o filtro salvo daquele pipeline.
+  useEffect(() => {
+    if (advPidRef.current === activePipelineId) return;
+    advPidRef.current = activePipelineId;
+    try { setAdvFilter(JSON.parse(localStorage.getItem(advKey(activePipelineId)) ?? "{}")); }
+    catch { setAdvFilter({}); }
+  }, [activePipelineId]);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -361,6 +384,11 @@ export default function PipelinePage() {
         if (dateFrom) ids = ids.filter(id => leads[id].entryDate >= dateFrom);
         if (dateTo) ids = ids.filter(id => leads[id].entryDate <= dateTo);
 
+        // Filtros avançados (painel "Filtros")
+        if (!isFilterEmpty(advFilter)) {
+          ids = ids.filter(id => leadMatchesFilter(leads[id], advFilter, { lists: [] }));
+        }
+
         // Visibilidade por responsável
         const getResps = (l: typeof leads[string]) =>
           l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
@@ -388,7 +416,7 @@ export default function PipelinePage() {
         });
         return { ...col, filteredIds: ids };
       });
-  }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser]);
+  }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter]);
 
   const openEditPipeline = () => {
     setEditPipelineName(activePipeline.name);
@@ -685,6 +713,19 @@ export default function PipelinePage() {
               onChangeRange={(from, to) => { setDateFrom(from); setDateTo(to); }}
             />
           </div>
+
+          <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
+
+          {(!isFilterEmpty(advFilter) || status !== "open" || !!dateFrom || !!dateTo) && (
+            <button
+              onClick={() => { setAdvFilter({}); setStatus("open"); setDateFrom(""); setDateTo(""); }}
+              title="Limpar filtros"
+              className="h-[30px] px-2.5 inline-flex items-center gap-1 bg-card border border-card-border rounded-lg text-xs text-muted-foreground hover:text-destructive hover:border-destructive transition-colors whitespace-nowrap"
+            >
+              <X size={13} />
+              Limpar
+            </button>
+          )}
 
         </div>
 
