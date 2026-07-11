@@ -4266,33 +4266,34 @@ const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: strin
 // Uma chave por provedor por empresa (upsert por company_id+provider).
 interface MetaIntegration {
   id: string;
+  name: string;
   pixel_id: string;
   access_token: string;
   active: boolean;
   created_at: string;
-  updated_at: string;
 }
 
 function MetaAdsCard() {
   const { company } = useCompany();
   const { user } = useAuth();
-  const [integration, setIntegration] = useState<MetaIntegration | null>(null);
+  const [integrations, setIntegrations] = useState<MetaIntegration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
   const [pixelId, setPixelId] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showToken, setShowToken] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(false);
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<MetaIntegration | null>(null);
 
   const load = useCallback(async () => {
     if (!company) return;
     setLoading(true);
     const { data } = await supabase
       .from("meta_integrations")
-      .select("id, pixel_id, access_token, active, created_at, updated_at")
+      .select("id, name, pixel_id, access_token, active, created_at")
       .eq("company_id", company.id)
-      .maybeSingle();
-    setIntegration(data as MetaIntegration | null);
+      .order("created_at", { ascending: true });
+    setIntegrations((data as MetaIntegration[]) ?? []);
     setLoading(false);
   }, [company]);
 
@@ -4300,41 +4301,40 @@ function MetaAdsCard() {
 
   const handleSave = async () => {
     if (!company || !user) return;
+    const n = name.trim() || "Sem nome";
     const pid = pixelId.trim();
     const tok = accessToken.trim();
     if (!pid || !tok) { toast.error("Preencha o Pixel ID e o Access Token."); return; }
     setSaving(true);
     const { data, error } = await supabase
       .from("meta_integrations")
-      .upsert(
-        { company_id: company.id, owner_id: user.id, pixel_id: pid, access_token: tok, active: true, updated_at: new Date().toISOString() },
-        { onConflict: "company_id" },
-      )
-      .select("id, pixel_id, access_token, active, created_at, updated_at")
+      .insert({ company_id: company.id, owner_id: user.id, name: n, pixel_id: pid, access_token: tok, active: true })
+      .select("id, name, pixel_id, access_token, active, created_at")
       .single();
     setSaving(false);
     if (error) { toast.error("Erro ao salvar a integração Meta Ads."); return; }
-    setIntegration(data as MetaIntegration);
-    setPixelId("");
-    setAccessToken("");
-    toast.success("Integração com Meta Ads salva.");
+    setIntegrations(prev => [...prev, data as MetaIntegration]);
+    setName(""); setPixelId(""); setAccessToken("");
+    toast.success("Pixel cadastrado com sucesso.");
   };
 
-  const handleToggle = async () => {
-    if (!integration) return;
-    const { error } = await supabase.from("meta_integrations").update({ active: !integration.active }).eq("id", integration.id);
+  const handleToggle = async (it: MetaIntegration) => {
+    const { error } = await supabase.from("meta_integrations").update({ active: !it.active }).eq("id", it.id);
     if (error) { toast.error("Erro ao atualizar."); return; }
-    setIntegration(prev => prev ? { ...prev, active: !prev.active } : prev);
+    setIntegrations(prev => prev.map(x => x.id === it.id ? { ...x, active: !it.active } : x));
   };
 
   const handleDelete = async () => {
-    if (!integration) return;
-    const { error } = await supabase.from("meta_integrations").delete().eq("id", integration.id);
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("meta_integrations").delete().eq("id", deleteTarget.id);
     if (error) { toast.error("Erro ao remover."); return; }
-    setIntegration(null);
-    setDeleteTarget(false);
-    toast.success("Integração Meta Ads removida.");
+    setIntegrations(prev => prev.filter(x => x.id !== deleteTarget.id));
+    setDeleteTarget(null);
+    toast.success("Pixel removido.");
   };
+
+  const toggleVisible = (id: string) =>
+    setVisibleIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const maskToken = (tok: string) =>
     tok.length <= 8 ? "••••••••" : tok.slice(0, 6) + "••••••••••••" + tok.slice(-4);
@@ -4343,13 +4343,19 @@ function MetaAdsCard() {
     <Card>
       <SectionTitle
         title="Meta Ads (Conversions API)"
-        subtitle="Cadastre seu Pixel ID e Access Token para enviar eventos de conversão via Conversions API quando leads avançarem de etapa nas automações."
+        subtitle="Cadastre um ou mais pixels do Meta Ads. Cada automação pode escolher qual pixel usar — útil quando você tem diferentes funis com campanhas distintas."
       />
 
       <div className="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
         <div className="flex gap-2">
           <Input
-            placeholder="Pixel ID (ex: 1234567890)"
+            placeholder="Nome (ex: Funil Crédito Fácil)"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary w-44 shrink-0"
+          />
+          <Input
+            placeholder="Pixel ID"
             value={pixelId}
             onChange={e => setPixelId(e.target.value)}
             className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
@@ -4363,7 +4369,7 @@ function MetaAdsCard() {
             onKeyDown={e => e.key === "Enter" && handleSave()}
           />
           <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleSave} disabled={saving}>
-            {saving ? "Salvando..." : "Salvar"}
+            {saving ? "Salvando..." : "Adicionar"}
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground">
@@ -4373,54 +4379,53 @@ function MetaAdsCard() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
-      ) : !integration ? (
+      ) : integrations.length === 0 ? (
         <div className="text-center py-8">
           <Megaphone size={32} className="mx-auto mb-2 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">Nenhuma integração Meta Ads cadastrada.</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Preencha o Pixel ID e o Access Token acima.</p>
+          <p className="text-sm text-muted-foreground">Nenhum pixel cadastrado ainda.</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">Adicione pixels acima para usar nas automações.</p>
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
-          <div className="w-9 h-9 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
-            <Megaphone size={16} className="text-[#1877F2]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">Meta Ads</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Pixel: <span className="font-mono">{integration.pixel_id}</span>
-            </p>
-            <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
-              Token: {showToken ? integration.access_token : maskToken(integration.access_token)}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setShowToken(v => !v)}
-              className="p-1.5 rounded hover:bg-muted text-muted-foreground"
-              title={showToken ? "Ocultar token" : "Mostrar token"}
-            >
-              {showToken ? <EyeOff size={13} /> : <Eye size={13} />}
-            </button>
-            <Switch checked={integration.active} onCheckedChange={handleToggle} className="data-[state=checked]:bg-primary scale-75" />
-            <button
-              onClick={() => setDeleteTarget(true)}
-              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive"
-              title="Remover integração"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
+        <div className="space-y-2">
+          {integrations.map(it => {
+            const vis = visibleIds.has(it.id);
+            return (
+              <div key={it.id} className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
+                <div className="w-9 h-9 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+                  <Megaphone size={16} className="text-[#1877F2]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{it.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pixel: <span className="font-mono">{it.pixel_id}</span>
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
+                    Token: {vis ? it.access_token : maskToken(it.access_token)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => toggleVisible(it.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground" title={vis ? "Ocultar token" : "Mostrar token"}>
+                    {vis ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                  <Switch checked={it.active} onCheckedChange={() => handleToggle(it)} className="data-[state=checked]:bg-primary scale-75" />
+                  <button onClick={() => setDeleteTarget(it)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive" title="Remover">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <Dialog open={deleteTarget} onOpenChange={v => !v && setDeleteTarget(false)}>
+      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Remover integração Meta Ads</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Remover pixel Meta Ads</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remover a integração? As automações que usam a ação "Enviar evento para Meta Ads" deixarão de funcionar.
+            Remover o pixel <strong>{deleteTarget?.name}</strong>? As automações que o utilizam deixarão de enviar eventos.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
             <Button className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Remover</Button>
           </DialogFooter>
         </DialogContent>

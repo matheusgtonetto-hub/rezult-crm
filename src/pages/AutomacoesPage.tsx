@@ -7874,6 +7874,78 @@ function ProdutosConfigForm({ item, updateActionItem }: {
   );
 }
 
+// ─── MetaEventConfigForm ──────────────────────────────────────────────────────
+
+function MetaEventConfigForm({ item, updateActionItem }: {
+  item: ActionItem;
+  updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
+}) {
+  const { company } = useCompany();
+  const cfg = item.config ?? {};
+  const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
+  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
+
+  const [pixels, setPixels] = useState<{ id: string; name: string; pixel_id: string }[]>([]);
+
+  useEffect(() => {
+    if (!company) return;
+    supabase
+      .from("meta_integrations")
+      .select("id, name, pixel_id")
+      .eq("company_id", company.id)
+      .eq("active", true)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setPixels((data ?? []) as { id: string; name: string; pixel_id: string }[]));
+  }, [company]);
+
+  return (
+    <>
+      {grp(<>
+        {lbl("Pixel do Meta Ads")}
+        {pixels.length === 0 ? (
+          <div style={{ fontSize: 11, color: "#EF4444", padding: "8px 10px", border: "1px solid #FCA5A5", borderRadius: 6, background: "#FEF2F2" }}>
+            Nenhum pixel cadastrado. Vá em <strong>Configurações → Chaves de API</strong> para adicionar.
+          </div>
+        ) : (
+          <AcoesSelect
+            value={(cfg.integration_id as string) ?? ""}
+            onChange={v => set("integration_id", v)}
+            placeholder="Selecione o pixel..."
+            options={pixels.map(p => ({ value: p.id, label: `${p.name} (${p.pixel_id})` }))}
+          />
+        )}
+      </>)}
+      {grp(<>
+        {lbl("Nome do evento")}
+        <AcoesSelect
+          value={(cfg.event_name as string) ?? ""}
+          onChange={v => set("event_name", v)}
+          placeholder="Selecione o evento..."
+          options={[
+            { value: "Lead",                 label: "Lead (qualificação)" },
+            { value: "Purchase",             label: "Purchase (conversão/venda)" },
+            { value: "CompleteRegistration", label: "CompleteRegistration" },
+            { value: "Schedule",             label: "Schedule (reunião agendada)" },
+            { value: "custom",               label: "Personalizado..." },
+          ]}
+        />
+      </>)}
+      {cfg.event_name === "custom" && grp(<>
+        {lbl("Nome do evento personalizado")}
+        <AcoesFieldInput value={(cfg.custom_event_name as string) ?? ""} onChange={v => set("custom_event_name", v)} placeholder="Ex: Qualificado, Reuniao_Agendada..." />
+      </>)}
+      {grp(<>
+        {lbl("Valor monetário (opcional — para Purchase)")}
+        <AcoesFieldInput value={(cfg.event_value as string) ?? ""} onChange={v => set("event_value", v)} placeholder="Ex: 97.00 ou {{lead.valor}}" />
+      </>)}
+      <div style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.6 }}>
+        Email e telefone do lead são hasheados automaticamente (SHA-256) antes do envio.
+      </div>
+    </>
+  );
+}
+
 // ─── SistemaConfigForm ────────────────────────────────────────────────────────
 
 function SistemaConfigForm({ item, updateActionItem, automations }: {
@@ -7908,36 +7980,7 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
       </>);
 
     case "enviar_evento_meta":
-      return (
-        <>
-          {grp(<>
-            {lbl("Nome do evento")}
-            <AcoesSelect
-              value={(cfg.event_name as string) ?? ""}
-              onChange={v => set("event_name", v)}
-              placeholder="Selecione o evento..."
-              options={[
-                { value: "Lead",                   label: "Lead (qualificação)" },
-                { value: "Purchase",               label: "Purchase (conversão/venda)" },
-                { value: "CompleteRegistration",   label: "CompleteRegistration" },
-                { value: "Schedule",               label: "Schedule (reunião agendada)" },
-                { value: "custom",                 label: "Personalizado..." },
-              ]}
-            />
-          </>)}
-          {cfg.event_name === "custom" && grp(<>
-            {lbl("Nome do evento personalizado")}
-            <AcoesFieldInput value={(cfg.custom_event_name as string) ?? ""} onChange={v => set("custom_event_name", v)} placeholder="Ex: Qualificado, Reuniao_Agendada..." />
-          </>)}
-          {grp(<>
-            {lbl("Valor monetário (opcional — para Purchase)")}
-            <AcoesFieldInput value={(cfg.event_value as string) ?? ""} onChange={v => set("event_value", v)} placeholder='Ex: 97.00 ou {{lead.valor}}' />
-          </>)}
-          <div style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
-            Email e telefone do lead são enviados automaticamente hasheados (SHA-256). Configure o Pixel ID e o Access Token em <strong>Configurações → Chaves de API</strong>.
-          </div>
-        </>
-      );
+      return <MetaEventConfigForm item={item} updateActionItem={updateActionItem} />;
 
     default:
       return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;

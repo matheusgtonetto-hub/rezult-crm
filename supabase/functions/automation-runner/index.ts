@@ -2720,15 +2720,19 @@ async function executeAction(
     }
 
     case "enviar_evento_meta": {
-      const { data: metaInt } = await supabase
+      const integrationId = cfg.integration_id as string | undefined;
+      let metaQuery = supabase
         .from("meta_integrations")
         .select("pixel_id, access_token, active")
         .eq("company_id", company_id)
-        .eq("active", true)
-        .maybeSingle();
+        .eq("active", true);
+      if (integrationId) {
+        metaQuery = metaQuery.eq("id", integrationId);
+      }
+      const { data: metaInt } = await metaQuery.maybeSingle();
 
       if (!metaInt) {
-        console.log(`[enviar_evento_meta] Integração Meta Ads não encontrada ou inativa para empresa ${company_id}`);
+        console.log(`[enviar_evento_meta] Integração Meta Ads não encontrada ou inativa${integrationId ? ` (id: ${integrationId})` : ""} para empresa ${company_id}`);
         break;
       }
 
