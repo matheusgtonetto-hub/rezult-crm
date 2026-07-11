@@ -423,7 +423,7 @@ export default function LeadsPage() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
                     {(() => {
                       const d = lead.created_at ? new Date(lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
