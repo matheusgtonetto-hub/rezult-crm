@@ -7896,7 +7896,9 @@ function MetaEventConfigForm({ item, updateActionItem }: {
       .eq("company_id", company.id)
       .eq("active", true)
       .order("created_at", { ascending: true })
-      .then(({ data }) => setPixels((data ?? []) as { id: string; name: string; pixel_id: string }[]));
+      .then(({ data, error }) => {
+        if (!error) setPixels((data ?? []) as { id: string; name: string; pixel_id: string }[]);
+      });
   }, [company]);
 
   return (

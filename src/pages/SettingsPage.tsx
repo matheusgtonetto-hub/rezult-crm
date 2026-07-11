@@ -4337,7 +4337,7 @@ function MetaAdsCard() {
     setVisibleIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
   const maskToken = (tok: string) =>
-    tok.length <= 8 ? "••••••••" : tok.slice(0, 6) + "••••••••••••" + tok.slice(-4);
+    tok.length <= 8 ? "••••••••" : tok.slice(0, 4) + "••••••••••••" + tok.slice(-4);
 
   return (
     <Card>

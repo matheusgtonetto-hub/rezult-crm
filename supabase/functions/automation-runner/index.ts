@@ -2721,30 +2721,33 @@ async function executeAction(
 
     case "enviar_evento_meta": {
       const integrationId = cfg.integration_id as string | undefined;
+      // Use limit(1) para evitar erro PGRST116 do maybeSingle quando há 2+ pixels ativos
+      // e a automação não tem integration_id (compatibilidade com configurações antigas).
       let metaQuery = supabase
         .from("meta_integrations")
-        .select("pixel_id, access_token, active")
+        .select("pixel_id, access_token")
         .eq("company_id", company_id)
-        .eq("active", true);
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1);
       if (integrationId) {
         metaQuery = metaQuery.eq("id", integrationId);
       }
-      const { data: metaInt } = await metaQuery.maybeSingle();
+      const { data: metaRows, error: metaErr } = await metaQuery;
+      const metaInt = metaRows?.[0] ?? null;
 
-      if (!metaInt) {
-        console.log(`[enviar_evento_meta] Integração Meta Ads não encontrada ou inativa${integrationId ? ` (id: ${integrationId})` : ""} para empresa ${company_id}`);
+      if (metaErr || !metaInt) {
+        console.log(`[enviar_evento_meta] Integração Meta Ads não encontrada${integrationId ? ` (id: ${integrationId})` : ""}. Empresa: ${company_id}. Erro: ${metaErr?.message ?? "nenhum pixel ativo"}`);
         break;
       }
 
-      const sha256Hex = async (text: string): Promise<string> => {
-        if (!text) return "";
-        const encoded = new TextEncoder().encode(text);
-        const hash = await crypto.subtle.digest("SHA-256", encoded);
-        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-      };
-
       const rawEmail = String(leadDataForVars?.email ?? "").toLowerCase().trim();
       const rawPhone = String((leadDataForVars?.whatsapp ?? leadDataForVars?.phone) ?? "").replace(/\D/g, "");
+
+      if (!rawEmail && !rawPhone) {
+        console.log(`[enviar_evento_meta] Lead ${lead_id} sem email e sem telefone — evento ignorado (não atribuível).`);
+        break;
+      }
 
       const eventName = cfg.event_name === "custom"
         ? String(cfg.custom_event_name ?? "Lead").trim() || "Lead"
@@ -2762,7 +2765,7 @@ async function executeAction(
         data: [{
           event_name: eventName,
           event_time: Math.floor(Date.now() / 1000),
-          action_source: "crm",
+          action_source: "system_generated",
           user_data: userData,
           custom_data: customData,
         }],
@@ -2771,14 +2774,14 @@ async function executeAction(
 
       const pixelId = (metaInt as Record<string, unknown>).pixel_id as string;
       const metaResp = await fetch(
-        `https://graph.facebook.com/v18.0/${pixelId}/events`,
+        `https://graph.facebook.com/v25.0/${pixelId}/events`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(metaBody) },
       );
       const metaResult = await metaResp.json() as Record<string, unknown>;
       if (!metaResp.ok) {
-        console.error(`[enviar_evento_meta] Erro na CAPI: ${JSON.stringify(metaResult)}`);
+        console.error(`[enviar_evento_meta] Erro na CAPI (pixel ${pixelId}): ${JSON.stringify(metaResult)}`);
       } else {
-        console.log(`[enviar_evento_meta] Evento "${eventName}" enviado para pixel ${pixelId}. events_received: ${metaResult.events_received}`);
+        console.log(`[enviar_evento_meta] Evento "${eventName}" → pixel ${pixelId}. events_received: ${metaResult.events_received}`);
       }
       break;
     }
@@ -2792,4 +2795,11 @@ async function executeAction(
 
 function splitIds(val: string | undefined): string[] {
   return (val ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  if (!text) return "";
+  const encoded = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
