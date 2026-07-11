@@ -1616,6 +1616,18 @@ export default function PipelinePage() {
 
                         <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
                           <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Bloquear visualização do pipeline</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Impede que o atendente visualize e tenha acesso ao pipeline</p>
+                          </div>
+                          <Switch
+                            checked={perms.blockViewPipeline ?? false}
+                            onCheckedChange={v => setAttendantPerm("blockViewPipeline", v)}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                          <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground">Bloquear alteração do atendente</p>
                             <p className="text-xs text-muted-foreground mt-0.5">O atendente não poderá alterar o responsável pelo negócio</p>
                           </div>

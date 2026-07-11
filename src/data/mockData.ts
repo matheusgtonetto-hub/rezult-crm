@@ -132,6 +132,7 @@ export interface PipelineColumn {
 }
 
 export interface AttendantPermissions {
+  blockViewPipeline?: boolean;
   blockChangeAttendant?: boolean;
   viewOwnDealsOnly?: boolean;
   blockDeleteDeals?: boolean;
