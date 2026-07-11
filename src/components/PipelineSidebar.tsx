@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
+import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { ChevronDown, ChevronRight, Filter, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ export function PipelineSidebar() {
     addPipelineGroup,
   } = useCRM();
   const navigate = useNavigate();
+  const { isBlocked } = usePipelinePermissions();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [showNew, setShowNew] = useState(false);
@@ -57,12 +59,12 @@ export function PipelineSidebar() {
   const grouped = pipelineGroups.map(g => ({
     groupId: g.id,
     cat: g.name,
-    items: pipelines.filter(p => p.category === g.name),
+    items: pipelines.filter(p => p.category === g.name && !isBlocked(p.id)),
   }));
 
   // Pipelines whose group no longer exists
   const orphanPipelines = pipelines.filter(
-    p => !pipelineGroups.some(g => g.name === p.category)
+    p => !pipelineGroups.some(g => g.name === p.category) && !isBlocked(p.id)
   );
 
   const closeNewDialog = () => {

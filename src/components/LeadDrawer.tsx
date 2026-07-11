@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
+import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { supabase } from "@/lib/supabase";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -147,6 +148,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   } = useCRM();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { getPerms, isAdmin } = usePipelinePermissions();
 
   const [detailsTab, setDetailsTab] = useState<DetailsTab>("perfil");
   const [historyTab, setHistoryTab]  = useState<HistoryTab>("historico");
@@ -644,18 +646,24 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       <h3 style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>Negócios</h3>
                       <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{relatedLeads.length} negócio{relatedLeads.length !== 1 ? "s" : ""} encontrado{relatedLeads.length !== 1 ? "s" : ""}</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        const first = pipelines[0];
-                        setNewDealPipeline(first?.id ?? "");
-                        setNewDealStage(first?.columns[0]?.id ?? "");
-                        setShowNewDeal(v => !v);
-                      }}
-                      style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "#888" : "#128A68", border: `1px solid ${showNewDeal ? "#E0E0E0" : "#128A6830"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
-                    >
-                      <PlusCircle size={13} />
-                      {showNewDeal ? "Cancelar" : "Novo negócio"}
-                    </button>
+                    {(() => {
+                      const creatablePipelines = pipelines.filter(p => !getPerms(p.id).blockCreateDeals);
+                      if (creatablePipelines.length === 0 && !isAdmin) return null;
+                      return (
+                        <button
+                          onClick={() => {
+                            const first = (isAdmin ? pipelines : creatablePipelines)[0];
+                            setNewDealPipeline(first?.id ?? "");
+                            setNewDealStage(first?.columns[0]?.id ?? "");
+                            setShowNewDeal(v => !v);
+                          }}
+                          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "#888" : "#128A68", border: `1px solid ${showNewDeal ? "#E0E0E0" : "#128A6830"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
+                        >
+                          <PlusCircle size={13} />
+                          {showNewDeal ? "Cancelar" : "Novo negócio"}
+                        </button>
+                      );
+                    })()}
                   </div>
 
                   {/* Formulário inline de novo negócio */}
@@ -674,7 +682,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                           }}
                           style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#FFF", color: "#111" }}
                         >
-                          {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          {pipelines.filter(p => isAdmin || !getPerms(p.id).blockCreateDeals).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
 
@@ -763,7 +771,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                               { icon: <CalendarPlus size={14} />,  label: "Criar atividade",  action: () => { setActDealId(l.id); setActTitle(""); setDealMenuId(null); } },
                               { icon: <ShoppingCart size={14} />, label: "Produtos",          action: () => { setProdDealId(l.id); setDealMenuId(null); } },
                               { icon: <MessageSquare size={14} />, label: "Abrir Chat",       action: () => { setDealMenuId(null); navigate(`/multiatendimento`); } },
-                              { icon: <Trash2 size={14} />,        label: "Excluir",          action: () => { setConfirmDelDealId(l.id); setDealMenuId(null); }, danger: true },
+                              ...(!getPerms(l.pipelineId).blockDeleteDeals ? [{ icon: <Trash2 size={14} />, label: "Excluir", action: () => { setConfirmDelDealId(l.id); setDealMenuId(null); }, danger: true }] : []),
                             ].map(item => (
                               <button key={item.label} onClick={e => { e.stopPropagation(); item.action(); }}
                                 style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: (item as { danger?: boolean }).danger ? "#EF4444" : "#374151", textAlign: "left" }}
@@ -837,7 +845,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                         )}
 
                         {/* Confirmar exclusão */}
-                        {confirmDelDealId === l.id && (
+                        {confirmDelDealId === l.id && !getPerms(l.pipelineId).blockDeleteDeals && (
                           <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10 }}>
                             <p style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", marginBottom: 8 }}>Excluir negócio #{l.dealNumber}?</p>
                             <p style={{ fontSize: 11, color: "#6B7280", marginBottom: 10 }}>Esta ação não pode ser desfeita.</p>

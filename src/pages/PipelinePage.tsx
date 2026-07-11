@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -124,6 +125,8 @@ export default function PipelinePage() {
 
   const isAdmin = can("admin");
   const myName = profile?.full_name ?? "";
+  const { getPerms } = usePipelinePermissions();
+  const myPerms = activePipeline ? getPerms(activePipeline.id) : {};
 
   // "Visualizando como:" — só usado por admins; [] = todos os leads
   // Usa sessionStorage para resetar ao sair da sessão (não persiste entre logins).
@@ -399,12 +402,12 @@ export default function PipelinePage() {
         // Visibilidade por responsável
         const getResps = (l: typeof leads[string]) =>
           l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
-        if (!isAdmin) {
+        if (myPerms.viewOwnDealsOnly) {
           ids = ids.filter(id => {
             const resps = getResps(leads[id]);
             return resps.length === 0 || resps.includes(myName);
           });
-        } else if (viewAsUser.length > 0) {
+        } else if (isAdmin && viewAsUser.length > 0) {
           ids = ids.filter(id => {
             const resps = getResps(leads[id]);
             return viewAsUser.some(v =>
@@ -423,7 +426,7 @@ export default function PipelinePage() {
         });
         return { ...col, filteredIds: ids };
       });
-  }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter]);
+  }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter, myPerms.viewOwnDealsOnly]);
 
   const loadPermissionsState = () => {
     setAttendantPerms(activePipeline.permissions?.byAttendant ?? {});
@@ -488,6 +491,21 @@ export default function PipelinePage() {
     toast.success("Pipeline atualizado.");
     setShowEditPipeline(false);
   };
+
+  if (myPerms.blockViewPipeline) {
+    return (
+      <div className="relative flex h-screen bg-background">
+        <div className="shrink-0 overflow-hidden h-full" style={{ width: sidebarOpen ? SIDEBAR_W : 0, transition: "width 300ms ease" }}>
+          <div style={{ width: SIDEBAR_W, height: "100%" }}><PipelineSidebar /></div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+          <ShieldCheck size={40} className="text-muted-foreground opacity-30" />
+          <p className="text-base font-semibold text-foreground">Acesso restrito</p>
+          <p className="text-sm text-muted-foreground max-w-xs">Você não tem permissão para visualizar este pipeline.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!activePipeline) {
     return (
@@ -932,15 +950,16 @@ export default function PipelinePage() {
 
                                             {/* Responsáveis — multi-select via popover */}
                                             <Popover
-                                              open={respPopoverLeadId === leadId}
-                                              onOpenChange={open => setRespPopoverLeadId(open ? leadId : null)}
+                                              open={myPerms.blockChangeAttendant ? false : respPopoverLeadId === leadId}
+                                              onOpenChange={open => !myPerms.blockChangeAttendant && setRespPopoverLeadId(open ? leadId : null)}
                                             >
                                               <PopoverTrigger asChild>
                                                 <button
                                                   type="button"
                                                   onClick={e => e.stopPropagation()}
                                                   onMouseDown={e => e.stopPropagation()}
-                                                  className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors"
+                                                  disabled={myPerms.blockChangeAttendant}
+                                                  className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                                   style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}
                                                 >
                                                   {leadResps.length === 0 ? (
