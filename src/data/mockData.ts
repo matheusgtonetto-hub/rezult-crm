@@ -131,11 +131,15 @@ export interface PipelineColumn {
   position: number;
 }
 
-export interface PipelinePermissions {
+export interface AttendantPermissions {
   blockChangeAttendant?: boolean;
   viewOwnDealsOnly?: boolean;
   blockDeleteDeals?: boolean;
   blockCreateDeals?: boolean;
+}
+
+export interface PipelinePermissions {
+  byAttendant?: Record<string, AttendantPermissions>;
 }
 
 export interface Pipeline {

@@ -11,6 +11,7 @@ import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
 import { leadMatchesFilter, isFilterEmpty, type LeadFilter } from "@/data/disparos";
+import type { AttendantPermissions } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -227,11 +228,9 @@ export default function PipelinePage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [confirmDeletePipeline, setConfirmDeletePipeline] = useState(false);
-  // Permissions state
-  const [permBlockChangeAttendant, setPermBlockChangeAttendant] = useState(false);
-  const [permViewOwnDealsOnly, setPermViewOwnDealsOnly] = useState(false);
-  const [permBlockDeleteDeals, setPermBlockDeleteDeals] = useState(false);
-  const [permBlockCreateDeals, setPermBlockCreateDeals] = useState(false);
+  // Permissions state (per attendant)
+  const [selectedPermAttendant, setSelectedPermAttendant] = useState<string | null>(null);
+  const [attendantPerms, setAttendantPerms] = useState<Record<string, AttendantPermissions>>({});
   const [colorPickerColId, setColorPickerColId] = useState<string | null>(null);
 
   // Modal de confirmação de avanço de etapa
@@ -427,11 +426,16 @@ export default function PipelinePage() {
   }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter]);
 
   const loadPermissionsState = () => {
-    const p = activePipeline.permissions ?? {};
-    setPermBlockChangeAttendant(p.blockChangeAttendant ?? false);
-    setPermViewOwnDealsOnly(p.viewOwnDealsOnly ?? false);
-    setPermBlockDeleteDeals(p.blockDeleteDeals ?? false);
-    setPermBlockCreateDeals(p.blockCreateDeals ?? false);
+    setAttendantPerms(activePipeline.permissions?.byAttendant ?? {});
+    setSelectedPermAttendant(null);
+  };
+
+  const setAttendantPerm = (perm: keyof AttendantPermissions, value: boolean) => {
+    if (!selectedPermAttendant) return;
+    setAttendantPerms(prev => ({
+      ...prev,
+      [selectedPermAttendant]: { ...(prev[selectedPermAttendant] ?? {}), [perm]: value },
+    }));
   };
 
   const openEditPipeline = () => {
@@ -479,12 +483,7 @@ export default function PipelinePage() {
       name: editPipelineName.trim(),
       description: editPipelineDesc.trim(),
       category: editPipelineGroup,
-      permissions: {
-        blockChangeAttendant: permBlockChangeAttendant,
-        viewOwnDealsOnly: permViewOwnDealsOnly,
-        blockDeleteDeals: permBlockDeleteDeals,
-        blockCreateDeals: permBlockCreateDeals,
-      },
+      permissions: { byAttendant: attendantPerms },
     });
     toast.success("Pipeline atualizado.");
     setShowEditPipeline(false);
@@ -1408,10 +1407,10 @@ export default function PipelinePage() {
 
         {/* Edit pipeline dialog */}
         <Dialog open={showEditPipeline} onOpenChange={(o) => !o && setShowEditPipeline(false)}>
-          <DialogContent className="max-w-2xl p-0 overflow-hidden gap-0">
+          <DialogContent className="p-0 overflow-hidden gap-0" style={{ maxWidth: editPipelineTab === "atendentes" ? 780 : 672 }}>
             <div className="flex" style={{ height: 520 }}>
-              {/* Left sidebar */}
-              <div className="flex flex-col border-r bg-muted/30" style={{ width: 176, padding: 12 }}>
+              {/* Left sidebar — nav */}
+              <div className="flex flex-col border-r bg-muted/30 shrink-0" style={{ width: 176, padding: 12 }}>
                 <p className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
                   {activePipeline.name}
                 </p>
@@ -1426,7 +1425,7 @@ export default function PipelinePage() {
                   <Settings size={14} className="shrink-0" /> Configurações
                 </button>
                 <button
-                  onClick={() => setEditPipelineTab("atendentes")}
+                  onClick={() => { setEditPipelineTab("atendentes"); setSelectedPermAttendant(null); }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
                     editPipelineTab === "atendentes"
                       ? "bg-background shadow-sm font-medium text-foreground"
@@ -1436,6 +1435,51 @@ export default function PipelinePage() {
                   <ShieldCheck size={14} className="shrink-0" /> Permissões
                 </button>
               </div>
+
+              {/* Center — attendant list (only when on Permissões tab) */}
+              {editPipelineTab === "atendentes" && (
+                <div className="flex flex-col border-r bg-muted/10 shrink-0 overflow-y-auto" style={{ width: 188 }}>
+                  <p className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                    Atendentes
+                  </p>
+                  {teamMembers.length === 0 ? (
+                    <div className="px-3 py-8 text-xs text-muted-foreground text-center">
+                      Nenhum atendente encontrado
+                    </div>
+                  ) : (
+                    teamMembers.map(name => {
+                      const avatar = memberAvatars[name];
+                      const color = memberColors[name] ?? "#AAAAAA";
+                      const perms = attendantPerms[name] ?? {};
+                      const hasActivePerms = Object.values(perms).some(Boolean);
+                      const isSelected = selectedPermAttendant === name;
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => setSelectedPermAttendant(name)}
+                          className={`flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                            isSelected ? "bg-primary/8 border-r-2 border-primary" : "hover:bg-muted/60"
+                          }`}
+                        >
+                          {avatar ? (
+                            <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 28, height: 28 }} />
+                          ) : (
+                            <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 28, height: 28, background: color, fontSize: 11 }}>
+                              {name[0].toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-sm truncate flex-1" style={{ fontWeight: isSelected ? 600 : 400, color: "hsl(var(--foreground))" }}>
+                            {name}
+                          </span>
+                          {hasActivePerms && (
+                            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary" title="Possui permissões configuradas" />
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
 
               {/* Right content */}
               <div className="flex flex-col flex-1 min-w-0">
@@ -1555,59 +1599,71 @@ export default function PipelinePage() {
                       </div>
                     </div>
                   )}
-                  {editPipelineTab === "atendentes" && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Permissões do atendente</p>
-
-                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">Bloquear alteração do atendente</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Ao selecionar, o atendente não poderá alterar o responsável pelo negócio</p>
-                        </div>
-                        <Switch
-                          checked={permBlockChangeAttendant}
-                          onCheckedChange={setPermBlockChangeAttendant}
-                          className="shrink-0 mt-0.5"
-                        />
-                      </div>
-
-                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">Visualizar apenas os negócios do atendente</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Ative para que o atendente veja apenas os negócios atribuídos a ele</p>
-                        </div>
-                        <Switch
-                          checked={permViewOwnDealsOnly}
-                          onCheckedChange={setPermViewOwnDealsOnly}
-                          className="shrink-0 mt-0.5"
-                        />
-                      </div>
-
-                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">Bloquear exclusão de negócios</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Ativar para impedir que o atendente exclua negócios</p>
-                        </div>
-                        <Switch
-                          checked={permBlockDeleteDeals}
-                          onCheckedChange={setPermBlockDeleteDeals}
-                          className="shrink-0 mt-0.5"
-                        />
-                      </div>
-
-                      <div className="flex items-start justify-between gap-4 py-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground">Bloquear criação de negócios</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Ativar para impedir que o atendente crie novos negócios</p>
-                        </div>
-                        <Switch
-                          checked={permBlockCreateDeals}
-                          onCheckedChange={setPermBlockCreateDeals}
-                          className="shrink-0 mt-0.5"
-                        />
-                      </div>
+                  {editPipelineTab === "atendentes" && !selectedPermAttendant && (
+                    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                      <ShieldCheck size={32} className="mb-3 opacity-20" />
+                      <p className="text-sm font-medium">Selecione um atendente</p>
+                      <p className="text-xs mt-1 max-w-[200px]">Escolha um atendente ao lado para configurar as permissões</p>
                     </div>
                   )}
+                  {editPipelineTab === "atendentes" && selectedPermAttendant && (() => {
+                    const perms = attendantPerms[selectedPermAttendant] ?? {};
+                    return (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                          Permissões — {selectedPermAttendant}
+                        </p>
+
+                        <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Bloquear alteração do atendente</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">O atendente não poderá alterar o responsável pelo negócio</p>
+                          </div>
+                          <Switch
+                            checked={perms.blockChangeAttendant ?? false}
+                            onCheckedChange={v => setAttendantPerm("blockChangeAttendant", v)}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Visualizar apenas os negócios do atendente</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">O atendente verá apenas os negócios atribuídos a ele</p>
+                          </div>
+                          <Switch
+                            checked={perms.viewOwnDealsOnly ?? false}
+                            onCheckedChange={v => setAttendantPerm("viewOwnDealsOnly", v)}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Bloquear exclusão de negócios</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Impede que o atendente exclua negócios</p>
+                          </div>
+                          <Switch
+                            checked={perms.blockDeleteDeals ?? false}
+                            onCheckedChange={v => setAttendantPerm("blockDeleteDeals", v)}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-start justify-between gap-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Bloquear criação de negócios</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Impede que o atendente crie novos negócios</p>
+                          </div>
+                          <Switch
+                            checked={perms.blockCreateDeals ?? false}
+                            onCheckedChange={v => setAttendantPerm("blockCreateDeals", v)}
+                            className="shrink-0 mt-0.5"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="border-t px-6 py-4 flex justify-end gap-2">
                   <Button variant="outline" className="rounded-lg" onClick={() => setShowEditPipeline(false)}>
