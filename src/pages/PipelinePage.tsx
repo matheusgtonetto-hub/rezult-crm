@@ -895,7 +895,7 @@ export default function PipelinePage() {
                                             {...prov.draggableProps}
                                             {...prov.dragHandleProps}
                                             onClick={() => navigate(`/pipeline/lead/${leadId}`)}
-                                            className={`bg-white border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
+                                            className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
                                               snap.isDragging ? "shadow-elev-2 rotate-1" : ""
                                             } ${lead.dealStatus === "won" ? "glow-closed" : ""}`}
                                           >
