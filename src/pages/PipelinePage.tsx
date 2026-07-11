@@ -43,9 +43,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -226,6 +227,11 @@ export default function PipelinePage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [confirmDeletePipeline, setConfirmDeletePipeline] = useState(false);
+  // Permissions state
+  const [permBlockChangeAttendant, setPermBlockChangeAttendant] = useState(false);
+  const [permViewOwnDealsOnly, setPermViewOwnDealsOnly] = useState(false);
+  const [permBlockDeleteDeals, setPermBlockDeleteDeals] = useState(false);
+  const [permBlockCreateDeals, setPermBlockCreateDeals] = useState(false);
   const [colorPickerColId, setColorPickerColId] = useState<string | null>(null);
 
   // Modal de confirmação de avanço de etapa
@@ -420,6 +426,14 @@ export default function PipelinePage() {
       });
   }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter]);
 
+  const loadPermissionsState = () => {
+    const p = activePipeline.permissions ?? {};
+    setPermBlockChangeAttendant(p.blockChangeAttendant ?? false);
+    setPermViewOwnDealsOnly(p.viewOwnDealsOnly ?? false);
+    setPermBlockDeleteDeals(p.blockDeleteDeals ?? false);
+    setPermBlockCreateDeals(p.blockCreateDeals ?? false);
+  };
+
   const openEditPipeline = () => {
     setEditPipelineName(activePipeline.name);
     setEditPipelineDesc(activePipeline.description ?? "");
@@ -427,6 +441,18 @@ export default function PipelinePage() {
     setEditPipelineTab("config");
     setCreatingGroup(false);
     setNewGroupName("");
+    loadPermissionsState();
+    setShowEditPipeline(true);
+  };
+
+  const openPermissions = () => {
+    setEditPipelineName(activePipeline.name);
+    setEditPipelineDesc(activePipeline.description ?? "");
+    setEditPipelineGroup(activePipeline.category);
+    setEditPipelineTab("atendentes");
+    setCreatingGroup(false);
+    setNewGroupName("");
+    loadPermissionsState();
     setShowEditPipeline(true);
   };
 
@@ -453,6 +479,12 @@ export default function PipelinePage() {
       name: editPipelineName.trim(),
       description: editPipelineDesc.trim(),
       category: editPipelineGroup,
+      permissions: {
+        blockChangeAttendant: permBlockChangeAttendant,
+        viewOwnDealsOnly: permViewOwnDealsOnly,
+        blockDeleteDeals: permBlockDeleteDeals,
+        blockCreateDeals: permBlockCreateDeals,
+      },
     });
     toast.success("Pipeline atualizado.");
     setShowEditPipeline(false);
@@ -641,11 +673,11 @@ export default function PipelinePage() {
                   <div className="text-xs text-muted-foreground">Edite, configure ou exclua sua pipeline</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem className="py-2.5" onClick={() => toast("Em breve: Permissões da pipeline")}>
-                <Users size={14} className="mr-3 shrink-0" />
+              <DropdownMenuItem className="py-2.5" onClick={openPermissions}>
+                <ShieldCheck size={14} className="mr-3 shrink-0" />
                 <div>
                   <div className="font-medium text-sm">Permissões da pipeline</div>
-                  <div className="text-xs text-muted-foreground">Adicione acesso para os atendentes</div>
+                  <div className="text-xs text-muted-foreground">Configure o acesso dos atendentes</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -1401,7 +1433,7 @@ export default function PipelinePage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-background/60"
                   }`}
                 >
-                  <Users size={14} className="shrink-0" /> Atendentes
+                  <ShieldCheck size={14} className="shrink-0" /> Permissões
                 </button>
               </div>
 
@@ -1524,10 +1556,56 @@ export default function PipelinePage() {
                     </div>
                   )}
                   {editPipelineTab === "atendentes" && (
-                    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-16">
-                      <Users size={32} className="mb-3 opacity-30" />
-                      <p className="text-sm font-medium">Gerenciamento de atendentes</p>
-                      <p className="text-xs mt-1">Em breve</p>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Permissões do atendente</p>
+
+                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">Bloquear alteração do atendente</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ao selecionar, o atendente não poderá alterar o responsável pelo negócio</p>
+                        </div>
+                        <Switch
+                          checked={permBlockChangeAttendant}
+                          onCheckedChange={setPermBlockChangeAttendant}
+                          className="shrink-0 mt-0.5"
+                        />
+                      </div>
+
+                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">Visualizar apenas os negócios do atendente</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ative para que o atendente veja apenas os negócios atribuídos a ele</p>
+                        </div>
+                        <Switch
+                          checked={permViewOwnDealsOnly}
+                          onCheckedChange={setPermViewOwnDealsOnly}
+                          className="shrink-0 mt-0.5"
+                        />
+                      </div>
+
+                      <div className="flex items-start justify-between gap-4 py-3 border-b border-card-border">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">Bloquear exclusão de negócios</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ativar para impedir que o atendente exclua negócios</p>
+                        </div>
+                        <Switch
+                          checked={permBlockDeleteDeals}
+                          onCheckedChange={setPermBlockDeleteDeals}
+                          className="shrink-0 mt-0.5"
+                        />
+                      </div>
+
+                      <div className="flex items-start justify-between gap-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">Bloquear criação de negócios</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ativar para impedir que o atendente crie novos negócios</p>
+                        </div>
+                        <Switch
+                          checked={permBlockCreateDeals}
+                          onCheckedChange={setPermBlockCreateDeals}
+                          className="shrink-0 mt-0.5"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

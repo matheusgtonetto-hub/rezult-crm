@@ -22,7 +22,7 @@ interface CRMContextType {
   setActivePipelineId: (id: string) => void;
   activePipeline: Pipeline | null;
   addPipeline: (name: string, category: PipelineCategory, columns: Omit<PipelineColumn, "leadIds">[], description?: string) => Promise<string | undefined>;
-  updatePipeline: (id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description">>) => void;
+  updatePipeline: (id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description" | "permissions">>) => void;
   deletePipeline: (id: string) => void;
 
   pipelineGroups: PipelineGroup[];
@@ -119,6 +119,7 @@ function dbToPipeline(row: Record<string, unknown>, columns: PipelineColumn[]): 
     category: row.category as PipelineCategory,
     description: (row.description as string) ?? "",
     columns,
+    permissions: (row.permissions as Pipeline["permissions"]) ?? {},
   };
 }
 
@@ -684,12 +685,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     return newPipeline.id;
   }, [user, company, pipelines.length]);
 
-  const updatePipeline = useCallback((id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description">>) => {
+  const updatePipeline = useCallback((id: string, data: Partial<Pick<Pipeline, "name" | "category" | "description" | "permissions">>) => {
     setPipelines(prev => prev.map(p => (p.id === id ? { ...p, ...data } : p)));
     const dbData: Record<string, unknown> = {};
     if ("name" in data) dbData.name = data.name;
     if ("category" in data) dbData.category = data.category;
     if ("description" in data) dbData.description = data.description ?? "";
+    if ("permissions" in data) dbData.permissions = data.permissions ?? {};
     supabase.from("pipelines").update(dbData).eq("id", id).then(({ error }) => {
       if (error) console.error("updatePipeline error:", error.message);
     });

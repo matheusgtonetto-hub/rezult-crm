@@ -131,12 +131,20 @@ export interface PipelineColumn {
   position: number;
 }
 
+export interface PipelinePermissions {
+  blockChangeAttendant?: boolean;
+  viewOwnDealsOnly?: boolean;
+  blockDeleteDeals?: boolean;
+  blockCreateDeals?: boolean;
+}
+
 export interface Pipeline {
   id: string;
   name: string;
   category: PipelineCategory;
   description?: string;
   columns: PipelineColumn[];
+  permissions?: PipelinePermissions;
 }
 
 export interface Product {
