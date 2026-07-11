@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
+import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -486,6 +487,7 @@ export default function LeadDetailPage() {
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { profile } = useProfile();
+  const { getPerms } = usePipelinePermissions();
   const { whatsappConnections } = useCompany();
   const hasActiveWaConnection = whatsappConnections.some(c => c.connected);
 
@@ -494,6 +496,7 @@ export default function LeadDetailPage() {
     () => pipelines.find(p => p.id === lead?.pipelineId) || activePipeline,
     [pipelines, lead, activePipeline]
   );
+  const pipelinePerms = getPerms(pipeline?.id ?? "");
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     contato: true,
@@ -1095,7 +1098,7 @@ export default function LeadDetailPage() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
+              <button disabled={pipelinePerms.blockChangeAttendant} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent">
                 {leadResps.length === 0 ? (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "#AAAAAA" }}>S</div>
                 ) : (
@@ -1322,11 +1325,12 @@ export default function LeadDetailPage() {
                               <button
                                 key={m}
                                 type="button"
+                                disabled={pipelinePerms.blockChangeAttendant}
                                 onClick={() => {
                                   const next = sel ? leadResps.filter(r => r !== m) : [...leadResps, m];
                                   updateField("responsibles", next);
                                 }}
-                                className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left hover:bg-muted transition-colors"
+                                className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                               >
                                 <div className="flex items-center justify-center rounded shrink-0" style={{ width: 13, height: 13, border: sel ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: sel ? (memberColors[m] || "#128A68") : "transparent" }}>
                                   {sel && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}

@@ -405,7 +405,7 @@ export default function PipelinePage() {
         if (myPerms.viewOwnDealsOnly) {
           ids = ids.filter(id => {
             const resps = getResps(leads[id]);
-            return resps.length === 0 || resps.includes(myName);
+            return resps.includes(myName);
           });
         } else if (isAdmin && viewAsUser.length > 0) {
           ids = ids.filter(id => {
