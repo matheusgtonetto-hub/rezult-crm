@@ -410,13 +410,13 @@ export default function LeadsPage() {
                       const total = d?.total ?? 0;
                       const count = d?.count ?? 0;
                       return (
-                        <div className="flex items-start gap-4">
+                        <div className="flex items-start" style={{ gap: 15 }}>
                           <div style={{ lineHeight: 1.25 }}>
                             <div style={{ fontSize: 10 }} className="text-muted-foreground">Total:</div>
                             <div style={{ fontSize: 12 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
                           </div>
-                          <div style={{ lineHeight: 1.25 }}>
-                            <div style={{ fontSize: 12 }} className="font-semibold text-foreground">{count}</div>
+                          <div className="flex flex-col items-center" style={{ lineHeight: 1.25 }}>
+                            <div className="flex items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold" style={{ width: 20, height: 20, fontSize: 11 }}>{count}</div>
                             <div style={{ fontSize: 10 }} className="text-muted-foreground">Compras</div>
                           </div>
                         </div>
