@@ -12,7 +12,7 @@ import {
   ShoppingCart, Bell, ExternalLink, Info,
   Mail, Phone, UserCheck, Equal, CreditCard,
   Braces, FileDown, Brackets, RefreshCw, Loader2, Square,
-  MessageSquareText, Smile, ListChecks,
+  MessageSquareText, Smile, ListChecks, Megaphone,
 } from "lucide-react";
 import { format, parseISO, subWeeks, subDays, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -379,9 +379,10 @@ const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; d
     id: "sistema", label: "Sistema", icon: Settings,
     description: "Adicione ações no sistema",
     actions: [
-      { id: "retornar_resultado", label: "Retornar resultado da tool", description: "Define o conteúdo que será retornado como resultado da tool para o agente de IA", icon: Upload },
-      { id: "enviar_notificacao", label: "Enviar notificação",          description: "Envia uma notificação para os usuários",                                          icon: Bell },
-      { id: "iniciar_automacao",  label: "Iniciar outra automação",     description: "Permite iniciar outra automação passando parâmetros específicos da sessão.",     icon: Link2 },
+      { id: "retornar_resultado",  label: "Retornar resultado da tool",   description: "Define o conteúdo que será retornado como resultado da tool para o agente de IA", icon: Upload },
+      { id: "enviar_notificacao",  label: "Enviar notificação",           description: "Envia uma notificação para os usuários",                                          icon: Bell },
+      { id: "iniciar_automacao",   label: "Iniciar outra automação",      description: "Permite iniciar outra automação passando parâmetros específicos da sessão.",     icon: Link2 },
+      { id: "enviar_evento_meta",  label: "Enviar evento para Meta Ads",  description: "Envia um evento de conversão para o Meta Ads via Conversions API. Configure as credenciais em Configurações → Chaves de API.", icon: Megaphone },
     ],
   },
   {
@@ -7905,6 +7906,38 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
         {lbl("Mensagem da notificação")}
         <AcoesFieldTextarea value={(cfg.mensagem as string) ?? ""} onChange={v => set("mensagem", v)} placeholder="Digite a mensagem da notificação..." rows={3} />
       </>);
+
+    case "enviar_evento_meta":
+      return (
+        <>
+          {grp(<>
+            {lbl("Nome do evento")}
+            <AcoesSelect
+              value={(cfg.event_name as string) ?? ""}
+              onChange={v => set("event_name", v)}
+              placeholder="Selecione o evento..."
+              options={[
+                { value: "Lead",                   label: "Lead (qualificação)" },
+                { value: "Purchase",               label: "Purchase (conversão/venda)" },
+                { value: "CompleteRegistration",   label: "CompleteRegistration" },
+                { value: "Schedule",               label: "Schedule (reunião agendada)" },
+                { value: "custom",                 label: "Personalizado..." },
+              ]}
+            />
+          </>)}
+          {cfg.event_name === "custom" && grp(<>
+            {lbl("Nome do evento personalizado")}
+            <AcoesFieldInput value={(cfg.custom_event_name as string) ?? ""} onChange={v => set("custom_event_name", v)} placeholder="Ex: Qualificado, Reuniao_Agendada..." />
+          </>)}
+          {grp(<>
+            {lbl("Valor monetário (opcional — para Purchase)")}
+            <AcoesFieldInput value={(cfg.event_value as string) ?? ""} onChange={v => set("event_value", v)} placeholder='Ex: 97.00 ou {{lead.valor}}' />
+          </>)}
+          <div style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>
+            Email e telefone do lead são enviados automaticamente hasheados (SHA-256). Configure o Pixel ID e o Access Token em <strong>Configurações → Chaves de API</strong>.
+          </div>
+        </>
+      );
 
     default:
       return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;

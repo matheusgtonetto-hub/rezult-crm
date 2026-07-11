@@ -27,7 +27,7 @@ import {
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
   Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
   Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
-  Sparkles, LayoutDashboard,
+  Sparkles, LayoutDashboard, Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
@@ -4264,6 +4264,171 @@ const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: strin
 
 // Cadastro das chaves de IA dos clientes (usadas pelo Bloco de IA das automações).
 // Uma chave por provedor por empresa (upsert por company_id+provider).
+interface MetaIntegration {
+  id: string;
+  pixel_id: string;
+  access_token: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function MetaAdsCard() {
+  const { company } = useCompany();
+  const { user } = useAuth();
+  const [integration, setIntegration] = useState<MetaIntegration | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pixelId, setPixelId] = useState("");
+  const [accessToken, setAccessToken] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!company) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("meta_integrations")
+      .select("id, pixel_id, access_token, active, created_at, updated_at")
+      .eq("company_id", company.id)
+      .maybeSingle();
+    setIntegration(data as MetaIntegration | null);
+    setLoading(false);
+  }, [company]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async () => {
+    if (!company || !user) return;
+    const pid = pixelId.trim();
+    const tok = accessToken.trim();
+    if (!pid || !tok) { toast.error("Preencha o Pixel ID e o Access Token."); return; }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("meta_integrations")
+      .upsert(
+        { company_id: company.id, owner_id: user.id, pixel_id: pid, access_token: tok, active: true, updated_at: new Date().toISOString() },
+        { onConflict: "company_id" },
+      )
+      .select("id, pixel_id, access_token, active, created_at, updated_at")
+      .single();
+    setSaving(false);
+    if (error) { toast.error("Erro ao salvar a integração Meta Ads."); return; }
+    setIntegration(data as MetaIntegration);
+    setPixelId("");
+    setAccessToken("");
+    toast.success("Integração com Meta Ads salva.");
+  };
+
+  const handleToggle = async () => {
+    if (!integration) return;
+    const { error } = await supabase.from("meta_integrations").update({ active: !integration.active }).eq("id", integration.id);
+    if (error) { toast.error("Erro ao atualizar."); return; }
+    setIntegration(prev => prev ? { ...prev, active: !prev.active } : prev);
+  };
+
+  const handleDelete = async () => {
+    if (!integration) return;
+    const { error } = await supabase.from("meta_integrations").delete().eq("id", integration.id);
+    if (error) { toast.error("Erro ao remover."); return; }
+    setIntegration(null);
+    setDeleteTarget(false);
+    toast.success("Integração Meta Ads removida.");
+  };
+
+  const maskToken = (tok: string) =>
+    tok.length <= 8 ? "••••••••" : tok.slice(0, 6) + "••••••••••••" + tok.slice(-4);
+
+  return (
+    <Card>
+      <SectionTitle
+        title="Meta Ads (Conversions API)"
+        subtitle="Cadastre seu Pixel ID e Access Token para enviar eventos de conversão via Conversions API quando leads avançarem de etapa nas automações."
+      />
+
+      <div className="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Pixel ID (ex: 1234567890)"
+            value={pixelId}
+            onChange={e => setPixelId(e.target.value)}
+            className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+          />
+          <Input
+            type="password"
+            placeholder="Access Token"
+            value={accessToken}
+            onChange={e => setAccessToken(e.target.value)}
+            className="border-card-border text-sm h-9 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+            onKeyDown={e => e.key === "Enter" && handleSave()}
+          />
+          <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleSave} disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Obtenha em <span className="font-mono">business.facebook.com → Events Manager → Configurações</span>. Gere um System User Token com permissão <span className="font-mono">ads_management</span>.
+        </p>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
+      ) : !integration ? (
+        <div className="text-center py-8">
+          <Megaphone size={32} className="mx-auto mb-2 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">Nenhuma integração Meta Ads cadastrada.</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">Preencha o Pixel ID e o Access Token acima.</p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
+          <div className="w-9 h-9 rounded-lg bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+            <Megaphone size={16} className="text-[#1877F2]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Meta Ads</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pixel: <span className="font-mono">{integration.pixel_id}</span>
+            </p>
+            <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
+              Token: {showToken ? integration.access_token : maskToken(integration.access_token)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setShowToken(v => !v)}
+              className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+              title={showToken ? "Ocultar token" : "Mostrar token"}
+            >
+              {showToken ? <EyeOff size={13} /> : <Eye size={13} />}
+            </button>
+            <Switch checked={integration.active} onCheckedChange={handleToggle} className="data-[state=checked]:bg-primary scale-75" />
+            <button
+              onClick={() => setDeleteTarget(true)}
+              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive"
+              title="Remover integração"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={deleteTarget} onOpenChange={v => !v && setDeleteTarget(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Remover integração Meta Ads</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remover a integração? As automações que usam a ação "Enviar evento para Meta Ads" deixarão de funcionar.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(false)}>Cancelar</Button>
+            <Button className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function AiProviderKeysCard() {
   const { company } = useCompany();
   const { user } = useAuth();
@@ -4505,6 +4670,9 @@ function ApiSection() {
         <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
         <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Cadastre as chaves de IA dos seus provedores e gere chaves para integrações via webhook.</p>
       </div>
+
+      {/* Meta Ads Conversions API */}
+      <MetaAdsCard />
 
       {/* Provedores de IA (BYOK) */}
       <AiProviderKeysCard />

@@ -2719,6 +2719,66 @@ async function executeAction(
       break;
     }
 
+    case "enviar_evento_meta": {
+      const { data: metaInt } = await supabase
+        .from("meta_integrations")
+        .select("pixel_id, access_token, active")
+        .eq("company_id", company_id)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (!metaInt) {
+        console.log(`[enviar_evento_meta] Integração Meta Ads não encontrada ou inativa para empresa ${company_id}`);
+        break;
+      }
+
+      const sha256Hex = async (text: string): Promise<string> => {
+        if (!text) return "";
+        const encoded = new TextEncoder().encode(text);
+        const hash = await crypto.subtle.digest("SHA-256", encoded);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+      };
+
+      const rawEmail = String(leadDataForVars?.email ?? "").toLowerCase().trim();
+      const rawPhone = String((leadDataForVars?.whatsapp ?? leadDataForVars?.phone) ?? "").replace(/\D/g, "");
+
+      const eventName = cfg.event_name === "custom"
+        ? String(cfg.custom_event_name ?? "Lead").trim() || "Lead"
+        : String(cfg.event_name ?? "Lead").trim() || "Lead";
+
+      const userData: Record<string, string[]> = {};
+      if (rawEmail) userData.em = [await sha256Hex(rawEmail)];
+      if (rawPhone) userData.ph = [await sha256Hex(rawPhone)];
+
+      const customData: Record<string, unknown> = { currency: "BRL" };
+      const eventValueRaw = parseFloat(String(cfg.event_value ?? ""));
+      if (!isNaN(eventValueRaw) && eventValueRaw > 0) customData.value = eventValueRaw;
+
+      const metaBody = {
+        data: [{
+          event_name: eventName,
+          event_time: Math.floor(Date.now() / 1000),
+          action_source: "crm",
+          user_data: userData,
+          custom_data: customData,
+        }],
+        access_token: (metaInt as Record<string, unknown>).access_token as string,
+      };
+
+      const pixelId = (metaInt as Record<string, unknown>).pixel_id as string;
+      const metaResp = await fetch(
+        `https://graph.facebook.com/v18.0/${pixelId}/events`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(metaBody) },
+      );
+      const metaResult = await metaResp.json() as Record<string, unknown>;
+      if (!metaResp.ok) {
+        console.error(`[enviar_evento_meta] Erro na CAPI: ${JSON.stringify(metaResult)}`);
+      } else {
+        console.log(`[enviar_evento_meta] Evento "${eventName}" enviado para pixel ${pixelId}. events_received: ${metaResult.events_received}`);
+      }
+      break;
+    }
+
     default:
       console.log(`Action "${item.actionId}" não tem handler — ignorada`);
   }
