@@ -611,6 +611,42 @@ const AUTOMATION_TEMPLATES: { id: string; name: string; description: string; gro
       ],
     },
   },
+  {
+    id: "meta_lead_qualificado",
+    name: "Meta Ads · Lead qualificado",
+    description: "Envia evento 'Lead' para o Meta Ads quando um negócio é movido de etapa. Configure o pixel em Configurações → Chaves de API.",
+    group: "Meta Ads",
+    icon: Megaphone,
+    flow: (() => {
+      const trigger = tplTrigger("negocios", "neg_movido", "Negócio movido", "Quando um negócio é movido para a etapa");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          { id: "acoes_meta_lead", type: "acoes" as const, x: 360, y: 80, label: "Ação", parentIds: ["n1"], errorParentIds: [], timeoutParentIds: [],
+            actionItems: [{ id: "ai_meta_lead", categoryId: "sistema", actionId: "enviar_evento_meta", label: "Enviar evento para Meta Ads", description: "Envia um evento de conversão para o Meta Ads via Conversions API", config: { event_name: "Lead" } }] },
+        ],
+      };
+    })(),
+  },
+  {
+    id: "meta_purchase",
+    name: "Meta Ads · Negócio ganho (Purchase)",
+    description: "Envia evento 'Purchase' para o Meta Ads quando um negócio é marcado como ganho. Inclui o valor do negócio se disponível.",
+    group: "Meta Ads",
+    icon: Megaphone,
+    flow: (() => {
+      const trigger = tplTrigger("negocios", "neg_ganho", "Negócio ganho", "Quando um negócio é marcado como ganho");
+      return {
+        trigger,
+        nodes: [
+          tplStart(trigger),
+          { id: "acoes_meta_purchase", type: "acoes" as const, x: 360, y: 80, label: "Ação", parentIds: ["n1"], errorParentIds: [], timeoutParentIds: [],
+            actionItems: [{ id: "ai_meta_purchase", categoryId: "sistema", actionId: "enviar_evento_meta", label: "Enviar evento para Meta Ads", description: "Envia um evento de conversão para o Meta Ads via Conversions API", config: { event_name: "Purchase" } }] },
+        ],
+      };
+    })(),
+  },
 ];
 
 function buildOrthPath(x1: number, y1: number, x2: number, y2: number): string {
