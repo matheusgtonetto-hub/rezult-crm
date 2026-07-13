@@ -42,7 +42,7 @@ export function NoNextActionPanel({ allLeads }: NoNextActionPanelProps) {
           {visible.map(l => {
             const hasDate = !!l.nextFollowUp;
             const daysLate = hasDate
-              ? Math.floor((new Date().getTime() - new Date(l.nextFollowUp!).getTime()) / 86400000)
+              ? Math.max(0, Math.floor((new Date().getTime() - new Date(l.nextFollowUp!).getTime()) / 86400000))
               : null;
             return (
               <div key={l.id} className="flex items-start gap-3 pb-3 border-b border-card-border last:border-0 last:pb-0">
@@ -53,7 +53,9 @@ export function NoNextActionPanel({ allLeads }: NoNextActionPanelProps) {
                   <p className="text-sm text-foreground truncate">{l.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{l.responsible || "—"}</p>
                   <p className="text-xs text-destructive mt-0.5">
-                    {hasDate ? `${daysLate} dia${daysLate! > 1 ? "s" : ""} sem follow-up` : "Sem próxima ação definida"}
+                    {hasDate
+                      ? (daysLate === 0 ? "Venceu hoje" : `${daysLate} dia${daysLate! > 1 ? "s" : ""} sem follow-up`)
+                      : "Sem próxima ação definida"}
                   </p>
                 </div>
               </div>

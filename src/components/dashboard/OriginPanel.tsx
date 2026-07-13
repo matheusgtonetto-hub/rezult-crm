@@ -29,7 +29,11 @@ export function OriginPanel({ periodLeads }: OriginPanelProps) {
       map.set(o, cur);
     });
     return [...map.values()]
-      .map(o => ({ ...o, winRate: o.count > 0 ? o.won / o.count * 100 : 0 }))
+      .map(o => ({
+        ...o,
+        // conversão sobre negócios encerrados (ganhos+perdidos), não sobre o total
+        winRate: (o.won + o.lost) > 0 ? o.won / (o.won + o.lost) * 100 : 0,
+      }))
       .sort((a, b) => b.count - a.count);
   }, [periodLeads]);
 

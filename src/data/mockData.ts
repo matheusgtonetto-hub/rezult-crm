@@ -25,12 +25,13 @@ export interface Activity {
   contactEmail?: string;
   meetLink?: string;
   completedAt?: string;
+  completedBy?: string;
   noShowAt?: string;
   participants?: string[];
   gcalEventId?: string;
 }
 
-export type CustomFieldType = "text" | "date" | "boolean";
+export type CustomFieldType = "text" | "number" | "currency" | "date" | "options" | "boolean";
 
 export interface CustomFieldItem {
   id: string;

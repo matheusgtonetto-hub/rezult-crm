@@ -94,6 +94,7 @@ interface CRMContextType {
   addCustomFieldItem: (groupId: string, label: string, fieldType: CustomFieldType) => Promise<CustomFieldItem | null>;
   updateCustomFieldItem: (id: string, data: Partial<Pick<CustomFieldItem, "label" | "fieldType">>) => Promise<void>;
   deleteCustomFieldItem: (groupId: string, itemId: string) => Promise<void>;
+  reorderCustomFieldItems: (groupId: string, orderedIds: string[]) => Promise<void>;
   updateLeadCustomFieldValues: (leadId: string, values: Record<string, string>) => Promise<void>;
 
   logout: () => void;
@@ -205,6 +206,7 @@ function dbToActivity(row: Record<string, unknown>): Activity {
     contactEmail: (row.contact_email as string) ?? undefined,
     meetLink: (row.meet_link as string) ?? undefined,
     completedAt: (row.completed_at as string) ?? undefined,
+    completedBy: (row.completed_by as string) ?? undefined,
     noShowAt: (row.no_show_at as string) ?? undefined,
     gcalEventId: (row.gcal_event_id as string) ?? undefined,
     participants: (() => {
@@ -1126,6 +1128,18 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (error) console.error("updateCustomFieldItem:", error.message);
   }, []);
 
+  const reorderCustomFieldItems = useCallback(async (groupId: string, orderedIds: string[]) => {
+    setCustomFieldGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      const itemMap = new Map(g.items.map(i => [i.id, i]));
+      const reordered = orderedIds.map((id, idx) => ({ ...itemMap.get(id)!, position: idx }));
+      return { ...g, items: reordered };
+    }));
+    await Promise.all(orderedIds.map((id, idx) =>
+      supabase.from("custom_field_items").update({ position: idx }).eq("id", id)
+    ));
+  }, []);
+
   const deleteCustomFieldItem = useCallback(async (groupId: string, itemId: string) => {
     setCustomFieldGroups(prev => prev.map(g =>
       g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g
@@ -1245,11 +1259,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
     if (error || !row) { toast.error("Erro ao criar produto."); return; }
+    const r = row as Record<string, unknown>;
     setProducts(prev => [...prev, {
-      id: (row as Record<string, unknown>).id as string,
+      id: r.id as string,
       name: data.name,
       sku: data.sku,
       defaultValue: data.defaultValue,
+      created_at: r.created_at as string | undefined,
     }]);
   }, [user, company]);
 
@@ -1347,20 +1363,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   const completeActivity = useCallback((leadId: string, activityId: string) => {
     const completedAt = new Date().toISOString();
+    const completedBy = currentUserName ?? undefined;
     setLeads(prev => ({
       ...prev,
       [leadId]: {
         ...prev[leadId],
         activities: prev[leadId]?.activities.map(a =>
-          a.id === activityId ? { ...a, completedAt, noShowAt: undefined } : a
+          a.id === activityId ? { ...a, completedAt, completedBy, noShowAt: undefined } : a
         ) ?? [],
       },
     }));
     if (user) {
-      supabase.from("activities").update({ completed_at: completedAt, no_show_at: null }).eq("id", activityId)
+      supabase.from("activities").update({ completed_at: completedAt, completed_by: completedBy ?? null, no_show_at: null }).eq("id", activityId)
         .then(({ error }) => { if (error) console.error("completeActivity error:", error.message); });
     }
-  }, [user]);
+  }, [user, currentUserName]);
 
   const patchActivity = useCallback((
     leadId: string,
@@ -1510,7 +1527,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         products, addProduct, updateProduct, deleteProduct,
         lossReasons, addLossReason, updateLossReason, deleteLossReason,
         customFieldGroups, addCustomFieldGroup, updateCustomFieldGroup, deleteCustomFieldGroup,
-        addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem, updateLeadCustomFieldValues,
+        addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem, reorderCustomFieldItems, updateLeadCustomFieldValues,
         logout: signOut,
         selectedLeadId, setSelectedLeadId,
       }}

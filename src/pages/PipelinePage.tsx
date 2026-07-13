@@ -240,15 +240,9 @@ export default function PipelinePage() {
   const [pendingAdvance, setPendingAdvance] = useState<{
     leadId: string;
     leadName: string;
-    fromColId: string;
-    fromColTitle: string;
-    toColId: string;
-    toColTitle: string;
     toIndex: number;
-    sourceIndex: number;
-    isSkipping?: boolean;
-    nextColId?: string;
-    nextColTitle?: string;
+    steps: Array<{ colId: string; colTitle: string }>;
+    currentStep: number; // índice em `steps` da posição atual do lead
   } | null>(null);
 
   // Filters
@@ -315,20 +309,13 @@ export default function PipelinePage() {
       const toIdx    = cols.findIndex(c => c.id === destination.droppableId);
       const isAdvance = toIdx > fromIdx;
       if (isAdvance) {
-        const isSkipping = toIdx > fromIdx + 1;
-        const nextCol = isSkipping ? cols[fromIdx + 1] : undefined;
+        const steps = cols.slice(fromIdx, toIdx + 1).map(c => ({ colId: c.id, colTitle: c.title }));
         setPendingAdvance({
           leadId: draggableId,
           leadName: leads[draggableId]?.name ?? "",
-          fromColId: source.droppableId,
-          fromColTitle: fromCol?.title ?? "",
-          toColId: destination.droppableId,
-          toColTitle: toCol?.title ?? "",
           toIndex: destination.index,
-          sourceIndex: source.index,
-          isSkipping,
-          nextColId: nextCol?.id,
-          nextColTitle: nextCol?.title,
+          steps,
+          currentStep: 0,
         });
         return;
       }
@@ -345,16 +332,21 @@ export default function PipelinePage() {
 
   const handleConfirmAdvance = () => {
     if (!pendingAdvance) return;
-    const targetColId    = pendingAdvance.isSkipping ? pendingAdvance.nextColId!    : pendingAdvance.toColId;
-    const targetColTitle = pendingAdvance.isSkipping ? pendingAdvance.nextColTitle! : pendingAdvance.toColTitle;
-    moveLead(pendingAdvance.leadId, pendingAdvance.fromColId, targetColId, pendingAdvance.toIndex);
-    addActivity(pendingAdvance.leadId, {
+    const { steps, currentStep, leadId, toIndex } = pendingAdvance;
+    const from = steps[currentStep];
+    const to = steps[currentStep + 1];
+    moveLead(leadId, from.colId, to.colId, toIndex);
+    addActivity(leadId, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${pendingAdvance.fromColTitle}" para "${targetColTitle}".`,
+      description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
     });
-    setPendingAdvance(null);
+    if (currentStep + 1 === steps.length - 1) {
+      setPendingAdvance(null);
+    } else {
+      setPendingAdvance({ ...pendingAdvance, currentStep: currentStep + 1 });
+    }
   };
 
   const handleCancelAdvance = () => {
@@ -1274,36 +1266,95 @@ export default function PipelinePage() {
 
 
         {/* Confirmação de avanço de etapa */}
-        <AlertDialog open={!!pendingAdvance} onOpenChange={(open) => !open && handleCancelAdvance()}>
-          <AlertDialogContent className="max-w-sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle className={pendingAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
-                {pendingAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
-                {pendingAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
-              </AlertDialogTitle>
-              <hr className="border-gray-300" />
-              <AlertDialogDescription className="pl-[10px]">
-                {pendingAdvance?.isSkipping ? (
-                  <>
-                    O lead <strong className="text-foreground">{pendingAdvance.leadName}</strong> precisa avançar uma etapa por vez.{" "}
-                    Deseja mover para <strong className="text-foreground">{pendingAdvance.nextColTitle}</strong> agora?
-                  </>
-                ) : (
-                  <>
-                    Deseja mover <strong className="text-foreground">{pendingAdvance?.leadName}</strong> para{" "}
-                    <strong className="text-foreground">{pendingAdvance?.toColTitle}</strong>?
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="sm:justify-center">
-              <AlertDialogCancel onClick={handleCancelAdvance}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmAdvance}>
-                <span>{'Mover para "'}<span className="font-semibold">{pendingAdvance?.isSkipping ? pendingAdvance.nextColTitle : pendingAdvance?.toColTitle}</span>{'"'}</span>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {(() => {
+          const pa = pendingAdvance;
+          if (!pa) return null;
+          const isSkipping = pa.steps.length > 2;
+          const totalMoves = pa.steps.length - 1;
+          const nextStep = pa.steps[pa.currentStep + 1];
+          const finalStep = pa.steps[pa.steps.length - 1];
+          return (
+            <AlertDialog open={!!pa} onOpenChange={(open) => !open && handleCancelAdvance()}>
+              <AlertDialogContent className="max-w-[360px] p-0 overflow-hidden gap-0">
+                {/* Header */}
+                <div className="px-5 pt-5 pb-4">
+                  <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                    <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                    Confirmar avanço de etapa
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    {isSkipping ? (
+                      <>
+                        <strong className="text-foreground font-medium">{pa.leadName}</strong> precisa avançar uma etapa por vez.{" "}
+                        Confirme o avanço para <strong className="text-foreground font-medium">{nextStep?.colTitle}</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Mover <strong className="text-foreground font-medium">{pa.leadName}</strong> para{" "}
+                        <strong className="text-foreground font-medium">{finalStep?.colTitle}</strong>?
+                      </>
+                    )}
+                  </AlertDialogDescription>
+                </div>
+
+                {/* Stepper — sempre visível */}
+                <div className="px-5 pb-4">
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+                    {/* Trilha de etapas */}
+                    <div className="flex items-start gap-0 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                      {pa.steps.map((step, i) => {
+                        const isDone = i < pa.currentStep;
+                        const isCurrent = i === pa.currentStep;
+                        const isNext = i === pa.currentStep + 1;
+                        return (
+                          <div key={step.colId} className="flex items-center shrink-0">
+                            {i > 0 && (
+                              <span className={`mx-1.5 text-[10px] select-none ${isDone ? "text-primary/50" : isNext ? "text-primary/70" : "text-muted-foreground/30"}`}>→</span>
+                            )}
+                            <div className="flex flex-col items-center gap-1">
+                              <span className={`text-[11px] whitespace-nowrap transition-all ${
+                                isDone
+                                  ? "text-muted-foreground/30"
+                                  : isCurrent
+                                    ? "text-muted-foreground/60"
+                                    : isNext
+                                      ? "text-primary font-semibold"
+                                      : "text-muted-foreground/25"
+                              }`}>
+                                {step.colTitle}
+                              </span>
+                              {/* Indicador de posição */}
+                              <span className={`block h-[2px] w-full rounded-full transition-all ${
+                                isDone ? "bg-primary/20"
+                                  : isCurrent ? "bg-muted-foreground/30"
+                                    : isNext ? "bg-primary"
+                                      : "bg-transparent"
+                              }`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Contador — só mostra quando há mais de 1 passo */}
+                    {totalMoves > 1 && (
+                      <p className="mt-2 text-right text-[10px] text-muted-foreground/50">
+                        {pa.currentStep + 1} / {totalMoves}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20">
+                  <AlertDialogCancel onClick={handleCancelAdvance} className="h-8 px-3 text-xs">Cancelar</AlertDialogCancel>
+                  <Button onClick={handleConfirmAdvance} size="sm" className="h-8 px-4 text-xs gap-1.5">
+                    Confirmar <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+          );
+        })()}
 
         {/* Rename column */}
         <Dialog open={!!renamingCol} onOpenChange={(o) => !o && setRenamingCol(null)}>

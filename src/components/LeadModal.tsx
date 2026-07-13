@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { X, Loader2, Plus } from "lucide-react";
+import { X, Loader2, Plus, ChevronDown, Check } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 const DDI_OPTIONS = [
   { code: "+55", flag: "🇧🇷" },
@@ -71,6 +72,9 @@ export function LeadModal({ open, onClose, editLead }: Props) {
   const [cepLoading, setCepLoading] = useState(false);
   const [selectedPipelineId, setSelectedPipelineId] = useState("none");
   const [emailInput, setEmailInput] = useState("");
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showResponsiblePicker, setShowResponsiblePicker] = useState(false);
+  const [showPipelinePicker, setShowPipelinePicker] = useState(false);
 
   const addEmail = (raw: string) => {
     const e = raw.trim().toLowerCase();
@@ -84,6 +88,9 @@ export function LeadModal({ open, onClose, editLead }: Props) {
   useEffect(() => {
     if (open) {
       setTab("contato");
+      setShowTagPicker(false);
+      setShowResponsiblePicker(false);
+      setShowPipelinePicker(false);
       setSelectedPipelineId(editLead?.pipelineId ?? "none");
       setEmailInput("");
       setForm(editLead ? {
@@ -209,113 +216,137 @@ export function LeadModal({ open, onClose, editLead }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-[560px] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-[560px] p-0 gap-0 overflow-hidden bg-card">
 
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+        <DialogHeader className="px-6 pt-5 pb-4">
           <DialogTitle className="text-base font-semibold">
             {editLead ? "Editar Lead" : "Novo Lead"}
           </DialogTitle>
         </DialogHeader>
 
         {/* ── Campos fixos: Nome + Tags ── */}
-        <div className="px-6 pt-5 pb-4 space-y-4 border-b border-border">
+        <div className="px-6 pt-5 pb-4 space-y-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Nome *</label>
             <Input
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Nome completo"
-              className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoFocus
             />
           </div>
 
+          {/* Tags — Popover multi-select */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tags</label>
-            <div className="flex flex-wrap gap-2">
-              {crmTags.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">Crie tags em Configurações → Tags.</p>
-              )}
-              {crmTags.map(t => {
-                const active = form.tags.includes(t.name);
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => toggleTag(t.name)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
-                    style={{
-                      borderColor: active ? t.color : "hsl(var(--border))",
-                      background:  active ? `${t.color}18` : "transparent",
-                      color:       active ? t.color : "#888",
-                    }}
-                  >
-                    {active && <X size={9} />}
-                    {t.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
-              <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
-                <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {pipelines.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Responsável</label>
-              <div className="border border-border rounded-lg p-2 space-y-1 max-h-[120px] overflow-y-auto">
-                {teamMembers.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic px-1">Nenhum membro no time.</p>
-                )}
-                {teamMembers.map(name => {
-                  const selected = form.responsibles.includes(name);
+            <Popover open={showTagPicker} onOpenChange={v => { setShowTagPicker(v); if (v) { setShowResponsiblePicker(false); setShowPipelinePicker(false); } }}>
+              <PopoverTrigger asChild>
+                <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                  {form.tags.length === 0 ? (
+                    <span className="text-muted-foreground">Selecionar tags</span>
+                  ) : (
+                    <div className="flex gap-1 flex-wrap">
+                      {form.tags.map(tagName => {
+                        const tag = crmTags.find(t => t.name === tagName);
+                        return (
+                          <span key={tagName} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: (tag?.color ?? "#6366f1") + "22", color: tag?.color ?? "#6366f1" }}>
+                            {tagName}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="p-1 w-[var(--radix-popover-trigger-width)]">
+                {crmTags.length === 0 ? (
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground italic">Crie tags em Configurações → Tags.</p>
+                ) : crmTags.map(t => {
+                  const active = form.tags.includes(t.name);
                   return (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => {
-                        const next = selected
-                          ? form.responsibles.filter(r => r !== name)
-                          : [...form.responsibles, name];
-                        set("responsibles", next);
-                      }}
-                      className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-left transition-colors hover:bg-muted"
-                    >
-                      <div
-                        className="flex items-center justify-center rounded shrink-0"
-                        style={{ width: 14, height: 14, border: selected ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: selected ? "hsl(var(--primary))" : "transparent" }}
-                      >
-                        {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    <button key={t.id} type="button" onClick={() => toggleTag(t.name)} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
+                      <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${active ? "bg-primary border-primary" : "border-gray-400"}`}>
+                        {active && <Check className="h-3 w-3 text-white" />}
                       </div>
-                      <span className="text-xs" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                      <span>{t.name}</span>
                     </button>
                   );
                 })}
-              </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Pipeline — Popover single-select */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
+              <Popover open={showPipelinePicker} onOpenChange={v => { setShowPipelinePicker(v); if (v) { setShowTagPicker(false); setShowResponsiblePicker(false); } }}>
+                <PopoverTrigger asChild>
+                  <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                    <span className={selectedPipelineId === "none" ? "text-muted-foreground" : "text-foreground"}>
+                      {selectedPipelineId === "none" ? "Nenhum" : (pipelines.find(p => p.id === selectedPipelineId)?.name ?? "Nenhum")}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="p-1 w-[var(--radix-popover-trigger-width)]">
+                  {[{ id: "none", name: "Nenhum" }, ...pipelines].map(p => {
+                    const selected = selectedPipelineId === p.id;
+                    return (
+                      <button key={p.id} type="button" onClick={() => { setSelectedPipelineId(p.id); setShowPipelinePicker(false); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
+                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
+                          {selected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <span>{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Responsável — Popover multi-select */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Responsável</label>
+              <Popover open={showResponsiblePicker} onOpenChange={v => { setShowResponsiblePicker(v); if (v) { setShowTagPicker(false); setShowPipelinePicker(false); } }}>
+                <PopoverTrigger asChild>
+                  <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                    <span className={`truncate ${form.responsibles.length === 0 ? "text-muted-foreground" : "text-foreground"}`}>
+                      {form.responsibles.length === 0 ? "Selecionar" : form.responsibles.join(", ")}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="p-1 w-[var(--radix-popover-trigger-width)]">
+                  {teamMembers.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground italic">Nenhum membro no time.</p>
+                  ) : teamMembers.map(memberName => {
+                    const selected = form.responsibles.includes(memberName);
+                    return (
+                      <button key={memberName} type="button" onClick={() => { const next = selected ? form.responsibles.filter(r => r !== memberName) : [...form.responsibles, memberName]; set("responsibles", next); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
+                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
+                          {selected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <span>{memberName}</span>
+                      </button>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
 
         {/* ── Sub-abas ── */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-4 mx-6 mt-4 h-9 bg-muted rounded-lg p-1 shrink-0">
-            <TabsTrigger value="contato"  className="text-xs rounded-md">Contato</TabsTrigger>
-            <TabsTrigger value="pessoal"  className="text-xs rounded-md">Dados Pessoais</TabsTrigger>
-            <TabsTrigger value="endereco" className="text-xs rounded-md">Endereço</TabsTrigger>
-            <TabsTrigger value="anotacoes"className="text-xs rounded-md">Anotações</TabsTrigger>
+          <TabsList className="grid grid-cols-4 mx-6 mt-4 h-9 bg-green-100 rounded-lg p-1 shrink-0">
+            <TabsTrigger value="contato"  className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Contato</TabsTrigger>
+            <TabsTrigger value="pessoal"  className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Dados Pessoais</TabsTrigger>
+            <TabsTrigger value="endereco" className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Endereço</TabsTrigger>
+            <TabsTrigger value="anotacoes"className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Anotações</TabsTrigger>
           </TabsList>
 
           {/* Contato */}
@@ -323,7 +354,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <Field label="Telefone">
               <div className="flex gap-2">
                 <Select value={form.phoneDdi} onValueChange={v => set("phoneDdi", v)}>
-                  <SelectTrigger className="w-[90px] border-border text-xs shrink-0 focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                  <SelectTrigger className="h-7 w-[90px] bg-card border-gray-400 text-xs shrink-0 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -338,7 +369,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   value={form.whatsapp}
                   onChange={e => set("whatsapp", e.target.value)}
                   placeholder="(11) 99999-0000"
-                  className="border-border flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-7 bg-card border-gray-400 flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
             </Field>
@@ -349,7 +380,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 {form.emails.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {form.emails.map(e => (
-                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-border">
+                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-gray-400">
                         <span className="truncate max-w-[200px]">{e}</span>
                         <button
                           type="button"
@@ -372,13 +403,13 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                       if (e.key === "Enter") { e.preventDefault(); addEmail(emailInput); }
                     }}
                     placeholder="email@exemplo.com"
-                    className="border-border flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="h-7 bg-card border-gray-400 flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                   <button
                     type="button"
                     onClick={() => addEmail(emailInput)}
                     disabled={!emailInput.trim()}
-                    className="flex items-center justify-center w-8 h-9 rounded-md border border-border bg-muted hover:bg-muted/80 disabled:opacity-40 transition-colors shrink-0"
+                    className="flex items-center justify-center w-7 h-7 rounded-md border border-gray-400 bg-muted hover:bg-muted/80 disabled:opacity-40 transition-colors shrink-0"
                   >
                     <Plus size={14} />
                   </button>
@@ -391,7 +422,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.site}
                 onChange={e => set("site", e.target.value)}
                 placeholder="https://exemplo.com"
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
           </TabsContent>
@@ -403,7 +434,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.document}
                 onChange={e => set("document", e.target.value)}
                 placeholder="000.000.000-00"
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
@@ -412,13 +443,13 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.company}
                 onChange={e => set("company", e.target.value)}
                 placeholder="Nome da empresa"
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
             <Field label="Origem">
               <Select value={form.origin} onValueChange={v => set("origin", v)}>
-                <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-7 bg-card border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGINS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
@@ -430,7 +461,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 type="date"
                 value={form.birthDate}
                 onChange={e => set("birthDate", e.target.value)}
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
           </TabsContent>
@@ -442,7 +473,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                 value={form.country}
                 onChange={e => set("country", e.target.value)}
                 placeholder="Brasil"
-                className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </Field>
 
@@ -453,7 +484,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
                   onChange={e => { set("zipCode", e.target.value); fetchCep(e.target.value); }}
                   placeholder="00000-000"
                   maxLength={9}
-                  className="border-border pr-8 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-7 bg-card border-gray-400 pr-8 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
                 {cepLoading && (
                   <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -464,31 +495,31 @@ export function LeadModal({ open, onClose, editLead }: Props) {
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Endereço">
-                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                 </Field>
               </div>
               <Field label="Número">
-                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </Field>
             </div>
 
             <Field label="Complemento">
-              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </Field>
 
             <Field label="Bairro">
-              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
             </Field>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Cidade">
-                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="border-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                 </Field>
               </div>
               <Field label="UF">
                 <Select value={form.state} onValueChange={v => set("state", v)}>
-                  <SelectTrigger className="border-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger className="h-7 bg-card border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     {BRASIL_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -503,13 +534,13 @@ export function LeadModal({ open, onClose, editLead }: Props) {
               value={form.notes}
               onChange={e => set("notes", e.target.value)}
               placeholder="Adicione informações relevantes sobre este lead..."
-              className="border-border min-h-[200px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="bg-card border-gray-400 min-h-[200px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="px-6 py-4 mt-2 border-t border-border gap-2">
-          <Button variant="outline" onClick={onClose} className="border-border">
+        <DialogFooter className="px-6 py-4 mt-2 gap-2">
+          <Button variant="outline" onClick={onClose} className="border-gray-400">
             Cancelar
           </Button>
           <Button

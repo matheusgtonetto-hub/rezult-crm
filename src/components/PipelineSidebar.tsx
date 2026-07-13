@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 const DEFAULT_COLUMNS = [
@@ -195,32 +194,31 @@ export function PipelineSidebar() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Nome</label>
+              <label className="text-xs text-foreground font-medium mb-1 block">Nome</label>
               <Input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Ex: Pós-venda"
-                className="bg-background border-card-border rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="bg-card border-gray-400 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Descrição</label>
-              <Textarea
+              <label className="text-xs text-foreground font-medium mb-1 block">Descrição</label>
+              <Input
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Descreva o propósito desta pipeline"
-                className="bg-background border-card-border rounded-lg resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                rows={2}
+                className="bg-card border-gray-400 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Grupo</label>
+              <label className="text-xs text-foreground font-medium mb-1 block">Grupo</label>
               {/* Trigger */}
               <button
                 type="button"
                 onClick={() => { setShowGroupPicker(v => !v); setCreatingNewGroup(false); setNewGroupInput(""); }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-background transition-colors ${
-                  showGroupPicker ? "border-primary ring-1 ring-primary/20" : "border-card-border hover:border-foreground/30"
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors ${
+                  showGroupPicker ? "border-primary ring-1 ring-primary/20" : "border-gray-400 hover:border-foreground/30"
                 }`}
               >
                 <span className={newCategory ? "text-foreground" : "text-muted-foreground"}>

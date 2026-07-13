@@ -15,12 +15,15 @@ export function TagPerformancePanel({ periodLeads, crmTags }: TagPerformancePane
       .map(tag => {
         const tagged = periodLeads.filter(l => l.tags?.includes(tag.name));
         const won = tagged.filter(l => l.dealStatus === "won");
+        const lost = tagged.filter(l => l.dealStatus === "lost");
+        const closed = won.length + lost.length;
         const totalValue = won.reduce((s, l) => s + l.value, 0);
         return {
           tag,
           count: tagged.length,
           won: won.length,
-          winRate: tagged.length > 0 ? won.length / tagged.length * 100 : 0,
+          // conversão sobre negócios encerrados (ganhos+perdidos)
+          winRate: closed > 0 ? won.length / closed * 100 : 0,
           avgTicket: won.length > 0 ? totalValue / won.length : 0,
         };
       })

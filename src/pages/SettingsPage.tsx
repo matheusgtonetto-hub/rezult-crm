@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useNavigate, useParams } from "react-router-dom";
 import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
 import { useCRM } from "@/context/CRMContext";
@@ -16,11 +17,11 @@ import {
 } from "@/components/ui/select";
 // Select mantido para uso em outras seções
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2,
+  ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2, GripVertical, Type, DollarSign, Hash,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
@@ -33,6 +34,7 @@ import {
 import { useCompany } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS, PLAN_LIMITS } from "@/data/plans";
+import type { CustomFieldType } from "@/data/mockData";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -129,7 +131,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`w-full flex items-center gap-2.5 text-[14px] px-4 py-2 transition-colors ${
+                className={`w-full flex items-center gap-2.5 text-[13px] px-4 py-1.5 transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary border-l-[3px] border-primary font-medium pl-[13px]"
                     : "text-foreground hover:bg-muted"
@@ -2231,9 +2233,7 @@ function ProdutosSection() {
   async function handleSave() {
     if (!name.trim())  { toast.error("Nome é obrigatório."); return; }
     if (!sku.trim())   { toast.error("Identificador (SKU) é obrigatório."); return; }
-    if (!price)        { toast.error("Preço é obrigatório."); return; }
     const defaultValue = parsePriceToNumber(price);
-    if (defaultValue <= 0) { toast.error("Informe um preço válido."); return; }
     setSaving(true);
     if (editing) {
       await updateProduct(editing.id, { name: name.trim(), sku: sku.trim(), defaultValue });
@@ -2277,7 +2277,7 @@ function ProdutosSection() {
                   </TableCell>
                   <TableCell className="text-[14px] text-muted-foreground">{p.sku || "—"}</TableCell>
                   <TableCell>
-                    <span className="text-[14px] font-semibold text-primary">{fmt(p.defaultValue)}</span>
+                    <span className="text-[14px] font-semibold text-primary">{p.defaultValue > 0 ? fmt(p.defaultValue) : "—"}</span>
                   </TableCell>
                   <TableCell className="text-[14px] text-muted-foreground">
                     {p.created_at
@@ -2340,7 +2340,7 @@ function ProdutosSection() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Preço *</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Preço</label>
               <Input
                 value={price}
                 onChange={e => handlePriceChange(e.target.value)}
@@ -2691,7 +2691,7 @@ function CamposSection() {
   const {
     customFieldGroups,
     addCustomFieldGroup, updateCustomFieldGroup, deleteCustomFieldGroup,
-    addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem,
+    addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem, reorderCustomFieldItems,
   } = useCRM();
 
   const TYPE_LABEL: Record<string, string> = { text: "Texto", date: "Data", boolean: "Sim/Não" };
@@ -2712,7 +2712,8 @@ function CamposSection() {
   const [itemGroupId, setItemGroupId] = useState<string>("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemLabel, setItemLabel] = useState("");
-  const [itemType, setItemType] = useState<"text" | "date" | "boolean">("text");
+  const [itemType, setItemType] = useState<CustomFieldType>("text");
+  const [itemOptions, setItemOptions] = useState<string[]>(["Opção 1", "Opção 2", "Opção 3"]);
   const [savingItem, setSavingItem] = useState(false);
   const [deletingItem, setDeletingItem] = useState<{ groupId: string; itemId: string } | null>(null);
 
@@ -2735,10 +2736,10 @@ function CamposSection() {
   }
 
   function openNewItem(groupId: string) {
-    setItemGroupId(groupId); setEditingItemId(null); setItemLabel(""); setItemType("text"); setItemModal(true);
+    setItemGroupId(groupId); setEditingItemId(null); setItemLabel(""); setItemType("text"); setItemOptions(["Opção 1", "Opção 2", "Opção 3"]); setItemModal(true);
   }
-  function openEditItem(groupId: string, id: string, label: string, fieldType: "text" | "date" | "boolean") {
-    setItemGroupId(groupId); setEditingItemId(id); setItemLabel(label); setItemType(fieldType); setItemModal(true);
+  function openEditItem(groupId: string, id: string, label: string, fieldType: CustomFieldType) {
+    setItemGroupId(groupId); setEditingItemId(id); setItemLabel(label); setItemType(fieldType); setItemOptions(["Opção 1", "Opção 2", "Opção 3"]); setItemModal(true);
   }
 
   async function handleSaveItem() {
@@ -2807,25 +2808,64 @@ function CamposSection() {
                 {g.items.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">Nenhuma pergunta ainda.</p>
                 )}
-                {g.items.map(item => (
-                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50">
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0 ml-2" />
-                    <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
-                    <Badge variant="secondary" className="text-[10px]">{TYPE_LABEL[item.fieldType]}</Badge>
-                    <button
-                      onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
-                      className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => setDeletingItem({ groupId: g.id, itemId: item.id })}
-                      className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))}
+                {(() => {
+                  const typeIcon: Record<string, ReactNode> = {
+                    text:     <Type size={12} className="text-muted-foreground" />,
+                    number:   <Hash size={12} className="text-muted-foreground" />,
+                    currency: <DollarSign size={12} className="text-muted-foreground" />,
+                    date:     <CalendarDays size={12} className="text-muted-foreground" />,
+                    options:  <List size={12} className="text-muted-foreground" />,
+                    boolean:  <span className="text-[11px] font-bold text-muted-foreground">S/N</span>,
+                  };
+                  return (
+                    <DragDropContext onDragEnd={(result: DropResult) => {
+                      if (!result.destination || result.destination.index === result.source.index) return;
+                      const ordered = [...g.items].sort((a, b) => a.position - b.position);
+                      const [moved] = ordered.splice(result.source.index, 1);
+                      ordered.splice(result.destination.index, 0, moved);
+                      reorderCustomFieldItems(g.id, ordered.map(i => i.id));
+                    }}>
+                      <Droppable droppableId={`fields-${g.id}`}>
+                        {provided => (
+                          <div ref={provided.innerRef} {...provided.droppableProps}>
+                            {[...g.items].sort((a, b) => a.position - b.position).map((item, idx) => (
+                              <Draggable key={item.id} draggableId={item.id} index={idx}>
+                                {(drag, snapshot) => (
+                                  <div
+                                    ref={drag.innerRef}
+                                    {...drag.draggableProps}
+                                    className={`flex items-center gap-3 px-4 py-2.5 border-b border-card-border last:border-b-0 hover:bg-muted/50 group ${snapshot.isDragging ? "bg-muted/70 shadow-sm rounded" : ""}`}
+                                  >
+                                    <span {...drag.dragHandleProps} className="cursor-grab active:cursor-grabbing shrink-0">
+                                      <GripVertical size={14} className="text-muted-foreground/40" />
+                                    </span>
+                                    <span className="w-4 flex items-center justify-center shrink-0">
+                                      {typeIcon[item.fieldType] ?? typeIcon.text}
+                                    </span>
+                                    <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
+                                    <button
+                                      onClick={() => openEditItem(g.id, item.id, item.label, item.fieldType)}
+                                      className="text-muted-foreground/40 hover:text-muted-foreground p-1 transition-colors"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeletingItem({ groupId: g.id, itemId: item.id })}
+                                      className="text-muted-foreground/40 hover:text-destructive p-1 transition-colors"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
+                  );
+                })()}
                 <div className="px-4 py-2.5">
                   <button
                     onClick={() => openNewItem(g.id)}
@@ -2870,38 +2910,106 @@ function CamposSection() {
       <Dialog open={itemModal} onOpenChange={v => !v && setItemModal(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editingItemId ? "Editar pergunta" : "Nova pergunta"}</DialogTitle>
+            <DialogTitle>{editingItemId ? "Editar campo adicional" : "Criar campo adicional"}</DialogTitle>
+            {!editingItemId && <p className="text-sm text-muted-foreground mt-0.5">Crie um novo campo adicional.</p>}
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pergunta *</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Nome *</label>
               <Input
                 value={itemLabel}
                 onChange={e => setItemLabel(e.target.value)}
-                placeholder="Ex: Qual o orçamento disponível?"
+                placeholder="Nome do campo adicional"
                 autoFocus
                 className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 onKeyDown={e => e.key === "Enter" && handleSaveItem()}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tipo de resposta</label>
-              <Select value={itemType} onValueChange={(v: "text" | "date" | "boolean") => setItemType(v)}>
-                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tipo</label>
+              <Select value={itemType} onValueChange={(v: CustomFieldType) => setItemType(v)}>
+                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="text">Texto</SelectItem>
-                  <SelectItem value="date">Data</SelectItem>
-                  <SelectItem value="boolean">Sim/Não</SelectItem>
+                  <SelectItem value="text">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <Type size={12} className="text-muted-foreground" />
+                      </span>
+                      Texto
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="number">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <Hash size={12} className="text-muted-foreground" />
+                      </span>
+                      Número
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="currency">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <DollarSign size={12} className="text-muted-foreground" />
+                      </span>
+                      Moeda
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="date">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <CalendarDays size={12} className="text-muted-foreground" />
+                      </span>
+                      Data
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="options">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <List size={12} className="text-muted-foreground" />
+                      </span>
+                      Opções
+                    </span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {itemType === "options" && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Nome da Opção</label>
+              <div className="bg-card border border-card-border rounded-md px-3 divide-y divide-card-border">
+                {itemOptions.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2 py-2">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ["#6366f1","#f59e0b","#10b981","#ef4444","#3b82f6","#ec4899","#8b5cf6","#14b8a6"][i % 8] }} />
+                    <input
+                      value={opt}
+                      onChange={e => {
+                        const next = [...itemOptions];
+                        next[i] = e.target.value;
+                        setItemOptions(next);
+                      }}
+                      className="flex-1 text-sm text-foreground bg-transparent border-0 border-b border-transparent hover:border-card-border focus:border-primary focus:outline-none py-0.5 transition-colors cursor-text"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setItemOptions(itemOptions.filter((_, j) => j !== i))}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setItemModal(false)} className="border-card-border">Cancelar</Button>
             <Button onClick={handleSaveItem} disabled={savingItem} className="bg-primary hover:bg-primary/90">
-              {savingItem ? "Salvando..." : editingItemId ? "Salvar" : "Criar pergunta"}
+              {savingItem ? "Salvando..." : editingItemId ? "Salvar" : "Criar campo"}
             </Button>
           </DialogFooter>
         </DialogContent>

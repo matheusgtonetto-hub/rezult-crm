@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useCRM } from "@/context/CRMContext";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList, ReferenceLine,
 } from "recharts";
 import {
   TrendingUp, Users, CheckCircle, DollarSign, Clock, Trophy,
@@ -18,7 +18,7 @@ import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel"
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
 import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
-import { fmt, pct, parseEntryDate, tooltip, deltaPct, usePriorPeriod } from "@/components/dashboard/useDashboardHelpers";
+import { fmt, parseEntryDate, tooltip, deltaPct, usePriorPeriod } from "@/components/dashboard/useDashboardHelpers";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   stage_change: "Mudança de etapa",
@@ -36,20 +36,32 @@ const ACTIVITY_LABELS: Record<string, string> = {
 
 export default function DashboardPage() {
   const {
-    leads, columns, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons, crmTags,
+    leads, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons, crmTags,
   } = useCRM();
 
-  const [dateRange, setDateRange] = useState<DateRangeValue>({
-    from: new Date(Date.now() - 30 * 86400000),
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
+    from: new Date(new Date().getFullYear(), 0, 1),
     to: new Date(),
-  });
+  }));
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
   const [funnelResponsible, setFunnelResponsible] = useState<string>("all");
 
-  const allLeads = Object.values(leads);
-  const wonLeads = allLeads.filter(l => l.dealStatus === "won");
-  const lostLeads = allLeads.filter(l => l.dealStatus === "lost");
+  const allLeads = useMemo(() => Object.values(leads), [leads]);
+  const wonLeads = useMemo(() => allLeads.filter(l => l.dealStatus === "won"), [allLeads]);
+  const lostLeads = useMemo(() => allLeads.filter(l => l.dealStatus === "lost"), [allLeads]);
+
+  const { dataFrom, dataTo } = useMemo(() => {
+    let min: Date | undefined;
+    let max: Date | undefined;
+    allLeads.forEach(l => {
+      const d = l.entryDate ? new Date(l.entryDate + "T00:00:00") : null;
+      if (!d || isNaN(d.getTime())) return;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    });
+    return { dataFrom: min, dataTo: max };
+  }, [allLeads]);
 
   // Normaliza para início e fim do dia no fuso local
   const periodCutoff = new Date(dateRange.from);
@@ -103,38 +115,130 @@ export default function DashboardPage() {
     };
   }, [allLeads, wonLeads, lostLeads, dateRange]);
 
-  // Chave por ano+mês (não só mês) — evita misturar anos diferentes na mesma barra
-  // quando o período selecionado cruza uma virada de ano ou passa de 12 meses.
   const monthlyData = useMemo(() => {
-    const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-    const map = new Map<string, { key: string; mes: string; novos: number; ganhos: number; perdidos: number }>();
+    type Bucket = { key: string; mes: string; novos: number; ganhos: number; perdidos: number };
+    const map = new Map<string, Bucket>();
+    // Compara só a parte de data (sem horário) para não ser afetado pela normalização
+    // de periodCutoff (00:00) e periodTo (23:59).
+    const fromDay = new Date(dateRange.from); fromDay.setHours(0, 0, 0, 0);
+    const toDay   = new Date(dateRange.to);   toDay.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((toDay.getTime() - fromDay.getTime()) / 86400000);
 
-    // Pré-popula todos os meses do período para que meses sem dados apareçam com zero.
-    const cursor = new Date(periodCutoff);
-    cursor.setDate(1);
-    while (cursor <= periodTo) {
-      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-      map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 });
-      cursor.setMonth(cursor.getMonth() + 1);
+    if (diffDays === 0) {
+      // ── HOJE: apenas horas com atividade registrada ──
+      allLeads.forEach(lead => {
+        // created_at tem o timestamp real de criação com hora; entryDate é só data (meia-noite)
+        const e = lead.created_at ? new Date(lead.created_at) : parseEntryDate(lead.entryDate);
+        if (e && e >= periodCutoff && e <= periodTo) {
+          const h = e.getHours();
+          const key = String(h).padStart(2, "0");
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
+          cur.novos++;
+          map.set(key, cur);
+        }
+        lead.activities.forEach(act => {
+          const d = new Date(act.date);
+          if (d < periodCutoff || d > periodTo) return;
+          const h = d.getHours();
+          const key = String(h).padStart(2, "0");
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
+          if (act.type === "won") cur.ganhos++;
+          if (act.type === "lost") cur.perdidos++;
+          map.set(key, cur);
+        });
+      });
+
+    } else if (diffDays <= 31) {
+      // ── DIAS: granularidade diária ──
+      // Se começa no dia 1, estende até o último dia do mês (Este mês / Mês passado)
+      const isMonthStart = periodCutoff.getDate() === 1;
+      const displayEnd = isMonthStart
+        ? new Date(periodTo.getFullYear(), periodTo.getMonth() + 1, 0)
+        : new Date(periodTo);
+      displayEnd.setHours(23, 59, 59, 999);
+
+      const cursor = new Date(periodCutoff);
+      cursor.setHours(0, 0, 0, 0);
+      while (cursor <= displayEnd) {
+        const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+        map.set(key, { key, mes: `${cursor.getDate()}/${cursor.getMonth() + 1}`, novos: 0, ganhos: 0, perdidos: 0 });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      allLeads.forEach(lead => {
+        const e = parseEntryDate(lead.entryDate);
+        if (e && e >= periodCutoff && e <= periodTo) {
+          const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}-${String(e.getDate()).padStart(2, "0")}`;
+          const bucket = map.get(key);
+          if (bucket) bucket.novos++;
+        }
+        lead.activities.forEach(act => {
+          const d = new Date(act.date);
+          if (d < periodCutoff || d > periodTo) return;
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const bucket = map.get(key);
+          if (!bucket) return;
+          if (act.type === "won") bucket.ganhos++;
+          if (act.type === "lost") bucket.perdidos++;
+        });
+      });
+
+    } else {
+      // ── MESES: sempre 12 buckets mensais ──
+      const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+      const cursor = new Date(periodCutoff);
+      cursor.setDate(1);
+      for (let i = 0; i < 12; i++) {
+        const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+        map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+
+      allLeads.forEach(lead => {
+        const e = parseEntryDate(lead.entryDate);
+        if (e && e >= periodCutoff && e <= periodTo) {
+          const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}`;
+          const bucket = map.get(key);
+          if (bucket) bucket.novos++;
+        }
+        lead.activities.forEach(act => {
+          const d = new Date(act.date);
+          if (d < periodCutoff || d > periodTo) return;
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const bucket = map.get(key);
+          if (!bucket) return;
+          if (act.type === "won") bucket.ganhos++;
+          if (act.type === "lost") bucket.perdidos++;
+        });
+      });
     }
 
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [allLeads, dateRange]);
+
+  const hourlyData = useMemo(() => {
+    type HBucket = { key: string; mes: string; novos: number; ganhos: number; perdidos: number };
+    const map = new Map<number, HBucket>();
+
     allLeads.forEach(lead => {
-      const e = parseEntryDate(lead.entryDate);
+      const e = lead.created_at ? new Date(lead.created_at) : parseEntryDate(lead.entryDate);
       if (e && e >= periodCutoff && e <= periodTo) {
-        const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}`;
-        const bucket = map.get(key);
-        if (bucket) bucket.novos++;
+        const h = e.getHours();
+        const cur = map.get(h) || { key: String(h).padStart(2, "0"), mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
+        cur.novos++;
+        map.set(h, cur);
       }
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const bucket = map.get(key);
-        if (!bucket) return;
-        if (act.type === "won") bucket.ganhos++;
-        if (act.type === "lost") bucket.perdidos++;
+        const h = d.getHours();
+        const cur = map.get(h) || { key: String(h).padStart(2, "0"), mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
+        if (act.type === "won") cur.ganhos++;
+        if (act.type === "lost") cur.perdidos++;
+        map.set(h, cur);
       });
     });
+
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [allLeads, dateRange]);
 
@@ -159,9 +263,9 @@ export default function DashboardPage() {
 
   const agentPerformance = useMemo(() => {
     return teamMembers.map(m => {
-      const ml = leadsForMember(periodLeads, m);
-      const won = ml.filter(l => l.dealStatus === "won");
-      const lost = ml.filter(l => l.dealStatus === "lost").length;
+      const ml = leadsForMember(periodLeads, m);           // workload: entrou no período
+      const won = leadsForMember(wonInPeriod, m);          // ganhos no período (por atividade — igual ao KPI)
+      const lost = leadsForMember(lostInPeriod, m).length; // perdidos no período (por atividade — igual ao KPI)
       const totalValue = won.reduce((s, l) => s + l.value, 0);
       const closed = won.length + lost;
       return {
@@ -175,7 +279,7 @@ export default function DashboardPage() {
         color: memberColors[m] || "#888",
       };
     }).sort((a, b) => b.totalValue - a.totalValue);
-  }, [periodLeads, teamMembers, memberColors]);
+  }, [periodLeads, wonInPeriod, lostInPeriod, teamMembers, memberColors]);
 
   const donutData = useMemo(() => {
     return teamMembers.map(m => {
@@ -185,25 +289,19 @@ export default function DashboardPage() {
     }).filter(d => d.value > 0);
   }, [periodLeads, teamMembers, memberColors, donutMode]);
 
-  const barData = useMemo(() => columns.map(c => ({
-    name: c.title, leads: c.leadIds.length, fill: c.color,
-  })), [columns]);
-
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; count: number; value: number }>();
-    periodLeads.forEach(l => {
-      if (!l.productId) return;
-      const p = products.find(x => x.id === l.productId);
-      if (!p) return;
-      const cur = map.get(p.id) || { name: p.name, count: 0, value: 0 };
+    products.forEach(p => map.set(p.id, { name: p.name, count: 0, value: 0 }));
+    wonInPeriod.forEach(l => {
+      if (!l.productId || !map.has(l.productId)) return;
+      const cur = map.get(l.productId)!;
       cur.count++; cur.value += l.value;
-      map.set(p.id, cur);
     });
-    return [...map.values()].sort((a, b) => b.count - a.count).slice(0, 5);
-  }, [periodLeads, products]);
+    return [...map.values()].sort((a, b) => b.value - a.value || b.count - a.count);
+  }, [wonInPeriod, products]);
 
   const activityStats = useMemo(() => {
-    const allActs = allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadName: l.name })));
+    const allActs = allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadName: l.name, leadResponsible: l.responsible ?? "" })));
     const inPeriod = allActs.filter(a => { const d = new Date(a.date); return d >= periodCutoff && d <= periodTo; });
     const byType = new Map<string, number>();
     inPeriod.forEach(a => byType.set(a.type, (byType.get(a.type) || 0) + 1));
@@ -216,6 +314,56 @@ export default function DashboardPage() {
     const recent = [...inPeriod]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 8);
+
+    // Vendas por responsável no período (base compartilhada entre SDR e Closer)
+    const wonByUser = new Map<string, number>();
+    allLeads.forEach(l => {
+      if (l.dealStatus !== "won") return;
+      const actInPeriod = l.activities.some(a => {
+        const d = new Date(a.date);
+        return a.type === "won" && d >= periodCutoff && d <= periodTo;
+      });
+      if (!actInPeriod) return;
+      const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+      resps.forEach(r => wonByUser.set(r, (wonByUser.get(r) || 0) + 1));
+    });
+
+    // Top SDR: agendadas / conv agendada→realizada / vendas / conv agendada→venda
+    const sdrMap = new Map<string, { scheduled: number; completed: number }>();
+    meetings.forEach(a => {
+      const u = a.userName || a.leadResponsible || "Desconhecido";
+      const cur = sdrMap.get(u) || { scheduled: 0, completed: 0 };
+      cur.scheduled++;
+      if (a.completedAt) cur.completed++;
+      sdrMap.set(u, cur);
+    });
+    const topSchedulers = [...sdrMap.entries()]
+      .map(([name, s]) => {
+        const won = wonByUser.get(name) || 0;
+        return {
+          name,
+          count: s.scheduled,
+          completed: s.completed,
+          convRate: s.scheduled > 0 ? Math.round(s.completed / s.scheduled * 100) : 0,
+          won,
+          wonRate: s.scheduled > 0 ? Math.round(won / s.scheduled * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+
+    // Top Closer: realizadas / conv realizada→venda / vendas
+    const completedByUser = new Map<string, number>();
+    meetings.filter(a => a.completedAt).forEach(a => {
+      const u = a.completedBy || a.userName || a.leadResponsible || "Desconhecido";
+      completedByUser.set(u, (completedByUser.get(u) || 0) + 1);
+    });
+    const topCompleters = [...completedByUser.entries()]
+      .map(([name, count]) => {
+        const won = wonByUser.get(name) || 0;
+        return { name, count, won, convRate: count > 0 ? Math.round(won / count * 100) : 0 };
+      })
+      .sort((a, b) => b.count - a.count);
+
     return {
       total: inPeriod.length,
       meetings: meetings.length,
@@ -229,6 +377,8 @@ export default function DashboardPage() {
         .sort((a, b) => b.count - a.count),
       upcoming,
       recent,
+      topSchedulers,
+      topCompleters,
     };
   }, [allLeads, dateRange]);
 
@@ -244,6 +394,17 @@ export default function DashboardPage() {
     () => pipelines.find(p => p.id === funnelPipelineId) || pipelines[0] || null,
     [pipelines, funnelPipelineId],
   );
+
+  const barData = useMemo(() => {
+    if (!funnelPipeline) return [];
+    return [...funnelPipeline.columns]
+      .sort((a, b) => a.position - b.position)
+      .map(c => ({
+        name: c.title,
+        leads: c.leadIds.filter(id => { const l = leads[id]; return l && (!l.dealStatus || l.dealStatus === "open"); }).length,
+        fill: c.color,
+      }));
+  }, [funnelPipeline, leads]);
 
   const funnelData = useMemo(() => {
     if (!funnelPipeline) return [];
@@ -288,10 +449,11 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <TabsList className="bg-card border border-gray-200 rounded-lg">
             <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
+            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Times</TabsTrigger>
             <TabsTrigger value="atividades" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Atividades</TabsTrigger>
             <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funil</TabsTrigger>
           </TabsList>
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
         </div>
       </div>
 
@@ -307,34 +469,24 @@ export default function DashboardPage() {
                   label: "Total de negócios",
                   value: periodLeads.length,
                   sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
-                  icon: DollarSign,
-                  color: "text-primary",
                   delta: deltaPct(periodLeads.length, priorPeriodLeads.length),
                 },
                 {
-                  label: "Total de ganhos",
+                  label: "Total em vendas",
                   value: wonInPeriod.length,
                   sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
-                  conv: periodLeads.length > 0 ? `${((wonInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de conversão` : null,
-                  icon: Trophy,
-                  color: "text-success",
                   delta: deltaPct(wonInPeriod.length, wonPrior.length),
                 },
                 {
                   label: "Total perdidos",
                   value: lostInPeriod.length,
                   sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
-                  conv: periodLeads.length > 0 ? `${((lostInPeriod.length / periodLeads.length) * 100).toFixed(1)}% taxa de perda` : null,
-                  icon: TrendingUp,
-                  color: "text-destructive",
                   delta: deltaPct(lostInPeriod.length, lostPrior.length),
                 },
                 {
                   label: "Total em aberto",
                   value: openInPeriod.length,
                   sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
-                  icon: Clock,
-                  color: "text-primary",
                   delta: deltaPct(openInPeriod.length, openPrior.length),
                 },
               ];
@@ -344,9 +496,6 @@ export default function DashboardPage() {
                 label={c.label}
                 value={c.value}
                 sub={c.sub}
-                conv={"conv" in c ? c.conv : undefined}
-                icon={c.icon}
-                color={c.color}
                 deltaPct={c.delta}
               />
             ))}
@@ -367,13 +516,36 @@ export default function DashboardPage() {
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={2} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
+
+          {/* Hourly results */}
+          <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Resultados por horário</h3>
+            {hourlyData.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={230}>
+                <LineChart data={hourlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltip} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={2} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <UtmAttributionPanel periodLeads={periodLeads} />
 
           {/* Origins + Loss reasons */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -386,7 +558,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3 mt-1">
                   {lossReasonData.map(r => {
-                    const p = lostLeads.length > 0 ? (r.value / lostLeads.length * 100).toFixed(0) : 0;
+                    const p = lostInPeriod.length > 0 ? (r.value / lostInPeriod.length * 100).toFixed(0) : 0;
                     return (
                       <div key={r.name}>
                         <div className="flex items-center justify-between text-xs mb-1">
@@ -404,77 +576,30 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stage bar + Donut */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Leads por etapa (situação atual)</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={barData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
-                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltip} />
-                  <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
-                    {barData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground">Por atendente</h3>
-                <div className="flex gap-1 bg-muted rounded-lg p-0.5">
-                  <button onClick={() => setDonutMode("value")} className={`text-xs px-2.5 py-1 rounded-md transition-colors ${donutMode === "value" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Valor</button>
-                  <button onClick={() => setDonutMode("count")} className={`text-xs px-2.5 py-1 rounded-md transition-colors ${donutMode === "count" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Qtd</button>
-                </div>
-              </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                    {donutData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltip} formatter={(v: number) => donutMode === "value" ? fmt(v) : `${v} negócios`} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Agent table */}
+          {/* Top products */}
           <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
-            {agentPerformance.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Produtos mais vendidos</h3>
+            {topProducts.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhum produto cadastrado.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-card-border text-xs text-muted-foreground">
-                      <th className="text-left pb-2 font-medium">Atendente</th>
-                      <th className="text-right pb-2 font-medium">Total</th>
-                      <th className="text-right pb-2 font-medium">Ganhos</th>
-                      <th className="text-right pb-2 font-medium">Perdidos</th>
-                      <th className="text-right pb-2 font-medium">Conversão</th>
-                      <th className="text-right pb-2 font-medium">Ticket médio</th>
-                      <th className="text-right pb-2 font-medium">Receita</th>
+                      <th className="text-left pb-2 font-medium">Produto</th>
+                      <th className="text-center pb-2 font-medium">Número de vendas</th>
+                      <th className="text-center pb-2 font-medium">Receita gerada</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-card-border">
-                    {agentPerformance.map(a => (
-                      <tr key={a.name} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0" style={{ backgroundColor: a.color }}>{a.name[0]}</div>
-                            <span className="text-foreground font-medium truncate max-w-[120px]">{a.name}</span>
-                          </div>
+                    {topProducts.map(p => (
+                      <tr key={p.name} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 font-medium text-foreground">{p.name}</td>
+                        <td className="py-2.5 text-center text-muted-foreground">{p.count}</td>
+                        <td className="py-2.5 text-center font-semibold text-primary">
+                          {p.value > 0 ? fmt(p.value) : "—"}
                         </td>
-                        <td className="text-right py-2.5 text-muted-foreground">{a.total}</td>
-                        <td className="text-right py-2.5 text-success font-medium">{a.won}</td>
-                        <td className="text-right py-2.5 text-destructive">{a.lost}</td>
-                        <td className="text-right py-2.5 font-medium text-foreground">{a.convRate}{a.convRate !== "—" ? "%" : ""}</td>
-                        <td className="text-right py-2.5 text-foreground">{fmt(a.avgTicket)}</td>
-                        <td className="text-right py-2.5 font-semibold text-foreground">{fmt(a.totalValue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -483,31 +608,271 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Top products */}
-          {topProducts.length > 0 && (
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Produtos com mais negócios</h3>
-              <div className="space-y-3">
-                {topProducts.map((p, i) => (
-                  <div key={p.name} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.count} negócio{p.count > 1 ? "s" : ""}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-primary">{fmt(p.value)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />
+        </TabsContent>
 
-          <UtmAttributionPanel periodLeads={periodLeads} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />
-            <NoNextActionPanel allLeads={allLeads} />
+        {/* ──────────── TIMES ──────────── */}
+        <TabsContent value="times" className="space-y-4 mt-0">
+          {/* KPIs do time */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const totalAgents = agentPerformance.length;
+              const totalWon = agentPerformance.reduce((s, a) => s + a.won, 0);
+              const totalLost = agentPerformance.reduce((s, a) => s + a.lost, 0);
+              const totalRev = agentPerformance.reduce((s, a) => s + a.totalValue, 0);
+              const closed = totalWon + totalLost;
+              return [
+                { label: "Atendentes ativos", value: String(totalAgents) },
+                { label: "Vendas no período", value: String(totalWon) },
+                { label: "Perdidos no período", value: String(totalLost) },
+                { label: "Conversão do time", value: closed > 0 ? `${(totalWon / closed * 100).toFixed(1)}%` : "—" },
+              ].map(k => (
+                <KpiCard key={k.label} label={k.label} value={k.value} />
+              ));
+            })()}
           </div>
+
+          {/* Top SDR + Top Closer */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top SDR */}
+            <div className="bg-card border border-gray-200 rounded-xl p-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-foreground">Top SDR</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Agendamentos e conversão por usuário</p>
+              </div>
+              {activityStats.topSchedulers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhuma reunião agendada no período.</p>
+              ) : (
+                <div className="border border-card-border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-card-border">
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Usuário</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Agendamentos</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Reuniões ocorridas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground">Conversão</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-card-border">
+                      {activityStats.topSchedulers.map((u, i) => {
+                        const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
+                        return (
+                          <tr key={u.name} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-3 py-2.5 border-r border-card-border">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${medal}`}>{i + 1}</span>
+                                <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-foreground tabular-nums border-r border-card-border">{u.count}</td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-success tabular-nums border-r border-card-border">{u.completed}</td>
+                            <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Top Closer */}
+            <div className="bg-card border border-gray-200 rounded-xl p-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-foreground">Top Closer</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Reuniões realizadas e conversão em vendas</p>
+              </div>
+              {activityStats.topCompleters.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhuma reunião marcada como realizada no período.</p>
+              ) : (
+                <div className="border border-card-border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-muted/40 border-b border-card-border">
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Usuário</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Reuniões Realizadas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Vendas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground">Conversão</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-card-border">
+                      {activityStats.topCompleters.map((u, i) => {
+                        const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
+                        return (
+                          <tr key={u.name} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-3 py-2.5 border-r border-card-border">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${medal}`}>{i + 1}</span>
+                                <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-foreground tabular-nums border-r border-card-border">{u.count}</td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-success tabular-nums border-r border-card-border">{u.won}</td>
+                            <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <StageVelocityPanel periodLeads={periodLeads} pipelines={pipelines} />
+
+          {(() => {
+            const { meetings, completedMeetings, noShows } = activityStats;
+            const conclusionRate = meetings > 0 ? Math.round(completedMeetings / meetings * 100) : 0;
+            const noShowRate    = meetings > 0 ? Math.round(noShows / meetings * 100) : 0;
+
+            // Tabela unificada por atendente
+            const userMap = new Map<string, { scheduled: number; completed: number; noShow: number }>();
+            allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadResponsible: l.responsible ?? "" }))).forEach(a => {
+              if (a.type !== "meeting") return;
+              const d = new Date(a.date);
+              if (d < periodCutoff || d > periodTo) return;
+              const u = a.userName || a.leadResponsible || "Desconhecido";
+              const cur = userMap.get(u) || { scheduled: 0, completed: 0, noShow: 0 };
+              cur.scheduled++;
+              if (a.completedAt) cur.completed++;
+              if (a.noShowAt)    cur.noShow++;
+              userMap.set(u, cur);
+            });
+            const userRows = [...userMap.entries()]
+              .map(([name, s]) => ({ name, ...s, rate: s.scheduled > 0 ? Math.round(s.completed / s.scheduled * 100) : 0 }))
+              .sort((a, b) => b.scheduled - a.scheduled);
+
+            return (
+              <div className="bg-card border border-gray-200 rounded-xl p-5">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Reuniões no período</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Desempenho e conversão das reuniões agendadas</p>
+                  </div>
+                  {meetings === 0 && (
+                    <span className="text-xs text-muted-foreground">Nenhuma reunião no período</span>
+                  )}
+                </div>
+
+                {meetings > 0 && (
+                  <>
+                    {/* KPIs */}
+                    <div className="grid grid-cols-3 gap-3 mb-5">
+                      {[
+                        { label: "Agendadas", value: meetings, sub: "total no período", valueClass: "text-foreground" },
+                        { label: "Realizadas", value: completedMeetings, sub: `${conclusionRate}% de conversão`, valueClass: "text-success" },
+                        { label: "Não compareceu", value: noShows, sub: `${noShowRate}% de no-show`, valueClass: noShows > 0 ? "text-destructive" : "text-muted-foreground" },
+                      ].map(k => (
+                        <div key={k.label} className="bg-muted/40 rounded-lg px-4 py-3">
+                          <p className="text-[11px] text-muted-foreground font-medium mb-1">{k.label}</p>
+                          <p className={`text-2xl font-bold leading-none ${k.valueClass}`}>{k.value}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{k.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Barra de composição */}
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
+                        <span>Taxa de realização</span>
+                        <span className="font-semibold text-foreground">{conclusionRate}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+                        <div className="h-full bg-success transition-all" style={{ width: `${conclusionRate}%` }} />
+                        {noShowRate > 0 && (
+                          <div className="h-full bg-destructive transition-all" style={{ width: `${noShowRate}%` }} />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1.5">
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-success inline-block" />Realizadas</span>
+                        {noShowRate > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-destructive inline-block" />Não compareceu</span>}
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-muted border border-card-border inline-block" />Pendente</span>
+                      </div>
+                    </div>
+
+                    {/* Tabela por atendente */}
+                    {userRows.length > 0 && (
+                      <div className="border border-card-border rounded-lg overflow-hidden">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-muted/40 border-b border-card-border">
+                              <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Atendente</th>
+                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Agendadas</th>
+                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Realizadas</th>
+                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">No-show</th>
+                              <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Taxa</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-card-border">
+                            {userRows.map(u => (
+                              <tr key={u.name} className="hover:bg-muted/30 transition-colors">
+                                <td className="px-3 py-2.5 font-medium text-foreground truncate max-w-[140px] border-r border-card-border">{u.name}</td>
+                                <td className="px-3 py-2.5 text-center text-muted-foreground border-r border-card-border">{u.scheduled}</td>
+                                <td className="px-3 py-2.5 text-center font-semibold text-success border-r border-card-border">{u.completed}</td>
+                                <td className="px-3 py-2.5 text-center text-destructive border-r border-card-border">{u.noShow > 0 ? u.noShow : "—"}</td>
+                                <td className="px-3 py-2.5 text-right">
+                                  <span className={`font-bold tabular-nums ${u.rate >= 70 ? "text-success" : u.rate >= 40 ? "text-yellow-500" : "text-destructive"}`}>
+                                    {u.rate}%
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Tabela de desempenho */}
+          <div>
+            <div className="bg-card border border-gray-200 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
+              {agentPerformance.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-card-border text-xs text-muted-foreground">
+                        <th className="text-left pb-2 font-medium">Atendente</th>
+                        <th className="text-right pb-2 font-medium">Total</th>
+                        <th className="text-right pb-2 font-medium">Ganhos</th>
+                        <th className="text-right pb-2 font-medium">Perdidos</th>
+                        <th className="text-right pb-2 font-medium">Conversão</th>
+                        <th className="text-right pb-2 font-medium">Ticket médio</th>
+                        <th className="text-right pb-2 font-medium">Receita</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-card-border">
+                      {agentPerformance.map(a => (
+                        <tr key={a.name} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0" style={{ backgroundColor: a.color }}>{a.name[0]}</div>
+                              <span className="text-foreground font-medium truncate max-w-[120px]">{a.name}</span>
+                            </div>
+                          </td>
+                          <td className="text-right py-2.5 text-muted-foreground">{a.total}</td>
+                          <td className="text-right py-2.5 text-success font-medium">{a.won}</td>
+                          <td className="text-right py-2.5 text-destructive">{a.lost}</td>
+                          <td className="text-right py-2.5 font-medium text-foreground">{a.convRate}{a.convRate !== "—" ? "%" : ""}</td>
+                          <td className="text-right py-2.5 text-foreground">{fmt(a.avgTicket)}</td>
+                          <td className="text-right py-2.5 font-semibold text-foreground">{fmt(a.totalValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
         </TabsContent>
 
         {/* ──────────── ATIVIDADES ──────────── */}
@@ -530,56 +895,22 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* By type + Meeting stats */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Por tipo de atividade</h3>
-              {activityStats.byType.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={activityStats.byType}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
-                    <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltip} />
-                    <Bar dataKey="count" name="Atividades" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Reuniões no período</h3>
-              <div className="space-y-3">
-                {[
-                  { label: "Agendadas", value: activityStats.meetings, cls: "bg-primary" },
-                  { label: "Realizadas", value: activityStats.completedMeetings, cls: "bg-success" },
-                  { label: "Não compareceu", value: activityStats.noShows, cls: "bg-destructive" },
-                ].map(r => {
-                  const p = activityStats.meetings > 0 ? (r.value / activityStats.meetings * 100).toFixed(0) : 0;
-                  return (
-                    <div key={r.label}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-foreground">{r.label}</span>
-                        <span className="text-muted-foreground">{r.value} ({p}%)</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${r.cls}`} style={{ width: `${p}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {activityStats.noShows > 0 && (
-                <div className="mt-4 p-3 bg-destructive/10 rounded-lg flex items-start gap-2">
-                  <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
-                  <p className="text-xs text-destructive">
-                    {activityStats.noShows} reunião{activityStats.noShows > 1 ? "ões" : ""} sem comparecimento no período.
-                  </p>
-                </div>
-              )}
-            </div>
+          {/* By type */}
+          <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Por tipo de atividade</h3>
+            {activityStats.byType.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={activityStats.byType}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                  <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltip} />
+                  <Bar dataKey="count" name="Atividades" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Upcoming meetings + Overdue tasks */}
@@ -625,7 +956,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {overdueTasks.map(t => {
-                    const daysLate = Math.floor((new Date().getTime() - new Date(t.dueDate).getTime()) / 86400000);
+                    const daysLate = Math.max(0, Math.floor((new Date().getTime() - new Date(t.dueDate + "T00:00:00").getTime()) / 86400000));
                     return (
                       <div key={t.id} className="flex items-start gap-3 pb-3 border-b border-card-border last:border-0 last:pb-0">
                         <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
@@ -634,7 +965,7 @@ export default function DashboardPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground truncate">{t.title}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{t.leadName}</p>
-                          <p className="text-xs text-destructive mt-0.5">{daysLate} dia{daysLate > 1 ? "s" : ""} atrasada · responsável: {t.responsible || "—"}</p>
+                          <p className="text-xs text-destructive mt-0.5">{daysLate === 0 ? "Venceu hoje" : `${daysLate} dia${daysLate > 1 ? "s" : ""} atrasada`} · responsável: {t.responsible || "—"}</p>
                         </div>
                       </div>
                     );
@@ -670,6 +1001,8 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          <NoNextActionPanel allLeads={allLeads} />
         </TabsContent>
 
         {/* ──────────── FUNIL ──────────── */}
@@ -707,23 +1040,27 @@ export default function DashboardPage() {
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
-            const pLeads = allLeads.filter(l => {
+            const pipelineResp = (l: typeof allLeads[number]) => {
               if (l.pipelineId !== funnelPipeline!.id) return false;
-              const d = parseEntryDate(l.entryDate);
-              if (d === null || !inPeriod(d)) return false;
               if (funnelResponsible === "all") return true;
               const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
               return resps.includes(funnelResponsible);
+            };
+            const pLeads = allLeads.filter(l => {
+              if (!pipelineResp(l)) return false;
+              const d = parseEntryDate(l.entryDate);
+              return d !== null && inPeriod(d);
             });
-            const pWon   = pLeads.filter(l => l.dealStatus === "won");
-            const pLost  = pLeads.filter(l => l.dealStatus === "lost");
+            // Ganhos/perdidos por data de atividade — consistente com KPIs da aba Negócios
+            const pWon   = wonInPeriod.filter(pipelineResp);
+            const pLost  = lostInPeriod.filter(pipelineResp);
             const pOpen  = pLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de negócios</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">Total de negócios</span>
                       <DollarSign size={15} className="text-primary" />
                     </div>
                     <p className="text-2xl leading-none font-bold text-foreground">{pLeads.length}</p>
@@ -731,7 +1068,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total de ganhos</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">Total em vendas</span>
                       <Trophy size={15} className="text-success" />
                     </div>
                     <p className="text-2xl leading-none font-bold text-foreground">{pWon.length}</p>
@@ -739,7 +1076,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total perdidos</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">Total perdidos</span>
                       <TrendingUp size={15} className="text-destructive" />
                     </div>
                     <p className="text-2xl leading-none font-bold text-foreground">{pLost.length}</p>
@@ -747,7 +1084,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total em aberto</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">Total em aberto</span>
                       <Clock size={15} className="text-primary" />
                     </div>
                     <p className="text-2xl leading-none font-bold text-foreground">{pOpen.length}</p>
@@ -755,7 +1092,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Conversão do funil</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">Conversão do funil</span>
                       <TrendingUp size={15} className="text-success" />
                     </div>
                     <p className="text-2xl leading-none font-bold text-foreground">
@@ -885,8 +1222,6 @@ export default function DashboardPage() {
                   })()}
                 </div>
 
-                <StageVelocityPanel funnelPipeline={funnelPipeline} allLeads={allLeads} funnelResponsible={funnelResponsible} />
-
                 {/* Conversion table */}
                 <div className="bg-card border border-gray-200 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Tabela de conversão</h3>
@@ -920,8 +1255,8 @@ export default function DashboardPage() {
                           );
                         })}
                         {(() => {
-                          const pipelineWon = wonInPeriod.filter(l => l.pipelineId === funnelPipeline!.id).length;
-                          const pipelineLost = lostInPeriod.filter(l => l.pipelineId === funnelPipeline!.id).length;
+                          const pipelineWon = pWon.length;
+                          const pipelineLost = pLost.length;
                           const wonPct = firstCount > 0 ? `${((pipelineWon / firstCount) * 100).toFixed(1)}%` : "—";
                           const lostPct = firstCount > 0 ? `${((pipelineLost / firstCount) * 100).toFixed(1)}%` : "—";
                           return (
@@ -955,6 +1290,8 @@ export default function DashboardPage() {
                     </table>
                   </div>
                 </div>
+
+                <StageVelocityPanel funnelPipeline={funnelPipeline} allLeads={allLeads} funnelResponsible={funnelResponsible} />
               </div>
             );
           })()}
