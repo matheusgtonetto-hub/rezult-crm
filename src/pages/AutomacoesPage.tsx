@@ -6501,22 +6501,41 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                   </div>
                 )
               ) : apiModal.sourceName === "webhook" ? (
-                webhookPayload && Object.keys(webhookPayload).length > 0 ? (
-                  <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 180, overflowY: "auto" }}>
-                    {Object.entries(webhookPayload).map(([key, value]) => (
-                      <button key={key}
-                        onClick={() => { onInsert(`{{gatilho.${key}}}`); onClose(); }}
-                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", textAlign: "left", fontSize: 12 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 90, flexShrink: 0 }}>{key}</span>
-                        <span style={{ color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 11 }}>
-                          {String(value ?? "").substring(0, 60)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
+                webhookPayload && Object.keys(webhookPayload).length > 0 ? (() => {
+                  // Achata todos os caminhos folha com seus valores
+                  function flatLeaves(obj: unknown, prefix = ""): { path: string; value: string }[] {
+                    if (typeof obj !== "object" || obj === null) {
+                      return [{ path: prefix, value: String(obj ?? "") }];
+                    }
+                    if (Array.isArray(obj)) {
+                      return obj.slice(0, 5).flatMap((item, i) =>
+                        flatLeaves(item, prefix ? `${prefix}.${i}` : String(i))
+                      );
+                    }
+                    return Object.entries(obj as Record<string, unknown>).flatMap(([k, v]) => {
+                      const full = prefix ? `${prefix}.${k}` : k;
+                      if (typeof v === "object" && v !== null) return flatLeaves(v, full);
+                      return [{ path: full, value: String(v ?? "") }];
+                    });
+                  }
+                  const leaves = flatLeaves(webhookPayload);
+                  return (
+                    <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 220, overflowY: "auto" }}>
+                      {leaves.map(({ path, value }) => (
+                        <button key={path}
+                          onClick={() => { onInsert(`{{gatilho.${path}}}`); onClose(); }}
+                          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "6px 12px", background: "transparent", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", textAlign: "left", fontSize: 12 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                          <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path}>{path}</span>
+                          <span style={{ color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 11 }}>
+                            {value.substring(0, 50)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })() : (
                   <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
                     Nenhum dado recebido ainda — envie um webhook para ver os campos disponíveis.
                   </div>
