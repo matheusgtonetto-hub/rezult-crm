@@ -8,7 +8,103 @@ import { emitPlanLimit } from "@/lib/planLimitEvent";
 import {
   Search, Plus, X, Copy, Check, RefreshCw, Loader2,
   ShoppingBag, ChevronLeft, ToggleLeft, ToggleRight, Trash2, AlertTriangle,
+  ChevronDown, ChevronRight as ChevronRightIcon,
 } from "lucide-react";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function flattenPaths(obj: unknown, prefix = ""): string[] {
+  if (typeof obj !== "object" || obj === null) return prefix ? [prefix] : [];
+  if (Array.isArray(obj)) {
+    return obj.flatMap((item, i) =>
+      flattenPaths(item, prefix ? `${prefix}.${i}` : String(i))
+    );
+  }
+  const entries = Object.entries(obj as Record<string, unknown>);
+  if (!entries.length) return prefix ? [prefix] : [];
+  return entries.flatMap(([key, val]) => {
+    const full = prefix ? `${prefix}.${key}` : key;
+    if (typeof val === "object" && val !== null) return flattenPaths(val, full);
+    return [full];
+  });
+}
+
+// ── JSON Tree ─────────────────────────────────────────────────────────────────
+
+function JsonNode({
+  data, path, depth = 0, onCopy, copiedPath,
+}: {
+  data: unknown; path: string; depth?: number;
+  onCopy: (path: string) => void;
+  copiedPath: string | null;
+}) {
+  const [open, setOpen] = useState(true);
+  const indent = depth * 12;
+
+  if (typeof data !== "object" || data === null) {
+    const str = String(data);
+    const isCopied = copiedPath === path;
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+        <button
+          onClick={() => onCopy(path)}
+          title="Copiar caminho"
+          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 1px", color: isCopied ? "#16a34a" : "#AAA", display: "flex", alignItems: "center", lineHeight: 1 }}
+        >
+          {isCopied ? <Check size={11} /> : <Copy size={11} />}
+        </button>
+        <span style={{ fontSize: 11, color: typeof data === "string" ? "#16a34a" : "#ea580c", fontFamily: "monospace", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
+          {typeof data === "string" ? `"${str}"` : str}
+        </span>
+      </span>
+    );
+  }
+
+  if (Array.isArray(data)) {
+    return (
+      <div style={{ paddingLeft: indent }}>
+        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#888", fontFamily: "monospace", padding: "1px 0", display: "flex", alignItems: "center", gap: 2 }}>
+          {open ? <ChevronDown size={10} /> : <ChevronRightIcon size={10} />}
+          <span>[{data.length}]</span>
+        </button>
+        {open && data.slice(0, 5).map((item, i) => (
+          <div key={i} style={{ paddingTop: 2 }}>
+            <span style={{ fontSize: 10, color: "#AAA", fontFamily: "monospace" }}>{i}: </span>
+            <JsonNode data={item} path={`${path}.${i}`} depth={depth + 1} onCopy={onCopy} copiedPath={copiedPath} />
+          </div>
+        ))}
+        {data.length > 5 && <span style={{ fontSize: 10, color: "#AAA" }}>…+{data.length - 5} itens</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingLeft: indent }}>
+      {Object.entries(data as Record<string, unknown>).map(([key, val]) => {
+        const full = path ? `${path}.${key}` : key;
+        const isObj = typeof val === "object" && val !== null;
+        return (
+          <div key={key} style={{ paddingTop: 2, paddingBottom: 2 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+              {isObj && (
+                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "1px 0", display: "flex", alignItems: "center", color: "#888", flexShrink: 0 }}>
+                  {open ? <ChevronDown size={10} /> : <ChevronRightIcon size={10} />}
+                </button>
+              )}
+              <span style={{ fontSize: 11, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
+              {!isObj && (
+                <JsonNode data={val} path={full} depth={depth} onCopy={onCopy} copiedPath={copiedPath} />
+              )}
+            </div>
+            {isObj && open && (
+              <JsonNode data={val} path={full} depth={depth + 1} onCopy={onCopy} copiedPath={copiedPath} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,20 +161,19 @@ function mapRow(r: Record<string, unknown>): Integration {
   };
 }
 
-// ── FieldSelect ──────────────────────────────────────────────────────────────
+// ── FieldInput ──────────────────────────────────────────────────────────────
 
-function FieldSelect({
-  placeholder, value, onChange, keys,
-}: { placeholder: string; value?: string; onChange: (v: string) => void; keys: string[] }) {
+function FieldInput({
+  placeholder, value, onChange,
+}: { placeholder: string; value?: string; onChange: (v: string) => void }) {
   return (
-    <select
+    <input
+      type="text"
       value={value ?? ""}
       onChange={e => onChange(e.target.value)}
-      style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: value ? "#111" : "#AAA", background: "#FAFAFA", outline: "none", cursor: "pointer" }}
-    >
-      <option value="">{placeholder}</option>
-      {keys.map(k => <option key={k} value={k}>{k}</option>)}
-    </select>
+      placeholder={placeholder}
+      style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FAFAFA", outline: "none", boxSizing: "border-box" }}
+    />
   );
 }
 
@@ -108,8 +203,10 @@ export default function IntegracoesPage() {
   const [configTab, setConfigTab]             = useState<ConfigTab>("perfil");
   const [receivedData, setReceivedData]       = useState("");
   const [parsedKeys, setParsedKeys]           = useState<string[]>([]);
+  const [parsedData, setParsedData]           = useState<unknown>(null);
   const [dataError, setDataError]             = useState(false);
   const [copied, setCopied]                   = useState(false);
+  const [copiedPath, setCopiedPath]           = useState<string | null>(null);
   const [saving, setSaving]                   = useState(false);
 
   const [loadError, setLoadError] = useState(false);
@@ -187,7 +284,14 @@ export default function IntegracoesPage() {
     setEditCustom(cm);
     const raw = itg.lastReceivedData ?? "";
     setReceivedData(raw);
-    setParsedKeys(safeParseKeys(raw));
+    try {
+      const parsed = JSON.parse(raw);
+      setParsedData(parsed);
+      setParsedKeys(flattenPaths(parsed));
+    } catch {
+      setParsedData(null);
+      setParsedKeys(safeParseKeys(raw));
+    }
     setDataError(false);
     setConfigTab("perfil");
     setCopied(false);
@@ -237,9 +341,18 @@ export default function IntegracoesPage() {
 
   const handleReceivedData = (val: string) => {
     setReceivedData(val);
-    const keys = safeParseKeys(val);
-    setParsedKeys(keys);
-    setDataError(val.trim().length > 0 && keys.length === 0);
+    try {
+      const parsed = JSON.parse(val);
+      setParsedData(parsed);
+      const keys = flattenPaths(parsed);
+      setParsedKeys(keys);
+      setDataError(false);
+    } catch {
+      setParsedData(null);
+      const keys = safeParseKeys(val);
+      setParsedKeys(keys);
+      setDataError(val.trim().length > 0 && keys.length === 0);
+    }
   };
 
   const copyUrl = (token: string) => {
@@ -253,6 +366,12 @@ export default function IntegracoesPage() {
 
   const setAuto = (key: keyof AutomationSettings, val: unknown) =>
     setEditAutomation(prev => ({ ...prev, [key]: val }));
+
+  const copyPath = (path: string) => {
+    navigator.clipboard.writeText(path);
+    setCopiedPath(path);
+    setTimeout(() => setCopiedPath(null), 1500);
+  };
 
   const editPipeline = pipelines.find(p => p.id === editAutomation.pipelineId);
 
@@ -514,17 +633,17 @@ export default function IntegracoesPage() {
                         ]).map(f => (
                           <div key={f.key}>
                             <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
-                            <FieldSelect placeholder={`Selecione um campo "${f.label}" para o Lead`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} keys={parsedKeys} />
+                            <FieldInput placeholder={`Cole o caminho do campo "${f.label}"`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} />
                           </div>
                         ))}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
                           <div>
                             <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>DDI</label>
-                            <FieldSelect placeholder="DDI" value={editMappings.phoneDdi} onChange={v => setMap("phoneDdi", v)} keys={parsedKeys} />
+                            <FieldInput placeholder="Cole o caminho do campo DDI" value={editMappings.phoneDdi} onChange={v => setMap("phoneDdi", v)} />
                           </div>
                           <div>
                             <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>Telefone</label>
-                            <FieldSelect placeholder='Selecione um campo "Telefone" para o Lead' value={editMappings.phone} onChange={v => setMap("phone", v)} keys={parsedKeys} />
+                            <FieldInput placeholder='Cole o caminho do campo "Telefone"' value={editMappings.phone} onChange={v => setMap("phone", v)} />
                           </div>
                         </div>
                       </div>
@@ -536,7 +655,7 @@ export default function IntegracoesPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <div>
                         <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>ID externo do negócio</label>
-                        <FieldSelect placeholder='Selecione um campo "ID" para o ID externo do negócio' value={editMappings.externalId} onChange={v => setMap("externalId", v)} keys={parsedKeys} />
+                        <FieldInput placeholder="Cole o caminho do campo ID externo" value={editMappings.externalId} onChange={v => setMap("externalId", v)} />
                       </div>
                       <div style={{ marginTop: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -552,7 +671,7 @@ export default function IntegracoesPage() {
                         ]).map(f => (
                           <div key={f.key} style={{ marginBottom: 10 }}>
                             <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
-                            <FieldSelect placeholder={`Selecione um campo "${f.label}" para o Produto`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} keys={parsedKeys} />
+                            <FieldInput placeholder={`Cole o caminho do campo "${f.label}"`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} />
                           </div>
                         ))}
                       </div>
@@ -624,11 +743,10 @@ export default function IntegracoesPage() {
                           {customFieldGroups.flatMap(g => g.items).map(f => (
                             <div key={f.id}>
                               <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
-                              <FieldSelect
-                                placeholder={`Selecione os campos`}
+                              <FieldInput
+                                placeholder="Cole o caminho do campo"
                                 value={editCustom[f.id]}
                                 onChange={v => setEditCustom(prev => ({ ...prev, [f.id]: v }))}
-                                keys={parsedKeys}
                               />
                             </div>
                           ))}
@@ -640,34 +758,33 @@ export default function IntegracoesPage() {
               </div>
 
               {/* Right: received data */}
-              <div style={{ width: 340, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <div style={{ padding: "16px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ width: 539, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ padding: "16px 20px", flex: 1, display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Dados recebidos</p>
-                    <button
-                      onClick={() => { handleReceivedData(receivedData); toast.success("Campos atualizados!"); }}
-                      style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: "#2563EB", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
-                    >
-                      <RefreshCw size={12} /> Receber dados
-                    </button>
+                    {parsedData && (
+                      <button
+                        onClick={() => { setParsedData(null); setReceivedData(""); setParsedKeys([]); }}
+                        style={{ fontSize: 11, color: "#888", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                      >
+                        <X size={12} /> Limpar
+                      </button>
+                    )}
                   </div>
-                  <textarea
-                    value={receivedData}
-                    onChange={e => handleReceivedData(e.target.value)}
-                    placeholder={'Cole aqui um exemplo de JSON para mapear os campos:\n\n{\n  "nome": "João Silva",\n  "telefone": "11999999999",\n  "email": "joao@email.com"\n}'}
-                    style={{ flex: 1, border: `1px solid ${dataError ? "#EF4444" : "#E0E0E0"}`, borderRadius: 10, padding: "12px", fontSize: 12, color: "#333", resize: "none", outline: "none", fontFamily: "monospace", lineHeight: 1.5, background: "#FAFAFA" }}
-                  />
-                  {dataError && (
-                    <p style={{ fontSize: 11, color: "#EF4444", marginTop: 4 }}>JSON inválido — verifique o formato</p>
-                  )}
-                  {parsedKeys.length > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <p style={{ fontSize: 11, color: "#AAA", marginBottom: 4 }}>Campos detectados:</p>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {parsedKeys.map(k => (
-                          <span key={k} style={{ fontSize: 10, fontWeight: 600, background: "#EBF3FC", color: "#2563EB", padding: "2px 8px", borderRadius: 100 }}>{k}</span>
-                        ))}
-                      </div>
+
+                  {!parsedData ? (
+                    <>
+                      <textarea
+                        value={receivedData}
+                        onChange={e => handleReceivedData(e.target.value)}
+                        placeholder={'Cole aqui um exemplo de JSON para mapear os campos:\n\n{\n  "nome": "João Silva",\n  "telefone": "11999999999",\n  "email": "joao@email.com"\n}'}
+                        style={{ flex: 1, border: `1px solid ${dataError ? "#EF4444" : "#E0E0E0"}`, borderRadius: 10, padding: "12px", fontSize: 12, color: "#333", resize: "none", outline: "none", fontFamily: "monospace", lineHeight: 1.5, background: "#FAFAFA" }}
+                      />
+                      {dataError && <p style={{ fontSize: 11, color: "#EF4444" }}>JSON inválido — verifique o formato</p>}
+                    </>
+                  ) : (
+                    <div style={{ flex: 1, overflowY: "auto", border: "1px solid #E0E0E0", borderRadius: 10, padding: "10px 14px", background: "#FAFAFA", minHeight: 0 }}>
+                      <JsonNode data={parsedData} path="" onCopy={copyPath} copiedPath={copiedPath} />
                     </div>
                   )}
                 </div>
