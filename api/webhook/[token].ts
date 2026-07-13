@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 const STANDARD_KEYS = new Set([
@@ -84,12 +84,47 @@ export default async function handler(req: Req, res: Res) {
   const auto: { pipelineId?: string; stageId?: string; tags?: string[] } =
     integration.automation_settings ?? {};
 
+  // Resolve dot-notation paths e arrays (ex: "attendees.0.name", "responses.phone.value")
+  function deepGet(obj: unknown, path: string): string {
+    const parts = path.split(".");
+    let cur: unknown = obj;
+    for (const part of parts) {
+      if (cur === null || cur === undefined) return "";
+      if (Array.isArray(cur)) {
+        const idx = Number(part);
+        cur = isNaN(idx) ? undefined : cur[idx];
+      } else if (typeof cur === "object") {
+        cur = (cur as Record<string, unknown>)[part];
+      } else {
+        return "";
+      }
+    }
+    if (cur === null || cur === undefined) return "";
+    return String(cur).trim();
+  }
+
+  // Normaliza payload Cal.com: extrai campos comuns automaticamente se não houver mapeamento
+  function normalizeCal(b: Record<string, unknown>): Record<string, unknown> {
+    if (!b.triggerEvent && !b.payload) return b;
+    const p = (b.payload ?? b) as Record<string, unknown>;
+    const attendee = Array.isArray(p.attendees) ? (p.attendees[0] as Record<string, unknown>) : {};
+    const responses = (p.responses ?? {}) as Record<string, { value?: unknown }>;
+    return {
+      ...b,
+      _cal_name:  attendee.name  ?? responses.name?.value  ?? "",
+      _cal_email: attendee.email ?? responses.email?.value ?? "",
+      _cal_phone: responses.phone?.value ?? responses.whatsapp?.value ?? responses.telefone?.value ?? "",
+      _cal_notes: String(p.title ?? p.description ?? ""),
+    };
+  }
+
+  const enrichedBody = normalizeCal(body);
+
   function pick(crmKey: string): string {
     const jsonKey = fm[crmKey];
     if (!jsonKey) return "";
-    const val = body[jsonKey];
-    if (val === undefined || val === null) return "";
-    return String(val).trim();
+    // Suporta dot-notation para campos aninhados
+    return deepGet(enrichedBody, jsonKey);
   }
 
   // ── 4. Próximo número de negócio ────────────────────────────────────────────
@@ -125,8 +160,9 @@ export default async function handler(req: Req, res: Res) {
   // Campos adicionais (custom fields) mapeados
   const customFieldValues: Record<string, string> = {};
   for (const [crmField, jsonKey] of Object.entries(fm)) {
-    if (!STANDARD_KEYS.has(crmField) && jsonKey && body[jsonKey] !== undefined) {
-      customFieldValues[crmField] = String(body[jsonKey]);
+    if (!STANDARD_KEYS.has(crmField) && jsonKey) {
+      const val = deepGet(enrichedBody, jsonKey);
+      if (val) customFieldValues[crmField] = val;
     }
   }
 
