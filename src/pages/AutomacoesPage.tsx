@@ -6211,6 +6211,89 @@ function iaOutputFields(nodes: CanvasNode[]): VarField[] {
   );
 }
 
+// ── WebhookTree ───────────────────────────────────────────────────────────────
+
+function WebhookTreeNode({ data, path, depth, onSelect, selectedPath }: {
+  data: unknown; path: string; depth: number;
+  onSelect: (path: string) => void;
+  selectedPath: string;
+}) {
+  const [open, setOpen] = useState(true);
+  const indent = depth * 14;
+
+  if (typeof data !== "object" || data === null) {
+    const str = String(data);
+    const isSelected = selectedPath === path;
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <button
+          onClick={() => onSelect(path)}
+          title="Usar este campo"
+          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: isSelected ? "#2563EB" : "#AAA", display: "flex", alignItems: "center" }}
+        >
+          <Copy size={11} />
+        </button>
+        <span style={{ fontSize: 11, color: typeof data === "string" ? "#16A34A" : "#EA580C", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
+          {typeof data === "string" ? `"${str}"` : str}
+        </span>
+      </span>
+    );
+  }
+
+  if (Array.isArray(data)) {
+    return (
+      <div style={{ paddingLeft: indent }}>
+        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#6B7280", fontFamily: "monospace", padding: "2px 0", display: "flex", alignItems: "center", gap: 3 }}>
+          {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+          <span style={{ color: "#9CA3AF" }}>[{data.length}]</span>
+        </button>
+        {open && data.slice(0, 10).map((item, i) => (
+          <div key={i} style={{ paddingLeft: 12, paddingTop: 2 }}>
+            <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{i}: </span>
+            <WebhookTreeNode data={item} path={`${path}.${i}`} depth={0} onSelect={onSelect} selectedPath={selectedPath} />
+          </div>
+        ))}
+        {data.length > 10 && <span style={{ paddingLeft: 12, fontSize: 10, color: "#9CA3AF" }}>…+{data.length - 10}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingLeft: indent }}>
+      {Object.entries(data as Record<string, unknown>).map(([key, val]) => {
+        const full = path ? `${path}.${key}` : key;
+        const isObj = typeof val === "object" && val !== null;
+        return (
+          <div key={key} style={{ paddingTop: 2, paddingBottom: 2 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+              {isObj && (
+                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 0", flexShrink: 0, color: "#9CA3AF", display: "flex", alignItems: "center" }}>
+                  {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                </button>
+              )}
+              <span style={{ fontSize: 11, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
+              {!isObj && <WebhookTreeNode data={val} path={full} depth={0} onSelect={onSelect} selectedPath={selectedPath} />}
+            </div>
+            {isObj && open && (
+              <div style={{ paddingLeft: 14 }}>
+                <WebhookTreeNode data={val} path={full} depth={0} onSelect={onSelect} selectedPath={selectedPath} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WebhookTree({ data, onSelect, selectedPath }: { data: unknown; onSelect: (path: string) => void; selectedPath: string }) {
+  return (
+    <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px", maxHeight: 220, overflowY: "auto" }}>
+      <WebhookTreeNode data={data} path="" depth={0} onSelect={onSelect} selectedPath={selectedPath} />
+    </div>
+  );
+}
+
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
   const { nodes, customFieldGroups, trigger, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
@@ -6501,41 +6584,9 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                   </div>
                 )
               ) : apiModal.sourceName === "webhook" ? (
-                webhookPayload && typeof webhookPayload === "object" && webhookPayload !== null ? (() => {
-                  // Achata todos os caminhos folha com seus valores
-                  function flatLeaves(obj: unknown, prefix = ""): { path: string; value: string }[] {
-                    if (typeof obj !== "object" || obj === null) {
-                      return [{ path: prefix, value: String(obj ?? "") }];
-                    }
-                    if (Array.isArray(obj)) {
-                      return obj.slice(0, 5).flatMap((item, i) =>
-                        flatLeaves(item, prefix ? `${prefix}.${i}` : String(i))
-                      );
-                    }
-                    return Object.entries(obj as Record<string, unknown>).flatMap(([k, v]) => {
-                      const full = prefix ? `${prefix}.${k}` : k;
-                      if (typeof v === "object" && v !== null) return flatLeaves(v, full);
-                      return [{ path: full, value: String(v ?? "") }];
-                    });
-                  }
-                  const leaves = flatLeaves(webhookPayload);
-                  return (
-                    <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden", maxHeight: 220, overflowY: "auto" }}>
-                      {leaves.map(({ path, value }) => (
-                        <button key={path}
-                          onClick={() => { onInsert(`{{gatilho.${path}}}`); onClose(); }}
-                          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "6px 12px", background: "transparent", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", textAlign: "left", fontSize: 12 }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                          <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path}>{path}</span>
-                          <span style={{ color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 11 }}>
-                            {value.substring(0, 50)}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })() : (
+                webhookPayload && typeof webhookPayload === "object" && webhookPayload !== null
+                  ? <WebhookTree data={webhookPayload} onSelect={path => setApiPath(path)} selectedPath={apiPath} />
+                  : (
                   <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
                     Nenhum dado recebido ainda — envie um webhook para ver os campos disponíveis.
                   </div>
