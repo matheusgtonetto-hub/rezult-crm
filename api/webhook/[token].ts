@@ -109,12 +109,20 @@ export default async function handler(req: Req, res: Res) {
     const p = (b.payload ?? b) as Record<string, unknown>;
     const attendee = Array.isArray(p.attendees) ? (p.attendees[0] as Record<string, unknown>) : {};
     const responses = (p.responses ?? {}) as Record<string, { value?: unknown }>;
+    const phone =
+      String(attendee.phoneNumber ?? "").trim() ||
+      String(responses.attendeePhoneNumber?.value ?? "").trim() ||
+      String(responses.phone?.value ?? "").trim() ||
+      String(responses.whatsapp?.value ?? "").trim() ||
+      String(responses.telefone?.value ?? "").trim() ||
+      "";
     return {
       ...b,
-      _cal_name:  attendee.name  ?? responses.name?.value  ?? "",
-      _cal_email: attendee.email ?? responses.email?.value ?? "",
-      _cal_phone: responses.phone?.value ?? responses.whatsapp?.value ?? responses.telefone?.value ?? "",
-      _cal_notes: String(p.title ?? p.description ?? ""),
+      _cal_name:  String(attendee.name  ?? responses.name?.value  ?? "").trim(),
+      _cal_email: String(attendee.email ?? responses.email?.value ?? "").trim(),
+      _cal_phone: phone,
+      _cal_notes: String(p.title ?? p.description ?? "").trim(),
+      _cal_uid:   String((p as Record<string, unknown>).uid ?? "").trim(),
     };
   }
 
