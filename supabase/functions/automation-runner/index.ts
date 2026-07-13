@@ -412,10 +412,12 @@ async function handleWebhook(
   const companyId = (automation as AutomationRecord).company_id;
   const ownerId = (automation as AutomationRecord).owner_id;
 
-  // Lê o body da requisição
+  // Lê o body da requisição (aceita objeto ou array)
   let webhookBody: Record<string, unknown> = {};
   try {
-    webhookBody = (await req.json()) as Record<string, unknown>;
+    const raw = await req.json();
+    // Se vier um array no root, envolve em { data: [...] } para manter compatibilidade
+    webhookBody = Array.isArray(raw) ? { data: raw } : (raw as Record<string, unknown>);
   } catch { /* body vazio ou não-JSON é aceito */ }
 
   // Persiste o último payload para exibição no canvas (sem await — não bloqueia)

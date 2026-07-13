@@ -173,12 +173,12 @@ type AutomationRecord = {
   active: boolean;
   flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
   created_at: string;
-  last_webhook_payload?: Record<string, unknown> | null;
+  last_webhook_payload?: unknown;
 };
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: Record<string, unknown> | null; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null, refreshWebhookPayload: null });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: unknown; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null, refreshWebhookPayload: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -6501,7 +6501,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                   </div>
                 )
               ) : apiModal.sourceName === "webhook" ? (
-                webhookPayload && Object.keys(webhookPayload).length > 0 ? (() => {
+                webhookPayload && typeof webhookPayload === "object" && webhookPayload !== null ? (() => {
                   // Achata todos os caminhos folha com seus valores
                   function flatLeaves(obj: unknown, prefix = ""): { path: string; value: string }[] {
                     if (typeof obj !== "object" || obj === null) {
