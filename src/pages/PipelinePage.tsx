@@ -124,6 +124,7 @@ export default function PipelinePage() {
   }, [pipelineId, pipelines, activePipelineId, navigate]);
 
   const isAdmin = can("admin");
+  const isPipelineAdmin = isAdmin || can("pipelines:admin");
   const myName = profile?.full_name ?? "";
   const { getPerms } = usePipelinePermissions();
   const myPerms = activePipeline ? getPerms(activePipeline.id) : {};
@@ -682,13 +683,15 @@ export default function PipelinePage() {
                   <div className="text-xs text-muted-foreground">Edite, configure ou exclua sua pipeline</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem className="py-2.5" onClick={openPermissions}>
-                <ShieldCheck size={14} className="mr-3 shrink-0" />
-                <div>
-                  <div className="font-medium text-sm">Permissões da pipeline</div>
-                  <div className="text-xs text-muted-foreground">Configure o acesso dos atendentes</div>
-                </div>
-              </DropdownMenuItem>
+              {isPipelineAdmin && (
+                <DropdownMenuItem className="py-2.5" onClick={openPermissions}>
+                  <ShieldCheck size={14} className="mr-3 shrink-0" />
+                  <div>
+                    <div className="font-medium text-sm">Permissões da pipeline</div>
+                    <div className="text-xs text-muted-foreground">Configure o acesso dos atendentes</div>
+                  </div>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="py-2.5 text-destructive focus:text-destructive"
                 onClick={() => setConfirmDeletePipeline(true)}
@@ -1494,16 +1497,18 @@ export default function PipelinePage() {
                 >
                   <Settings size={14} className="shrink-0" /> Configurações
                 </button>
-                <button
-                  onClick={() => { setEditPipelineTab("atendentes"); setSelectedPermAttendant(null); }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                    editPipelineTab === "atendentes"
-                      ? "bg-background shadow-sm font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  }`}
-                >
-                  <ShieldCheck size={14} className="shrink-0" /> Permissões
-                </button>
+                {isPipelineAdmin && (
+                  <button
+                    onClick={() => { setEditPipelineTab("atendentes"); setSelectedPermAttendant(null); }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                      editPipelineTab === "atendentes"
+                        ? "bg-background shadow-sm font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                    }`}
+                  >
+                    <ShieldCheck size={14} className="shrink-0" /> Permissões
+                  </button>
+                )}
               </div>
 
               {/* Center — attendant list (only when on Permissões tab) */}
