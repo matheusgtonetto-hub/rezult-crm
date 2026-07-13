@@ -416,41 +416,59 @@ async function handleWebhook(
   let webhookBody: Record<string, unknown> = {};
   try {
     const raw = await req.json();
-    // Se vier um array no root, envolve em { data: [...] } para manter compatibilidade
     webhookBody = Array.isArray(raw) ? { data: raw } : (raw as Record<string, unknown>);
   } catch { /* body vazio ou não-JSON é aceito */ }
+
+  // Normaliza payloads Cal.com: extrai email/telefone/nome para o nível raiz
+  // para que o lookup de lead e as variáveis {{gatilho.*}} funcionem corretamente.
+  if (webhookBody.triggerEvent || webhookBody.payload) {
+    const p = (webhookBody.payload ?? webhookBody) as Record<string, unknown>;
+    const attendee = Array.isArray(p.attendees)
+      ? (p.attendees[0] as Record<string, unknown>)
+      : {};
+    const responses = (p.responses ?? {}) as Record<string, { value?: unknown }>;
+    const calEmail = String(attendee.email ?? responses.email?.value ?? "").trim();
+    const calPhone = String(
+      attendee.phoneNumber ?? responses.attendeePhoneNumber?.value ??
+      responses.phone?.value ?? responses.whatsapp?.value ?? ""
+    ).trim();
+    const calName = String(attendee.name ?? responses.name?.value ?? "").trim();
+    if (calEmail && !webhookBody.email)  webhookBody._cal_email = calEmail;
+    if (calPhone && !webhookBody.phone)  webhookBody._cal_phone = calPhone;
+    if (calName  && !webhookBody.name)   webhookBody._cal_name  = calName;
+  }
 
   // Persiste o último payload para exibição no canvas (sem await — não bloqueia)
   supabase.from("automations").update({ last_webhook_payload: webhookBody }).eq("id", automationId).then(() => {});
 
-  // Identifica o lead pelo body em CASCATA (lead_id → email → telefone). Antes era um
-  // else-if mutuamente exclusivo: um cliente que voltava com e-mail novo mas mesmo telefone
-  // não casava (email presente porém sem match parava a busca) → lead DUPLICADO. Agora, se o
-  // e-mail não casar, ainda tentamos o telefone.
+  // Identifica o lead pelo body em CASCATA (lead_id → email → telefone).
   let lead_id: string | null = null;
 
   if (webhookBody.lead_id) {
     lead_id = String(webhookBody.lead_id);
   }
 
-  if (!lead_id && webhookBody.email) {
+  // Candidatos de e-mail: campo raiz ou campo extraído do Cal.com
+  const emailCandidate = String(webhookBody.email ?? webhookBody._cal_email ?? "").trim();
+  if (!lead_id && emailCandidate) {
     const { data: lead } = await supabase
       .from("leads")
       .select("id")
       .eq("owner_id", ownerId)
-      .ilike("email", String(webhookBody.email)) // e-mail é case-insensitive
+      .ilike("email", emailCandidate)
       .maybeSingle();
     lead_id = lead?.id ?? null;
   }
 
   if (!lead_id) {
-    // Os payloads enviam o número em `whatsapp`, `telefone` ou `phone`. O lead guarda o
-    // número JÁ normalizado (+55DDDNUMERO). Normaliza o valor recebido do mesmo jeito
-    // (parsePhoneNumber) e também tenta o valor cru, para casar independente de formatação.
-    const rawPhone = (webhookBody.whatsapp ?? webhookBody.telefone ?? webhookBody.phone) as string | undefined;
+    // Candidatos de telefone: campos raiz ou campo extraído do Cal.com
+    const rawPhone = String(
+      webhookBody.whatsapp ?? webhookBody.telefone ?? webhookBody.phone ??
+      webhookBody._cal_phone ?? ""
+    ).trim() || undefined;
     if (rawPhone) {
-      const parsed = parsePhoneNumber(String(rawPhone), "BR");
-      const candidates = [...new Set([parsed.phone, String(rawPhone)].filter(Boolean))];
+      const parsed = parsePhoneNumber(rawPhone, "BR");
+      const candidates = [...new Set([parsed.phone, rawPhone].filter(Boolean))];
       for (const cand of candidates) {
         const { data: lead } = await supabase
           .from("leads")
@@ -1984,10 +2002,23 @@ async function buildVarContext(
   ctx["gatilho.tipo"]       = payload.trigger_type;
   ctx["gatilho.lead_id"]    = payload.lead_id;
   ctx["gatilho.empresa_id"] = payload.company_id;
-  // Campos do body do webhook disponíveis como {{gatilho.CAMPO}} (ex: {{gatilho.email}})
+  // Campos do body do webhook disponíveis como {{gatilho.CAMPO}}.
+  // Achata recursivamente em dot-notation para que campos aninhados como
+  // {{gatilho.payload.attendees.0.name}} funcionem corretamente.
   const bodyFields = (payload.context.changed_fields ?? {}) as Record<string, unknown>;
+  function flattenCtx(obj: unknown, prefix: string) {
+    if (obj === null || obj === undefined) { ctx[prefix] = ""; return; }
+    if (typeof obj !== "object") { ctx[prefix] = String(obj); return; }
+    if (Array.isArray(obj)) {
+      obj.forEach((item, i) => flattenCtx(item, `${prefix}.${i}`));
+      return;
+    }
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      flattenCtx(v, `${prefix}.${k}`);
+    }
+  }
   for (const [k, v] of Object.entries(bodyFields)) {
-    ctx[`gatilho.${k}`] = String(v ?? "");
+    flattenCtx(v, `gatilho.${k}`);
   }
   // Saídas de datasources persistidas (ex: analise_telefone → phone-1.phone, phone-1.ddi…)
   const datasources = payload.context.datasources ?? {};
