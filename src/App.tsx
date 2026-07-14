@@ -38,10 +38,10 @@ import CheckoutSuccessPage from "./pages/CheckoutSuccess";
 const queryClient = new QueryClient();
 
 function SmartRedirect() {
-  const { companyLoading } = useCompany();
+  const { companyLoading, permissionsReady } = useCompany();
   const { can, isOwner } = usePermissions();
 
-  if (companyLoading) return null;
+  if (companyLoading || !permissionsReady) return null;
 
   const hasDashboard = isOwner || can("admin") || can("dashboard:admin") || can("dashboard:member");
   return <Navigate to={hasDashboard ? "/dashboard" : "/pipeline"} replace />;

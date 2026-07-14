@@ -88,6 +88,7 @@ interface CompanyContextType {
   isOwner: boolean;
   userPermissions: string[];
   companyLoading: boolean;
+  permissionsReady: boolean;
   isFreePlan: boolean;
   planExpired: boolean;
   planDaysLeft: number | null;
@@ -120,6 +121,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companyLoading, setLoading] = useState(true);
   const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [permissionsReady, setPermissionsReady] = useState(false);
 
   const loadConnections = useCallback(async () => {
     if (!user) { setWhatsappConnections([]); return; }
@@ -242,15 +244,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const isOwner = company?.owner_id === user?.id;
 
   useEffect(() => {
-    if (!company || !user) { setUserPermissions([]); return; }
-    if (company.owner_id === user.id) { setUserPermissions(["admin"]); return; }
+    setPermissionsReady(false);
+    if (!company || !user) { setUserPermissions([]); setPermissionsReady(true); return; }
+    if (company.owner_id === user.id) { setUserPermissions(["admin"]); setPermissionsReady(true); return; }
     supabase
       .from("company_members")
       .select("permissions")
       .eq("company_id", company.id)
       .eq("user_id", user.id)
       .single()
-      .then(({ data }) => setUserPermissions((data?.permissions as string[]) ?? []));
+      .then(({ data }) => {
+        setUserPermissions((data?.permissions as string[]) ?? []);
+        setPermissionsReady(true);
+      });
   }, [company?.id, user?.id]);
 
   const PAID_PLANS = ["silver", "platinum", "emerald"];
@@ -318,6 +324,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         isOwner,
         userPermissions,
         companyLoading,
+        permissionsReady,
         isFreePlan,
         planExpired,
         planDaysLeft,
