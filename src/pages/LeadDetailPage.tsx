@@ -754,7 +754,6 @@ export default function LeadDetailPage() {
   const [showWonProductDialog, setShowWonProductDialog] = useState(false);
   const [wonProductId, setWonProductId] = useState<string>("none");
   const [wonCustomValue, setWonCustomValue] = useState<string>("");
-  const [wonTransferPipelineId, setWonTransferPipelineId] = useState<string>("none");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
@@ -890,13 +889,15 @@ export default function LeadDetailPage() {
   const updateField = (field: string, value: string | number | string[] | undefined) =>
     updateLead(lead.id, { [field]: value });
 
+  const fmtBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
   const handleWon = () => {
     setWonProductId("none");
-    setWonTransferPipelineId("none");
-    // Pré-popula valor com o produto já vinculado ao lead (se houver)
     if (lead.productId) {
       const prod = products.find(p => p.id === lead.productId);
-      setWonCustomValue(String(prod?.defaultValue ?? lead.value ?? 0));
+      const v = prod?.defaultValue ?? lead.value ?? 0;
+      setWonCustomValue(v > 0 ? fmtBRL(v) : "");
     } else {
       setWonCustomValue("");
     }
@@ -905,42 +906,22 @@ export default function LeadDetailPage() {
 
   const handleConfirmWon = async () => {
     let prodName: string | undefined;
-    const customVal = parseFloat(wonCustomValue.replace(",", ".")) || 0;
+    const customVal = parseFloat(wonCustomValue.replace(/\./g, "").replace(",", ".")) || 0;
     let finalValue = lead.value;
     if (wonProductId && wonProductId !== "none") {
-      // Produto selecionado agora no dialog
       const prod = products.find(p => p.id === wonProductId);
       prodName = prod?.name;
       finalValue = customVal;
       await updateLead(lead.id, { productId: wonProductId, value: finalValue });
     } else if (lead.productId) {
-      // Produto já estava cadastrado no lead
       const prod = products.find(p => p.id === lead.productId);
       prodName = prod?.name;
       finalValue = customVal || lead.value;
       if (finalValue !== lead.value) await updateLead(lead.id, { value: finalValue });
     }
     setShowWonProductDialog(false);
-
-    // markLeadWon registra o histórico; transferLead logo depois define dealStatus:"open"
-    // para que o card fique ativo no funil de destino (ex: CS).
     markLeadWon(lead.id, prodName, finalValue);
-
-    let transferred = false;
-    if (wonTransferPipelineId && wonTransferPipelineId !== "none") {
-      const targetPipeline = pipelines.find(p => p.id === wonTransferPipelineId);
-      const firstColId = targetPipeline?.columns[0]?.id ?? "";
-      if (firstColId) {
-        transferLead(lead.id, wonTransferPipelineId, firstColId);
-        transferred = true;
-      }
-    }
-
-    toast.success(
-      transferred
-        ? `Negócio ganho e transferido para ${pipelines.find(p => p.id === wonTransferPipelineId)?.name ?? "outro funil"}!`
-        : "Negócio marcado como ganho!"
-    );
+    toast.success("Negócio marcado como ganho!");
   };
   const handleLost = () => {
     setSelectedLossReasonId("none");
@@ -2815,7 +2796,7 @@ export default function LeadDetailPage() {
                   onValueChange={id => {
                     setWonProductId(id);
                     const prod = products.find(p => p.id === id);
-                    setWonCustomValue(prod && prod.defaultValue > 0 ? String(prod.defaultValue) : "");
+                    setWonCustomValue(prod && prod.defaultValue > 0 ? fmtBRL(prod.defaultValue) : "");
                   }}
                 >
                   <SelectTrigger className="rounded-lg border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary">
@@ -2848,11 +2829,15 @@ export default function LeadDetailPage() {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground select-none">R$</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={wonCustomValue}
                   onChange={e => setWonCustomValue(e.target.value)}
+                  onBlur={() => {
+                    const n = parseFloat(wonCustomValue.replace(/\./g, "").replace(",", "."));
+                    if (!isNaN(n)) setWonCustomValue(fmtBRL(n));
+                  }}
+                  onFocus={e => e.target.select()}
                   placeholder="0,00"
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-400 bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
@@ -2863,41 +2848,6 @@ export default function LeadDetailPage() {
             </div>
           )}
 
-          {/* Transferência de funil */}
-          <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
-              Transferir para outro funil{" "}
-              <span className="font-normal text-muted-foreground">(opcional)</span>
-            </label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Encaminhe o cliente ganho para outro funil, como CS ou Onboarding.
-            </p>
-            <Select value={wonTransferPipelineId} onValueChange={setWonTransferPipelineId}>
-              <SelectTrigger className="rounded-lg border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                <SelectValue placeholder="Manter no funil atual" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Manter no funil atual</SelectItem>
-                {pipelines
-                  .filter(p => p.id !== lead.pipelineId)
-                  .map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {wonTransferPipelineId && wonTransferPipelineId !== "none" && (() => {
-              const target = pipelines.find(p => p.id === wonTransferPipelineId);
-              const firstCol = target?.columns[0];
-              return firstCol ? (
-                <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                  <span style={{ color: "#128A68" }}>→</span>
-                  Entrará em <strong className="text-foreground">{target?.name}</strong> na etapa <strong className="text-foreground">{firstCol.title}</strong>
-                </p>
-              ) : null;
-            })()}
-          </div>
         </div>
 
         <DialogFooter className="gap-2 mt-2">
@@ -2911,7 +2861,7 @@ export default function LeadDetailPage() {
             onClick={handleConfirmWon}
           >
             <Trophy size={14} className="mr-1.5" />
-            {wonTransferPipelineId && wonTransferPipelineId !== "none" ? "Ganho e transferir" : "Confirmar ganho"}
+            Confirmar ganho
           </Button>
         </DialogFooter>
       </DialogContent>
