@@ -2854,7 +2854,7 @@ export default function LeadDetailPage() {
                   value={wonCustomValue}
                   onChange={e => setWonCustomValue(e.target.value)}
                   placeholder="0,00"
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-card-border bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-400 bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
