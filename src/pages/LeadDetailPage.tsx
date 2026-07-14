@@ -2802,7 +2802,7 @@ export default function LeadDetailPage() {
               Produto{lead.productId ? "" : " *"}
             </label>
             {lead.productId ? (
-              <p className="text-sm px-3 py-2 rounded-lg border border-card-border bg-muted text-foreground">
+              <p className="text-sm px-3 py-2 rounded-lg border border-gray-400 bg-muted text-foreground">
                 {products.find(p => p.id === lead.productId)?.name ?? "—"}
               </p>
             ) : (
@@ -2818,7 +2818,7 @@ export default function LeadDetailPage() {
                     setWonCustomValue(prod && prod.defaultValue > 0 ? String(prod.defaultValue) : "");
                   }}
                 >
-                  <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                  <SelectTrigger className="rounded-lg border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Escolha um produto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2873,7 +2873,7 @@ export default function LeadDetailPage() {
               Encaminhe o cliente ganho para outro funil, como CS ou Onboarding.
             </p>
             <Select value={wonTransferPipelineId} onValueChange={setWonTransferPipelineId}>
-              <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
+              <SelectTrigger className="rounded-lg border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                 <SelectValue placeholder="Manter no funil atual" />
               </SelectTrigger>
               <SelectContent>
