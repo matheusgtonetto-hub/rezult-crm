@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { pixelTrack } from "@/lib/metaPixel";
 import {
   ChevronRight,
   ChevronDown,
@@ -238,6 +239,10 @@ export default function SetupPage() {
 
   const [step, setStep] = useState<Step>(Math.min(initStep, 2) as Step);
 
+  useEffect(() => {
+    if (step === 2) pixelTrack("ViewContent", { content_name: "Planos" });
+  }, [step]);
+
   const [inviteOpen, setInviteOpen]       = useState(false);
   const [inviteEmail, setInviteEmail]     = useState("");
   const [invitePerms, setInvitePerms]     = useState<string[]>([]);
@@ -268,6 +273,7 @@ export default function SetupPage() {
     setConfirming(true);
 
     const priceId = STRIPE_PRICES[confirmPlan][BILLING_TAB_TO_PERIOD[billingTab]];
+    pixelTrack("InitiateCheckout", { content_name: confirmPlan, content_category: "subscription" });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();

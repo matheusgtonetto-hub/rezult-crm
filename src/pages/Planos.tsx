@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Check, Zap, ArrowLeft, Loader2 } from "lucide-react";
 
 import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
+import { pixelTrack } from "@/lib/metaPixel";
 
 type PlanKey = StripePlanKey;
 type BillingPeriod = StripeBillingPeriod;
@@ -102,12 +103,15 @@ export default function PlanosPage() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
+  useEffect(() => { pixelTrack("ViewContent", { content_name: "Planos" }); }, []);
+
   const handleSelectPlan = async (planKey: PlanKey) => {
     if (!user)    { toast.error("Você precisa estar logado para assinar um plano."); return; }
     if (!company) { toast.error("Nenhuma empresa encontrada. Configure sua empresa primeiro."); return; }
 
     const priceId = STRIPE_PRICES[planKey][billingPeriod];
     setLoadingPlan(planKey);
+    pixelTrack("InitiateCheckout", { content_name: planKey, content_category: "subscription" });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();

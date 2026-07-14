@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { pixelTrack } from "@/lib/metaPixel";
 
 const TURNSTILE_SITEKEY = "0x4AAAAAAA_PLACEHOLDER";
 
@@ -65,6 +66,8 @@ export default function RegisterPage() {
       toast.error(error);
       return;
     }
+
+    pixelTrack("Lead");
 
     if (!needsConfirmation) {
       const { data: profile } = await supabase
