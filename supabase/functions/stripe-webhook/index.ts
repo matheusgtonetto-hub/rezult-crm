@@ -7,9 +7,11 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabaseUrl   = Deno.env.get("SUPABASE_URL")!;
-const serviceKey    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
+const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
+const serviceKey     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const webhookSecret  = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
+const META_PIXEL_ID  = Deno.env.get("META_PIXEL_ID")  ?? "";
+const META_CAPI_TOKEN = Deno.env.get("META_CAPI_TOKEN") ?? "";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -22,6 +24,72 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
+
+// ── Meta Conversions API ─────────────────────────────────────────────────────
+async function sha256hex(str: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(str.toLowerCase().trim()),
+  );
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sendMetaConversion(opts: {
+  eventName: string;
+  eventId:   string;
+  email?:    string | null;
+  name?:     string | null;
+  value?:    number;
+  currency?: string;
+  planName?: string;
+}) {
+  if (!META_PIXEL_ID || !META_CAPI_TOKEN) {
+    console.warn("[meta-capi] META_PIXEL_ID ou META_CAPI_TOKEN não configurados — evento ignorado");
+    return;
+  }
+
+  const userData: Record<string, string[]> = {};
+  if (opts.email) userData.em = [await sha256hex(opts.email)];
+  if (opts.name) {
+    const parts = opts.name.trim().split(" ");
+    userData.fn = [await sha256hex(parts[0])];
+    if (parts.length > 1) userData.ln = [await sha256hex(parts.slice(1).join(" "))];
+  }
+
+  const payload = {
+    data: [{
+      event_name:    opts.eventName,
+      event_time:    Math.floor(Date.now() / 1000),
+      event_id:      opts.eventId,
+      action_source: "website",
+      user_data:     userData,
+      custom_data: {
+        currency:         (opts.currency ?? "BRL").toUpperCase(),
+        value:            opts.value ?? 0,
+        content_name:     opts.planName ?? "",
+        content_category: "subscription",
+      },
+    }],
+  };
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${META_PIXEL_ID}/events?access_token=${META_CAPI_TOKEN}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) },
+    );
+    const result = await res.json();
+    if (!res.ok) {
+      console.error("[meta-capi] erro:", JSON.stringify(result));
+    } else {
+      console.log(`[meta-capi] ${opts.eventName} enviado — events_received=${result.events_received}`);
+    }
+  } catch (err) {
+    console.error("[meta-capi] falha na requisição:", err);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Statuses aceitos pelo CHECK constraint da tabela
 const VALID_STATUSES = new Set(["trialing", "active", "past_due", "canceled", "unpaid"]);
@@ -133,6 +201,17 @@ serve(async (req) => {
             console.log("[checkout.session.completed] companies atualizado: plan=", planName);
           }
         }
+
+        // Dispara evento de conversão no Meta CAPI
+        await sendMetaConversion({
+          eventName: "Purchase",
+          eventId:   session.id,
+          email:     session.customer_details?.email,
+          name:      session.customer_details?.name,
+          value:     session.amount_total ? session.amount_total / 100 : undefined,
+          currency:  session.currency ?? "BRL",
+          planName,
+        });
         break;
       }
 
