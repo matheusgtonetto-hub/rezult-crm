@@ -19,6 +19,12 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "8df9b47092524833138b58682d03f2e153a242e550d1693657afdbee0cc9cdb0"
     },
+    "dashboard-creator": {
+      "source": "mhattingpete/claude-skills-marketplace",
+      "sourceType": "github",
+      "skillPath": "visual-documentation-plugin/skills/dashboard-creator/SKILL.md",
+      "computedHash": "1cb3dbb51a9990c30f312e2140427eef16fcadacc19a666cee9278c4e2e29818"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",

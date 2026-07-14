@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -10,6 +11,7 @@ import {
   Activity as ActivityIcon, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -46,6 +48,12 @@ export default function DashboardPage() {
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
   const [funnelResponsible, setFunnelResponsible] = useState<string>("all");
+  const navigate = useNavigate();
+  const [drillDialog, setDrillDialog] = useState<{
+    open: boolean;
+    title: string;
+    items: { leadId: string; leadName: string; subtitle: string }[];
+  }>({ open: false, title: "", items: [] });
 
   const allLeads = useMemo(() => Object.values(leads), [leads]);
   const wonLeads = useMemo(() => allLeads.filter(l => l.dealStatus === "won"), [allLeads]);
@@ -315,54 +323,82 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 8);
 
-    // Vendas por responsável no período (base compartilhada entre SDR e Closer)
-    const wonByUser = new Map<string, number>();
-    allLeads.forEach(l => {
-      if (l.dealStatus !== "won") return;
-      const actInPeriod = l.activities.some(a => {
-        const d = new Date(a.date);
-        return a.type === "won" && d >= periodCutoff && d <= periodTo;
-      });
-      if (!actInPeriod) return;
-      const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
-      resps.forEach(r => wonByUser.set(r, (wonByUser.get(r) || 0) + 1));
-    });
+    type DrillItem = { leadId: string; leadName: string; subtitle: string };
 
-    // Top SDR: agendadas / conv agendada→realizada / vendas / conv agendada→venda
-    const sdrMap = new Map<string, { scheduled: number; completed: number }>();
-    meetings.forEach(a => {
+    // Reuniões com leadId para drill-down
+    const allMeetingRecs = allLeads.flatMap(l =>
+      l.activities
+        .filter(a => a.type === "meeting")
+        .map(a => ({ ...a, leadId: l.id, leadName: l.name, leadResponsible: l.responsible ?? "" }))
+    );
+
+    // Top SDR — agendamentos: reuniões criadas no período
+    const sdrMap = new Map<string, { scheduled: DrillItem[]; completed: DrillItem[] }>();
+    allMeetingRecs.forEach(a => {
+      const d = new Date(a.date);
+      if (d < periodCutoff || d > periodTo) return;
       const u = a.userName || a.leadResponsible || "Desconhecido";
-      const cur = sdrMap.get(u) || { scheduled: 0, completed: 0 };
-      cur.scheduled++;
-      if (a.completedAt) cur.completed++;
+      const cur = sdrMap.get(u) || { scheduled: [], completed: [] };
+      cur.scheduled.push({ leadId: a.leadId, leadName: a.leadName, subtitle: new Date(a.date).toLocaleDateString("pt-BR") });
+      sdrMap.set(u, cur);
+    });
+    // Reuniões ocorridas: completedAt dentro do período
+    allMeetingRecs.filter(a => a.completedAt).forEach(a => {
+      const d = new Date(a.completedAt!);
+      if (d < periodCutoff || d > periodTo) return;
+      const u = a.userName || a.leadResponsible || "Desconhecido";
+      const cur = sdrMap.get(u) || { scheduled: [], completed: [] };
+      cur.completed.push({ leadId: a.leadId, leadName: a.leadName, subtitle: new Date(a.completedAt!).toLocaleDateString("pt-BR") });
       sdrMap.set(u, cur);
     });
     const topSchedulers = [...sdrMap.entries()]
-      .map(([name, s]) => {
-        const won = wonByUser.get(name) || 0;
-        return {
-          name,
-          count: s.scheduled,
-          completed: s.completed,
-          convRate: s.scheduled > 0 ? Math.round(s.completed / s.scheduled * 100) : 0,
-          won,
-          wonRate: s.scheduled > 0 ? Math.round(won / s.scheduled * 100) : 0,
-        };
-      })
+      .map(([name, s]) => ({
+        name,
+        count: s.scheduled.length,
+        completed: s.completed.length,
+        convRate: s.scheduled.length > 0 ? Math.round(s.completed.length / s.scheduled.length * 100) : 0,
+        scheduledItems: s.scheduled,
+        completedItems: s.completed,
+      }))
       .sort((a, b) => b.count - a.count);
 
-    // Top Closer: realizadas / conv realizada→venda / vendas
-    const completedByUser = new Map<string, number>();
-    meetings.filter(a => a.completedAt).forEach(a => {
-      const u = a.completedBy || a.userName || a.leadResponsible || "Desconhecido";
-      completedByUser.set(u, (completedByUser.get(u) || 0) + 1);
+    // Top Closer — vendas por quem marcou como ganho
+    const wonByUserItems = new Map<string, DrillItem[]>();
+    allLeads.forEach(l => {
+      if (l.dealStatus !== "won") return;
+      const wonAct = l.activities.find(a => {
+        const d = new Date(a.date);
+        return a.type === "won" && d >= periodCutoff && d <= periodTo;
+      });
+      if (!wonAct) return;
+      const u = wonAct.userName || l.responsible || "Desconhecido";
+      const arr = wonByUserItems.get(u) || [];
+      arr.push({ leadId: l.id, leadName: l.name, subtitle: fmt(l.value) });
+      wonByUserItems.set(u, arr);
     });
-    const topCompleters = [...completedByUser.entries()]
-      .map(([name, count]) => {
-        const won = wonByUser.get(name) || 0;
-        return { name, count, won, convRate: count > 0 ? Math.round(won / count * 100) : 0 };
+    // Reuniões realizadas do Closer
+    const closerCompletedItems = new Map<string, DrillItem[]>();
+    allMeetingRecs.filter(a => a.completedAt).forEach(a => {
+      const d = new Date(a.completedAt!);
+      if (d < periodCutoff || d > periodTo) return;
+      const u = a.completedBy || a.userName || a.leadResponsible || "Desconhecido";
+      const arr = closerCompletedItems.get(u) || [];
+      arr.push({ leadId: a.leadId, leadName: a.leadName, subtitle: new Date(a.completedAt!).toLocaleDateString("pt-BR") });
+      closerCompletedItems.set(u, arr);
+    });
+    const topCompleters = [...wonByUserItems.entries()]
+      .map(([name, wonItems]) => {
+        const compItems = closerCompletedItems.get(name) || [];
+        return {
+          name,
+          won: wonItems.length,
+          count: compItems.length,
+          convRate: compItems.length > 0 ? Math.round(wonItems.length / compItems.length * 100) : 0,
+          wonItems,
+          completedItems: compItems,
+        };
       })
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => b.won - a.won);
 
     return {
       total: inPeriod.length,
@@ -503,9 +539,14 @@ export default function DashboardPage() {
 
           {/* Monthly line */}
           <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">
-              Evolução no período — {periodLabel}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
+              </div>
+            </div>
             {monthlyData.length === 0 ? (
               <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
             ) : (
@@ -515,10 +556,9 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={2} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -526,7 +566,14 @@ export default function DashboardPage() {
 
           {/* Hourly results */}
           <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Resultados por horário</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
+              </div>
+            </div>
             {hourlyData.length === 0 ? (
               <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
             ) : (
@@ -536,10 +583,9 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={2} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={2} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={2} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -664,8 +710,12 @@ export default function DashboardPage() {
                                 <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-foreground tabular-nums border-r border-card-border">{u.count}</td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-success tabular-nums border-r border-card-border">{u.completed}</td>
+                            <td className="px-3 py-2.5 text-center border-r border-card-border">
+                              <button onClick={() => setDrillDialog({ open: true, title: `Agendamentos — ${u.name}`, items: u.scheduledItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
+                            </td>
+                            <td className="px-3 py-2.5 text-center border-r border-card-border">
+                              <button onClick={() => setDrillDialog({ open: true, title: `Reuniões ocorridas — ${u.name}`, items: u.completedItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.completed}</button>
+                            </td>
                             <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
                           </tr>
                         );
@@ -683,7 +733,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">Reuniões realizadas e conversão em vendas</p>
               </div>
               {activityStats.topCompleters.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma reunião marcada como realizada no período.</p>
+                <p className="text-xs text-muted-foreground">Nenhuma venda registrada no período.</p>
               ) : (
                 <div className="border border-card-border rounded-lg overflow-hidden">
                   <table className="w-full text-xs border-collapse">
@@ -706,8 +756,12 @@ export default function DashboardPage() {
                                 <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-foreground tabular-nums border-r border-card-border">{u.count}</td>
-                            <td className="px-3 py-2.5 text-center font-semibold text-success tabular-nums border-r border-card-border">{u.won}</td>
+                            <td className="px-3 py-2.5 text-center border-r border-card-border">
+                              <button onClick={() => setDrillDialog({ open: true, title: `Reuniões realizadas — ${u.name}`, items: u.completedItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
+                            </td>
+                            <td className="px-3 py-2.5 text-center border-r border-card-border">
+                              <button onClick={() => setDrillDialog({ open: true, title: `Vendas — ${u.name}`, items: u.wonItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.won}</button>
+                            </td>
                             <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
                           </tr>
                         );
@@ -720,6 +774,32 @@ export default function DashboardPage() {
           </div>
 
           <StageVelocityPanel periodLeads={periodLeads} pipelines={pipelines} />
+
+          <Dialog open={drillDialog.open} onOpenChange={o => setDrillDialog(d => ({ ...d, open: o }))}>
+            <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="text-sm">{drillDialog.title} ({drillDialog.items.length})</DialogTitle>
+              </DialogHeader>
+              <div className="overflow-y-auto flex-1 -mx-6 px-6">
+                {drillDialog.items.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4">Nenhum item encontrado.</p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {drillDialog.items.map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setDrillDialog(d => ({ ...d, open: false })); navigate(`/pipeline/lead/${item.leadId}`); }}
+                        className="w-full text-left py-2.5 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors rounded px-2 -mx-2"
+                      >
+                        <p className="text-sm text-foreground truncate">{item.leadName}</p>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.subtitle}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {(() => {
             const { meetings, completedMeetings, noShows } = activityStats;
