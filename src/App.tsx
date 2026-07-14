@@ -6,8 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CRMProvider } from "@/context/CRMContext";
 import { ProfileProvider } from "@/context/ProfileContext";
-import { CompanyProvider } from "@/context/CompanyContext";
+import { CompanyProvider, useCompany } from "@/context/CompanyContext";
 import { FloatingChatProvider } from "@/context/FloatingChatContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { FloatingChatManager } from "@/components/FloatingChatManager";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -35,6 +36,16 @@ import PlanosPage from "./pages/Planos";
 import CheckoutSuccessPage from "./pages/CheckoutSuccess";
 
 const queryClient = new QueryClient();
+
+function SmartRedirect() {
+  const { companyLoading } = useCompany();
+  const { can, isOwner } = usePermissions();
+
+  if (companyLoading) return null;
+
+  const hasDashboard = isOwner || can("admin") || can("dashboard:admin") || can("dashboard:member");
+  return <Navigate to={hasDashboard ? "/dashboard" : "/pipeline"} replace />;
+}
 
 function AppRoutes() {
   const { session, loading, pendingPasswordReset, clearPendingPasswordReset } = useAuth();
@@ -73,8 +84,8 @@ function AppRoutes() {
     <CRMProvider>
       <FloatingChatProvider>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<SmartRedirect />} />
+          <Route path="/login" element={<SmartRedirect />} />
           <Route path="/verify-2fa" element={<Verify2FAPage />} />
           <Route path="/company-register" element={<CompanyRegisterPage />} />
           <Route path="/setup" element={<SetupPage />} />
