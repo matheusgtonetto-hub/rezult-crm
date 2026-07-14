@@ -113,15 +113,32 @@ export default function PipelinePage() {
     }
   }, [pipelineId, pipelines, activePipelineId, setActivePipelineId]);
 
-  // 2) URL sem id (/pipeline) ou id inexistente → redireciona para o ativo/primeiro
+  // 2) URL sem id (/pipeline) ou id inexistente → redireciona para o ativo/primeiro acessível
   useEffect(() => {
     if (pipelines.length === 0) return;
     const valid = pipelineId && pipelines.some(p => p.id === pipelineId);
     if (!valid) {
-      const target = pipelines.some(p => p.id === activePipelineId) ? activePipelineId : pipelines[0].id;
+      const accessible = (pid: string) => isAdmin || !(getPerms(pid).blockViewPipeline ?? false);
+      const target =
+        (pipelines.some(p => p.id === activePipelineId) && accessible(activePipelineId))
+          ? activePipelineId
+          : (pipelines.find(p => accessible(p.id))?.id ?? pipelines[0].id);
       navigate(`/pipeline/${target}`, { replace: true });
     }
-  }, [pipelineId, pipelines, activePipelineId, navigate]);
+  }, [pipelineId, pipelines, activePipelineId, navigate, isAdmin, getPerms]);
+
+  // 3) Pipeline da URL está bloqueado → redireciona para o primeiro acessível
+  useEffect(() => {
+    if (!pipelineId || !pipelines.length || isAdmin) return;
+    if (!(getPerms(pipelineId).blockViewPipeline ?? false)) return;
+    const next = pipelines.find(p => !(getPerms(p.id).blockViewPipeline ?? false));
+    if (next) {
+      setSidebarOpen(true);
+      navigate(`/pipeline/${next.id}`, { replace: true });
+    } else {
+      setSidebarOpen(true);
+    }
+  }, [pipelineId, pipelines, isAdmin, getPerms, navigate]);
 
   const isAdmin = can("admin");
   const isPipelineAdmin = isAdmin || can("pipelines:admin");
@@ -491,6 +508,22 @@ export default function PipelinePage() {
         <div className="shrink-0 overflow-hidden h-full" style={{ width: sidebarOpen ? SIDEBAR_W : 0, transition: "width 300ms ease" }}>
           <div style={{ width: SIDEBAR_W, height: "100%" }}><PipelineSidebar /></div>
         </div>
+        <button
+          onClick={toggleSidebar}
+          title={sidebarOpen ? "Fechar sidebar ( [ )" : "Mostrar pipelines ( [ )"}
+          aria-label={sidebarOpen ? "Fechar sidebar de pipelines" : "Mostrar pipelines"}
+          style={{
+            position: "absolute",
+            left: SIDEBAR_W,
+            top: 30,
+            transform: `translateX(${sidebarOpen ? 0 : -SIDEBAR_W}px)`,
+            transition: "transform 300ms ease",
+            zIndex: 20,
+          }}
+          className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
+        >
+          {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
+        </button>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
           <ShieldCheck size={40} className="text-muted-foreground opacity-30" />
           <p className="text-base font-semibold text-foreground">Acesso restrito</p>
