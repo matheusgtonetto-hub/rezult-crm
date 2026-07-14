@@ -105,6 +105,17 @@ export default function PipelinePage() {
   const navigate = useNavigate();
   const { pipelineId } = useParams();
 
+  const isAdmin = can("admin");
+  const isPipelineAdmin = isAdmin || can("pipelines:admin");
+  const myName = profile?.full_name ?? "";
+
+  // helper inline — evita depender de getPerms (hook declarado abaixo)
+  const isAccessible = useCallback((pid: string) => {
+    if (isAdmin) return true;
+    const p = pipelines.find(pl => pl.id === pid);
+    return !(p?.permissions?.byAttendant?.[myName]?.blockViewPipeline ?? false);
+  }, [isAdmin, myName, pipelines]);
+
   // A URL é a fonte da verdade do pipeline ativo: /pipeline/:pipelineId
   // 1) param válido na URL → adota como pipeline ativo
   useEffect(() => {
@@ -118,31 +129,23 @@ export default function PipelinePage() {
     if (pipelines.length === 0) return;
     const valid = pipelineId && pipelines.some(p => p.id === pipelineId);
     if (!valid) {
-      const accessible = (pid: string) => isAdmin || !(getPerms(pid).blockViewPipeline ?? false);
       const target =
-        (pipelines.some(p => p.id === activePipelineId) && accessible(activePipelineId))
+        (pipelines.some(p => p.id === activePipelineId) && isAccessible(activePipelineId))
           ? activePipelineId
-          : (pipelines.find(p => accessible(p.id))?.id ?? pipelines[0].id);
+          : (pipelines.find(p => isAccessible(p.id))?.id ?? pipelines[0].id);
       navigate(`/pipeline/${target}`, { replace: true });
     }
-  }, [pipelineId, pipelines, activePipelineId, navigate, isAdmin, getPerms]);
+  }, [pipelineId, pipelines, activePipelineId, navigate, isAccessible]);
 
   // 3) Pipeline da URL está bloqueado → redireciona para o primeiro acessível
   useEffect(() => {
     if (!pipelineId || !pipelines.length || isAdmin) return;
-    if (!(getPerms(pipelineId).blockViewPipeline ?? false)) return;
-    const next = pipelines.find(p => !(getPerms(p.id).blockViewPipeline ?? false));
-    if (next) {
-      setSidebarOpen(true);
-      navigate(`/pipeline/${next.id}`, { replace: true });
-    } else {
-      setSidebarOpen(true);
-    }
-  }, [pipelineId, pipelines, isAdmin, getPerms, navigate]);
+    if (isAccessible(pipelineId)) return;
+    const next = pipelines.find(p => isAccessible(p.id));
+    setSidebarOpen(true);
+    if (next) navigate(`/pipeline/${next.id}`, { replace: true });
+  }, [pipelineId, pipelines, isAdmin, isAccessible, navigate]);
 
-  const isAdmin = can("admin");
-  const isPipelineAdmin = isAdmin || can("pipelines:admin");
-  const myName = profile?.full_name ?? "";
   const { getPerms } = usePipelinePermissions();
   const myPerms = activePipeline ? getPerms(activePipeline.id) : {};
 
