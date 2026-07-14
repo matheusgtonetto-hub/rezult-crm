@@ -753,6 +753,7 @@ export default function LeadDetailPage() {
 
   const [showWonProductDialog, setShowWonProductDialog] = useState(false);
   const [wonProductId, setWonProductId] = useState<string>("none");
+  const [wonCustomValue, setWonCustomValue] = useState<string>("");
   const [wonTransferPipelineId, setWonTransferPipelineId] = useState<string>("none");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
@@ -892,23 +893,32 @@ export default function LeadDetailPage() {
   const handleWon = () => {
     setWonProductId("none");
     setWonTransferPipelineId("none");
+    // Pré-popula valor com o produto já vinculado ao lead (se houver)
+    if (lead.productId) {
+      const prod = products.find(p => p.id === lead.productId);
+      setWonCustomValue(String(prod?.defaultValue ?? lead.value ?? 0));
+    } else {
+      setWonCustomValue("");
+    }
     setShowWonProductDialog(true);
   };
 
   const handleConfirmWon = async () => {
     let prodName: string | undefined;
+    const customVal = parseFloat(wonCustomValue.replace(",", ".")) || 0;
     let finalValue = lead.value;
     if (wonProductId && wonProductId !== "none") {
       // Produto selecionado agora no dialog
       const prod = products.find(p => p.id === wonProductId);
       prodName = prod?.name;
-      finalValue = prod?.defaultValue ?? lead.value;
+      finalValue = customVal;
       await updateLead(lead.id, { productId: wonProductId, value: finalValue });
     } else if (lead.productId) {
       // Produto já estava cadastrado no lead
       const prod = products.find(p => p.id === lead.productId);
       prodName = prod?.name;
-      finalValue = lead.value;
+      finalValue = customVal || lead.value;
+      if (finalValue !== lead.value) await updateLead(lead.id, { value: finalValue });
     }
     setShowWonProductDialog(false);
 
@@ -2800,7 +2810,14 @@ export default function LeadDetailPage() {
                 <p className="text-xs text-muted-foreground mb-2">
                   Nenhum produto vinculado. Selecione para registrar o ganho.
                 </p>
-                <Select value={wonProductId} onValueChange={setWonProductId}>
+                <Select
+                  value={wonProductId}
+                  onValueChange={id => {
+                    setWonProductId(id);
+                    const prod = products.find(p => p.id === id);
+                    setWonCustomValue(prod && prod.defaultValue > 0 ? String(prod.defaultValue) : "");
+                  }}
+                >
                   <SelectTrigger className="rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue placeholder="Escolha um produto" />
                   </SelectTrigger>
@@ -2821,6 +2838,30 @@ export default function LeadDetailPage() {
               </>
             )}
           </div>
+
+          {/* Valor da transação — aparece quando produto está selecionado ou já vinculado */}
+          {(lead.productId || (wonProductId && wonProductId !== "none")) && (
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+                Valor da transação
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground select-none">R$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={wonCustomValue}
+                  onChange={e => setWonCustomValue(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-card-border bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Valor pré-definido do produto. Altere caso tenha negociado um valor diferente.
+              </p>
+            </div>
+          )}
 
           {/* Transferência de funil */}
           <div>
