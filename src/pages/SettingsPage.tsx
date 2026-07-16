@@ -3194,6 +3194,7 @@ function ConexoesSection() {
       "pages_manage_metadata",
       "instagram_basic",
       "instagram_manage_messages",
+      "business_management",
     ].join(",");
     sessionStorage.setItem("meta_oauth_provider", "instagram");
     const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +

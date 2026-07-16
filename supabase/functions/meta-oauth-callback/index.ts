@@ -180,103 +180,75 @@ serve(async (req) => {
       })
     );
     const longData = await longRes.json();
+    console.log("Long token exchange:", JSON.stringify(longData));
     const longToken = (longData.access_token as string) || shortToken;
 
-    // 3. Lista Páginas do Facebook + contas Instagram diretamente
-    const [pagesRes, igAccountsRes] = await Promise.all([
-      fetch(
-        `https://graph.facebook.com/v21.0/me/accounts?` +
-        new URLSearchParams({
-          access_token: longToken,
-          fields: "id,name,access_token,instagram_business_account",
-        })
-      ),
-      fetch(
-        `https://graph.facebook.com/v21.0/me/instagram_accounts?` +
-        new URLSearchParams({
-          access_token: longToken,
-          fields: "id,username,name,profile_picture_url",
-        })
-      ),
-    ]);
-
+    // 3. Lista Páginas: tenta /me/accounts primeiro, depois Business Manager
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/accounts?` +
+      new URLSearchParams({
+        access_token: longToken,
+        fields: "id,name,access_token,instagram_business_account",
+      })
+    );
     const pagesData = await pagesRes.json();
-    const igAccountsData = await igAccountsRes.json();
-
-    const allPages = (pagesData.data as {
+    let allPages = (pagesData.data as {
       id: string;
       name: string;
       access_token: string;
       instagram_business_account?: { id: string };
     }[]) || [];
 
-    const directIgAccounts = (igAccountsData.data as {
-      id: string;
-      username: string;
-      name?: string;
-    }[]) || [];
+    console.log("Páginas via /me/accounts:", allPages.length);
 
-    console.log("Páginas encontradas:", allPages.length, "Contas IG diretas:", directIgAccounts.length, "provider:", provider);
+    // Fallback: páginas gerenciadas via Business Manager
+    if (allPages.length === 0) {
+      const bizRes = await fetch(
+        `https://graph.facebook.com/v21.0/me/businesses?` +
+        new URLSearchParams({
+          access_token: longToken,
+          fields: "id,name,owned_pages{id,name,access_token,instagram_business_account}",
+        })
+      );
+      const bizData = await bizRes.json();
+      console.log("Business Manager data:", JSON.stringify(bizData));
 
-    if (allPages.length === 0 && directIgAccounts.length === 0) {
+      const businesses = (bizData.data as {
+        id: string;
+        name: string;
+        owned_pages?: {
+          data: {
+            id: string;
+            name: string;
+            access_token: string;
+            instagram_business_account?: { id: string };
+          }[];
+        };
+      }[]) || [];
+
+      for (const biz of businesses) {
+        const bizPages = biz.owned_pages?.data || [];
+        allPages = allPages.concat(bizPages);
+      }
+      console.log("Páginas via Business Manager:", allPages.length);
+    }
+
+    if (allPages.length === 0) {
       return json({
         error: "no_pages",
-        message: "Nenhuma Página do Facebook encontrada. Certifique-se de ser administrador de uma Página e selecioná-la no momento da autorização.",
+        message: "Nenhuma Página do Facebook encontrada. Certifique-se de selecionar sua Página durante a autorização e que você tem acesso de administrador a ela.",
       }, 400);
     }
 
-    // Para Instagram: prioriza páginas com instagram_business_account vinculado;
-    // se não houver, usa contas Instagram obtidas diretamente via instagram_basic.
-    let eligiblePages = provider === "instagram"
+    const eligiblePages = provider === "instagram"
       ? allPages.filter(p => p.instagram_business_account?.id)
       : allPages;
-
-    // Fallback: se nenhuma página tem Instagram vinculado mas obtivemos contas IG diretas,
-    // cria uma entrada virtual para cada conta (sem page_id de Facebook)
-    if (provider === "instagram" && eligiblePages.length === 0 && directIgAccounts.length > 0) {
-      console.log("Usando fallback de contas Instagram diretas:", directIgAccounts.map(a => a.username));
-      const igAccount = directIgAccounts[0];
-      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
-
-      const { data: conn, error: upsertErr } = await db
-        .from("meta_connections")
-        .upsert({
-          owner_id: user.id,
-          company_id: company.id,
-          provider: "instagram",
-          page_id: igAccount.id,
-          page_name: igAccount.name || igAccount.username,
-          instagram_account_id: igAccount.id,
-          instagram_username: igAccount.username,
-          access_token: longToken,
-          token_expires_at: tokenExpiresAt,
-          active: true,
-        }, { onConflict: "company_id,page_id,provider" })
-        .select()
-        .single();
-
-      if (upsertErr) {
-        console.error("Erro ao salvar conexão Instagram (fallback):", upsertErr);
-        return json({ error: "falha ao salvar conexão", detail: upsertErr.message }, 500);
-      }
-
-      console.log("Instagram conectado via fallback direto:", igAccount.username);
-      return json({
-        success: true,
-        connection: {
-          id: conn.id,
-          provider: conn.provider,
-          page_name: conn.page_name,
-          instagram_username: conn.instagram_username,
-        },
-      });
-    }
 
     if (eligiblePages.length === 0) {
       const pageNames = allPages.map(p => p.name).join(", ");
       return json({
         error: "no_instagram_pages",
-        message: `Página(s) encontrada(s) (${pageNames || "nenhuma"}) não têm conta Instagram Business vinculada. Acesse as configurações da sua Página do Facebook → Instagram → Conectar conta, depois tente novamente.`,
+        message: `Página(s) encontrada(s) (${pageNames}) não têm conta Instagram Business vinculada. Acesse Configurações da Página do Facebook → Instagram → Conectar conta.`,
       }, 400);
     }
 
