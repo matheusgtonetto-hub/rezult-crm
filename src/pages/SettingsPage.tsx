@@ -3189,9 +3189,7 @@ function ConexoesSection() {
     const scopes = [
       "pages_show_list",
       "pages_messaging",
-      "pages_read_engagement",
       "instagram_manage_messages",
-      "instagram_basic",
     ].join(",");
     sessionStorage.setItem("meta_oauth_provider", "instagram");
     const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
