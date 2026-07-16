@@ -30,6 +30,7 @@ import DisparoDetailPage from "./pages/DisparoDetailPage";
 import CompanyRegisterPage from "./pages/CompanyRegisterPage";
 import SetupPage from "./pages/SetupPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import MetaCallbackPage from "./pages/MetaCallbackPage";
 import NotFound from "./pages/NotFound";
 import GoogleOAuthCallback from "./pages/configuracoes/GoogleOAuthCallback";
 import PlanosPage from "./pages/Planos";
@@ -93,6 +94,7 @@ function AppRoutes() {
           <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/configuracoes/email/callback" element={<GoogleOAuthCallback />} />
+          <Route path="/auth/meta-callback" element={<MetaCallbackPage />} />
           <Route element={<AppLayout />}>
             <Route path="/pilot" element={<PilotPage />} />
             <Route path="/pipeline" element={<PipelinePage />} />

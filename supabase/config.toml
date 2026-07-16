@@ -40,3 +40,7 @@ verify_jwt = false
 # ou pelo JWT do usuário (chamada da UI ao iniciar). Gateway não deve exigir JWT.
 [functions.disparo-runner]
 verify_jwt = false
+
+# A Meta chama este webhook externamente sem JWT (verificação por hub.verify_token).
+[functions.meta-webhook]
+verify_jwt = false

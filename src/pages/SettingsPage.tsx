@@ -3100,6 +3100,23 @@ function DepartamentosSection() {
 type ZApiForm = { instanceId: string; token: string; clientToken: string };
 type ZApiStep = "select" | "provider" | "tutorial" | "creds" | "qr" | "done";
 
+
+function MessengerIcon({ size = 20, color = "#FFF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill={color} d="M12 2C6.48 2 2 6.19 2 11.5c0 2.89 1.37 5.47 3.53 7.22V24l4.64-2.56c1.24.34 2.55.56 3.83.56 5.52 0 10-4.19 10-9.5S17.52 2 12 2zm1.15 12.77-2.52-2.7-4.91 2.7 5.4-5.74 2.58 2.7 4.85-2.7-5.4 5.74z"/>
+    </svg>
+  );
+}
+
+function InstagramIcon({ size = 20, color = "#FFF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 132 132" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill={color} d="M66.004 18c-13.036 0-14.672.057-19.792.29-5.11.234-8.598 1.043-11.65 2.23-3.157 1.226-5.835 2.866-8.503 5.535-2.67 2.668-4.31 5.346-5.54 8.502-1.19 3.053-2 6.542-2.23 11.65C18.06 51.327 18 52.964 18 66s.058 14.667.29 19.787c.235 5.11 1.044 8.598 2.23 11.65 1.227 3.157 2.867 5.835 5.536 8.503 2.667 2.67 5.345 4.314 8.5 5.54 3.054 1.187 6.543 1.996 11.652 2.23 5.12.233 6.755.29 19.79.29 13.037 0 14.668-.057 19.788-.29 5.11-.234 8.602-1.043 11.656-2.23 3.156-1.226 5.83-2.87 8.497-5.54 2.67-2.668 4.31-5.346 5.54-8.502 1.18-3.053 1.99-6.542 2.23-11.65.23-5.12.29-6.752.29-19.788 0-13.036-.06-14.672-.29-19.792-.24-5.11-1.05-8.598-2.23-11.65-1.23-3.157-2.87-5.835-5.54-8.503-2.67-2.67-5.34-4.31-8.5-5.535-3.06-1.187-6.55-1.996-11.66-2.23-5.12-.233-6.75-.29-19.79-.29zm-4.306 8.65c1.278-.002 2.704 0 4.306 0 12.816 0 14.335.046 19.396.276 4.68.214 7.22.996 8.912 1.653 2.24.87 3.837 1.91 5.516 3.59 1.68 1.68 2.72 3.28 3.592 5.52.657 1.69 1.44 4.23 1.653 8.91.23 5.06.28 6.58.28 19.39s-.05 14.33-.28 19.39c-.214 4.68-.996 7.22-1.653 8.91-.87 2.24-1.912 3.835-3.592 5.514-1.68 1.68-3.275 2.72-5.516 3.59-1.69.66-4.232 1.44-8.912 1.654-5.06.23-6.58.28-19.396.28-12.817 0-14.336-.05-19.396-.28-4.68-.216-7.22-.998-8.913-1.655-2.24-.87-3.84-1.91-5.52-3.59-1.68-1.68-2.72-3.276-3.592-5.517-.657-1.69-1.44-4.23-1.653-8.91-.23-5.06-.276-6.58-.276-19.398s.046-14.33.276-19.39c.214-4.68.996-7.22 1.653-8.912.87-2.24 1.912-3.84 3.592-5.52 1.68-1.68 3.28-2.72 5.52-3.592 1.692-.66 4.233-1.44 8.913-1.655 4.428-.2 6.144-.26 15.09-.27zm29.928 7.97c-3.18 0-5.76 2.577-5.76 5.758 0 3.18 2.58 5.76 5.76 5.76 3.18 0 5.76-2.58 5.76-5.76 0-3.18-2.58-5.76-5.76-5.76zm-25.622 6.73c-13.613 0-24.65 11.037-24.65 24.65 0 13.613 11.037 24.645 24.65 24.645C79.617 90.645 90.65 79.613 90.65 66S79.616 41.35 66.003 41.35zm0 8.65c8.836 0 16 7.163 16 16 0 8.836-7.164 16-16 16-8.837 0-16-7.164-16-16 0-8.837 7.163-16 16-16z"/>
+    </svg>
+  );
+}
+
 const CONN_CATEGORIES = [
   {
     id: "whatsapp",
@@ -3117,8 +3134,17 @@ const CONN_CATEGORIES = [
     label: "Instagram",
     description: "Crie conexões com a plataforma Instagram",
     providers: [
-      { id: "instagram_api", name: "Instagram API", desc: "Crie uma nova conexão com a API do Instagram", available: false,
-        iconBg: "#E1306C", Icon: MessageSquare },
+      { id: "instagram_api", name: "Instagram API", desc: "Conecte sua conta Instagram Business ao CRM", available: true,
+        iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: InstagramIcon },
+    ],
+  },
+  {
+    id: "messenger",
+    label: "Messenger",
+    description: "Crie conexões com a plataforma Messenger",
+    providers: [
+      { id: "messenger_api", name: "Messenger API", desc: "Crie uma nova conexão com a API do Messenger", available: false,
+        iconBg: "#0084FF", Icon: MessengerIcon },
     ],
   },
   {
@@ -3128,15 +3154,6 @@ const CONN_CATEGORIES = [
     providers: [
       { id: "gcal", name: "Google Calendar", desc: "Crie uma nova conexão com o Google Calendar", available: true,
         iconBg: "#4285F4", Icon: Calendar },
-    ],
-  },
-  {
-    id: "financeiro",
-    label: "Financeiro",
-    description: "Crie conexões com plataformas financeiras",
-    providers: [
-      { id: "asaas", name: "Asaas", desc: "Crie uma nova conexão com a API do Asaas", available: false,
-        iconBg: "#FF6B35", Icon: CreditCard },
     ],
   },
 ] as const;
@@ -3164,6 +3181,27 @@ function ConexoesSection() {
     if (!company) return;
     const { initGoogleOAuth } = await import("@/lib/googleOAuth");
     initGoogleOAuth(company.id);
+  }
+
+  function handleConnectInstagram() {
+    const META_APP_ID = "1376790121031481";
+    const redirectUri = `${window.location.origin}/auth/meta-callback`;
+    const scopes = [
+      "pages_show_list",
+      "pages_messaging",
+      "pages_read_engagement",
+      "instagram_manage_messages",
+      "instagram_basic",
+    ].join(",");
+    sessionStorage.setItem("meta_oauth_provider", "instagram");
+    const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
+      new URLSearchParams({
+        client_id: META_APP_ID,
+        redirect_uri: redirectUri,
+        scope: scopes,
+        response_type: "code",
+      });
+    window.location.href = oauthUrl;
   }
 
   async function handleDisconnectGoogle() {
@@ -3570,8 +3608,7 @@ function ConexoesSection() {
     :                     { label: "Z-API", site: "z-api.io", url: "https://z-api.io" };
 
   const COMING_SOON = [
-    { id: "asaas", platform: "Asaas",        category: "Financeiro", domain: "asaas.com",     name: "Cobranças Asaas",    description: "Cobranças, pagamentos e histórico financeiro automatizados integrados ao seu CRM.", iconBg: "#FF6B35", Icon: CreditCard },
-    { id: "ig",   platform: "Instagram API", category: "Instagram",  domain: "instagram.com", name: "Instagram Mensagens",description: "Receba e responda mensagens diretas do Instagram diretamente no CRM.", iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: MessageSquare },
+    { id: "messenger", platform: "Messenger", category: "Messenger", domain: "messenger.com", name: "Messenger", description: "Receba e responda mensagens do Messenger diretamente no CRM.", iconBg: "#0084FF", Icon: MessengerIcon },
   ];
 
   return (
@@ -3927,6 +3964,7 @@ function ConexoesSection() {
                         if (prov.id === "dapi") { setWizardProvider("dapi"); setDapiApiKey(""); dapiSessionRef.current = ""; setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                         if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
+                        if (prov.id === "instagram_api") { closeDialog(); handleConnectInstagram(); }
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
@@ -3936,7 +3974,7 @@ function ConexoesSection() {
                       }}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: prov.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <ProvIcon size={20} color="#FFF" />
+                        <ProvIcon size={30} color="#FFF" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

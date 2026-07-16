@@ -35,6 +35,11 @@ function fieldVal(fields: { name: string; values: string[] }[], keys: string[]):
   return "";
 }
 
+// Meta Instant Forms (via Sheets/Make) codifica espaços como underscores nos valores
+function normalizeValue(val: string): string {
+  return val.replace(/_+/g, " ").trim();
+}
+
 interface ExtractedFields {
   name: string;
   phone: string;
@@ -60,7 +65,7 @@ function extractFields(payload: Record<string, unknown>): ExtractedFields {
     const standardKeys = new Set([...NAME_FIELDS, ...PHONE_FIELDS, ...EMAIL_FIELDS]);
     for (const f of fields) {
       if (!standardKeys.has(f.name.toLowerCase()) && f.values?.[0]) {
-        extra[f.name] = f.values[0];
+        extra[f.name] = normalizeValue(f.values[0]);
       }
     }
     return { name, phone, email, extra };
@@ -83,7 +88,7 @@ function extractFields(payload: Record<string, unknown>): ExtractedFields {
           const standardKeys = new Set([...NAME_FIELDS, ...PHONE_FIELDS, ...EMAIL_FIELDS]);
           for (const f of fields) {
             if (!standardKeys.has(f.name.toLowerCase()) && f.values?.[0]) {
-              extra[f.name] = f.values[0];
+              extra[f.name] = normalizeValue(f.values[0]);
             }
           }
           return { name, phone, email, extra };
@@ -103,7 +108,7 @@ function extractFields(payload: Record<string, unknown>): ExtractedFields {
   // Captura chaves desconhecidas como campos extras
   for (const [key, val] of Object.entries(payload)) {
     if (!SYSTEM_KEYS.has(key.toLowerCase()) && val !== null && val !== undefined && val !== "") {
-      extra[key] = String(val);
+      extra[key] = normalizeValue(String(val));
     }
   }
 

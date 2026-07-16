@@ -1206,7 +1206,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       return false;
     }
     const row = data as Record<string, unknown>;
-    setCrmTags(prev => [...prev, { id: row.id as string, name, description, color }]);
+    setCrmTags(prev => [...prev, { id: row.id as string, name, description, color, created_at: row.created_at as string | undefined }]);
     return true;
   }, [user, company]);
 
