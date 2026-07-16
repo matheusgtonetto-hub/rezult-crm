@@ -3134,8 +3134,10 @@ const CONN_CATEGORIES = [
     label: "Instagram",
     description: "Crie conexões com a plataforma Instagram",
     providers: [
-      { id: "instagram_api", name: "Instagram API", desc: "Conecte sua conta Instagram Business ao CRM", available: true,
+      { id: "instagram_direct", name: "Login com Instagram", desc: "Entre diretamente com sua conta Instagram Business ou Criador", available: true,
         iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: InstagramIcon },
+      { id: "instagram_api", name: "Instagram via Facebook", desc: "Conecte via Página do Facebook (conta Business vinculada)", available: true,
+        iconBg: "linear-gradient(135deg,#1877F2,#833AB4)", Icon: InstagramIcon },
     ],
   },
   {
@@ -3195,6 +3197,28 @@ function ConexoesSection() {
     const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
       new URLSearchParams({
         client_id: META_APP_ID,
+        redirect_uri: redirectUri,
+        scope: scopes,
+        response_type: "code",
+      });
+    window.location.href = oauthUrl;
+  }
+
+  function handleConnectInstagramDirect() {
+    const IG_APP_ID = import.meta.env.VITE_IG_APP_ID as string | undefined;
+    if (!IG_APP_ID) {
+      toast.error("Instagram Platform não configurado. Configure VITE_IG_APP_ID.");
+      return;
+    }
+    const redirectUri = `${window.location.origin}/auth/meta-callback`;
+    const scopes = [
+      "instagram_business_basic",
+      "instagram_business_manage_messages",
+    ].join(",");
+    sessionStorage.setItem("meta_oauth_provider", "instagram_direct");
+    const oauthUrl = `https://www.instagram.com/oauth/authorize?` +
+      new URLSearchParams({
+        client_id: IG_APP_ID,
         redirect_uri: redirectUri,
         scope: scopes,
         response_type: "code",
@@ -3963,6 +3987,7 @@ function ConexoesSection() {
                         if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                         if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
                         if (prov.id === "instagram_api") { closeDialog(); handleConnectInstagram(); }
+                        if (prov.id === "instagram_direct") { closeDialog(); handleConnectInstagramDirect(); }
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
