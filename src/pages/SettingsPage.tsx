@@ -3191,6 +3191,8 @@ function ConexoesSection() {
     const scopes = [
       "pages_show_list",
       "pages_messaging",
+      "pages_manage_metadata",
+      "instagram_basic",
       "instagram_manage_messages",
     ].join(",");
     sessionStorage.setItem("meta_oauth_provider", "instagram");
@@ -3200,6 +3202,7 @@ function ConexoesSection() {
         redirect_uri: redirectUri,
         scope: scopes,
         response_type: "code",
+        auth_type: "rerequest",
       });
     window.location.href = oauthUrl;
   }

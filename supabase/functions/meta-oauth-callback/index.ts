@@ -182,15 +182,26 @@ serve(async (req) => {
     const longData = await longRes.json();
     const longToken = (longData.access_token as string) || shortToken;
 
-    // 3. Lista Páginas do Facebook
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v21.0/me/accounts?` +
-      new URLSearchParams({
-        access_token: longToken,
-        fields: "id,name,access_token,instagram_business_account",
-      })
-    );
+    // 3. Lista Páginas do Facebook + contas Instagram diretamente
+    const [pagesRes, igAccountsRes] = await Promise.all([
+      fetch(
+        `https://graph.facebook.com/v21.0/me/accounts?` +
+        new URLSearchParams({
+          access_token: longToken,
+          fields: "id,name,access_token,instagram_business_account",
+        })
+      ),
+      fetch(
+        `https://graph.facebook.com/v21.0/me/instagram_accounts?` +
+        new URLSearchParams({
+          access_token: longToken,
+          fields: "id,username,name,profile_picture_url",
+        })
+      ),
+    ]);
+
     const pagesData = await pagesRes.json();
+    const igAccountsData = await igAccountsRes.json();
 
     const allPages = (pagesData.data as {
       id: string;
@@ -199,23 +210,73 @@ serve(async (req) => {
       instagram_business_account?: { id: string };
     }[]) || [];
 
-    console.log("Páginas encontradas:", allPages.length, "provider:", provider);
+    const directIgAccounts = (igAccountsData.data as {
+      id: string;
+      username: string;
+      name?: string;
+    }[]) || [];
 
-    if (allPages.length === 0) {
+    console.log("Páginas encontradas:", allPages.length, "Contas IG diretas:", directIgAccounts.length, "provider:", provider);
+
+    if (allPages.length === 0 && directIgAccounts.length === 0) {
       return json({
         error: "no_pages",
-        message: "Nenhuma Página do Facebook encontrada na sua conta. Você precisa ser administrador de uma Página para conectar. Ou use a opção 'Login com Instagram' para conectar diretamente.",
+        message: "Nenhuma Página do Facebook encontrada. Certifique-se de ser administrador de uma Página e selecioná-la no momento da autorização.",
       }, 400);
     }
 
-    const eligiblePages = provider === "instagram"
+    // Para Instagram: prioriza páginas com instagram_business_account vinculado;
+    // se não houver, usa contas Instagram obtidas diretamente via instagram_basic.
+    let eligiblePages = provider === "instagram"
       ? allPages.filter(p => p.instagram_business_account?.id)
       : allPages;
 
+    // Fallback: se nenhuma página tem Instagram vinculado mas obtivemos contas IG diretas,
+    // cria uma entrada virtual para cada conta (sem page_id de Facebook)
+    if (provider === "instagram" && eligiblePages.length === 0 && directIgAccounts.length > 0) {
+      console.log("Usando fallback de contas Instagram diretas:", directIgAccounts.map(a => a.username));
+      const igAccount = directIgAccounts[0];
+      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: conn, error: upsertErr } = await db
+        .from("meta_connections")
+        .upsert({
+          owner_id: user.id,
+          company_id: company.id,
+          provider: "instagram",
+          page_id: igAccount.id,
+          page_name: igAccount.name || igAccount.username,
+          instagram_account_id: igAccount.id,
+          instagram_username: igAccount.username,
+          access_token: longToken,
+          token_expires_at: tokenExpiresAt,
+          active: true,
+        }, { onConflict: "company_id,page_id,provider" })
+        .select()
+        .single();
+
+      if (upsertErr) {
+        console.error("Erro ao salvar conexão Instagram (fallback):", upsertErr);
+        return json({ error: "falha ao salvar conexão", detail: upsertErr.message }, 500);
+      }
+
+      console.log("Instagram conectado via fallback direto:", igAccount.username);
+      return json({
+        success: true,
+        connection: {
+          id: conn.id,
+          provider: conn.provider,
+          page_name: conn.page_name,
+          instagram_username: conn.instagram_username,
+        },
+      });
+    }
+
     if (eligiblePages.length === 0) {
+      const pageNames = allPages.map(p => p.name).join(", ");
       return json({
         error: "no_instagram_pages",
-        message: "Nenhuma Página vinculada a uma conta Instagram Business foi encontrada. Use a opção 'Login com Instagram' para conectar diretamente, ou vincule sua conta Instagram à Página do Facebook.",
+        message: `Página(s) encontrada(s) (${pageNames || "nenhuma"}) não têm conta Instagram Business vinculada. Acesse as configurações da sua Página do Facebook → Instagram → Conectar conta, depois tente novamente.`,
       }, 400);
     }
 
