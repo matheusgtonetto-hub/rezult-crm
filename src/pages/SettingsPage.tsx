@@ -3170,6 +3170,10 @@ function ConexoesSection() {
   const [googleLoading, setGoogleLoading]     = useState(true);
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
 
+  // Meta (Instagram/Messenger) connections
+  type MetaConn = { id: string; provider: string; page_name: string | null; instagram_username: string | null; active: boolean; token_expires_at: string | null };
+  const [metaConnections, setMetaConnections] = useState<MetaConn[]>([]);
+
   useEffect(() => {
     if (!company) return;
     import("@/lib/googleOAuth").then(({ checkGoogleConnection }) => {
@@ -3177,7 +3181,18 @@ function ConexoesSection() {
         .then(c => setGoogleConn(c ? { id: c.id, email: c.email } : null))
         .finally(() => setGoogleLoading(false));
     });
+    supabase
+      .from("meta_connections")
+      .select("id,provider,page_name,instagram_username,active,token_expires_at")
+      .eq("company_id", company.id)
+      .then(({ data }) => setMetaConnections((data ?? []) as MetaConn[]));
   }, [company]);
+
+  async function handleDisconnectMeta(id: string) {
+    await supabase.from("meta_connections").delete().eq("id", id);
+    setMetaConnections(prev => prev.filter(c => c.id !== id));
+    toast.success("Conexão removida.");
+  }
 
   async function handleConnectGoogle() {
     if (!company) return;
@@ -3686,7 +3701,7 @@ function ConexoesSection() {
             <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
           </div>
         </div>
-      ) : (whatsappConnections.length === 0 && !googleConn) ? (
+      ) : (whatsappConnections.length === 0 && !googleConn && metaConnections.length === 0) ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
             <Link2 size={22} className="text-muted-foreground" />
@@ -3766,6 +3781,40 @@ function ConexoesSection() {
               </div>
             </div>
           )}
+          {metaConnections.map(mc => (
+            <div key={mc.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
+                </div>
+                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-pink-500" style={{ fontSize: 11.5 }}>
+                  instagram.com <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)" }}>
+                  <InstagramIcon size={18} color="#FFF" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">Instagram</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {mc.instagram_username ? `@${mc.instagram_username}` : mc.page_name ?? "Conta conectada"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Receba e responda mensagens diretas do Instagram diretamente no CRM, e crie leads automaticamente a partir de novas conversas.</p>
+              <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
+                <span className="text-xs text-muted-foreground">
+                  {mc.token_expires_at ? `Expira em ${new Date(mc.token_expires_at).toLocaleDateString("pt-BR")}` : "Token ativo"}
+                </span>
+                <Switch
+                  checked
+                  onCheckedChange={(checked) => { if (!checked) handleDisconnectMeta(mc.id); }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

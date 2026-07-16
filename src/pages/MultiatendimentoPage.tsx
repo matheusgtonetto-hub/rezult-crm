@@ -866,6 +866,39 @@ export default function MultiatendimentoPage() {
   // ── carregar histórico quando muda a conversa ───────────────────────
   useEffect(() => {
     if (!activeId || !active || !user || !tenantId) return;
+
+    // ── Histórico Instagram (meta_messages) ──────────────────────────
+    if (active.channel === "instagram") {
+      let q = supabase.from("meta_messages").select("*").eq("owner_id", tenantId);
+      if (active.instanceId) q = q.eq("connection_id", active.instanceId);
+      if (active.phone) q = q.or(`sender_id.eq.${active.phone},recipient_id.eq.${active.phone}`);
+      q.order("sent_at", { ascending: true }).limit(100).then(({ data }) => {
+        if (!data?.length) return;
+        const msgs: Msg[] = data.map(m => {
+          const d = new Date(m.sent_at);
+          const isToday     = d.toDateString() === new Date().toDateString();
+          const isYesterday = d.toDateString() === new Date(Date.now() - 86400000).toDateString();
+          const dateLabel = isToday ? "Hoje" : isYesterday ? "Ontem" : d.toLocaleDateString("pt-BR");
+          const isFromMe = m.direction === "out";
+          const base = {
+            id:    m.id,
+            from:  (isFromMe ? "agent" : "lead") as "agent" | "lead",
+            agent: isFromMe ? (user.email?.split("@")[0] ?? "Você") : undefined,
+            time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            date:  dateLabel,
+            read:  true as const,
+          };
+          if (m.message_type === "audio")  return { ...base, kind: "audio" as const, duration: "0:00", src: m.media_url ?? undefined };
+          if (m.message_type === "image")  return { ...base, kind: "image" as const, src: m.media_url ?? "", caption: m.content ?? "" };
+          if (m.message_type === "video" || m.message_type === "file") return { ...base, kind: "file" as const, filename: "arquivo", url: m.media_url ?? undefined };
+          return { ...base, kind: "text" as const, text: m.content ?? "" };
+        });
+        updateCs(activeId, { messages: msgs });
+      });
+      return;
+    }
+
+    // ── Histórico WhatsApp (whatsapp_messages) ───────────────────────
     const rawPhone = (active.phone ?? "").replace(/\D/g, "");
     // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
     // que foram salvas com o ID da conversa como chave (quando não há telefone real)
@@ -907,7 +940,7 @@ export default function MultiatendimentoPage() {
         updateCs(activeId, { messages: msgs });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.phone, active?.instanceId, user?.id]);
+  }, [activeId, active?.phone, active?.instanceId, active?.channel, user?.id]);
 
   // Mantém a instância (número) da conversa ativa selecionada — ao reabrir a
   // conversa, volta a usar o mesmo número que estava sendo conversado.
@@ -1016,6 +1049,74 @@ export default function MultiatendimentoPage() {
       )
       .subscribe();
 
+    return () => { supabase.removeChannel(ch); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
+
+  // ── realtime: mensagens Instagram (meta_messages) ─────────────────
+  useEffect(() => {
+    if (!tenantId) return;
+    const ch = supabase
+      .channel("ig-msg-global")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "meta_messages" },
+        (payload) => {
+          const m = payload.new as {
+            id: string; owner_id: string; connection_id: string;
+            sender_id: string; recipient_id: string; direction: string;
+            message_type: string; content: string | null; media_url: string | null; sent_at: string;
+          };
+          if (m.owner_id !== tenantId) return;
+          const isFromMe = m.direction === "out";
+          const contactId = isFromMe ? m.recipient_id : m.sender_id;
+          const d = new Date(m.sent_at);
+          const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const previewText = m.content || (m.message_type === "audio" ? "🎤 Mensagem de áudio" : m.message_type === "image" ? "🖼️ Imagem" : "📎 Arquivo");
+          const existing = convListRef.current.find(c =>
+            c.channel === "instagram" && c.phone === contactId && c.instanceId === m.connection_id
+          );
+          if (existing) {
+            setConvList(prev => prev.map(c => c.id === existing.id ? { ...c, preview: previewText, time: timeStr, lastMsgAt: m.sent_at } : c));
+            setConvStates(prev => {
+              const cur = prev[existing.id];
+              if (!cur) return prev;
+              if (cur.messages.some(x => x.id === m.id)) return prev;
+              const base = {
+                id: m.id,
+                from: isFromMe ? "agent" as const : "lead" as const,
+                agent: isFromMe ? (user?.email?.split("@")[0] ?? "Você") : undefined,
+                time: timeStr, date: "Hoje", read: true as const,
+              };
+              const newMsg: Msg = { ...base, kind: "text" as const, text: m.content ?? "" };
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: isFromMe ? cur.read : false } };
+            });
+            if (!isFromMe) {
+              supabase.from("whatsapp_conversations").update({ preview: previewText, last_msg_at: m.sent_at, read: false }).eq("id", existing.id);
+            }
+          } else if (!isFromMe) {
+            // Nova conversa Instagram chegou com a página aberta — busca do banco
+            supabase.from("whatsapp_conversations").select("*")
+              .eq("owner_id", tenantId).eq("phone", contactId).eq("instance_id", m.connection_id)
+              .maybeSingle().then(({ data: conv }) => {
+                if (!conv) return;
+                const cd = new Date(conv.last_msg_at);
+                const newConv: Conversation = {
+                  id: conv.id, name: conv.name, preview: conv.preview,
+                  time: cd.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                  channel: "instagram", tags: conv.tags ?? [],
+                  phone: conv.phone ?? undefined, instanceId: conv.instance_id ?? undefined,
+                  lastMsgAt: conv.last_msg_at ?? undefined,
+                };
+                setConvList(prev => prev.some(c => c.id === conv.id) ? prev : [newConv, ...prev]);
+                setConvStates(prev => prev[conv.id] ? prev : {
+                  ...prev, [conv.id]: { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false },
+                });
+              });
+          }
+        }
+      )
+      .subscribe();
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
@@ -1640,7 +1741,32 @@ export default function MultiatendimentoPage() {
     bumpPreview(activeId, text);
     setInputValue("");
 
-    // Enviar via Z-API + persistir no Supabase
+    // ── Envio via Instagram (meta-send-message) ──────────────────────
+    if (active?.channel === "instagram") {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`${supabaseUrl}/functions/v1/meta-send-message`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+            "apikey": anonKey,
+          },
+          body: JSON.stringify({ connection_id: active.instanceId, recipient_id: active.phone, text }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(`Erro ao enviar mensagem: ${(err as { error?: string }).error ?? res.status}`);
+        }
+      } catch {
+        toast.error("Falha ao enviar mensagem no Instagram");
+      }
+      return;
+    }
+
+    // ── Enviar via Z-API + persistir no Supabase ─────────────────────
     const inst = instances.find(i => i.instanceId === selectedInstance);
     const contactPhone = active?.phone;
     if (inst?.token && contactPhone) {
