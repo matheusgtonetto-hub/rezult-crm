@@ -47,28 +47,52 @@ export default function MetaCallbackPage() {
         return;
       }
 
-      const { data, error: fnErr } = await supabase.functions.invoke("meta-oauth-callback", {
-        body: { code, redirect_uri: redirectUri, provider },
-      });
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-      if (fnErr || !data?.success) {
-        const msg = data?.message || fnErr?.message || "Falha ao conectar. Tente novamente.";
+        const res = await fetch(`${supabaseUrl}/functions/v1/meta-oauth-callback`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+            "apikey": anonKey,
+          },
+          body: JSON.stringify({ code, redirect_uri: redirectUri, provider }),
+        });
+
+        let data: Record<string, unknown> = {};
+        try {
+          data = await res.json();
+        } catch {
+          // resposta não é JSON
+        }
+
+        if (!res.ok || !data?.success) {
+          const msg = (data?.message as string) || (data?.error as string) || `Erro ${res.status}: Falha ao conectar. Tente novamente.`;
+          setStatus("error");
+          setMessage(msg);
+          toast.error(msg);
+          setTimeout(() => navigate("/configuracoes/conexoes"), 4000);
+          return;
+        }
+
+        const conn = data.connection as { page_name?: string; instagram_username?: string };
+        const label = provider === "instagram"
+          ? `@${conn.instagram_username || conn.page_name}`
+          : conn.page_name;
+
+        setStatus("success");
+        setMessage(`${label} conectado com sucesso!`);
+        toast.success(`${label} conectado com sucesso!`);
+        setTimeout(() => navigate("/configuracoes/conexoes"), 2500);
+      } catch (err) {
+        const msg = err instanceof Error ? `Erro de rede: ${err.message}` : "Erro de rede ao conectar.";
         setStatus("error");
         setMessage(msg);
         toast.error(msg);
         setTimeout(() => navigate("/configuracoes/conexoes"), 4000);
-        return;
       }
-
-      const conn = data.connection;
-      const label = provider === "instagram"
-        ? `@${conn.instagram_username || conn.page_name}`
-        : conn.page_name;
-
-      setStatus("success");
-      setMessage(`${label} conectado com sucesso!`);
-      toast.success(`${label} conectado com sucesso!`);
-      setTimeout(() => navigate("/configuracoes/conexoes"), 2500);
     })();
   }, []);
 

@@ -40,7 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const searchParams = new URLSearchParams(window.location.search);
     const hashParams   = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const pkceCode     = searchParams.get("code");
+
+    // Rotas de callback OAuth de terceiros usam ?code= mas NÃO são PKCE do Supabase.
+    const THIRD_PARTY_CALLBACKS = ["/auth/meta-callback", "/configuracoes/email/callback"];
+    const isThirdPartyCallback = THIRD_PARTY_CALLBACKS.includes(window.location.pathname);
+
+    const pkceCode     = isThirdPartyCallback ? null : searchParams.get("code");
     const hashToken    = hashParams.get("access_token");
     const hashType     = hashParams.get("type");
     const isCallback   = Boolean(pkceCode || hashToken);
