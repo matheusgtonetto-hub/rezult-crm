@@ -3687,7 +3687,7 @@ function ConexoesSection() {
   // Metadados de apresentação por provedor (rótulo + site exibidos no card)
   const provMeta = (p?: string) =>
     p === "dapi"        ? { label: "D-API", site: "d-api.cloud", url: "https://d-api.cloud" }
-    : p === "cloud_api" ? { label: "WhatsApp API", site: "developers.facebook.com", url: "https://developers.facebook.com" }
+    : p === "cloud_api" ? { label: "WhatsApp Cloud (Oficial)", site: "whatsapp.com", url: "https://business.whatsapp.com" }
     :                     { label: "Z-API", site: "z-api.io", url: "https://z-api.io" };
 
   const COMING_SOON = [
@@ -3732,6 +3732,9 @@ function ConexoesSection() {
                   <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
                 </div>
               </div>
+              {conn.provider === "cloud_api" && (
+                <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Plataforma oficial do WhatsApp Business para troca de mensagens e arquivos diretamente pelo CRM.</p>
+              )}
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
@@ -3778,6 +3781,9 @@ function ConexoesSection() {
                   <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
                 </div>
               </div>
+              {conn.provider === "cloud_api" && (
+                <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Plataforma oficial do WhatsApp Business para troca de mensagens e arquivos diretamente pelo CRM.</p>
+              )}
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
