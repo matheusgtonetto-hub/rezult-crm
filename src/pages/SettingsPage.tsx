@@ -3821,7 +3821,7 @@ function ConexoesSection() {
                 <button
                   className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" style={{ gap: "5.2px" }}
                 >
-                  <Settings size={18} /> Gerenciar
+                  <Settings2 size={14} /> Gerenciar
                 </button>
                 <Switch
                   checked={!googleDisconnecting}
@@ -3855,9 +3855,12 @@ function ConexoesSection() {
               </div>
               <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Receba e responda mensagens diretas do Instagram diretamente no CRM, e crie leads automaticamente a partir de novas conversas.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
-                <span className="text-xs text-muted-foreground">
-                  {mc.token_expires_at ? `Expira em ${new Date(mc.token_expires_at).toLocaleDateString("pt-BR")}` : "Token ativo"}
-                </span>
+                <button
+                  onClick={() => toast.info(mc.token_expires_at ? `Token expira em ${new Date(mc.token_expires_at).toLocaleDateString("pt-BR")}` : "Token ativo")}
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Settings2 size={14} /> Gerenciar
+                </button>
                 <Switch
                   checked
                   onCheckedChange={(checked) => { if (!checked) handleDisconnectMeta(mc.id); }}
