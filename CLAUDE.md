@@ -125,9 +125,39 @@ Atualizações: optimistic state + upsert no Supabase.
 | `disparos` | Execução em massa de uma automação (gatilho `lead_manual`) sobre leads filtrados (`owner_id`, `company_id`, `title`, `automation_id`, `status` criado/agendado/em_andamento/pausado/concluido/erro, `rhythm` normal/turbo/lento/humano, `filters` jsonb, `scheduled_at`, `confirm_filters`, `total_leads`) |
 | `disparo_itens` | Um lead dentro de um disparo (`disparo_id`, `company_id`, `owner_id`, `lead_id`, `lead_name`, `lead_phone`, `status` nao_iniciado/pendente/em_execucao/concluido/erro, `error_message`) — escrito pela Edge Function `disparo-runner` |
 
+| `whatsapp_conversations` | Conversas WhatsApp (`owner_id`, `company_id`, `instance_id`, `name`, `phone`, `channel`, `tags`, `preview`, `last_msg_at`, `read`) |
+
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`
 
-Todas as tabelas têm RLS habilitado. Políticas padrão: `auth.uid() = owner_id` ou campo equivalente.
+## Modelo de Acesso (RLS)
+
+**Recursos pertencem à empresa, não ao usuário.** O `owner_id` existe apenas como campo de auditoria (quem criou). O acesso é controlado por `company_id` via a função `is_member_of(company_id)`.
+
+### Função `is_member_of(company_id)`
+Retorna `true` se o usuário autenticado:
+- É membro da empresa em `company_members`, OU
+- É o `owner_id` da empresa em `companies` (owner implícito)
+
+Isso garante que o dono da empresa sempre acessa tudo, mesmo sem estar em `company_members`.
+
+### Padrão de policies
+Todas as tabelas principais usam o padrão:
+```sql
+FOR SELECT USING (is_member_of(company_id))
+FOR INSERT WITH CHECK (is_member_of(company_id))
+FOR UPDATE USING (is_member_of(company_id))
+FOR DELETE USING (is_member_of(company_id))
+```
+
+**Exceção — `leads`:** mantém permissões granulares por membro (`leads:admin`, `leads:member`, `leads:operator`, `leads:restricted`), mas o owner da empresa tem acesso total irrestrito via policy separada.
+
+### Tabelas com `company_id` (controle de acesso)
+`automations`, `pipelines`, `pipeline_groups`, `pipeline_columns`, `leads`, `tasks`, `tags`, `activities`, `disparos`, `disparo_itens`, `automation_logs`, `whatsapp_connections`, `whatsapp_conversations`, `whatsapp_messages`
+
+### Ao criar nova tabela
+- Sempre incluir `company_id uuid NOT NULL` e `owner_id uuid` (auditoria)
+- Usar `is_member_of(company_id)` nas policies — nunca `owner_id = auth.uid()` como única regra
+- Documentar na seção Banco de Dados acima
 
 ## Convenções
 
