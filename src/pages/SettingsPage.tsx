@@ -3789,6 +3789,7 @@ function ConexoesSection() {
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
                 </button>
+                <Switch checked={conn.active} onCheckedChange={async (checked) => { if (!checked) { await removeWhatsAppConnection(conn.id); } }} />
               </div>
             </div>
           ))}
