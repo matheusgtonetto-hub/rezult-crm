@@ -3109,6 +3109,14 @@ function MessengerIcon({ size = 20, color = "#FFF" }: { size?: number; color?: s
   );
 }
 
+function WhatsAppIcon({ size = 20, color = "#FFF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill={color} d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+}
+
 function InstagramIcon({ size = 20, color = "#FFF" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 132 132" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3123,6 +3131,8 @@ const CONN_CATEGORIES = [
     label: "WhatsApp",
     description: "Crie conexões com a plataforma WhatsApp",
     providers: [
+      { id: "cloud_api", name: "WhatsApp Cloud API", desc: "API oficial do WhatsApp Business Platform (Meta)", available: true,
+        iconBg: "#25D366", Icon: WhatsAppIcon },
       { id: "dapi", name: "D-API", desc: "Crie uma nova conexão com a API do D-API", available: true,
         iconBg: "#0EA5E9", Icon: Zap },
       { id: "zapi", name: "Z-API", desc: "Crie uma nova conexão com a API do Z-API", available: true,
@@ -3270,8 +3280,11 @@ function ConexoesSection() {
   const [skipTutorial, setSkipTutorial] = useState(() => localStorage.getItem("zapi_skip_tutorial") === "1");
   const [form, setForm]           = useState<ZApiForm>({ instanceId: "", token: "", clientToken: "" });
   // Provedor do wizard em andamento (D-API usa só a API Key; o sessionId é gerado pelo CRM)
-  const [wizardProvider, setWizardProvider] = useState<"zapi" | "dapi">("zapi");
+  const [wizardProvider, setWizardProvider] = useState<"zapi" | "dapi" | "cloud_api">("zapi");
   const [dapiApiKey, setDapiApiKey]         = useState("");
+  const [cloudPhoneId, setCloudPhoneId]     = useState("");
+  const [cloudToken, setCloudToken]         = useState("");
+  const [cloudWabaId, setCloudWabaId]       = useState("");
   const dapiSessionRef                       = useRef("");
   const [qrSrc, setQrSrc]         = useState("");
   const [qrLoading, setQrLoading] = useState(false);
@@ -3542,6 +3555,35 @@ function ConexoesSection() {
     }, 15_000);
   }
 
+  async function finalizeCloudApi() {
+    const phoneId = cloudPhoneId.trim();
+    const token   = cloudToken.trim();
+    if (!phoneId || !token) {
+      toast.error("Preencha o ID do número e o Token de acesso.");
+      return;
+    }
+    try {
+      await addWhatsAppConnection({
+        name:          connName.trim() || "WhatsApp Cloud API",
+        provider:      "cloud_api",
+        instanceId:    phoneId,
+        token,
+        clientToken:   null,
+        phoneNumberId: phoneId,
+        wabaId:        cloudWabaId.trim() || null,
+        accessToken:   token,
+        phone:         null,
+        connected:     true,
+        active:        true,
+      });
+      toast.success("Conexão WhatsApp Cloud API criada!");
+      closeDialog();
+    } catch (err: unknown) {
+      if (String(err).includes("plan-limit")) return;
+      toast.error("Erro ao salvar: " + String(err));
+    }
+  }
+
   // ── dialog actions ─────────────────────────────────────────────────
   async function handleGenerateQr() {
     if (wizardProvider === "dapi") { await handleGenerateDapi(); return; }
@@ -3682,8 +3724,8 @@ function ConexoesSection() {
                 </a>
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : "hsl(var(--foreground))" }}>
-                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : conn.provider === "cloud_api" ? "#25D366" : "hsl(var(--foreground))" }}>
+                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : conn.provider === "cloud_api" ? <WhatsAppIcon size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
@@ -3728,8 +3770,8 @@ function ConexoesSection() {
                 </a>
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : "hsl(var(--foreground))" }}>
-                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : conn.provider === "cloud_api" ? "#25D366" : "hsl(var(--foreground))" }}>
+                  {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : conn.provider === "cloud_api" ? <WhatsAppIcon size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
@@ -3844,8 +3886,8 @@ function ConexoesSection() {
               <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {manageProvider === "dapi" ? <Zap size={11} color="#FFF" /> : <Webhook size={11} color="#FFF" />}
+                    <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : manageProvider === "cloud_api" ? "#25D366" : "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {manageProvider === "dapi" ? <Zap size={11} color="#FFF" /> : manageProvider === "cloud_api" ? <WhatsAppIcon size={11} color="#FFF" /> : <Webhook size={11} color="#FFF" />}
                     </div>
                     <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
                   </div>
@@ -4036,6 +4078,7 @@ function ConexoesSection() {
                       key={prov.id}
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
+                        if (prov.id === "cloud_api") { setWizardProvider("cloud_api"); setCloudPhoneId(""); setCloudToken(""); setCloudWabaId(""); setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "dapi") { setWizardProvider("dapi"); setDapiApiKey(""); dapiSessionRef.current = ""; setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                         if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
@@ -4306,8 +4349,71 @@ function ConexoesSection() {
             </>
           )}
 
+          {/* Step 2 — Credentials (Cloud API) */}
+          {step === "creds" && wizardProvider === "cloud_api" && (
+            <>
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "#15803D", marginBottom: 4 }}>Como conectar o WhatsApp Cloud API</p>
+                <p style={{ fontSize: 11, color: "#166534", lineHeight: 1.35 }}>
+                  Acesse <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" style={{ color: "#15803D", fontWeight: 600 }}>Meta for Developers</a> → seu app → WhatsApp → Configuração da API. Copie o ID do Número de Telefone e gere um Token de Acesso Permanente via Sistema de Usuário no Business Manager.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Ex: WhatsApp Comercial"
+                    value={connName}
+                    onChange={e => setConnName(e.target.value)}
+                    className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID do Número de Telefone <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Ex: 123456789012345"
+                    value={cloudPhoneId}
+                    onChange={e => setCloudPhoneId(e.target.value)}
+                    className="border-card-border text-sm font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token de Acesso Permanente <span className="text-[#E24B4A]">*</span></label>
+                  <Input
+                    placeholder="Token de acesso do Sistema de Usuário"
+                    value={cloudToken}
+                    onChange={e => setCloudToken(e.target.value)}
+                    type="password"
+                    className="border-card-border text-sm font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Conta WhatsApp Business <span className="text-muted-foreground font-normal">(opcional)</span></label>
+                  <Input
+                    placeholder="Ex: 987654321098765"
+                    value={cloudWabaId}
+                    onChange={e => setCloudWabaId(e.target.value)}
+                    className="border-card-border text-sm font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  />
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
+                Ao continuar, você concorda com nossos{" "}
+                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                  Termos de Uso
+                </button>.
+              </p>
+              <DialogFooter className="mt-3">
+                <Button variant="outline" className="border-card-border" onClick={() => setStep("select")}>Voltar</Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={finalizeCloudApi}>
+                  Salvar conexão
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
           {/* Step 2 — Credentials (Z-API) */}
-          {step === "creds" && wizardProvider !== "dapi" && (
+          {step === "creds" && wizardProvider === "zapi" && (
             <>
               {/* Banner informativo */}
               <div style={{ background: "#F0FAF6", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>

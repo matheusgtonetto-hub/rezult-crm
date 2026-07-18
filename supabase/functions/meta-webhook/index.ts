@@ -52,17 +52,20 @@ serve(async (req) => {
   if (!Array.isArray(entries)) return json({ ok: true });
 
   for (const entry of entries) {
-    const pageId = entry.id;
+    const entryId = entry.id;
 
+    // Instagram webhooks enviam entry.id = instagram_account_id (não page_id)
+    // Messenger/page webhooks enviam entry.id = page_id
+    const connectionField = object === "instagram" ? "instagram_account_id" : "page_id";
     const { data: connection } = await db
       .from("meta_connections")
       .select("*")
-      .eq("page_id", pageId)
+      .eq(connectionField, entryId)
       .eq("active", true)
       .maybeSingle();
 
     if (!connection) {
-      console.log(`Nenhuma conexão ativa para page_id: ${pageId}`);
+      console.log(`Nenhuma conexão ativa para ${connectionField}: ${entryId}`);
       continue;
     }
 
