@@ -233,7 +233,7 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-black border border-black text-white hover:bg-neutral-800 hover:border-neutral-800 active:bg-neutral-900 transition-colors"
+            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             Criar uma conta
