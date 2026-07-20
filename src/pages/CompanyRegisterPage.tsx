@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
-import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -216,7 +215,7 @@ export default function CompanyRegisterPage() {
       <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
         <div className="w-full max-w-[420px] text-center">
           <div className="flex justify-center mb-8">
-            <Logo size="md" showIcon />
+            <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
             <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -259,7 +258,7 @@ export default function CompanyRegisterPage() {
           {/* ── Left sidebar ── */}
           <div className="w-[280px] shrink-0 flex flex-col pl-[35px] pr-[20px] pt-10 pb-10">
             <div className="flex items-center mb-5">
-              <Logo size="sm" showIcon />
+              <img src="/logo-rezult.png" alt="Rezult CRM" className="h-7 w-auto" />
             </div>
 
             <h2 className="text-[15px] font-semibold text-foreground mb-1">Cadastre sua empresa</h2>

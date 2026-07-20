@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -150,7 +149,7 @@ export default function RegisterPage() {
         />
         <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[20px]">
           <div className="flex justify-center items-center mb-[15px]">
-            <Logo size="md" showIcon />
+            <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
 
           <h1 className="text-[23px] font-semibold text-foreground text-center">Crie sua conta</h1>
