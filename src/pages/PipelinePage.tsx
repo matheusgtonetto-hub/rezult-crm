@@ -1305,18 +1305,19 @@ export default function PipelinePage() {
 
 
         {/* Confirmação de avanço de etapa */}
-        {(() => {
+        {pendingAdvance && (() => {
           const pa = pendingAdvance;
-          if (!pa) return null;
-          const isSkipping = pa.steps.length > 2;
           const totalMoves = pa.steps.length - 1;
-          const nextStep = pa.steps[pa.currentStep + 1];
-          const finalStep = pa.steps[pa.steps.length - 1];
+          const currentCol = pa.steps[pa.currentStep];
+          const nextCol = pa.steps[pa.currentStep + 1];
+          const finalCol = pa.steps[pa.steps.length - 1];
+          const isSkipping = totalMoves > 1;
+          const stepsLeft = totalMoves - pa.currentStep;
           return (
-            <AlertDialog open={!!pa} onOpenChange={(open) => !open && handleCancelAdvance()}>
-              <AlertDialogContent className="max-w-[360px] p-0 overflow-hidden gap-0">
+            <AlertDialog open onOpenChange={(open) => !open && handleCancelAdvance()}>
+              <AlertDialogContent className="max-w-[380px] p-0 overflow-hidden gap-0">
                 {/* Header */}
-                <div className="px-5 pt-5 pb-4">
+                <div className="px-5 pt-5 pb-3">
                   <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
                     <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                     Confirmar avanço de etapa
@@ -1324,61 +1325,49 @@ export default function PipelinePage() {
                   <AlertDialogDescription className="mt-2 text-sm text-muted-foreground leading-relaxed">
                     {isSkipping ? (
                       <>
-                        <strong className="text-foreground font-medium">{pa.leadName}</strong> precisa avançar uma etapa por vez.{" "}
-                        Confirme o avanço para <strong className="text-foreground font-medium">{nextStep?.colTitle}</strong>.
+                        Mover <strong className="text-foreground font-medium">{pa.leadName}</strong> para{" "}
+                        <strong className="text-foreground font-medium">{nextCol?.colTitle}</strong>
+                        {stepsLeft > 1 && <span className="text-muted-foreground/70"> ({stepsLeft} confirmações até {finalCol?.colTitle})</span>}
+                        .
                       </>
                     ) : (
                       <>
                         Mover <strong className="text-foreground font-medium">{pa.leadName}</strong> para{" "}
-                        <strong className="text-foreground font-medium">{finalStep?.colTitle}</strong>?
+                        <strong className="text-foreground font-medium">{nextCol?.colTitle}</strong>?
                       </>
                     )}
                   </AlertDialogDescription>
                 </div>
 
-                {/* Stepper — sempre visível */}
+                {/* Stepper compacto — de → para */}
                 <div className="px-5 pb-4">
-                  <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
-                    {/* Trilha de etapas */}
-                    <div className="flex items-start gap-0 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                      {pa.steps.map((step, i) => {
-                        const isDone = i < pa.currentStep;
-                        const isCurrent = i === pa.currentStep;
-                        const isNext = i === pa.currentStep + 1;
-                        return (
-                          <div key={step.colId} className="flex items-center shrink-0">
-                            {i > 0 && (
-                              <span className={`mx-1.5 text-[10px] select-none ${isDone ? "text-primary/50" : isNext ? "text-primary/70" : "text-muted-foreground/30"}`}>→</span>
-                            )}
-                            <div className="flex flex-col items-center gap-1">
-                              <span className={`text-[11px] whitespace-nowrap transition-all ${
-                                isDone
-                                  ? "text-muted-foreground/30"
-                                  : isCurrent
-                                    ? "text-muted-foreground/60"
-                                    : isNext
-                                      ? "text-primary font-semibold"
-                                      : "text-muted-foreground/25"
-                              }`}>
-                                {step.colTitle}
-                              </span>
-                              {/* Indicador de posição */}
-                              <span className={`block h-[2px] w-full rounded-full transition-all ${
-                                isDone ? "bg-primary/20"
-                                  : isCurrent ? "bg-muted-foreground/30"
-                                    : isNext ? "bg-primary"
-                                      : "bg-transparent"
-                              }`} />
-                            </div>
-                          </div>
-                        );
-                      })}
+                  <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0">
+                    {/* Etapa atual */}
+                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                      <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
+                      <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
                     </div>
-                    {/* Contador — só mostra quando há mais de 1 passo */}
+                    <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
+                    {/* Próxima etapa */}
+                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                      <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
+                      <span className="block h-[2px] w-full rounded-full bg-primary" />
+                    </div>
+                    {/* Etapas restantes */}
+                    {stepsLeft > 1 && (
+                      <>
+                        <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
+                        <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[100px]">
+                          <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
+                          <span className="block h-[2px] w-full rounded-full bg-transparent" />
+                        </div>
+                      </>
+                    )}
+                    {/* Contador */}
                     {totalMoves > 1 && (
-                      <p className="mt-2 text-right text-[10px] text-muted-foreground/50">
-                        {pa.currentStep + 1} / {totalMoves}
-                      </p>
+                      <span className="ml-auto text-[10px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
+                        {pa.currentStep + 1}/{totalMoves}
+                      </span>
                     )}
                   </div>
                 </div>
