@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -14,9 +14,11 @@ const TURNSTILE_SITEKEY = "0x4AAAAAD5X6YCBBdCfHFJG";
 
 declare global {
   interface Window {
-    __turnstile_register_cb?: (token: string) => void;
-    __turnstile_register_expired_cb?: () => void;
-    turnstile?: { reset: (selector?: string) => void };
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
   }
 }
 
@@ -34,23 +36,44 @@ export default function RegisterPage() {
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    window.__turnstile_register_cb = (token: string) => setTurnstileToken(token);
-    window.__turnstile_register_expired_cb = () => setTurnstileToken("");
+    const renderWidget = () => {
+      if (!turnstileRef.current || !window.turnstile) return;
+      if (widgetIdRef.current) return;
+      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: TURNSTILE_SITEKEY,
+        theme: "light",
+        language: "pt-BR",
+        callback: (token: string) => setTurnstileToken(token),
+        "expired-callback": () => setTurnstileToken(""),
+      });
+    };
 
-    if (!document.getElementById("turnstile-script")) {
+    if (window.turnstile) {
+      renderWidget();
+    } else if (!document.getElementById("turnstile-script")) {
       const script = document.createElement("script");
       script.id = "turnstile-script";
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__turnstile_onload";
       script.async = true;
       script.defer = true;
+      (window as Record<string, unknown>).__turnstile_onload = renderWidget;
       document.head.appendChild(script);
+    } else {
+      const interval = setInterval(() => {
+        if (window.turnstile) { clearInterval(interval); renderWidget(); }
+      }, 100);
+      return () => clearInterval(interval);
     }
 
     return () => {
-      delete window.__turnstile_register_cb;
-      delete window.__turnstile_register_expired_cb;
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
     };
   }, []);
 
@@ -74,7 +97,7 @@ export default function RegisterPage() {
       toast.error("Verificação de segurança inválida. Tente novamente.");
       setLoading(false);
       setTurnstileToken("");
-      window.turnstile?.reset();
+      if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
       return;
     }
 
@@ -203,14 +226,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="flex justify-center">
-              <div
-                className="cf-turnstile"
-                data-sitekey={TURNSTILE_SITEKEY}
-                data-callback="__turnstile_register_cb"
-                data-expired-callback="__turnstile_register_expired_cb"
-                data-theme="light"
-                data-language="pt-BR"
-              />
+              <div ref={turnstileRef} />
             </div>
 
             <div className="space-y-[5px]">
