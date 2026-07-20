@@ -670,9 +670,13 @@ export default function LeadDetailPage() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [pendingStageAdvance, setPendingStageAdvance] = useState<{
+    steps: Array<{ colId: string; colTitle: string }>;
+    currentStep: number;
+    leadId: string;
+  } | null>(null);
+  const [pendingStageBack, setPendingStageBack] = useState<{
     fromId: string; fromTitle: string;
     toId: string; toTitle: string;
-    isSkipping: boolean; nextId?: string; nextTitle?: string;
   } | null>(null);
   const editingDivRef = useRef<HTMLDivElement | null>(null);
   const [mentionState, setMentionState] = useState<{ query: string; top: number; left: number; source: "new" | "edit" } | null>(null);
@@ -823,34 +827,37 @@ export default function LeadDetailPage() {
 
   const handleStageClick = (stageId: string) => {
     if (stageId === lead.stage) return;
-    const fromIdx  = stages.findIndex(c => c.id === lead.stage);
-    const toIdx    = stages.findIndex(c => c.id === stageId);
-    const fromCol  = stages[fromIdx];
-    const toCol    = stages[toIdx];
-    const isSkipping = toIdx > fromIdx + 1;
-    const nextCol  = isSkipping ? stages[fromIdx + 1] : undefined;
-    setPendingStageAdvance({
-      fromId: fromCol?.id ?? "", fromTitle: fromCol?.title ?? "",
-      toId: toCol?.id ?? "",   toTitle: toCol?.title ?? "",
-      isSkipping,
-      nextId: nextCol?.id, nextTitle: nextCol?.title,
-    });
+    const fromIdx = stages.findIndex(c => c.id === lead.stage);
+    const toIdx   = stages.findIndex(c => c.id === stageId);
+    const fromCol = stages[fromIdx];
+    const toCol   = stages[toIdx];
+    if (toIdx < fromIdx) {
+      setPendingStageBack({ fromId: fromCol.id, fromTitle: fromCol.title, toId: toCol.id, toTitle: toCol.title });
+      return;
+    }
+    const steps = stages.slice(fromIdx, toIdx + 1).map(c => ({ colId: c.id, colTitle: c.title }));
+    setPendingStageAdvance({ steps, currentStep: 0, leadId: lead.id });
   };
 
   const handleConfirmStageAdvance = () => {
     if (!pendingStageAdvance) return;
-    const targetId    = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextId!    : pendingStageAdvance.toId;
-    const targetTitle = pendingStageAdvance.isSkipping ? pendingStageAdvance.nextTitle! : pendingStageAdvance.toTitle;
-    moveLead(lead.id, pendingStageAdvance.fromId, targetId, 0);
-    addActivity(lead.id, {
+    const { steps, currentStep, leadId } = pendingStageAdvance;
+    const from = steps[currentStep];
+    const to   = steps[currentStep + 1];
+    moveLead(leadId, from.colId, to.colId, 0);
+    addActivity(leadId, {
       id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
-      description: `Movido de "${pendingStageAdvance.fromTitle}" para "${targetTitle}".`,
+      description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
       userName: profile?.full_name || undefined,
     });
-    toast.success(`Etapa alterada para ${targetTitle}`);
-    setPendingStageAdvance(null);
+    if (currentStep + 1 === steps.length - 1) {
+      toast.success(`Etapa alterada para ${to.colTitle}`);
+      setPendingStageAdvance(null);
+    } else {
+      setPendingStageAdvance({ ...pendingStageAdvance, currentStep: currentStep + 1 });
+    }
   };
 
   const handleSaveNote = async () => {
@@ -2627,34 +2634,115 @@ export default function LeadDetailPage() {
       </div>
     </div>
 
-    <AlertDialog open={!!pendingStageAdvance} onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
-      <AlertDialogContent className="max-w-sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle className={pendingStageAdvance?.isSkipping ? "flex items-center justify-center gap-2 text-red-500" : "flex items-center justify-center gap-2 text-primary"}>
-            {pendingStageAdvance?.isSkipping ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle className="h-5 w-5 shrink-0" />}
-            {pendingStageAdvance?.isSkipping ? "Não é possível pular etapas" : "Confirmar avanço de etapa"}
+    {pendingStageAdvance && (() => {
+      const pa = pendingStageAdvance;
+      const totalMoves = pa.steps.length - 1;
+      const currentCol = pa.steps[pa.currentStep];
+      const nextCol    = pa.steps[pa.currentStep + 1];
+      const finalCol   = pa.steps[pa.steps.length - 1];
+      const isSkipping = totalMoves > 1;
+      const stepsLeft  = totalMoves - pa.currentStep;
+      return (
+        <AlertDialog open onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
+          <AlertDialogContent className="max-w-[380px] p-0 overflow-hidden gap-0">
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3">
+              <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                Confirmar avanço de etapa
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                {isSkipping ? (
+                  <>
+                    Mover <strong className="text-foreground font-medium">{lead.name}</strong> para{" "}
+                    <strong className="text-foreground font-medium">{nextCol?.colTitle}</strong>
+                    {stepsLeft > 1 && <span className="text-muted-foreground/70"> ({stepsLeft} confirmações até {finalCol?.colTitle})</span>}
+                    .
+                  </>
+                ) : (
+                  <>
+                    Mover <strong className="text-foreground font-medium">{lead.name}</strong> para{" "}
+                    <strong className="text-foreground font-medium">{nextCol?.colTitle}</strong>?
+                  </>
+                )}
+              </AlertDialogDescription>
+            </div>
+
+            {/* Stepper compacto — de → para */}
+            <div className="px-5 pb-4">
+              <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0">
+                <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                  <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
+                  <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
+                </div>
+                <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
+                <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                  <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
+                  <span className="block h-[2px] w-full rounded-full bg-primary" />
+                </div>
+                {stepsLeft > 1 && (
+                  <>
+                    <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
+                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[100px]">
+                      <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
+                      <span className="block h-[2px] w-full rounded-full bg-transparent" />
+                    </div>
+                  </>
+                )}
+                {totalMoves > 1 && (
+                  <span className="ml-auto text-[10px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
+                    {pa.currentStep + 1}/{totalMoves}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20">
+              <AlertDialogCancel onClick={() => setPendingStageAdvance(null)} className="h-8 px-3 text-xs">Cancelar</AlertDialogCancel>
+              <Button onClick={handleConfirmStageAdvance} size="sm" className="h-8 px-4 text-xs gap-1.5">
+                Confirmar <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      );
+    })()}
+
+    <AlertDialog open={!!pendingStageBack} onOpenChange={open => { if (!open) setPendingStageBack(null); }}>
+      <AlertDialogContent className="max-w-[380px] p-0 overflow-hidden gap-0">
+        <div className="px-5 pt-5 pb-3">
+          <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+            Confirmar retrocesso de etapa
           </AlertDialogTitle>
-          <hr className="border-gray-300" />
-          <AlertDialogDescription className="pl-[10px]">
-            {pendingStageAdvance?.isSkipping ? (
-              <>
-                O lead precisa avançar uma etapa por vez.{" "}
-                Deseja mover para <strong className="text-foreground">{pendingStageAdvance.nextTitle}</strong> agora?
-              </>
-            ) : (
-              <>
-                Deseja mover para{" "}
-                <strong className="text-foreground">{pendingStageAdvance?.toTitle}</strong>?
-              </>
-            )}
+          <AlertDialogDescription className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            Mover <strong className="text-foreground font-medium">{lead.name}</strong> de volta para{" "}
+            <strong className="text-foreground font-medium">{pendingStageBack?.toTitle}</strong>?
           </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="sm:justify-center">
-          <AlertDialogCancel onClick={() => setPendingStageAdvance(null)}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirmStageAdvance}>
-            <span>{'Mover para "'}<span className="font-semibold">{pendingStageAdvance?.isSkipping ? pendingStageAdvance.nextTitle : pendingStageAdvance?.toTitle}</span>{'"'}</span>
-          </AlertDialogAction>
-        </AlertDialogFooter>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20">
+          <AlertDialogCancel onClick={() => setPendingStageBack(null)} className="h-8 px-3 text-xs">Cancelar</AlertDialogCancel>
+          <Button
+            size="sm"
+            className="h-8 px-4 text-xs"
+            onClick={() => {
+              if (!pendingStageBack) return;
+              moveLead(lead.id, pendingStageBack.fromId, pendingStageBack.toId, 0);
+              addActivity(lead.id, {
+                id: `a-${Date.now()}`,
+                date: new Date().toISOString(),
+                type: "stage_change",
+                description: `Movido de "${pendingStageBack.fromTitle}" para "${pendingStageBack.toTitle}".`,
+                userName: profile?.full_name || undefined,
+              });
+              toast.success(`Etapa alterada para ${pendingStageBack.toTitle}`);
+              setPendingStageBack(null);
+            }}
+          >
+            Confirmar
+          </Button>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
 
