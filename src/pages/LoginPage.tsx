@@ -136,11 +136,18 @@ export default function LoginPage() {
   return (
     <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
       <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
-        {/* Rotating border light */}
+        {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
           style={{
             background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            animation: "spin-border 4s linear infinite",
+          }}
+        />
+        <div
+          className="absolute inset-[-100%]"
+          style={{
+            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
