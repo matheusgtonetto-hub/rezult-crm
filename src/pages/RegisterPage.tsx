@@ -130,7 +130,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="h-screen overflow-y-auto flex items-center justify-center px-4 py-6" style={{ background: "#E3E8E6" }}>
+    <div className="h-screen overflow-y-auto flex items-center justify-center px-4 py-6" style={{ background: "#F2F7F5" }}>
       <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border lights */}
         <div
