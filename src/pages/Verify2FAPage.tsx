@@ -98,7 +98,7 @@ export default function Verify2FAPage() {
   const isComplete = digits.every(d => d !== "");
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#F4FFF9" }}>
       <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border lights */}
         <div

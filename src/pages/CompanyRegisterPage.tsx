@@ -212,7 +212,7 @@ export default function CompanyRegisterPage() {
   // ─── Loading screen ───────────────────────────────────────────────────────────
   if (submitting) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#EFF5F2" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "#F4FFF9" }}>
         <div className="w-full max-w-[420px] text-center">
           <div className="flex justify-center mb-8">
             <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
@@ -236,7 +236,7 @@ export default function CompanyRegisterPage() {
   const stepProgress = (step / 4) * 100;
 
   return (
-    <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "#EFF5F2" }}>
+    <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "#F4FFF9" }}>
       <div className="relative w-full max-w-[1000px] rounded-[7px] p-[1px] overflow-hidden">
         {/* Rotating border lights */}
         <div
