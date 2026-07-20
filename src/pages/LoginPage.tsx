@@ -168,9 +168,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo</h1>
+        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo ao Rezult</h1>
         <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
-          Faça login para acessar sua conta
+          Plataforma de gestão de vendas completa
         </p>
 
         <form onSubmit={handleLogin} className="space-y-3 mt-[15px]">
