@@ -220,7 +220,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" disabled={loading}>
+          <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" style={{ background: "#00e599", color: "#000", borderColor: "#00e599" }} disabled={loading}>
             {loading ? "Aguarde..." : "Entrar"}
           </Button>
 
