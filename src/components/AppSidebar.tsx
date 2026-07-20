@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   Cog,
   LogOut,
-  MessageCircle,
+  MessagesSquare,
   Network,
   Rocket,
   Filter,
@@ -142,7 +142,7 @@ export function AppSidebar() {
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageCircle }] : []),
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessagesSquare }] : []),
     { to: "/pilot",   label: "Pilot",   icon: Brain,        locked: true },
     { to: "/agentes", label: "Agentes", icon: BrainCircuit, locked: true },
   ];
