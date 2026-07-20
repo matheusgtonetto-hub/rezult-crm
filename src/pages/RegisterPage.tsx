@@ -152,8 +152,8 @@ export default function RegisterPage() {
             <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
 
-          <h1 className="text-[23px] font-semibold text-foreground text-center">Crie sua conta</h1>
-          <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
+          <h1 className="text-[23px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>Crie sua conta</h1>
+          <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
             Preencha os dados abaixo para começar.
           </p>
 
