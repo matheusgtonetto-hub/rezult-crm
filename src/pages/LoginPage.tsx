@@ -168,7 +168,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <h1 className="text-[23px] font-semibold text-foreground text-center">Bem-vindo ao Rezult</h1>
+        <h1 className="text-[23px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>Bem-vindo ao Rezult</h1>
         <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 600 }}>
           Plataforma de gestão de vendas completa
         </p>
