@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#128A68"/>
+  <rect width="32" height="32" rx="7" fill="#0C1115"/>
   <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
-        font-family="system-ui, -apple-system, sans-serif"
-        font-size="13" font-weight="700" letter-spacing="-0.5"
-        fill="#FFFFFF">RZ</text>
+        font-family="HK Modular, system-ui, -apple-system, sans-serif"
+        font-size="13" font-weight="700" letter-spacing="-0.5">
+    <tspan fill="#FFFFFF">R</tspan><tspan fill="#00E599">Z</tspan>
+  </text>
 </svg>
