@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -71,7 +70,7 @@ export default function LoginPage() {
         <div
           className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300"
                   >
-          <div className="flex justify-center mb-6"><Logo size="md" showIcon /></div>
+          <div className="flex justify-center mb-6"><img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" /></div>
 
           <div className="flex justify-center mb-4">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -149,7 +148,7 @@ export default function LoginPage() {
         className="relative w-full bg-card rounded-[7px] p-[30px]"
               >
         <div className="flex justify-center items-center mb-[15px]">
-          <Logo size="md" showIcon />
+          <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
         </div>
 
         {emailConfirmed && (
