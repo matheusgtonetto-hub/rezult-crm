@@ -10,11 +10,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
 
-const TURNSTILE_SITEKEY = "0x4AAAAAAA_PLACEHOLDER";
+const TURNSTILE_SITEKEY = "0x4AAAAAD5X6YCBBdCfHFJG";
 
 declare global {
   interface Window {
     __turnstile_register_cb?: (token: string) => void;
+    __turnstile_register_expired_cb?: () => void;
+    turnstile?: { reset: (selector?: string) => void };
   }
 }
 
@@ -31,9 +33,11 @@ export default function RegisterPage() {
   const [agreedTos, setAgreedTos] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
-    window.__turnstile_register_cb = () => {};
+    window.__turnstile_register_cb = (token: string) => setTurnstileToken(token);
+    window.__turnstile_register_expired_cb = () => setTurnstileToken("");
 
     if (!document.getElementById("turnstile-script")) {
       const script = document.createElement("script");
@@ -46,6 +50,7 @@ export default function RegisterPage() {
 
     return () => {
       delete window.__turnstile_register_cb;
+      delete window.__turnstile_register_expired_cb;
     };
   }, []);
 
@@ -57,8 +62,22 @@ export default function RegisterPage() {
     if (password !== confirmPwd) { toast.error("As senhas não coincidem."); return; }
     if (!agreedTos) { toast.error("Você precisa aceitar os Termos de Serviço."); return; }
     if (!agreedPrivacy) { toast.error("Você precisa aceitar a Política de Privacidade."); return; }
+    if (!turnstileToken) { toast.error("Complete a verificação de segurança."); return; }
 
     setLoading(true);
+
+    // Validação server-side do Turnstile
+    const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-turnstile", {
+      body: { token: turnstileToken },
+    });
+    if (verifyError || !verifyData?.success) {
+      toast.error("Verificação de segurança inválida. Tente novamente.");
+      setLoading(false);
+      setTurnstileToken("");
+      window.turnstile?.reset();
+      return;
+    }
+
     const { error, needsConfirmation, resentConfirmation } = await signUp(email, password, fullName.trim());
     setLoading(false);
 
@@ -188,6 +207,7 @@ export default function RegisterPage() {
                 className="cf-turnstile"
                 data-sitekey={TURNSTILE_SITEKEY}
                 data-callback="__turnstile_register_cb"
+                data-expired-callback="__turnstile_register_expired_cb"
                 data-theme="light"
                 data-language="pt-BR"
               />
@@ -240,7 +260,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full h-auto py-[10px] rounded-[5px] font-semibold"
-              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy}
+              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy || !turnstileToken}
             >
               {loading ? "Criando conta..." : "Começar teste grátis"}
             </Button>
