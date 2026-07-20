@@ -10,7 +10,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
 
-const TURNSTILE_SITEKEY = "0x4AAAAAD5X6YCBBdCfHFJG";
+const TURNSTILE_SITEKEY = "0x4AAAAAAD5X6YCBBdCfHFJG";
 
 declare global {
   interface Window {
