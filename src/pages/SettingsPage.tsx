@@ -5476,18 +5476,60 @@ function SectionHeader({ title, subtitle, onAdd, onClick }: { title: string; sub
 }
 
 function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+  const { user } = useAuth();
+  const [currentPw, setCurrentPw] = useState("");
   const [pw, setPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const strength = pw.length === 0 ? 0 : pw.length < 6 ? 1 : pw.length < 10 ? 2 : 3;
   const strengthLabel = ["", "Fraca", "Média", "Forte"][strength];
   const strengthColor = ["", "#E24B4A", "#F59E0B", "#128A68"][strength];
+
+  const handleClose = () => {
+    setOpen(false);
+    setCurrentPw(""); setPw(""); setConfirmPw("");
+  };
+
+  const handleSave = async () => {
+    if (!currentPw) { toast.error("Informe sua senha atual."); return; }
+    if (pw.length < 6) { toast.error("A nova senha deve ter pelo menos 6 caracteres."); return; }
+    if (pw !== confirmPw) { toast.error("As senhas não coincidem."); return; }
+
+    setLoading(true);
+
+    // Verifica senha atual reautenticando
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user?.email ?? "",
+      password: currentPw,
+    });
+
+    if (signInError) {
+      toast.error("Senha atual incorreta.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setLoading(false);
+
+    if (error) {
+      toast.error("Não foi possível alterar a senha. Tente novamente.");
+      return;
+    }
+
+    toast.success("Senha alterada com sucesso!");
+    handleClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-[420px]">
         <DialogHeader><DialogTitle>Alterar senha</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
-          <Input type="password" placeholder="Senha atual" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Senha atual" value={currentPw} onChange={e => setCurrentPw(e.target.value)} className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           <Input type="password" placeholder="Nova senha" value={pw} onChange={e => setPw(e.target.value)} className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-          <Input type="password" placeholder="Confirmar nova senha" className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+          <Input type="password" placeholder="Confirmar nova senha" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} className="focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
           {pw.length > 0 && (
             <div>
               <div className="flex gap-1">
@@ -5500,8 +5542,10 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={() => { toast.success("Senha alterada!"); setOpen(false); setPw(""); }} className="bg-primary hover:bg-primary/90">Salvar</Button>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={loading} className="bg-primary hover:bg-primary/90">
+            {loading ? "Salvando..." : "Salvar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
