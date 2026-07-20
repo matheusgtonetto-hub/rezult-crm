@@ -552,13 +552,24 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={230}>
                 <LineChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                  <defs>
+                    <filter id="m-shadow-novos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#128A68" floodOpacity="0.20" />
+                    </filter>
+                    <filter id="m-shadow-ganhos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#10B981" floodOpacity="0.20" />
+                    </filter>
+                    <filter id="m-shadow-perdidos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#EF4444" floodOpacity="0.20" />
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="0" stroke="hsl(var(--card-border))" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-novos)" }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-ganhos)" }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-perdidos)" }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -579,13 +590,24 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={230}>
                 <LineChart data={hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                  <defs>
+                    <filter id="h-shadow-novos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#128A68" floodOpacity="0.20" />
+                    </filter>
+                    <filter id="h-shadow-ganhos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#10B981" floodOpacity="0.20" />
+                    </filter>
+                    <filter id="h-shadow-perdidos" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#EF4444" floodOpacity="0.20" />
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="0" stroke="hsl(var(--card-border))" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-novos)" }} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-ganhos)" }} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-perdidos)" }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -985,7 +1007,7 @@ export default function DashboardPage() {
                 <BarChart data={activityStats.byType}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
                   <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
                   <Bar dataKey="count" name="Atividades" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -1251,7 +1273,7 @@ export default function DashboardPage() {
                         >
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
                           <XAxis dataKey="name" tick={renderTick} axisLine={false} tickLine={false} height={48} />
-                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
+                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                           <Tooltip
                             contentStyle={tooltip}
                             formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Leads"]}
