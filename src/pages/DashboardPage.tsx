@@ -567,9 +567,9 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-novos)" }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-ganhos)" }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-perdidos)" }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-novos)" }} animationEasing="ease-out" animationDuration={800} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-ganhos)" }} animationEasing="ease-out" animationDuration={800} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-perdidos)" }} animationEasing="ease-out" animationDuration={800} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -605,9 +605,9 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-novos)" }} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-ganhos)" }} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-perdidos)" }} />
+                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-novos)" }} animationEasing="ease-out" animationDuration={800} />
+                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-ganhos)" }} animationEasing="ease-out" animationDuration={800} />
+                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-perdidos)" }} animationEasing="ease-out" animationDuration={800} />
                 </LineChart>
               </ResponsiveContainer>
             )}
