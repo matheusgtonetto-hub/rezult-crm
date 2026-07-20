@@ -539,9 +539,9 @@ export default function DashboardPage() {
 
           {/* Monthly line */}
           <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <div className="mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
-              <div className="flex items-center justify-center gap-4 mt-2">
+              <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
@@ -577,9 +577,9 @@ export default function DashboardPage() {
 
           {/* Hourly results */}
           <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <div className="mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
-              <div className="flex items-center justify-center gap-4 mt-2">
+              <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
