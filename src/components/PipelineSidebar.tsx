@@ -124,6 +124,7 @@ export function PipelineSidebar() {
             <button
               onClick={() => toggleGroup(group.cat)}
               className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[#09090b] transition-colors"
+              style={{ fontFamily: "Inter, sans-serif", fontVariationSettings: "'opsz' 14" }}
             >
               {group.cat.charAt(0).toUpperCase() + group.cat.slice(1)}
               <span className="ml-auto text-muted-foreground/70">{openGroups[group.cat] !== false ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
