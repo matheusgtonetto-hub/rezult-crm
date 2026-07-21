@@ -2084,7 +2084,7 @@ export default function AutomacoesPage() {
             ) : filteredGroups.length === 0 ? (
               <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Nenhuma automação</p>
             ) : filteredGroups.map(g => {
-              const open = openGroups[g.name] ?? false;
+              const open = openGroups[g.name] ?? true;
               return (
                 <div key={g.name}>
                   <button
