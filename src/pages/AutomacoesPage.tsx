@@ -2078,7 +2078,7 @@ export default function AutomacoesPage() {
             </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+          <div className="flex-1 overflow-y-auto py-2 px-0 space-y-1">
             {loading ? (
               <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Carregando...</p>
             ) : filteredGroups.length === 0 ? (
