@@ -2091,7 +2091,6 @@ export default function AutomacoesPage() {
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
                     className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
                   >
-                    {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     {renamingGroup === g.name ? (
                       <input
                         autoFocus
@@ -2119,7 +2118,7 @@ export default function AutomacoesPage() {
                         {g.name.charAt(0).toUpperCase() + g.name.slice(1)}
                       </span>
                     )}
-                    <span className="ml-auto text-muted-foreground/70">{g.items.length}</span>
+                    <span className="ml-auto text-muted-foreground/70">{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
                   </button>
 
                   {open && (
