@@ -968,7 +968,7 @@ function FlowPreview({ flow }: { flow: { nodes: CanvasNode[]; trigger: TriggerCo
 
 export default function AutomacoesPage() {
   const { user } = useAuth();
-  const { company, companyLoading } = useCompany();
+  const { company } = useCompany();
   const { pipelines, crmTags, addTag, crmLists, teamMembers, products, lossReasons, customFieldGroups } = useCRM();
   const navigate = useNavigate();
   const { id: urlId } = useParams<{ id: string }>();
@@ -979,7 +979,7 @@ export default function AutomacoesPage() {
 
   // Data
   const [automations, setAutomations] = useState<AutomationRecord[]>([]);
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading]   = useState(true);
 
   // Sidebar
   const [search, setSearch]             = useState("");
@@ -2079,7 +2079,7 @@ export default function AutomacoesPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-[2px] space-y-1">
-            {loading || companyLoading ? (
+            {loading ? (
               <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Carregando...</p>
             ) : filteredGroups.length === 0 ? (
               <p className="px-3 py-4 text-xs text-muted-foreground italic text-center">Nenhuma automação</p>
