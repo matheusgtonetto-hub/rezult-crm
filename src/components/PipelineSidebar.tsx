@@ -123,7 +123,7 @@ export function PipelineSidebar() {
           <div key={group.groupId}>
             <button
               onClick={() => toggleGroup(group.cat)}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[#09090b] transition-colors"
             >
               {group.cat.charAt(0).toUpperCase() + group.cat.slice(1)}
               <span className="ml-auto text-muted-foreground/70">{openGroups[group.cat] !== false ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -161,7 +161,7 @@ export function PipelineSidebar() {
 
         {orphanPipelines.length > 0 && (
           <div>
-            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-sidebar-foreground">
+            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-[#09090b]">
               Outros
             </p>
             <div className="space-y-0.5 mb-1">

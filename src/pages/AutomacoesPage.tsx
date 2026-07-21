@@ -2089,7 +2089,7 @@ export default function AutomacoesPage() {
                 <div key={g.name}>
                   <button
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
-                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-sidebar-foreground transition-colors"
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[#09090b] transition-colors"
                   >
                     {renamingGroup === g.name ? (
                       <input
