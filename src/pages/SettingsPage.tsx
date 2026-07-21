@@ -124,7 +124,7 @@ export default function SettingsPage() {
         >
           <ArrowLeft size={14} /> Voltar
         </button>
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="flex-1 overflow-y-auto py-2 space-y-[2px]">
           {visibleSections.map(s => {
             const isActive = active === s.id;
             return (
