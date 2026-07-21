@@ -131,7 +131,7 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`flex items-center gap-2.5 px-4 py-[6.4px] transition-colors font-normal leading-[16px] ${
+                className={`flex items-center gap-2.5 px-4 py-2 transition-colors font-normal leading-[16px] ${
                   isActive
                     ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
                     : "w-full"
