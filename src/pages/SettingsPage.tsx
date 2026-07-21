@@ -136,7 +136,7 @@ export default function SettingsPage() {
                     ? "bg-primary/10 border-l-[3px] border-primary pl-[13px]"
                     : "hover:bg-muted"
                 }`}
-                style={{ fontFamily: "Inter, sans-serif", fontSize: "12px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
+                style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
               >
                 <s.icon size={14} />
                 {s.label}
