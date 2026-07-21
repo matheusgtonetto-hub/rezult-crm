@@ -134,7 +134,7 @@ export default function SettingsPage() {
                 className={`w-full flex items-center gap-2.5 px-4 py-1.5 transition-colors font-normal leading-[16px] ${
                   isActive
                     ? "bg-primary/10 border-l-[3px] border-primary pl-[13px]"
-                    : "hover:bg-muted"
+                    : ""
                 }`}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
               >
