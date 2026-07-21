@@ -2130,7 +2130,7 @@ export default function AutomacoesPage() {
                           <button
                             key={item.id}
                             onClick={() => requestLeave(() => openEditor(item.id))}
-                            className={`flex items-center gap-2 px-3 h-[30px] font-normal leading-[16px] border-l-[3px] ${
+                            className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] ${
                               sel
                                 ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                                 : "w-full border-transparent"
