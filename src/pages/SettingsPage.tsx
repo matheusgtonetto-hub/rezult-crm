@@ -136,7 +136,7 @@ export default function SettingsPage() {
                     ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
                     : "w-full"
                 }`}
-                style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
+                style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
               >
                 <s.icon size={14} className={isActive ? "text-primary" : ""} />
                 {s.label}
