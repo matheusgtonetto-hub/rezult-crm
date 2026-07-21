@@ -2090,7 +2090,7 @@ export default function AutomacoesPage() {
                   <button
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
                     className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[#09090b] transition-colors"
-                    style={{ fontFamily: "Inter, sans-serif", fontVariationSettings: "'opsz' 14" }}
+                    style={{ fontFamily: "Inter, sans-serif" }}
                   >
                     {renamingGroup === g.name ? (
                       <input
@@ -2135,7 +2135,7 @@ export default function AutomacoesPage() {
                                 ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                                 : "w-full border-transparent"
                             }`}
-                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, fontVariationSettings: "'opsz' 5", color: "#09090b" }}
+                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
                           >
                             <Network size={14} className={sel ? "text-primary" : ""} />
                             <span className="truncate text-left flex-1">{item.name}</span>
