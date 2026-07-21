@@ -1379,7 +1379,7 @@ async function executeFlow(
           instanceId: String(conn.instance_id),
           token: String(conn.token),
           clientToken: conn.client_token ? String(conn.client_token) : null,
-          provider: String(conn.provider) === "dapi" ? "dapi" : "zapi",
+          provider: (["dapi", "cloud_api"].includes(String(conn.provider)) ? String(conn.provider) : "zapi") as "zapi" | "dapi" | "cloud_api",
         };
       } else {
         const { data: companyData } = await supabase
@@ -1577,9 +1577,9 @@ async function executeFlow(
 
 interface ZapiCreds {
   instanceId: string;      // Z-API: instância · D-API: sessionId
-  token: string;           // Z-API: token da instância · D-API: API Key da conta
+  token: string;           // Z-API: token da instância · D-API: API Key da conta · Cloud API: access token
   clientToken: string | null;
-  provider?: "zapi" | "dapi"; // default: "zapi"
+  provider?: "zapi" | "dapi" | "cloud_api"; // default: "zapi"
 }
 
 // Mensagem de WhatsApp em formato agnóstico de provedor. sendWa() traduz para
@@ -1593,6 +1593,7 @@ type WaMsg =
 
 async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<void> {
   if (creds.provider === "dapi") { await sendDapi(creds, msg); return; }
+  if (creds.provider === "cloud_api") { await sendCloudApi(creds, msg); return; }
   // Z-API (comportamento original, byte-a-byte)
   switch (msg.kind) {
     case "text":
@@ -1645,6 +1646,47 @@ async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
   if (!resp.ok) {
     const detail = await resp.text().catch(() => "");
     throw new Error(`D-API send/${path} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
+  }
+}
+
+// WhatsApp Cloud API (Meta): creds.instanceId = Phone Number ID, creds.token = system user access token.
+// Botões → texto numerado (Cloud API exige template aprovado para botões interativos).
+async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
+  const phoneNumberId = creds.instanceId;
+  const accessToken = creds.token;
+  const to = msg.phone.replace(/\D/g, "");
+  const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` };
+
+  let body: Record<string, unknown>;
+  switch (msg.kind) {
+    case "text":
+      body = { messaging_product: "whatsapp", to, type: "text", text: { body: msg.message, preview_url: false } };
+      break;
+    case "buttons":
+      // Sem template aprovado, envia como texto com opções numeradas
+      body = {
+        messaging_product: "whatsapp", to, type: "text",
+        text: { body: [msg.message, ...msg.buttons.map((b, i) => `${i + 1}. ${b}`)].join("\n"), preview_url: false },
+      };
+      break;
+    case "audio":
+      body = { messaging_product: "whatsapp", to, type: "audio", audio: { link: msg.url } };
+      break;
+    case "image":
+      body = { messaging_product: "whatsapp", to, type: "image", image: { link: msg.url } };
+      break;
+    case "document":
+      body = { messaging_product: "whatsapp", to, type: "document", document: { link: msg.url, filename: msg.fileName } };
+      break;
+    default:
+      return;
+  }
+
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(`Cloud API HTTP ${resp.status}: ${detail.slice(0, 200)}`);
   }
 }
 

@@ -48,3 +48,7 @@ verify_jwt = false
 # O callback OAuth verifica o JWT internamente (usuário pode estar em redirect cross-origin).
 [functions.meta-oauth-callback]
 verify_jwt = false
+
+# A Meta (Cloud API) chama este webhook externamente — verificação por hub.verify_token no GET.
+[functions.cloud-api-webhook]
+verify_jwt = false

@@ -108,7 +108,7 @@ type ConvState = {
   departmentId?: string;
 };
 
-type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string };
+type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string; provider: "zapi" | "dapi" | "cloud_api" };
 
 /* ── emoji list ───────────────────────────────────────────────────────── */
 const EMOJIS = [
@@ -1131,6 +1131,7 @@ export default function MultiatendimentoPage() {
         clientToken: c.clientToken ?? "",
         phone:       c.phone ?? c.instanceId,
         label:       c.name,
+        provider:    (["dapi", "cloud_api"].includes(c.provider ?? "") ? c.provider : "zapi") as "zapi" | "dapi" | "cloud_api",
       }));
     setInstances(insts);
     setSelectedInstance(prev => {
@@ -1766,29 +1767,59 @@ export default function MultiatendimentoPage() {
       return;
     }
 
-    // ── Enviar via Z-API + persistir no Supabase ─────────────────────
+    // ── Enviar via WhatsApp (Z-API, D-API ou Cloud API) ──────────────
     const inst = instances.find(i => i.instanceId === selectedInstance);
     const contactPhone = active?.phone;
     if (inst?.token && contactPhone) {
       const cleanPhone = contactPhone.replace(/\D/g, "");
-      try {
-        const res = await fetch(
-          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
-            },
-            body: JSON.stringify({ phone: cleanPhone, message: text }),
+
+      // ── Cloud API (Meta) ────────────────────────────────────────────
+      if (inst.provider === "cloud_api") {
+        try {
+          const res = await fetch(
+            `https://graph.facebook.com/v21.0/${inst.instanceId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${inst.token}`,
+              },
+              body: JSON.stringify({
+                messaging_product: "whatsapp",
+                to: cleanPhone,
+                type: "text",
+                text: { body: text, preview_url: false },
+              }),
+            }
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            toast.error(`Erro ao enviar mensagem: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
           }
-        );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          toast.error(`Erro ao enviar mensagem: ${(err as { message?: string }).message ?? res.status}`);
+        } catch {
+          toast.error("Falha ao enviar mensagem via WhatsApp Cloud API");
         }
-      } catch {
-        toast.error("Falha ao enviar mensagem via WhatsApp");
+      } else {
+        // ── Z-API ──────────────────────────────────────────────────────
+        try {
+          const res = await fetch(
+            `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
+              },
+              body: JSON.stringify({ phone: cleanPhone, message: text }),
+            }
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            toast.error(`Erro ao enviar mensagem: ${(err as { message?: string }).message ?? res.status}`);
+          }
+        } catch {
+          toast.error("Falha ao enviar mensagem via WhatsApp");
+        }
       }
 
       // Persiste no banco para histórico futuro
