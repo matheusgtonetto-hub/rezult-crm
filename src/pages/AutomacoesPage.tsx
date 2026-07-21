@@ -2123,21 +2123,22 @@ export default function AutomacoesPage() {
                   </button>
 
                   {open && (
-                    <div className="space-y-0.5 mb-1">
+                    <div className="space-y-[3px] mb-1">
                       {g.items.map(item => {
                         const sel = selectedId === item.id;
                         return (
                           <button
                             key={item.id}
                             onClick={() => requestLeave(() => openEditor(item.id))}
-                            className={`w-full flex items-center gap-2 px-3 py-[6px] rounded-[10px] text-[14px] font-medium transition-colors ${
+                            className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
                               sel
-                                ? "bg-sidebar-accent border-l-[3px] border-primary"
-                                : "text-foreground hover:bg-muted/50"
+                                ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
+                                : "w-full"
                             }`}
+                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
                           >
-                            <Network size={14} className={sel ? "text-primary" : "text-muted-foreground"} />
-                            <span className={`truncate text-left flex-1 ${sel ? "text-foreground" : ""}`}>{item.name}</span>
+                            <Network size={14} className={sel ? "text-primary" : ""} />
+                            <span className="truncate text-left flex-1">{item.name}</span>
                             <Switch
                               checked={item.active}
                               onCheckedChange={(v) => { toggleActive(item.id, v); }}

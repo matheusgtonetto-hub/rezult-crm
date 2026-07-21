@@ -131,7 +131,7 @@ export function PipelineSidebar() {
             </button>
 
             {openGroups[group.cat] !== false && (
-              <div className="space-y-0.5 mb-1">
+              <div className="space-y-[3px] mb-1">
                 {group.items.length === 0 && (
                   <p className="px-3 py-1.5 text-xs text-muted-foreground italic">
                     Sem pipelines
@@ -143,14 +143,15 @@ export function PipelineSidebar() {
                     <button
                       key={p.id}
                       onClick={() => navigate(`/pipeline/${p.id}`)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-[14px] font-medium transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
                         active
-                          ? "bg-sidebar-accent border-l-[3px] border-primary"
-                          : "text-foreground hover:bg-muted/50"
+                          ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
+                          : "w-full"
                       }`}
+                      style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
                     >
-                      <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
-                      <span className={`truncate text-left flex-1 ${active ? "text-foreground" : ""}`}>{p.name}</span>
+                      <Filter size={14} className={active ? "text-primary" : ""} />
+                      <span className="truncate text-left flex-1">{p.name}</span>
                     </button>
                   );
                 })}
@@ -171,14 +172,15 @@ export function PipelineSidebar() {
                   <button
                     key={p.id}
                     onClick={() => navigate(`/pipeline/${p.id}`)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-[15px] text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
                       active
-                        ? "bg-sidebar-accent border-l-[3px] border-primary"
-                        : "text-foreground hover:bg-muted/50"
+                        ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
+                        : "w-full"
                     }`}
+                    style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
                   >
-                    <Filter size={14} className={active ? "text-primary" : "text-muted-foreground"} />
-                    <span className={`truncate text-left flex-1 ${active ? "text-foreground" : ""}`}>{p.name}</span>
+                    <Filter size={14} className={active ? "text-primary" : ""} />
+                    <span className="truncate text-left flex-1">{p.name}</span>
                   </button>
                 );
               })}
