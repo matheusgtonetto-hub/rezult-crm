@@ -2127,10 +2127,13 @@ export default function AutomacoesPage() {
                       {g.items.map(item => {
                         const sel = selectedId === item.id;
                         return (
-                          <button
+                          <div
                             key={item.id}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => requestLeave(() => openEditor(item.id))}
-                            className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] ${
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); requestLeave(() => openEditor(item.id)); } }}
+                            className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] cursor-pointer ${
                               sel
                                 ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                                 : "w-full border-transparent"
@@ -2145,7 +2148,7 @@ export default function AutomacoesPage() {
                               onClick={(e) => e.stopPropagation()}
                               className="scale-75"
                             />
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
