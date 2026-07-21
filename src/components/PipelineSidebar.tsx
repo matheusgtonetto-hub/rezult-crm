@@ -143,10 +143,10 @@ export function PipelineSidebar() {
                     <button
                       key={p.id}
                       onClick={() => navigate(`/pipeline/${p.id}`)}
-                      className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] border-l-[3px] ${
                         active
-                          ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
-                          : "w-full"
+                          ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
+                          : "w-full border-transparent"
                       }`}
                       style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, fontVariationSettings: "'opsz' 14", color: "#09090b" }}
                     >
