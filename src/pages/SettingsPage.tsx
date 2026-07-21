@@ -133,7 +133,7 @@ export default function SettingsPage() {
                 onClick={() => setActive(s.id)}
                 className={`flex items-center gap-2.5 px-4 py-[7px] transition-colors font-normal leading-[16px] ${
                   isActive
-                    ? "w-[90%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
+                    ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
                     : "w-full"
                 }`}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, color: "#09090b" }}
