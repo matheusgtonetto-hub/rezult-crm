@@ -3212,7 +3212,7 @@ function ConexoesSection() {
   }
 
   function handleConnectInstagram() {
-    const META_APP_ID = "1376790121031481";
+    const META_APP_ID = "2970416166632315";
     const redirectUri = `${window.location.origin}/auth/meta-callback`;
     const scopes = [
       "pages_show_list",
@@ -3235,11 +3235,7 @@ function ConexoesSection() {
   }
 
   function handleConnectInstagramDirect() {
-    const IG_APP_ID = import.meta.env.VITE_IG_APP_ID as string | undefined;
-    if (!IG_APP_ID) {
-      toast.error("Instagram Platform não configurado. Configure VITE_IG_APP_ID.");
-      return;
-    }
+    const IG_APP_ID = "2970416166632315";
     const redirectUri = `${window.location.origin}/auth/meta-callback`;
     const scopes = [
       "instagram_business_basic",
@@ -4371,7 +4367,7 @@ function ConexoesSection() {
                   Clique no botão abaixo para conectar sua conta do WhatsApp Business diretamente pela Meta. É rápido e seguro — não precisa copiar tokens.
                 </p>
                 <a
-                  href="https://business.facebook.com/messaging/whatsapp/onboard/?app_id=1585743146456114&config_id=1005659502341711&extras=%7B%22version%22%3A%22v4%22%2C%22sessionInfoVersion%22%3A%223%22%2C%22featureType%22%3A%22whatsapp_business_app_onboarding%22%7D&redirect_uri=https%3A%2F%2Fapp.rezultcrm.com%2Fwhatsapp-callback"
+                  href="https://business.facebook.com/messaging/whatsapp/onboard/?app_id=1594191642279110&config_id=2049909345891774&extras=%7B%22version%22%3A%22v4%22%2C%22sessionInfoVersion%22%3A%223%22%2C%22featureType%22%3A%22whatsapp_business_app_onboarding%22%7D&redirect_uri=https%3A%2F%2Fapp.rezultcrm.com%2Fwhatsapp-callback"
                   target="_blank"
                   rel="noreferrer"
                   style={{
