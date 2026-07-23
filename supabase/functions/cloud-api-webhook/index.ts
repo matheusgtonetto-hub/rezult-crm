@@ -70,6 +70,7 @@ serve(async (req) => {
         continue;
       }
       const ownerId   = (conn as { owner_id: string }).owner_id;
+      const companyId = (conn as { company_id: string | null }).company_id;
       const accessToken = (conn as { token: string }).token;
 
       for (const message of messages) {
@@ -152,6 +153,7 @@ serve(async (req) => {
 
         const { error } = await supabase.from("whatsapp_messages").insert({
           owner_id:    ownerId,
+          company_id:  companyId,
           instance_id: phoneNumberId,
           phone:       cleanPhone,
           message_id:  msgId ?? null,
@@ -203,7 +205,6 @@ serve(async (req) => {
           } else {
             // Nenhuma automação aguardando resposta — tenta o agente SDS.
             // Mutuamente exclusivo com o resume acima.
-            const companyId = (conn as { company_id: string | null }).company_id;
             if (companyId) {
               try {
                 await fetch(`${supabaseUrl}/functions/v1/agent-sds-qualify`, {

@@ -133,6 +133,7 @@ serve(async (req) => {
     .from("whatsapp_messages")
     .insert({
       owner_id:    ownerId,
+      company_id:  companyId,
       instance_id: instanceId,
       phone:       cleanPhone,
       message_id:  messageId ?? null,
