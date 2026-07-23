@@ -3505,6 +3505,12 @@ function ConexoesSection() {
     await fetch(`${DAPI_BASE}/sessions/${sessionId}/webhook`, {
       method: "POST", headers: dapiHeaders(apiKey), body: JSON.stringify({ webhookUrl: DAPI_WEBHOOK_URL }),
     }).catch(() => { /* ignore */ });
+    // A URL do webhook (acima) e a entrega por evento são configs separadas na D-API:
+    // sem habilitar o evento aqui, nenhuma mensagem é entregue mesmo com webhookUrl setada.
+    await fetch(`${DAPI_BASE}/sessions/${sessionId}/webhook-config`, {
+      method: "POST", headers: dapiHeaders(apiKey),
+      body: JSON.stringify({ enabled: true, type: "single", events: { "messages.received": { enabled: true } } }),
+    }).catch(() => { /* ignore */ });
   }
 
   function startPollDapi(apiKey: string, sessionId: string) {
