@@ -3471,9 +3471,13 @@ function ConexoesSection() {
     try {
       const res = await fetch(`${DAPI_BASE}/sessions/${sessionId}`, { headers: dapiHeaders(apiKey) });
       const d = await res.json().catch(() => ({} as Record<string, unknown>));
-      const node = (d?.data ?? d) as Record<string, unknown>;
+      // A resposta real da D-API embrulha os dados em "session" (confirmado
+      // com chamada real à API), não em "data" — sem isso, connected/phone
+      // nunca eram encontrados mesmo com a sessão já conectada de verdade.
+      const node = (d?.session ?? d?.data ?? d) as Record<string, unknown>;
+      const authData = (node?.authData ?? {}) as Record<string, unknown>;
       const connected = node?.connected === true || node?.status === "connected";
-      const phone = String(node?.phone ?? "").replace(/\D/g, "");
+      const phone = String(authData?.phone ?? node?.phone ?? "").replace(/\D/g, "");
       return { connected: !!connected, phone };
     } catch {
       return { connected: false, phone: "" };
