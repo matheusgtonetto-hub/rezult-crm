@@ -4086,6 +4086,11 @@ function ConexoesSection() {
                       key={prov.id}
                       onClick={() => {
                         if (!prov.available) { toast("Em breve"); return; }
+                        // Troca de provedor sempre encerra qualquer polling em
+                        // andamento — timerRef/pollNRef são compartilhados entre
+                        // zapi/dapi, e sem isso um timer antigo continua rodando
+                        // escondido e polui o estado do provedor novo.
+                        stopPoll();
                         if (prov.id === "cloud_api") { setWizardProvider("cloud_api"); setCloudPhoneId(""); setCloudToken(""); setCloudWabaId(""); setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "dapi") { setWizardProvider("dapi"); setDapiApiKey(""); dapiSessionRef.current = ""; setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }

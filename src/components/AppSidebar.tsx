@@ -13,7 +13,6 @@ import {
   Network,
   Rocket,
   Filter,
-  Brain,
   Bell,
   Info,
   Plus,
@@ -143,8 +142,7 @@ export function AppSidebar() {
       ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare }] : []),
-    { to: "/pilot",   label: "Pilot",   icon: Brain,        locked: true },
-    { to: "/agentes", label: "Agentes", icon: BrainCircuit, locked: true },
+    { to: "/agentes", label: "Agentes", icon: BrainCircuit },
   ];
 
   const itemBase =
@@ -202,7 +200,7 @@ export function AppSidebar() {
               }
             }}
           >
-            <Icon size={18} strokeWidth={1.75} className={item.to === "/pilot" ? "glow-pilot" : item.to === "/agentes" ? "glow-agentes" : ""} />
+            <Icon size={18} strokeWidth={1.75} className={item.to === "/agentes" ? "glow-agentes" : ""} />
             {item.badge === "IA" && (
               <span
                 className="absolute -top-0.5 -right-0.5 rounded-full flex items-center justify-center font-bold leading-none"

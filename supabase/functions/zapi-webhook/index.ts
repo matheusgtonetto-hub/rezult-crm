@@ -89,19 +89,26 @@ serve(async (req) => {
   // whatsapp_connections (uma empresa pode ter vários números). Fallback para
   // o campo legado companies.zapi_instance_id (instalações antigas).
   let ownerId: string | null = null;
+  let companyId: string | null = null;
   const { data: conn } = await supabase
     .from("whatsapp_connections")
-    .select("owner_id")
+    .select("owner_id, company_id")
     .eq("instance_id", instanceId)
     .maybeSingle();
-  if (conn) ownerId = (conn as { owner_id: string }).owner_id;
+  if (conn) {
+    ownerId = (conn as { owner_id: string }).owner_id;
+    companyId = (conn as { company_id: string | null }).company_id;
+  }
   if (!ownerId) {
     const { data: company } = await supabase
       .from("companies")
-      .select("owner_id")
+      .select("id, owner_id")
       .eq("zapi_instance_id", instanceId)
       .maybeSingle();
-    if (company) ownerId = (company as { owner_id: string }).owner_id;
+    if (company) {
+      ownerId = (company as { owner_id: string }).owner_id;
+      companyId = (company as { id: string }).id;
+    }
   }
 
   if (!ownerId) {
@@ -184,6 +191,23 @@ serve(async (req) => {
         } catch (e) {
           console.error("resume_reply call failed:", e);
         }
+      }
+    } else if (companyId) {
+      // Nenhuma automação aguardando resposta — tenta o agente SDS (se ativo
+      // pra essa empresa; a própria function decide e não faz nada se não
+      // houver agente ligado). Mutuamente exclusivo com o resume acima: evita
+      // dois sistemas automáticos respondendo o mesmo lead ao mesmo tempo.
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/agent-sds-qualify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+          },
+          body: JSON.stringify({ companyId, phone: cleanPhone }),
+        });
+      } catch (e) {
+        console.error("agent-sds-qualify call failed:", e);
       }
     }
   }

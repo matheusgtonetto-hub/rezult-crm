@@ -20,7 +20,6 @@ import LeadsPage from "./pages/LeadsPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import CalendarPage from "./pages/CalendarPage";
-import PilotPage from "./pages/PilotPage";
 import AgentesPage from "./pages/AgentesPage";
 import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
@@ -98,7 +97,6 @@ function AppRoutes() {
           <Route path="/auth/meta-callback" element={<MetaCallbackPage />} />
           <Route path="/whatsapp-callback" element={<WhatsappCallbackPage />} />
           <Route element={<AppLayout />}>
-            <Route path="/pilot" element={<PilotPage />} />
             <Route path="/pipeline" element={<PipelinePage />} />
             <Route path="/pipeline/lead/:id" element={<LeadDetailPage />} />
             <Route path="/pipeline/:pipelineId" element={<PipelinePage />} />

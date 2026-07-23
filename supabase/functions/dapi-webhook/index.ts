@@ -111,10 +111,11 @@ serve(async (req) => {
   // Encontra o dono da sessão (instance_id == sessionId).
   const { data: conn } = await supabase
     .from("whatsapp_connections")
-    .select("owner_id")
+    .select("owner_id, company_id")
     .eq("instance_id", sessionId)
     .maybeSingle();
   const ownerId = conn ? (conn as { owner_id: string }).owner_id : null;
+  const companyId = conn ? (conn as { company_id: string | null }).company_id : null;
   if (!ownerId) {
     console.warn("D-API session not found:", sessionId);
     return new Response("session not found", { status: 200 });
@@ -187,6 +188,21 @@ serve(async (req) => {
         } catch (e) {
           console.error("resume_reply call failed:", e);
         }
+      }
+    } else if (companyId) {
+      // Nenhuma automação aguardando resposta — tenta o agente SDS. Mesma
+      // lógica do zapi-webhook: mutuamente exclusivo com o resume acima.
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/agent-sds-qualify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+          },
+          body: JSON.stringify({ companyId, phone: cleanPhone }),
+        });
+      } catch (e) {
+        console.error("agent-sds-qualify call failed:", e);
       }
     }
   }

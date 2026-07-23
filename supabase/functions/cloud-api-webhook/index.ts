@@ -147,8 +147,8 @@ serve(async (req) => {
         }
 
         const momment = timestamp
-          ? new Date(Number(timestamp) * 1000).toISOString()
-          : new Date().toISOString();
+          ? Number(timestamp) * 1000
+          : Date.now();
 
         const { error } = await supabase.from("whatsapp_messages").insert({
           owner_id:    ownerId,
@@ -198,6 +198,24 @@ serve(async (req) => {
                 });
               } catch (e) {
                 console.error("cloud-api-webhook: resume_reply falhou:", e);
+              }
+            }
+          } else {
+            // Nenhuma automação aguardando resposta — tenta o agente SDS.
+            // Mutuamente exclusivo com o resume acima.
+            const companyId = (conn as { company_id: string | null }).company_id;
+            if (companyId) {
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/agent-sds-qualify`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+                  },
+                  body: JSON.stringify({ companyId, phone: cleanPhone }),
+                });
+              } catch (e) {
+                console.error("cloud-api-webhook: agent-sds-qualify falhou:", e);
               }
             }
           }

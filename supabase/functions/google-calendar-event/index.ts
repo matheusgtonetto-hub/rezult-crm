@@ -25,13 +25,22 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt        = authHeader.replace(/^Bearer\s+/i, "");
+    // Chamada server-to-server (ex: agent-sds-qualify): aceita secret interno
+    // + user_id explícito no corpo, sem exigir JWT de sessão de navegador.
+    // Caminho ADITIVO — o fluxo JWT abaixo permanece inalterado para o app.
+    const internalSecretHeader = req.headers.get("x-internal-secret") ?? "";
+    const configuredInternalSecret = Deno.env.get("AGENT_INTERNAL_SECRET") ?? "";
+    const isInternalCall = configuredInternalSecret !== "" && internalSecretHeader === configuredInternalSecret;
 
-    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string };
+    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string; user_id?: string };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id } = body;
+    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id, user_id: bodyUserId } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
+    }
+    if (isInternalCall && !bodyUserId) {
+      return json({ error: "missing required field: user_id" }, 400);
     }
 
     // Calcula end_datetime somando duration_minutes ao start local (sem conversão UTC)
@@ -40,17 +49,24 @@ serve(async (req) => {
     const pad = (n: number) => String(n).padStart(2, "0");
     const end_datetime = `${endDate.getUTCFullYear()}-${pad(endDate.getUTCMonth() + 1)}-${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}:${pad(endDate.getUTCMinutes())}:00`;
 
-    // Identifica o usuário
+    // Identifica o usuário: chamada interna usa user_id explícito (confiável,
+    // veio do secret compartilhado); chamada do app identifica pelo JWT.
     const db = createClient(supabaseUrl, serviceKey);
-    const authResult = await db.auth.getUser(jwt);
-    const user = authResult.data?.user;
-    if (authResult.error || !user) return json({ error: "unauthorized" }, 401);
+    let userId: string;
+    if (isInternalCall) {
+      userId = bodyUserId!;
+    } else {
+      const authResult = await db.auth.getUser(jwt);
+      const user = authResult.data?.user;
+      if (authResult.error || !user) return json({ error: "unauthorized" }, 401);
+      userId = user.id;
+    }
 
     // Busca token Google do usuário (filtrado por empresa para isolamento multi-tenant)
     let tokenQuery = db
       .from("google_oauth_tokens")
       .select("access_token, refresh_token, token_expiry")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (company_id) tokenQuery = tokenQuery.eq("company_id", company_id);
     const { data: tokenRow, error: tokenErr } = await tokenQuery.maybeSingle();
 
@@ -82,7 +98,7 @@ serve(async (req) => {
           token_expiry: refreshData.expires_in
             ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
             : null,
-        }).eq("user_id", user.id);
+        }).eq("user_id", userId);
         if (company_id) updateQ = updateQ.eq("company_id", company_id);
         await updateQ;
       } else {
