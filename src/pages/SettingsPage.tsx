@@ -3531,6 +3531,9 @@ function ConexoesSection() {
     if (!ok) { setStep("creds"); return; }
     const st = await pollStatusDapi(apiKey, sessionId);
     if (st.connected) { await finalizeDapi(apiKey, sessionId, st.phone); return; }
+    // Pequena espera: a sessão acabou de ser criada, a D-API costuma levar um
+    // instante pra gerar o QR — buscar imediatamente às vezes retorna vazio.
+    await new Promise(r => setTimeout(r, 1500));
     await fetchQrDapi(apiKey, sessionId);
     startPollDapi(apiKey, sessionId);
   }
@@ -4528,7 +4531,17 @@ function ConexoesSection() {
                 ) : (
                   <div className="w-52 h-52 bg-[#FEF2F2] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
                     <p className="text-xs text-[#E24B4A] font-medium text-center">Falha ao carregar o QR Code</p>
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-card-border" onClick={() => fetchQr(form)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 border-card-border"
+                      onClick={() => {
+                        // Precisa respeitar o provedor ativo — antes chamava sempre
+                        // fetchQr (Z-API), mesmo em fluxos D-API/Cloud API.
+                        if (wizardProvider === "dapi") fetchQrDapi(dapiApiKey.trim(), dapiSessionRef.current);
+                        else fetchQr(form);
+                      }}
+                    >
                       Tentar novamente
                     </Button>
                   </div>
