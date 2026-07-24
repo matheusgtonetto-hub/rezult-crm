@@ -3551,7 +3551,6 @@ function ConexoesSection() {
   }
 
   async function handleDapiContinue() {
-    if (!connName.trim()) { toast.error("Informe o nome da conexão."); return; }
     if (!dapiApiKey.trim()) { toast.error("Informe a Chave API da D-API."); return; }
     const apiKey = dapiApiKey.trim();
     setDapiSessionsLoading(true);
@@ -4388,7 +4387,7 @@ function ConexoesSection() {
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-muted-foreground/60">(opcional)</span></label>
                   <Input
                     placeholder="Ex: Comercial"
                     value={connName}
