@@ -132,6 +132,21 @@ serve(async (req) => {
         return json({ error: "falha ao salvar conexão", detail: upsertErr.message }, 500);
       }
 
+      // 5. Assina webhook da conta Instagram
+      const subRes = await fetch(
+        `https://graph.instagram.com/v21.0/${igUserId}/subscribed_apps`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            subscribed_fields: "messages",
+            access_token: longToken,
+          }),
+        }
+      );
+      const subData = await subRes.json();
+      console.log("Instagram webhook subscription:", JSON.stringify(subData));
+
       console.log("Instagram Platform conectado:", instagramUsername);
 
       return json({
