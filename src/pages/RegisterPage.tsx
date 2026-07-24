@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -8,18 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
-
-const TURNSTILE_SITEKEY = "0x4AAAAAAD5X6YCBBdCfHFJG";
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: Record<string, unknown>) => string;
-      reset: (widgetId?: string) => void;
-      remove: (widgetId?: string) => void;
-    };
-  }
-}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -34,48 +22,6 @@ export default function RegisterPage() {
   const [agreedTos, setAgreedTos] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const turnstileRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const renderWidget = () => {
-      if (!turnstileRef.current || !window.turnstile) return;
-      if (widgetIdRef.current) return;
-      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: TURNSTILE_SITEKEY,
-        theme: "light",
-        language: "pt-BR",
-        callback: (token: string) => setTurnstileToken(token),
-        "expired-callback": () => setTurnstileToken(""),
-        "error-callback": () => setTurnstileToken(""),
-      });
-    };
-
-    if (window.turnstile) {
-      renderWidget();
-    } else if (!document.getElementById("turnstile-script")) {
-      const script = document.createElement("script");
-      script.id = "turnstile-script";
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__turnstile_onload";
-      script.async = true;
-      script.defer = true;
-      (window as Record<string, unknown>).__turnstile_onload = renderWidget;
-      document.head.appendChild(script);
-    } else {
-      const interval = setInterval(() => {
-        if (window.turnstile) { clearInterval(interval); renderWidget(); }
-      }, 100);
-      return () => clearInterval(interval);
-    }
-
-    return () => {
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-    };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,20 +31,8 @@ export default function RegisterPage() {
     if (password !== confirmPwd) { toast.error("As senhas não coincidem."); return; }
     if (!agreedTos) { toast.error("Você precisa aceitar os Termos de Serviço."); return; }
     if (!agreedPrivacy) { toast.error("Você precisa aceitar a Política de Privacidade."); return; }
-    if (!turnstileToken) { toast.error("Complete a verificação de segurança."); return; }
 
     setLoading(true);
-
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-turnstile", {
-      body: { token: turnstileToken },
-    });
-    if (verifyError || !verifyData?.success) {
-      toast.error("Verificação de segurança inválida. Tente novamente.");
-      setLoading(false);
-      setTurnstileToken("");
-      if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
-      return;
-    }
 
     const { error, needsConfirmation, resentConfirmation } = await signUp(email, password, fullName.trim());
     setLoading(false);
@@ -231,10 +165,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="flex justify-center">
-              <div ref={turnstileRef} />
-            </div>
-
             <div className="space-y-[5px]">
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input
@@ -282,7 +212,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               className="w-full h-auto py-[10px] rounded-[5px] font-semibold"
-              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy || !turnstileToken}
+              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd || !agreedTos || !agreedPrivacy}
             >
               {loading ? "Criando conta..." : "Começar teste grátis"}
             </Button>
