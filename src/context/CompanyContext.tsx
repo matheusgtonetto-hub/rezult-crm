@@ -149,6 +149,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       .from("whatsapp_connections")
       .insert({
         owner_id:        user.id,
+        company_id:      selectedCompany?.id ?? null,
         name:            data.name,
         provider:        data.provider ?? "zapi",
         instance_id:     data.instanceId || null,

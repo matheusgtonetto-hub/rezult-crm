@@ -31,7 +31,7 @@ import {
   Sparkles, LayoutDashboard, Megaphone,
   type LucideIcon,
 } from "lucide-react";
-import { useCompany } from "@/context/CompanyContext";
+import { useCompany, type WhatsAppConnection } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS, PLAN_LIMITS } from "@/data/plans";
 import type { CustomFieldType } from "@/data/mockData";
@@ -3405,18 +3405,26 @@ function ConexoesSection() {
   // Finaliza a conexão (instância já conectada): salva e configura o webhook
   async function finalizeConnection(creds: ZApiForm, phone: string) {
     stopPoll();
+    let newConn: WhatsAppConnection;
+    try {
+      newConn = await addWhatsAppConnection({
+        name:        connName.trim() || phone || "WhatsApp",
+        provider:    "zapi",
+        instanceId:  creds.instanceId,
+        token:       creds.token,
+        clientToken: creds.clientToken || null,
+        phone:       phone || null,
+        connected:   true,
+        active:      true,
+      });
+    } catch (err: unknown) {
+      if (String(err).includes("plan-limit")) { setStep("creds"); return; }
+      toast.error("Erro ao salvar a conexão: " + String(err));
+      setStep("creds");
+      return;
+    }
     setStep("done");
     toast.success("WhatsApp conectado com sucesso!");
-    const newConn = await addWhatsAppConnection({
-      name:        connName.trim() || phone || "WhatsApp",
-      provider:    "zapi",
-      instanceId:  creds.instanceId,
-      token:       creds.token,
-      clientToken: creds.clientToken || null,
-      phone:       phone || null,
-      connected:   true,
-      active:      true,
-    });
     setEditingConnId(newConn.id);
     setManageProvider("zapi");
     setConnName(newConn.name);
@@ -3491,18 +3499,26 @@ function ConexoesSection() {
 
   async function finalizeDapi(apiKey: string, sessionId: string, phone: string) {
     stopPoll();
+    let newConn: WhatsAppConnection;
+    try {
+      newConn = await addWhatsAppConnection({
+        name:        connName.trim() || phone || "WhatsApp",
+        provider:    "dapi",
+        instanceId:  sessionId,   // sessionId da D-API
+        token:       apiKey,      // API Key da conta
+        clientToken: null,
+        phone:       phone || null,
+        connected:   true,
+        active:      true,
+      });
+    } catch (err: unknown) {
+      if (String(err).includes("plan-limit")) { setStep("creds"); return; }
+      toast.error("Erro ao salvar a conexão: " + String(err));
+      setStep("creds");
+      return;
+    }
     setStep("done");
     toast.success("WhatsApp conectado com sucesso!");
-    const newConn = await addWhatsAppConnection({
-      name:        connName.trim() || phone || "WhatsApp",
-      provider:    "dapi",
-      instanceId:  sessionId,   // sessionId da D-API
-      token:       apiKey,      // API Key da conta
-      clientToken: null,
-      phone:       phone || null,
-      connected:   true,
-      active:      true,
-    });
     setEditingConnId(newConn.id);
     setManageProvider("dapi");
     setConnName(newConn.name);
