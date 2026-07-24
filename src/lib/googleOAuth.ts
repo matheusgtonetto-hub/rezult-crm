@@ -8,7 +8,6 @@ const SCOPES = [
   "email",
   "profile",
   "https://www.googleapis.com/auth/calendar",
-  "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
 export function initGoogleOAuth(companyId: string) {
