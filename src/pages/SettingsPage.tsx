@@ -3418,6 +3418,7 @@ function ConexoesSection() {
       active:      true,
     });
     setEditingConnId(newConn.id);
+    setManageProvider("zapi");
     setConnName(newConn.name);
     setEditForm(creds);
     await configureZapiWebhook(creds);
@@ -3503,6 +3504,7 @@ function ConexoesSection() {
       active:      true,
     });
     setEditingConnId(newConn.id);
+    setManageProvider("dapi");
     setConnName(newConn.name);
     setEditForm({ instanceId: sessionId, token: apiKey, clientToken: "" });
     // O webhook já é configurado na criação da sessão (webhookUrl), mas reforça
