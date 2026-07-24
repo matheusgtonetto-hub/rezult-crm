@@ -5,7 +5,7 @@ const TURNSTILE_SECRET = Deno.env.get("TURNSTILE_SECRET_KEY")!;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
 };
 
 const json = (body: unknown, status = 200) =>
@@ -38,9 +38,10 @@ serve(async (req) => {
   });
 
   const data = await res.json();
+  console.log("Turnstile siteverify:", JSON.stringify(data));
 
   if (!data.success) {
-    return json({ success: false, error: "verificação falhou" }, 400);
+    return json({ success: false, error: "verificação falhou", codes: data["error-codes"] }, 400);
   }
 
   return json({ success: true });
