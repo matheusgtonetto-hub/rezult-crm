@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gatilhos · Automações · Central de Ajuda · Rezult CRM</title>
+  <meta name="description" content="Os gatilhos definem quando uma automação dispara: lead criado, negócio movido, ganho, perdido, tags, atendente e muito mais." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="logo brand" href="/">
+        <span class="logo-mark"><span>RZ</span></span>
+        <span class="logo-word">Re<b>zult</b> <small>Central de Ajuda</small></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/automacoes">Automações</a>
+        <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          Ir para o app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Você está em">
+        <a href="/">Central de Ajuda</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <a href="/automacoes">Automações</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="current">Gatilhos</span>
+      </nav>
+    </div>
+
+    <article class="article">
+      <div class="article-hero">
+        <span class="kicker">Tutorial 2 de 5 · Automações</span>
+        <h1>Gatilhos: quando a automação dispara</h1>
+        <p class="lead">O gatilho é o ponto de partida de toda automação. Ele responde a uma única pergunta: <em>“o que precisa acontecer para a automação começar a rodar?”</em> Aqui você conhece cada tipo e aprende a filtrá-los para disparar só na hora certa.</p>
+        <div class="article-meta">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 8 min de leitura</span>
+          <span>Nível: iniciante</span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <nav class="toc" aria-label="Neste tutorial">
+        <h4>Neste tutorial</h4>
+        <ol>
+          <li><a href="#conceito">O que é um gatilho</a></li>
+          <li><a href="#escolher">Como escolher o gatilho</a></li>
+          <li><a href="#filtros">Filtros: disparar só na hora certa</a></li>
+          <li><a href="#catalogo">Catálogo de gatilhos por categoria</a></li>
+          <li><a href="#regras">Regras importantes</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="conceito">
+          <h2><span class="num">1.</span> O que é um gatilho</h2>
+          <p>Pense no gatilho como o <strong>sensor</strong> da automação. Ele fica “de olho” em um evento específico do seu CRM. No instante em que esse evento acontece, o sensor dispara e todos os blocos seguintes começam a executar, em ordem.</p>
+          <p>Cada automação tem <strong>um</strong> gatilho — é sempre o primeiro bloco, à esquerda. Sem gatilho, a automação nunca roda.</p>
+
+          <figure class="figure">
+            <div class="mock-canvas">
+              <div class="mock-node" style="--accent:#128A68;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+                  <div><div class="mn-title">Gatilho · Negócio movido</div><div class="mn-sub">Negócios</div></div>
+                </div>
+                <div class="mn-body">
+                  <div class="mock-field"><span class="lbl">Pipeline</span> Vendas</div>
+                  <div class="mock-field"><span class="lbl">Etapa de destino</span> Proposta enviada</div>
+                </div>
+                <div class="mn-arrow"></div>
+              </div>
+              <span class="mock-conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+              <div class="mock-node" style="--accent:#F97316;opacity:.6;">
+                <div class="mn-top"></div>
+                <div class="mn-head">
+                  <div class="mn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+                  <div><div class="mn-title">Próximos blocos…</div><div class="mn-sub">Ações, espera, IA…</div></div>
+                </div>
+              </div>
+            </div>
+            <figcaption>Um gatilho “Negócio movido” configurado para a etapa <b>Proposta enviada</b> da pipeline <b>Vendas</b>.</figcaption>
+          </figure>
+        </section>
+
+        <section id="escolher">
+          <h2><span class="num">2.</span> Como escolher o gatilho</h2>
+          <ol class="steps">
+            <li><strong>Clique no bloco de início</strong><p>Ao criar a automação, o primeiro bloco já é o de gatilho. Clique nele para abrir a lista de gatilhos.</p></li>
+            <li><strong>Escolha a categoria</strong><p>Os gatilhos são organizados em categorias (Negócios, Leads, Mensagens...). Selecione a que combina com o evento que você quer monitorar.</p></li>
+            <li><strong>Selecione o evento</strong><p>Dentro da categoria, clique no gatilho desejado — por exemplo, <em>Lead criado</em> ou <em>Negócio ganho</em>.</p></li>
+            <li><strong>Configure os filtros</strong><p>Defina os detalhes (qual pipeline, qual etapa, qual tag). Veja a próxima seção.</p></li>
+          </ol>
+        </section>
+
+        <section id="filtros">
+          <h2><span class="num">3.</span> Filtros: disparar só na hora certa</h2>
+          <p>Sem filtro, um gatilho como “Negócio movido” dispararia para <strong>qualquer</strong> movimentação, em qualquer etapa. Quase sempre você quer algo mais específico. Por isso muitos gatilhos têm campos de configuração:</p>
+          <ul>
+            <li><strong>Negócio movido</strong> → escolha a <strong>pipeline</strong> e a <strong>etapa de destino</strong>. Só dispara quando o negócio cai naquela etapa.</li>
+            <li><strong>Tag adicionada / removida</strong> → escolha <strong>qual tag</strong>. Só dispara para aquela etiqueta específica.</li>
+            <li><strong>Atendente atribuído</strong> → opcionalmente, <strong>qual atendente</strong>.</li>
+          </ul>
+          <div class="callout tip">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8L12 14.6 7 18.2l1.9-5.8L4 8.8h6.1z"/></svg></span>
+            <p><strong>Deixe sem filtro de propósito?</strong> Se você não preencher o filtro, o gatilho dispara para <em>todos</em> os casos. Isso é útil às vezes (ex.: “qualquer lead criado”), mas confira sempre, para a automação não rodar onde não deveria.</p>
+          </div>
+        </section>
+
+        <section id="catalogo">
+          <h2><span class="num">4.</span> Catálogo de gatilhos por categoria</h2>
+          <p>Estes são os gatilhos disponíveis no construtor. Os marcados como <strong>✅ Ativo</strong> já disparam de verdade hoje; os demais aparecem na tela e serão habilitados em breve.</p>
+
+          <h3>💼 Negócios</h3>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Gatilho</th><th>Dispara quando…</th><th></th></tr>
+            <tr><td>Negócio criado</td><td>um negócio é criado em uma etapa</td><td>✅</td></tr>
+            <tr><td>Negócio movido</td><td>um negócio muda para a etapa escolhida</td><td>✅</td></tr>
+            <tr><td>Negócio ganho</td><td>um negócio é marcado como ganho</td><td>✅</td></tr>
+            <tr><td>Negócio perdido</td><td>um negócio é marcado como perdido</td><td>✅</td></tr>
+            <tr><td>Situação restaurada</td><td>um negócio ganho/perdido volta a pendente</td><td>✅</td></tr>
+            <tr><td>Atendente atribuído</td><td>um atendente é colocado no negócio</td><td>✅</td></tr>
+            <tr><td>Atendente retirado</td><td>o atendente é removido do negócio</td><td>✅</td></tr>
+          </table></div>
+
+          <h3>👤 Leads</h3>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Gatilho</th><th>Dispara quando…</th><th></th></tr>
+            <tr><td>Lead criado</td><td>um novo lead/contato é cadastrado</td><td>✅</td></tr>
+            <tr><td>Tag adicionada</td><td>uma tag é colocada no lead</td><td>✅</td></tr>
+            <tr><td>Tag removida</td><td>uma tag é tirada do lead</td><td>✅</td></tr>
+            <tr><td>Execução manual</td><td>você dispara a automação à mão, por seleção/filtro de leads</td><td>em breve</td></tr>
+            <tr><td>Atingir nº de negócios ganhos</td><td>o lead chega a uma quantidade definida de ganhos</td><td>em breve</td></tr>
+            <tr><td>Ultrapassar valor de ganhos</td><td>o lead passa de um valor total de ganhos</td><td>em breve</td></tr>
+            <tr><td>Sem compras há X dias</td><td>o lead fica um tempo sem comprar</td><td>em breve</td></tr>
+          </table></div>
+
+          <h3>💬 Mensagens (Multiatendimento)</h3>
+          <div class="tbl-wrap"><table class="tbl">
+            <tr><th>Gatilho</th><th>Dispara quando…</th></tr>
+            <tr><td>Mensagem recebida</td><td>o cliente envia uma mensagem</td></tr>
+            <tr><td>Mensagem enviada</td><td>sua equipe envia uma mensagem</td></tr>
+            <tr><td>Atendimento iniciado / finalizado</td><td>um atendimento começa ou termina</td></tr>
+            <tr><td>Departamento alterado</td><td>a conversa muda de departamento</td></tr>
+          </table></div>
+
+          <h3>📷 Instagram · 🌐 Facebook · 🧩 Campos · 🔗 HTTP · ⚙️ Sistema · 📅 Atividades</h3>
+          <p>Há ainda gatilhos para <strong>comentários no Instagram e Facebook</strong>, <strong>campo alterado</strong> (quando um campo do lead/negócio muda), <strong>Requisição HTTP (Webhook)</strong> para integrar com sistemas externos, <strong>Execução agendada</strong> (rodar de tempos em tempos), <strong>Iniciado por outra automação</strong> (encadear fluxos) e <strong>Atividade executada</strong>. Eles seguem a mesma lógica: escolher o evento e configurar os filtros.</p>
+        </section>
+
+        <section id="regras">
+          <h2><span class="num">5.</span> Regras importantes</h2>
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>O gatilho só “liga” se a automação estiver Ativa</strong> Mesmo configurado, nada acontece enquanto o interruptor da automação estiver desligado.</p>
+          </div>
+          <div class="callout note">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <p><strong>Dados do gatilho viram variáveis</strong> Quando o gatilho dispara, ele “carrega” os dados do evento (o lead, o negócio, a conversa). Esses dados ficam disponíveis nos próximos blocos como variáveis <code>{{ }}</code> — por exemplo, o nome do lead que acabou de ser criado.</p>
+          </div>
+          <div class="callout warn">
+            <span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+            <p><strong>Cuidado com gatilhos que a própria automação provoca</strong> Se uma automação com gatilho “Tag adicionada” também <em>adiciona</em> uma tag, ela pode chamar a si mesma. Planeje o fluxo para evitar loops.</p>
+          </div>
+          <p>Com o gatilho definido, é hora de dizer <strong>o que fazer</strong>. Vamos às Ações.</p>
+        </section>
+
+        <nav class="pager">
+          <a class="prev" href="/automacoes/introducao"><span class="dir">← Anterior</span><span class="ttl">Introdução</span></a>
+          <a class="next" href="/automacoes/acoes"><span class="dir">Próximo →</span><span class="ttl">Ações</span></a>
+        </nav>
+      </div>
+    </article>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta">
+          <h2>Quer testar um gatilho agora?</h2>
+          <p>Abra o app, crie uma automação e selecione “Lead criado” para ver na prática.</p>
+          <a class="btn" href="https://app.rezultcrm.com" target="_blank" rel="noopener">Ir para o app</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot">
+      <small>© <span id="year"></span> Rezult CRM. Todos os direitos reservados.</small>
+      <div class="foot-links">
+        <a href="/automacoes">Automações</a>
+        <a href="https://app.rezultcrm.com" target="_blank" rel="noopener">Acessar o app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
