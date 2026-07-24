@@ -123,6 +123,17 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [permissionsReady, setPermissionsReady] = useState(false);
 
+  // Precisa vir antes de addWhatsAppConnection, que depende dela no closure.
+  const selectedCompany = useMemo(() => {
+    if (availableCompanies.length === 0) return null;
+    if (selectedCompanyId) {
+      const found = availableCompanies.find(c => c.id === selectedCompanyId);
+      if (found) return found;
+    }
+    // Default: prefer paid plan, then first
+    return availableCompanies.find(c => c.plan !== "free") ?? availableCompanies[0];
+  }, [availableCompanies, selectedCompanyId]);
+
   const loadConnections = useCallback(async () => {
     if (!user) { setWhatsappConnections([]); return; }
     const { data, error } = await supabase
@@ -168,7 +179,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     const conn = mapConn(row as Record<string, unknown>);
     setWhatsappConnections(prev => [...prev, conn]);
     return conn;
-  }, [user]);
+  }, [user, selectedCompany, whatsappConnections]);
 
   const updateWhatsAppConnection = useCallback(async (id: string, data: Partial<Omit<WhatsAppConnection, "id" | "createdAt">>) => {
     const payload: Record<string, unknown> = {};
@@ -224,16 +235,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
-
-  const selectedCompany = useMemo(() => {
-    if (availableCompanies.length === 0) return null;
-    if (selectedCompanyId) {
-      const found = availableCompanies.find(c => c.id === selectedCompanyId);
-      if (found) return found;
-    }
-    // Default: prefer paid plan, then first
-    return availableCompanies.find(c => c.plan !== "free") ?? availableCompanies[0];
-  }, [availableCompanies, selectedCompanyId]);
 
   const setSelectedCompany = useCallback((c: Company) => {
     setSelectedCompanyId(c.id);
