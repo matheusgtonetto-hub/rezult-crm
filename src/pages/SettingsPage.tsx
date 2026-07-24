@@ -3099,7 +3099,9 @@ function DepartamentosSection() {
 
 /* ---------------- CONEXÕES ---------------- */
 type ZApiForm = { instanceId: string; token: string; clientToken: string };
-type ZApiStep = "select" | "provider" | "tutorial" | "creds" | "qr" | "done";
+type ZApiStep = "select" | "provider" | "tutorial" | "creds" | "dapi-sessions" | "qr" | "done";
+
+type DapiSessionSummary = { id: string; status: string; phone: string | null; createdAt: string | null };
 
 
 function MessengerIcon({ size = 20, color = "#FFF" }: { size?: number; color?: string }) {
@@ -3279,6 +3281,8 @@ function ConexoesSection() {
   // Provedor do wizard em andamento (D-API usa só a API Key; o sessionId é gerado pelo CRM)
   const [wizardProvider, setWizardProvider] = useState<"zapi" | "dapi" | "cloud_api">("zapi");
   const [dapiApiKey, setDapiApiKey]         = useState("");
+  const [dapiSessions, setDapiSessions]         = useState<DapiSessionSummary[]>([]);
+  const [dapiSessionsLoading, setDapiSessionsLoading] = useState(false);
   const [cloudPhoneId, setCloudPhoneId]     = useState("");
   const [cloudToken, setCloudToken]         = useState("");
   const [cloudWabaId, setCloudWabaId]       = useState("");
@@ -3529,9 +3533,52 @@ function ConexoesSection() {
     }, 5_000);
   }
 
-  async function handleGenerateDapi() {
+  // Lista as sessões já existentes na conta D-API do cliente (recomendação da
+  // própria D-API: evita criar uma sessão nova quando ele já tem uma pronta).
+  async function listDapiSessions(apiKey: string): Promise<DapiSessionSummary[]> {
+    const res = await fetch(`${DAPI_BASE}/sessions`, { headers: dapiHeaders(apiKey) });
+    const d = await res.json().catch(() => ({} as Record<string, unknown>));
+    const rows = (d?.sessions ?? []) as Record<string, unknown>[];
+    return rows.map(r => {
+      const authData = (r?.authData ?? {}) as Record<string, unknown>;
+      return {
+        id:        String(r?.id ?? ""),
+        status:    String(r?.status ?? ""),
+        phone:     authData?.phone ? String(authData.phone) : null,
+        createdAt: r?.createdAt ? String(r.createdAt) : null,
+      };
+    }).filter(s => s.id);
+  }
+
+  async function handleDapiContinue() {
     if (!connName.trim()) { toast.error("Informe o nome da conexão."); return; }
     if (!dapiApiKey.trim()) { toast.error("Informe a Chave API da D-API."); return; }
+    const apiKey = dapiApiKey.trim();
+    setDapiSessionsLoading(true);
+    try {
+      const sessions = await listDapiSessions(apiKey);
+      setDapiSessions(sessions);
+      setStep("dapi-sessions");
+    } catch {
+      toast.error("Erro de rede/CORS ao falar com a D-API. Confirme a Chave API.");
+    } finally {
+      setDapiSessionsLoading(false);
+    }
+  }
+
+  async function handleSelectDapiSession(session: DapiSessionSummary) {
+    const apiKey = dapiApiKey.trim();
+    dapiSessionRef.current = session.id;
+    if (session.status === "connected" && session.phone) {
+      await finalizeDapi(apiKey, session.id, session.phone);
+      return;
+    }
+    setStep("qr");
+    await fetchQrDapi(apiKey, session.id);
+    startPollDapi(apiKey, session.id);
+  }
+
+  async function handleGenerateDapi() {
     const apiKey = dapiApiKey.trim();
     const sessionId = dapiSessionRef.current
       || `rezult_${(company?.id ?? "co").replace(/-/g, "").slice(0, 10)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -3596,7 +3643,7 @@ function ConexoesSection() {
 
   // ── dialog actions ─────────────────────────────────────────────────
   async function handleGenerateQr() {
-    if (wizardProvider === "dapi") { await handleGenerateDapi(); return; }
+    if (wizardProvider === "dapi") { await handleDapiContinue(); return; }
     if (!form.instanceId.trim() || !form.token.trim() || !form.clientToken.trim()) {
       toast.error("Preencha o ID da instância, o Token e o Client-Token.");
       return;
@@ -4336,7 +4383,7 @@ function ConexoesSection() {
               <div style={{ background: "hsl(var(--muted))", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", marginBottom: 4 }}>Como conectar a D-API</p>
                 <p style={{ fontSize: 11, fontWeight: 400, color: "hsl(var(--muted-foreground))", lineHeight: 1.35 }}>
-                  Gere sua Chave API no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. O CRM cria a sessão e gera o QR Code automaticamente.
+                  Gere sua Chave API no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. Vamos mostrar as sessões que já existem na sua conta pra você escolher, ou criar uma nova.
                 </p>
               </div>
               <div className="space-y-3">
@@ -4368,8 +4415,39 @@ function ConexoesSection() {
               </p>
               <DialogFooter className="mt-3">
                 <Button variant="outline" className="border-card-border" onClick={() => setStep("select")}>Voltar</Button>
-                <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateQr} disabled={qrLoading}>
-                  {qrLoading ? "Gerando..." : "Gerar QR Code"}
+                <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateQr} disabled={dapiSessionsLoading}>
+                  {dapiSessionsLoading ? "Buscando sessões..." : "Continuar"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 2b — D-API: escolher sessão existente ou criar nova */}
+          {step === "dapi-sessions" && (
+            <>
+              <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                {dapiSessions.length === 0 && (
+                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", padding: "8px 2px" }}>
+                    Nenhuma sessão encontrada nessa conta D-API ainda.
+                  </p>
+                )}
+                {dapiSessions.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSelectDapiSession(s)}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", padding: "10px 12px", borderRadius: 8, border: "1px solid hsl(var(--border))", background: "transparent", cursor: "pointer" }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", fontFamily: "monospace" }}>{s.id}</span>
+                    <span style={{ fontSize: 11, color: s.status === "connected" ? "#128A68" : "hsl(var(--muted-foreground))" }}>
+                      {s.status === "connected" ? `Conectada${s.phone ? ` · ${s.phone}` : ""}` : `Status: ${s.status || "desconhecido"}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <DialogFooter className="mt-3">
+                <Button variant="outline" className="border-card-border" onClick={() => setStep("creds")}>Voltar</Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={handleGenerateDapi} disabled={qrLoading}>
+                  {qrLoading ? "Criando..." : "+ Criar nova sessão"}
                 </Button>
               </DialogFooter>
             </>
