@@ -88,18 +88,6 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    // Validação server-side do Turnstile
-    const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-turnstile", {
-      body: { token: turnstileToken },
-    });
-    if (verifyError || !verifyData?.success) {
-      toast.error("Verificação de segurança inválida. Tente novamente.");
-      setLoading(false);
-      setTurnstileToken("");
-      if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
-      return;
-    }
-
     const { error, needsConfirmation, resentConfirmation } = await signUp(email, password, fullName.trim());
     setLoading(false);
 
