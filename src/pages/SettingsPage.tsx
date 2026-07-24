@@ -3440,7 +3440,7 @@ function ConexoesSection() {
       toast.error(`D-API (${res.status}): ${t.slice(0, 180) || "falha ao criar a sessão"}`);
       return false;
     } catch {
-      toast.error("Erro de rede/CORS ao falar com a D-API. Confirme a API Key.");
+      toast.error("Erro de rede/CORS ao falar com a D-API. Confirme a Chave API.");
       return false;
     }
   }
@@ -3459,7 +3459,7 @@ function ConexoesSection() {
       }
       // Já conectada: sem QR — o polling finaliza a conexão
       if (node?.connected === true || node?.status === "connected") return;
-      toast.error("Não foi possível gerar o QR Code da D-API. Verifique a API Key.");
+      toast.error("Não foi possível gerar o QR Code da D-API. Verifique a Chave API.");
     } catch {
       toast.error("Erro de rede/CORS ao gerar o QR Code da D-API.");
     } finally {
@@ -3531,7 +3531,7 @@ function ConexoesSection() {
 
   async function handleGenerateDapi() {
     if (!connName.trim()) { toast.error("Informe o nome da conexão."); return; }
-    if (!dapiApiKey.trim()) { toast.error("Informe a API Key da D-API."); return; }
+    if (!dapiApiKey.trim()) { toast.error("Informe a Chave API da D-API."); return; }
     const apiKey = dapiApiKey.trim();
     const sessionId = dapiSessionRef.current
       || `rezult_${(company?.id ?? "co").replace(/-/g, "").slice(0, 10)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -3946,7 +3946,7 @@ function ConexoesSection() {
                       <Input value={editForm.instanceId} readOnly className="border-card-border font-mono text-sm bg-muted text-muted-foreground" />
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>API Key</label>
+                      <label style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", fontWeight: 500, display: "block", marginBottom: 6 }}>Chave API</label>
                       <div style={{ position: "relative" }}>
                         <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
                         <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--muted-foreground))" }}>
@@ -4336,7 +4336,7 @@ function ConexoesSection() {
               <div style={{ background: "hsl(var(--muted))", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", marginBottom: 4 }}>Como conectar a D-API</p>
                 <p style={{ fontSize: 11, fontWeight: 400, color: "hsl(var(--muted-foreground))", lineHeight: 1.35 }}>
-                  Gere sua API Key no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. O CRM cria a sessão e gera o QR Code automaticamente.
+                  Gere sua Chave API no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. O CRM cria a sessão e gera o QR Code automaticamente.
                 </p>
               </div>
               <div className="space-y-3">
@@ -4350,9 +4350,9 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">API Key <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Chave API <span className="text-[#E24B4A]">*</span></label>
                   <Input
-                    placeholder="API Key da sua conta D-API"
+                    placeholder="Chave API da sua conta D-API"
                     value={dapiApiKey}
                     onChange={e => setDapiApiKey(e.target.value)}
                     type="password"
