@@ -1328,6 +1328,7 @@ export default function MultiatendimentoPage() {
       const { error: insErr } = await supabase.from("whatsapp_messages").insert({
         id:          msgId,
         owner_id:    tenantId,
+        company_id:  company?.id ?? null,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
@@ -1455,6 +1456,7 @@ export default function MultiatendimentoPage() {
       const { error: insErr } = await supabase.from("whatsapp_messages").insert({
         id:          msgId,
         owner_id:    tenantId,
+        company_id:  company?.id ?? null,
         instance_id: inst.instanceId,
         phone:       cleanPhone,
         from_me:     true,
@@ -1799,6 +1801,27 @@ export default function MultiatendimentoPage() {
         } catch {
           toast.error("Falha ao enviar mensagem via WhatsApp Cloud API");
         }
+      } else if (inst.provider === "dapi") {
+        // ── D-API ──────────────────────────────────────────────────────
+        try {
+          const res = await fetch(
+            `https://api.d-api.cloud/api/v1/messages/send/text`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": inst.token,
+              },
+              body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
+            }
+          );
+          if (!res.ok) {
+            const err = await res.text().catch(() => "");
+            toast.error(`Erro ao enviar mensagem: ${err.slice(0, 120) || res.status}`);
+          }
+        } catch {
+          toast.error("Falha ao enviar mensagem via D-API");
+        }
       } else {
         // ── Z-API ──────────────────────────────────────────────────────
         try {
@@ -1824,9 +1847,10 @@ export default function MultiatendimentoPage() {
 
       // Persiste no banco para histórico futuro
       if (user) {
-        await supabase.from("whatsapp_messages").insert({
+        const { error: sendPersistError } = await supabase.from("whatsapp_messages").insert({
           id:          msgId,
           owner_id:    tenantId,
+          company_id:  company?.id ?? null,
           instance_id: inst.instanceId,
           phone:       cleanPhone,
           from_me:     true,
@@ -1835,6 +1859,10 @@ export default function MultiatendimentoPage() {
           momment:     Date.now(),
           sender_name: user.email?.split("@")[0] ?? "Você",
         });
+        if (sendPersistError) {
+          console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
+          toast.error("Mensagem enviada, mas houve erro ao salvar no histórico.");
+        }
       }
     }
   }
@@ -1884,6 +1912,7 @@ export default function MultiatendimentoPage() {
       supabase.from("whatsapp_messages").insert({
         id:          msgId,
         owner_id:    tenantId,
+        company_id:  company?.id ?? null,
         instance_id: conv.instanceId ?? "system",
         phone:       phoneForSystem,
         from_me:     false,
