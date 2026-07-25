@@ -781,12 +781,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const addLead = useCallback(async (lead: Omit<Lead, "id">): Promise<boolean> => {
     if (!user || !company) return false;
 
-    if (!lead.pipelineId) {
-      toast.error("Crie um pipeline antes de adicionar um lead.");
-      return false;
-    }
-
-    const pipeline = pipelines.find(p => p.id === lead.pipelineId);
+    // pipelineId vazio = Lead sem negócio ainda (pessoa cadastrada, sem pipeline).
+    const pipeline = lead.pipelineId ? pipelines.find(p => p.id === lead.pipelineId) : undefined;
     const col = pipeline?.columns.find(c => c.id === lead.stage);
     const position = col ? col.leadIds.length : 0;
 
@@ -795,7 +791,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .insert({
         owner_id: company.owner_id,
         company_id: company.id,
-        pipeline_id: lead.pipelineId,
+        pipeline_id: lead.pipelineId || null,
         column_id: lead.stage || null,
         deal_number: lead.dealNumber,
         name: lead.name,
