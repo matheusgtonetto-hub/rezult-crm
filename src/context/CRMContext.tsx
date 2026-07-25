@@ -188,6 +188,7 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
     utmTerm:     (row.utm_term     as string) ?? undefined,
     utmContent:  (row.utm_content  as string) ?? undefined,
     contactId:   (row.contact_id   as string) ?? undefined,
+    personId:    (row.person_id    as string) ?? undefined,
     activities,
   };
 }
@@ -228,6 +229,17 @@ function dbToTask(row: Record<string, unknown>): Task {
     dueDate: (row.due_date as string) ?? "",
     status: (row.status as TaskStatus) ?? "Pendente",
   };
+}
+
+// Lead -> Multiatendimento: quando o responsável de um negócio muda, reflete
+// como atendente em todas as conversas do mesmo contato (mesma regra que o
+// Multiatendimento já usa ao transferir: todas as conversas do contato, sem
+// distinção por negócio). Consulta fresca em vez de depender de closure —
+// evita o bug de closure obsoleta já visto em addWhatsAppConnection.
+async function syncResponsibleToConversations(personId: string | undefined, responsible: string | undefined) {
+  if (!personId || !responsible) return;
+  const { error } = await supabase.from("whatsapp_conversations").update({ assigned_to: responsible }).eq("contact_id", personId);
+  if (error) console.error("syncResponsibleToConversations:", error.message);
 }
 
 // ─── Provider ───────────────────────────────────────────────────────────────
@@ -817,6 +829,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         position,
         status: "open",
         contact_id: lead.contactId ?? null,
+        person_id: lead.personId ?? null,
       })
       .select()
       .single();
@@ -910,10 +923,16 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if ("utmTerm"     in data) dbData.utm_term     = data.utmTerm     ?? null;
     if ("utmContent"  in data) dbData.utm_content  = data.utmContent  ?? null;
     if ("contactId"   in data) dbData.contact_id   = data.contactId   ?? null;
+    if ("personId"    in data) dbData.person_id    = data.personId    ?? null;
 
     if (Object.keys(dbData).length > 0) {
       const { error } = await supabase.from("leads").update(dbData).eq("id", id);
       if (error) console.error("updateLead error:", error.message, error.details);
+    }
+
+    if ("responsible" in data && data.responsible) {
+      const { data: row } = await supabase.from("leads").select("person_id").eq("id", id).maybeSingle();
+      await syncResponsibleToConversations((row as { person_id?: string } | null)?.person_id, data.responsible);
     }
   }, []);
 
@@ -964,7 +983,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const stageEnteredAt = new Date().toISOString();
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], stage: toCol, stageEnteredAt, responsible: newResponsible ?? prev[leadId]?.responsible, responsibles: newResponsibles } }));
     const update: Record<string, unknown> = { column_id: toCol, stage_entered_at: stageEnteredAt };
-    if (newResponsible) { update.responsible = newResponsible; update.responsibles = newResponsibles; }
+    if (newResponsible) {
+      update.responsible = newResponsible;
+      update.responsibles = newResponsibles;
+      syncResponsibleToConversations(leads[leadId]?.personId, newResponsible);
+    }
     supabase.from("leads").update(update).eq("id", leadId).then(({ error }) => {
       if (error) console.error("moveLead error:", error.message);
     });
@@ -995,7 +1018,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const stageEnteredAt2 = new Date().toISOString();
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], pipelineId: toPipelineId, stage: toColumnId, stageEnteredAt: stageEnteredAt2, dealStatus: "open", responsible: newResp2 ?? prev[leadId]?.responsible, responsibles: newResps2 } }));
     const update: Record<string, unknown> = { pipeline_id: toPipelineId, column_id: toColumnId, status: "open", stage_entered_at: stageEnteredAt2 };
-    if (newResp2) { update.responsible = newResp2; update.responsibles = newResps2; }
+    if (newResp2) {
+      update.responsible = newResp2;
+      update.responsibles = newResps2;
+      syncResponsibleToConversations(lead.personId, newResp2);
+    }
     supabase.from("leads").update(update).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
   }, [leads, currentUserName]);
