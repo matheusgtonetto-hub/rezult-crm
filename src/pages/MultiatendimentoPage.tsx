@@ -1922,11 +1922,11 @@ export default function MultiatendimentoPage() {
     toast("Reunião cancelada");
   }
 
-  // Garante que a conversa tenha um contato vinculado, criando-o se preciso.
-  // Chamado no momento em que um atendente é atribuído (regra de negócio: uma
-  // conversa nova não vira Lead sozinha — só quando alguém assume ela). Não
-  // cria negócio/pipeline, só o registro em "contacts". Reaproveita um lead já
-  // vinculado por telefone (personId) ou um contato já existente antes de criar um novo.
+  // Garante que a conversa tenha um contato vinculado, CRIANDO um novo Lead
+  // (sem negócio/pipeline) se preciso. Chamado explicitamente pelo botão
+  // "+ Lead" — nunca automaticamente (atribuir atendente não cria nada
+  // sozinho). Reaproveita um lead já vinculado por telefone (personId) ou um
+  // contato já existente antes de criar um novo.
   async function ensureContactForConversation(conv: Conversation): Promise<string | undefined> {
     if (conv.contactId) return conv.contactId;
     if (conv.channel !== "whatsapp" || !conv.phone || !tenantId || !company) return undefined;
@@ -1966,6 +1966,26 @@ export default function MultiatendimentoPage() {
     await supabase.from("whatsapp_conversations").update({ contact_id: contactId }).in("id", sameContact.map(c => c.id));
     return contactId;
   }
+
+  // Versão passiva: só LIGA a conversa a um Lead já existente (achado por
+  // telefone), nunca cria nada. Cobre o caso comum — número já cadastrado via
+  // formulário/importação — sem exigir nenhum clique, mantendo
+  // whatsapp_conversations.contact_id em dia para o sync de responsável.
+  async function linkContactIfAlreadyKnown(conv: Conversation) {
+    if (conv.contactId || conv.channel !== "whatsapp" || !conv.phone || !company) return;
+    const linkedLead = resolveLeadForConv(conv);
+    const contactId = linkedLead?.personId;
+    if (!contactId) return;
+
+    const sameContact = convList.filter(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", conv.phone ?? ""));
+    setConvList(prev => prev.map(c => sameContact.some(x => x.id === c.id) ? { ...c, contactId } : c));
+    await supabase.from("whatsapp_conversations").update({ contact_id: contactId }).in("id", sameContact.map(c => c.id));
+  }
+
+  useEffect(() => {
+    if (active) linkContactIfAlreadyKnown(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, convList]);
 
   async function handleTransfer(memberName: string) {
     if (!activeId || !user) return;
@@ -3104,7 +3124,7 @@ export default function MultiatendimentoPage() {
                 onChange={e => {
                   const idx = activeStages.indexOf(e.target.value);
                   if (idx >= 0) {
-                    if (pipelineCols.length > 0 && linkedLead) moveLead(activeId, linkedLead.stage, pipelineCols[idx].id, 0);
+                    if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[idx].id, 0);
                     updateCs(activeId, { stageIdx: idx });
                     toast.success(`Lead movido para ${e.target.value} ✓`);
                   }
