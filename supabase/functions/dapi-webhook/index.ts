@@ -83,7 +83,7 @@ serve(async (req) => {
   // `to`. Quando fromMe=false, `from` já é a contraparte. Sem essa distinção,
   // uma resposta enviada direto do celular cria uma conversa nova associada
   // ao próprio número da sessão em vez de continuar o chat existente.
-  const counterparty = (fromMe ? data.to : data.from ?? {}) as Record<string, unknown>;
+  const counterparty = (fromMe ? (data.to ?? {}) : (data.from ?? {})) as Record<string, unknown>;
   const cleanPhone = jidToPhone(counterparty.jid);
   if (!cleanPhone) {
     return new Response("unsupported sender", { status: 200 });
