@@ -77,19 +77,24 @@ serve(async (req) => {
     return new Response("ignored", { status: 200 });
   }
 
-  const from = (data.from ?? {}) as Record<string, unknown>;
-  const cleanPhone = jidToPhone(from.jid);
+  const fromMe = data.fromMe === true;
+  // Quando fromMe=true (ex: resposta enviada do próprio celular, fora do
+  // Rezult), `from` é o dono da sessão — a contraparte da conversa está em
+  // `to`. Quando fromMe=false, `from` já é a contraparte. Sem essa distinção,
+  // uma resposta enviada direto do celular cria uma conversa nova associada
+  // ao próprio número da sessão em vez de continuar o chat existente.
+  const counterparty = (fromMe ? data.to : data.from ?? {}) as Record<string, unknown>;
+  const cleanPhone = jidToPhone(counterparty.jid);
   if (!cleanPhone) {
     return new Response("unsupported sender", { status: 200 });
   }
 
   const messageId = data.id ? String(data.id) : null;
-  const fromMe = data.fromMe === true;
   const type = String(data.type ?? "text");
   const mediaUrl = data.media_url ? String(data.media_url) : null;
   const mediaData = (data.media_data ?? {}) as Record<string, unknown>;
   const momment = data.timestamp ? Number(data.timestamp) : null;
-  const senderName = from.name ? String(from.name) : null;
+  const senderName = counterparty.name ? String(counterparty.name) : null;
 
   let msgType = "text";
   let body: string | null = null;
