@@ -1561,6 +1561,7 @@ export default function MultiatendimentoPage() {
     const pipeline = (pipelines ?? []).find(p => p.id === negocioPipelineId);
     const firstCol = pipeline?.columns[0];
     if (!pipeline || !firstCol) { toast.error("Escolha um pipeline válido"); return; }
+    const linkedLead = resolveLeadForConv(active);
     setNegocioLoading(true);
     const ok = await addLead({
       dealNumber: nextDealNumber(),
@@ -1568,6 +1569,7 @@ export default function MultiatendimentoPage() {
       whatsapp: active.phone ?? "",
       value: parseFloat(negocioValue.replace(/[^\d,]/g, "").replace(",", ".")) || 0,
       responsible: "",
+      responsibles: [],
       pipelineId: negocioPipelineId,
       stage: firstCol.id,
       priority: "Média",
@@ -1576,6 +1578,7 @@ export default function MultiatendimentoPage() {
       notes: "",
       activities: [],
       tags: active.tags ?? [], // herda as tags já marcadas na conversa
+      personId: linkedLead?.personId, // liga ao mesmo contato (multi-negócio)
     });
     setNegocioLoading(false);
     if (ok) {
@@ -1583,6 +1586,44 @@ export default function MultiatendimentoPage() {
       setShowNegocioForm(false);
       setNegocioName("");
       setNegocioValue("");
+    }
+  }
+
+  // "+ Lead": cria só a pessoa (sem negócio/pipeline) — mostrado quando a
+  // conversa ainda não tem nenhum Lead vinculado. Reaproveita
+  // ensureContactForConversation (cria/liga o contato em "contacts") e insere
+  // o Lead correspondente em "leads" com pipeline_id nulo.
+  async function handleCreateLead() {
+    if (!active || !user) return;
+    setNegocioLoading(true);
+    const contactId = await ensureContactForConversation(active);
+    if (!contactId) {
+      toast.error("Não foi possível criar o lead.");
+      setNegocioLoading(false);
+      return;
+    }
+    const ok = await addLead({
+      dealNumber: nextDealNumber(),
+      name: negocioName || active.name,
+      whatsapp: active.phone ?? "",
+      value: 0,
+      responsible: "",
+      responsibles: [],
+      pipelineId: "",
+      stage: "",
+      priority: "Média",
+      origin: "Outro",
+      entryDate: new Date().toISOString().split("T")[0],
+      notes: "",
+      activities: [],
+      tags: active.tags ?? [],
+      personId: contactId,
+    });
+    setNegocioLoading(false);
+    if (ok) {
+      toast.success("Lead criado com sucesso!");
+      setShowNegocioForm(false);
+      setNegocioName("");
     }
   }
 
@@ -2977,7 +3018,7 @@ export default function MultiatendimentoPage() {
                   style={{ flex: 1, background: showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
-                ><Plus size={12} /> Negócio</button>
+                ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
                   style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
@@ -3029,8 +3070,8 @@ export default function MultiatendimentoPage() {
                 )}
               </div>
 
-              {/* Painel: + Negócio */}
-              {showNegocioForm && (
+              {/* Painel: + Negócio / + Lead */}
+              {showNegocioForm && (effectiveLead ? (
                 <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo negócio</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3071,7 +3112,36 @@ export default function MultiatendimentoPage() {
                     >{negocioLoading ? "Criando…" : "Criar negócio"}</button>
                   </div>
                 </div>
-              )}
+              ) : (
+                <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo lead</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
+                    <input
+                      value={negocioName}
+                      onChange={e => setNegocioName(e.target.value)}
+                      placeholder={convName(active)}
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Telefone</label>
+                    <input
+                      value={active.phone ?? ""}
+                      readOnly
+                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#666", background: "#F0F0F0" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
+                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                    <button
+                      onClick={handleCreateLead}
+                      disabled={negocioLoading}
+                      style={{ background: negocioLoading ? "#AAA" : "#128A68", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading ? "not-allowed" : "pointer" }}
+                    >{negocioLoading ? "Criando…" : "Criar lead"}</button>
+                  </div>
+                </div>
+              ))}
 
             </div>
 
