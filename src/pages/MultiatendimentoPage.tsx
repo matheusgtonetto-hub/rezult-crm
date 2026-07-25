@@ -86,6 +86,7 @@ type Conversation = {
   company?: string; email?: string; phone?: string; value?: number;
   instanceId?: string;  // instância (número WhatsApp) à qual a conversa pertence
   lastMsgAt?: string;   // timestamp ISO da última mensagem (para filtros/ordenação)
+  contactId?: string;   // contato (pessoa) vinculado — setado ao atribuir atendente
 };
 
 type Msg =
@@ -754,7 +755,7 @@ export default function MultiatendimentoPage() {
     setConvList([]);
     setConvStates({});
 
-    type DbConvRow = { id: string; owner_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean };
+    type DbConvRow = { id: string; owner_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
     const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -764,6 +765,7 @@ export default function MultiatendimentoPage() {
       pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
       instanceId: r.instance_id ?? undefined,
       lastMsgAt: r.last_msg_at ?? undefined,
+      contactId: r.contact_id ?? undefined,
     });
 
     type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string };
@@ -1882,11 +1884,58 @@ export default function MultiatendimentoPage() {
     toast("Reunião cancelada");
   }
 
-  function handleTransfer(memberName: string) {
+  // Garante que a conversa tenha um contato vinculado, criando-o se preciso.
+  // Chamado no momento em que um atendente é atribuído (regra de negócio: uma
+  // conversa nova não vira Lead sozinha — só quando alguém assume ela). Não
+  // cria negócio/pipeline, só o registro em "contacts". Reaproveita um lead já
+  // vinculado por telefone (personId) ou um contato já existente antes de criar um novo.
+  async function ensureContactForConversation(conv: Conversation): Promise<string | undefined> {
+    if (conv.contactId) return conv.contactId;
+    if (conv.channel !== "whatsapp" || !conv.phone || !tenantId || !company) return undefined;
+
+    const linkedLead = resolveLeadForConv(conv);
+    let contactId = linkedLead?.personId;
+
+    if (!contactId) {
+      const { data: found } = await supabase.from("contacts").select("id")
+        .eq("company_id", company.id)
+        .or(phoneVariants(conv.phone).map(v => `phone.eq.${v}`).join(","))
+        .maybeSingle();
+      contactId = (found as { id?: string } | null)?.id;
+    }
+    if (!contactId) {
+      const { data: created, error } = await supabase.from("contacts")
+        .insert({ company_id: company.id, owner_id: tenantId, name: convName(conv), phone: conv.phone })
+        .select("id").single();
+      if (error?.code === "23505") {
+        // corrida: outro insert venceu — reaproveita a linha existente em vez de duplicar
+        const { data: existing } = await supabase.from("contacts").select("id")
+          .eq("company_id", company.id)
+          .or(phoneVariants(conv.phone).map(v => `phone.eq.${v}`).join(","))
+          .maybeSingle();
+        contactId = (existing as { id?: string } | null)?.id;
+      } else if (error || !created) {
+        console.error("ensureContactForConversation:", error);
+        return undefined;
+      } else {
+        contactId = (created as { id: string }).id;
+      }
+    }
+    if (!contactId) return undefined;
+
+    const sameContact = convList.filter(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", conv.phone ?? ""));
+    setConvList(prev => prev.map(c => sameContact.some(x => x.id === c.id) ? { ...c, contactId } : c));
+    await supabase.from("whatsapp_conversations").update({ contact_id: contactId }).in("id", sameContact.map(c => c.id));
+    return contactId;
+  }
+
+  async function handleTransfer(memberName: string) {
     if (!activeId || !user) return;
     const fromName = user.email?.split("@")[0] ?? "Você";
     const sysText = `Atendimento transferido para ${memberName} por ${fromName}`;
     const timeStr = nowTime();
+
+    if (active) await ensureContactForConversation(active);
 
     // Conversas-alvo: TODAS as conversas do mesmo lead (uma por instância). Assim o
     // evento de transferência aparece no histórico de qualquer instância. Sem lead
@@ -2047,7 +2096,11 @@ export default function MultiatendimentoPage() {
 
   const bulkFinish = () => bulkApply({ finished: true, read: true }, { finished: true, read: true }, `${selectedConvs.length} conversa(s) finalizada(s).`);
 
-  const bulkAssignAgent = (agent: string) => {
+  const bulkAssignAgent = async (agent: string) => {
+    await Promise.all(selectedConvs.map(id => {
+      const c = convList.find(x => x.id === id);
+      return c ? ensureContactForConversation(c) : Promise.resolve(undefined);
+    }));
     bulkApply({ assignedTo: agent }, { assigned_to: agent }, `Atendente atribuído a ${selectedConvs.length} conversa(s).`);
     setBulkAction(null);
   };
