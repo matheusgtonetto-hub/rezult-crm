@@ -1973,7 +1973,8 @@ export default function MultiatendimentoPage() {
     const sysText = `Atendimento transferido para ${memberName} por ${fromName}`;
     const timeStr = nowTime();
 
-    if (active) await ensureContactForConversation(active);
+    // Atribuir atendente só atribui atendente — criar o Lead é uma ação
+    // explícita separada (botão "+ Lead"), não um efeito colateral daqui.
 
     // Conversas-alvo: TODAS as conversas do mesmo lead (uma por instância). Assim o
     // evento de transferência aparece no histórico de qualquer instância. Sem lead
@@ -2134,11 +2135,7 @@ export default function MultiatendimentoPage() {
 
   const bulkFinish = () => bulkApply({ finished: true, read: true }, { finished: true, read: true }, `${selectedConvs.length} conversa(s) finalizada(s).`);
 
-  const bulkAssignAgent = async (agent: string) => {
-    await Promise.all(selectedConvs.map(id => {
-      const c = convList.find(x => x.id === id);
-      return c ? ensureContactForConversation(c) : Promise.resolve(undefined);
-    }));
+  const bulkAssignAgent = (agent: string) => {
     bulkApply({ assignedTo: agent }, { assigned_to: agent }, `Atendente atribuído a ${selectedConvs.length} conversa(s).`);
     setBulkAction(null);
   };
