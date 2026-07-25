@@ -673,7 +673,7 @@ export default function MultiatendimentoPage() {
   // telefone). Cai para o nome salvo; se for vazio ou "ruim" (ex.: ".", o nome
   // de perfil do WhatsApp do contato), usa o telefone como último recurso.
   const convName = (c: Conversation): string => {
-    const lead = leads[c.id] ?? (c.phone ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", c.phone ?? "")) : undefined);
+    const lead = resolveLeadForConv(c);
     const nm = (lead?.name ?? c.name ?? "").trim();
     if (nm && nm !== ".") return nm;
     return c.phone ?? c.name ?? "Sem nome";
@@ -700,12 +700,19 @@ export default function MultiatendimentoPage() {
   // Etapas reais do pipeline vinculado ao lead ativo.
   // Resolução robusta do lead vinculado a uma conversa, em ordem de confiabilidade:
   //  1) por ID (conversas abertas pelo pipeline usam o id do lead como id da conversa)
-  //  2) por telefone (conversas de WhatsApp têm UUID aleatório como id)
-  //  3) por número do negócio (#deal), quando a conversa guarda um deal_number real
+  //  2) por contato (contactId) — quando a conversa já tem um contato vinculado,
+  //     prioriza um negócio aberto desse contato; havia mais de um negócio no
+  //     mesmo contato, o mais recente aberto ganha
+  //  3) por telefone (conversas de WhatsApp têm UUID aleatório como id)
+  //  4) por número do negócio (#deal), quando a conversa guarda um deal_number real
   // Unificada para que a UI e o "atrelar tag/lista/atividade" usem exatamente o mesmo lead.
   const resolveLeadForConv = (conv?: Conversation | null): Lead | null => {
     if (!conv) return null;
     if (leads[conv.id]) return leads[conv.id];
+    if (conv.contactId) {
+      const byContact = Object.values(leads).filter(l => l.personId === conv.contactId);
+      if (byContact.length > 0) return byContact.find(l => l.dealStatus === "open") ?? byContact[0];
+    }
     if (conv.phone) {
       const byPhone = Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
       if (byPhone) return byPhone;
@@ -1998,9 +2005,9 @@ export default function MultiatendimentoPage() {
   }
 
   // ── filter ──────────────────────────────────────────────────────────
-  // Resolve o lead vinculado à conversa (por ID ou por telefone)
-  const convLead = (c: Conversation) =>
-    leads[c.id] ?? (c.phone ? Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", c.phone ?? "")) : undefined);
+  // Resolve o lead vinculado à conversa — delega para resolveLeadForConv
+  // (mesma resolução usada no resto do arquivo, agora ciente de contactId).
+  const convLead = (c: Conversation) => resolveLeadForConv(c) ?? undefined;
 
   const filteredConversations = useMemo(() => {
     let list = convList;
