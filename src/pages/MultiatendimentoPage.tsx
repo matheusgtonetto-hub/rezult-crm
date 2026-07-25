@@ -785,7 +785,7 @@ export default function MultiatendimentoPage() {
     setConvList([]);
     setConvStates({});
 
-    type DbConvRow = { id: string; owner_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
+    type DbConvRow = { id: string; owner_id?: string; company_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
     const mapRow = (r: DbConvRow): Conversation => ({
       id: r.id, name: r.name, preview: r.preview,
       time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -878,7 +878,7 @@ export default function MultiatendimentoPage() {
           const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
           newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone, instanceId: m.instance_id ?? undefined });
           newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
-          dbRows.push({ id, owner_id: tenantId, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+          dbRows.push({ id, owner_id: tenantId, company_id: company?.id ?? undefined, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
         }
 
         setConvList(prev => [...newConvs, ...prev]);
@@ -1072,9 +1072,11 @@ export default function MultiatendimentoPage() {
             }));
             // Persiste nova conversa no banco
             supabase.from("whatsapp_conversations").insert({
-              id: newId, owner_id: tenantId, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
+              id: newId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
               channel: "whatsapp", tags: [], preview: previewLabel,
               last_msg_at: new Date().toISOString(), read: false,
+            }).then(({ error }) => {
+              if (error) console.error("Erro ao persistir nova conversa:", error);
             });
           }
         }
@@ -1216,13 +1218,15 @@ export default function MultiatendimentoPage() {
     // Persiste novas conversas no Supabase
     for (const { conv, cs } of toCreate) {
       supabase.from("whatsapp_conversations").upsert({
-        id: conv.id, owner_id: tenantId, instance_id: conv.instanceId ?? null, name: conv.name, phone: conv.phone ?? null,
+        id: conv.id, owner_id: tenantId, company_id: company?.id ?? null, instance_id: conv.instanceId ?? null, name: conv.name, phone: conv.phone ?? null,
         channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
         email: conv.email ?? null, pipeline: conv.pipeline ?? null,
         deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
         preview: conv.preview, stage_idx: cs.stageIdx, notes: cs.notes,
         read: cs.read, finished: cs.finished,
-      }, { onConflict: "id", ignoreDuplicates: true });
+      }, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
+        if (error) console.error("Erro ao persistir conversa (pipeline):", error);
+      });
     }
   }, [openedLeadIds, leads, pipelines, user?.id]);
 
@@ -1281,12 +1285,14 @@ export default function MultiatendimentoPage() {
     toast.success(`Conversa iniciada com ${lead.name}`);
     if (user) {
       supabase.from("whatsapp_conversations").upsert({
-        id: leadId, owner_id: tenantId, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
+        id: leadId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
         channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
         email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
         deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
         preview: newConv.preview, stage_idx: stageIdx, notes: "", read: true, finished: false,
-      }, { onConflict: "id", ignoreDuplicates: true });
+      }, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
+        if (error) console.error("Erro ao persistir conversa (nova, via pipeline):", error);
+      });
     }
   }
 
@@ -1734,12 +1740,14 @@ export default function MultiatendimentoPage() {
     toast.success(`Conversa com ${convName(active)} via ${label}`);
     if (user && tenantId) {
       supabase.from("whatsapp_conversations").upsert({
-        id: newId, owner_id: tenantId, instance_id: targetInstanceId, name: newConv.name, phone: newConv.phone ?? null,
+        id: newId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: targetInstanceId, name: newConv.name, phone: newConv.phone ?? null,
         channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
         email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
         deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
         preview: "", stage_idx: newCs.stageIdx, notes: "", read: true, finished: false,
-      }, { onConflict: "id", ignoreDuplicates: true });
+      }, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
+        if (error) console.error("Erro ao persistir conversa (troca de instância):", error);
+      });
     }
   }
 
