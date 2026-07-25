@@ -1963,11 +1963,12 @@ export default function MultiatendimentoPage() {
     toast("Reunião cancelada");
   }
 
-  // Garante que a conversa tenha um contato vinculado, CRIANDO um novo Lead
-  // (sem negócio/pipeline) se preciso. Chamado explicitamente pelo botão
-  // "+ Lead" — nunca automaticamente (atribuir atendente não cria nada
-  // sozinho). Reaproveita um lead já vinculado por telefone (personId) ou um
-  // contato já existente antes de criar um novo.
+  // Garante que a conversa tenha um contato vinculado em "contacts",
+  // CRIANDO um novo se preciso (o Lead em si é criado pelo chamador,
+  // handleCreateLead). Chamado explicitamente pelo botão "+ Lead" — nunca
+  // automaticamente (atribuir atendente não cria nada sozinho). Reaproveita
+  // o personId de um lead já vinculado por telefone, ou um contato já
+  // existente, antes de criar um novo.
   async function ensureContactForConversation(conv: Conversation): Promise<string | undefined> {
     if (conv.contactId) return conv.contactId;
     if (conv.channel !== "whatsapp" || !conv.phone || !tenantId || !company) return undefined;
