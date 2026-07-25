@@ -88,6 +88,7 @@ export default function DashboardPage() {
     const cur: typeof allLeads = [];
     const prior: typeof allLeads = [];
     allLeads.forEach(l => {
+      if (!l.pipelineId) return; // Lead sem negócio ainda não conta nas métricas de negócio
       const d = parseEntryDate(l.entryDate);
       if (d === null) return;
       if (inPeriod(d)) cur.push(l);

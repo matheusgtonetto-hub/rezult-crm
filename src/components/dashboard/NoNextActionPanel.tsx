@@ -13,6 +13,7 @@ export function NoNextActionPanel({ allLeads }: NoNextActionPanelProps) {
   const stuckLeads = useMemo(() => {
     const now = new Date();
     return allLeads
+      .filter(l => !!l.pipelineId) // "Negócios sem próxima ação" -- Lead sem negócio não conta
       .filter(l => (!l.dealStatus || l.dealStatus === "open"))
       .filter(l => !l.nextFollowUp || new Date(l.nextFollowUp) < now)
       .sort((a, b) => {
