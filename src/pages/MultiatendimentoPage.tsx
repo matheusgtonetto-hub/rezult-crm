@@ -367,13 +367,36 @@ export default function MultiatendimentoPage() {
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<string>("");
+  // Persistência de navegação (conversa aberta + aba de filtro selecionada),
+  // por usuário+empresa — sem isso, sair do Multiatendimento e voltar reseta
+  // tudo, mesmo com o dado real (read/finished) já salvo no banco.
+  const activeIdKey     = (uid?: string, tid?: string | null) => `rz_multi_active_id_${uid ?? "anon"}_${tid ?? "none"}`;
+  const activeFilterKey = (uid?: string, tid?: string | null) => `rz_multi_active_filter_${uid ?? "anon"}_${tid ?? "none"}`;
+  const [activeId, setActiveId] = useState<string>(() => {
+    try { return localStorage.getItem(activeIdKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
+  });
+  const [activeFilter, setActiveFilter] = useState<string>(() => {
+    try { return localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
+
+  const activeNavTenantRef = useRef(tenantId);
+  useEffect(() => { try { localStorage.setItem(activeIdKey(user?.id, tenantId), activeId); } catch { /* localStorage indisponível */ } }, [activeId, tenantId, user?.id]);
+  useEffect(() => { try { localStorage.setItem(activeFilterKey(user?.id, tenantId), activeFilter); } catch { /* localStorage indisponível */ } }, [activeFilter, tenantId, user?.id]);
+  useEffect(() => {
+    // Troca de empresa: recarrega o estado salvo daquela empresa (ou limpa,
+    // se nunca teve) em vez de manter o da empresa anterior.
+    if (activeNavTenantRef.current === tenantId) return;
+    activeNavTenantRef.current = tenantId;
+    try {
+      setActiveId(localStorage.getItem(activeIdKey(user?.id, tenantId)) ?? "");
+      setActiveFilter(localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? "");
+    } catch { setActiveId(""); setActiveFilter(""); }
+  }, [tenantId, user?.id]);
 
   // ── Filtros avançados (painel lateral) ────────────────────────────────
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
