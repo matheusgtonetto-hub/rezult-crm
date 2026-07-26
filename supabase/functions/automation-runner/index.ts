@@ -2523,21 +2523,9 @@ async function executeAction(
         if (o) insertLead.origin = o; else delete insertLead.origin; // vazio: usa default do banco
       }
 
-      // pipeline_id não é mais NOT NULL no banco, mas este bloco de automação sempre
-      // cria negócio (não Lead solto): busca o primeiro pipeline da empresa se não fornecido.
-      // column_id é deixado null intencionalmente: criar_negocio (próximo bloco) atribuirá a etapa correta
-      if (!insertLead.pipeline_id && ownerIdLead) {
-        const { data: firstPipeline } = await supabase
-          .from("pipelines")
-          .select("id")
-          .eq("owner_id", ownerIdLead)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .single();
-        if (firstPipeline) {
-          insertLead.pipeline_id = (firstPipeline as { id: string }).id;
-        }
-      }
+      // "Criar lead" cria só o Lead (pessoa) — sem pipeline/etapa, ou seja, sem negócio.
+      // Quem cria o negócio é a ação separada "Criar negócio" (próximo bloco), que agora
+      // exige pipeline e etapa explicitamente.
 
       console.log("[criar_lead] Inserindo:", JSON.stringify(insertLead));
       const { data: createdLead, error: createLeadErr } = await supabase
@@ -2556,6 +2544,13 @@ async function executeAction(
     case "criar_negocio": {
       const columnId = cfg.etapa as string;
       const pipelineId = cfg.pipeline as string;
+
+      // Pipeline e etapa são obrigatórios: "criar negócio" sempre resulta em um
+      // negócio de verdade (com pipeline+etapa), nunca em um Lead solto. Quem cria
+      // um Lead sem negócio é a ação separada "Criar lead" (bloco anterior).
+      if (!columnId || !pipelineId) {
+        throw new Error("Ação 'Criar negócio' requer pipeline e etapa selecionados na configuração.");
+      }
 
       if (!lead_id) {
         // Nenhum lead ainda — cria usando dados preparados pelo bloco Campos (se houver)
@@ -2576,8 +2571,8 @@ async function executeAction(
           company_id: company_id,
           status: "open",
         };
-        if (columnId) insertData.column_id = columnId;
-        if (pipelineId) insertData.pipeline_id = pipelineId;
+        insertData.column_id = columnId;
+        insertData.pipeline_id = pipelineId;
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
         {
           const o = normalizeOrigin(insertData.origin);
@@ -2598,32 +2593,9 @@ async function executeAction(
         return;
       }
 
-      // Lead existente — move para a etapa/pipeline configurados
-      if (!columnId && !pipelineId) return;
-      const update: Record<string, unknown> = {};
-      let finalPipelineId = pipelineId;
-      let finalColumnId = columnId;
-      if (!finalColumnId && finalPipelineId) {
-        const { data: firstCol } = await supabase
-          .from("pipeline_columns")
-          .select("id")
-          .eq("pipeline_id", finalPipelineId)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .single();
-        finalColumnId = (firstCol as { id: string } | null)?.id ?? "";
-      }
-      if (!finalPipelineId && finalColumnId) {
-        // "Pipeline (opcional)" pode vir vazio na config — deriva do pai da coluna
-        // pra nunca deixar column_id setado com pipeline_id órfão (null).
-        const { data: col } = await supabase.from("pipeline_columns").select("pipeline_id").eq("id", finalColumnId).single();
-        finalPipelineId = (col as { pipeline_id?: string } | null)?.pipeline_id ?? "";
-      }
-      if (finalPipelineId) update.pipeline_id = finalPipelineId;
-      if (finalColumnId) update.column_id = finalColumnId;
-      if (Object.keys(update).length > 0) {
-        await supabase.from("leads").update(update).eq("id", lead_id);
-      }
+      // Lead existente — move para a etapa/pipeline configurados (ambos obrigatórios,
+      // validados no topo do case)
+      await supabase.from("leads").update({ pipeline_id: pipelineId, column_id: columnId }).eq("id", lead_id);
       break;
     }
 

@@ -7717,16 +7717,19 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
     <div style={{ marginBottom: 14 }}>{children}</div>
   );
 
-  const PipelineStageSelect = ({ verbAction }: { verbAction: string }) => {
+  const PipelineStageSelect = ({ verbAction, required = false }: { verbAction: string; required?: boolean }) => {
     const selPipeline = pipelines.find(p => p.id === (cfg.pipeline as string));
     const stageOpts = selPipeline
       ? selPipeline.columns.map(c => ({ value: c.id, label: c.title }))
       : pipelines.flatMap(p => p.columns.map(c => ({ value: c.id, label: `${p.name} › ${c.title}` })));
     return (
       <>
-        {grp(<>{lbl("Pipeline (opcional)")}
+        {grp(<>{lbl(required ? "Pipeline" : "Pipeline (opcional)")}
           <AcoesSelect value={(cfg.pipeline as string) ?? ""} onChange={v => { set("pipeline", v); set("etapa", ""); }}
-            options={[{ value: "", label: "Todas as pipelines" }, ...pipelines.map(p => ({ value: p.id, label: p.name }))]}
+            placeholder={required ? "Selecione o pipeline..." : undefined}
+            options={required
+              ? pipelines.map(p => ({ value: p.id, label: p.name }))
+              : [{ value: "", label: "Todas as pipelines" }, ...pipelines.map(p => ({ value: p.id, label: p.name }))]}
           />
         </>)}
         {grp(<>{lbl(`Etapa em que o negócio será ${verbAction}`)}
@@ -7740,7 +7743,10 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
 
   switch (item.actionId) {
     case "criar_negocio":
-      return <PipelineStageSelect verbAction="criado" />;
+      // Diferente de mover_etapa/duplicar_negocio: "criar negócio" sempre resulta
+      // num negócio de verdade, então pipeline+etapa são obrigatórios (validado
+      // também no automation-runner, que recusa executar sem os dois).
+      return <PipelineStageSelect verbAction="criado" required />;
 
     case "mover_etapa":
       return <PipelineStageSelect verbAction="movido" />;
