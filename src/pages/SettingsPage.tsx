@@ -3436,7 +3436,12 @@ function ConexoesSection() {
   // A D-API usa 1 API Key da conta + um sessionId que o CRM cria via API.
   // Mapeamento na tabela: provider='dapi', instance_id=sessionId, token=API Key.
   const DAPI_BASE = "https://api.d-api.cloud/api/v1";
-  const DAPI_WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/dapi-webhook";
+  // Query param "?v1" no final por recomendação do suporte da D-API: se o
+  // webhook retornar muitos erros seguidos (ex: durante o setup de uma sessão
+  // nova), a D-API bloqueia aquela URL exata. Um param sem função nenhuma
+  // torna a URL "nova" pro bloqueio deles, sem exigir nenhuma mudança no
+  // dapi-webhook (que lê tudo do corpo da requisição, não da query string).
+  const DAPI_WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/dapi-webhook?v1";
   const dapiHeaders = (apiKey: string): HeadersInit => ({ "Content-Type": "application/json", "Authorization": apiKey });
 
   async function createDapiSession(apiKey: string, sessionId: string): Promise<boolean> {
