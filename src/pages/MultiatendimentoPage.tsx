@@ -883,9 +883,16 @@ export default function MultiatendimentoPage() {
 
     setConvList(prev => [...newConvs, ...prev]);
     setConvStates(prev => ({ ...newStates, ...prev }));
-    supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
-      if (e) console.error("Reconciliação de conversas — erro:", e);
-    });
+    // upsert + ignoreDuplicates (não insert puro): essa reconciliação pode
+    // rodar ao mesmo tempo que o handler de realtime abaixo tentando criar a
+    // mesma conversa (mesmo owner_id+instance_id+phone) — com insert simples,
+    // a constraint única faria o lote inteiro falhar; com upsert, só a linha
+    // conflitante é ignorada e o resto do lote persiste normalmente.
+    supabase.from("whatsapp_conversations")
+      .upsert(dbRows, { onConflict: "owner_id,instance_id,phone", ignoreDuplicates: true })
+      .then(({ error: e }) => {
+        if (e) console.error("Reconciliação de conversas — erro:", e);
+      });
   }
 
   // Botão "atualizar" da nova barra de filtro rápido: força uma nova consulta
@@ -1094,8 +1101,38 @@ export default function MultiatendimentoPage() {
               id: newId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: msgInst || null, name: newConv.name, phone: msgPhone,
               channel: "whatsapp", tags: [], preview: previewLabel,
               last_msg_at: new Date().toISOString(), read: false,
-            }).then(({ error }) => {
-              if (error) console.error("Erro ao persistir nova conversa:", error);
+            }).then(async ({ error }) => {
+              if (!error) return;
+              // 23505 (owner_id+instance_id+phone): outro disparo quase simultâneo
+              // desse mesmo handler (2 mensagens chegando a poucos ms uma da outra)
+              // já criou a conversa antes desta — reconcilia em cima da que venceu
+              // em vez de deixar 2 conversas locais apontando pra 1 só no banco.
+              if (error.code === "23505" && msgInst) {
+                const { data: winner } = await supabase
+                  .from("whatsapp_conversations")
+                  .select("*")
+                  .eq("owner_id", tenantId)
+                  .eq("instance_id", msgInst)
+                  .eq("phone", msgPhone)
+                  .maybeSingle();
+                const winnerId = (winner as { id: string } | null)?.id;
+                if (winnerId && winnerId !== newId) {
+                  setConvList(prev => {
+                    const withoutDup = prev.filter(c => c.id !== newId);
+                    return withoutDup.map(c => c.id === winnerId ? { ...c, preview: previewLabel, time: timeStr } : c);
+                  });
+                  setConvStates(prev => {
+                    const { [newId]: _dup, ...rest } = prev;
+                    const cur = rest[winnerId];
+                    if (!cur || cur.messages.some(x => x.id === m.id)) return rest;
+                    const newMsg: Msg = buildIncomingMsg(m, timeStr);
+                    return { ...rest, [winnerId]: { ...cur, messages: [...cur.messages, newMsg], read: m.from_me ? cur.read : false } };
+                  });
+                  setActiveId(prev => prev === newId ? winnerId : prev);
+                }
+                return;
+              }
+              console.error("Erro ao persistir nova conversa:", error);
             });
           }
         }
@@ -1832,6 +1869,19 @@ export default function MultiatendimentoPage() {
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
+
+    // Pré-checagem pro WhatsApp (Instagram usa outro mecanismo de envio, mais
+    // abaixo). Sem isso, uma conexão inválida/desconectada fazia a mensagem
+    // otimista "aparecer enviada" na tela e sumir ao recarregar — nunca foi de
+    // fato enviada nem persistida em whatsapp_messages, e nada avisava o usuário.
+    if (active?.channel !== "instagram") {
+      const instCheck = instances.find(i => i.instanceId === selectedInstance);
+      if (!instCheck?.token || !active?.phone) {
+        toast.error("Não foi possível enviar: nenhuma conexão WhatsApp ativa encontrada para este número. Verifique em Configurações → Conexões.");
+        return;
+      }
+    }
+
     // Mesmo UUID na mensagem otimista e no insert — o listener realtime deduplica
     // por id (sem isso, a própria mensagem voltaria duplicada via realtime).
     const msgId = crypto.randomUUID();
