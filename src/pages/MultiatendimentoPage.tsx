@@ -107,6 +107,7 @@ type ConvState = {
   finished: boolean;
   assignedTo?: string;
   departmentId?: string;
+  answered?: boolean; // true assim que o atendente envia a 1ª mensagem na conversa (ver bumpPreview)
 };
 
 type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string; provider: "zapi" | "dapi" | "cloud_api" };
@@ -796,7 +797,7 @@ export default function MultiatendimentoPage() {
       contactId: r.contact_id ?? undefined,
     });
 
-    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string };
+    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string; answered?: boolean };
     const mapState = (r: DbStateRow): ConvState => ({
       messages: [],
       stageIdx: r.stage_idx ?? 0,
@@ -806,6 +807,7 @@ export default function MultiatendimentoPage() {
       finished: r.finished ?? false,
       assignedTo: r.assigned_to ?? undefined,
       departmentId: r.department_id ?? undefined,
+      answered: r.answered ?? false,
     });
 
     const { data, error } = await supabase
@@ -1761,6 +1763,7 @@ export default function MultiatendimentoPage() {
     }
     if ("assignedTo" in meta) dbPatch.assigned_to = meta.assignedTo ?? null;
     if ("departmentId" in meta) dbPatch.department_id = meta.departmentId ?? null;
+    if ("answered" in meta) dbPatch.answered = meta.answered;
     supabase.from("whatsapp_conversations").update(dbPatch).eq("id", id).then(({ error }) => {
       if (error) console.error("updateCs DB:", error);
     });
@@ -1813,11 +1816,15 @@ export default function MultiatendimentoPage() {
   // Antes, só mensagens RECEBIDAS atualizavam o preview, então áudios/arquivos/
   // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
   // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
+  // Único ponto por onde passam todos os envios (texto/áudio/imagem/arquivo) —
+  // por isso também é aqui que marcamos "answered": a partir da 1ª mensagem
+  // enviada pelo atendente, a conversa sai de "Não iniciadas" pra "Abertas".
   function bumpPreview(convId: string, label: string) {
     const now = nowTime();
     setConvList(prev => prev.map(c => c.id === convId ? { ...c, preview: label, time: now } : c));
+    setConvStates(prev => ({ ...prev, [convId]: { ...DEFAULT_CS, ...prev[convId], answered: true } }));
     supabase.from("whatsapp_conversations")
-      .update({ preview: label, last_msg_at: new Date().toISOString() })
+      .update({ preview: label, last_msg_at: new Date().toISOString(), answered: true })
       .eq("id", convId)
       .then(({ error }) => { if (error) console.warn("bumpPreview:", error.message); });
   }
@@ -2127,9 +2134,9 @@ export default function MultiatendimentoPage() {
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
-      case "not_started": list = list.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished); break;
-      case "pending":      list = list.filter(c => !convStates[c.id]?.finished); break;
-      case "waiting":      list = list.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
+      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished); break;
+      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read); break;
+      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
@@ -2297,9 +2304,9 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished).length, color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length,      color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !convStates[c.id]?.finished).length,                                 color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
