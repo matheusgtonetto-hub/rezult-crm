@@ -2473,7 +2473,15 @@ async function executeAction(
       const columnId = cfg.etapa as string;
       if (!columnId) return;
       const update: Record<string, unknown> = { column_id: columnId };
-      if (cfg.pipeline) update.pipeline_id = cfg.pipeline;
+      if (cfg.pipeline) {
+        update.pipeline_id = cfg.pipeline;
+      } else {
+        // "Pipeline (opcional)" pode vir vazio na config — deriva do pai da coluna
+        // pra nunca deixar column_id setado com pipeline_id órfão (null).
+        const { data: col } = await supabase.from("pipeline_columns").select("pipeline_id").eq("id", columnId).single();
+        const derivedPipelineId = (col as { pipeline_id?: string } | null)?.pipeline_id;
+        if (derivedPipelineId) update.pipeline_id = derivedPipelineId;
+      }
       await supabase.from("leads").update(update).eq("id", lead_id);
       break;
     }
@@ -2515,7 +2523,8 @@ async function executeAction(
         if (o) insertLead.origin = o; else delete insertLead.origin; // vazio: usa default do banco
       }
 
-      // pipeline_id é NOT NULL — busca o primeiro pipeline da empresa se não fornecido
+      // pipeline_id não é mais NOT NULL no banco, mas este bloco de automação sempre
+      // cria negócio (não Lead solto): busca o primeiro pipeline da empresa se não fornecido.
       // column_id é deixado null intencionalmente: criar_negocio (próximo bloco) atribuirá a etapa correta
       if (!insertLead.pipeline_id && ownerIdLead) {
         const { data: firstPipeline } = await supabase
@@ -2592,18 +2601,25 @@ async function executeAction(
       // Lead existente — move para a etapa/pipeline configurados
       if (!columnId && !pipelineId) return;
       const update: Record<string, unknown> = {};
-      if (pipelineId) update.pipeline_id = pipelineId;
+      let finalPipelineId = pipelineId;
       let finalColumnId = columnId;
-      if (!finalColumnId && pipelineId) {
+      if (!finalColumnId && finalPipelineId) {
         const { data: firstCol } = await supabase
           .from("pipeline_columns")
           .select("id")
-          .eq("pipeline_id", pipelineId)
+          .eq("pipeline_id", finalPipelineId)
           .order("created_at", { ascending: true })
           .limit(1)
           .single();
         finalColumnId = (firstCol as { id: string } | null)?.id ?? "";
       }
+      if (!finalPipelineId && finalColumnId) {
+        // "Pipeline (opcional)" pode vir vazio na config — deriva do pai da coluna
+        // pra nunca deixar column_id setado com pipeline_id órfão (null).
+        const { data: col } = await supabase.from("pipeline_columns").select("pipeline_id").eq("id", finalColumnId).single();
+        finalPipelineId = (col as { pipeline_id?: string } | null)?.pipeline_id ?? "";
+      }
+      if (finalPipelineId) update.pipeline_id = finalPipelineId;
       if (finalColumnId) update.column_id = finalColumnId;
       if (Object.keys(update).length > 0) {
         await supabase.from("leads").update(update).eq("id", lead_id);

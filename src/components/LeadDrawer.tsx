@@ -767,7 +767,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                         {dealMenuId === l.id && (
                           <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: 42, right: 16, zIndex: 50, background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: "4px 0", minWidth: 200 }}>
                             {[
-                              { icon: <ArrowLeftRight size={14} />, label: "Mover negócio", action: () => { setMoveDealId(l.id); const p = lPipeline ?? pipelines[0]; setMovePipeline(p?.id ?? ""); setMoveStage(l.stage ?? p?.columns[0]?.id ?? ""); setDealMenuId(null); } },
+                              { icon: <ArrowLeftRight size={14} />, label: "Mover negócio", action: () => { setMoveDealId(l.id); const p = lPipeline ?? pipelines[0]; setMovePipeline(p?.id ?? ""); setMoveStage(l.stage || p?.columns[0]?.id || ""); setDealMenuId(null); } },
                               { icon: <CalendarPlus size={14} />,  label: "Criar atividade",  action: () => { setActDealId(l.id); setActTitle(""); setDealMenuId(null); } },
                               { icon: <ShoppingCart size={14} />, label: "Produtos",          action: () => { setProdDealId(l.id); setDealMenuId(null); } },
                               { icon: <MessageSquare size={14} />, label: "Abrir Chat",       action: () => { setDealMenuId(null); navigate(`/multiatendimento`); } },

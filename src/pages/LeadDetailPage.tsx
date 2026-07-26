@@ -455,7 +455,6 @@ export default function LeadDetailPage() {
   const navigate = useNavigate();
   const {
     leads,
-    activePipeline,
     pipelines,
     moveLead,
     updateLead,
@@ -492,9 +491,12 @@ export default function LeadDetailPage() {
   const hasActiveWaConnection = whatsappConnections.some(c => c.connected);
 
   const lead = id ? leads[id] : undefined;
+  // Lead sem negócio (pipelineId vazio) não tem pipeline associado — não usar
+  // nenhum outro pipeline como fallback, senão a barra de progresso/permissões
+  // mostram dados de um negócio que não é deste lead.
   const pipeline = useMemo(
-    () => pipelines.find(p => p.id === lead?.pipelineId) || activePipeline,
-    [pipelines, lead, activePipeline]
+    () => (lead?.pipelineId ? pipelines.find(p => p.id === lead.pipelineId) : undefined),
+    [pipelines, lead]
   );
   const pipelinePerms = getPerms(pipeline?.id ?? "");
 
@@ -821,7 +823,7 @@ export default function LeadDetailPage() {
     return undefined;
   };
 
-  const stages = pipeline.columns;
+  const stages = pipeline?.columns ?? [];
   const activeIdx = stages.findIndex(c => c.id === lead.stage);
   const today = new Date().toISOString().split("T")[0];
 
@@ -829,6 +831,7 @@ export default function LeadDetailPage() {
     if (stageId === lead.stage) return;
     const fromIdx = stages.findIndex(c => c.id === lead.stage);
     const toIdx   = stages.findIndex(c => c.id === stageId);
+    if (fromIdx === -1 || toIdx === -1) return; // lead sem negócio (ou etapa não pertence a este pipeline)
     const fromCol = stages[fromIdx];
     const toCol   = stages[toIdx];
     if (toIdx < fromIdx) {
@@ -1036,7 +1039,7 @@ export default function LeadDetailPage() {
           style={{ color: "#111111" }}
         >
           <ArrowLeft size={16} />
-          <span style={{ fontWeight: 500 }}>{pipeline.name}</span>
+          <span style={{ fontWeight: 500 }}>{pipeline?.name ?? "Sem negócio"}</span>
         </button>
 
         {/* Direita */}
@@ -1199,7 +1202,7 @@ export default function LeadDetailPage() {
             <span className="text-[11px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
           </div>
           <span className="text-[10px] text-muted-foreground truncate">
-            {pipeline.name} → {stages[activeIdx]?.title ?? "—"}
+            {pipeline ? <>{pipeline.name} → {stages[activeIdx]?.title ?? "—"}</> : "Lead sem negócio"}
           </span>
         </div>
 
@@ -1290,7 +1293,7 @@ export default function LeadDetailPage() {
                       />
                       <div>
                         <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Pipeline</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>{pipeline.name}</p>
+                        <p style={{ fontSize: 13, color: "#111111" }}>{pipeline?.name ?? "Sem negócio ainda"}</p>
                       </div>
                       <div>
                         <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Produto</label>
