@@ -286,13 +286,11 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
   );
 }
 
-function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string }) {
+function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, borderColor, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; borderColor: string; iconOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
-  const bg     = isActive ? "#E1F5EE" : "#F5F5F5";
-  const fg     = isActive ? "#128A68" : "#535353";
-  const border = isActive ? "1px solid #128A68" : "1px solid transparent";
+  const border = isActive ? `1px solid ${borderColor}` : "1px solid #E5E5E5";
   return (
-    <div style={{ position: "relative", display: "flex", flex: 1, minWidth: 0 }}
+    <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : 1, minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -310,9 +308,11 @@ function FilterChip({ Icon, count, isActive, onClick, label }: { Icon: LucideIco
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", gap: 4, background: bg, color: fg, border, borderRadius: 100, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-        <Icon size={12} />
-        {count !== null && <span>{count}</span>}
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "#FFF", border, borderRadius: 5, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }}>
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 5, background: colorBg, flexShrink: 0 }}>
+          <Icon size={11} color={color} />
+        </span>
+        {!iconOnly && count !== null && <span style={{ color: "#111", fontWeight: 300 }}>{count}</span>}
       </button>
     </div>
   );
@@ -2297,11 +2297,11 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished).length },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !convStates[c.id]?.finished).length },
-    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length },
-    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished).length, color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length,      color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !convStates[c.id]?.finished).length,                                 color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
+    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   const activeFilterTitle = activeFilterMeta?.label ?? "Todas as conversas";
@@ -2373,7 +2373,7 @@ export default function MultiatendimentoPage() {
 
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
             {filters.map(f => (
-              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
+              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
             ))}
           </div>
 
