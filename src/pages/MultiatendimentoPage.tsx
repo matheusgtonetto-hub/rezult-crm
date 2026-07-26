@@ -10,11 +10,11 @@ import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
-  Search, Settings, Instagram, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
+  Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
-  Download, Pencil, Trash2,
+  Download, Pencil, Trash2, Inbox, RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -777,13 +777,11 @@ export default function MultiatendimentoPage() {
   const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === effectiveLead?.stage) : -1;
   const activeStageIdx = pipelineCols.length > 0 ? (rawColIdx >= 0 ? rawColIdx : 0) : (cs?.stageIdx ?? 0);
 
-  // ── carregar conversas do Supabase ao iniciar ────────────────────────
-  useEffect(() => {
-    if (!user || !tenantId) return;
+  // ── carregar conversas do Supabase (carga inicial + botão atualizar) ─
+  const [conversationsRefreshing, setConversationsRefreshing] = useState(false);
 
-    // Troca de empresa: zera as conversas do tenant anterior antes de recarregar
-    setConvList([]);
-    setConvStates({});
+  async function reloadConversations() {
+    if (!user || !tenantId) return;
 
     type DbConvRow = { id: string; owner_id?: string; company_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
     const mapRow = (r: DbConvRow): Conversation => ({
@@ -810,83 +808,102 @@ export default function MultiatendimentoPage() {
       departmentId: r.department_id ?? undefined,
     });
 
-    supabase
+    const { data, error } = await supabase
       .from("whatsapp_conversations")
       .select("*")
       .eq("owner_id", tenantId)
-      .order("last_msg_at", { ascending: false })
-      .then(async ({ data, error }) => {
-        if (error) console.error("Erro ao carregar conversas:", error);
+      .order("last_msg_at", { ascending: false });
 
-        const existingRows = (data ?? []) as DbConvRow[];
+    if (error) console.error("Erro ao carregar conversas:", error);
 
-        // Mescla as conversas já persistidas no estado (sem sobrescrever as do Pipeline)
-        if (existingRows.length > 0) {
-          setConvList(prev => {
-            const dbIds = new Set(existingRows.map(r => r.id));
-            const extra = prev.filter(c => !dbIds.has(c.id)); // conversas só em memória
-            return [...existingRows.map(mapRow), ...extra];
-          });
-          setConvStates(prev => {
-            const next: Record<string, ConvState> = { ...prev };
-            existingRows.forEach(r => {
-              if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
-            });
-            return next;
-          });
-        }
+    const existingRows = (data ?? []) as DbConvRow[];
 
-        // Reconciliação: cria conversas para números que já mandaram mensagem mas
-        // ainda não têm conversa (ex.: mensagens recebidas com a página fechada —
-        // o realtime só cria chat se a página estiver aberta no momento). Roda
-        // SEMPRE, não só quando a tabela está vazia.
-        const { data: msgs } = await supabase
-          .from("whatsapp_messages")
-          .select("phone, instance_id, type, chat_name, sender_name, body, momment, created_at")
-          .eq("owner_id", tenantId)
-          .eq("from_me", false)
-          .order("created_at", { ascending: false });
-
-        if (!msgs?.length) return;
-
-        // Conversas que já existem, por chave (instância, telefone normalizado)
-        const haveKeys = new Set(
-          existingRows.map(r => `${r.instance_id ?? ""}|${normalizeBrPhone(r.phone ?? "")}`),
-        );
-
-        // Agrupa por (instância, telefone normalizado): cada número é uma conversa
-        // separada; pega a mensagem mais recente de cada par ainda sem conversa.
-        type WaMsgRow = { phone: string; instance_id?: string; type?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
-        const convMap = new Map<string, WaMsgRow>();
-        for (const m of msgs) {
-          if (m.type === "system") continue; // mensagem de sistema não cria conversa
-          const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
-          if (haveKeys.has(key) || convMap.has(key)) continue;
-          convMap.set(key, m as WaMsgRow);
-        }
-
-        if (convMap.size === 0) return;
-
-        const newConvs: Conversation[] = [];
-        const newStates: Record<string, ConvState> = {};
-        const dbRows: DbConvRow[] = [];
-
-        for (const m of convMap.values()) {
-          const id = crypto.randomUUID();
-          const phone = m.phone;
-          const d = new Date(m.momment ?? m.created_at);
-          const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone, instanceId: m.instance_id ?? undefined });
-          newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
-          dbRows.push({ id, owner_id: tenantId, company_id: company?.id ?? undefined, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
-        }
-
-        setConvList(prev => [...newConvs, ...prev]);
-        setConvStates(prev => ({ ...newStates, ...prev }));
-        supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
-          if (e) console.error("Reconciliação de conversas — erro:", e);
-        });
+    // Mescla as conversas já persistidas no estado (sem sobrescrever as do Pipeline)
+    if (existingRows.length > 0) {
+      setConvList(prev => {
+        const dbIds = new Set(existingRows.map(r => r.id));
+        const extra = prev.filter(c => !dbIds.has(c.id)); // conversas só em memória
+        return [...existingRows.map(mapRow), ...extra];
       });
+      setConvStates(prev => {
+        const next: Record<string, ConvState> = { ...prev };
+        existingRows.forEach(r => {
+          if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
+        });
+        return next;
+      });
+    }
+
+    // Reconciliação: cria conversas para números que já mandaram mensagem mas
+    // ainda não têm conversa (ex.: mensagens recebidas com a página fechada —
+    // o realtime só cria chat se a página estiver aberta no momento). Roda
+    // SEMPRE, não só quando a tabela está vazia.
+    const { data: msgs } = await supabase
+      .from("whatsapp_messages")
+      .select("phone, instance_id, type, chat_name, sender_name, body, momment, created_at")
+      .eq("owner_id", tenantId)
+      .eq("from_me", false)
+      .order("created_at", { ascending: false });
+
+    if (!msgs?.length) return;
+
+    // Conversas que já existem, por chave (instância, telefone normalizado)
+    const haveKeys = new Set(
+      existingRows.map(r => `${r.instance_id ?? ""}|${normalizeBrPhone(r.phone ?? "")}`),
+    );
+
+    // Agrupa por (instância, telefone normalizado): cada número é uma conversa
+    // separada; pega a mensagem mais recente de cada par ainda sem conversa.
+    type WaMsgRow = { phone: string; instance_id?: string; type?: string; chat_name?: string; sender_name?: string; body?: string; momment?: number; created_at?: string };
+    const convMap = new Map<string, WaMsgRow>();
+    for (const m of msgs) {
+      if (m.type === "system") continue; // mensagem de sistema não cria conversa
+      const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
+      if (haveKeys.has(key) || convMap.has(key)) continue;
+      convMap.set(key, m as WaMsgRow);
+    }
+
+    if (convMap.size === 0) return;
+
+    const newConvs: Conversation[] = [];
+    const newStates: Record<string, ConvState> = {};
+    const dbRows: DbConvRow[] = [];
+
+    for (const m of convMap.values()) {
+      const id = crypto.randomUUID();
+      const phone = m.phone;
+      const d = new Date(m.momment ?? m.created_at);
+      const timeStr = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      newConvs.push({ id, name: m.chat_name ?? m.sender_name ?? phone, preview: m.body ?? "", time: timeStr, channel: "whatsapp", tags: [], phone, instanceId: m.instance_id ?? undefined });
+      newStates[id] = { messages: [], stageIdx: 0, meeting: null, notes: "", read: false, finished: false };
+      dbRows.push({ id, owner_id: tenantId, company_id: company?.id ?? undefined, instance_id: m.instance_id ?? undefined, name: m.chat_name ?? m.sender_name ?? phone, phone, channel: "whatsapp", tags: [], preview: m.body ?? "", last_msg_at: d.toISOString(), read: false });
+    }
+
+    setConvList(prev => [...newConvs, ...prev]);
+    setConvStates(prev => ({ ...newStates, ...prev }));
+    supabase.from("whatsapp_conversations").insert(dbRows).then(({ error: e }) => {
+      if (e) console.error("Reconciliação de conversas — erro:", e);
+    });
+  }
+
+  // Botão "atualizar" da nova barra de filtro rápido: força uma nova consulta
+  // ao banco (útil se o realtime atrasar ou falhar), sem esperar o realtime.
+  async function handleRefreshConversations() {
+    setConversationsRefreshing(true);
+    try {
+      await reloadConversations();
+    } finally {
+      setConversationsRefreshing(false);
+    }
+  }
+
+  // ── carregar conversas do Supabase ao iniciar / trocar de empresa ────
+  useEffect(() => {
+    if (!user || !tenantId) return;
+    // Troca de empresa: zera as conversas do tenant anterior antes de recarregar
+    setConvList([]);
+    setConvStates({});
+    reloadConversations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
@@ -2110,11 +2127,11 @@ export default function MultiatendimentoPage() {
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
-      case "email":   list = list.filter(c => c.channel === "instagram"); break;
-      case "pending": list = list.filter(c => !convStates[c.id]?.finished); break;
-      case "waiting": list = list.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
-      case "done":    list = list.filter(c => convStates[c.id]?.finished); break;
-      case "alert":   list = list.filter(c => c.tags.includes("Follow-up")); break;
+      case "not_started": list = list.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished); break;
+      case "pending":      list = list.filter(c => !convStates[c.id]?.finished); break;
+      case "waiting":      list = list.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
+      case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
+      case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
 
     // ── filtros avançados do painel ──
@@ -2280,12 +2297,15 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "email",   icon: Instagram,     label: "Instagram",   count: convList.filter(c => c.channel === "instagram").length },
-    { id: "pending", icon: MessageCircle, label: "Abertas",     count: convList.filter(c => !convStates[c.id]?.finished).length },
-    { id: "waiting", icon: Clock,         label: "Em espera",   count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length },
-    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convList.filter(c => convStates[c.id]?.finished).length },
-    { id: "alert",   icon: AlertTriangle, label: "Follow-up",   count: convList.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished).length },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !convStates[c.id]?.finished && !convStates[c.id]?.read).length },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !convStates[c.id]?.finished).length },
+    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length },
+    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length },
   ];
+  const activeFilterMeta = filters.find(f => f.id === activeFilter);
+  const activeFilterTitle = activeFilterMeta?.label ?? "Todas as conversas";
+  const activeFilterCount = activeFilterMeta?.count ?? convList.length;
 
   // ── grouped messages ────────────────────────────────────────────────
   const groupedMessages = useMemo(() => {
@@ -2333,7 +2353,25 @@ export default function MultiatendimentoPage() {
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+          {/* título do filtro rápido ativo + botão atualizar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 12 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#333" }}>
+              {activeFilterTitle}
+              <span style={{ background: "#F0F0F0", color: "#888", borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "1px 7px", minWidth: 16, textAlign: "center" }}>
+                {activeFilterCount}
+              </span>
+            </span>
+            <button
+              onClick={handleRefreshConversations}
+              disabled={conversationsRefreshing}
+              title="Atualizar conversas"
+              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: conversationsRefreshing ? "default" : "pointer", flexShrink: 0 }}
+            >
+              <RefreshCw size={13} color="#666" className={conversationsRefreshing ? "animate-spin" : undefined} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
             {filters.map(f => (
               <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
             ))}
