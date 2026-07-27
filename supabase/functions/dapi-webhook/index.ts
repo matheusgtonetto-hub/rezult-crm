@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
 
 // Webhook da D-API (https://d-api.cloud). Espelha o zapi-webhook, mas traduz o
 // formato de payload da D-API — eventos `{ event, sessionId, data }` — para o
@@ -172,6 +173,20 @@ serve(async (req) => {
       // nova persistida, então não faz sentido acionar retomada de automação
       // abaixo. Sempre "ok" pra D-API de qualquer forma.
       return new Response("ok", { status: 200 });
+    }
+
+    // Garante a linha em whatsapp_conversations no servidor — não depender de
+    // alguém estar com o Multiatendimento aberto no navegador nesse instante
+    // (ver comentário em _shared/upsert-conversation.ts).
+    try {
+      await upsertConversationForMessage(supabase, {
+        ownerId, companyId, instanceId: sessionId, phone: cleanPhone,
+        name: fromMe ? null : senderName, // from_me: senderName é o dono da sessão, não serve de nome da conversa
+        preview: previewLabelFor(msgType, body),
+        fromMe,
+      });
+    } catch (e) {
+      console.error("dapi-webhook: upsertConversationForMessage failed:", e);
     }
 
     // ── Retoma automações pausadas no bloco "Entrada do usuário" ────────────────

@@ -1916,14 +1916,17 @@ export default function MultiatendimentoPage() {
 
   // D-API/Z-API/Cloud API ocasionalmente têm hiccups transitórios do lado
   // deles (ex.: "NATS MQ Provider not ready" — fila interna momentaneamente
-  // indisponível) que se resolvem sozinhos em segundos. Tenta 1x, espera
-  // ~1.5s e tenta de novo antes de desistir; devolve a última Response (ok ou
-  // não) pra quem chama continuar lendo o corpo do erro normalmente.
-  async function fetchWithRetry(url: string, opts: RequestInit, retries = 1, delayMs = 1500): Promise<Response> {
+  // indisponível) que se resolvem sozinhos em alguns segundos -- confirmado
+  // em produção (mesmo erro visto de novo horas depois de resolvido da 1ª
+  // vez). 1 tentativa extra com 1.5s não bastava pra cobrir esses casos, então
+  // agora são até 2 tentativas extras com backoff crescente (1.5s, 3s) antes
+  // de desistir; devolve a última Response (ok ou não) pra quem chama
+  // continuar lendo o corpo do erro normalmente.
+  async function fetchWithRetry(url: string, opts: RequestInit, retries = 2, baseDelayMs = 1500): Promise<Response> {
     let lastRes: Response | null = null;
     let lastErr: unknown = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, delayMs));
+      if (attempt > 0) await new Promise(r => setTimeout(r, baseDelayMs * attempt));
       try {
         const res = await fetch(url, opts);
         if (res.ok) return res;

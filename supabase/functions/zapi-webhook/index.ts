@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -153,6 +154,20 @@ serve(async (req) => {
     }
     console.error("Insert error:", error);
     return new Response("db error", { status: 500 });
+  }
+
+  // Garante a linha em whatsapp_conversations no servidor — não depender de
+  // alguém estar com o Multiatendimento aberto no navegador nesse instante
+  // (ver comentário em _shared/upsert-conversation.ts).
+  try {
+    await upsertConversationForMessage(supabase, {
+      ownerId, companyId, instanceId: String(instanceId), phone: cleanPhone,
+      name: fromMe ? null : ((senderName as string | undefined) ?? (chatName as string | undefined) ?? null),
+      preview: previewLabelFor(msgType, body),
+      fromMe: !!fromMe,
+    });
+  } catch (e) {
+    console.error("zapi-webhook: upsertConversationForMessage failed:", e);
   }
 
   // ── Retoma automações pausadas no bloco "Entrada do usuário" ────────────────

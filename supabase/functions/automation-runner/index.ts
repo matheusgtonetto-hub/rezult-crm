@@ -3,6 +3,7 @@
 // Chamado pelos triggers PostgreSQL via pg_net.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -1444,6 +1445,21 @@ async function executeFlow(
                 owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
                 phone: rawPhone, from_me: true, body: parts[i], type: "text",
               });
+              // Garante whatsapp_conversations no servidor -- sem isso, uma
+              // automação disparando fora do horário em que alguém está com o
+              // Multiatendimento aberto deixa a conversa "órfã" (mensagens
+              // existem, mas não aparecem em lugar nenhum do CRM).
+              if (ownerId) {
+                try {
+                  await upsertConversationForMessage(supabase, {
+                    ownerId, companyId: company_id ?? null, instanceId: creds.instanceId,
+                    phone: rawPhone, name: (leadData?.name as string | undefined) ?? null,
+                    preview: previewLabelFor("text", parts[i]), fromMe: true,
+                  });
+                } catch (e) {
+                  console.error("automation-runner: upsertConversationForMessage failed:", e);
+                }
+              }
               // Pequeno intervalo entre partes para preservar a ordem de entrega
               if (!isLast) await new Promise<void>((r) => setTimeout(r, 600));
             }
@@ -1497,6 +1513,17 @@ async function executeFlow(
               phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
               media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
             });
+            if (ownerId) {
+              try {
+                await upsertConversationForMessage(supabase, {
+                  ownerId, companyId: company_id ?? null, instanceId: creds.instanceId,
+                  phone: rawPhone, name: (leadData?.name as string | undefined) ?? null,
+                  preview: previewLabelFor(msgType, sb.fileName ?? fileUrl), fromMe: true,
+                });
+              } catch (e) {
+                console.error("automation-runner: upsertConversationForMessage failed:", e);
+              }
+            }
             sentCount++;
 
           } else if (sb.type === "entrada_usuario") {
