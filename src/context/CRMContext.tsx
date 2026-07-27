@@ -77,6 +77,8 @@ interface CRMContextType {
   memberColors: Record<string, string>;
   memberEmails: Record<string, string>;
   memberAvatars: Record<string, string>;
+  memberUserIds: Record<string, string>;
+  currentUserName: string;
   products: Product[];
   addProduct: (data: Omit<Product, "id">) => Promise<void>;
   updateProduct: (id: string, data: Partial<Omit<Product, "id">>) => Promise<void>;
@@ -298,6 +300,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [memberEmails, setMemberEmails] = useState<Record<string, string>>({});
   const [memberAvatars, setMemberAvatars] = useState<Record<string, string>>({});
+  const [memberUserIds, setMemberUserIds] = useState<Record<string, string>>({});
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
 
@@ -392,12 +395,15 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setTeamMembers(memberRows.map(p => p.full_name).filter(Boolean));
       const emailMap: Record<string, string> = {};
       const avatarMap: Record<string, string> = {};
+      const userIdMap: Record<string, string> = {};
       memberRows.forEach(p => {
         if (p.full_name && p.email) emailMap[p.full_name] = p.email;
         if (p.full_name && p.avatar_url) avatarMap[p.full_name] = p.avatar_url;
+        if (p.full_name && p.user_id) userIdMap[p.full_name] = p.user_id;
       });
       setMemberEmails(emailMap);
       setMemberAvatars(avatarMap);
+      setMemberUserIds(userIdMap);
 
       const dbActivities = await fetchAllActivities(companyId);
 
@@ -1612,7 +1618,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         crmTags, addTag, updateTag, deleteTag,
         crmLists, addList, updateList, deleteList, addLeadToList, removeLeadFromList,
         pipelineGroups, addPipelineGroup, deletePipelineGroup,
-        teamMembers, memberColors, memberEmails, memberAvatars,
+        teamMembers, memberColors, memberEmails, memberAvatars, memberUserIds, currentUserName,
         products, addProduct, updateProduct, deleteProduct,
         lossReasons, addLossReason, updateLossReason, deleteLossReason,
         customFieldGroups, addCustomFieldGroup, updateCustomFieldGroup, deleteCustomFieldGroup,

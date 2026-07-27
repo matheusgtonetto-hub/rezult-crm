@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import type { Lead, Pipeline } from "@/data/mockData";
 import {
@@ -364,7 +365,9 @@ export default function MultiatendimentoPage() {
   const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName } = useCRM();
+  const { can, isOwner: isCompanyOwner } = usePermissions();
+  const isMuAdmin = isCompanyOwner || can("multiatendimento:admin");
   const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
@@ -444,6 +447,48 @@ export default function MultiatendimentoPage() {
   const [instances, setInstances] = useState<ZApiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<string>("");
   const [instanceOpen, setInstanceOpen] = useState(false);
+
+  // Visibilidade de conversas por atendente (multiatendimento_attendant_settings,
+  // chaveada por user_id). Configurada por um admin na aba "Atendentes" das
+  // configurações. Sem linha pro usuário = defaults (ambas regras desligadas).
+  type AttendantVisibility = { allowSeeOthers: boolean; hideUnassigned: boolean };
+  const [attendantSettings, setAttendantSettings] = useState<Record<string, AttendantVisibility>>({});
+  useEffect(() => {
+    if (!company?.id) return;
+    supabase.from("multiatendimento_attendant_settings")
+      .select("user_id, allow_see_others_convs, hide_unassigned_convs")
+      .eq("company_id", company.id)
+      .then(({ data, error }) => {
+        if (error) { console.error("Erro ao carregar visibilidade de atendentes:", error.message); return; }
+        const map: Record<string, AttendantVisibility> = {};
+        (data ?? []).forEach(r => {
+          map[r.user_id as string] = { allowSeeOthers: !!r.allow_see_others_convs, hideUnassigned: !!r.hide_unassigned_convs };
+        });
+        setAttendantSettings(map);
+      });
+  }, [company?.id]);
+
+  // Grava (upsert) a visibilidade de UM atendente -- chamado pelos toggles da
+  // aba "Atendentes", só acessível a quem tem multiatendimento:admin (RLS
+  // também bloqueia a escrita pra quem não for admin/dono, isso aqui é só a
+  // UI já não deixar chegar nesse ponto).
+  function saveAttendantSetting(userId: string, patch: Partial<AttendantVisibility>) {
+    setAttendantSettings(prev => ({
+      ...prev,
+      [userId]: { allowSeeOthers: false, hideUnassigned: false, ...prev[userId], ...patch },
+    }));
+    if (!company?.id) return;
+    const next = { allowSeeOthers: false, hideUnassigned: false, ...attendantSettings[userId], ...patch };
+    supabase.from("multiatendimento_attendant_settings")
+      .upsert({
+        company_id: company.id,
+        user_id: userId,
+        allow_see_others_convs: next.allowSeeOthers,
+        hide_unassigned_convs: next.hideUnassigned,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id,user_id" })
+      .then(({ error }) => { if (error) { console.error("saveAttendantSetting:", error.message); toast.error("Erro ao salvar configuração do atendente."); } });
+  }
 
   // ── profile pictures cache ───────────────────────────────────────────
   const [convAvatars, setConvAvatars] = useState<Record<string, string>>({});
@@ -791,6 +836,25 @@ export default function MultiatendimentoPage() {
     }
     return null;
   };
+
+  // Visibilidade de uma conversa pro usuário logado. Admin (dono da empresa
+  // ou multiatendimento:admin) sempre vê tudo. Senão: conversa é "minha" se
+  // eu estiver entre os responsáveis do negócio vinculado, ou se o assignedTo
+  // (conversa sem negócio ainda) bater com meu nome -- sempre visível. Se for
+  // de outro atendente, depende de allowSeeOthers; sem ninguém atribuído,
+  // depende de hideUnassigned (default: continua visível).
+  const isConvVisibleToMe = (c: Conversation): boolean => {
+    if (isMuAdmin) return true;
+    const negocio = resolveLeadForConv(c);
+    const assignedTo = convStates[c.id]?.assignedTo;
+    const mine = (!!negocio?.pipelineId && (negocio.responsibles ?? []).includes(currentUserName))
+      || (!!assignedTo && assignedTo === currentUserName);
+    if (mine) return true;
+    const mySettings = user ? attendantSettings[user.id] : undefined;
+    if (assignedTo) return !!mySettings?.allowSeeOthers;
+    return !mySettings?.hideUnassigned;
+  };
+
   const effectiveLead  = resolveLeadForConv(active);
   // Responsável é propriedade exclusiva do negócio (nunca do Lead solto) --
   // hasNegocio distingue "resolveu pra um negócio de verdade" de "resolveu
@@ -2326,19 +2390,31 @@ export default function MultiatendimentoPage() {
   // (mesma resolução usada no resto do arquivo, agora ciente de contactId).
   const convLead = (c: Conversation) => resolveLeadForConv(c) ?? undefined;
 
+  // Fase 3: aplica a visibilidade por atendente só nas listas que aparecem na
+  // tela (contadores dos chips, lista principal, "outras conversas do
+  // contato"). Operações internas (handleTransfer, sync de tags etc.)
+  // continuam usando convList puro -- não faz sentido pular conversas que o
+  // usuário atual não pode ver, senão dados de outros atendentes parariam de
+  // ser sincronizados corretamente.
+  const visibleConvList = useMemo(
+    () => convList.filter(isConvVisibleToMe),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [convList, convStates, isMuAdmin, currentUserName, attendantSettings, user, leads]
+  );
+
   // Outras conversas do mesmo contato (ex: falou por um número antigo e por um
   // novo). Filtra sobre convList (já carregado inteiro por reloadConversations,
   // com contactId mapeado) em vez de uma query própria — se um dia convList
   // passar a paginar, isso precisa virar um select direto por contact_id.
   const otherContactConvs = useMemo(() => {
     if (!active?.contactId) return [];
-    return convList
+    return visibleConvList
       .filter(c => c.contactId === active.contactId && c.id !== active.id)
       .sort((a, b) => (b.lastMsgAt ? new Date(b.lastMsgAt).getTime() : 0) - (a.lastMsgAt ? new Date(a.lastMsgAt).getTime() : 0));
-  }, [convList, active?.contactId, active?.id]);
+  }, [visibleConvList, active?.contactId, active?.id]);
 
   const filteredConversations = useMemo(() => {
-    let list = convList;
+    let list = visibleConvList;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
@@ -2384,7 +2460,7 @@ export default function MultiatendimentoPage() {
     else if (fltOrder === "name") sorted.sort((a, b) => convName(a).localeCompare(convName(b), "pt-BR"));
     return sorted;
     // leads: convName/convLead resolvem o lead por telefone, então a busca depende deles
-  }, [searchQuery, activeFilter, convStates, convList, leads, whatsappConnections, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
+  }, [searchQuery, activeFilter, convStates, visibleConvList, leads, whatsappConnections, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
 
   const activeAdvCount =
     (fltDepts.length ? 1 : 0) + (fltAgents.length ? 1 : 0) + (fltInstances.length ? 1 : 0) +
@@ -2514,15 +2590,15 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
-    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: visibleConvList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: visibleConvList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: visibleConvList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
+    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   const activeFilterTitle = activeFilterMeta?.label ?? "Todas as conversas";
-  const activeFilterCount = activeFilterMeta?.count ?? convList.length;
+  const activeFilterCount = activeFilterMeta?.count ?? visibleConvList.length;
 
   // ── grouped messages ────────────────────────────────────────────────
   const groupedMessages = useMemo(() => {
@@ -2657,7 +2733,7 @@ export default function MultiatendimentoPage() {
           {filteredConversations.length === 0 && (
             <div style={{ padding: "40px 16px", textAlign: "center" }}>
               <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
-              {convList.length === 0 ? (
+              {visibleConvList.length === 0 ? (
                 <>
                   <p style={{ fontSize: 13, color: "#AAA", marginBottom: 4 }}>Nenhuma conversa ainda</p>
                   <p style={{ fontSize: 12, color: "#CCC", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
@@ -3643,12 +3719,18 @@ export default function MultiatendimentoPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Multiatendimento</div>
                 <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Configurações</div>
               </div>
-              {(["config", "dept", "agents", "quick"] as const).map((tab, i) => {
-                const labels = ["Configurações", "Departamento", "Atendentes", "Mensagens rápidas"];
+              {([
+                { tab: "config" as const, label: "Configurações" },
+                { tab: "dept" as const, label: "Departamento" },
+                // Aba "Atendentes" configura visibilidade de conversas de outros
+                // atendentes -- só admin de multiatendimento pode ver/mexer.
+                ...(isMuAdmin ? [{ tab: "agents" as const, label: "Atendentes" }] : []),
+                { tab: "quick" as const, label: "Mensagens rápidas" },
+              ]).map(({ tab, label }) => {
                 const active2 = settingsTab === tab;
                 return (
                   <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "#128A68" : "#444", borderLeft: active2 ? "3px solid #128A68" : "3px solid transparent", transition: "all 0.15s" }}>
-                    {labels[i]}
+                    {label}
                   </button>
                 );
               })}
@@ -3753,7 +3835,7 @@ export default function MultiatendimentoPage() {
                 )}
 
                 {/* ── Atendentes ── */}
-                {settingsTab === "agents" && (
+                {settingsTab === "agents" && isMuAdmin && (
                   <div style={{ display: "flex", gap: 14, height: 380 }}>
                     {/* lista */}
                     <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
@@ -3788,18 +3870,25 @@ export default function MultiatendimentoPage() {
                           <div style={{ background: "#D1FAE5", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#128A68", marginBottom: 14 }}>
                             O atendente sempre pode ver as conversas atribuídas a ele
                           </div>
-                          {[
-                            { label: "Permitir ver conversas de outros atendentes", desc: "Permite o atendente ver as conversas com outros atendentes atribuídos" },
-                            { label: "Desabilitar conversas sem atendentes", desc: "Não permite ver conversas que não possuem um atendente" },
-                          ].map((item, i) => (
-                            <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.label}</div>
-                                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                          {(() => {
+                            const agentUserId = memberUserIds[selectedAgent];
+                            if (!agentUserId) {
+                              return <div style={{ fontSize: 12, color: "#AAA" }}>Não foi possível identificar este atendente.</div>;
+                            }
+                            const agentSettings = attendantSettings[agentUserId] ?? { allowSeeOthers: false, hideUnassigned: false };
+                            return ([
+                              { key: "allowSeeOthers" as const, label: "Permitir ver conversas de outros atendentes", desc: "Permite o atendente ver as conversas com outros atendentes atribuídos" },
+                              { key: "hideUnassigned" as const, label: "Desabilitar conversas sem atendentes", desc: "Não permite ver conversas que não possuem um atendente" },
+                            ]).map(item => (
+                              <div key={item.key} style={{ padding: "12px 0", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.label}</div>
+                                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                                </div>
+                                <MuToggle checked={agentSettings[item.key]} onChange={() => saveAttendantSetting(agentUserId, { [item.key]: !agentSettings[item.key] })} />
                               </div>
-                              <MuToggle checked={false} onChange={() => toast.info("Em breve")} />
-                            </div>
-                          ))}
+                            ));
+                          })()}
                         </>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
