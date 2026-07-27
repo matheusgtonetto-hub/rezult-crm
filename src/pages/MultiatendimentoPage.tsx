@@ -792,6 +792,10 @@ export default function MultiatendimentoPage() {
     return null;
   };
   const effectiveLead  = resolveLeadForConv(active);
+  // Responsável é propriedade exclusiva do negócio (nunca do Lead solto) --
+  // hasNegocio distingue "resolveu pra um negócio de verdade" de "resolveu
+  // só pro Lead solto", o que effectiveLead sozinho não garante.
+  const hasNegocio      = !!effectiveLead?.pipelineId;
   // Quando há lead vinculado, ele é a fonte da verdade das tags (mesmas em todas as
   // conversas/instâncias do lead); sem lead, usa as tags da própria conversa.
   const convTags       = effectiveLead?.tags ?? active?.tags ?? [];
@@ -2251,33 +2255,38 @@ export default function MultiatendimentoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, convList]);
 
-  async function handleTransfer(memberName: string) {
+  // Responsável é propriedade do negócio -- por isso exige um negócio
+  // vinculado (hasNegocio) e grava em leads.responsibles, não mais um
+  // assigned_to solto por conversa. assigned_to em whatsapp_conversations
+  // continua existindo (é o que os chips leem), mas passa a ser só um
+  // espelho do responsável do negócio, atualizado em TODAS as conversas
+  // desse negócio de uma vez -- antes só a conversa ativa era atualizada.
+  async function handleTransfer(memberNames: string[]) {
     if (!activeId || !user) return;
+    const linkedLead = resolveLeadForConv(active);
+    if (!linkedLead?.pipelineId) {
+      toast.error("Crie um negócio pra essa conversa antes de atribuir um responsável.");
+      return;
+    }
     const fromName = user.email?.split("@")[0] ?? "Você";
-    const sysText = `Atendimento transferido para ${memberName} por ${fromName}`;
+    const primary = memberNames[0] ?? "";
+    const sysText = memberNames.length > 0
+      ? `Responsável do negócio atualizado para ${memberNames.join(", ")} por ${fromName}`
+      : `Responsável do negócio removido por ${fromName}`;
     const timeStr = nowTime();
 
-    // Atribuir atendente só atribui atendente — criar o Lead é uma ação
-    // explícita separada (botão "+ Lead"), não um efeito colateral daqui.
-
-    // Conversas-alvo: TODAS as conversas do mesmo lead (uma por instância). Assim o
-    // evento de transferência aparece no histórico de qualquer instância. Sem lead
-    // vinculado, apenas a conversa ativa.
-    const linkedLead = resolveLeadForConv(active);
-    const targets = linkedLead
-      ? convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id)
-      : (active ? [active] : []);
+    // Conversas-alvo: TODAS as conversas do mesmo negócio (uma por instância). O
+    // responsável é do negócio, então todas devem refletir o mesmo valor.
+    const targets = convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id);
     if (active && !targets.some(c => c.id === activeId)) targets.push(active);
 
     for (const conv of targets) {
       const msgId = crypto.randomUUID();
       const sysMsg: Msg = { id: msgId, from: "system", time: timeStr, kind: "system", text: sysText, date: "Hoje" };
-      // Em memória apenas se a conversa já estiver carregada (a ativa sempre está).
       setConvStates(prev => {
-        const cur = prev[conv.id];
-        if (!cur) return prev;
+        const cur = prev[conv.id] ?? DEFAULT_CS;
         if (cur.messages.some(x => x.id === msgId)) return prev;
-        return { ...prev, [conv.id]: { ...cur, messages: [...cur.messages, sysMsg] } };
+        return { ...prev, [conv.id]: { ...cur, messages: [...cur.messages, sysMsg], assignedTo: primary || undefined } };
       });
       // Persiste com a INSTÂNCIA da conversa — a query de histórico filtra por phone + instance_id.
       const phoneForSystem = (conv.phone ?? "").replace(/\D/g, "") || conv.id;
@@ -2293,30 +2302,22 @@ export default function MultiatendimentoPage() {
         momment:     Date.now(),
         sender_name: null,
       }).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
+      supabase.from("whatsapp_conversations")
+        .update({ assigned_to: primary || null })
+        .eq("id", conv.id)
+        .then(({ error }) => { if (error) console.error("handleTransfer assignedTo:", error); });
     }
 
-    // assignedTo é por conversa: atualiza só a conversa ativa (a que foi transferida).
-    setConvStates(prev => {
-      const cur = prev[activeId] ?? DEFAULT_CS;
-      return { ...prev, [activeId]: { ...cur, assignedTo: memberName } };
+    // Responsável do negócio + atividade FIXA (evento de sistema, não anotação editável).
+    await updateLead(linkedLead.id, { responsibles: memberNames, responsible: primary });
+    addActivity(linkedLead.id, {
+      type: "transfer",
+      date: new Date().toISOString(),
+      description: sysText,
+      userName: fromName,
     });
-    supabase.from("whatsapp_conversations")
-      .update({ assigned_to: memberName })
-      .eq("id", activeId)
-      .then(({ error }) => { if (error) console.error("updateCs assignedTo:", error); });
 
-    // Responsável do lead + atividade FIXA (evento de sistema, não anotação editável).
-    if (linkedLead) {
-      updateLead(linkedLead.id, { responsible: memberName });
-      addActivity(linkedLead.id, {
-        type: "transfer",
-        date: new Date().toISOString(),
-        description: sysText,
-        userName: fromName,
-      });
-    }
-
-    toast.success(`Atendimento transferido para ${memberName}`);
+    toast.success(memberNames.length > 0 ? `Responsável atualizado: ${memberNames.join(", ")}` : "Responsável removido");
     setShowTransferDialog(false);
   }
 
@@ -2806,7 +2807,11 @@ export default function MultiatendimentoPage() {
                   {moreMenuOpen && (
                     <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
                       {[
-                        { label: "Transferir", action: () => { setShowTransferDialog(true); setMoreMenuOpen(false); } },
+                        { label: "Transferir", action: () => {
+                          setMoreMenuOpen(false);
+                          if (!hasNegocio) { toast.error("Crie um negócio pra essa conversa antes de atribuir um responsável."); return; }
+                          setShowTransferDialog(true);
+                        } },
                         { label: "Arquivar", action: () => { updateCs(activeId, { finished: true }); toast("Conversa arquivada"); setMoreMenuOpen(false); } },
                         { label: "Abrir perfil", action: () => {
                           setMoreMenuOpen(false);
@@ -3270,11 +3275,13 @@ export default function MultiatendimentoPage() {
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
-                  onClick={() => { setShowNegocioForm(v => !v); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
-                  style={{ flex: 1, background: showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5")}
-                ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
+                  onClick={() => { if (hasNegocio) return; setShowNegocioForm(v => !v); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
+                  disabled={hasNegocio}
+                  title={hasNegocio ? "Esta conversa já tem um negócio aberto vinculado" : undefined}
+                  style={{ flex: 1, background: hasNegocio ? "#F5F5F5" : showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm && !hasNegocio ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: hasNegocio ? "#AAA" : "#128A68", fontSize: 12, fontWeight: 600, cursor: hasNegocio ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => { if (!hasNegocio) e.currentTarget.style.background = "#E1F5EE"; }}
+                  onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5"; }}
+                ><Plus size={12} /> {hasNegocio ? "Negócio ✓" : effectiveLead ? "Negócio" : "Lead"}</button>
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
                   style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
@@ -3289,24 +3296,32 @@ export default function MultiatendimentoPage() {
                 ><CalendarDays size={12} /> Agendar</button>
               </div>
 
-              {/* Atendente responsável */}
+              {/* Responsável -- propriedade do negócio, não da conversa. Sem
+                  negócio vinculado ainda, não dá pra atribuir (a conversa
+                  segue funcionando normalmente nos chips mesmo assim). */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
                 <UserCheck size={13} color="#128A68" />
-                <span style={{ fontSize: 12, color: "#666" }}>Atendente:</span>
-                {cs.assignedTo ? (
+                <span style={{ fontSize: 12, color: "#666" }}>Responsável:</span>
+                {!hasNegocio ? (
+                  <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
+                ) : (effectiveLead?.responsibles?.length ?? 0) > 0 ? (
                   <>
-                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[cs.assignedTo] ?? colorFromString(cs.assignedTo), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
-                      {initials(cs.assignedTo)}
+                    <div style={{ display: "flex", flexShrink: 0 }}>
+                      {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) => (
+                        <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
+                          {initials(name)}
+                        </div>
+                      ))}
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cs.assignedTo}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
                     <button
                       onClick={() => setShowTransferDialog(true)}
                       style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
-                    >Transferir</button>
+                    >Editar</button>
                   </>
                 ) : (
                   <>
-                    <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem atendente</span>
+                    <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
                     <button
                       onClick={() => setShowTransferDialog(true)}
                       style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
@@ -3609,7 +3624,7 @@ export default function MultiatendimentoPage() {
         memberEmails={memberEmails}
         memberAvatars={memberAvatars}
         memberColors={memberColors}
-        currentAssignee={cs?.assignedTo}
+        currentAssignees={effectiveLead?.responsibles ?? []}
       />
 
       {/* ── MODAL: configurações multiatendimento ───────────────────── */}
@@ -4076,28 +4091,31 @@ function MuToggle({ checked, onChange }: { checked: boolean; onChange: () => voi
 
 /* ── Transfer dialog ─────────────────────────────────────────────────── */
 function TransferDialog({
-  open, onClose, onTransfer, teamMembers, memberEmails, memberAvatars, memberColors, currentAssignee,
+  open, onClose, onTransfer, teamMembers, memberEmails, memberAvatars, memberColors, currentAssignees,
 }: {
   open: boolean;
   onClose: () => void;
-  onTransfer: (memberName: string) => void;
+  onTransfer: (memberNames: string[]) => void;
   teamMembers: string[];
   memberEmails: Record<string, string>;
   memberAvatars: Record<string, string>;
   memberColors: Record<string, string>;
-  currentAssignee?: string;
+  currentAssignees?: string[];
 }) {
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<string[]>(currentAssignees ?? []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    if (open) { setSelected(currentAssignees ?? []); setTimeout(() => inputRef.current?.focus(), 50); }
     else setQ("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
 
   const filtered = teamMembers.filter(m => !q.trim() || m.toLowerCase().includes(q.toLowerCase()));
+  const toggle = (m: string) => setSelected(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
 
   return (
     <div
@@ -4112,9 +4130,9 @@ function TransferDialog({
         <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 7 }}>
-              <UserCheck size={16} color="#128A68" /> Transferir atendimento
+              <UserCheck size={16} color="#128A68" /> Responsável do negócio
             </div>
-            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione o atendente que receberá esta conversa</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um ou mais responsáveis</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
             <X size={18} color="#AAA" />
@@ -4145,17 +4163,17 @@ function TransferDialog({
             </div>
           )}
           {filtered.map(memberName => {
-            const isCurrentAssignee = memberName === currentAssignee;
+            const isSelected = selected.includes(memberName);
             const avatar = memberAvatars[memberName];
             const color = memberColors[memberName] ?? colorFromString(memberName);
             const email = memberEmails[memberName] ?? "";
             return (
               <button
                 key={memberName}
-                onClick={() => onTransfer(memberName)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isCurrentAssignee ? "#F0FBF6" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                onMouseEnter={e => { if (!isCurrentAssignee) e.currentTarget.style.background = "#F5F5F5"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = isCurrentAssignee ? "#F0FBF6" : "transparent"; }}
+                onClick={() => toggle(memberName)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isSelected ? "#F0FBF6" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#F5F5F5"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#F0FBF6" : "transparent"; }}
               >
                 {/* avatar */}
                 {avatar ? (
@@ -4172,17 +4190,21 @@ function TransferDialog({
                   {email && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
                 </div>
 
-                {isCurrentAssignee && (
-                  <span style={{ fontSize: 11, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "3px 8px", borderRadius: 100, flexShrink: 0 }}>Atual</span>
-                )}
+                <div style={{ width: 18, height: 18, borderRadius: 5, border: isSelected ? "none" : "1.5px solid #CCC", background: isSelected ? "#128A68" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {isSelected && <Check size={12} color="#FFF" strokeWidth={3} />}
+                </div>
               </button>
             );
           })}
         </div>
 
         {/* footer */}
-        <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
-          {filtered.length} atendente{filtered.length !== 1 ? "s" : ""} disponíve{filtered.length !== 1 ? "is" : "l"}
+        <div style={{ padding: "12px 20px", borderTop: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 11, color: "#AAA" }}>{selected.length} selecionado{selected.length !== 1 ? "s" : ""}</span>
+          <button
+            onClick={() => onTransfer(selected)}
+            style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer" }}
+          >Salvar</button>
         </div>
       </div>
     </div>
