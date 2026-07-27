@@ -19,6 +19,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2, GripVertical, Type, DollarSign, Hash,
@@ -3294,6 +3298,10 @@ function ConexoesSection() {
 
   // manage dialog state (editar conexão existente)
   const [editingConnId, setEditingConnId]         = useState<string | null>(null);
+  // aviso de conversas em aberto ao desconectar (ver requestDisconnect)
+  const [disconnectCheck, setDisconnectCheck]     = useState<{ connId: string; openCount: number } | null>(null);
+  const [migrateTargetId, setMigrateTargetId]     = useState<string>("");
+  const [migrating, setMigrating]                 = useState(false);
   const [manageProvider, setManageProvider]       = useState<string>("zapi");
   const [manageTab, setManageTab]                 = useState<"auth" | "intervals" | "config">("auth");
   const [connName, setConnName]                   = useState("");
@@ -3688,9 +3696,12 @@ function ConexoesSection() {
     startPoll(form);
   }
 
-  async function handleDisconnect() {
-    if (!editingConnId) return;
-    const conn = whatsappConnections.find(c => c.id === editingConnId);
+  // Desconecta de fato: chama a API do provedor pra encerrar a sessão e apaga
+  // a linha (não existe soft-disconnect hoje). Extraído do antigo
+  // handleDisconnect pra ser reutilizável tanto pelo fluxo direto (sem
+  // conversas em aberto) quanto pelo dialog de migração abaixo.
+  async function performDisconnect(connId: string) {
+    const conn = whatsappConnections.find(c => c.id === connId);
     if (conn && conn.provider === "dapi") {
       try {
         await fetch(`${DAPI_BASE}/sessions/${conn.instanceId}/disconnect`, {
@@ -3701,10 +3712,80 @@ function ConexoesSection() {
       const creds: ZApiForm = { instanceId: conn.instanceId, token: conn.token, clientToken: conn.clientToken ?? "" };
       try { await fetch(`${zapiBase(creds)}/disconnect`, { method: "DELETE", headers: zapiHeaders(creds) }); } catch { /* ignore */ }
     }
-    await removeWhatsAppConnection(editingConnId);
-    setEditingConnId(null);
+    await removeWhatsAppConnection(connId);
+    if (editingConnId === connId) setEditingConnId(null);
     closeDialog();
     toast.success("Conexão removida.");
+  }
+
+  // Ponto de entrada pra desconectar: se a conexão tem conversas em aberto,
+  // avisa e oferece migrar pra outro número em vez de deixá-las órfãs em
+  // silêncio (whatsapp_conversations.instance_id não é FK — hoje elas
+  // simplesmente param de bater com qualquer conexão existente).
+  async function requestDisconnect(connId: string) {
+    const conn = whatsappConnections.find(c => c.id === connId);
+    const ownerId = company?.owner_id;
+    if (!conn || !ownerId) { await performDisconnect(connId); return; }
+
+    const { count } = await supabase.from("whatsapp_conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("instance_id", conn.instanceId)
+      .eq("finished", false);
+
+    if (!count) { await performDisconnect(connId); return; }
+    setMigrateTargetId("");
+    setDisconnectCheck({ connId, openCount: count });
+  }
+
+  // Migra as conversas (E o histórico de mensagens — elas são casadas por
+  // instance_id+phone, não por FK, então sem migrar whatsapp_messages também
+  // a conversa migrada abriria vazia) pro número escolhido, particionando
+  // quem colide com a UNIQUE (owner_id, instance_id, phone) do destino.
+  async function migrateThenDisconnect() {
+    if (!disconnectCheck || !migrateTargetId) return;
+    const { connId } = disconnectCheck;
+    const conn = whatsappConnections.find(c => c.id === connId);
+    const ownerId = company?.owner_id;
+    if (!conn || !ownerId) return;
+
+    setMigrating(true);
+    try {
+      const { data: openConvs } = await supabase.from("whatsapp_conversations")
+        .select("id, phone").eq("owner_id", ownerId).eq("instance_id", conn.instanceId).eq("finished", false);
+      const { data: targetRows } = await supabase.from("whatsapp_conversations")
+        .select("phone").eq("owner_id", ownerId).eq("instance_id", migrateTargetId);
+      const taken = new Set((targetRows ?? []).map(r => (r as { phone: string }).phone));
+
+      const rows = (openConvs ?? []) as { id: string; phone: string }[];
+      const migratable = rows.filter(c => !taken.has(c.phone));
+      const blocked = rows.filter(c => taken.has(c.phone));
+
+      if (migratable.length > 0) {
+        await supabase.from("whatsapp_conversations").update({ instance_id: migrateTargetId })
+          .in("id", migratable.map(c => c.id));
+        await supabase.from("whatsapp_messages").update({ instance_id: migrateTargetId })
+          .eq("owner_id", ownerId).eq("instance_id", conn.instanceId)
+          .in("phone", migratable.map(c => c.phone));
+      }
+
+      toast.success(
+        blocked.length > 0
+          ? `${migratable.length} conversa(s) migrada(s). ${blocked.length} não puderam ser migradas (o contato já tinha conversa nesse número).`
+          : `${migratable.length} conversa(s) migrada(s) com sucesso.`
+      );
+
+      await performDisconnect(connId);
+    } finally {
+      setMigrating(false);
+      setDisconnectCheck(null);
+      setMigrateTargetId("");
+    }
+  }
+
+  async function handleDisconnect() {
+    if (!editingConnId) return;
+    await requestDisconnect(editingConnId);
   }
 
   function openDialog() { openNewDialog(); }
@@ -3818,7 +3899,7 @@ function ConexoesSection() {
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
                 </button>
-                <Switch checked={conn.active} onCheckedChange={async (checked) => { if (!checked) { await removeWhatsAppConnection(conn.id); } }} />
+                <Switch checked={conn.active} onCheckedChange={async (checked) => { if (!checked) { await requestDisconnect(conn.id); } }} />
               </div>
             </div>
           ))}
@@ -3868,7 +3949,7 @@ function ConexoesSection() {
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
                 </button>
-                <Switch checked={conn.active} onCheckedChange={async (checked) => { if (!checked) { await removeWhatsAppConnection(conn.id); } }} />
+                <Switch checked={conn.active} onCheckedChange={async (checked) => { if (!checked) { await requestDisconnect(conn.id); } }} />
               </div>
             </div>
           ))}
@@ -4708,6 +4789,54 @@ function ConexoesSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Aviso de conversas em aberto ao desconectar — oferece migrar pra outro número */}
+      <AlertDialog open={!!disconnectCheck} onOpenChange={(o) => { if (!o) { setDisconnectCheck(null); setMigrateTargetId(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{disconnectCheck?.openCount} conversa(s) em aberto nesta conexão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const otherConnected = whatsappConnections.filter(c => c.connected && c.active && c.id !== disconnectCheck?.connId);
+                return otherConnected.length > 0
+                  ? "Você pode migrar essas conversas (e o histórico de mensagens) pra outro número já conectado antes de desconectar, ou desconectar sem migrar — nesse caso elas ficam inacessíveis até um número novo ser conectado."
+                  : "Não há outro número conectado agora. Se desconectar, essas conversas ficam inacessíveis até você conectar um número novo.";
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {whatsappConnections.filter(c => c.connected && c.active && c.id !== disconnectCheck?.connId).length > 0 && (
+            <Select value={migrateTargetId} onValueChange={setMigrateTargetId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Selecione o número de destino..." />
+              </SelectTrigger>
+              <SelectContent>
+                {whatsappConnections.filter(c => c.connected && c.active && c.id !== disconnectCheck?.connId).map(c => (
+                  <SelectItem key={c.id} value={c.instanceId}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <AlertDialogFooter className="mt-2 flex-wrap gap-2">
+            <AlertDialogCancel disabled={migrating}>Cancelar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              disabled={migrating}
+              onClick={() => { if (disconnectCheck) performDisconnect(disconnectCheck.connId); setDisconnectCheck(null); setMigrateTargetId(""); }}
+            >
+              Desconectar sem migrar
+            </Button>
+            {whatsappConnections.filter(c => c.connected && c.active && c.id !== disconnectCheck?.connId).length > 0 && (
+              <Button
+                className="bg-primary hover:bg-primary/90"
+                disabled={migrating || !migrateTargetId}
+                onClick={migrateThenDisconnect}
+              >
+                {migrating ? "Migrando..." : "Migrar e desconectar"}
+              </Button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

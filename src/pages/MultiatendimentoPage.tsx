@@ -721,6 +721,15 @@ export default function MultiatendimentoPage() {
     return p;
   };
 
+  // Uma conversa fica "desconectada" quando o instanceId dela não bate com
+  // nenhuma conexão WhatsApp existente hoje (desconectar = DELETE físico da
+  // linha em whatsapp_connections, não existe soft-disconnect). Instagram usa
+  // meta_connections, outro sistema — nunca é considerado desconectado aqui.
+  const isConvInstanceConnected = (c: Conversation): boolean => {
+    if (c.channel !== "whatsapp") return true;
+    return whatsappConnections.some(wc => wc.instanceId === c.instanceId);
+  };
+
   // Etapas reais do pipeline vinculado ao lead ativo.
   // Resolução robusta do lead vinculado a uma conversa, em ordem de confiabilidade:
   //  1) por ID (conversas abertas pelo pipeline usam o id do lead como id da conversa)
@@ -1875,9 +1884,18 @@ export default function MultiatendimentoPage() {
     // otimista "aparecer enviada" na tela e sumir ao recarregar — nunca foi de
     // fato enviada nem persistida em whatsapp_messages, e nada avisava o usuário.
     if (active?.channel !== "instagram") {
+      if (!active?.phone) {
+        toast.error("Não foi possível enviar: esta conversa não tem um telefone associado.");
+        return;
+      }
       const instCheck = instances.find(i => i.instanceId === selectedInstance);
-      if (!instCheck?.token || !active?.phone) {
-        toast.error("Não foi possível enviar: nenhuma conexão WhatsApp ativa encontrada para este número. Verifique em Configurações → Conexões.");
+      if (!instCheck?.token) {
+        toast.error(
+          instances.length === 0
+            ? "Nenhuma conexão WhatsApp está ativa. Conecte um número para continuar."
+            : "O número usado nesta conversa está desconectado. Selecione outra conexão para continuar."
+        );
+        setInstanceOpen(true);
         return;
       }
     }
@@ -2177,6 +2195,17 @@ export default function MultiatendimentoPage() {
   // (mesma resolução usada no resto do arquivo, agora ciente de contactId).
   const convLead = (c: Conversation) => resolveLeadForConv(c) ?? undefined;
 
+  // Outras conversas do mesmo contato (ex: falou por um número antigo e por um
+  // novo). Filtra sobre convList (já carregado inteiro por reloadConversations,
+  // com contactId mapeado) em vez de uma query própria — se um dia convList
+  // passar a paginar, isso precisa virar um select direto por contact_id.
+  const otherContactConvs = useMemo(() => {
+    if (!active?.contactId) return [];
+    return convList
+      .filter(c => c.contactId === active.contactId && c.id !== active.id)
+      .sort((a, b) => (b.lastMsgAt ? new Date(b.lastMsgAt).getTime() : 0) - (a.lastMsgAt ? new Date(a.lastMsgAt).getTime() : 0));
+  }, [convList, active?.contactId, active?.id]);
+
   const filteredConversations = useMemo(() => {
     let list = convList;
     if (searchQuery.trim()) {
@@ -2184,9 +2213,9 @@ export default function MultiatendimentoPage() {
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
-      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished); break;
-      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read); break;
-      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read); break;
+      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
+      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
+      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
@@ -2224,7 +2253,7 @@ export default function MultiatendimentoPage() {
     else if (fltOrder === "name") sorted.sort((a, b) => convName(a).localeCompare(convName(b), "pt-BR"));
     return sorted;
     // leads: convName/convLead resolvem o lead por telefone, então a busca depende deles
-  }, [searchQuery, activeFilter, convStates, convList, leads, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
+  }, [searchQuery, activeFilter, convStates, convList, leads, whatsappConnections, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
 
   const activeAdvCount =
     (fltDepts.length ? 1 : 0) + (fltAgents.length ? 1 : 0) + (fltInstances.length ? 1 : 0) +
@@ -2354,9 +2383,9 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
@@ -2549,6 +2578,7 @@ export default function MultiatendimentoPage() {
                     })}
                     {c.tags.length > 2 && <span style={{ fontSize: 10, color: "#AAA" }}>+{c.tags.length - 2}</span>}
                     {cState?.finished && <span style={{ fontSize: 10, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "2px 6px", borderRadius: 4 }}>✓ Finalizada</span>}
+                    {!isConvInstanceConnected(c) && <span style={{ fontSize: 10, fontWeight: 600, background: "#F5F5F5", color: "#888", padding: "2px 6px", borderRadius: 4 }}>Desconectada</span>}
                   </div>
                 </div>
               </div>
@@ -3154,6 +3184,31 @@ export default function MultiatendimentoPage() {
                   </>
                 )}
               </div>
+
+              {/* Outras conversas deste contato (ex: número antigo x novo) */}
+              {active.contactId && otherContactConvs.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>OUTRAS CONVERSAS DESTE CONTATO</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {otherContactConvs.map(oc => (
+                      <button
+                        key={oc.id}
+                        onClick={() => { setActiveId(oc.id); updateCs(oc.id, { read: true }); }}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {whatsappConnections.find(wc => wc.instanceId === oc.instanceId)?.name ?? "Número desconhecido"}
+                          </span>
+                          <span style={{ fontSize: 10, color: "#AAA", flexShrink: 0 }}>{oc.time}</span>
+                        </div>
+                        <span style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{previewText(oc)}</span>
+                        {!isConvInstanceConnected(oc) && <span style={{ fontSize: 9, fontWeight: 600, color: "#888", marginTop: 2 }}>Desconectada</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Painel: + Negócio / + Lead */}
               {showNegocioForm && (effectiveLead ? (
