@@ -770,8 +770,11 @@ export default function MultiatendimentoPage() {
       if (byContact.length > 0) return byContact.find(l => l.dealStatus === "open") ?? byContact[0];
     }
     if (conv.phone) {
-      const byPhone = Object.values(leads).find(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
-      if (byPhone) return byPhone;
+      // Mesma regra do contactId acima: um telefone pode ter mais de um negócio
+      // (histórico fechado + um novo aberto), então prioriza o aberto em vez de
+      // pegar arbitrariamente o primeiro que o Object.values devolver.
+      const byPhone = Object.values(leads).filter(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
+      if (byPhone.length > 0) return byPhone.find(l => l.dealStatus === "open") ?? byPhone[0];
     }
     const dn = (conv.dealNumber ?? "").replace(/\D/g, "");
     if (dn) {
