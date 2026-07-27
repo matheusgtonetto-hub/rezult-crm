@@ -687,6 +687,9 @@ export default function MultiatendimentoPage() {
   const audioChunksRef     = useRef<Blob[]>([]);
   const recordingTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTimeRef   = useRef(0); // ref para evitar closure stale no onstop
+  // Throttle do indicador "digitando": lastTypingAt evita reenviar "typing" a
+  // cada tecla, pauseTimer dispara "paused" depois de alguns segundos parado.
+  const typingRef = useRef<{ lastTypingAt: number; pauseTimer: ReturnType<typeof setTimeout> | null }>({ lastTypingAt: 0, pauseTimer: null });
 
   const active   = convList.find(c => c.id === activeId);
   // Fix: fallback para evitar que cs seja null quando convStates[activeId] ainda não foi carregado
@@ -1900,6 +1903,40 @@ export default function MultiatendimentoPage() {
     throw lastErr;
   }
 
+  // Indicador "digitando...". Confirmado por teste direto contra a API
+  // (POST /chats/presence, body {sessionId,to,presence:"typing"|"paused"}) que
+  // só a D-API expõe isso hoje — Z-API não tem endpoint de envio de presence,
+  // e a Cloud API usa outro mecanismo (amarrado ao id de uma mensagem recebida,
+  // não um toggle livre), por isso fica de fora por ora. Best-effort: nunca
+  // deve travar nem avisar o usuário, é só humanizar a conversa.
+  function sendTypingPresence(state: "typing" | "paused") {
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (inst?.provider !== "dapi" || !inst.token || active?.channel !== "whatsapp" || !active?.phone) return;
+    const cleanPhone = active.phone.replace(/\D/g, "");
+    fetch(`https://api.d-api.cloud/api/v1/chats/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": inst.token },
+      body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, presence: state }),
+    }).catch(e => console.warn("sendTypingPresence:", e));
+  }
+
+  // Chamado a cada tecla no campo de mensagem. Manda "typing" no máximo 1x a
+  // cada 3s (evita martelar a API a cada caractere) e agenda "paused" pra 4s
+  // de inatividade — sem isso o "digitando..." ficaria preso na tela do cliente.
+  function handleTypingActivity() {
+    const t = typingRef.current;
+    const now = Date.now();
+    if (now - t.lastTypingAt > 3000) {
+      t.lastTypingAt = now;
+      sendTypingPresence("typing");
+    }
+    if (t.pauseTimer) clearTimeout(t.pauseTimer);
+    t.pauseTimer = setTimeout(() => {
+      sendTypingPresence("paused");
+      t.lastTypingAt = 0;
+    }, 4000);
+  }
+
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
@@ -1941,6 +1978,11 @@ export default function MultiatendimentoPage() {
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
     bumpPreview(activeId, text);
     setInputValue("");
+
+    // Mensagem já está saindo — não faz sentido continuar mostrando "digitando".
+    if (typingRef.current.pauseTimer) { clearTimeout(typingRef.current.pauseTimer); typingRef.current.pauseTimer = null; }
+    typingRef.current.lastTypingAt = 0;
+    sendTypingPresence("paused");
 
     // ── Envio via Instagram (meta-send-message) ──────────────────────
     if (active?.channel === "instagram") {
@@ -2972,7 +3014,7 @@ export default function MultiatendimentoPage() {
                   )}
                   <input
                     value={inputValue}
-                    onChange={e => setInputValue(e.target.value)}
+                    onChange={e => { setInputValue(e.target.value); handleTypingActivity(); }}
                     onKeyDown={e => {
                       if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && shortcutSuggestions.length > 0) {
                         e.preventDefault();
