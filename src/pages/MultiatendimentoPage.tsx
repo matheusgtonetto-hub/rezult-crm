@@ -380,7 +380,19 @@ export default function MultiatendimentoPage() {
     try { return localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [inputValue, setInputValue] = useState("");
+  // Rascunho por conversa — cada conversa é uma janela própria (igual WhatsApp
+  // Web/celular), então o texto não digitado ainda não pode vazar de uma
+  // conversa pra outra ao trocar. Mantém a mesma API de useState (aceita string
+  // ou função updater) pra não precisar mexer em nenhum dos call sites.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const inputValue = drafts[activeId] ?? "";
+  const setInputValue = (value: string | ((prev: string) => string)) => {
+    setDrafts(prev => {
+      const cur = prev[activeId] ?? "";
+      const next = typeof value === "function" ? (value as (p: string) => string)(cur) : value;
+      return { ...prev, [activeId]: next };
+    });
+  };
   const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
@@ -488,6 +500,11 @@ export default function MultiatendimentoPage() {
   // ref para evitar closure stale no handler global de Realtime
   const convListRef    = useRef<Conversation[]>(convList);
   useEffect(() => { convListRef.current = convList; }, [convList]);
+  // idem, pra saber (dentro do listener global) se a mensagem que chegou é da
+  // conversa que o atendente está com a janela aberta agora mesmo — se estiver,
+  // não deve virar "Aguardando", o atendente já está vendo.
+  const activeIdRef    = useRef<string>(activeId);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
   // Abre conversa específica quando navegado a partir do drawer de leads
   useEffect(() => {
@@ -1075,9 +1092,15 @@ export default function MultiatendimentoPage() {
 
           const previewLabel = previewLabelFor(m.type, m.body);
           if (existing) {
-            // Atualiza preview da conversa existente
+            const nowIso = d.toISOString();
+            // "Aguardando" só faz sentido se o atendente NÃO está com essa
+            // conversa aberta na tela agora — se estiver, ele já está vendo a
+            // resposta do lead em tempo real, não precisa de aviso no chip.
+            const isActiveConv = existing.id === activeIdRef.current;
+            const nextRead = m.from_me ? true : isActiveConv;
+            // Atualiza preview, lastMsgAt (ordenação por atividade recente) e time
             setConvList(prev => prev.map(c =>
-              c.id === existing.id ? { ...c, preview: previewLabel, time: timeStr } : c
+              c.id === existing.id ? { ...c, preview: previewLabel, time: timeStr, lastMsgAt: nowIso } : c
             ));
             // Adiciona a mensagem no estado da conversa se já estiver carregada
             setConvStates(prev => {
@@ -1085,12 +1108,11 @@ export default function MultiatendimentoPage() {
               if (!cur) return prev;
               if (cur.messages.some(x => x.id === m.id)) return prev;
               const newMsg: Msg = buildIncomingMsg(m, timeStr);
-              // Mensagem própria (automação/membro) não marca a conversa como não-lida
-              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: m.from_me ? cur.read : false } };
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: nextRead } };
             });
-            // Atualiza preview e timestamp no banco
+            // Atualiza preview, timestamp e lido no banco
             supabase.from("whatsapp_conversations").update({
-              preview: previewLabel, last_msg_at: new Date().toISOString(), ...(m.from_me ? {} : { read: false }),
+              preview: previewLabel, last_msg_at: nowIso, read: nextRead,
             }).eq("id", existing.id);
           } else {
             // Cria nova conversa automaticamente para este remetente
@@ -1132,16 +1154,18 @@ export default function MultiatendimentoPage() {
                   .maybeSingle();
                 const winnerId = (winner as { id: string } | null)?.id;
                 if (winnerId && winnerId !== newId) {
+                  const isActiveConv = winnerId === activeIdRef.current || newId === activeIdRef.current;
+                  const nextRead = m.from_me ? true : isActiveConv;
                   setConvList(prev => {
                     const withoutDup = prev.filter(c => c.id !== newId);
-                    return withoutDup.map(c => c.id === winnerId ? { ...c, preview: previewLabel, time: timeStr } : c);
+                    return withoutDup.map(c => c.id === winnerId ? { ...c, preview: previewLabel, time: timeStr, lastMsgAt: d.toISOString() } : c);
                   });
                   setConvStates(prev => {
                     const { [newId]: _dup, ...rest } = prev;
                     const cur = rest[winnerId];
                     if (!cur || cur.messages.some(x => x.id === m.id)) return rest;
                     const newMsg: Msg = buildIncomingMsg(m, timeStr);
-                    return { ...rest, [winnerId]: { ...cur, messages: [...cur.messages, newMsg], read: m.from_me ? cur.read : false } };
+                    return { ...rest, [winnerId]: { ...cur, messages: [...cur.messages, newMsg], read: nextRead } };
                   });
                   setActiveId(prev => prev === newId ? winnerId : prev);
                 }
@@ -1182,6 +1206,8 @@ export default function MultiatendimentoPage() {
             c.channel === "instagram" && c.phone === contactId && c.instanceId === m.connection_id
           );
           if (existing) {
+            const isActiveConv = existing.id === activeIdRef.current;
+            const nextRead = isFromMe ? true : isActiveConv;
             setConvList(prev => prev.map(c => c.id === existing.id ? { ...c, preview: previewText, time: timeStr, lastMsgAt: m.sent_at } : c));
             setConvStates(prev => {
               const cur = prev[existing.id];
@@ -1194,10 +1220,10 @@ export default function MultiatendimentoPage() {
                 time: timeStr, date: "Hoje", read: true as const,
               };
               const newMsg: Msg = { ...base, kind: "text" as const, text: m.content ?? "" };
-              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: isFromMe ? cur.read : false } };
+              return { ...prev, [existing.id]: { ...cur, messages: [...cur.messages, newMsg], read: nextRead } };
             });
             if (!isFromMe) {
-              supabase.from("whatsapp_conversations").update({ preview: previewText, last_msg_at: m.sent_at, read: false }).eq("id", existing.id);
+              supabase.from("whatsapp_conversations").update({ preview: previewText, last_msg_at: m.sent_at, read: nextRead }).eq("id", existing.id);
             }
           } else if (!isFromMe) {
             // Nova conversa Instagram chegou com a página aberta — busca do banco
@@ -1869,14 +1895,18 @@ export default function MultiatendimentoPage() {
   // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
   // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
   // Único ponto por onde passam todos os envios (texto/áudio/imagem/arquivo) —
-  // por isso também é aqui que marcamos "answered": a partir da 1ª mensagem
-  // enviada pelo atendente, a conversa sai de "Não iniciadas" pra "Abertas".
+  // por isso também é aqui que marcamos read:true (chip "Abertas" = atendente
+  // respondeu por último). "Não iniciadas" → "Abertas" continua dependendo de
+  // ter um atendente responsável atribuído (assignedTo), não de ter respondido.
   function bumpPreview(convId: string, label: string) {
     const now = nowTime();
-    setConvList(prev => prev.map(c => c.id === convId ? { ...c, preview: label, time: now } : c));
-    setConvStates(prev => ({ ...prev, [convId]: { ...DEFAULT_CS, ...prev[convId], answered: true } }));
+    const nowIso = new Date().toISOString();
+    setConvList(prev => prev.map(c => c.id === convId ? { ...c, preview: label, time: now, lastMsgAt: nowIso } : c));
+    // read:true explícito -- a última mensagem passou a ser do atendente, então
+    // por definição a conversa não pode continuar em "Aguardando".
+    setConvStates(prev => ({ ...prev, [convId]: { ...DEFAULT_CS, ...prev[convId], answered: true, read: true } }));
     supabase.from("whatsapp_conversations")
-      .update({ preview: label, last_msg_at: new Date().toISOString(), answered: true })
+      .update({ preview: label, last_msg_at: nowIso, answered: true, read: true })
       .eq("id", convId)
       .then(({ error }) => { if (error) console.warn("bumpPreview:", error.message); });
   }
@@ -2299,9 +2329,9 @@ export default function MultiatendimentoPage() {
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
     switch (activeFilter) {
-      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
-      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
-      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
+      case "not_started": list = list.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
+      case "pending":      list = list.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
+      case "waiting":      list = list.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
@@ -2469,9 +2499,9 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: convList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: convList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: convList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: convList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: convList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
