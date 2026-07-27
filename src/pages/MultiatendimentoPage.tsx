@@ -1950,6 +1950,12 @@ export default function MultiatendimentoPage() {
     const contactPhone = active?.phone;
     if (inst?.token && contactPhone) {
       const cleanPhone = contactPhone.replace(/\D/g, "");
+      // Antes, o histórico era gravado (e a bolha ficava com ✓) mesmo quando a
+      // chamada ao provedor falhava — a mensagem nunca chegava ao destinatário
+      // mas nada além de um toast passageiro indicava isso, e não havia como
+      // saber depois que aquele envio específico tinha falhado. sendOk decide
+      // se persistimos de verdade; se não, desfaz a bolha otimista.
+      let sendOk = false;
 
       // ── Cloud API (Meta) ────────────────────────────────────────────
       if (inst.provider === "cloud_api") {
@@ -1970,7 +1976,9 @@ export default function MultiatendimentoPage() {
               }),
             }
           );
-          if (!res.ok) {
+          if (res.ok) {
+            sendOk = true;
+          } else {
             const err = await res.json().catch(() => ({}));
             toast.error(`Erro ao enviar mensagem: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
           }
@@ -1991,7 +1999,9 @@ export default function MultiatendimentoPage() {
               body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
             }
           );
-          if (!res.ok) {
+          if (res.ok) {
+            sendOk = true;
+          } else {
             const err = await res.text().catch(() => "");
             toast.error(`Erro ao enviar mensagem: ${err.slice(0, 120) || res.status}`);
           }
@@ -2012,13 +2022,22 @@ export default function MultiatendimentoPage() {
               body: JSON.stringify({ phone: cleanPhone, message: text }),
             }
           );
-          if (!res.ok) {
+          if (res.ok) {
+            sendOk = true;
+          } else {
             const err = await res.json().catch(() => ({}));
             toast.error(`Erro ao enviar mensagem: ${(err as { message?: string }).message ?? res.status}`);
           }
         } catch {
           toast.error("Falha ao enviar mensagem via WhatsApp");
         }
+      }
+
+      if (!sendOk) {
+        // Desfaz a bolha otimista — a mensagem nunca saiu, não faz sentido
+        // deixá-la na tela com ✓ nem gravar no histórico como se tivesse ido.
+        updateCs(activeId, { messages: (cs?.messages ?? []).filter(mm => mm.id !== msgId) });
+        return;
       }
 
       // Persiste no banco para histórico futuro
