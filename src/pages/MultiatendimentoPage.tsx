@@ -722,12 +722,15 @@ export default function MultiatendimentoPage() {
   };
 
   // Uma conversa fica "desconectada" quando o instanceId dela não bate com
-  // nenhuma conexão WhatsApp existente hoje (desconectar = DELETE físico da
-  // linha em whatsapp_connections, não existe soft-disconnect). Instagram usa
-  // meta_connections, outro sistema — nunca é considerado desconectado aqui.
+  // nenhuma conexão WhatsApp *realmente utilizável* hoje. Não basta a linha
+  // existir: connected/active também importam (mesmo critério de `instances`,
+  // usado pra decidir quem pode enviar) — a sessão pode cair do lado do
+  // celular sem a linha ser apagada (dapi-webhook trata o evento
+  // connection.status atualizando só `connected`, sem deletar nada). Instagram
+  // usa meta_connections, outro sistema — nunca é considerado desconectado aqui.
   const isConvInstanceConnected = (c: Conversation): boolean => {
     if (c.channel !== "whatsapp") return true;
-    return whatsappConnections.some(wc => wc.instanceId === c.instanceId);
+    return whatsappConnections.some(wc => wc.instanceId === c.instanceId && wc.connected && wc.active);
   };
 
   // Etapas reais do pipeline vinculado ao lead ativo.

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+  AlertDialogFooter, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
