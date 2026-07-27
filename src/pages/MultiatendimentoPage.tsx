@@ -1878,6 +1878,28 @@ export default function MultiatendimentoPage() {
       .then(({ error }) => { if (error) console.warn("bumpPreview:", error.message); });
   }
 
+  // D-API/Z-API/Cloud API ocasionalmente têm hiccups transitórios do lado
+  // deles (ex.: "NATS MQ Provider not ready" — fila interna momentaneamente
+  // indisponível) que se resolvem sozinhos em segundos. Tenta 1x, espera
+  // ~1.5s e tenta de novo antes de desistir; devolve a última Response (ok ou
+  // não) pra quem chama continuar lendo o corpo do erro normalmente.
+  async function fetchWithRetry(url: string, opts: RequestInit, retries = 1, delayMs = 1500): Promise<Response> {
+    let lastRes: Response | null = null;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, delayMs));
+      try {
+        const res = await fetch(url, opts);
+        if (res.ok) return res;
+        lastRes = res;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (lastRes) return lastRes;
+    throw lastErr;
+  }
+
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
     const text = inputValue.trim();
@@ -1960,7 +1982,7 @@ export default function MultiatendimentoPage() {
       // ── Cloud API (Meta) ────────────────────────────────────────────
       if (inst.provider === "cloud_api") {
         try {
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `https://graph.facebook.com/v21.0/${inst.instanceId}/messages`,
             {
               method: "POST",
@@ -1988,7 +2010,7 @@ export default function MultiatendimentoPage() {
       } else if (inst.provider === "dapi") {
         // ── D-API ──────────────────────────────────────────────────────
         try {
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `https://api.d-api.cloud/api/v1/messages/send/text`,
             {
               method: "POST",
@@ -2011,7 +2033,7 @@ export default function MultiatendimentoPage() {
       } else {
         // ── Z-API ──────────────────────────────────────────────────────
         try {
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`,
             {
               method: "POST",
