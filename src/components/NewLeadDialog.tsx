@@ -41,7 +41,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
     e.preventDefault();
     if (!name || !whatsapp) { toast.error("Nome e WhatsApp são obrigatórios."); return; }
     setLoading(true);
-    await addLead({
+    const ok = await addLead({
       dealNumber: nextDealNumber(),
       pipelineId: activePipelineId,
       name, company, whatsapp,
@@ -56,6 +56,9 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
       ],
     });
     setLoading(false);
+    // addLead já mostra o toast de erro (ex.: contato com negócio aberto) --
+    // não fecha o formulário nesse caso, senão o usuário perde o que preencheu.
+    if (!ok) return;
     toast.success("Lead adicionado!");
     reset();
     onClose();

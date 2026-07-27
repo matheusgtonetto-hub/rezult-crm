@@ -753,12 +753,21 @@ export default function MultiatendimentoPage() {
     return whatsappConnections.some(wc => wc.instanceId === c.instanceId && wc.connected && wc.active);
   };
 
+  // Entre candidatos do mesmo contato/telefone, prioriza negócio aberto >
+  // negócio fechado > lead solto > primeiro que aparecer. dealStatus sozinho
+  // não basta pra distinguir negócio de lead solto: os dois nascem com
+  // status "open" por padrão no banco (leads_status_check), só quem tem
+  // pipelineId preenchido é de fato um negócio.
+  const pickBestLead = (candidates: Lead[]): Lead | undefined =>
+    candidates.find(l => l.pipelineId && l.dealStatus === "open")
+    ?? candidates.find(l => l.pipelineId)
+    ?? candidates[0];
+
   // Etapas reais do pipeline vinculado ao lead ativo.
   // Resolução robusta do lead vinculado a uma conversa, em ordem de confiabilidade:
   //  1) por ID (conversas abertas pelo pipeline usam o id do lead como id da conversa)
   //  2) por contato (contactId) — quando a conversa já tem um contato vinculado,
-  //     prioriza um negócio aberto desse contato; havia mais de um negócio no
-  //     mesmo contato, o mais recente aberto ganha
+  //     prioriza um negócio aberto desse contato (ver pickBestLead)
   //  3) por telefone (conversas de WhatsApp têm UUID aleatório como id)
   //  4) por número do negócio (#deal), quando a conversa guarda um deal_number real
   // Unificada para que a UI e o "atrelar tag/lista/atividade" usem exatamente o mesmo lead.
@@ -767,14 +776,13 @@ export default function MultiatendimentoPage() {
     if (leads[conv.id]) return leads[conv.id];
     if (conv.contactId) {
       const byContact = Object.values(leads).filter(l => l.personId === conv.contactId);
-      if (byContact.length > 0) return byContact.find(l => l.dealStatus === "open") ?? byContact[0];
+      const best = pickBestLead(byContact);
+      if (best) return best;
     }
     if (conv.phone) {
-      // Mesma regra do contactId acima: um telefone pode ter mais de um negócio
-      // (histórico fechado + um novo aberto), então prioriza o aberto em vez de
-      // pegar arbitrariamente o primeiro que o Object.values devolver.
       const byPhone = Object.values(leads).filter(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
-      if (byPhone.length > 0) return byPhone.find(l => l.dealStatus === "open") ?? byPhone[0];
+      const best = pickBestLead(byPhone);
+      if (best) return best;
     }
     const dn = (conv.dealNumber ?? "").replace(/\D/g, "");
     if (dn) {

@@ -263,7 +263,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const createDeal = async () => {
     if (!newDealPipeline || !newDealStage) return;
     setNewDealCreating(true);
-    await addLead({
+    const ok = await addLead({
       ...lead!,
       id: undefined as unknown as string,
       dealNumber: nextDealNumber(),
@@ -278,11 +278,14 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
         description: `Negócio criado a partir do contato ${lead!.name}.`,
       }],
     });
+    setNewDealCreating(false);
+    // addLead já mostra o toast de erro (ex.: contato com negócio aberto) --
+    // não fecha o formulário nesse caso, senão o usuário perde o que preencheu.
+    if (!ok) return;
     toast.success("Negócio criado com sucesso!");
     setShowNewDeal(false);
     setNewDealPipeline("");
     setNewDealStage("");
-    setNewDealCreating(false);
   };
 
   const openManualAuto = async () => {

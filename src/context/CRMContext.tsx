@@ -242,6 +242,42 @@ async function syncResponsibleToConversations(personId: string | undefined, resp
   if (error) console.error("syncResponsibleToConversations:", error.message);
 }
 
+// Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
+// dígito do celular) — mesma lógica usada em MultiatendimentoPage.tsx e nos
+// webhooks, duplicada aqui de propósito (evita acoplar módulos independentes).
+function normalizeBrPhone(raw: string | undefined): string {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
+  return d;
+}
+function phonesMatch(a: string | undefined, b: string | undefined): boolean {
+  const na = normalizeBrPhone(a);
+  const nb = normalizeBrPhone(b);
+  if (na.length < 10 || nb.length < 10) return false;
+  return na.slice(-10) === nb.slice(-10);
+}
+
+// Um lead só pode ter um negócio (pipelineId preenchido) aberto por vez.
+// "Mesmo contato" é decidido em 3 sinais, na ordem em que existem hoje no
+// app: person_id (esquema novo, só o Multiatendimento popula), contact_id
+// (esquema legado auto-referencial usado pelo "Novo negócio" do
+// LeadDrawer/Pipeline — contact_id de um negócio aponta pro id do lead
+// original) e telefone normalizado como último fallback.
+function findOpenNegocioConflict(
+  allLeads: Record<string, Lead>,
+  candidate: { personId?: string; contactId?: string; whatsapp?: string },
+  excludeLeadId?: string
+): Lead | undefined {
+  return Object.values(allLeads).find(l => {
+    if (l.id === excludeLeadId) return false;
+    if (!l.pipelineId || l.dealStatus !== "open") return false;
+    if (candidate.personId && l.personId === candidate.personId) return true;
+    if (candidate.contactId && (l.id === candidate.contactId || l.contactId === candidate.contactId)) return true;
+    return phonesMatch(l.whatsapp, candidate.whatsapp);
+  });
+}
+
 // ─── Provider ───────────────────────────────────────────────────────────────
 
 export function CRMProvider({ children }: { children: ReactNode }) {
@@ -781,6 +817,17 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const addLead = useCallback(async (lead: Omit<Lead, "id">): Promise<boolean> => {
     if (!user || !company) return false;
 
+    // Um contato só pode ter um negócio aberto por vez -- criar um novo com
+    // outro já aberto pro mesmo contato precisa primeiro ganhar/perder o
+    // existente. Lead solto (sem pipelineId) não entra nessa regra.
+    if (lead.pipelineId) {
+      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp });
+      if (conflict) {
+        toast.error(`Esse contato já tem um negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de criar outro.`);
+        return false;
+      }
+    }
+
     // pipelineId vazio = Lead sem negócio ainda (pessoa cadastrada, sem pipeline).
     const pipeline = lead.pipelineId ? pipelines.find(p => p.id === lead.pipelineId) : undefined;
     const col = pipeline?.columns.find(c => c.id === lead.stage);
@@ -869,7 +916,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         : p
     ));
     return true;
-  }, [user, company, pipelines]);
+  }, [user, company, pipelines, leads]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
     setLeads(prev => ({ ...prev, [id]: { ...prev[id], ...data } }));
@@ -992,6 +1039,17 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
     const lead = leads[leadId];
     if (!lead) return;
+    // Só bloqueia quando isso promoveria um Lead solto (ou moveria um negócio
+    // pra outro pipeline) enquanto o mesmo contato já tem outro negócio
+    // aberto -- mover de coluna dentro do MESMO negócio nunca conflita
+    // consigo mesmo (excludeLeadId).
+    if (toPipelineId !== lead.pipelineId) {
+      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp }, leadId);
+      if (conflict) {
+        toast.error(`Esse contato já tem um negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de mover este pra outro pipeline.`);
+        return;
+      }
+    }
     const fromCol = lead.stage;
     const newResponsible = !lead.responsible && currentUserName ? currentUserName : lead.responsible;
     setPipelines(prev => prev.map(p => {
@@ -1060,13 +1118,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   const markLeadOpen = useCallback((leadId: string) => {
     if (!user || !company) return;
+    const lead = leads[leadId];
+    if (lead?.pipelineId) {
+      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp }, leadId);
+      if (conflict) {
+        toast.error(`Esse contato já tem outro negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de reabrir este.`);
+        return;
+      }
+    }
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open" } }));
     supabase.from("leads").update({ status: "open" }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadOpen error:", error.message); });
     const date = new Date().toISOString();
     supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "stage_change", description: "Negócio reaberto.", date, user_name: currentUserName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadOpen activity error:", error.message); });
-  }, [user, company, currentUserName]);
+  }, [user, company, currentUserName, leads]);
 
   // ── Loss Reasons ───────────────────────────────────────────────────────────
 
