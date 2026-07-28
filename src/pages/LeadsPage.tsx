@@ -16,12 +16,13 @@ import {
 import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
+import { CreateDealDialog } from "@/components/CreateDealDialog";
 import { ImportLeadsModal } from "@/components/ImportLeadsModal";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, addLead, nextDealNumber, crmTags } = useCRM();
+  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, crmTags } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -59,8 +60,6 @@ export default function LeadsPage() {
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);
-  const [dealPipeline, setDealPipeline] = useState("");
-  const [dealStage, setDealStage] = useState("");
 
   // Ordena por data de criação (mais recente primeiro); desempate pelo dealNumber
   const allLeadsSorted = Object.values(leads).sort((a, b) => {
@@ -96,32 +95,7 @@ export default function LeadsPage() {
     window.open(`https://wa.me/${number}`, "_blank", "noopener");
   };
 
-  const openDeal = (lead: Lead) => {
-    setDealTarget(lead);
-    const p = pipelines[0];
-    setDealPipeline(p?.id ?? "");
-    setDealStage(p?.columns[0]?.id ?? "");
-  };
-
-  const confirmDeal = async () => {
-    if (!dealTarget || !dealPipeline || !dealStage) return;
-    await addLead({
-      ...dealTarget,
-      id: undefined as unknown as string,
-      dealNumber: nextDealNumber(),
-      pipelineId: dealPipeline,
-      stage: dealStage,
-      contactId: dealTarget.id,
-      activities: [{
-        id: `a-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        type: "created",
-        description: `Negócio criado a partir do lead ${dealTarget.name}.`,
-      }],
-    });
-    toast.success("Negócio criado!");
-    setDealTarget(null);
-  };
+  const openDeal = (lead: Lead) => setDealTarget(lead);
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -129,8 +103,6 @@ export default function LeadsPage() {
     toast.success("Lead removido.");
     setDeleteTarget(null);
   };
-
-  const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
   // Dados de vendas por contato — chave primária: contactId; fallback: whatsapp digits (legado)
   const ticketByContact = useMemo(() => {
@@ -160,7 +132,7 @@ export default function LeadsPage() {
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -489,49 +461,7 @@ export default function LeadsPage() {
       </Dialog>
 
       {/* Create Deal Modal */}
-      <Dialog open={!!dealTarget} onOpenChange={v => !v && setDealTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Criar negócio</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground mb-4">
-            Vincule <strong>{dealTarget?.name}</strong> a um pipeline e etapa.
-          </p>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Pipeline</label>
-              <Select
-                value={dealPipeline}
-                onValueChange={v => {
-                  setDealPipeline(v);
-                  const p = pipelines.find(x => x.id === v);
-                  setDealStage(p?.columns[0]?.id ?? "");
-                }}
-              >
-                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Etapa</label>
-              <Select value={dealStage} onValueChange={setDealStage}>
-                <SelectTrigger className="border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(dealPipelineObj?.columns ?? []).map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter className="gap-2 mt-4">
-            <Button variant="outline" onClick={() => setDealTarget(null)}>Cancelar</Button>
-            <Button onClick={confirmDeal} className="bg-[#128A68] hover:bg-[#128A68]/90">Criar negócio</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateDealDialog lead={dealTarget} onClose={() => setDealTarget(null)} />
 
       {/* Bulk Delete Confirmation */}
       <Dialog open={bulkDeleteConfirm} onOpenChange={v => !v && setBulkDeleteConfirm(false)}>

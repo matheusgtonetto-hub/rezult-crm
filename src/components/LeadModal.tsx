@@ -62,9 +62,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   editLead?: Lead | null;
+  // Valores iniciais pro modo de criação (editLead ausente) -- ex.: Multiatendimento
+  // abrindo o modal já com nome/telefone da conversa, e o contato (personId) já
+  // resolvido/criado via ensureContactForConversation antes de abrir.
+  prefill?: { name?: string; whatsapp?: string; personId?: string };
 }
 
-export function LeadModal({ open, onClose, editLead }: Props) {
+export function LeadModal({ open, onClose, editLead, prefill }: Props) {
   const { addLead, updateLead, pipelines, nextDealNumber, crmTags, teamMembers } = useCRM();
   const [tab, setTab] = useState("contato");
   const [form, setForm] = useState<Form>(empty);
@@ -115,8 +119,9 @@ export function LeadModal({ open, onClose, editLead }: Props) {
         city:         editLead.city         ?? "",
         state:        editLead.state        ?? "",
         notes:        editLead.notes        ?? "",
-      } : empty);
+      } : { ...empty, name: prefill?.name ?? "", whatsapp: prefill?.whatsapp ?? "" });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editLead]);
 
   const set = (k: keyof Form, v: unknown) => setForm(p => ({ ...p, [k]: v }));
@@ -197,6 +202,7 @@ export function LeadModal({ open, onClose, editLead }: Props) {
           stage:       chosenCol?.id      ?? "",
           priority:    "Média",
           entryDate:   new Date().toISOString().split("T")[0],
+          personId:    prefill?.personId,
           activities:  [{
             id:          `a-${Date.now()}`,
             date:        new Date().toISOString().split("T")[0],

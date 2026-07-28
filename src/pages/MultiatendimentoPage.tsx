@@ -21,6 +21,8 @@ import {
 import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
+import { LeadModal } from "@/components/LeadModal";
+import { CreateDealDialog } from "@/components/CreateDealDialog";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -565,12 +567,12 @@ export default function MultiatendimentoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, convList.length]);
 
-  // ── painel "+ Negócio" ───────────────────────────────────────────────
-  const [showNegocioForm, setShowNegocioForm]   = useState(false);
-  const [negocioName, setNegocioName]           = useState("");
-  const [negocioPipelineId, setNegocioPipelineId] = useState("");
-  const [negocioValue, setNegocioValue]         = useState("");
-  const [negocioLoading, setNegocioLoading]     = useState(false);
+  // ── botões "+ Lead" / "+ Negócio" -- reaproveitam os mesmos popups de
+  // /leads (LeadModal e o Dialog "Criar negócio" do menu (...) de cada linha,
+  // extraído em CreateDealDialog) em vez de um formulário próprio inline.
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [leadModalPrefill, setLeadModalPrefill] = useState<{ name?: string; whatsapp?: string; personId?: string }>({});
+  const [dealTargetLead, setDealTargetLead] = useState<Lead | null>(null);
 
   // ── dialog de agendamento ────────────────────────────────────────────
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -1732,75 +1734,27 @@ export default function MultiatendimentoPage() {
     }
   }
 
-  async function handleCreateNegocio() {
-    if (!active || !user) return;
-    const pipeline = (pipelines ?? []).find(p => p.id === negocioPipelineId);
-    const firstCol = pipeline?.columns[0];
-    if (!pipeline || !firstCol) { toast.error("Escolha um pipeline válido"); return; }
-    const linkedLead = resolveLeadForConv(active);
-    setNegocioLoading(true);
-    const ok = await addLead({
-      dealNumber: nextDealNumber(),
-      name: negocioName || active.name,
-      whatsapp: active.phone ?? "",
-      value: parseFloat(negocioValue.replace(/[^\d,]/g, "").replace(",", ".")) || 0,
-      responsible: "",
-      responsibles: [],
-      pipelineId: negocioPipelineId,
-      stage: firstCol.id,
-      priority: "Média",
-      origin: "Outro",
-      entryDate: new Date().toISOString().split("T")[0],
-      notes: "",
-      activities: [],
-      tags: active.tags ?? [], // herda as tags já marcadas na conversa
-      personId: linkedLead?.personId, // liga ao mesmo contato (multi-negócio)
-    });
-    setNegocioLoading(false);
-    if (ok) {
-      toast.success("Negócio criado com sucesso!");
-      setShowNegocioForm(false);
-      setNegocioName("");
-      setNegocioValue("");
-    }
-  }
-
-  // "+ Lead": cria só a pessoa (sem negócio/pipeline) — mostrado quando a
-  // conversa ainda não tem nenhum Lead vinculado. Reaproveita
-  // ensureContactForConversation (cria/liga o contato em "contacts") e insere
-  // o Lead correspondente em "leads" com pipeline_id nulo.
-  async function handleCreateLead() {
-    if (!active || !user) return;
-    setNegocioLoading(true);
-    const contactId = await ensureContactForConversation(active);
-    if (!contactId) {
-      toast.error("Não foi possível criar o lead.");
-      setNegocioLoading(false);
+  // Botão "+ Lead" / "+ Negócio": abre o mesmo popup usado em /leads --
+  // LeadModal quando a conversa ainda não tem nenhum Lead vinculado (com
+  // nome/telefone pré-preenchidos e o contato já resolvido/criado via
+  // ensureContactForConversation, pra manter o vínculo
+  // whatsapp_conversations.contact_id de antes), ou CreateDealDialog quando
+  // já existe um Lead solto e falta só o negócio. Não abre nada com negócio
+  // já vinculado -- o botão fica desabilitado nesse caso.
+  async function handleOpenLeadOrDealPopup() {
+    if (!active || !user || hasNegocio) return;
+    if (effectiveLead) {
+      setDealTargetLead(effectiveLead);
       return;
     }
-    const ok = await addLead({
-      dealNumber: nextDealNumber(),
-      name: negocioName || active.name,
-      whatsapp: active.phone ?? "",
-      value: 0,
-      responsible: "",
-      responsibles: [],
-      pipelineId: "",
-      stage: "",
-      priority: "Média",
-      origin: "Outro",
-      entryDate: new Date().toISOString().split("T")[0],
-      notes: "",
-      activities: [],
-      tags: active.tags ?? [],
-      personId: contactId,
-    });
-    setNegocioLoading(false);
-    if (ok) {
-      toast.success("Lead criado com sucesso!");
-      setShowNegocioForm(false);
-      setNegocioName("");
-    }
+    const contactId = await ensureContactForConversation(active);
+    // LeadModal separa DDI (+55) do número local -- active.phone normalmente
+    // já vem com o 55 na frente (mesmo formato salvo pelos webhooks), então
+    // precisa tirar daqui, senão o campo local mostra o 55 duplicado.
+    const rawPhone = (active.phone ?? "").replace(/\D/g, "");
+    const localPhone = rawPhone.length > 11 && rawPhone.startsWith("55") ? rawPhone.slice(2) : rawPhone;
+    setLeadModalPrefill({ name: convName(active), whatsapp: localPhone, personId: contactId });
+    setShowLeadModal(true);
   }
 
   function handleScheduleSubmit(data: ActivitySubmitData) {
@@ -3351,13 +3305,13 @@ export default function MultiatendimentoPage() {
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
-                  onClick={() => { if (hasNegocio) return; setShowNegocioForm(v => !v); if (!negocioPipelineId && pipelines?.[0]) setNegocioPipelineId(pipelines[0].id); if (!negocioName) setNegocioName(active.name); }}
+                  onClick={handleOpenLeadOrDealPopup}
                   disabled={hasNegocio}
                   title={hasNegocio ? "Esta conversa já tem um negócio aberto vinculado" : undefined}
-                  style={{ flex: 1, background: hasNegocio ? "#F5F5F5" : showNegocioForm ? "#E1F5EE" : "#F5F5F5", border: showNegocioForm && !hasNegocio ? "1px solid #128A68" : "none", borderRadius: 8, padding: "6px 10px", color: hasNegocio ? "#AAA" : "#128A68", fontSize: 12, fontWeight: 600, cursor: hasNegocio ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: hasNegocio ? "#AAA" : "#128A68", fontSize: 12, fontWeight: 600, cursor: hasNegocio ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => { if (!hasNegocio) e.currentTarget.style.background = "#E1F5EE"; }}
-                  onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = showNegocioForm ? "#E1F5EE" : "#F5F5F5"; }}
-                ><Plus size={12} /> {hasNegocio ? "Negócio ✓" : effectiveLead ? "Negócio" : "Lead"}</button>
+                  onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = "#F5F5F5"; }}
+                ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
                   style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
@@ -3430,79 +3384,6 @@ export default function MultiatendimentoPage() {
                   </div>
                 </div>
               )}
-
-              {/* Painel: + Negócio / + Lead */}
-              {showNegocioForm && (effectiveLead ? (
-                <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo negócio</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
-                    <input
-                      value={negocioName}
-                      onChange={e => setNegocioName(e.target.value)}
-                      placeholder={convName(active)}
-                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Pipeline</label>
-                    <select
-                      value={negocioPipelineId}
-                      onChange={e => setNegocioPipelineId(e.target.value)}
-                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF", cursor: "pointer" }}
-                    >
-                      <option value="">Selecione...</option>
-                      {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Valor (opcional)</label>
-                    <input
-                      value={negocioValue}
-                      onChange={e => setNegocioValue(e.target.value)}
-                      placeholder="R$ 0,00"
-                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
-                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
-                    <button
-                      onClick={handleCreateNegocio}
-                      disabled={negocioLoading || !negocioPipelineId}
-                      style={{ background: negocioLoading || !negocioPipelineId ? "#AAA" : "#128A68", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading || !negocioPipelineId ? "not-allowed" : "pointer" }}
-                    >{negocioLoading ? "Criando…" : "Criar negócio"}</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginTop: 12, background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 2 }}>Novo lead</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Nome</label>
-                    <input
-                      value={negocioName}
-                      onChange={e => setNegocioName(e.target.value)}
-                      placeholder={convName(active)}
-                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>Telefone</label>
-                    <input
-                      value={active.phone ?? ""}
-                      readOnly
-                      style={{ border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", color: "#666", background: "#F0F0F0" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 2 }}>
-                    <button onClick={() => setShowNegocioForm(false)} style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
-                    <button
-                      onClick={handleCreateLead}
-                      disabled={negocioLoading}
-                      style={{ background: negocioLoading ? "#AAA" : "#128A68", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: negocioLoading ? "not-allowed" : "pointer" }}
-                    >{negocioLoading ? "Criando…" : "Criar lead"}</button>
-                  </div>
-                </div>
-              ))}
 
             </div>
 
@@ -3690,6 +3571,10 @@ export default function MultiatendimentoPage() {
           </>
         )}
       </aside>
+
+      {/* ── DIALOG: + Lead / + Negócio -- mesmos popups de /leads ───────── */}
+      <LeadModal open={showLeadModal} onClose={() => setShowLeadModal(false)} prefill={leadModalPrefill} />
+      <CreateDealDialog lead={dealTargetLead} onClose={() => setDealTargetLead(null)} />
 
       {/* ── DIALOG: transferir atendimento ──────────────────────────── */}
       <TransferDialog
