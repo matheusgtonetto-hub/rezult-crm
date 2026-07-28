@@ -580,6 +580,19 @@ export default function MultiatendimentoPage() {
   // ── dialog de transferência ──────────────────────────────────────────
   const [showTransferDialog, setShowTransferDialog] = useState(false);
 
+  // ── edição inline do telefone (painel Perfil) -- só existe quando já há
+  // negócio (edita leads.whatsapp, nunca whatsapp_conversations.phone: esse
+  // último é usado pra buscar o histórico de mensagens por telefone, editar
+  // ele faria as mensagens antigas sumirem da tela).
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft]     = useState("");
+  useEffect(() => { setEditingPhone(false); }, [activeId]);
+
+  // ── vincular a negócio existente (quando nenhum negócio resolve pra essa
+  // conversa) -- busca por nome entre os leads da empresa, mesmo componente
+  // do "Nova conversa" (NewConvDialog), só com outro onSelect.
+  const [showLinkExistingDialog, setShowLinkExistingDialog] = useState(false);
+
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
@@ -2355,6 +2368,38 @@ export default function MultiatendimentoPage() {
     setShowTransferDialog(false);
   }
 
+  // Corrige o telefone do NEGÓCIO (leads.whatsapp), nunca o da conversa --
+  // conv.phone é o que a busca de histórico usa pra achar as mensagens
+  // (phoneVariants sobre whatsapp_messages), então mudar ele faria o
+  // histórico já trocado sumir da tela. Só existe quando já há negócio: é
+  // exatamente o caso de "o lead escreveu de um número, mas o formulário/
+  // negócio ficou com outro" -- resolveLeadForConv recalcula o vínculo por
+  // telefone a cada render, então salvar aqui já revincula a conversa certa
+  // na hora, sem precisar de nenhum passo extra.
+  async function handleSavePhone() {
+    if (!effectiveLead) return;
+    let digits = phoneDraft.replace(/\D/g, "");
+    if (!digits) { toast.error("Informe um telefone válido."); return; }
+    if (!digits.startsWith("55")) digits = "55" + digits;
+    await updateLead(effectiveLead.id, { whatsapp: `+${digits}` });
+    toast.success("Telefone do negócio atualizado.");
+    setEditingPhone(false);
+  }
+
+  // Cobre o caso em que NENHUM negócio resolve pra essa conversa (nem por id,
+  // contato, telefone ou nº do negócio) mas o atendente reconhece, pelo nome/
+  // contexto da mensagem, que na verdade é um negócio que já existe no
+  // pipeline com outro telefone -- mesma correção manual feita hoje pros 5
+  // casos da Samantha, só que buscando o lead certo em vez de já saber o id.
+  async function handleLinkExistingLead(leadId: string) {
+    if (!active?.phone) return;
+    const digits = active.phone.replace(/\D/g, "");
+    if (!digits) return;
+    await updateLead(leadId, { whatsapp: `+${digits}` });
+    toast.success("Negócio vinculado a esta conversa.");
+    setShowLinkExistingDialog(false);
+  }
+
   // ── filter ──────────────────────────────────────────────────────────
   // Resolve o lead vinculado à conversa — delega para resolveLeadForConv
   // (mesma resolução usada no resto do arquivo, agora ciente de contactId).
@@ -3153,6 +3198,18 @@ export default function MultiatendimentoPage() {
         onSelect={startConversationWithLead}
       />
 
+      {/* ── DIALOG: vincular a negócio existente (telefone divergente) ── */}
+      <NewConvDialog
+        open={showLinkExistingDialog}
+        onClose={() => setShowLinkExistingDialog(false)}
+        leads={leads}
+        pipelines={pipelines ?? []}
+        onSelect={handleLinkExistingLead}
+        title="Vincular a negócio existente"
+        subtitle="O negócio certo já existe, só com outro telefone salvo"
+        emptyHint="Tente outro nome, ou crie um negócio novo pelo botão + Lead"
+      />
+
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
       <aside style={{ width: 300, minWidth: 300, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
         {active && cs && (
@@ -3349,7 +3406,14 @@ export default function MultiatendimentoPage() {
                 <UserCheck size={13} color="#128A68" />
                 <span style={{ fontSize: 12, color: "#666" }}>Responsável:</span>
                 {!hasNegocio ? (
-                  <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
+                  <>
+                    <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
+                    <button
+                      onClick={() => setShowLinkExistingDialog(true)}
+                      title="Esse contato já pode ter um negócio no pipeline com outro telefone -- busque pelo nome"
+                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0, whiteSpace: "nowrap" }}
+                    >Vincular existente</button>
+                  </>
                 ) : (effectiveLead?.responsibles?.length ?? 0) > 0 ? (
                   <>
                     <div style={{ display: "flex", flexShrink: 0 }}>
@@ -3507,8 +3571,47 @@ export default function MultiatendimentoPage() {
               {[
                 ["Nome",     effectiveLead?.name    || active.name],
                 ["E-mail",   effectiveLead?.email   || active.email   || "—"],
-                ["Telefone", effectiveLead?.whatsapp || active.phone   || "—"],
-                ["Empresa",  effectiveLead?.company || active.company || "—"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
+                  <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
+                  <span style={{ color: "#111", textAlign: "right" }}>{v}</span>
+                </div>
+              ))}
+
+              {/* Telefone -- editável só quando há negócio (edita o negócio,
+                  nunca a conversa). Sem negócio ainda, fica igual aos outros
+                  campos: só leitura, mostrando o telefone da própria conversa. */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", fontSize: 13, gap: 8 }}>
+                <span style={{ fontSize: 12, color: "#AAA", flexShrink: 0 }}>Telefone</span>
+                {editingPhone ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "flex-end" }}>
+                    <input
+                      autoFocus
+                      value={phoneDraft}
+                      onChange={e => setPhoneDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleSavePhone(); if (e.key === "Escape") setEditingPhone(false); }}
+                      placeholder="+55 11 99999-9999"
+                      style={{ width: 140, border: "1px solid #E5E5E5", borderRadius: 6, padding: "4px 6px", fontSize: 12, outline: "none" }}
+                    />
+                    <button onClick={handleSavePhone} title="Salvar" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}><Check size={15} color="#128A68" /></button>
+                    <button onClick={() => setEditingPhone(false)} title="Cancelar" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}><X size={15} color="#AAA" /></button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "#111", textAlign: "right" }}>{effectiveLead?.whatsapp || active.phone || "—"}</span>
+                    {hasNegocio && (
+                      <button
+                        onClick={() => { setPhoneDraft(effectiveLead?.whatsapp ?? ""); setEditingPhone(true); }}
+                        title="Corrigir telefone do negócio"
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}
+                      ><Pencil size={12} color="#AAA" /></button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {[
+                ["Empresa", effectiveLead?.company || active.company || "—"],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
                   <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
@@ -4204,12 +4307,17 @@ function TransferDialog({
 /* ── Nova conversa dialog ─────────────────────────────────────────────── */
 function NewConvDialog({
   open, onClose, leads, pipelines, onSelect,
+  title = "Nova conversa", subtitle = "Selecione um negócio do pipeline",
+  emptyHint = "Tente outro nome ou crie um lead no Pipeline",
 }: {
   open: boolean;
   onClose: () => void;
   leads: Record<string, Lead>;
   pipelines: Pipeline[];
   onSelect: (leadId: string) => void;
+  title?: string;
+  subtitle?: string;
+  emptyHint?: string;
 }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -4240,8 +4348,8 @@ function NewConvDialog({
         {/* header */}
         <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Nova conversa</div>
-            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um negócio do pipeline</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{title}</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>{subtitle}</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
             <X size={18} color="#AAA" />
@@ -4269,7 +4377,7 @@ function NewConvDialog({
             <div style={{ padding: "40px 20px", textAlign: "center" }}>
               <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
               <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum negócio encontrado</p>
-              <p style={{ fontSize: 12, color: "#CCC", marginTop: 4 }}>Tente outro nome ou crie um lead no Pipeline</p>
+              <p style={{ fontSize: 12, color: "#CCC", marginTop: 4 }}>{emptyHint}</p>
             </div>
           )}
           {filteredLeads.map(lead => (
