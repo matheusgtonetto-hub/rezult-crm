@@ -3673,7 +3673,7 @@ export default function MultiatendimentoPage() {
                 // ficam desatualizados assim que o vínculo muda (ex.: depois de
                 // "Atrelar negócio existente" a um negócio já existente).
                 <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
-                  onClick={() => navigate("/pipeline")}
+                  onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     <ConvAvatar name={effectiveLead?.name ?? convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
