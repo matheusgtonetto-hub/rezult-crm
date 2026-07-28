@@ -593,6 +593,20 @@ export default function MultiatendimentoPage() {
   // do "Nova conversa" (NewConvDialog), só com outro onSelect.
   const [showLinkExistingDialog, setShowLinkExistingDialog] = useState(false);
 
+  // ── confirmação de troca de etapa -- mesma regra do Pipeline/LeadDetailPage
+  // (Voltar/Avançar/dropdown nunca move direto; sempre confirma antes).
+  // Avançar pulando várias etapas de uma vez pede uma confirmação por etapa.
+  const [pendingStageAdvance, setPendingStageAdvance] = useState<{
+    steps: { colId: string; colTitle: string }[];
+    currentStep: number;
+    leadId: string;
+  } | null>(null);
+  const [pendingStageBack, setPendingStageBack] = useState<{
+    fromId: string; fromTitle: string;
+    toId: string; toTitle: string;
+  } | null>(null);
+  useEffect(() => { setPendingStageAdvance(null); setPendingStageBack(null); }, [activeId]);
+
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
@@ -2413,6 +2427,59 @@ export default function MultiatendimentoPage() {
     setShowLinkExistingDialog(false);
   }
 
+  // Ponto único pro Voltar/Avançar/dropdown de etapa -- mesma regra do
+  // Pipeline (arrastar card) e do LeadDetailPage (clicar direto na etapa):
+  // nunca move na hora, sempre abre confirmação primeiro. Avançar pulando
+  // etapas pede uma confirmação por etapa (steps), igual ao board.
+  function handleStageClick(colId: string) {
+    if (!effectiveLead || pipelineCols.length === 0) return;
+    if (colId === effectiveLead.stage) return;
+    const fromIdx = pipelineCols.findIndex(c => c.id === effectiveLead.stage);
+    const toIdx   = pipelineCols.findIndex(c => c.id === colId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const fromCol = pipelineCols[fromIdx];
+    const toCol   = pipelineCols[toIdx];
+    if (toIdx < fromIdx) {
+      setPendingStageBack({ fromId: fromCol.id, fromTitle: fromCol.title, toId: toCol.id, toTitle: toCol.title });
+      return;
+    }
+    const steps = pipelineCols.slice(fromIdx, toIdx + 1).map(c => ({ colId: c.id, colTitle: c.title }));
+    setPendingStageAdvance({ steps, currentStep: 0, leadId: effectiveLead.id });
+  }
+
+  function handleConfirmStageAdvance() {
+    if (!pendingStageAdvance) return;
+    const { steps, currentStep, leadId } = pendingStageAdvance;
+    const from = steps[currentStep];
+    const to   = steps[currentStep + 1];
+    moveLead(leadId, from.colId, to.colId, 0);
+    addActivity(leadId, {
+      date: new Date().toISOString(),
+      type: "stage_change",
+      description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
+      userName: user?.email?.split("@")[0],
+    });
+    if (currentStep + 1 === steps.length - 1) {
+      toast.success(`Etapa alterada para ${to.colTitle}`);
+      setPendingStageAdvance(null);
+    } else {
+      setPendingStageAdvance({ ...pendingStageAdvance, currentStep: currentStep + 1 });
+    }
+  }
+
+  function handleConfirmStageBack() {
+    if (!pendingStageBack || !effectiveLead) return;
+    moveLead(effectiveLead.id, pendingStageBack.fromId, pendingStageBack.toId, 0);
+    addActivity(effectiveLead.id, {
+      date: new Date().toISOString(),
+      type: "stage_change",
+      description: `Movido de "${pendingStageBack.fromTitle}" para "${pendingStageBack.toTitle}".`,
+      userName: user?.email?.split("@")[0],
+    });
+    toast.success(`Etapa alterada para ${pendingStageBack.toTitle}`);
+    setPendingStageBack(null);
+  }
+
   // ── filter ──────────────────────────────────────────────────────────
   // Resolve o lead vinculado à conversa — delega para resolveLeadForConv
   // (mesma resolução usada no resto do arquivo, agora ciente de contactId).
@@ -3495,8 +3562,11 @@ export default function MultiatendimentoPage() {
                   onClick={() => {
                     if (activeStageIdx > 0) {
                       const newIdx = activeStageIdx - 1;
-                      if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[newIdx].id, 0);
-                      updateCs(activeId, { stageIdx: newIdx });
+                      // Sem negócio de verdade vinculado, isso é só o marcador
+                      // genérico de 5 pontos (cs.stageIdx) -- não passa por
+                      // confirmação, não existe negócio real pra proteger.
+                      if (pipelineCols.length > 0 && effectiveLead) handleStageClick(pipelineCols[newIdx].id);
+                      else updateCs(activeId, { stageIdx: newIdx });
                     }
                   }}
                   disabled={activeStageIdx === 0}
@@ -3506,9 +3576,12 @@ export default function MultiatendimentoPage() {
                   onClick={() => {
                     if (activeStageIdx < activeStages.length - 1) {
                       const newIdx = activeStageIdx + 1;
-                      if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[newIdx].id, 0);
-                      updateCs(activeId, { stageIdx: newIdx });
-                      toast.success(`Lead movido para ${activeStages[newIdx]} ✓`);
+                      if (pipelineCols.length > 0 && effectiveLead) {
+                        handleStageClick(pipelineCols[newIdx].id);
+                      } else {
+                        updateCs(activeId, { stageIdx: newIdx });
+                        toast.success(`Lead movido para ${activeStages[newIdx]} ✓`);
+                      }
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
@@ -3522,9 +3595,12 @@ export default function MultiatendimentoPage() {
                 onChange={e => {
                   const idx = activeStages.indexOf(e.target.value);
                   if (idx >= 0) {
-                    if (pipelineCols.length > 0 && effectiveLead) moveLead(effectiveLead.id, effectiveLead.stage, pipelineCols[idx].id, 0);
-                    updateCs(activeId, { stageIdx: idx });
-                    toast.success(`Lead movido para ${e.target.value} ✓`);
+                    if (pipelineCols.length > 0 && effectiveLead) {
+                      handleStageClick(pipelineCols[idx].id);
+                    } else {
+                      updateCs(activeId, { stageIdx: idx });
+                      toast.success(`Lead movido para ${e.target.value} ✓`);
+                    }
                   }
                 }}
                 style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FFF", outline: "none", cursor: "pointer" }}
@@ -3711,6 +3787,57 @@ export default function MultiatendimentoPage() {
           </>
         )}
       </aside>
+
+      {/* ── DIALOG: confirmar avanço de etapa (mesma regra do Pipeline) ── */}
+      {pendingStageAdvance && (() => {
+        const pa = pendingStageAdvance;
+        const totalMoves = pa.steps.length - 1;
+        const nextCol = pa.steps[pa.currentStep + 1];
+        const finalCol = pa.steps[pa.steps.length - 1];
+        const stepsLeft = totalMoves - pa.currentStep;
+        return (
+          <div onClick={() => setPendingStageAdvance(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+              <div style={{ padding: "18px 20px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#111" }}>
+                  <CheckCircle2 size={16} color="#128A68" /> Confirmar avanço de etapa
+                </div>
+                <div style={{ fontSize: 13, color: "#666", marginTop: 8, lineHeight: 1.5 }}>
+                  Mover <strong style={{ color: "#111" }}>{effectiveLead?.name}</strong> para{" "}
+                  <strong style={{ color: "#111" }}>{nextCol?.colTitle}</strong>
+                  {stepsLeft > 1 && <span style={{ color: "#AAA" }}> ({stepsLeft} confirmações até {finalCol?.colTitle})</span>}
+                  .
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #F0F0F0", padding: "12px 20px", background: "#FAFAFA" }}>
+                <button onClick={() => setPendingStageAdvance(null)} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
+                <button onClick={handleConfirmStageAdvance} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>Confirmar <ArrowRight size={12} /></button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── DIALOG: confirmar retrocesso de etapa ───────────────────────── */}
+      {pendingStageBack && (
+        <div onClick={() => setPendingStageBack(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 20px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#111" }}>
+                <CheckCircle2 size={16} color="#128A68" /> Confirmar retrocesso de etapa
+              </div>
+              <div style={{ fontSize: 13, color: "#666", marginTop: 8, lineHeight: 1.5 }}>
+                Mover <strong style={{ color: "#111" }}>{effectiveLead?.name}</strong> de volta para{" "}
+                <strong style={{ color: "#111" }}>{pendingStageBack.toTitle}</strong>?
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #F0F0F0", padding: "12px 20px", background: "#FAFAFA" }}>
+              <button onClick={() => setPendingStageBack(null)} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleConfirmStageBack} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── DIALOG: + Lead / + Negócio -- mesmos popups de /leads ───────── */}
       <LeadModal open={showLeadModal} onClose={() => setShowLeadModal(false)} prefill={leadModalPrefill} />
