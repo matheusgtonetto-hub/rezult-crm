@@ -391,7 +391,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
       // Load team members via company RPC (works for owners and members)
       const { data: membersData } = await supabase.rpc("get_company_members", { p_company_id: company.id });
-      const memberRows = (membersData ?? []) as { user_id: string; full_name: string; email: string; avatar_url: string }[];
+      // get_company_members retorna a coluna "id" (profiles.id == auth.users.id),
+      // não "user_id" -- confirmado lendo a definição da function no banco.
+      const memberRows = (membersData ?? []) as { id: string; full_name: string; email: string; avatar_url: string }[];
       setTeamMembers(memberRows.map(p => p.full_name).filter(Boolean));
       const emailMap: Record<string, string> = {};
       const avatarMap: Record<string, string> = {};
@@ -399,7 +401,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       memberRows.forEach(p => {
         if (p.full_name && p.email) emailMap[p.full_name] = p.email;
         if (p.full_name && p.avatar_url) avatarMap[p.full_name] = p.avatar_url;
-        if (p.full_name && p.user_id) userIdMap[p.full_name] = p.user_id;
+        if (p.full_name && p.id) userIdMap[p.full_name] = p.id;
       });
       setMemberEmails(emailMap);
       setMemberAvatars(avatarMap);
