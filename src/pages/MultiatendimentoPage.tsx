@@ -813,6 +813,19 @@ export default function MultiatendimentoPage() {
     return whatsappConnections.some(wc => wc.instanceId === c.instanceId && wc.connected && wc.active);
   };
 
+  // Diferente de isConvInstanceConnected (que só olha connected/active numa
+  // linha que ainda existe -- uma queda de sessão temporária, que pode voltar
+  // sozinha via dapi-webhook), esta verifica se a PRÓPRIA LINHA em
+  // whatsapp_connections ainda existe. Reconectar (wizard em Configurações)
+  // nunca reaproveita o instance_id antigo -- sempre gera um novo -- e
+  // removeWhatsAppConnection apaga a linha de vez. Então, quando a linha não
+  // existe mais, essa conversa nunca mais vai ficar ativa de novo (diferente
+  // de connected=false numa linha que ainda existe).
+  const isConvInstanceGone = (c: Conversation): boolean => {
+    if (c.channel !== "whatsapp" || !c.instanceId) return false;
+    return !whatsappConnections.some(wc => wc.instanceId === c.instanceId);
+  };
+
   // Entre candidatos do mesmo contato/telefone, prioriza negócio aberto >
   // negócio fechado > lead solto > primeiro que aparecer. dealStatus sozinho
   // não basta pra distinguir negócio de lead solto: os dois nascem com
@@ -2412,9 +2425,9 @@ export default function MultiatendimentoPage() {
   // usuário atual não pode ver, senão dados de outros atendentes parariam de
   // ser sincronizados corretamente.
   const visibleConvList = useMemo(
-    () => convList.filter(isConvVisibleToMe),
+    () => convList.filter(c => !isConvInstanceGone(c) && isConvVisibleToMe(c)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [convList, convStates, isMuAdmin, currentUserName, attendantSettings, user, leads]
+    [convList, convStates, isMuAdmin, currentUserName, attendantSettings, user, leads, whatsappConnections]
   );
 
   // Outras conversas do mesmo contato (ex: falou por um número antigo e por um
