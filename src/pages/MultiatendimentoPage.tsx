@@ -3406,14 +3406,7 @@ export default function MultiatendimentoPage() {
                 <UserCheck size={13} color="#128A68" />
                 <span style={{ fontSize: 12, color: "#666" }}>Responsável:</span>
                 {!hasNegocio ? (
-                  <>
-                    <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
-                    <button
-                      onClick={() => setShowLinkExistingDialog(true)}
-                      title="Esse contato já pode ter um negócio no pipeline com outro telefone -- busque pelo nome"
-                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0, whiteSpace: "nowrap" }}
-                    >Vincular existente</button>
-                  </>
+                  <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
                 ) : (effectiveLead?.responsibles?.length ?? 0) > 0 ? (
                   <>
                     <div style={{ display: "flex", flexShrink: 0 }}>
@@ -3665,27 +3658,42 @@ export default function MultiatendimentoPage() {
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
-              <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
-                onClick={() => navigate("/pipeline")}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
-                    <div style={{ fontSize: 11, color: "#AAA" }}>{active.company || "Sem empresa"}</div>
-                  </div>
+              {!hasNegocio ? (
+                <div style={{ border: "1px dashed #E5E5E5", borderRadius: 10, padding: "16px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Este contato não possui negócio vinculado</div>
+                  <button
+                    onClick={() => setShowLinkExistingDialog(true)}
+                    style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  >Atrelar negócio existente</button>
                 </div>
-                {active.value ? (
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#128A68", marginBottom: 4 }}>
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(active.value)}
+              ) : (
+                // Dados do negócio de verdade (effectiveLead), não da conversa --
+                // active.company/value/dealNumber são só o que ficou gravado em
+                // whatsapp_conversations no momento em que a linha foi criada,
+                // ficam desatualizados assim que o vínculo muda (ex.: depois de
+                // "Atrelar negócio existente" a um negócio já existente).
+                <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
+                  onClick={() => navigate("/pipeline")}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <ConvAvatar name={effectiveLead?.name ?? convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{effectiveLead?.name ?? convName(active)}</div>
+                      <div style={{ fontSize: 11, color: "#AAA" }}>{effectiveLead?.company || "Sem empresa"}</div>
+                    </div>
                   </div>
-                ) : null}
-                <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
-                <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
+                  {effectiveLead?.value ? (
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#128A68", marginBottom: 4 }}>
+                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(effectiveLead.value)}
+                    </div>
+                  ) : null}
+                  <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
+                  <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+                    <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
                 </div>
-                <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{active.dealNumber || `#${active.id.padStart(4, "0")}`}</div>
-              </div>
+              )}
             </Section>
           </>
         )}
