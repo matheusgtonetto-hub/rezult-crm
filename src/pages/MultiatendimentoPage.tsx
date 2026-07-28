@@ -3588,25 +3588,6 @@ export default function MultiatendimentoPage() {
                   style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
-
-              <div style={{ fontSize: 11, color: "#AAA", marginTop: 12, marginBottom: 4 }}>ou escolha a etapa diretamente</div>
-              <select
-                value={activeStages[activeStageIdx] ?? ""}
-                onChange={e => {
-                  const idx = activeStages.indexOf(e.target.value);
-                  if (idx >= 0) {
-                    if (pipelineCols.length > 0 && effectiveLead) {
-                      handleStageClick(pipelineCols[idx].id);
-                    } else {
-                      updateCs(activeId, { stageIdx: idx });
-                      toast.success(`Lead movido para ${e.target.value} ✓`);
-                    }
-                  }
-                }}
-                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FFF", outline: "none", cursor: "pointer" }}
-              >
-                {activeStages.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
             </div>
 
             {/* PRÓXIMA ATIVIDADE */}
