@@ -504,16 +504,31 @@ export default function MultiatendimentoPage() {
     if (!inst || !phone) return;
     const p = phone.replace(/\D/g, "");
     if (!p || fetchingAvatars.current.has(p) || (!force && convAvatars[p])) return;
+    // Cloud API (WhatsApp Business oficial da Meta) não expõe foto de perfil de
+    // contato nenhum -- restrição da própria plataforma, não dá pra contornar.
+    // Nunca tenta, pra não gerar erro certo toda vez.
+    if (inst.provider === "cloud_api") return;
     fetchingAvatars.current.add(p);
     try {
-      const res = await fetch(
-        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
-        { headers: { "Client-Token": inst.clientToken } }
-      );
-      if (!res.ok) { console.warn("[avatar] Z-API", res.status, await res.text().catch(() => "")); return; }
+      // Endpoint da D-API confirmado em docs.d-api.cloud/api-reference/contacts/
+      // obter-avatar-do-usuário: GET /api/v1/contacts/{phone}/avatar?sessionId=...,
+      // Authorization: <apiKey> cru (mesmo padrão de dapiHeaders em SettingsPage.tsx).
+      const res = inst.provider === "dapi"
+        ? await fetch(
+            `https://api.d-api.cloud/api/v1/contacts/${p}/avatar?sessionId=${inst.instanceId}${force ? "&force=true" : ""}`,
+            { headers: { "Authorization": inst.token } }
+          )
+        : await fetch(
+            `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
+            { headers: { "Client-Token": inst.clientToken } }
+          );
+      if (!res.ok) { console.warn(`[avatar] ${inst.provider}`, res.status, await res.text().catch(() => "")); return; }
       const json = await res.json() as Record<string, unknown>;
-      // A Z-API retorna a URL em "link"; aceitamos variações por segurança.
-      const url = (json.link ?? json.value ?? json.profilePicture ?? json.imgUrl ?? json.url) as string | undefined;
+      // Nome do campo varia por provedor -- a doc da D-API não documenta o shape
+      // exato da resposta, então aceitamos as variações mais comuns (inclusive
+      // um possível wrapper "data", visto em outros endpoints REST parecidos).
+      const body = (json.data ?? json) as Record<string, unknown>;
+      const url = (body.link ?? body.value ?? body.profilePicture ?? body.imgUrl ?? body.url ?? body.avatarUrl ?? body.picture ?? body.avatar) as string | undefined;
       if (url) setConvAvatars(prev => ({ ...prev, [p]: url }));
       else console.warn("[avatar] sem foto para", p, json);
     } catch (e) {
