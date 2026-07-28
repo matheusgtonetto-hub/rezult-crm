@@ -1413,10 +1413,19 @@ export default function MultiatendimentoPage() {
     const lead = leads[leadId];
     if (!lead) return;
 
-    // se já existe conversa para esse lead, só ativa
-    const existing = convList.find(c => c.id === leadId);
+    // Se já existe conversa para esse lead -- pelo próprio id (conversa já
+    // iniciada por aqui antes), OU por telefone (uma conversa real já pode
+    // existir com um UUID próprio, criada por uma mensagem de fato trocada no
+    // WhatsApp antes de qualquer negócio existir) -- só ativa, nunca cria uma
+    // segunda linha pro mesmo contato. Sem esse 2º critério, toda vez que o
+    // contato já tinha conversado antes de virar negócio, essa função criava
+    // uma conversa "fantasma" (id = leadId) duplicando a real.
+    const existing = convList.find(c => c.id === leadId)
+      ?? (lead.whatsapp
+        ? convList.find(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", lead.whatsapp ?? ""))
+        : undefined);
     if (existing) {
-      setActiveId(leadId);
+      setActiveId(existing.id);
       setNewConvOpen(false);
       setLeadSearch("");
       return;
@@ -1438,6 +1447,13 @@ export default function MultiatendimentoPage() {
       ?? activePipeline?.name
       ?? "Pipeline Comercial";
 
+    // Dígitos puros (sem "+"), igual ao que dapi/zapi/cloud-api-webhook sempre
+    // gravam -- lead.whatsapp vem do LeadModal com "+55" na frente, e guardar
+    // esse "+" aqui é o que causava o bug: upsertConversationForMessage (usado
+    // por todo webhook) casa telefone por igualdade exata de string, então uma
+    // mensagem real chegando depois nunca encontrava esta linha e criava outra.
+    const cleanLeadPhone = (lead.whatsapp ?? "").replace(/\D/g, "") || undefined;
+
     const newConv: Conversation = {
       id: leadId,
       name: lead.name,
@@ -1447,7 +1463,7 @@ export default function MultiatendimentoPage() {
       tags: lead.tags ?? [],
       company: lead.company ?? "—",
       email: lead.email ?? "—",
-      phone: lead.whatsapp ?? "—",
+      phone: cleanLeadPhone,
       value: lead.value ?? 0,
       pipeline: pipelineName,
       dealNumber: `#${lead.dealNumber}`,
