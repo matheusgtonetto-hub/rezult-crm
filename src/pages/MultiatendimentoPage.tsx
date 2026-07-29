@@ -23,6 +23,7 @@ import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
+import chatBackground from "@/assets/chat-background.webp";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -3024,7 +3025,7 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* mensagens */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: 16, backgroundImage: `url(${chatBackground})`, backgroundRepeat: "repeat", backgroundSize: 360 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
                   <MessageSquare size={40} color="#E5E5E5" />
