@@ -2529,10 +2529,15 @@ export default function MultiatendimentoPage() {
       const q = searchQuery.toLowerCase();
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
+    // "Não iniciadas" -> "Abertas"/"Aguardando" depende de já ter respondido
+    // (answered, setado em bumpPreview quando o atendente manda a 1ª mensagem
+    // na conversa), não de ter um responsável atribuído (assignedTo depende de
+    // ter negócio vinculado -- boa parte das conversas respondidas nunca
+    // recebeu um negócio, e ficava presa em "Não iniciadas" pra sempre).
     switch (activeFilter) {
-      case "not_started": list = list.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
-      case "pending":      list = list.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
-      case "waiting":      list = list.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
+      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
+      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
+      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
     }
@@ -2700,9 +2705,9 @@ export default function MultiatendimentoPage() {
   };
 
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: visibleConvList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: visibleConvList.filter(c => !!convStates[c.id]?.assignedTo && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: visibleConvList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
