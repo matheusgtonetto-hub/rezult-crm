@@ -53,7 +53,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const { leads, setSelectedLeadId } = useCRM();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, whatsappConnections } = useCompany();
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
@@ -177,44 +177,75 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     setMessages(prev => [...prev, newMsg]);
     setDraft("");
 
-    // Enviar via Z-API se houver instância conectada e telefone do lead
+    // Envia pela 1ª conexão de WhatsApp ativa da empresa -- mesma escolha
+    // usada pro avatar (lead não guarda qual conversa/instância o originou).
+    // Suporta os 3 provedores (D-API/Z-API/Cloud API), igual ao
+    // Multiatendimento -- antes só existia o caminho Z-API, em cima de
+    // campos (company.zapi_*) que não são mais escritos desde a migração
+    // pro modelo de múltiplas conexões, então o envio nunca funcionava.
     const contactPhone = lead.whatsapp;
-    if (user && contactPhone && contactPhone !== "—") {
-      if (company?.zapi_connected && company.zapi_instance_id && company.zapi_token) {
-        try {
-          const cleanPhone = contactPhone.replace(/\D/g, "");
-          const res = await fetch(
-            `https://api.z-api.io/instances/${company.zapi_instance_id}/token/${company.zapi_token}/send-text`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                ...(company.zapi_client_token ? { "Client-Token": company.zapi_client_token } : {}),
-              },
-              body: JSON.stringify({ phone: cleanPhone, message: text }),
-            }
-          );
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
-          }
-          // Persiste para histórico
-          await supabase.from("whatsapp_messages").insert({
-            owner_id:    user.id,
-            instance_id: company.zapi_instance_id,
-            phone:       cleanPhone,
-            from_me:     true,
-            body:        text,
-            type:        "text",
-            momment:     Date.now(),
-            sender_name: agentName,
-          });
-        } catch {
-          toast.error("Falha ao enviar mensagem via WhatsApp");
+    if (!user || !company || !contactPhone || contactPhone === "—") return;
+
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (!inst) {
+      toast.error("Nenhuma conexão de WhatsApp ativa. Configure em Configurações → Conexões.");
+      return;
+    }
+
+    const cleanPhone = contactPhone.replace(/\D/g, "");
+    try {
+      let sendOk = false;
+      if (inst.provider === "cloud_api") {
+        const res = await fetch(`https://graph.facebook.com/v21.0/${inst.instanceId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
+          body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: text, preview_url: false } }),
+        });
+        if (res.ok) sendOk = true;
+        else {
+          const err = await res.json().catch(() => ({}));
+          toast.error(`Erro ao enviar: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
         }
+      } else if (inst.provider === "dapi") {
+        const res = await fetch(`https://api.d-api.cloud/api/v1/messages/send/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": inst.token },
+          body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
+        });
+        if (res.ok) sendOk = true;
+        else toast.error(`Erro ao enviar: ${(await res.text().catch(() => "")).slice(0, 120) || res.status}`);
       } else {
-        toast.error("Nenhuma instância WhatsApp conectada. Configure em Conexões.");
+        const res = await fetch(`https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
+          },
+          body: JSON.stringify({ phone: cleanPhone, message: text }),
+        });
+        if (res.ok) sendOk = true;
+        else {
+          const err = await res.json().catch(() => ({}));
+          toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
+        }
       }
+
+      if (!sendOk) return;
+      // Persiste para histórico -- mesmo padrão de owner_id/company_id usado
+      // no resto do app (dono da empresa, não o usuário logado).
+      await supabase.from("whatsapp_messages").insert({
+        owner_id:    company.owner_id,
+        company_id:  company.id,
+        instance_id: inst.instanceId,
+        phone:       cleanPhone,
+        from_me:     true,
+        body:        text,
+        type:        "text",
+        momment:     Date.now(),
+        sender_name: agentName,
+      });
+    } catch {
+      toast.error("Falha ao enviar mensagem via WhatsApp");
     }
   };
 

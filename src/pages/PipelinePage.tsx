@@ -198,24 +198,28 @@ export default function PipelinePage() {
     return () => document.removeEventListener("mousedown", close);
   }, [viewPickerOpen]);
 
-  // Z-API instances for WhatsApp selector
-  const [zapiInstances, setZapiInstances] = useState<{ instanceId: string; label: string }[]>([]);
+  // Conexões de WhatsApp pro seletor -- company.zapi_* é campo legado de
+  // quando só existia 1 conexão por empresa (nunca mais escrito desde a
+  // migração pra whatsapp_connections/multi-conexão); usar isso aqui fazia
+  // zapiInstances ficar sempre vazio pra qualquer empresa real, então o botão
+  // caía sempre no wa.me, mesmo com conexão ativa de verdade.
   const [selectedZapiInstance, setSelectedZapiInstance] = useState("");
   const [wpPopoverLeadId, setWpPopoverLeadId] = useState<string | null>(null);
 
+  const zapiInstances = useMemo(
+    () => whatsappConnections
+      .filter(c => c.connected && c.active)
+      .map(c => ({ instanceId: c.instanceId, label: c.phone ? `${c.name} · ${c.phone}` : c.name })),
+    [whatsappConnections]
+  );
+
   useEffect(() => {
-    if (company?.zapi_connected && company.zapi_instance_id) {
-      const inst = {
-        instanceId: company.zapi_instance_id,
-        label: company.zapi_phone ? `Z-API · ${company.zapi_phone}` : `Z-API · ${company.zapi_instance_id.slice(0, 8)}…`,
-      };
-      setZapiInstances([inst]);
-      setSelectedZapiInstance(inst.instanceId);
-    } else {
-      setZapiInstances([]);
-      setSelectedZapiInstance("");
+    if (zapiInstances.length === 0) { setSelectedZapiInstance(""); return; }
+    if (!zapiInstances.some(i => i.instanceId === selectedZapiInstance)) {
+      setSelectedZapiInstance(zapiInstances[0].instanceId);
     }
-  }, [company?.zapi_instance_id, company?.zapi_connected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zapiInstances]);
 
   // Sidebar collapse — persisted in localStorage, collapsed by default on mobile
   const SIDEBAR_W = 240;
