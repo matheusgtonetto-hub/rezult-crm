@@ -1238,7 +1238,7 @@ export default function LeadDetailPage() {
       {/* PROGRESS BAR */}
       <div
         style={{
-          height: 60,
+          height: 70,
           background: "#FFFFFF",
           borderBottom: "1px solid #E5E5E5",
           paddingLeft: 16,
