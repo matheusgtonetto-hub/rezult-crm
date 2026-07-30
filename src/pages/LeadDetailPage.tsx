@@ -1083,8 +1083,7 @@ export default function LeadDetailPage() {
           precisa mais ser sticky (ver CONTENT logo abaixo). */}
       <div
         style={{
-          paddingTop: 9,
-          paddingBottom: 9,
+          height: 45,
           background: "#FFFFFF",
           borderBottom: "1px solid #EEEEEE",
           flexShrink: 0,
