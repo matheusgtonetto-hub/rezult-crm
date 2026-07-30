@@ -255,6 +255,7 @@
 ::-webkit-scrollbar-thumb {
   background: hsl(0 0% 80% / 0.8);
   border-radius: 999px;
+  min-height: 30px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(0 0% 70% / 0.8);
