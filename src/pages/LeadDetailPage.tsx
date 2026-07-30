@@ -1083,7 +1083,7 @@ export default function LeadDetailPage() {
           precisa mais ser sticky (ver CONTENT logo abaixo). */}
       <div
         style={{
-          height: 45,
+          height: 50,
           background: "#FFFFFF",
           borderBottom: "1px solid #EEEEEE",
           flexShrink: 0,
@@ -1238,7 +1238,7 @@ export default function LeadDetailPage() {
       {/* PROGRESS BAR */}
       <div
         style={{
-          height: 70,
+          height: 65,
           background: "#FFFFFF",
           borderBottom: "1px solid #E5E5E5",
           paddingLeft: 16,
