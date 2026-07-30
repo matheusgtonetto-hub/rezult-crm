@@ -105,6 +105,11 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
       personId,
       responsible:  dealResponsibles[0] ?? "",
       responsibles: dealResponsibles,
+      // Negócio novo sempre nasce aberto -- se `source` é um Lead já
+      // ganho/perdido (cliente recorrente), o spread de `...base` acima
+      // carregaria o dealStatus antigo e o estado local ficaria
+      // divergente do banco (que sempre grava status "open" no insert).
+      dealStatus:   "open",
       activities: [{
         id:          `a-${Date.now()}`,
         date:        new Date().toISOString().split("T")[0],
