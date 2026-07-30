@@ -9,6 +9,8 @@ import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
+import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -116,72 +118,6 @@ function daysBetween(a: string, b: string) {
   const d1 = new Date(a).getTime();
   const d2 = new Date(b).getTime();
   return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-}
-
-// ── Avatar do lead (foto real do WhatsApp, com fallback de iniciais) ──────
-// Mesmo algoritmo de cor/iniciais e mesmo endpoint de foto usados em
-// ConvAvatar/fetchAvatar no Multiatendimento -- duplicado aqui de propósito
-// (só isso, não vale acoplar as duas páginas por causa de um avatar).
-function colorFromString(str: string) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return `hsl(${Math.abs(hash) % 360} 55% 50%)`;
-}
-function initialsOf(name: string) {
-  return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-}
-
-interface WaAvatarCreds {
-  provider?: string;
-  instanceId: string;
-  token: string;
-  clientToken?: string | null;
-}
-
-// Cloud API (WhatsApp Business oficial da Meta) não expõe foto de perfil de
-// contato nenhum -- restrição da própria plataforma, nunca tenta.
-async function fetchWhatsappAvatar(phone: string, inst: WaAvatarCreds): Promise<string | undefined> {
-  const p = phone.replace(/\D/g, "");
-  if (!p || inst.provider === "cloud_api") return undefined;
-  try {
-    const res = inst.provider === "dapi"
-      ? await fetch(
-          `https://api.d-api.cloud/api/v1/contacts/${p}/avatar?sessionId=${inst.instanceId}`,
-          { headers: { "Authorization": inst.token } }
-        )
-      : await fetch(
-          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/profile-picture?phone=${p}`,
-          { headers: { "Client-Token": inst.clientToken ?? "" } }
-        );
-    if (!res.ok) return undefined;
-    const json = await res.json() as Record<string, unknown>;
-    const body = (json.data ?? json) as Record<string, unknown>;
-    return (body.link ?? body.value ?? body.profilePicture ?? body.imgUrl ?? body.url ?? body.avatarUrl ?? body.picture ?? body.avatar) as string | undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function LeadAvatar({ name, avatarUrl, size, onError }: { name: string; avatarUrl?: string; size: number; onError?: () => void }) {
-  const [err, setErr] = useState(false);
-  useEffect(() => { setErr(false); }, [avatarUrl]);
-  if (avatarUrl && !err) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        // URLs de foto do WhatsApp expiram (param oe=) -- ao falhar, mostra as
-        // iniciais e avisa o pai pra tentar buscar uma URL nova.
-        onError={() => { setErr(true); onError?.(); }}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0 }}
-      />
-    );
-  }
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, flexShrink: 0 }}>
-      {initialsOf(name)}
-    </div>
-  );
 }
 
 function formatPhone(raw: string): string {
@@ -1249,7 +1185,7 @@ export default function LeadDetailPage() {
       >
         {/* Esquerda — avatar, nome e funil */}
         <div className="flex items-center gap-2 justify-self-start min-w-0">
-          <LeadAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
+          <ProfileAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1">
               <span className="font-bold truncate" style={{ fontSize: 16, color: "#111111" }}>{lead.name}</span>

@@ -54,6 +54,8 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useFloatingChat } from "@/context/FloatingChatContext";
+import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -70,6 +72,16 @@ const COLUMN_COLORS = [
 
 type SortKey = "recent" | "oldest" | "value" | "name";
 type StatusFilter = "open" | "won" | "lost" | "all";
+
+// Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
+// dígito) -- mesma lógica usada em MultiatendimentoPage.tsx/CRMContext.tsx,
+// duplicada aqui só pra chave do cache de avatares deste board.
+function normalizeBrPhone(raw: string | undefined): string {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
+  return d;
+}
 
 export default function PipelinePage() {
   const {
@@ -99,7 +111,7 @@ export default function PipelinePage() {
   } = useCRM();
   const { openChat } = useFloatingChat();
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, whatsappConnections } = useCompany();
   const { profile } = useProfile();
   const { can } = usePermissions();
   const navigate = useNavigate();
@@ -438,6 +450,45 @@ export default function PipelinePage() {
         return { ...col, filteredIds: ids };
       });
   }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter, myPerms.viewOwnDealsOnly]);
+
+  // ── Avatar dos cards (foto real do WhatsApp, mesmo padrão de
+  // LeadDetailPage/Multiatendimento) ────────────────────────────────────
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
+  const fetchingAvatarsRef = useRef<Set<string>>(new Set());
+  const avatarRetriedRef = useRef<Set<string>>(new Set());
+
+  const fetchCardAvatar = useCallback((phone: string | undefined, force = false) => {
+    const p = normalizeBrPhone(phone);
+    if (!p || fetchingAvatarsRef.current.has(p) || (!force && avatarUrls[p])) return;
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (!inst) return;
+    fetchingAvatarsRef.current.add(p);
+    fetchWhatsappAvatar(phone ?? "", inst, force)
+      .then(url => { if (url) setAvatarUrls(prev => ({ ...prev, [p]: url })); })
+      .finally(() => { if (!avatarUrls[p]) fetchingAvatarsRef.current.delete(p); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [whatsappConnections]);
+
+  // Busca só pros primeiros 40 cards visíveis por coluna -- mesmo limite do
+  // Multiatendimento, pra não disparar uma rajada de chamadas à D-API/Z-API
+  // num board com muitos negócios.
+  useEffect(() => {
+    if (!whatsappConnections.some(c => c.connected && c.active)) return;
+    filteredColumns.forEach(col => {
+      col.filteredIds.slice(0, 40).forEach(id => fetchCardAvatar(leads[id]?.whatsapp));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredColumns, whatsappConnections.length]);
+
+  // URL da foto expirou/falhou: busca uma nova, uma única vez por número.
+  const refetchCardAvatar = (phone?: string) => {
+    const p = normalizeBrPhone(phone);
+    if (!p || avatarRetriedRef.current.has(p)) return;
+    avatarRetriedRef.current.add(p);
+    setAvatarUrls(prev => { const n = { ...prev }; delete n[p]; return n; });
+    fetchingAvatarsRef.current.delete(p);
+    fetchCardAvatar(phone, true);
+  };
 
   const loadPermissionsState = () => {
     setAttendantPerms(activePipeline.permissions?.byAttendant ?? {});
@@ -948,12 +999,13 @@ export default function PipelinePage() {
                                           >
                                             {/* Avatar + Name + Company + deal number */}
                                             <div className="flex items-center gap-2 mb-1.5">
-                                              <div
-                                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-semibold text-xs"
-                                                style={{ backgroundColor: col.color }}
-                                              >
-                                                {lead.name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
-                                              </div>
+                                              <ProfileAvatar
+                                                name={lead.name}
+                                                avatarUrl={avatarUrls[normalizeBrPhone(lead.whatsapp)]}
+                                                size={32}
+                                                onError={() => refetchCardAvatar(lead.whatsapp)}
+                                                style={{ backgroundColor: col.color, fontSize: 12 }}
+                                              />
                                               <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-medium text-foreground leading-tight truncate">
                                                   {lead.name}
