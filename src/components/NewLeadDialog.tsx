@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useCRM } from "@/context/CRMContext";
+import { useCompany } from "@/context/CompanyContext";
+import { upsertContact } from "@/lib/contacts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,7 @@ const SELECT_TRIGGER_CLS = "bg-card border-gray-400 rounded-lg focus:ring-0 focu
 
 export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
   const { addLead, columns, activePipelineId, nextDealNumber, crmTags, teamMembers } = useCRM();
+  const { company: activeCompany } = useCompany();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -41,6 +44,13 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
     e.preventDefault();
     if (!name || !whatsapp) { toast.error("Nome e WhatsApp são obrigatórios."); return; }
     setLoading(true);
+    const personId = activeCompany
+      ? await upsertContact({
+          companyId: activeCompany.id,
+          ownerId:   activeCompany.owner_id,
+          name, phone: whatsapp,
+        })
+      : undefined;
     const ok = await addLead({
       dealNumber: nextDealNumber(),
       pipelineId: activePipelineId,
@@ -51,6 +61,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
       email: "",
       entryDate: new Date().toISOString().split("T")[0],
       notes: "",
+      personId,
       activities: [
         { id: `a-${Date.now()}`, date: new Date().toISOString().split("T")[0], type: "created", description: "Lead criado." },
       ],

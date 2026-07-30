@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
+import { type Contact } from "@/lib/contacts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,19 +23,21 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, crmTags } = useCRM();
+  const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteContact, crmTags } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
   const [filterPipeline, setFilterPipeline] = useState("all");
   const [filterStage, setFilterStage] = useState("all");
 
-  // Lead modal (create / edit)
+  // Lead modal (create / edit lead / edit contato sem negócio)
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [deleteContactTarget, setDeleteContactTarget] = useState<Contact | null>(null);
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
@@ -60,6 +63,7 @@ export default function LeadsPage() {
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);
+  const [dealContactTarget, setDealContactTarget] = useState<Contact | null>(null);
 
   // Ordena por data de criação (mais recente primeiro); desempate pelo dealNumber
   const allLeadsSorted = Object.values(leads).sort((a, b) => {
@@ -79,6 +83,37 @@ export default function LeadsPage() {
     return true;
   });
 
+  // Contatos ainda sem nenhum negócio vinculado (nenhuma linha em `leads` com
+  // person_id apontando pra eles) -- aparecem misturados na mesma lista, com
+  // badge "Sem negócio" no lugar do Responsável. Só entram quando nenhum filtro
+  // exclusivo de negócio (Responsável/Pipeline/Etapa) está ativo, já que um
+  // contato solto não tem nenhum desses atributos pra filtrar.
+  const linkedPersonIds = useMemo(() => {
+    const s = new Set<string>();
+    Object.values(leads).forEach(l => { if (l.personId) s.add(l.personId); });
+    return s;
+  }, [leads]);
+  const noExtraFilters = filterResp === "all" && filterPipeline === "all" && filterStage === "all";
+  const filteredContacts = noExtraFilters
+    ? Object.values(contacts)
+        .filter(c => !linkedPersonIds.has(c.id))
+        .filter(c => !search
+          || c.name.toLowerCase().includes(search.toLowerCase())
+          || (c.company || "").toLowerCase().includes(search.toLowerCase()))
+    : [];
+
+  type Row = { kind: "lead"; lead: Lead } | { kind: "contact"; contact: Contact };
+  const rows: Row[] = useMemo(() => {
+    const leadRows: (Row & { ts: number })[] = filtered.map(l => ({
+      kind: "lead", lead: l, ts: l.created_at ? new Date(l.created_at).getTime() : 0,
+    }));
+    const contactRows: (Row & { ts: number })[] = filteredContacts.map(c => ({
+      kind: "contact", contact: c, ts: c.createdAt ? new Date(c.createdAt).getTime() : 0,
+    }));
+    return [...leadRows, ...contactRows].sort((a, b) => b.ts - a.ts);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, filteredContacts]);
+
   const colName = (id: string) => {
     for (const p of pipelines) {
       const col = p.columns.find(c => c.id === id);
@@ -87,21 +122,38 @@ export default function LeadsPage() {
     return columns.find(c => c.id === id)?.title || id;
   };
 
-  const openCreate = () => { setEditingLead(null); setModalOpen(true); };
-  const openEdit = (lead: Lead) => { setEditingLead(lead); setModalOpen(true); };
+  const openCreate = () => { setEditingLead(null); setEditingContact(null); setModalOpen(true); };
+  const openEdit = (lead: Lead) => { setEditingContact(null); setEditingLead(lead); setModalOpen(true); };
+  const openEditContact = (contact: Contact) => { setEditingLead(null); setEditingContact(contact); setModalOpen(true); };
 
-  const openWhatsApp = (lead: Lead) => {
-    const number = (lead.phoneDdi ?? "+55").replace("+", "") + lead.whatsapp.replace(/\D/g, "");
+  const openWhatsApp = (phoneDdi: string | undefined, whatsapp: string) => {
+    const number = (phoneDdi ?? "+55").replace("+", "") + whatsapp.replace(/\D/g, "");
     window.open(`https://wa.me/${number}`, "_blank", "noopener");
   };
 
   const openDeal = (lead: Lead) => setDealTarget(lead);
+  const openDealFromContact = (contact: Contact) => setDealContactTarget(contact);
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
     deleteLead(deleteTarget.id);
     toast.success("Lead removido.");
     setDeleteTarget(null);
+  };
+
+  const confirmDeleteContact = () => {
+    if (!deleteContactTarget) return;
+    // Defensivo: bareContacts já exclui contatos com negócio vinculado, mas
+    // confere de novo aqui contra corrida (negócio criado em outra aba/sessão
+    // entre a listagem e o clique em excluir).
+    if (linkedPersonIds.has(deleteContactTarget.id)) {
+      toast.error("Este contato já tem negócio vinculado — não pode ser excluído por aqui.");
+      setDeleteContactTarget(null);
+      return;
+    }
+    deleteContact(deleteContactTarget.id);
+    toast.success("Lead removido.");
+    setDeleteContactTarget(null);
   };
 
   // Dados de vendas por contato — chave primária: contactId; fallback: whatsapp digits (legado)
@@ -256,7 +308,7 @@ export default function LeadsPage() {
         )}
       </div>
 
-      {filtered.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <Users size={48} className="mx-auto mb-3 opacity-30" />
           <p>Nenhum lead encontrado.</p>
@@ -290,24 +342,108 @@ export default function LeadsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(lead => (
+              {rows.map(row => row.kind === "contact" ? (
                 <TableRow
-                  key={lead.id}
+                  key={`c-${row.contact.id}`}
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
-                  onClick={() => setDrawerLeadId(lead.id)}
+                  onClick={() => openEditContact(row.contact)}
+                >
+                  <TableCell className="font-medium text-foreground">
+                    <div className="flex items-center gap-[10px] min-w-0">
+                      <div className="min-w-0" style={{ lineHeight: 1.1 }}>
+                        <span className="truncate block">{row.contact.name}</span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
+                      Sem negócio
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm text-foreground truncate">
+                        {row.contact.phoneDdi && row.contact.phoneDdi !== "+55" ? `${row.contact.phoneDdi} ` : ""}
+                        {row.contact.phone || "—"}
+                      </span>
+                      {row.contact.email && (
+                        <span className="text-xs text-muted-foreground truncate">{row.contact.email}</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(row.contact.tags ?? []).length === 0
+                        ? <span className="text-sm text-muted-foreground">—</span>
+                        : (row.contact.tags ?? []).map(tagName => {
+                            const t = crmTags.find(x => x.name === tagName);
+                            return (
+                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
+                                {tagName}
+                              </span>
+                            );
+                          })
+                      }
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">—</span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
+                    {(() => {
+                      const d = row.contact.createdAt ? new Date(row.contact.createdAt) : null;
+                      if (!d || isNaN(d.getTime())) return "—";
+                      return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-right pr-3" onClick={e => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+                          <MoreHorizontal size={16} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => openEditContact(row.contact)}>
+                          <Pencil size={14} className="mr-2" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDealFromContact(row.contact)}>
+                          <Briefcase size={14} className="mr-2" /> Criar negócio
+                        </DropdownMenuItem>
+                        {row.contact.phone && (
+                          <DropdownMenuItem onClick={() => openWhatsApp(row.contact.phoneDdi, row.contact.phone!)}>
+                            <MessageSquare size={14} className="mr-2" /> Abrir Chat
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setDeleteContactTarget(row.contact)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 size={14} className="mr-2" /> Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <TableRow
+                  key={row.lead.id}
+                  className="border-card-border hover:bg-secondary/50 cursor-pointer"
+                  onClick={() => setDrawerLeadId(row.lead.id)}
                 >
                   <TableCell className="font-medium text-foreground">
                     <div className="flex items-center gap-[10px] min-w-0">
                       <div onClick={e => e.stopPropagation()} className="shrink-0">
                         <Checkbox
-                          checked={selectedIds.has(lead.id)}
-                          onCheckedChange={() => toggleSelect(lead.id)}
+                          checked={selectedIds.has(row.lead.id)}
+                          onCheckedChange={() => toggleSelect(row.lead.id)}
                         />
                       </div>
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
-                        <span className="truncate block">{lead.name}</span>
+                        <span className="truncate block">{row.lead.name}</span>
                         {(() => {
-                          const key = lead.id in ticketByContact ? lead.id : (lead.whatsapp?.replace(/\D/g, "") ?? null);
+                          const key = row.lead.id in ticketByContact ? row.lead.id : (row.lead.whatsapp?.replace(/\D/g, "") ?? null);
                           const avg = (key ? ticketByContact[key]?.avg : undefined) ?? 0;
                           return (
                             <span style={{ fontSize: 9, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
@@ -320,7 +456,7 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      const resps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
+                      const resps = row.lead.responsibles?.length ? row.lead.responsibles : (row.lead.responsible ? [row.lead.responsible] : []);
                       if (resps.length === 0) return <span className="text-sm text-muted-foreground">—</span>;
                       return (
                         <div className="flex items-center gap-2">
@@ -352,19 +488,19 @@ export default function LeadsPage() {
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm text-foreground truncate">
-                        {lead.phoneDdi && lead.phoneDdi !== "+55" ? `${lead.phoneDdi} ` : ""}
-                        {lead.whatsapp || "—"}
+                        {row.lead.phoneDdi && row.lead.phoneDdi !== "+55" ? `${row.lead.phoneDdi} ` : ""}
+                        {row.lead.whatsapp || "—"}
                       </span>
-                      {lead.email && (
-                        <span className="text-xs text-muted-foreground truncate">{lead.email}</span>
+                      {row.lead.email && (
+                        <span className="text-xs text-muted-foreground truncate">{row.lead.email}</span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(lead.tags ?? []).length === 0
+                      {(row.lead.tags ?? []).length === 0
                         ? <span className="text-sm text-muted-foreground">—</span>
-                        : (lead.tags ?? []).map(tagName => {
+                        : (row.lead.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
                               <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
@@ -377,7 +513,7 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      const key = lead.id in ticketByContact ? lead.id : (lead.whatsapp?.replace(/\D/g, "") ?? null);
+                      const key = row.lead.id in ticketByContact ? row.lead.id : (row.lead.whatsapp?.replace(/\D/g, "") ?? null);
                       const d = key ? ticketByContact[key] : null;
                       const total = d?.total ?? 0;
                       const count = d?.count ?? 0;
@@ -397,7 +533,7 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
                     {(() => {
-                      const d = lead.created_at ? new Date(lead.created_at) : null;
+                      const d = row.lead.created_at ? new Date(row.lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
                       return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
                     })()}
@@ -410,18 +546,18 @@ export default function LeadsPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => openEdit(lead)}>
+                        <DropdownMenuItem onClick={() => openEdit(row.lead)}>
                           <Pencil size={14} className="mr-2" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openDeal(lead)}>
+                        <DropdownMenuItem onClick={() => openDeal(row.lead)}>
                           <Briefcase size={14} className="mr-2" /> Criar negócio
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openWhatsApp(lead)}>
+                        <DropdownMenuItem onClick={() => openWhatsApp(row.lead.phoneDdi, row.lead.whatsapp)}>
                           <MessageSquare size={14} className="mr-2" /> Abrir Chat
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => setDeleteTarget(lead)}
+                          onClick={() => setDeleteTarget(row.lead)}
                           className="text-destructive focus:text-destructive"
                         >
                           <Trash2 size={14} className="mr-2" /> Excluir
@@ -436,11 +572,12 @@ export default function LeadsPage() {
         </div>
       )}
 
-      {/* Create / Edit Lead Modal */}
+      {/* Create / Edit Lead Modal (lead ou contato sem negócio) */}
       <LeadModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         editLead={editingLead}
+        editContact={editingContact}
       />
 
       {/* Delete Confirmation */}
@@ -460,8 +597,26 @@ export default function LeadsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Deal Modal */}
+      {/* Delete Contact Confirmation */}
+      <Dialog open={!!deleteContactTarget} onOpenChange={v => !v && setDeleteContactTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir lead</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir <strong>{deleteContactTarget?.name}</strong>?
+            Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setDeleteContactTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDeleteContact}>Excluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Deal Modal (a partir de negócio existente ou de contato sem negócio) */}
       <CreateDealDialog lead={dealTarget} onClose={() => setDealTarget(null)} />
+      <CreateDealDialog contact={dealContactTarget} onClose={() => setDealContactTarget(null)} />
 
       {/* Bulk Delete Confirmation */}
       <Dialog open={bulkDeleteConfirm} onOpenChange={v => !v && setBulkDeleteConfirm(false)}>

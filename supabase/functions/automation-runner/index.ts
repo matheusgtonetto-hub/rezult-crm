@@ -4,6 +4,7 @@
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertContact } from "../_shared/contacts.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -2554,6 +2555,17 @@ async function executeAction(
       // Quem cria o negócio é a ação separada "Criar negócio" (próximo bloco), que agora
       // exige pipeline e etapa explicitamente.
 
+      // Resolve/cria o contato (pessoa) antes do lead -- mesma lógica de dedup
+      // por telefone normalizado usada no app (src/lib/contacts.ts).
+      insertLead.person_id = await upsertContact(supabase, {
+        companyId: company_id,
+        ownerId:   ownerIdLead ?? "",
+        name:      insertLead.name as string,
+        phone:     insertLead.whatsapp as string | undefined,
+        phoneDdi:  insertLead.phone_ddi as string | undefined,
+        email:     insertLead.email as string | undefined,
+      });
+
       console.log("[criar_lead] Inserindo:", JSON.stringify(insertLead));
       const { data: createdLead, error: createLeadErr } = await supabase
         .from("leads")
@@ -2605,6 +2617,17 @@ async function executeAction(
           const o = normalizeOrigin(insertData.origin);
           if (o) insertData.origin = o; else delete insertData.origin; // vazio: usa default do banco
         }
+
+        // Resolve/cria o contato (pessoa) antes do negócio -- mesma lógica de
+        // dedup por telefone normalizado usada no app (src/lib/contacts.ts).
+        insertData.person_id = await upsertContact(supabase, {
+          companyId: company_id,
+          ownerId:   ownerIdForNew ?? "",
+          name:      insertData.name as string,
+          phone:     insertData.whatsapp as string | undefined,
+          phoneDdi:  insertData.phone_ddi as string | undefined,
+          email:     insertData.email as string | undefined,
+        });
 
         console.log("[criar_negocio] Tentando criar lead:", JSON.stringify(insertData));
         const { data: created, error: createErr } = await supabase

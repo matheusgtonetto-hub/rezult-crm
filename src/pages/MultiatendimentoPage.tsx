@@ -24,6 +24,7 @@ import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import chatBackground from "@/assets/chat-background.webp";
+import { upsertContact } from "@/lib/contacts";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -2293,29 +2294,12 @@ export default function MultiatendimentoPage() {
     let contactId = linkedLead?.personId;
 
     if (!contactId) {
-      const { data: found } = await supabase.from("contacts").select("id")
-        .eq("company_id", company.id)
-        .or(phoneVariants(conv.phone).map(v => `phone.eq.${v}`).join(","))
-        .maybeSingle();
-      contactId = (found as { id?: string } | null)?.id;
-    }
-    if (!contactId) {
-      const { data: created, error } = await supabase.from("contacts")
-        .insert({ company_id: company.id, owner_id: tenantId, name: convName(conv), phone: conv.phone })
-        .select("id").single();
-      if (error?.code === "23505") {
-        // corrida: outro insert venceu — reaproveita a linha existente em vez de duplicar
-        const { data: existing } = await supabase.from("contacts").select("id")
-          .eq("company_id", company.id)
-          .or(phoneVariants(conv.phone).map(v => `phone.eq.${v}`).join(","))
-          .maybeSingle();
-        contactId = (existing as { id?: string } | null)?.id;
-      } else if (error || !created) {
-        console.error("ensureContactForConversation:", error);
-        return undefined;
-      } else {
-        contactId = (created as { id: string }).id;
-      }
+      contactId = await upsertContact({
+        companyId: company.id,
+        ownerId: tenantId,
+        name: convName(conv),
+        phone: conv.phone,
+      });
     }
     if (!contactId) return undefined;
 

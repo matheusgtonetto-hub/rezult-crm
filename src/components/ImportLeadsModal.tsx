@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { useCRM } from "@/context/CRMContext";
+import { useCompany } from "@/context/CompanyContext";
+import { upsertContact } from "@/lib/contacts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +42,7 @@ function toPhoneString(val: unknown): string {
 
 export function ImportLeadsModal({ open, onClose }: Props) {
   const { pipelines, crmTags, addLead, leads: existingLeads, teamMembers, memberColors, memberAvatars } = useCRM();
+  const { company } = useCompany();
 
   const [file, setFile]           = useState<File | null>(null);
   const [headers, setHeaders]     = useState<string[]>([]);
@@ -138,6 +141,16 @@ export function ImportLeadsModal({ open, onClose }: Props) {
       const displayName = name || phone || email;
       if (!displayName) continue;
 
+      const personId = company
+        ? await upsertContact({
+            companyId: company.id,
+            ownerId:   company.owner_id,
+            name:      displayName,
+            phone:     phone.replace(/\D/g, "") || undefined,
+            email:     email || undefined,
+          })
+        : undefined;
+
       const success = await addLead({
         dealNumber: maxNum + i + 1,
         name: displayName,
@@ -162,6 +175,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
         city: undefined, state: undefined,
         dealStatus: "open", lossReasonId: undefined,
         customFieldValues: {}, activities: [],
+        personId,
       });
       if (success) ok++;
     }

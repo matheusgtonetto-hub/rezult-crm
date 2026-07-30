@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useCRM } from "@/context/CRMContext";
+import { useCompany } from "@/context/CompanyContext";
 import { Lead } from "@/data/mockData";
+import { upsertContact, type Contact } from "@/lib/contacts";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -11,43 +13,95 @@ import { toast } from "sonner";
 // Extraído de LeadsPage.tsx (era o Dialog "Criar negócio" do menu (...) de
 // cada linha) pra ser reaproveitado também pelo botão "+ Negócio" do
 // Multiatendimento -- mesmo popup nos dois lugares, não uma cópia parecida.
+// Aceita duas origens mutuamente exclusivas: `lead` (converte um negócio já
+// existente / bare lead legado) ou `contact` (linha "Sem negócio" de /leads,
+// pós separação lead/contato -- ver plano de migração).
 interface Props {
-  lead: Lead | null;
+  lead?: Lead | null;
+  contact?: Contact | null;
   onClose: () => void;
 }
 
-export function CreateDealDialog({ lead, onClose }: Props) {
+export function CreateDealDialog({ lead, contact, onClose }: Props) {
   const { pipelines, addLead, nextDealNumber } = useCRM();
+  const { company } = useCompany();
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const source = lead ?? contact ?? null;
+
   useEffect(() => {
-    if (lead) {
+    if (source) {
       const p = pipelines[0];
       setDealPipeline(p?.id ?? "");
       setDealStage(p?.columns[0]?.id ?? "");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lead]);
+  }, [source]);
 
   const dealPipelineObj = pipelines.find(p => p.id === dealPipeline);
 
   const confirmDeal = async () => {
-    if (!lead || !dealPipeline || !dealStage) return;
+    if (!source || !dealPipeline || !dealStage || !company) return;
     setCreating(true);
+
+    // Resolve o contato (pessoa) antes de criar o negócio -- reaproveita
+    // personId já conhecido; senão faz upsert por telefone (nunca cria
+    // duplicado, ver src/lib/contacts.ts).
+    let personId = lead?.personId;
+    if (!personId) {
+      personId = await upsertContact({
+        companyId: company.id,
+        ownerId:   company.owner_id,
+        name:      source.name,
+        phone:     lead ? lead.whatsapp : contact?.phone,
+        phoneDdi:  lead ? lead.phoneDdi : contact?.phoneDdi,
+        email:     lead ? lead.email : contact?.email,
+      });
+    }
+
+    const base: Omit<Lead, "id" | "dealNumber" | "pipelineId" | "stage" | "personId" | "activities"> = lead
+      ? { ...lead, contactId: lead.id }
+      : {
+          name:         contact!.name,
+          company:      contact!.company,
+          whatsapp:     contact!.phone ?? "",
+          phoneDdi:     contact!.phoneDdi ?? "+55",
+          email:        contact!.email,
+          emails:       contact!.email ? [contact!.email] : [],
+          tags:         contact!.tags ?? [],
+          site:         contact!.site,
+          document:     contact!.document,
+          origin:       (contact!.origin as Lead["origin"]) ?? "Outro",
+          birthDate:    contact!.birthDate,
+          country:      contact!.country,
+          zipCode:      contact!.zipCode,
+          address:      contact!.address,
+          addrNumber:   contact!.addrNumber,
+          complement:   contact!.complement,
+          neighborhood: contact!.neighborhood,
+          city:         contact!.city,
+          state:        contact!.state,
+          notes:        contact!.notes ?? "",
+          value:        0,
+          responsible:  "",
+          responsibles: [],
+          priority:     "Média",
+          entryDate:    new Date().toISOString().split("T")[0],
+        };
+
     const ok = await addLead({
-      ...lead,
-      id: undefined as unknown as string,
+      ...base,
       dealNumber: nextDealNumber(),
       pipelineId: dealPipeline,
-      stage: dealStage,
-      contactId: lead.id,
+      stage:      dealStage,
+      personId,
       activities: [{
-        id: `a-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        type: "created",
-        description: `Negócio criado a partir do lead ${lead.name}.`,
+        id:          `a-${Date.now()}`,
+        date:        new Date().toISOString().split("T")[0],
+        type:        "created",
+        description: `Negócio criado a partir do lead ${source.name}.`,
       }],
     });
     setCreating(false);
@@ -59,13 +113,13 @@ export function CreateDealDialog({ lead, onClose }: Props) {
   };
 
   return (
-    <Dialog open={!!lead} onOpenChange={v => !v && onClose()}>
+    <Dialog open={!!source} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Criar negócio</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground mb-4">
-          Vincule <strong>{lead?.name}</strong> a um pipeline e etapa.
+          Vincule <strong>{source?.name}</strong> a um pipeline e etapa.
         </p>
         <div className="space-y-3">
           <div>

@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCompany } from "@/context/CompanyContext";
+import { upsertContact } from "@/lib/contacts";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { supabase } from "@/lib/supabase";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -147,6 +149,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     addLead, nextDealNumber, deleteLead, products,
   } = useCRM();
   const { user } = useAuth();
+  const { company } = useCompany();
   const navigate = useNavigate();
   const { getPerms, isAdmin } = usePipelinePermissions();
 
@@ -248,21 +251,36 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const color    = colorFromName(lead.name);
   const tasks    = allTasks.filter(t => t.leadId === leadId);
 
-  // Negócios relacionados: todos os leads com o mesmo telefone ou e-mail
+  // Negócios relacionados: todos os leads do mesmo contato (person_id), sempre
+  // incluindo o próprio (mostrado com badge "ESTE" abaixo). Enquanto person_id
+  // não estiver 100% backfilled, cai pro casamento antigo por telefone/e-mail.
   const phoneNorm = lead.whatsapp?.replace(/\D/g, "") ?? "";
-  const relatedLeads = Object.values(leads).filter(l => {
-    if (!l.whatsapp) return false;
-    const lp = l.whatsapp.replace(/\D/g, "");
-    const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
-    const sameEmail = !!(lead.email && l.email && lead.email === l.email);
-    return samePhone || sameEmail;
-  });
+  const relatedLeads = lead.personId
+    ? Object.values(leads).filter(l => l.personId === lead.personId)
+    : Object.values(leads).filter(l => {
+        if (!l.whatsapp) return false;
+        const lp = l.whatsapp.replace(/\D/g, "");
+        const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
+        const sameEmail = !!(lead.email && l.email && lead.email === l.email);
+        return samePhone || sameEmail;
+      });
 
   const newDealPipelineObj = pipelines.find(p => p.id === newDealPipeline);
 
   const createDeal = async () => {
     if (!newDealPipeline || !newDealStage) return;
     setNewDealCreating(true);
+    let personId = lead!.personId;
+    if (!personId && company) {
+      personId = await upsertContact({
+        companyId: company.id,
+        ownerId:   company.owner_id,
+        name:      lead!.name,
+        phone:     lead!.whatsapp,
+        phoneDdi:  lead!.phoneDdi,
+        email:     lead!.email,
+      });
+    }
     const ok = await addLead({
       ...lead!,
       id: undefined as unknown as string,
@@ -271,6 +289,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       stage: newDealStage,
       dealStatus: "open",
       contactId: lead!.id,
+      personId,
       activities: [{
         id: `a-${Date.now()}`,
         date: new Date().toISOString(),

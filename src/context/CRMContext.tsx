@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { toast } from "sonner";
+import type { Contact } from "@/lib/contacts";
 import { PLAN_LIMITS } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 
@@ -39,6 +40,10 @@ interface CRMContextType {
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   addLead: (lead: Omit<Lead, "id">) => Promise<boolean>;
   deleteLead: (id: string) => void;
+
+  contacts: Record<string, Contact>;
+  updateContact: (id: string, data: Partial<Contact>) => Promise<void>;
+  deleteContact: (id: string) => void;
   moveLead: (leadId: string, fromCol: string, toCol: string, toIndex: number) => void;
   transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => void;
   markLeadWon: (leadId: string, productName?: string, value?: number) => void;
@@ -195,6 +200,34 @@ function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
   };
 }
 
+function dbToContact(row: Record<string, unknown>): Contact {
+  return {
+    id:           row.id as string,
+    companyId:    row.company_id as string,
+    ownerId:      row.owner_id as string,
+    name:         row.name as string,
+    phone:        (row.phone as string) ?? undefined,
+    phoneDdi:     (row.phone_ddi as string) ?? undefined,
+    email:        (row.email as string) ?? undefined,
+    tags:         (row.tags as string[]) ?? undefined,
+    site:         (row.site as string) ?? undefined,
+    document:     (row.document as string) ?? undefined,
+    company:      (row.company as string) ?? undefined,
+    origin:       (row.origin as string) ?? undefined,
+    birthDate:    (row.birth_date as string) ?? undefined,
+    country:      (row.country as string) ?? undefined,
+    zipCode:      (row.zip_code as string) ?? undefined,
+    address:      (row.address as string) ?? undefined,
+    addrNumber:   (row.addr_number as string) ?? undefined,
+    complement:   (row.complement as string) ?? undefined,
+    neighborhood: (row.neighborhood as string) ?? undefined,
+    city:         (row.city as string) ?? undefined,
+    state:        (row.state as string) ?? undefined,
+    notes:        (row.notes as string) ?? undefined,
+    createdAt:    (row.created_at as string) ?? undefined,
+  };
+}
+
 function dbToActivity(row: Record<string, unknown>): Activity {
   return {
     id: row.id as string,
@@ -290,6 +323,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [activePipelineId, setActivePipelineId] = useState<string>("");
   const [leads, setLeads] = useState<Record<string, Lead>>({});
+  const [contacts, setContacts] = useState<Record<string, Contact>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [crmTags, setCrmTags] = useState<Tag[]>([]);
   const [crmLists, setCrmLists] = useState<CrmList[]>([]);
@@ -321,6 +355,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setPipelines([]);
       setLeads({});
+      setContacts({});
       setTasks([]);
       setCrmTags([]);
       setPipelineGroups([]);
@@ -337,6 +372,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     // Clear previous company's data immediately to avoid mixing
     setPipelines([]);
     setLeads({});
+    setContacts({});
     setTasks([]);
     setCrmTags([]);
     setPipelineGroups([]);
@@ -371,10 +407,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     async function loadAll() {
 
-      const [pipelineRes, columnRes, leadRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
+      const [pipelineRes, columnRes, leadRes, contactRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
         supabase.from("pipelines").select("*").eq("company_id", companyId).order("position"),
         supabase.from("pipeline_columns").select("*").eq("company_id", companyId).order("position"),
         supabase.from("leads").select("*").eq("company_id", companyId).order("position"),
+        supabase.from("contacts").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("tasks").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("tags").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("pipeline_groups").select("*").eq("company_id", companyId).order("created_at"),
@@ -412,6 +449,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const dbPipelines = (pipelineRes.data ?? []) as Record<string, unknown>[];
       const dbColumns = (columnRes.data ?? []) as Record<string, unknown>[];
       const dbLeads = (leadRes.data ?? []) as Record<string, unknown>[];
+      const dbContacts = (contactRes.data ?? []) as Record<string, unknown>[];
       const dbTasks = (taskRes.data ?? []) as Record<string, unknown>[];
       const dbTagsList = (tagRes.data ?? []) as Record<string, unknown>[];
       const dbGroupsList = (groupRes.data ?? []) as Record<string, unknown>[];
@@ -508,6 +546,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         leadsMap[id] = dbToLead(l, actsByLead[id] ?? []);
       }
 
+      // Build contacts map
+      const contactsMap: Record<string, Contact> = {};
+      for (const c of dbContacts) {
+        contactsMap[c.id as string] = dbToContact(c);
+      }
+
       // Build pipelines with columns and leadIds
       const pipelinesArr: Pipeline[] = dbPipelines.map(p => {
         const pid = p.id as string;
@@ -552,6 +596,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
       setPipelines(pipelinesArr);
       setLeads(leadsMap);
+      setContacts(contactsMap);
       setTasks(tasksList);
       setCrmTags(tagsList);
       setCrmLists(listsArr);
@@ -650,6 +695,26 @@ export function CRMProvider({ children }: { children: ReactNode }) {
               ...p,
               columns: p.columns.map(c => ({ ...c, leadIds: c.leadIds.filter(id => id !== leadId) })),
             })));
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contacts", filter: `company_id=eq.${companyId}` },
+        (payload) => {
+          // upsertContact (src/lib/contacts.ts) escreve direto no Supabase, sem
+          // passar por setContacts -- é o realtime que reflete a criação/edição
+          // na UI (LeadsPage, etc.), tanto pro autor da escrita quanto pra
+          // outras abas/usuários da mesma empresa.
+          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+            const row = payload.new as Record<string, unknown>;
+            const id = row.id as string;
+            setContacts(prev => ({ ...prev, [id]: dbToContact(row) }));
+          } else if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Record<string, unknown>;
+            const id = oldRow.id as string;
+            if (!id) return;
+            setContacts(prev => { const n = { ...prev }; delete n[id]; return n; });
           }
         }
       )
@@ -985,6 +1050,28 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       const { data: row } = await supabase.from("leads").select("person_id").eq("id", id).maybeSingle();
       await syncResponsibleToConversations((row as { person_id?: string } | null)?.person_id, data.responsible);
     }
+
+    // Edição explícita de identidade (nome/telefone/e-mail) num negócio
+    // propaga pro contato vinculado -- mantém contacts como registro atual
+    // da pessoa, não um retrato congelado da criação. Só os campos presentes
+    // no patch são gravados; editar outro campo (notes/value/stage) não toca
+    // em contacts.
+    if ("name" in data || "whatsapp" in data || "phoneDdi" in data || "email" in data || "emails" in data) {
+      const { data: row } = await supabase.from("leads").select("person_id").eq("id", id).maybeSingle();
+      const personId = (row as { person_id?: string } | null)?.person_id;
+      if (personId) {
+        const contactPatch: Record<string, unknown> = {};
+        if ("name" in data) contactPatch.name = data.name;
+        if ("whatsapp" in data) contactPatch.phone = data.whatsapp || null;
+        if ("phoneDdi" in data) contactPatch.phone_ddi = data.phoneDdi ?? null;
+        if ("email" in data) contactPatch.email = data.email ?? null;
+        else if ("emails" in data) contactPatch.email = data.emails?.[0] ?? null;
+        if (Object.keys(contactPatch).length > 0) {
+          const { error } = await supabase.from("contacts").update(contactPatch).eq("id", personId);
+          if (error) console.error("updateLead->contacts sync error:", error.message);
+        }
+      }
+    }
   }, []);
 
   const deleteLead = useCallback((id: string) => {
@@ -996,6 +1083,33 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     setTasks(prev => prev.filter(t => t.leadId !== id));
     supabase.from("leads").delete().eq("id", id).then(({ error }) => {
       if (error) console.error("deleteLead error:", error.message);
+    });
+  }, []);
+
+  const CONTACT_FIELD_MAP: [keyof Contact, string][] = [
+    ["name", "name"], ["phone", "phone"], ["phoneDdi", "phone_ddi"], ["email", "email"],
+    ["tags", "tags"], ["site", "site"], ["document", "document"], ["company", "company"],
+    ["origin", "origin"], ["birthDate", "birth_date"], ["country", "country"],
+    ["zipCode", "zip_code"], ["address", "address"], ["addrNumber", "addr_number"],
+    ["complement", "complement"], ["neighborhood", "neighborhood"], ["city", "city"],
+    ["state", "state"], ["notes", "notes"],
+  ];
+
+  const updateContact = useCallback(async (id: string, data: Partial<Contact>) => {
+    setContacts(prev => prev[id] ? { ...prev, [id]: { ...prev[id], ...data } } : prev);
+    const dbData: Record<string, unknown> = {};
+    for (const [key, column] of CONTACT_FIELD_MAP) {
+      if (key in data) dbData[column] = data[key] ?? null;
+    }
+    if (Object.keys(dbData).length === 0) return;
+    const { error } = await supabase.from("contacts").update(dbData).eq("id", id);
+    if (error) console.error("updateContact error:", error.message);
+  }, []);
+
+  const deleteContact = useCallback((id: string) => {
+    setContacts(prev => { const n = { ...prev }; delete n[id]; return n; });
+    supabase.from("contacts").delete().eq("id", id).then(({ error }) => {
+      if (error) console.error("deleteContact error:", error.message);
     });
   }, []);
 
@@ -1614,6 +1728,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         addPipeline, updatePipeline, deletePipeline,
         columns, updateColumn, deleteColumn, addColumn, reorderColumns,
         leads, updateLead, addLead, deleteLead, moveLead, transferLead,
+        contacts, updateContact, deleteContact,
         markLeadWon, markLeadLost, markLeadOpen, nextDealNumber,
         tasks, addTask, updateTask, deleteTask,
         addActivity, updateActivity, patchActivity, completeActivity, uncompleteActivity, markNoShow, unmarkNoShow, deleteActivity, pinActivity,

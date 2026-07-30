@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useCRM } from "@/context/CRMContext";
+import { useCompany } from "@/context/CompanyContext";
 import { Lead } from "@/data/mockData";
+import { upsertContact, type Contact } from "@/lib/contacts";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -62,14 +64,19 @@ interface Props {
   open: boolean;
   onClose: () => void;
   editLead?: Lead | null;
-  // Valores iniciais pro modo de criação (editLead ausente) -- ex.: Multiatendimento
-  // abrindo o modal já com nome/telefone da conversa, e o contato (personId) já
-  // resolvido/criado via ensureContactForConversation antes de abrir.
+  // Edita um contato sem negócio vinculado (linha "Sem negócio" em /leads) --
+  // mutuamente exclusivo com editLead: nunca os dois setados ao mesmo tempo.
+  editContact?: Contact | null;
+  // Valores iniciais pro modo de criação (editLead/editContact ausentes) --
+  // ex.: Multiatendimento abrindo o modal já com nome/telefone da conversa, e
+  // o contato (personId) já resolvido/criado via ensureContactForConversation
+  // antes de abrir.
   prefill?: { name?: string; whatsapp?: string; personId?: string };
 }
 
-export function LeadModal({ open, onClose, editLead, prefill }: Props) {
-  const { addLead, updateLead, pipelines, nextDealNumber, crmTags, teamMembers } = useCRM();
+export function LeadModal({ open, onClose, editLead, editContact, prefill }: Props) {
+  const { updateLead, updateContact, pipelines, crmTags, teamMembers } = useCRM();
+  const { company } = useCompany();
   const [tab, setTab] = useState("contato");
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
@@ -119,10 +126,31 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
         city:         editLead.city         ?? "",
         state:        editLead.state        ?? "",
         notes:        editLead.notes        ?? "",
+      } : editContact ? {
+        ...empty,
+        name:         editContact.name         ?? "",
+        tags:         editContact.tags         ?? [],
+        phoneDdi:     editContact.phoneDdi     ?? "+55",
+        whatsapp:     editContact.phone        ?? "",
+        emails:       editContact.email ? [editContact.email] : [],
+        site:         editContact.site         ?? "",
+        document:     editContact.document     ?? "",
+        company:      editContact.company      ?? "",
+        origin:       editContact.origin       ?? "Outro",
+        birthDate:    editContact.birthDate    ?? "",
+        country:      editContact.country      ?? "Brasil",
+        zipCode:      editContact.zipCode      ?? "",
+        address:      editContact.address      ?? "",
+        addrNumber:   editContact.addrNumber   ?? "",
+        complement:   editContact.complement   ?? "",
+        neighborhood: editContact.neighborhood ?? "",
+        city:         editContact.city         ?? "",
+        state:        editContact.state        ?? "",
+        notes:        editContact.notes        ?? "",
       } : { ...empty, name: prefill?.name ?? "", whatsapp: prefill?.whatsapp ?? "" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editLead]);
+  }, [open, editLead, editContact]);
 
   const set = (k: keyof Form, v: unknown) => setForm(p => ({ ...p, [k]: v }));
 
@@ -160,59 +188,123 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
     }
     setSaving(true);
     try {
-      const patch = {
-        name:         form.name,
-        tags:         form.tags,
-        phoneDdi:     form.phoneDdi   || undefined,
-        whatsapp:     form.whatsapp,
-        emails:       form.emails,
-        email:        form.emails[0]  || undefined,
-        site:         form.site       || undefined,
-        document:     form.document   || undefined,
-        company:       form.company      || undefined,
-        responsibles:  form.responsibles,
-        responsible:   form.responsibles[0] ?? "",
-        origin:        form.origin as Lead["origin"],
-        birthDate:    form.birthDate  || undefined,
-        country:      form.country    || undefined,
-        zipCode:      form.zipCode    || undefined,
-        address:      form.address    || undefined,
-        addrNumber:   form.addrNumber || undefined,
-        complement:   form.complement || undefined,
-        neighborhood: form.neighborhood || undefined,
-        city:         form.city       || undefined,
-        state:        form.state      || undefined,
-        notes:        form.notes,
-      };
-
       if (editLead) {
-        await updateLead(editLead.id, patch);
+        await updateLead(editLead.id, {
+          name:         form.name,
+          tags:         form.tags,
+          phoneDdi:     form.phoneDdi   || undefined,
+          whatsapp:     form.whatsapp,
+          emails:       form.emails,
+          email:        form.emails[0]  || undefined,
+          site:         form.site       || undefined,
+          document:     form.document   || undefined,
+          company:       form.company      || undefined,
+          responsibles:  form.responsibles,
+          responsible:   form.responsibles[0] ?? "",
+          origin:        form.origin as Lead["origin"],
+          birthDate:    form.birthDate  || undefined,
+          country:      form.country    || undefined,
+          zipCode:      form.zipCode    || undefined,
+          address:      form.address    || undefined,
+          addrNumber:   form.addrNumber || undefined,
+          complement:   form.complement || undefined,
+          neighborhood: form.neighborhood || undefined,
+          city:         form.city       || undefined,
+          state:        form.state      || undefined,
+          notes:        form.notes,
+        });
+        toast.success("Lead atualizado!");
+        onClose();
+      } else if (editContact) {
+        await updateContact(editContact.id, {
+          name:         form.name,
+          tags:         form.tags,
+          phoneDdi:     form.phoneDdi   || undefined,
+          phone:        form.whatsapp   || undefined,
+          email:        form.emails[0]  || undefined,
+          site:         form.site       || undefined,
+          document:     form.document   || undefined,
+          company:      form.company    || undefined,
+          origin:       form.origin     || undefined,
+          birthDate:    form.birthDate  || undefined,
+          country:      form.country    || undefined,
+          zipCode:      form.zipCode    || undefined,
+          address:      form.address    || undefined,
+          addrNumber:   form.addrNumber || undefined,
+          complement:   form.complement || undefined,
+          neighborhood: form.neighborhood || undefined,
+          city:         form.city       || undefined,
+          state:        form.state      || undefined,
+          notes:        form.notes      || undefined,
+        });
         toast.success("Lead atualizado!");
         onClose();
       } else {
-        const chosenPipeline = selectedPipelineId !== "none"
-          ? pipelines.find(p => p.id === selectedPipelineId)
-          : undefined;
-        const chosenCol = chosenPipeline?.columns[0];
-        const ok = await addLead({
-          ...patch,
-          dealNumber:  nextDealNumber(),
-          value:       0,
-          pipelineId:  chosenPipeline?.id ?? "",
-          stage:       chosenCol?.id      ?? "",
-          priority:    "Média",
-          entryDate:   new Date().toISOString().split("T")[0],
-          personId:    prefill?.personId,
-          activities:  [{
-            id:          `a-${Date.now()}`,
-            date:        new Date().toISOString().split("T")[0],
-            type:        "created",
-            description: "Lead criado.",
-          }],
-        });
-        if (ok) {
+        // "Novo Lead" cria só o contato (a pessoa) -- pipeline/responsável são
+        // atributos de Negócio, criado depois via "Criar negócio", nunca junto.
+        if (!company) return;
+        // prefill.personId já veio resolvido (ex.: ensureContactForConversation
+        // no Multiatendimento, que pode ter achado o contato por um Lead já
+        // linkado, não só por telefone). Reaproveita esse id diretamente em vez
+        // de rechamar upsertContact -- se o telefone da conversa divergiu do
+        // telefone salvo no contato (Meta Ads/Click-to-WhatsApp, caso real já
+        // visto em produção), um upsert por telefone aqui criaria um contato
+        // duplicado em vez de completar o mesmo.
+        let contactId: string | undefined = prefill?.personId;
+        if (contactId) {
+          await updateContact(contactId, {
+            name:         form.name,
+            tags:         form.tags,
+            phoneDdi:     form.phoneDdi   || undefined,
+            phone:        form.whatsapp   || undefined,
+            email:        form.emails[0]  || undefined,
+            site:         form.site       || undefined,
+            document:     form.document   || undefined,
+            company:      form.company    || undefined,
+            origin:       form.origin     || undefined,
+            birthDate:    form.birthDate  || undefined,
+            country:      form.country    || undefined,
+            zipCode:      form.zipCode    || undefined,
+            address:      form.address    || undefined,
+            addrNumber:   form.addrNumber || undefined,
+            complement:   form.complement || undefined,
+            neighborhood: form.neighborhood || undefined,
+            city:         form.city       || undefined,
+            state:        form.state      || undefined,
+            notes:        form.notes      || undefined,
+          });
           toast.success("Lead criado!");
           onClose();
+          return;
+        }
+        contactId = await upsertContact({
+          companyId:  company.id,
+          ownerId:    company.owner_id,
+          name:       form.name,
+          phone:      form.whatsapp || undefined,
+          phoneDdi:   form.phoneDdi || undefined,
+          email:      form.emails[0] || undefined,
+          tags:       form.tags,
+          site:       form.site || undefined,
+          document:   form.document || undefined,
+          company:    form.company || undefined,
+          origin:     form.origin || undefined,
+          birthDate:  form.birthDate || undefined,
+          country:    form.country || undefined,
+          zipCode:    form.zipCode || undefined,
+          address:    form.address || undefined,
+          addrNumber: form.addrNumber || undefined,
+          complement: form.complement || undefined,
+          neighborhood: form.neighborhood || undefined,
+          city:       form.city || undefined,
+          state:      form.state || undefined,
+          notes:      form.notes || undefined,
+        });
+        if (contactId) {
+          toast.success("Lead criado!");
+          onClose();
+        } else {
+          toast.error("Não foi possível criar o lead.");
         }
       }
     } finally {
@@ -226,7 +318,7 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
 
         <DialogHeader className="px-6 pt-5 pb-4">
           <DialogTitle className="text-base font-semibold">
-            {editLead ? "Editar Lead" : "Novo Lead"}
+            {editLead || editContact ? "Editar Lead" : "Novo Lead"}
           </DialogTitle>
         </DialogHeader>
 
@@ -285,6 +377,10 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
             </Popover>
           </div>
 
+          {/* Pipeline/Responsável são atributos de Negócio, não de Lead -- só
+              aparecem editando um negócio já existente (nunca na criação, que
+              cria só o contato). */}
+          {editLead && (
           <div className="grid grid-cols-2 gap-4">
             {/* Pipeline — Popover single-select */}
             <div>
@@ -344,6 +440,7 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
               </Popover>
             </div>
           </div>
+          )}
         </div>
 
         {/* ── Sub-abas ── */}
@@ -554,7 +651,7 @@ export function LeadModal({ open, onClose, editLead, prefill }: Props) {
             disabled={saving}
             className="bg-primary hover:bg-primary/90"
           >
-            {saving ? "Salvando..." : editLead ? "Salvar alterações" : "Criar Lead"}
+            {saving ? "Salvando..." : editLead || editContact ? "Salvar alterações" : "Criar Lead"}
           </Button>
         </DialogFooter>
       </DialogContent>

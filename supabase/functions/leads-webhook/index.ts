@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { upsertContact } from "../_shared/contacts.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -241,6 +242,11 @@ serve(async (req) => {
   if (!keyRow.active) return json({ error: "api key is disabled" }, 403);
 
   const ownerId = keyRow.owner_id as string;
+  // Achado fora do escopo original desta mudança, mas bloqueante pra ela:
+  // o insert em `leads` mais abaixo nunca setava company_id (só owner_id) --
+  // corrigido aqui porque upsertContact/dedup em contacts precisa desse valor
+  // de qualquer forma pra resolver o contato certo.
+  const companyId = keyRow.company_id as string;
 
   // Resolve pipeline e etapa
   let pipelineId = String(payload.pipeline_id ?? "");
@@ -288,10 +294,21 @@ serve(async (req) => {
   // Resolve campos adicionais → IDs de custom_field_items
   const customFieldValues = await resolveCustomFieldValues(db, ownerId, extra);
 
+  // Resolve/cria o contato (pessoa) antes do negócio -- mesma lógica de
+  // dedup por telefone normalizado usada no app (src/lib/contacts.ts).
+  const personId = await upsertContact(db, {
+    companyId: companyId,
+    ownerId:   ownerId,
+    name,
+    phone:     phone || undefined,
+    email:     email ?? undefined,
+  });
+
   const { data: lead, error: insertErr } = await db
     .from("leads")
     .insert({
       owner_id:            ownerId,
+      company_id:          companyId,
       deal_number:         dealNumber,
       name,
       whatsapp:            phone,
@@ -309,6 +326,7 @@ serve(async (req) => {
       tags,
       status:              "open",
       custom_field_values: customFieldValues,
+      person_id:           personId ?? null,
     })
     .select("id, deal_number")
     .single();
