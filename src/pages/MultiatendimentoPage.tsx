@@ -346,7 +346,7 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "#FFF", border, borderRadius: 5, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }}>
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "#FFF", border, borderRadius: 5, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 5, background: colorBg, flexShrink: 0 }}>
           <Icon size={11} color={color} />
         </span>
