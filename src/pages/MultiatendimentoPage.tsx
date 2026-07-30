@@ -205,6 +205,38 @@ function buildIncomingMsg(
   return { ...base, kind: "text" as const, text: m.body ?? "" };
 }
 
+// Linha crua de whatsapp_conversations -> shape usado no estado local. Extraído
+// de reloadConversations pra ser reaproveitado também pelo listener realtime
+// (waconv-global) -- mesma tradução de campos nos dois lugares, um só dono.
+type DbConvRow = { id: string; owner_id?: string; company_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
+function mapConvRow(r: DbConvRow): Conversation {
+  return {
+    id: r.id, name: r.name, preview: r.preview,
+    time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    channel: r.channel as Channel, tags: r.tags ?? [],
+    company: r.company_name ?? undefined, email: r.email ?? undefined,
+    phone: r.phone ?? undefined, value: r.value ?? undefined,
+    pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
+    instanceId: r.instance_id ?? undefined,
+    lastMsgAt: r.last_msg_at ?? undefined,
+    contactId: r.contact_id ?? undefined,
+  };
+}
+
+type DbConvStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string; answered?: boolean };
+function mapConvState(r: DbConvStateRow): Omit<ConvState, "messages"> {
+  return {
+    stageIdx: r.stage_idx ?? 0,
+    meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
+    notes:    r.notes ?? "",
+    read:     r.read ?? true,
+    finished: r.finished ?? false,
+    assignedTo: r.assigned_to ?? undefined,
+    departmentId: r.department_id ?? undefined,
+    answered: r.answered ?? false,
+  };
+}
+
 function AudioBubble({ duration, src, light }: { duration: string; src?: string; light: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -955,31 +987,8 @@ export default function MultiatendimentoPage() {
   async function reloadConversations() {
     if (!user || !tenantId) return;
 
-    type DbConvRow = { id: string; owner_id?: string; company_id?: string; instance_id?: string; name: string; preview: string; last_msg_at: string; channel: Channel; tags: string[] | null; company_name?: string; email?: string; phone?: string; value?: number; pipeline?: string; deal_number?: string; read?: boolean; contact_id?: string };
-    const mapRow = (r: DbConvRow): Conversation => ({
-      id: r.id, name: r.name, preview: r.preview,
-      time: new Date(r.last_msg_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      channel: r.channel as Channel, tags: r.tags ?? [],
-      company: r.company_name ?? undefined, email: r.email ?? undefined,
-      phone: r.phone ?? undefined, value: r.value ?? undefined,
-      pipeline: r.pipeline ?? undefined, dealNumber: r.deal_number ?? undefined,
-      instanceId: r.instance_id ?? undefined,
-      lastMsgAt: r.last_msg_at ?? undefined,
-      contactId: r.contact_id ?? undefined,
-    });
-
-    type DbStateRow = { stage_idx?: number; meeting_date?: string; meeting_time?: string; meeting_owner?: string; meeting_note?: string; notes?: string; read?: boolean; finished?: boolean; assigned_to?: string; department_id?: string; answered?: boolean };
-    const mapState = (r: DbStateRow): ConvState => ({
-      messages: [],
-      stageIdx: r.stage_idx ?? 0,
-      meeting:  r.meeting_date ? { date: r.meeting_date, time: r.meeting_time ?? "", owner: r.meeting_owner ?? "", note: r.meeting_note ?? "" } : null,
-      notes:    r.notes ?? "",
-      read:     r.read ?? true,
-      finished: r.finished ?? false,
-      assignedTo: r.assigned_to ?? undefined,
-      departmentId: r.department_id ?? undefined,
-      answered: r.answered ?? false,
-    });
+    const mapRow = mapConvRow;
+    const mapState = (r: DbConvStateRow): ConvState => ({ messages: [], ...mapConvState(r) });
 
     const { data, error } = await supabase
       .from("whatsapp_conversations")
@@ -1313,6 +1322,53 @@ export default function MultiatendimentoPage() {
               console.error("Erro ao persistir nova conversa:", error);
             });
           }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
+
+  // ── realtime: metadados de conversas (whatsapp_conversations) ────────
+  // wamsg-global (acima) só reage a mensagem nova -- mudanças feitas direto
+  // na conversa por OUTRO atendente/aba (tag, responsável, departamento,
+  // negócio vinculado, finalizar) nunca chegavam aqui: só apareciam depois de
+  // F5 ou clicar em "Atualizar conversas". Espelha o mesmo padrão do
+  // wamsg-global, mas ouvindo a tabela de conversas em vez de mensagens.
+  useEffect(() => {
+    if (!user || !tenantId) return;
+
+    const ch = supabase
+      .channel("waconv-global")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "whatsapp_conversations" },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as { id?: string; owner_id?: string })?.id;
+            const oldOwner = (payload.old as { owner_id?: string })?.owner_id;
+            if (oldOwner && oldOwner !== tenantId) return;
+            if (oldId) setConvList(prev => prev.filter(c => c.id !== oldId));
+            return;
+          }
+          const r = payload.new as DbConvRow;
+          if (r.owner_id !== tenantId) return; // só conversas da empresa selecionada
+
+          setConvList(prev => {
+            const idx = prev.findIndex(c => c.id === r.id);
+            const mapped = mapConvRow(r);
+            if (idx === -1) return [mapped, ...prev];
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...mapped };
+            return next;
+          });
+          setConvStates(prev => {
+            const cur = prev[r.id];
+            const mapped = mapConvState(r);
+            if (!cur) return { ...prev, [r.id]: { messages: [], ...mapped } };
+            return { ...prev, [r.id]: { ...cur, ...mapped } }; // preserva cur.messages
+          });
         }
       )
       .subscribe();
