@@ -475,7 +475,6 @@ export default function LeadDetailPage() {
     markLeadWon,
     markLeadLost,
     markLeadOpen,
-    transferLead,
     lossReasons,
     tasks: allTasks,
     addTask: addTaskToContext,
@@ -762,9 +761,6 @@ export default function LeadDetailPage() {
   const [wonCustomValue, setWonCustomValue] = useState<string>("");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
-  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
-  const [recoveryPipelineId, setRecoveryPipelineId] = useState<string>("");
-  const [recoveryColumnId, setRecoveryColumnId] = useState<string>("");
 
   if (!lead) {
     return (
@@ -952,32 +948,6 @@ export default function LeadDetailPage() {
     toast.success("Negócio reaberto com sucesso.");
   };
 
-  const handleOpenRecovery = () => {
-    const firstOtherPipeline = pipelines.find(p => p.id !== lead.pipelineId) ?? pipelines[0];
-    const pid = firstOtherPipeline?.id ?? lead.pipelineId;
-    const firstCol = pipelines.find(p => p.id === pid)?.columns[0]?.id ?? "";
-    setRecoveryPipelineId(pid);
-    setRecoveryColumnId(firstCol);
-    setShowRecoveryDialog(true);
-  };
-
-  const handleConfirmRecovery = () => {
-    if (!recoveryPipelineId) return;
-    const targetPipeline = pipelines.find(p => p.id === recoveryPipelineId);
-    const firstColId = targetPipeline?.columns[0]?.id ?? "";
-    if (!firstColId) return;
-    const targetCol = targetPipeline?.columns[0];
-    transferLead(lead.id, recoveryPipelineId, firstColId);
-    setShowRecoveryDialog(false);
-    addActivity(lead.id, {
-      date: new Date().toISOString(),
-      type: "stage_change",
-      description: `Lead transferido para ${targetPipeline?.name ?? "outro funil"} › ${targetCol?.title ?? ""}`,
-    });
-    toast.success(`Lead movido para ${targetPipeline?.name ?? "outro funil"}.`);
-    navigate("/pipeline");
-  };
-
   const noteActivities = lead.activities.filter(a => a.type === "note");
 
   const SCHEDULED_TYPES: ActivityType[] = ["meeting", "call", "whatsapp", "email", "follow_up", "task"];
@@ -1073,13 +1043,6 @@ export default function LeadDetailPage() {
                 style={{ background: "#128A68", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
               >
                 Ganho
-              </button>
-              <button
-                onClick={handleOpenRecovery}
-                className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ background: "#F59E0B", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
-              >
-                Recuperação
               </button>
               <button
                 onClick={handleLost}
@@ -2816,48 +2779,6 @@ export default function LeadDetailPage() {
             onClick={handleConfirmLost}
           >
             <XCircle size={14} className="mr-1.5" /> Confirmar perda
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={showRecoveryDialog} onOpenChange={setShowRecoveryDialog}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft size={16} style={{ color: "#F59E0B" }} />
-            Transferir para outro funil
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block">Funil de destino</label>
-            <Select
-              value={recoveryPipelineId}
-              onValueChange={setRecoveryPipelineId}
-            >
-              <SelectTrigger className="rounded-lg border-card-border focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                <SelectValue placeholder="Selecione o funil" />
-              </SelectTrigger>
-              <SelectContent>
-                {pipelines.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => setShowRecoveryDialog(false)} className="rounded-lg border-card-border">
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirmRecovery}
-            disabled={!recoveryPipelineId}
-            className="rounded-lg"
-            style={{ background: "#F59E0B", color: "#FFFFFF" }}
-          >
-            <ArrowRightLeft size={14} className="mr-1.5" /> Transferir lead
           </Button>
         </DialogFooter>
       </DialogContent>
