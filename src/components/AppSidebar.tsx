@@ -17,7 +17,7 @@ import {
   Info,
   Plus,
   UserCircle,
-  BrainCircuit,
+  BotMessageSquare,
   CalendarDays,
   ChevronRight,
   GraduationCap,
@@ -142,7 +142,7 @@ export function AppSidebar() {
       ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare }] : []),
-    { to: "/agentes", label: "Agentes", icon: BrainCircuit },
+    { to: "/agentes", label: "Agentes", icon: BotMessageSquare },
   ];
 
   const itemBase =
