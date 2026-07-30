@@ -578,6 +578,7 @@ export default function LeadsPage() {
         onClose={() => setModalOpen(false)}
         editLead={editingLead}
         editContact={editingContact}
+        onCreated={openDealFromContact}
       />
 
       {/* Delete Confirmation */}

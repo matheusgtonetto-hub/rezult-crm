@@ -24,7 +24,7 @@ import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import chatBackground from "@/assets/chat-background.webp";
-import { upsertContact } from "@/lib/contacts";
+import { upsertContact, type Contact } from "@/lib/contacts";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -590,6 +590,7 @@ export default function MultiatendimentoPage() {
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [leadModalPrefill, setLeadModalPrefill] = useState<{ name?: string; whatsapp?: string; personId?: string }>({});
   const [dealTargetLead, setDealTargetLead] = useState<Lead | null>(null);
+  const [dealContactTarget, setDealContactTarget] = useState<Contact | null>(null);
 
   // ── dialog de agendamento ────────────────────────────────────────────
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -3826,8 +3827,14 @@ export default function MultiatendimentoPage() {
       )}
 
       {/* ── DIALOG: + Lead / + Negócio -- mesmos popups de /leads ───────── */}
-      <LeadModal open={showLeadModal} onClose={() => setShowLeadModal(false)} prefill={leadModalPrefill} />
+      <LeadModal
+        open={showLeadModal}
+        onClose={() => setShowLeadModal(false)}
+        prefill={leadModalPrefill}
+        onCreated={contact => setDealContactTarget(contact)}
+      />
       <CreateDealDialog lead={dealTargetLead} onClose={() => setDealTargetLead(null)} />
+      <CreateDealDialog contact={dealContactTarget} onClose={() => setDealContactTarget(null)} />
 
       {/* ── DIALOG: transferir atendimento ──────────────────────────── */}
       <TransferDialog

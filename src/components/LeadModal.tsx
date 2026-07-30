@@ -72,9 +72,14 @@ interface Props {
   // o contato (personId) já resolvido/criado via ensureContactForConversation
   // antes de abrir.
   prefill?: { name?: string; whatsapp?: string; personId?: string };
+  // Disparado só no fluxo de criação (nunca editLead/editContact), com o
+  // contato recém-criado/completado -- o chamador usa isso pra abrir o
+  // CreateDealDialog em seguida, sem precisar do passo extra "..." > "Criar
+  // negócio".
+  onCreated?: (contact: Contact) => void;
 }
 
-export function LeadModal({ open, onClose, editLead, editContact, prefill }: Props) {
+export function LeadModal({ open, onClose, editLead, editContact, prefill, onCreated }: Props) {
   const { updateLead, updateContact, pipelines, crmTags, teamMembers } = useCRM();
   const { company } = useCompany();
   const [tab, setTab] = useState("contato");
@@ -250,59 +255,86 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill }: Pro
         // telefone salvo no contato (Meta Ads/Click-to-WhatsApp, caso real já
         // visto em produção), um upsert por telefone aqui criaria um contato
         // duplicado em vez de completar o mesmo.
+        const createdContact: Contact = {
+          id:           "",
+          companyId:    company.id,
+          ownerId:      company.owner_id,
+          name:         form.name,
+          tags:         form.tags,
+          phoneDdi:     form.phoneDdi   || undefined,
+          phone:        form.whatsapp   || undefined,
+          email:        form.emails[0]  || undefined,
+          site:         form.site       || undefined,
+          document:     form.document   || undefined,
+          company:      form.company    || undefined,
+          origin:       form.origin     || undefined,
+          birthDate:    form.birthDate  || undefined,
+          country:      form.country    || undefined,
+          zipCode:      form.zipCode    || undefined,
+          address:      form.address    || undefined,
+          addrNumber:   form.addrNumber || undefined,
+          complement:   form.complement || undefined,
+          neighborhood: form.neighborhood || undefined,
+          city:         form.city       || undefined,
+          state:        form.state      || undefined,
+          notes:        form.notes      || undefined,
+        };
+
         let contactId: string | undefined = prefill?.personId;
         if (contactId) {
           await updateContact(contactId, {
-            name:         form.name,
-            tags:         form.tags,
-            phoneDdi:     form.phoneDdi   || undefined,
-            phone:        form.whatsapp   || undefined,
-            email:        form.emails[0]  || undefined,
-            site:         form.site       || undefined,
-            document:     form.document   || undefined,
-            company:      form.company    || undefined,
-            origin:       form.origin     || undefined,
-            birthDate:    form.birthDate  || undefined,
-            country:      form.country    || undefined,
-            zipCode:      form.zipCode    || undefined,
-            address:      form.address    || undefined,
-            addrNumber:   form.addrNumber || undefined,
-            complement:   form.complement || undefined,
-            neighborhood: form.neighborhood || undefined,
-            city:         form.city       || undefined,
-            state:        form.state      || undefined,
-            notes:        form.notes      || undefined,
+            name:         createdContact.name,
+            tags:         createdContact.tags,
+            phoneDdi:     createdContact.phoneDdi,
+            phone:        createdContact.phone,
+            email:        createdContact.email,
+            site:         createdContact.site,
+            document:     createdContact.document,
+            company:      createdContact.company,
+            origin:       createdContact.origin,
+            birthDate:    createdContact.birthDate,
+            country:      createdContact.country,
+            zipCode:      createdContact.zipCode,
+            address:      createdContact.address,
+            addrNumber:   createdContact.addrNumber,
+            complement:   createdContact.complement,
+            neighborhood: createdContact.neighborhood,
+            city:         createdContact.city,
+            state:        createdContact.state,
+            notes:        createdContact.notes,
           });
           toast.success("Lead criado!");
           onClose();
+          onCreated?.({ ...createdContact, id: contactId });
           return;
         }
         contactId = await upsertContact({
           companyId:  company.id,
           ownerId:    company.owner_id,
-          name:       form.name,
-          phone:      form.whatsapp || undefined,
-          phoneDdi:   form.phoneDdi || undefined,
-          email:      form.emails[0] || undefined,
-          tags:       form.tags,
-          site:       form.site || undefined,
-          document:   form.document || undefined,
-          company:    form.company || undefined,
-          origin:     form.origin || undefined,
-          birthDate:  form.birthDate || undefined,
-          country:    form.country || undefined,
-          zipCode:    form.zipCode || undefined,
-          address:    form.address || undefined,
-          addrNumber: form.addrNumber || undefined,
-          complement: form.complement || undefined,
-          neighborhood: form.neighborhood || undefined,
-          city:       form.city || undefined,
-          state:      form.state || undefined,
-          notes:      form.notes || undefined,
+          name:       createdContact.name,
+          phone:      createdContact.phone,
+          phoneDdi:   createdContact.phoneDdi,
+          email:      createdContact.email,
+          tags:       createdContact.tags,
+          site:       createdContact.site,
+          document:   createdContact.document,
+          company:    createdContact.company,
+          origin:     createdContact.origin,
+          birthDate:  createdContact.birthDate,
+          country:    createdContact.country,
+          zipCode:    createdContact.zipCode,
+          address:    createdContact.address,
+          addrNumber: createdContact.addrNumber,
+          complement: createdContact.complement,
+          neighborhood: createdContact.neighborhood,
+          city:       createdContact.city,
+          state:      createdContact.state,
+          notes:      createdContact.notes,
         });
         if (contactId) {
           toast.success("Lead criado!");
           onClose();
+          onCreated?.({ ...createdContact, id: contactId });
         } else {
           toast.error("Não foi possível criar o lead.");
         }

@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 
 // Extraído de LeadsPage.tsx (era o Dialog "Criar negócio" do menu (...) de
@@ -23,10 +25,12 @@ interface Props {
 }
 
 export function CreateDealDialog({ lead, contact, onClose }: Props) {
-  const { pipelines, addLead, nextDealNumber } = useCRM();
+  const { pipelines, addLead, nextDealNumber, teamMembers } = useCRM();
   const { company } = useCompany();
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
+  const [dealResponsibles, setDealResponsibles] = useState<string[]>([]);
+  const [showResponsiblePicker, setShowResponsiblePicker] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const source = lead ?? contact ?? null;
@@ -36,6 +40,8 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
       const p = pipelines[0];
       setDealPipeline(p?.id ?? "");
       setDealStage(p?.columns[0]?.id ?? "");
+      setDealResponsibles(lead?.responsibles?.length ? lead.responsibles : (lead?.responsible ? [lead.responsible] : []));
+      setShowResponsiblePicker(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
@@ -93,10 +99,12 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
 
     const ok = await addLead({
       ...base,
-      dealNumber: nextDealNumber(),
-      pipelineId: dealPipeline,
-      stage:      dealStage,
+      dealNumber:   nextDealNumber(),
+      pipelineId:   dealPipeline,
+      stage:        dealStage,
       personId,
+      responsible:  dealResponsibles[0] ?? "",
+      responsibles: dealResponsibles,
       activities: [{
         id:          `a-${Date.now()}`,
         date:        new Date().toISOString().split("T")[0],
@@ -148,6 +156,34 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Responsável</label>
+            <Popover open={showResponsiblePicker} onOpenChange={setShowResponsiblePicker}>
+              <PopoverTrigger asChild>
+                <button type="button" className="flex h-9 w-full items-center justify-between rounded-md border border-card-border bg-card px-3 py-1 text-sm focus:outline-none">
+                  <span className={`truncate ${dealResponsibles.length === 0 ? "text-muted-foreground" : "text-foreground"}`}>
+                    {dealResponsibles.length === 0 ? "Selecionar" : dealResponsibles.join(", ")}
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="p-1 w-[var(--radix-popover-trigger-width)]">
+                {teamMembers.length === 0 ? (
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground italic">Nenhum membro no time.</p>
+                ) : teamMembers.map(memberName => {
+                  const selected = dealResponsibles.includes(memberName);
+                  return (
+                    <button key={memberName} type="button" onClick={() => setDealResponsibles(prev => selected ? prev.filter(r => r !== memberName) : [...prev, memberName])} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
+                      <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
+                        {selected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <span>{memberName}</span>
+                    </button>
+                  );
+                })}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <DialogFooter className="gap-2 mt-4">
