@@ -1016,17 +1016,16 @@ export default function LeadDetailPage() {
 
   return (
     <>
-    <div style={{ background: "#F4F6F8", minHeight: "100vh" }}>
-      {/* TOPBAR */}
+    <div style={{ background: "#F4F6F8", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* TOPBAR — altura fixa; a página inteira não rola mais, então não
+          precisa mais ser sticky (ver CONTENT logo abaixo). */}
       <div
         style={{
           paddingTop: 9,
           paddingBottom: 9,
           background: "#FFFFFF",
           borderBottom: "1px solid #EEEEEE",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
+          flexShrink: 0,
         }}
         className="flex items-center justify-between px-4"
       >
@@ -1190,6 +1189,7 @@ export default function LeadDetailPage() {
           borderBottom: "1px solid #E5E5E5",
           paddingLeft: 16,
           paddingRight: 16,
+          flexShrink: 0,
         }}
         className="grid grid-cols-3 items-center"
       >
@@ -1245,10 +1245,14 @@ export default function LeadDetailPage() {
         <div />
       </div>
 
-      {/* CONTENT */}
-      <div className="flex gap-4 p-4" style={{ alignItems: "flex-start" }}>
-        {/* LEFT COLUMN */}
-        <aside style={{ width: 300, flexShrink: 0 }} className="space-y-3">
+      {/* CONTENT — abaixo da topbar/etapas (ambas altura fixa, fora deste
+          bloco), ocupa o resto da viewport. minHeight: 0 é obrigatório aqui:
+          sem isso, um filho de flex nunca encolhe além do conteúdo interno e
+          o overflowY:auto das duas colunas simplesmente não faz nada. */}
+      <div className="flex gap-4 p-4" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        {/* LEFT COLUMN — Contato/Qualificação/Origem/Tags rolam aqui, isoladas
+            do resto da tela. */}
+        <aside style={{ width: 300, flexShrink: 0, overflowY: "auto", height: "100%" }} className="space-y-3">
           {SECTION_ORDER.map(key => (
             <section
               key={key}
@@ -1659,7 +1663,8 @@ export default function LeadDetailPage() {
           ))}
         </aside>
 
-        {/* RIGHT COLUMN */}
+        {/* RIGHT COLUMN — só esta coluna rola pra ver Anotações/Atividades;
+            as Tabs (flexShrink:0) ficam fixas no topo da coluna. */}
         <section
           style={{
             flex: 1,
@@ -1669,10 +1674,13 @@ export default function LeadDetailPage() {
             border: "1px solid #E5E7EB",
             minWidth: 0,
             marginRight: "clamp(0px, calc((100vw - 960px) * 0.30), 60px)",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
           }}
         >
           {/* Tabs */}
-          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "#E5E5E5" }}>
+          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "#E5E5E5", flexShrink: 0 }}>
             {TABS.map(t => {
               const active = tab === t.key;
               return (
@@ -1693,7 +1701,7 @@ export default function LeadDetailPage() {
             })}
           </div>
 
-          <div className="p-4">
+          <div className="p-4" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             {tab === "anotacoes" && (
               <div className="space-y-3">
                 <div
