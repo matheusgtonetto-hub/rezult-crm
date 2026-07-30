@@ -1249,7 +1249,7 @@ export default function LeadDetailPage() {
       >
         {/* Esquerda — avatar, nome e funil */}
         <div className="flex items-center gap-2 justify-self-start min-w-0">
-          <LeadAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={32} onError={refetchLeadAvatar} />
+          <LeadAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1">
               <span className="font-bold truncate" style={{ fontSize: 16, color: "#111111" }}>{lead.name}</span>
