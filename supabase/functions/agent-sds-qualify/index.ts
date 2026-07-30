@@ -133,6 +133,28 @@ async function resolveLead(
   return (candidates ?? []).find((l) => phonesMatch(String(l.whatsapp ?? ""), phone)) ?? null;
 }
 
+// ─── Tag "Agente" na conversa: liga/desliga o agente POR conversa, em cima do
+// liga/desliga por empresa que já existe em `agents.active`. Sem a tag, o
+// agente fica desligado nessa conversa mesmo com a empresa toda habilitada --
+// V1 do handoff manual (usuário adiciona a tag pra "transferir" a conversa
+// pro agente cuidar). upsertConversationForMessage já roda antes desta
+// function ser chamada (ver dapi/zapi/cloud-api-webhook), então a linha de
+// whatsapp_conversations pra este telefone já existe nesse ponto.
+async function hasAgentTag(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  phone: string,
+): Promise<boolean> {
+  const { data: conversations } = await db
+    .from("whatsapp_conversations")
+    .select("phone, tags")
+    .eq("company_id", companyId)
+    .not("phone", "is", null);
+  return (conversations ?? []).some((c) =>
+    phonesMatch(String(c.phone ?? ""), phone) && ((c.tags as string[] | null) ?? []).includes("Agente")
+  );
+}
+
 // ─── Seleção de closer (menor carga nos últimos 7 dias, com Google conectado) ─
 async function pickAvailableCloser(
   db: ReturnType<typeof createClient>,
@@ -221,6 +243,10 @@ Deno.serve(async (req) => {
     .eq("active", true)
     .single();
   if (!agent) return json({ skipped: "no_active_agent" }, 200);
+
+  // Gate por conversa: mesmo com o agente ativo pra empresa, só atua nas
+  // conversas que o usuário marcou explicitamente com a tag "Agente".
+  if (!(await hasAgentTag(db, companyId, phone))) return json({ skipped: "no_agent_tag" }, 200);
 
   const { data: messages } = await db
     .from("whatsapp_messages")

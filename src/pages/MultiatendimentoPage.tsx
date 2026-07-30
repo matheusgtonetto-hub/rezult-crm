@@ -75,6 +75,7 @@ const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Carlos:      { bg: "#FEF3C7", fg: "#854F0B" },
   SDR:         { bg: "#F5F5F5", fg: "#535353" },
   "Follow-up": { bg: "#FEE2E2", fg: "#A32D2D" },
+  Agente:      { bg: "#EDE9FE", fg: "#6D28D9" },
   Proposta:    { bg: "#DBEAFE", fg: "#185FA5" },
   Negociação:  { bg: "#F3E8FF", fg: "#6D28D9" },
   Reunião:     { bg: "#FEF3C7", fg: "#854F0B" },
@@ -2582,6 +2583,7 @@ export default function MultiatendimentoPage() {
       case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
       case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
+      case "agente":       list = list.filter(c => c.tags.includes("Agente")); break;
     }
 
     // ── filtros avançados do painel ──
@@ -2751,6 +2753,7 @@ export default function MultiatendimentoPage() {
     { id: "waiting",     icon: Clock,         label: "Aguardando",    count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
     { id: "pending",     icon: MessageCircle, label: "Abertas",       count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: visibleConvList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
+    { id: "agente",      icon: Sparkles,      label: "Agente",        count: visibleConvList.filter(c => c.tags.includes("Agente")).length,                                    color: "#6D28D9", colorBg: "#EDE9FE", borderColor: "rgba(109, 40, 217, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
