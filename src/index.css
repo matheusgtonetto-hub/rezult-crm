@@ -253,12 +253,12 @@
   background: hsl(var(--secondary));
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(0 0% 80% / 0.8);
+  background: hsl(0 0% 80% / 0.3);
   border-radius: 999px;
   min-height: 30px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(0 0% 70% / 0.8);
+  background: hsl(0 0% 70% / 0.9);
 }
 
 /* Note rich text view and editor */
