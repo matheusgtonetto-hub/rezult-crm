@@ -246,8 +246,8 @@
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: hsl(var(--secondary));
