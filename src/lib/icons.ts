@@ -51,7 +51,7 @@ export {
 
   // Interface / layout
   IconDots             as MoreHorizontal,
-  IconLayoutSidebarLeft as PanelLeft,
+  IconLayoutSidebar    as PanelLeft,
   IconSettings         as Settings,
 
   // Negócios / dados

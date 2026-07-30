@@ -789,7 +789,6 @@ export default function LeadDetailPage() {
   const addLeadTask = (title: string) => {
     if (!title.trim() || !id) return;
     addTaskToContext({
-      id: `t-${Date.now()}`,
       title: title.trim(),
       leadId: id,
       leadName: lead.name,
@@ -849,7 +848,6 @@ export default function LeadDetailPage() {
     const to   = steps[currentStep + 1];
     moveLead(leadId, from.colId, to.colId, 0);
     addActivity(leadId, {
-      id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
       description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
@@ -1736,13 +1734,13 @@ export default function LeadDetailPage() {
                           { icon: <AtSign size={13} />, title: "Mencionar", cmd: "mention" },
                           { icon: <List size={13} />, title: "Lista com marcadores", cmd: "insertUnorderedList" },
                           { icon: <ListOrdered size={13} />, title: "Lista numerada", cmd: "insertOrderedList" },
-                        ].map(({ icon, title, cmd, val }) => {
+                        ].map(({ icon, title, cmd }) => {
                           const isActive = activeFormats.has(cmd);
                           return (
                             <button
                               key={title}
                               title={title}
-                              onMouseDown={e => { e.preventDefault(); applyNewNoteFormat(cmd, val); }}
+                              onMouseDown={e => { e.preventDefault(); applyNewNoteFormat(cmd); }}
                               className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                               style={{ width: 26, height: 26 }}
                             >
@@ -1873,7 +1871,7 @@ export default function LeadDetailPage() {
                             />
                             <div className="flex items-center justify-between pt-2 mt-2 border-t border-card-border">
                               <div className="flex items-center gap-0.5">
-                                {toolbarButtons.map(({ icon, title, cmd, val }) => {
+                                {toolbarButtons.map(({ icon, title, cmd }) => {
                                   const isActive = activeFormats.has(cmd);
                                   return (
                                     <button
@@ -1886,7 +1884,7 @@ export default function LeadDetailPage() {
                                           document.execCommand("insertText", false, "@");
                                           detectMention("edit");
                                         } else {
-                                          applyFormat(cmd, val);
+                                          applyFormat(cmd);
                                         }
                                       }}
                                       className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
@@ -2733,7 +2731,6 @@ export default function LeadDetailPage() {
               if (!pendingStageBack) return;
               moveLead(lead.id, pendingStageBack.fromId, pendingStageBack.toId, 0);
               addActivity(lead.id, {
-                id: `a-${Date.now()}`,
                 date: new Date().toISOString(),
                 type: "stage_change",
                 description: `Movido de "${pendingStageBack.fromTitle}" para "${pendingStageBack.toTitle}".`,

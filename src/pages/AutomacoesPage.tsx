@@ -2063,11 +2063,12 @@ export default function AutomacoesPage() {
                 onFocus={e => { e.currentTarget.style.border = "1px solid hsl(var(--primary))"; }}
                 onBlur={e => { e.currentTarget.style.border = "1px solid #E5E5E5"; }}
               />
-              <Power
-                size={14}
-                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", cursor: "pointer" }}
+              <span
                 title="Filtrar por estado"
-              />
+                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", lineHeight: 0 }}
+              >
+                <Power size={14} style={{ color: "#9CA3AF", cursor: "pointer" }} />
+              </span>
             </div>
             <Button
               onClick={() => setCreateOpen(true)}
@@ -3556,8 +3557,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
   crmTags: CrmTagType[];
   addTag: (name: string, description: string, color: string) => Promise<boolean>;
   teamMembers: string[];
-  products: Product[];
-  lossReasons: LossReason[];
+  products: ProductType[];
+  lossReasons: LossReasonType[];
   customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};

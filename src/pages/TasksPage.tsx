@@ -36,7 +36,7 @@ export default function TasksPage() {
     e.preventDefault();
     if (!newTitle || !newLeadId || !newDate) { toast.error("Preencha todos os campos."); return; }
     const lead = leads[newLeadId];
-    addTask({ id: `t-${Date.now()}`, title: newTitle, leadId: newLeadId, leadName: lead?.name || "", responsible: newResp, dueDate: newDate, status: "Pendente" });
+    addTask({ title: newTitle, leadId: newLeadId, leadName: lead?.name || "", responsible: newResp, dueDate: newDate, status: "Pendente" });
     toast.success("Tarefa criada!"); setShowNew(false); setNewTitle(""); setNewDate("");
   };
 

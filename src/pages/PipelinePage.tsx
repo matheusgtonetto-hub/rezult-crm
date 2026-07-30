@@ -342,7 +342,6 @@ export default function PipelinePage() {
       }
       // Mover para etapa anterior — executa sem confirmação
       addActivity(draggableId, {
-        id: `a-${Date.now()}`,
         date: new Date().toISOString(),
         type: "stage_change",
         description: `Movido de "${fromCol?.title}" para "${toCol?.title}".`,
@@ -358,7 +357,6 @@ export default function PipelinePage() {
     const to = steps[currentStep + 1];
     moveLead(leadId, from.colId, to.colId, toIndex);
     addActivity(leadId, {
-      id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "stage_change",
       description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
@@ -1471,7 +1469,7 @@ export default function PipelinePage() {
                     return;
                   }
                   const id = `col-${Date.now()}`;
-                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA" });
+                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA", position: activePipeline.columns.length });
                   toast.success("Coluna criada.");
                   setShowNewColumn(false);
                 }}

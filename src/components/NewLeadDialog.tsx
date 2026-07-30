@@ -56,7 +56,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
       pipelineId: activePipelineId,
       name, company, whatsapp,
       value: Number(value) || 0,
-      responsible, stage, priority, origin,
+      responsible, responsibles: responsible ? [responsible] : [], stage, priority, origin,
       tags: selectedTags,
       email: "",
       entryDate: new Date().toISOString().split("T")[0],

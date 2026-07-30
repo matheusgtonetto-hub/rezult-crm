@@ -15,9 +15,9 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const DEFAULT_COLUMNS = [
-  { id: "col-novo", title: "Novo", color: "#AAAAAA" },
-  { id: "col-andamento", title: "Em andamento", color: "#378ADD" },
-  { id: "col-fechado", title: "Fechado", color: "#128A68" },
+  { id: "col-novo", title: "Novo", color: "#AAAAAA", position: 0 },
+  { id: "col-andamento", title: "Em andamento", color: "#378ADD", position: 1 },
+  { id: "col-fechado", title: "Fechado", color: "#128A68", position: 2 },
 ];
 
 export function PipelineSidebar() {

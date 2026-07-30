@@ -1234,7 +1234,7 @@ export default function DashboardPage() {
                       return (
                         <g transform={`translate(${x},${y})`}>
                           <text x={0} y={0} dy={14} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--muted-foreground))"} fontSize={11} fontWeight={isGanhos ? "600" : "400"}>
-                            {payload.value}
+                            {String(payload?.value ?? "")}
                           </text>
                           <text x={0} y={0} dy={30} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--foreground))"} fontSize={13} fontWeight="bold">
                             {countLabel}

@@ -217,7 +217,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       id: r.id, name: r.name, size: r.size, mimeType: r.mime_type,
       storagePath: r.storage_path, uploadedBy: r.uploaded_by, createdAt: r.created_at,
     })));
-    setWaFiles((wData ?? []).map((r: { id: string; body: string | null; type: string; from_me: boolean; sender_name: string | null; created_at: string | null; momment: number | null }) => ({
+    setWaFiles((wData ?? []).map((r: { id: string; body: string | null; type: "image" | "document"; from_me: boolean; sender_name: string | null; created_at: string | null; momment: number | null }) => ({
       id: r.id, name: r.body ?? "arquivo", type: r.type,
       fromMe: r.from_me, senderName: r.sender_name, createdAt: r.created_at ?? String(r.momment),
       body: r.body ?? "",
@@ -283,7 +283,6 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     }
     const ok = await addLead({
       ...lead!,
-      id: undefined as unknown as string,
       dealNumber: nextDealNumber(),
       pipelineId: newDealPipeline,
       stage: newDealStage,
@@ -342,7 +341,6 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const saveNote = () => {
     if (!newNote.trim()) return;
     addActivity(leadId, {
-      id: `a-${Date.now()}`,
       date: new Date().toISOString(),
       type: "note",
       description: newNote.trim(),
@@ -845,7 +843,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                             <p style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 8 }}>Criar atividade</p>
                             <input value={actTitle} onChange={e => setActTitle(e.target.value)} placeholder="Título da atividade" style={{ width: "100%", marginBottom: 10, border: "1px solid #E0E0E0", borderRadius: 7, padding: "7px 10px", fontSize: 12, outline: "none" }} />
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={async e => { e.stopPropagation(); if (!actTitle.trim()) return; await addActivity(l.id, { id: `a-${Date.now()}`, date: new Date().toISOString(), type: "note", description: actTitle.trim() }); setActDealId(null); toast.success("Atividade criada!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Criar</button>
+                              <button onClick={async e => { e.stopPropagation(); if (!actTitle.trim()) return; await addActivity(l.id, { date: new Date().toISOString(), type: "note", description: actTitle.trim() }); setActDealId(null); toast.success("Atividade criada!"); }} style={{ flex: 1, padding: "7px", background: "#128A68", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Criar</button>
                               <button onClick={e => { e.stopPropagation(); setActDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>

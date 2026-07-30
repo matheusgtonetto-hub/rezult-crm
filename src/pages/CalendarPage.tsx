@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, Plus, CalendarDays, RefreshCw } from "lucide
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { checkGoogleConnection } from "@/lib/googleOAuth";
+import type { ActivityType } from "@/data/mockData";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -956,7 +957,7 @@ export default function CalendarPage() {
           const act = leads[editingEvent.leadId]?.activities?.find(a => a.id === editingEvent.id);
           return {
             title: act?.title ?? act?.description ?? editingEvent.title,
-            type: act?.type ?? editingEvent.type,
+            type: act?.type ?? (editingEvent.type as ActivityType),
             scheduledAt: act?.scheduledAt ?? editingEvent.scheduledAt.toISOString(),
             durationMinutes: act?.durationMinutes ?? editingEvent.durationMinutes,
             meetLink: act?.meetLink,
