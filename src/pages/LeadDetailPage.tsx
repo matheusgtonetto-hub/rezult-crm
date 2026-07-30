@@ -1252,7 +1252,10 @@ export default function LeadDetailPage() {
       <div className="flex gap-4 p-4" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         {/* LEFT COLUMN — Contato/Qualificação/Origem/Tags rolam aqui, isoladas
             do resto da tela. */}
-        <aside style={{ width: 300, flexShrink: 0, overflowY: "auto", height: "100%" }} className="space-y-3">
+        {/* direction:rtl joga a scrollbar pro lado esquerdo do aside; cada
+            section volta pra ltr por dentro, senão o texto/alinhamento
+            inteiro espelhava junto. */}
+        <aside style={{ width: 300, flexShrink: 0, overflowY: "auto", height: "100%", direction: "rtl" }} className="space-y-3">
           {SECTION_ORDER.map(key => (
             <section
               key={key}
@@ -1261,6 +1264,7 @@ export default function LeadDetailPage() {
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                 border: "1px solid #E5E7EB",
+                direction: "ltr",
               }}
             >
               <button
