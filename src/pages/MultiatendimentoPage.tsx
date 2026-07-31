@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
+import { FollowupScheduleDialog } from "@/components/FollowupScheduleDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
@@ -676,6 +677,7 @@ export default function MultiatendimentoPage() {
 
   // ── dialog de agendamento ────────────────────────────────────────────
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showFollowupDialog, setShowFollowupDialog] = useState(false);
 
   // ── dialog de transferência ──────────────────────────────────────────
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -3586,11 +3588,11 @@ export default function MultiatendimentoPage() {
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
                 ><Zap size={12} /> Automação</button>
                 <button
-                  onClick={() => setShowScheduleDialog(true)}
+                  onClick={() => setShowFollowupDialog(true)}
                   style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
-                ><CalendarDays size={12} /> Agendar</button>
+                ><CalendarDays size={12} /> Follow up</button>
               </div>
 
               {/* Responsável -- propriedade do negócio, não da conversa. Sem
@@ -4440,6 +4442,24 @@ export default function MultiatendimentoPage() {
             memberAvatars={memberAvatars}
             memberColors={memberColors}
             defaultLead={linkedLead}
+          />
+        );
+      })()}
+
+      {/* ── DIALOG: follow up (agendar envio de mensagem) ─────────────── */}
+      {showFollowupDialog && active && tenantId && company && (() => {
+        const linkedLead = resolveLeadForConv(active);
+        const activeConn = whatsappConnections.find(c => c.connected && c.active);
+        return (
+          <FollowupScheduleDialog
+            open={showFollowupDialog}
+            onClose={() => setShowFollowupDialog(false)}
+            phone={active.phone ?? ""}
+            leadId={linkedLead?.id}
+            ownerId={tenantId}
+            companyId={company.id}
+            connectionId={activeConn?.id}
+            createdBy={user?.id}
           />
         );
       })()}

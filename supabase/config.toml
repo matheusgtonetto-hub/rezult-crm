@@ -41,6 +41,11 @@ verify_jwt = false
 [functions.disparo-runner]
 verify_jwt = false
 
+# O scheduled-followup-runner só é chamado pelo pg_cron (segredo do motor) —
+# não tem modo UI. Gateway não deve exigir JWT.
+[functions.scheduled-followup-runner]
+verify_jwt = false
+
 # A Meta chama este webhook externamente sem JWT (verificação por hub.verify_token).
 [functions.meta-webhook]
 verify_jwt = false
