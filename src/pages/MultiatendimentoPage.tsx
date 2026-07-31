@@ -2023,6 +2023,31 @@ export default function MultiatendimentoPage() {
     }
   }
 
+  // Garante a presença de uma tag sem removê-la se já existir (usado pro
+  // auto-tagging do Follow up) — mesma lógica dual lead/conversa do
+  // toggleConvTag acima, só que idempotente na direção "adicionar".
+  async function ensureConvTag(tagName: string) {
+    if (!activeId || !active) return;
+    const linkedLead = resolveLeadForConv(active);
+
+    if (linkedLead) {
+      const leadTags = linkedLead.tags ?? [];
+      if (leadTags.includes(tagName)) return;
+      const nextTags = [...leadTags, tagName];
+      await updateLead(linkedLead.id, { tags: nextTags });
+      const siblingIds = convList.filter(c => resolveLeadForConv(c)?.id === linkedLead.id).map(c => c.id);
+      const ids = siblingIds.length > 0 ? siblingIds : [activeId];
+      setConvList(prev => prev.map(c => ids.includes(c.id) ? { ...c, tags: nextTags } : c));
+      await supabase.from("whatsapp_conversations").update({ tags: nextTags }).in("id", ids);
+    } else {
+      const current = active.tags ?? [];
+      if (current.includes(tagName)) return;
+      const next = [...current, tagName];
+      setConvList(prev => prev.map(c => c.id === activeId ? { ...c, tags: next } : c));
+      await supabase.from("whatsapp_conversations").update({ tags: next }).eq("id", activeId);
+    }
+  }
+
   async function toggleConvList(listId: string) {
     if (!activeId || !active) return;
     const linkedLead = resolveLeadForConv(active);
@@ -4460,6 +4485,7 @@ export default function MultiatendimentoPage() {
             companyId={company.id}
             connectionId={activeConn?.id}
             createdBy={user?.id}
+            onScheduled={() => ensureConvTag("Follow-up")}
           />
         );
       })()}

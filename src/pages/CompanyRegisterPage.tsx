@@ -171,7 +171,7 @@ export default function CompanyRegisterPage() {
     const planExpiresAt = new Date();
     planExpiresAt.setDate(planExpiresAt.getDate() + 2);
 
-    const { error } = await supabase.from("companies").insert({
+    const { data: newCompany, error } = await supabase.from("companies").insert({
       owner_id:        user.id,
       name:            companyName.trim(),
       email:           companyEmail.trim(),
@@ -187,12 +187,20 @@ export default function CompanyRegisterPage() {
       state:           uf,
       plan:            "free",
       plan_expires_at: planExpiresAt.toISOString(),
-    });
+    }).select("id").single();
 
     if (error) {
       toast.error(`Erro ao criar empresa: ${error.message}`);
       setSubmitting(false);
       return;
+    }
+
+    // Tag padrão criada em toda empresa nova — usada pelo chip "Follow-up" do
+    // Multiatendimento e aplicada automaticamente ao agendar um follow up.
+    if (newCompany) {
+      await supabase.from("tags").insert({
+        owner_id: user.id, company_id: newCompany.id, name: "Follow-up", color: "#A32D2D",
+      });
     }
 
     await supabase.from("profiles").update({ company_name: companyName.trim() }).eq("id", user.id);

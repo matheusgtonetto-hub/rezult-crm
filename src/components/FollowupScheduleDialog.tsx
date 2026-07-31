@@ -16,7 +16,7 @@ interface PendingFollowup {
 }
 
 export function FollowupScheduleDialog({
-  open, onClose, phone, leadId, ownerId, companyId, connectionId, createdBy,
+  open, onClose, phone, leadId, ownerId, companyId, connectionId, createdBy, onScheduled,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,6 +26,7 @@ export function FollowupScheduleDialog({
   companyId: string;
   connectionId: string | undefined;
   createdBy?: string;
+  onScheduled?: () => void;
 }) {
   const [message, setMessage] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -83,6 +84,7 @@ export function FollowupScheduleDialog({
     setMessage("");
     setScheduledAt("");
     loadPending();
+    onScheduled?.();
   };
 
   const handleCancel = async (id: string) => {
