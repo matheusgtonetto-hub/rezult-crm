@@ -25,6 +25,14 @@ import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import chatBackground from "@/assets/chat-background.webp";
 import { upsertContact, type Contact } from "@/lib/contacts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function colorFromString(str: string) {
@@ -393,6 +401,47 @@ function ConvAvatar({ name, avatarUrl, size, fontSize, style, onError }: { name:
   );
 }
 
+function DealValueField({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ? String(value) : "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value ? String(value) : ""); }, [value]);
+  useEffect(() => { if (editing) requestAnimationFrame(() => inputRef.current?.focus()); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = Number(draft.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0;
+    if (parsed !== value) onSave(parsed);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        type="number"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") { setDraft(value ? String(value) : ""); setEditing(false); }
+        }}
+        className="h-8 rounded-md text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+      onClick={() => setEditing(true)}
+      style={{ fontSize: 14, fontWeight: 700, color: value ? "#128A68" : "#AAAAAA" }}
+    >
+      {value ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value) : "Definir valor"}
+    </div>
+  );
+}
+
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
@@ -402,7 +451,7 @@ export default function MultiatendimentoPage() {
   const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products } = useCRM();
   const { can, isOwner: isCompanyOwner } = usePermissions();
   const isMuAdmin = isCompanyOwner || can("multiatendimento:admin");
   const { openedLeadIds } = useFloatingChat();
@@ -3807,26 +3856,59 @@ export default function MultiatendimentoPage() {
                 // whatsapp_conversations no momento em que a linha foi criada,
                 // ficam desatualizados assim que o vínculo muda (ex.: depois de
                 // "Atrelar negócio existente" a um negócio já existente).
-                <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12, cursor: "pointer" }}
-                  onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}
+                    onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
+                  >
                     <ConvAvatar name={effectiveLead?.name ?? convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{effectiveLead?.name ?? convName(active)}</div>
                       <div style={{ fontSize: 11, color: "#AAA" }}>{effectiveLead?.company || "Sem empresa"}</div>
                     </div>
                   </div>
-                  {effectiveLead?.value ? (
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#128A68", marginBottom: 4 }}>
-                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(effectiveLead.value)}
-                    </div>
-                  ) : null}
-                  <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
-                  <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                    <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
+
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ display: "block", marginBottom: 4, fontSize: 11, color: "#128A68", fontWeight: 600 }}>Produto</label>
+                    <Select
+                      value={effectiveLead?.productId || "none"}
+                      onValueChange={v => {
+                        if (!effectiveLead) return;
+                        const pid = v === "none" ? undefined : v;
+                        const prod = products.find(p => p.id === pid);
+                        updateLead(effectiveLead.id, { productId: pid, value: prod?.defaultValue ?? 0 });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 rounded-md text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                        <SelectValue placeholder="Sem produto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem produto</SelectItem>
+                        {products.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
+
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ display: "block", marginBottom: 4, fontSize: 11, color: "#128A68", fontWeight: 600 }}>Valor</label>
+                    <DealValueField
+                      value={effectiveLead?.value ?? 0}
+                      onSave={v => effectiveLead && updateLead(effectiveLead.id, { value: v })}
+                    />
+                  </div>
+
+                  <div
+                    style={{ cursor: "pointer" }}
+                    onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
+                  >
+                    <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
+                    <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+                      <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
+                  </div>
                 </div>
               )}
             </Section>
