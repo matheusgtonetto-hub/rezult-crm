@@ -1695,26 +1695,69 @@ export default function MultiatendimentoPage() {
         }
       } catch (e) { console.error("[file] upload storage:", e); }
 
-      // BUG FIX: manter URI completa (data:image/jpeg;base64,...) que a Z-API exige
-      const dataUri = await new Promise<string>((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(reader.result as string);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
-      // BUG FIX: send-document exige extensão no path (/send-document/pdf)
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
-      const endpoint = isImage ? "send-image" : `send-document/${ext}`;
-      const body = isImage
-        ? { phone: cleanPhone, image: dataUri, caption: file.name }
-        : { phone: cleanPhone, document: dataUri, fileName: file.name };
-      const r = await fetch(
-        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
-        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
-      );
-      if (!r.ok) {
-        const errBody = await r.json().catch(() => ({}));
-        throw new Error((errBody as { error?: string }).error ?? String(r.status));
+      // D-API e Cloud API exigem uma URL pública no corpo da requisição (diferente
+      // da Z-API, que aceita base64 direto) — sem o upload acima ter funcionado,
+      // não tem como enviar por esses provedores.
+      if ((inst.provider === "cloud_api" || inst.provider === "dapi") && !mediaUrl) {
+        throw new Error("Falha ao preparar o arquivo para envio (upload)");
+      }
+
+      if (inst.provider === "cloud_api") {
+        // ── Cloud API (Meta) ────────────────────────────────────────────
+        const r = await fetch(
+          `https://graph.facebook.com/v21.0/${inst.instanceId}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
+            body: JSON.stringify(isImage
+              ? { messaging_product: "whatsapp", to: cleanPhone, type: "image", image: { link: mediaUrl } }
+              : { messaging_product: "whatsapp", to: cleanPhone, type: "document", document: { link: mediaUrl, filename: file.name } }),
+          }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error((errBody as { error?: { message?: string } }).error?.message ?? String(r.status));
+        }
+      } else if (inst.provider === "dapi") {
+        // ── D-API ──────────────────────────────────────────────────────
+        const path = isImage ? "image" : "document";
+        const r = await fetch(
+          `https://api.d-api.cloud/api/v1/messages/send/${path}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": inst.token },
+            body: JSON.stringify(isImage
+              ? { sessionId: inst.instanceId, to: cleanPhone, image: mediaUrl }
+              : { sessionId: inst.instanceId, to: cleanPhone, document: mediaUrl, fileName: file.name }),
+          }
+        );
+        if (!r.ok) {
+          const errText = await r.text().catch(() => "");
+          throw new Error(errText.slice(0, 120) || String(r.status));
+        }
+      } else {
+        // ── Z-API (aceita base64 direto) ─────────────────────────────────
+        // BUG FIX: manter URI completa (data:image/jpeg;base64,...) que a Z-API exige
+        const dataUri = await new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(file);
+        });
+        // BUG FIX: send-document exige extensão no path (/send-document/pdf)
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
+        const endpoint = isImage ? "send-image" : `send-document/${ext}`;
+        const body = isImage
+          ? { phone: cleanPhone, image: dataUri, caption: file.name }
+          : { phone: cleanPhone, document: dataUri, fileName: file.name };
+        const r = await fetch(
+          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
+          { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error((errBody as { error?: string }).error ?? String(r.status));
+        }
       }
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = isImage
@@ -1830,21 +1873,57 @@ export default function MultiatendimentoPage() {
         }
       } catch (e) { console.error("[audio] upload storage:", e); toast.error(`Falha ao salvar o áudio: ${(e as Error).message}`); }
 
-      // Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,)
-      const dataUri = await new Promise<string>((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(reader.result as string);
-        reader.onerror = rej;
-        reader.readAsDataURL(outBlob);
-      });
-      const base64 = dataUri.split(",")[1]; // strip data URI prefix
-      const r = await fetch(
-        `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
-        { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
-      );
-      if (!r.ok) {
-        const errBody = await r.json().catch(() => ({}));
-        throw new Error((errBody as { error?: string }).error ?? String(r.status));
+      // D-API e Cloud API exigem uma URL pública (diferente da Z-API, que aceita
+      // base64 direto) — sem o upload acima ter funcionado, não tem como enviar.
+      if ((inst.provider === "cloud_api" || inst.provider === "dapi") && !mediaUrl) {
+        throw new Error("Falha ao preparar o áudio para envio (upload)");
+      }
+
+      if (inst.provider === "cloud_api") {
+        // ── Cloud API (Meta) ────────────────────────────────────────────
+        const r = await fetch(
+          `https://graph.facebook.com/v21.0/${inst.instanceId}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
+            body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "audio", audio: { link: mediaUrl } }),
+          }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error((errBody as { error?: { message?: string } }).error?.message ?? String(r.status));
+        }
+      } else if (inst.provider === "dapi") {
+        // ── D-API ──────────────────────────────────────────────────────
+        const r = await fetch(
+          `https://api.d-api.cloud/api/v1/messages/send/audio`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": inst.token },
+            body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, audio: mediaUrl }),
+          }
+        );
+        if (!r.ok) {
+          const errText = await r.text().catch(() => "");
+          throw new Error(errText.slice(0, 120) || String(r.status));
+        }
+      } else {
+        // ── Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,) ──
+        const dataUri = await new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(outBlob);
+        });
+        const base64 = dataUri.split(",")[1]; // strip data URI prefix
+        const r = await fetch(
+          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
+          { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
+        );
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error((errBody as { error?: string }).error ?? String(r.status));
+        }
       }
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
