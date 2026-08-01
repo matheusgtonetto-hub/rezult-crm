@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import DOMPurify from "dompurify";
 import { toast } from "sonner";
-import fixWebmDuration from "fix-webm-duration";
+import Recorder from "opus-recorder";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
@@ -876,8 +876,8 @@ export default function MultiatendimentoPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [aiLoading, setAiLoading]         = useState(false);
   const fileInputRef       = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
-  const audioChunksRef     = useRef<Blob[]>([]);
+  const mediaRecorderRef   = useRef<Recorder | null>(null);
+  const recordingCancelledRef = useRef(false);
   const recordingTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTimeRef   = useRef(0); // ref para evitar closure stale no onstop
   // Throttle do indicador "digitando": lastTypingAt evita reenviar "typing" a
@@ -1788,24 +1788,24 @@ export default function MultiatendimentoPage() {
 
   async function startRecording() {
     if (cs?.finished) return;
+    if (!Recorder.isRecordingSupported()) {
+      toast.error("Seu navegador não suporta gravação de áudio.");
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // BUG FIX: usar o MIME type real que o browser suporta, sem forçar ogg
-      const mimeType =
-        MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")  ? "audio/ogg;codecs=opus"  :
-        MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
-        "audio/webm";
-      const mr = new MediaRecorder(stream, { mimeType });
-      audioChunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        // BUG FIX: criar Blob com o MIME type real gravado (não forçar ogg)
-        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
-        await sendAudioBlob(blob, recordingTimeRef.current);
+      // Grava direto em Ogg/Opus via WASM (opus-recorder), não MediaRecorder nativo.
+      // O MediaRecorder do navegador produz WebM/Opus — a mensagem chega no
+      // WhatsApp, mas o app do destinatário recusa tocar ("peça para reenviar"),
+      // porque nota de voz só é aceita em Ogg/Opus, mesmo o codec sendo o mesmo.
+      const rec = new Recorder({ encoderPath: "/encoderWorker.min.js" });
+      recordingCancelledRef.current = false;
+      rec.ondataavailable = arrayBuffer => {
+        if (recordingCancelledRef.current) return;
+        const blob = new Blob([arrayBuffer], { type: "audio/ogg" });
+        void sendAudioBlob(blob, recordingTimeRef.current);
       };
-      mr.start();
-      mediaRecorderRef.current = mr;
+      await rec.start();
+      mediaRecorderRef.current = rec;
       recordingTimeRef.current = 0;
       setRecording(true);
       setRecordingTime(0);
@@ -1827,13 +1827,11 @@ export default function MultiatendimentoPage() {
 
   function cancelRecording() {
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = null;
+      recordingCancelledRef.current = true;
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
     if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
-    audioChunksRef.current = [];
     recordingTimeRef.current = 0;
     setRecording(false);
     setRecordingTime(0);
@@ -1850,19 +1848,11 @@ export default function MultiatendimentoPage() {
     const duration = `${String(Math.floor(durationSecs / 60)).padStart(2, "0")}:${String(durationSecs % 60).padStart(2, "0")}`;
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
-      // MediaRecorder gera WebM sem a duração no header → WhatsApp mostra 0:00.
-      // Injeta a duração real antes de enviar/armazenar.
-      let outBlob = blob;
-      if ((blob.type || "").includes("webm") && durationSecs > 0) {
-        try { outBlob = await fixWebmDuration(blob, durationSecs * 1000, { logger: false }); }
-        catch (e) { console.warn("[audio] fixWebmDuration:", e); }
-      }
       // Sobe o áudio para o storage → URL pública (reprodução no chat e histórico)
       let mediaUrl: string | null = null;
       try {
-        const ext = (outBlob.type || "").includes("ogg") ? "ogg" : "webm";
-        const path = `${user.id}/audio-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, outBlob, { upsert: true, contentType: outBlob.type || "audio/webm" });
+        const path = `${user.id}/audio-${Date.now()}.ogg`;
+        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, blob, { upsert: true, contentType: "audio/ogg" });
         if (!upErr) {
           mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
         } else {
@@ -1913,7 +1903,7 @@ export default function MultiatendimentoPage() {
           const reader = new FileReader();
           reader.onload = () => res(reader.result as string);
           reader.onerror = rej;
-          reader.readAsDataURL(outBlob);
+          reader.readAsDataURL(blob);
         });
         const base64 = dataUri.split(",")[1]; // strip data URI prefix
         const r = await fetch(
