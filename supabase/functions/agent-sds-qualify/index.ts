@@ -224,7 +224,10 @@ Deno.serve(async (req) => {
   if (!lead) return json({ skipped: "lead_not_resolved" }, 200);
   const leadId = lead.id as string;
 
-  // Chave de IA: prioriza a chave própria da empresa, cai pro fallback global
+  // Chave de IA: exige a chave própria da empresa (BYOK). Sem fallback pra uma
+  // chave global — se a empresa desativar/apagar a própria chave com o agente
+  // ainda ligado, o correto é parar de atuar, não passar a consumir cota de
+  // uma chave compartilhada com outras empresas.
   const { data: companyKey } = await db
     .from("ai_provider_keys")
     .select("api_key")
@@ -232,8 +235,8 @@ Deno.serve(async (req) => {
     .eq("provider", "anthropic")
     .eq("active", true)
     .maybeSingle();
-  const apiKey = companyKey?.api_key || Deno.env.get("ANTHROPIC_API_KEY") || "";
-  if (!apiKey) return json({ error: "not_configured" }, 200);
+  const apiKey = companyKey?.api_key || "";
+  if (!apiKey) return json({ skipped: "no_company_api_key" }, 200);
 
   const { data: agent } = await db
     .from("agents")
