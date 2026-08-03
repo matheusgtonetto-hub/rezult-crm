@@ -3142,18 +3142,21 @@ export default function MultiatendimentoPage() {
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredConversations.length === 0 && (
             <div style={{ padding: "40px 16px", textAlign: "center" }}>
-              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
               {visibleConvList.length === 0 ? (
                 <>
-                  <p style={{ fontSize: 13, color: "#AAA", marginBottom: 4 }}>Nenhuma conversa ainda</p>
-                  <p style={{ fontSize: 12, color: "#CCC", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
+                  <MessageSquare size={32} color="#1A1A1A" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A", marginBottom: 4 }}>Sem conversas iniciadas</p>
+                  <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
                   <button
                     onClick={() => setNewConvOpen(true)}
                     style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                   >+ Nova conversa</button>
                 </>
               ) : (
-                <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+                <>
+                  <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+                </>
               )}
             </div>
           )}
@@ -3583,10 +3586,10 @@ export default function MultiatendimentoPage() {
             </div>
           </>
         ) : (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <MessageSquare size={64} color="#E5E5E5" />
-            <div style={{ fontSize: 16, color: "#AAA" }}>Selecione uma conversa</div>
-            <div style={{ fontSize: 13, color: "#CCC" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+            <img src={chatIllustration} alt="" style={{ width: 260, marginBottom: 4 }} />
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Selecione uma conversa</div>
+            <div style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
           </div>
         )}
       </section>
@@ -3613,9 +3616,8 @@ export default function MultiatendimentoPage() {
       />
 
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
-      <aside style={{ width: 350, minWidth: 350, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
-        {active && cs && (
-          <>
+      {active && cs && (
+        <aside style={{ width: 350, minWidth: 350, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
             {/* HEADER */}
             <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4157,9 +4159,8 @@ export default function MultiatendimentoPage() {
                 );
               })()}
             </Section>
-          </>
-        )}
-      </aside>
+        </aside>
+      )}
 
       {/* ── DIALOG: confirmar avanço de etapa (mesma regra do Pipeline) ── */}
       {pendingStageAdvance && (() => {
