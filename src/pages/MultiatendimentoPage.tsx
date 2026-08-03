@@ -3056,34 +3056,19 @@ export default function MultiatendimentoPage() {
             </button>
           </div>
 
-          {/* título do filtro rápido ativo + botão atualizar */}
+          {/* título do filtro rápido ativo + número/atualizar unificados + Filtros + ⋯ */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 12 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#333" }}>
               {activeFilterTitle}
-              <span style={{ background: "#F0F0F0", color: "#888", borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "1px 7px", minWidth: 16, textAlign: "center" }}>
+              <button
+                onClick={handleRefreshConversations}
+                disabled={conversationsRefreshing}
+                title="Atualizar conversas"
+                style={{ display: "flex", alignItems: "center", gap: 4, background: "#F0F0F0", color: "#888", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "1px 7px", minWidth: 16, textAlign: "center", cursor: conversationsRefreshing ? "default" : "pointer" }}
+              >
                 {activeFilterCount}
-              </span>
-            </span>
-            <button
-              onClick={handleRefreshConversations}
-              disabled={conversationsRefreshing}
-              title="Atualizar conversas"
-              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: conversationsRefreshing ? "default" : "pointer", flexShrink: 0 }}
-            >
-              <RefreshCw size={13} color="#666" className={conversationsRefreshing ? "animate-spin" : undefined} />
-            </button>
-          </div>
-
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-            {filters.map(f => (
-              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
-            ))}
-          </div>
-
-          {/* barra: Filtros + ações em massa (⋯) */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 10 }}>
-            <span style={{ fontSize: 12, color: "#888" }}>
-              {selectionMode ? `${selectedConvs.length} selecionada${selectedConvs.length === 1 ? "" : "s"}` : `${filteredConversations.length} conversa${filteredConversations.length === 1 ? "" : "s"}`}
+                <RefreshCw size={11} color="#888" className={conversationsRefreshing ? "animate-spin" : undefined} />
+              </button>
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
@@ -3125,6 +3110,12 @@ export default function MultiatendimentoPage() {
               </div>
             </div>
           </div>
+
+          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+            {filters.map(f => (
+              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
+            ))}
+          </div>
         </div>
 
         {selectionMode && (
@@ -3145,12 +3136,7 @@ export default function MultiatendimentoPage() {
               {visibleConvList.length === 0 ? (
                 <>
                   <MessageSquare size={32} color="#1A1A1A" style={{ margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A", marginBottom: 4 }}>Sem conversas iniciadas</p>
-                  <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A", marginBottom: 12 }}>Clique no botão acima para iniciar uma conversa com um lead do pipeline</p>
-                  <button
-                    onClick={() => setNewConvOpen(true)}
-                    style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                  >+ Nova conversa</button>
+                  <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Sem conversas iniciadas</p>
                 </>
               ) : (
                 <>
