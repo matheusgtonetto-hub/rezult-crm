@@ -23,7 +23,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteContact, crmTags } = useCRM();
+  const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags } = useCRM();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -38,6 +38,8 @@ export default function LeadsPage() {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [deleteContactTarget, setDeleteContactTarget] = useState<Contact | null>(null);
+  const [delWithContact, setDelWithContact] = useState(false);
+  const [bulkDelWithContact, setBulkDelWithContact] = useState(false);
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
@@ -134,11 +136,16 @@ export default function LeadsPage() {
   const openDeal = (lead: Lead) => setDealTarget(lead);
   const openDealFromContact = (contact: Contact) => setDealContactTarget(contact);
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    deleteLead(deleteTarget.id);
-    toast.success("Lead removido.");
+    if (delWithContact && deleteTarget.personId) {
+      await deleteLeadAndContact(deleteTarget.id);
+    } else {
+      deleteLead(deleteTarget.id);
+      toast.success("Lead removido.");
+    }
     setDeleteTarget(null);
+    setDelWithContact(false);
   };
 
   const confirmDeleteContact = () => {
@@ -217,10 +224,22 @@ export default function LeadsPage() {
 
   const confirmBulkDelete = () => {
     const count = selectedLeads.length;
-    selectedLeads.forEach(l => deleteLead(l.id));
+    let contactsKept = 0;
+    selectedLeads.forEach(l => {
+      deleteLead(l.id);
+      if (bulkDelWithContact && l.personId) {
+        const otherDeals = Object.values(leads).some(o => o.id !== l.id && o.personId === l.personId);
+        if (otherDeals) contactsKept++;
+        else deleteContact(l.personId);
+      }
+    });
     setSelectedIds(new Set());
     setBulkDeleteConfirm(false);
+    setBulkDelWithContact(false);
     toast.success(`${count} lead${count > 1 ? "s" : ""} excluído${count > 1 ? "s" : ""}.`);
+    if (bulkDelWithContact && contactsKept > 0) {
+      toast.info(`${contactsKept} contato(s) mantido(s) por ter outro(s) negócio(s) vinculado(s).`);
+    }
   };
 
   return (
@@ -582,7 +601,7 @@ export default function LeadsPage() {
       />
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+      <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDelWithContact(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Excluir lead</DialogTitle>
@@ -591,8 +610,14 @@ export default function LeadsPage() {
             Tem certeza que deseja excluir <strong>{deleteTarget?.name}</strong>?
             Esta ação não pode ser desfeita.
           </p>
+          {deleteTarget?.personId && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox checked={delWithContact} onCheckedChange={v => setDelWithContact(!!v)} />
+              Excluir também o contato vinculado
+            </label>
+          )}
           <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDelWithContact(false); }}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmDelete}>Excluir</Button>
           </DialogFooter>
         </DialogContent>
@@ -620,7 +645,7 @@ export default function LeadsPage() {
       <CreateDealDialog contact={dealContactTarget} onClose={() => setDealContactTarget(null)} />
 
       {/* Bulk Delete Confirmation */}
-      <Dialog open={bulkDeleteConfirm} onOpenChange={v => !v && setBulkDeleteConfirm(false)}>
+      <Dialog open={bulkDeleteConfirm} onOpenChange={v => { if (!v) { setBulkDeleteConfirm(false); setBulkDelWithContact(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Excluir leads selecionados</DialogTitle>
@@ -628,8 +653,14 @@ export default function LeadsPage() {
           <p className="text-sm text-muted-foreground">
             Tem certeza que deseja excluir <strong>{selectedLeads.length} lead{selectedLeads.length > 1 ? "s" : ""}</strong>? Esta ação não pode ser desfeita.
           </p>
+          {selectedLeads.some(l => l.personId) && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox checked={bulkDelWithContact} onCheckedChange={v => setBulkDelWithContact(!!v)} />
+              Excluir também os contatos vinculados
+            </label>
+          )}
           <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" onClick={() => setBulkDeleteConfirm(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setBulkDeleteConfirm(false); setBulkDelWithContact(false); }}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmBulkDelete}>Excluir</Button>
           </DialogFooter>
         </DialogContent>

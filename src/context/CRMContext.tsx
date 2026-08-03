@@ -40,6 +40,7 @@ interface CRMContextType {
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   addLead: (lead: Omit<Lead, "id">) => Promise<boolean>;
   deleteLead: (id: string) => void;
+  deleteLeadAndContact: (id: string) => Promise<void>;
 
   contacts: Record<string, Contact>;
   updateContact: (id: string, data: Partial<Contact>) => Promise<void>;
@@ -1113,6 +1114,19 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const deleteLeadAndContact = useCallback(async (id: string) => {
+    const personId = leads[id]?.personId;
+    deleteLead(id);
+    if (!personId) return;
+    const otherDeals = Object.values(leads).some(l => l.id !== id && l.personId === personId);
+    if (otherDeals) {
+      toast.info("Negócio excluído. O contato foi mantido — ele tem outro(s) negócio(s) vinculado(s).");
+      return;
+    }
+    deleteContact(personId);
+    toast.success("Negócio e contato excluídos.");
+  }, [leads, deleteLead, deleteContact]);
+
   const moveLead = useCallback((leadId: string, fromCol: string, toCol: string, toIndex: number) => {
     const lead = leads[leadId];
 
@@ -1727,7 +1741,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         pipelines, activePipelineId, setActivePipelineId, activePipeline,
         addPipeline, updatePipeline, deletePipeline,
         columns, updateColumn, deleteColumn, addColumn, reorderColumns,
-        leads, updateLead, addLead, deleteLead, moveLead, transferLead,
+        leads, updateLead, addLead, deleteLead, deleteLeadAndContact, moveLead, transferLead,
         contacts, updateContact, deleteContact,
         markLeadWon, markLeadLost, markLeadOpen, nextDealNumber,
         tasks, addTask, updateTask, deleteTask,

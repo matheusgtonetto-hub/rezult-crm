@@ -146,7 +146,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     tasks: allTasks,
     markLeadWon,
     customFieldGroups,
-    addLead, nextDealNumber, deleteLead, products,
+    addLead, nextDealNumber, deleteLead, deleteLeadAndContact, products,
   } = useCRM();
   const { user } = useAuth();
   const { company } = useCompany();
@@ -175,6 +175,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const [actTitle,            setActTitle]            = useState("");
   const [prodDealId,          setProdDealId]          = useState<string | null>(null);
   const [confirmDelDealId,    setConfirmDelDealId]    = useState<string | null>(null);
+  const [delWithContact,      setDelWithContact]      = useState(false);
 
   // Arquivos
   const [leadFiles, setLeadFiles]   = useState<LeadFile[]>([]);
@@ -869,9 +870,25 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                           <div onClick={e => e.stopPropagation()} style={{ marginTop: 10, padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10 }}>
                             <p style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", marginBottom: 8 }}>Excluir negócio #{l.dealNumber}?</p>
                             <p style={{ fontSize: 11, color: "#6B7280", marginBottom: 10 }}>Esta ação não pode ser desfeita.</p>
+                            {l.personId && (
+                              <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 11, color: "#374151", cursor: "pointer" }}>
+                                <input type="checkbox" checked={delWithContact} onChange={e => setDelWithContact(e.target.checked)} onClick={e => e.stopPropagation()} />
+                                Excluir também o contato vinculado
+                              </label>
+                            )}
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button onClick={e => { e.stopPropagation(); deleteLead(l.id); setConfirmDelDealId(null); toast.success("Negócio excluído!"); }} style={{ flex: 1, padding: "7px", background: "#EF4444", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Excluir</button>
-                              <button onClick={e => { e.stopPropagation(); setConfirmDelDealId(null); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                              <button onClick={async e => {
+                                e.stopPropagation();
+                                if (delWithContact && l.personId) {
+                                  await deleteLeadAndContact(l.id);
+                                } else {
+                                  deleteLead(l.id);
+                                  toast.success("Negócio excluído!");
+                                }
+                                setConfirmDelDealId(null);
+                                setDelWithContact(false);
+                              }} style={{ flex: 1, padding: "7px", background: "#EF4444", color: "#FFF", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Excluir</button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDelDealId(null); setDelWithContact(false); }} style={{ flex: 1, padding: "7px", background: "#F3F4F6", color: "#374151", border: "none", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
                             </div>
                           </div>
                         )}
