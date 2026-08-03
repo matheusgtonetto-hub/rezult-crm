@@ -24,6 +24,30 @@ const NAME_KEYS   = ["nome", "name", "cliente", "lead", "razao social", "razao"]
 const PHONE_KEYS  = ["telefone", "celular", "fone", "whatsapp", "phone", "mobile", "tel", "contato", "numero", "num"];
 const EMAIL_KEYS  = ["email", "e-mail", "correio", "mail"];
 
+// Mesmo sinal que CRMContext::findOpenNegocioConflict usa (telefone normalizado,
+// negócio com pipeline aberto) — duplicado aqui só pra conseguir categorizar o
+// motivo de cada linha pulada no resumo pós-importação, sem mexer no contrato
+// de addLead (usado por muito mais telas além desta).
+function normalizeBrPhoneForMatch(raw: string | undefined): string {
+  let d = (raw ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
+  return d;
+}
+function phonesMatchForImport(a: string | undefined, b: string | undefined): boolean {
+  const na = normalizeBrPhoneForMatch(a);
+  const nb = normalizeBrPhoneForMatch(b);
+  if (na.length < 10 || nb.length < 10) return false;
+  return na.slice(-10) === nb.slice(-10);
+}
+
+interface ImportResult {
+  name: string;
+  phone: string;
+  status: "ok" | "duplicate" | "error";
+  detail?: string;
+}
+
 function autoDetect(headers: string[], keys: string[]) {
   const idx = headers.findIndex(h => keys.some(k => normalize(h).includes(k)));
   return idx >= 0 ? String(idx) : NONE;
@@ -61,6 +85,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedResponsibles, setSelectedResponsibles] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const [results, setResults] = useState<ImportResult[] | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPipeline = pipelines.find(p => p.id === pipelineId) ?? pipelines[0] ?? null;
@@ -130,7 +155,11 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
     setImporting(true);
     const maxNum = Math.max(...Object.values(existingLeads).map(l => l.dealNumber ?? 0), 1000);
-    let ok = 0;
+    const rowResults: ImportResult[] = [];
+    // Telefones já usados nesta MESMA importação — pega duplicata dentro do
+    // próprio arquivo, que o snapshot de existingLeads (tirado uma vez, antes
+    // do loop) não enxerga porque o state do CRM só atualiza entre renders.
+    const importedPhones = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const row   = rows[i] as unknown[];
@@ -140,6 +169,22 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
       const displayName = name || phone || email;
       if (!displayName) continue;
+
+      const normPhone = normalizeBrPhoneForMatch(phone);
+
+      // Mesma regra que addLead vai aplicar — pré-checa só pra dar um motivo
+      // claro no resumo, sem duplicar o toast.error que addLead já dispara.
+      const existingConflict = Object.values(existingLeads).find(l =>
+        l.pipelineId && l.dealStatus === "open" && phonesMatchForImport(l.whatsapp, phone)
+      );
+      if (existingConflict) {
+        rowResults.push({ name: displayName, phone, status: "duplicate", detail: `já tem negócio aberto (#${existingConflict.dealNumber})` });
+        continue;
+      }
+      if (normPhone && importedPhones.has(normPhone)) {
+        rowResults.push({ name: displayName, phone, status: "duplicate", detail: "telefone repetido neste arquivo" });
+        continue;
+      }
 
       const personId = company
         ? await upsertContact({
@@ -177,12 +222,16 @@ export function ImportLeadsModal({ open, onClose }: Props) {
         customFieldValues: {}, activities: [],
         personId,
       });
-      if (success) ok++;
+      if (success) {
+        if (normPhone) importedPhones.add(normPhone);
+        rowResults.push({ name: displayName, phone, status: "ok" });
+      } else {
+        rowResults.push({ name: displayName, phone, status: "error", detail: "erro ao criar" });
+      }
     }
 
     setImporting(false);
-    toast.success(`${ok} lead${ok !== 1 ? "s" : ""} importado${ok !== 1 ? "s" : ""} com sucesso!`);
-    handleClose();
+    setResults(rowResults);
   };
 
   const handleClose = () => {
@@ -192,6 +241,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
     setSelectedResponsibles([]);
     setPipelineId(pipelines[0]?.id ?? "");
     setStageId(pipelines[0]?.columns[0]?.id ?? "");
+    setResults(null);
     onClose();
   };
 
@@ -211,6 +261,45 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           <DialogTitle>Importar lista de leads</DialogTitle>
         </DialogHeader>
 
+        {results ? (
+          <>
+            <div className="space-y-4 py-1">
+              <div className="rounded-lg border border-card-border p-3 flex items-center gap-3">
+                <CheckCircle2 size={20} className="text-primary shrink-0" />
+                <p className="text-sm text-foreground">
+                  <span className="font-semibold">{results.filter(r => r.status === "ok").length} de {results.length}</span> leads importados.
+                  {results.some(r => r.status !== "ok") && (
+                    <span className="text-muted-foreground"> {results.filter(r => r.status === "duplicate").length} pulado(s) por já ter negócio aberto, {results.filter(r => r.status === "error").length} com erro.</span>
+                  )}
+                </p>
+              </div>
+
+              {results.some(r => r.status !== "ok") && (
+                <div className="rounded-lg border border-card-border overflow-hidden">
+                  <div className="bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-card-border">
+                    Não importados
+                  </div>
+                  <div className="divide-y divide-muted max-h-[240px] overflow-y-auto">
+                    {results.filter(r => r.status !== "ok").map((r, i) => (
+                      <div key={i} className="px-3 py-2 text-xs flex items-start gap-2">
+                        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{r.name}{r.phone ? ` · ${r.phone}` : ""}</p>
+                          <p className="text-muted-foreground">{r.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleClose} className="bg-primary hover:bg-primary/90">Concluir</Button>
+            </DialogFooter>
+          </>
+        ) : (
+        <>
         <div className="space-y-5 py-1">
 
           {/* Upload zone */}
@@ -449,6 +538,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                 : "Importar leads"}
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
