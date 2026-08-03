@@ -9,13 +9,15 @@ import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import type { Lead, Pipeline } from "@/data/mockData";
+import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
+  StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
+  Bold, Italic, Underline, ListOrdered,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -313,6 +315,98 @@ function AudioBubble({ duration, src, light }: { duration: string; src?: string;
   );
 }
 
+const LEAD_ORIGINS: LeadOrigin[] = ["Instagram", "Facebook Ads", "Meta Ads", "Google Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
+
+// Campos da aba Perfil do painel de detalhes (Multiatendimento) -- mesmos 7
+// campos e mesma ordem do Perfil em LeadDrawer.tsx (aberto a partir de /leads).
+const PROFILE_FIELD_DEFS: { key: string; label: string; type?: "text" | "email" | "tel"; options?: string[] }[] = [
+  { key: "nome",      label: "Nome" },
+  { key: "empresa",   label: "Empresa" },
+  { key: "email",     label: "E-mail", type: "email" },
+  { key: "telefone",  label: "Telefone", type: "tel" },
+  { key: "documento", label: "Documento" },
+  { key: "origem",    label: "Origem", options: LEAD_ORIGINS },
+  { key: "site",      label: "Site" },
+];
+
+// Mesma timeline de atividades do LeadDrawer.tsx (aba Histórico) -- mesmos
+// ícones/cores por tipo, pra ficar idêntico ao que abre em /leads.
+const ACT_META: Record<ActivityType, { color: string; bg: string; label: string; Icon: LucideIcon }> = {
+  note:         { color: "#666",    bg: "#F5F5F5", label: "Anotação",        Icon: StickyNote },
+  stage_change: { color: "#378ADD", bg: "#EBF3FC", label: "Etapa alterada",  Icon: ArrowRightLeft },
+  whatsapp:     { color: "#128A68", bg: "#E6F5F0", label: "WhatsApp",        Icon: MessageCircle },
+  won:          { color: "#22C55E", bg: "#DCFCE7", label: "Ganho",           Icon: Trophy },
+  lost:         { color: "#EF4444", bg: "#FEE2E2", label: "Perdido",         Icon: XCircle },
+  created:      { color: "#888",    bg: "#F5F5F5", label: "Criado",          Icon: PlusCircle },
+  meeting:      { color: "#378ADD", bg: "#EBF3FC", label: "Reunião",         Icon: CalendarDays },
+  call:         { color: "#22C55E", bg: "#DCFCE7", label: "Ligação",         Icon: Phone },
+  email:        { color: "#F59E0B", bg: "#FEF3C7", label: "E-mail",          Icon: Mail },
+  follow_up:    { color: "#8B5CF6", bg: "#EDE9FE", label: "Follow-up",       Icon: RefreshCw },
+  task:         { color: "#666",    bg: "#F5F5F5", label: "Tarefa",          Icon: CheckSquare },
+  transfer:     { color: "#8B5CF6", bg: "#EDE9FE", label: "Transferência",   Icon: ArrowLeftRight },
+};
+const fmtHistDate = (d: string) => {
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
+// Mesmo padrão de click-to-edit do InlineField em LeadDrawer.tsx, reaproveitado
+// aqui pras abas Perfil/Endereço/Campos do painel de detalhes do Multiatendimento.
+function MuInlineField({ label, value, onSave, type = "text", options }: {
+  label: React.ReactNode; value?: string | null; onSave?: (v: string) => void;
+  type?: "text" | "email" | "tel"; options?: string[];
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const editable = !!onSave;
+
+  useEffect(() => { setDraft(value ?? ""); }, [value]);
+  useEffect(() => { if (editing) (inputRef.current as HTMLInputElement)?.focus(); }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    if (onSave && draft !== (value ?? "")) onSave(draft);
+  };
+
+  return (
+    <div>
+      <span style={{ fontSize: 10, color: "#AAA", display: "block", marginBottom: 2 }}>{label}</span>
+      {editing && editable ? (
+        options ? (
+          <select
+            ref={inputRef as React.RefObject<HTMLSelectElement>}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
+          >
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            type={type}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }}
+          />
+        )
+      ) : (
+        <div
+          onClick={() => editable && setEditing(true)}
+          style={{ fontSize: 13, color: value ? "#111" : "#AAA", cursor: editable ? "pointer" : "default", padding: "5px 0" }}
+        >
+          {value || "—"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, children, defaultOpen = false, action }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -452,7 +546,7 @@ export default function MultiatendimentoPage() {
   const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products, customFieldGroups } = useCRM();
   const { can, isOwner: isCompanyOwner } = usePermissions();
   const isMuAdmin = isCompanyOwner || can("multiatendimento:admin");
   const { openedLeadIds } = useFloatingChat();
@@ -485,7 +579,20 @@ export default function MultiatendimentoPage() {
   };
   const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
+  // ── anotação rich-text (mesmo editor contentEditable + toolbar de
+  // LeadDetailPage.tsx, sem o @mention -- fora do escopo aqui).
+  const notesDivRef = useRef<HTMLDivElement>(null);
+  const [notesActive, setNotesActive] = useState(false);
+  const [notesActiveFormats, setNotesActiveFormats] = useState<Set<string>>(new Set());
+  const checkNoteFormats = () => {
+    const cmds = ["bold", "italic", "underline", "insertUnorderedList", "insertOrderedList"];
+    const active = new Set(cmds.filter(c => { try { return document.queryCommandState(c); } catch { return false; } }));
+    setNotesActiveFormats(active);
+  };
+  const applyNoteFormat = (cmd: string) => {
+    document.execCommand(cmd, false);
+    checkNoteFormats();
+  };
 
   const activeNavTenantRef = useRef(tenantId);
   useEffect(() => { try { localStorage.setItem(activeIdKey(user?.id, tenantId), activeId); } catch { /* localStorage indisponível */ } }, [activeId, tenantId, user?.id]);
@@ -682,14 +789,8 @@ export default function MultiatendimentoPage() {
   // ── dialog de transferência ──────────────────────────────────────────
   const [showTransferDialog, setShowTransferDialog] = useState(false);
 
-  // ── edição inline do telefone (painel Perfil) -- só existe quando já há
-  // negócio (edita leads.whatsapp, nunca whatsapp_conversations.phone: esse
-  // último é usado pra buscar o histórico de mensagens por telefone, editar
-  // ele faria as mensagens antigas sumirem da tela).
-  const [editingPhone, setEditingPhone] = useState(false);
-  const [phoneDraft, setPhoneDraft]     = useState("");
-  useEffect(() => { setEditingPhone(false); }, [activeId]);
-
+  // ── painel de detalhes (Perfil/Endereço/Campos), mesmo modelo do LeadDrawer
+  const [muDetailsTab, setMuDetailsTab] = useState<"perfil" | "endereco" | "campos">("perfil");
   // ── vincular a negócio existente (quando nenhum negócio resolve pra essa
   // conversa) -- busca por nome entre os leads da empresa, mesmo componente
   // do "Nova conversa" (NewConvDialog), só com outro onSelect.
@@ -728,26 +829,6 @@ export default function MultiatendimentoPage() {
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showTagPicker]);
-
-  // ── list picker inline ─────────────────────────────────────────────
-  const [showListPicker, setShowListPicker] = useState(false);
-  const [listSearch, setListSearch]         = useState("");
-  const [listPickerPos, setListPickerPos]   = useState<{ top: number; right: number }>({ top: 0, right: 0 });
-  const listBtnRef    = useRef<HTMLButtonElement>(null);
-  const listPickerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showListPicker) return;
-    const handle = (e: MouseEvent) => {
-      if (
-        listPickerRef.current && !listPickerRef.current.contains(e.target as Node) &&
-        listBtnRef.current && !listBtnRef.current.contains(e.target as Node)
-      ) {
-        setShowListPicker(false); setListSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [showListPicker]);
 
   // ── settings modal ───────────────────────────────────────────────────
   const [showMultiSettings, setShowMultiSettings] = useState(false);
@@ -1004,6 +1085,47 @@ export default function MultiatendimentoPage() {
   // hasNegocio distingue "resolveu pra um negócio de verdade" de "resolveu
   // só pro Lead solto", o que effectiveLead sozinho não garante.
   const hasNegocio      = !!effectiveLead?.pipelineId;
+
+  // Perfil/Endereço/Campos (painel de detalhes) -- mesma fonte de dado do
+  // Telefone logo abaixo: sem negócio vinculado, só mostra o que já está na
+  // conversa (quando existe) e nenhum campo é editável.
+  const getProfileFieldValue = (key: string): string | undefined => {
+    switch (key) {
+      case "nome":      return effectiveLead?.name    || active?.name;
+      case "empresa":   return effectiveLead?.company  || active?.company;
+      case "email":     return effectiveLead?.email    || active?.email;
+      case "telefone":  return effectiveLead?.whatsapp || active?.phone;
+      case "documento": return effectiveLead?.document;
+      case "origem":    return effectiveLead?.origin;
+      case "site":      return effectiveLead?.site;
+      default:          return undefined;
+    }
+  };
+  const getProfileFieldOnSave = (key: string): ((v: string) => void) | undefined => {
+    if (!hasNegocio || !effectiveLead) return undefined;
+    const id = effectiveLead.id;
+    switch (key) {
+      case "nome":      return v => updateLead(id, { name: v });
+      case "empresa":   return v => updateLead(id, { company: v });
+      case "email":     return v => updateLead(id, { email: v });
+      // Corrige o telefone do NEGÓCIO (leads.whatsapp), nunca o da conversa --
+      // conv.phone é o que a busca de histórico usa pra achar as mensagens
+      // (phoneVariants sobre whatsapp_messages), então mudar ele faria o
+      // histórico já trocado sumir da tela. resolveLeadForConv recalcula o
+      // vínculo por telefone a cada render, então salvar aqui já revincula a
+      // conversa certa na hora, sem precisar de nenhum passo extra.
+      case "telefone":  return v => {
+        let digits = v.replace(/\D/g, "");
+        if (!digits) { toast.error("Informe um telefone válido."); return; }
+        if (!digits.startsWith("55")) digits = "55" + digits;
+        updateLead(id, { whatsapp: `+${digits}` });
+      };
+      case "documento": return v => updateLead(id, { document: v });
+      case "origem":    return v => updateLead(id, { origin: v as LeadOrigin });
+      case "site":      return v => updateLead(id, { site: v });
+      default:          return undefined;
+    }
+  };
   // Quando há lead vinculado, ele é a fonte da verdade das tags (mesmas em todas as
   // conversas/instâncias do lead); sem lead, usa as tags da própria conversa.
   const convTags       = effectiveLead?.tags ?? active?.tags ?? [];
@@ -1011,8 +1133,8 @@ export default function MultiatendimentoPage() {
   // Anotações da conversa → gravadas como atividade "note" no negócio vinculado,
   // ficando visíveis na aba Anotações do card do negócio na pipeline.
   const addNote = () => {
-    const text = noteDraft.trim();
-    if (!text) return;
+    const html = DOMPurify.sanitize(notesDivRef.current?.innerHTML ?? "");
+    if (!html.trim() || html === "<br>") return;
     if (!effectiveLead) {
       toast.error("Esta conversa não está vinculada a um negócio.");
       return;
@@ -1020,10 +1142,11 @@ export default function MultiatendimentoPage() {
     addActivity(effectiveLead.id, {
       type: "note",
       date: new Date().toISOString(),
-      description: text,
+      description: html,
       userName: user?.email?.split("@")[0] ?? undefined,
     });
-    setNoteDraft("");
+    if (notesDivRef.current) notesDivRef.current.innerHTML = "";
+    setNotesActive(false);
     toast.success("Anotação adicionada ao negócio.");
   };
 
@@ -2598,24 +2721,6 @@ export default function MultiatendimentoPage() {
     setShowTransferDialog(false);
   }
 
-  // Corrige o telefone do NEGÓCIO (leads.whatsapp), nunca o da conversa --
-  // conv.phone é o que a busca de histórico usa pra achar as mensagens
-  // (phoneVariants sobre whatsapp_messages), então mudar ele faria o
-  // histórico já trocado sumir da tela. Só existe quando já há negócio: é
-  // exatamente o caso de "o lead escreveu de um número, mas o formulário/
-  // negócio ficou com outro" -- resolveLeadForConv recalcula o vínculo por
-  // telefone a cada render, então salvar aqui já revincula a conversa certa
-  // na hora, sem precisar de nenhum passo extra.
-  async function handleSavePhone() {
-    if (!effectiveLead) return;
-    let digits = phoneDraft.replace(/\D/g, "");
-    if (!digits) { toast.error("Informe um telefone válido."); return; }
-    if (!digits.startsWith("55")) digits = "55" + digits;
-    await updateLead(effectiveLead.id, { whatsapp: `+${digits}` });
-    toast.success("Telefone do negócio atualizado.");
-    setEditingPhone(false);
-  }
-
   // Cobre o caso em que NENHUM negócio resolve pra essa conversa (nem por id,
   // contato, telefone ou nº do negócio) mas o atendente reconhece, pelo nome/
   // contexto da mensagem, que na verdade é um negócio que já existe no
@@ -3615,59 +3720,6 @@ export default function MultiatendimentoPage() {
                         </span>
                       ))}
                       {convLists.length > 3 && <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convLists.length - 3}</span>}
-                      <div style={{ position: "relative" }}>
-                        <button
-                          ref={listBtnRef}
-                          onClick={() => {
-                            if (!showListPicker) {
-                              const r = listBtnRef.current?.getBoundingClientRect();
-                              if (r) setListPickerPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
-                            }
-                            setShowListPicker(v => !v);
-                            setListSearch("");
-                          }}
-                          style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
-                        ><Plus size={10} /></button>
-                        {showListPicker && (
-                          <div ref={listPickerRef} style={{ position: "fixed", top: listPickerPos.top, right: listPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
-                            <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
-                              <input
-                                value={listSearch}
-                                onChange={e => setListSearch(e.target.value)}
-                                placeholder="Pesquisar lista..."
-                                autoFocus
-                                style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
-                              />
-                            </div>
-                            <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                              {crmLists
-                                .filter(l => !listSearch || l.name.toLowerCase().includes(listSearch.toLowerCase()))
-                                .map(lst => {
-                                  const inList = linkedLead ? lst.leadIds.includes(linkedLead.id) : false;
-                                  return (
-                                    <button
-                                      key={lst.id}
-                                      onClick={() => toggleConvList(lst.id)}
-                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: inList ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                                    >
-                                      {inList ? <Check size={13} color="#128A68" /> : <div style={{ width: 13 }} />}
-                                      <List size={13} color="#128A68" />
-                                      <span style={{ fontSize: 13, color: "#111", fontWeight: inList ? 600 : 400 }}>{lst.name}</span>
-                                    </button>
-                                  );
-                                })}
-                              {crmLists.filter(l => !listSearch || l.name.toLowerCase().includes(listSearch.toLowerCase())).length === 0 && (
-                                <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma lista encontrada</div>
-                              )}
-                            </div>
-                            <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
-                              <button onClick={() => { navigate("/configuracoes"); setShowListPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-                                Criar
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   );
                 })()}
@@ -3699,7 +3751,7 @@ export default function MultiatendimentoPage() {
               {/* Responsável -- propriedade do negócio, não da conversa. Sem
                   negócio vinculado ainda, não dá pra atribuir (a conversa
                   segue funcionando normalmente nos chips mesmo assim). */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", background: "#F5F5F5", borderRadius: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", borderRadius: 8 }}>
                 <UserCheck size={13} color="#128A68" />
                 <span style={{ fontSize: 12, color: "#666" }}>Responsável:</span>
                 {!hasNegocio ? (
@@ -3707,28 +3759,30 @@ export default function MultiatendimentoPage() {
                 ) : (effectiveLead?.responsibles?.length ?? 0) > 0 ? (
                   <>
                     <div style={{ display: "flex", flexShrink: 0 }}>
-                      {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) => (
-                        <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
-                          {initials(name)}
-                        </div>
-                      ))}
+                      {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) =>
+                        memberAvatars[name] ? (
+                          <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }} />
+                        ) : (
+                          <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
+                            {initials(name)}
+                          </div>
+                        )
+                      )}
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
-                    <button
-                      onClick={() => setShowTransferDialog(true)}
-                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
-                    >Editar</button>
                   </>
                 ) : (
-                  <>
-                    <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
-                    <button
-                      onClick={() => setShowTransferDialog(true)}
-                      style={{ background: "none", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0, flexShrink: 0 }}
-                    >Atribuir</button>
-                  </>
+                  <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
                 )}
               </div>
+              {hasNegocio && (
+                <button
+                  onClick={() => setShowTransferDialog(true)}
+                  style={{ marginTop: 6, width: "100%", background: "#E1F5EE", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, color: "#128A68", cursor: "pointer" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
+                >Transferir responsável</button>
+              )}
 
               {/* Outras conversas deste contato (ex: número antigo x novo) */}
               {active.contactId && otherContactConvs.length > 0 && (
@@ -3759,18 +3813,28 @@ export default function MultiatendimentoPage() {
 
             {/* ETAPA NO PIPELINE */}
             <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>ETAPA ATUAL</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</div>
-              <div style={{ fontSize: 12, color: "#AAA", marginBottom: 14 }}>{linkedPipeline?.name || active.pipeline || "—"}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>Pipeline &amp; Etapa</div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}>{linkedPipeline?.name || active.pipeline || "—"}</span>
+                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}> - </span>
+                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</span>
+              </div>
 
-              <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <div style={{ position: "absolute", top: "50%", left: 5, right: 5, height: 2, background: "#E5E5E5", transform: "translateY(-50%)" }} />
-                <div style={{ position: "absolute", top: "50%", left: 5, width: `calc(${(activeStageIdx / Math.max(activeStages.length - 1, 1)) * 100}% - 10px)`, height: 2, background: "#128A68", transform: "translateY(-50%)" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 16 }}>
                 {activeStages.map((_, i) => {
-                  let bg = "#E5E5E5";
-                  if (i < activeStageIdx) bg = "rgba(18,138,104,0.3)";
-                  if (i === activeStageIdx) bg = "#128A68";
-                  return <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: bg, position: "relative", zIndex: 1 }} />;
+                  const isActive = i === activeStageIdx;
+                  const isPast = i < activeStageIdx;
+                  const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (pipelineCols.length > 0 && effectiveLead) handleStageClick(pipelineCols[i].id);
+                        else updateCs(activeId, { stageIdx: i });
+                      }}
+                      style={{ flex: 1, height: 16, background: bg, border: "none", padding: 0, cursor: "pointer", clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)" }}
+                    />
+                  );
                 })}
               </div>
 
@@ -3787,7 +3851,7 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === 0}
-                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, height: 25, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "0 8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 ><ArrowLeft size={12} /> Voltar</button>
                 <button
                   onClick={() => {
@@ -3802,7 +3866,9 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
-                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "8px", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, height: 25, background: "#E1F5EE", border: "none", borderRadius: 8, padding: "0 8px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "#c8efe3"; }}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
             </div>
@@ -3816,8 +3882,7 @@ export default function MultiatendimentoPage() {
                 .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
               const TYPE_LABEL: Record<string, string> = { meeting: "Reunião", call: "Ligação", whatsapp: "WhatsApp", follow_up: "Follow-up", task: "Tarefa" };
               return (
-                <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 8 }}>PRÓXIMA ATIVIDADE</div>
+                <Section title="Atividades" defaultOpen>
                   {nextAct ? (
                     <div style={{ background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -3836,112 +3901,134 @@ export default function MultiatendimentoPage() {
                       <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
                       <button
                         onClick={() => setShowScheduleDialog(true)}
-                        style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                        style={{ width: "100%", background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                         onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
                         onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
-                      ><Plus size={12} /> Agendar atividade</button>
+                      ><Plus size={12} /> Criar atividade</button>
                     </>
                   )}
-                </div>
+                </Section>
               );
             })()}
 
-            {/* SEÇÕES EXPANSÍVEIS */}
-            <Section title="Perfil" defaultOpen>
-              {[
-                ["Nome",     effectiveLead?.name    || active.name],
-                ["E-mail",   effectiveLead?.email   || active.email   || "—"],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
-                  <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
-                  <span style={{ color: "#111", textAlign: "right" }}>{v}</span>
-                </div>
-              ))}
+            {/* PERFIL / ENDEREÇO / CAMPOS -- mesma visualização do LeadDrawer
+                (contato aberto em /pipeline/lead). key={activeId} força
+                remount ao trocar de conversa, senão um MuInlineField que
+                ficou em modo edição vaza pra conversa seguinte. */}
+            <div key={activeId} style={{ borderBottom: "1px solid #F0F0F0" }}>
+              <div style={{ display: "flex", justifyContent: "flex-start", gap: 4, padding: "10px 16px" }}>
+                {(["perfil", "endereco", "campos"] as const).map(k => (
+                  <button
+                    key={k}
+                    onClick={() => setMuDetailsTab(k)}
+                    style={{ background: muDetailsTab === k ? "#F0F0F0" : "none", border: "none", borderRadius: 4, cursor: "pointer", padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#111" }}
+                  >{{ perfil: "Perfil", endereco: "Endereço", campos: "Campos" }[k]}</button>
+                ))}
+              </div>
 
-              {/* Telefone -- editável só quando há negócio (edita o negócio,
-                  nunca a conversa). Sem negócio ainda, fica igual aos outros
-                  campos: só leitura, mostrando o telefone da própria conversa. */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", fontSize: 13, gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#AAA", flexShrink: 0 }}>Telefone</span>
-                {editingPhone ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, justifyContent: "flex-end" }}>
-                    <input
-                      autoFocus
-                      value={phoneDraft}
-                      onChange={e => setPhoneDraft(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleSavePhone(); if (e.key === "Escape") setEditingPhone(false); }}
-                      placeholder="+55 11 99999-9999"
-                      style={{ width: 140, border: "1px solid #E5E5E5", borderRadius: 6, padding: "4px 6px", fontSize: 12, outline: "none" }}
-                    />
-                    <button onClick={handleSavePhone} title="Salvar" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}><Check size={15} color="#128A68" /></button>
-                    <button onClick={() => setEditingPhone(false)} title="Cancelar" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}><X size={15} color="#AAA" /></button>
+              <div style={{ padding: "12px 16px 16px" }}>
+                {muDetailsTab === "perfil" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {PROFILE_FIELD_DEFS.map(def => (
+                      <MuInlineField
+                        key={def.key}
+                        label={def.label}
+                        value={getProfileFieldValue(def.key)}
+                        onSave={getProfileFieldOnSave(def.key)}
+                        type={def.type}
+                        options={def.options}
+                      />
+                    ))}
                   </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ color: "#111", textAlign: "right" }}>{effectiveLead?.whatsapp || active.phone || "—"}</span>
-                    {hasNegocio && (
+                )}
+
+                {muDetailsTab === "endereco" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <MuInlineField label="CEP"         value={effectiveLead?.zipCode}      onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { zipCode: v })) : undefined} />
+                    <MuInlineField label="Endereço"    value={effectiveLead?.address}      onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { address: v })) : undefined} />
+                    <MuInlineField label="Número"      value={effectiveLead?.addrNumber}   onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { addrNumber: v })) : undefined} />
+                    <MuInlineField label="Complemento" value={effectiveLead?.complement}   onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { complement: v })) : undefined} />
+                    <MuInlineField label="Bairro"      value={effectiveLead?.neighborhood} onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { neighborhood: v })) : undefined} />
+                    <MuInlineField label="Cidade"      value={effectiveLead?.city}         onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { city: v })) : undefined} />
+                    <MuInlineField label="Estado"      value={effectiveLead?.state}        onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { state: v })) : undefined} />
+                    <MuInlineField label="País"        value={effectiveLead?.country}      onSave={hasNegocio && effectiveLead ? (v => updateLead(effectiveLead.id, { country: v })) : undefined} />
+                  </div>
+                )}
+
+                {muDetailsTab === "campos" && (() => {
+                  const allItems = customFieldGroups.flatMap(g => g.items);
+                  if (allItems.length === 0) return <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {allItems.map(f => (
+                        <MuInlineField
+                          key={f.id}
+                          label={f.label}
+                          value={effectiveLead?.customFieldValues?.[f.id]}
+                          onSave={hasNegocio && effectiveLead ? (v => {
+                            const next = { ...(effectiveLead.customFieldValues ?? {}), [f.id]: v };
+                            updateLead(effectiveLead.id, { customFieldValues: next });
+                          }) : undefined}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <Section title="Anotações" defaultOpen>
+              <div style={{ border: `1px solid ${notesActive ? "#128A68" : "#E5E5E5"}`, borderRadius: 10, background: "#FAFAFA", padding: 10, transition: "border-color 0.15s" }}>
+                <div
+                  ref={notesDivRef}
+                  contentEditable={!!effectiveLead}
+                  suppressContentEditableWarning
+                  onFocus={() => effectiveLead && setNotesActive(true)}
+                  onKeyUp={checkNoteFormats}
+                  onMouseUp={checkNoteFormats}
+                  data-placeholder="Adicionar anotação..."
+                  className="empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+                  style={{ fontSize: 13, color: "#111", minHeight: notesActive ? 70 : 34, outline: "none", wordBreak: "break-word" }}
+                />
+                {notesActive && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, paddingTop: 8, marginTop: 8, borderTop: "1px solid #E5E5E5" }}>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {[
+                        { icon: <Bold size={13} />, title: "Negrito", cmd: "bold" },
+                        { icon: <Italic size={13} />, title: "Itálico", cmd: "italic" },
+                        { icon: <Underline size={13} />, title: "Sublinhado", cmd: "underline" },
+                        { icon: <List size={13} />, title: "Lista com marcadores", cmd: "insertUnorderedList" },
+                        { icon: <ListOrdered size={13} />, title: "Lista numerada", cmd: "insertOrderedList" },
+                      ].map(({ icon, title, cmd }) => {
+                        const isActive = notesActiveFormats.has(cmd);
+                        return (
+                          <button
+                            key={title}
+                            title={title}
+                            onMouseDown={e => { e.preventDefault(); applyNoteFormat(cmd); }}
+                            style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, border: "none", cursor: "pointer", background: isActive ? "#E1F5EE" : "transparent", color: isActive ? "#128A68" : "#888" }}
+                          >{icon}</button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
                       <button
-                        onClick={() => { setPhoneDraft(effectiveLead?.whatsapp ?? ""); setEditingPhone(true); }}
-                        title="Corrigir telefone do negócio"
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}
-                      ><Pencil size={12} color="#AAA" /></button>
-                    )}
+                        onClick={() => { if (notesDivRef.current) notesDivRef.current.innerHTML = ""; setNotesActive(false); }}
+                        style={{ fontSize: 11, fontWeight: 600, color: "#666", background: "none", border: "1px solid #E5E5E5", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+                      >Cancelar</button>
+                      <button
+                        onClick={addNote}
+                        style={{ fontSize: 11, fontWeight: 600, color: "#FFF", background: "#128A68", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+                      >Salvar</button>
+                    </div>
                   </div>
                 )}
               </div>
-
-              {[
-                ["Empresa", effectiveLead?.company || active.company || "—"],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
-                  <span style={{ fontSize: 12, color: "#AAA" }}>{k}</span>
-                  <span style={{ color: "#111", textAlign: "right" }}>{v}</span>
-                </div>
-              ))}
-            </Section>
-
-            <Section title="Anotações">
-              <textarea
-                placeholder="Adicionar anotação..."
-                value={noteDraft}
-                onChange={e => setNoteDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); } }}
-                style={{ width: "100%", background: "#F5F5F5", borderRadius: 8, padding: 10, border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", minHeight: 80, resize: "vertical" }}
-              />
-              <button
-                onClick={addNote}
-                disabled={!noteDraft.trim()}
-                style={{ marginTop: 6, width: "100%", padding: "8px 0", borderRadius: 8, border: "none", background: noteDraft.trim() ? "#128A68" : "#E5E5E5", color: noteDraft.trim() ? "#FFF" : "#AAA", fontSize: 13, fontWeight: 600, cursor: noteDraft.trim() ? "pointer" : "default" }}
-              >
-                Adicionar anotação
-              </button>
               {!effectiveLead && (
                 <div style={{ fontSize: 11, color: "#C2410C", marginTop: 6 }}>
                   Vincule esta conversa a um negócio para registrar anotações.
                 </div>
               )}
-              {effectiveLead && (() => {
-                const notes = (effectiveLead.activities ?? [])
-                  .filter(a => a.type === "note")
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .slice(0, 5);
-                if (notes.length === 0) return null;
-                return (
-                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                    {notes.map(n => (
-                      <div key={n.id} style={{ background: "#FFF", border: "1px solid #EEE", borderRadius: 8, padding: "8px 10px" }}>
-                        <div
-                          style={{ fontSize: 12, color: "#333", lineHeight: 1.5, wordBreak: "break-word" }}
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
-                        />
-                        <div style={{ fontSize: 10, color: "#AAA", marginTop: 4 }}>
-                          {n.userName ? `${n.userName} · ` : ""}{new Date(n.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
             </Section>
 
             <Section title="Negócio vinculado" defaultOpen>
@@ -4014,6 +4101,61 @@ export default function MultiatendimentoPage() {
                   </div>
                 </div>
               )}
+            </Section>
+
+            {/* HISTÓRICO -- mesma timeline (comentários + eventos) do
+                LeadDrawer.tsx (aba Histórico, aberta a partir de /leads),
+                lendo effectiveLead.activities direto -- sem negócio vinculado
+                não tem o que mostrar. */}
+            <Section title="Histórico" defaultOpen>
+              {!effectiveLead ? (
+                <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Sem negócio vinculado ainda</p>
+              ) : (() => {
+                const sortedActs = [...effectiveLead.activities].sort(
+                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+                return (
+                  <div>
+                    {sortedActs.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "24px 0", color: "#AAA" }}>
+                        <StickyNote size={26} style={{ margin: "0 auto 8px", opacity: 0.3 }} />
+                        <p style={{ fontSize: 12 }}>Nenhum histórico registrado</p>
+                      </div>
+                    ) : (
+                      <div style={{ position: "relative" }}>
+                        <div style={{ position: "absolute", left: 13, top: 14, bottom: 0, width: 2, background: "#F0F0F0" }} />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          {sortedActs.map(act => {
+                            const m = ACT_META[act.type] ?? ACT_META.note;
+                            const Icon = m.Icon;
+                            return (
+                              <div key={act.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "6px 0" }}>
+                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: m.bg, color: m.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1, border: "2px solid #FFF", boxShadow: "0 0 0 1.5px #E8E8E8" }}>
+                                  <Icon size={12} />
+                                </div>
+                                <div style={{ flex: 1, background: "#FAFAFA", border: "1px solid #F0F0F0", borderRadius: 10, padding: "9px 12px" }}>
+                                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                                    {act.type === "note" ? (
+                                      <div style={{ fontSize: 12, color: "#111", lineHeight: 1.4, flex: 1 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(act.description) }} />
+                                    ) : (
+                                      <p style={{ fontSize: 12, color: "#111", lineHeight: 1.4, flex: 1 }}>{act.description}</p>
+                                    )}
+                                    <span style={{ fontSize: 10, color: "#AAA", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtHistDate(act.date)}</span>
+                                  </div>
+                                  <div style={{ marginTop: 4, display: "flex", gap: 6, alignItems: "center" }}>
+                                    <span style={{ fontSize: 10, color: "#AAA" }}>{m.label}</span>
+                                    {act.userName && <><span style={{ fontSize: 10, color: "#DDD" }}>·</span><span style={{ fontSize: 10, color: "#888" }}>{act.userName}</span></>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </Section>
           </>
         )}
