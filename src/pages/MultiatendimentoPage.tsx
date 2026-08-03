@@ -24,8 +24,8 @@ import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
-import chatBackground from "@/assets/chat-background.webp";
 import { upsertContact, type Contact } from "@/lib/contacts";
+import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
   SelectContent,
@@ -3214,12 +3214,18 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* mensagens */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 16, backgroundImage: `url(${chatBackground})`, backgroundRepeat: "repeat", backgroundSize: 360 }}>
+            <div style={{ position: "relative", flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "#FAFAFA" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0 }}>
+                <div className="chat-watermark-badge" style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(16,185,129,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, letterSpacing: -0.5, color: "rgba(16,185,129,0.32)" }}>
+                  RZ
+                </div>
+              </div>
+              <div style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                  <MessageSquare size={40} color="#E5E5E5" />
-                  <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma mensagem ainda</p>
-                  <p style={{ fontSize: 12, color: "#CCC" }}>Envie uma mensagem para iniciar a conversa</p>
+                  <img src={chatIllustration} alt="" style={{ width: 350, marginBottom: 4 }} />
+                  <p style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Conversas</p>
+                  <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Acompanhe as conversas com seus negócios</p>
                 </div>
               )}
               {groupedMessages.map(([date, msgs]) => (
@@ -3303,6 +3309,7 @@ export default function MultiatendimentoPage() {
                 </div>
               ))}
               <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* rodapé */}
