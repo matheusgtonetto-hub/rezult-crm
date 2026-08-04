@@ -2327,18 +2327,19 @@ export default function MultiatendimentoPage() {
   // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
   // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
   // Único ponto por onde passam todos os envios (texto/áudio/imagem/arquivo) —
-  // por isso também é aqui que marcamos read:true (chip "Abertas" = atendente
-  // respondeu por último). "Não iniciadas" → "Abertas" continua dependendo de
-  // ter um atendente responsável atribuído (assignedTo), não de ter respondido.
+  // por isso também é aqui que marcamos read:true (chip "Abertas" = sem mensagem
+  // pendente). Não seta answered: sair de "Não iniciadas" é só via botão
+  // "Marcar como lida" (markAsRead) -- responder sozinho não tira mais a
+  // conversa dali, por design (ver markAsRead).
   function bumpPreview(convId: string, label: string) {
     const now = nowTime();
     const nowIso = new Date().toISOString();
     setConvList(prev => prev.map(c => c.id === convId ? { ...c, preview: label, time: now, lastMsgAt: nowIso } : c));
     // read:true explícito -- a última mensagem passou a ser do atendente, então
     // por definição a conversa não pode continuar em "Aguardando".
-    setConvStates(prev => ({ ...prev, [convId]: { ...DEFAULT_CS, ...prev[convId], answered: true, read: true } }));
+    setConvStates(prev => ({ ...prev, [convId]: { ...DEFAULT_CS, ...prev[convId], read: true } }));
     supabase.from("whatsapp_conversations")
-      .update({ preview: label, last_msg_at: nowIso, answered: true, read: true })
+      .update({ preview: label, last_msg_at: nowIso, read: true })
       .eq("id", convId)
       .then(({ error }) => { if (error) console.warn("bumpPreview:", error.message); });
   }
@@ -2591,8 +2592,10 @@ export default function MultiatendimentoPage() {
     }
   }
 
+  // Único gatilho que tira uma conversa de "Não iniciadas" -- por design,
+  // enviar mensagem (bumpPreview) não faz mais isso sozinho, só esse clique.
   function markAsRead(id: string) {
-    updateCs(id, { read: true });
+    updateCs(id, { read: true, answered: true });
     toast.success("Conversa marcada como lida");
   }
 
@@ -3630,7 +3633,7 @@ export default function MultiatendimentoPage() {
                     {convTags.length > 4 && (
                       <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convTags.length - 4}</span>
                     )}
-                    {/* Botão "+" */}
+                    {/* Botão "+" (texto quando não há nenhuma tag ainda, senão só o ícone) */}
                     <div style={{ position: "relative" }}>
                       <button
                         ref={tagBtnRef}
@@ -3642,9 +3645,12 @@ export default function MultiatendimentoPage() {
                           setShowTagPicker(v => !v);
                           setTagSearch("");
                         }}
-                        style={{ width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
+                        style={convTags.length === 0
+                          ? { display: "flex", alignItems: "center", gap: 3, height: 18, borderRadius: 100, background: "transparent", border: "1px solid #E0E0E0", padding: "0 8px", cursor: "pointer", color: "#888", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }
+                          : { width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
                       >
                         <Plus size={10} />
+                        {convTags.length === 0 && "Adicionar tag"}
                       </button>
 
                       {showTagPicker && (
