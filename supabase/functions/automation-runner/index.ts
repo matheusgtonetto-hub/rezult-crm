@@ -1443,7 +1443,7 @@ async function executeFlow(
               }
               // Persiste no histórico de conversas (mesma tabela do multiatendimento)
               await supabase.from("whatsapp_messages").insert({
-                owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+                owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
                 phone: rawPhone, from_me: true, body: parts[i], type: "text",
               });
               // Garante whatsapp_conversations no servidor -- sem isso, uma
@@ -1510,7 +1510,7 @@ async function executeFlow(
               }
             }
             await supabase.from("whatsapp_messages").insert({
-              owner_id: leadData?.owner_id ?? null, instance_id: creds.instanceId,
+              owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
               phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
               media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
             });
