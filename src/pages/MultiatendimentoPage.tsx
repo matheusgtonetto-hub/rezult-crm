@@ -3206,10 +3206,6 @@ export default function MultiatendimentoPage() {
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
-                  <div style={{ fontSize: 11, color: "#AAA", display: "flex", alignItems: "center", gap: 4 }}>
-                    <Filter size={10} />
-                    {linkedPipeline?.name || active.pipeline || "Pipeline Comercial"}
-                  </div>
 
                   {/* WhatsApp instance selector */}
                   <div style={{ position: "relative", marginTop: 4 }}>
@@ -3264,7 +3260,7 @@ export default function MultiatendimentoPage() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer" }}>
-                  {active.dealNumber || `#${active.id.slice(0, 4).toUpperCase()}`}
+                  {effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
                 <ChatHeaderBtn icon={Eye} label="Marcar como lida" onClick={() => markAsRead(activeId)} />
                 <ChatHeaderBtn
