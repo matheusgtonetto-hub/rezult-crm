@@ -4842,22 +4842,6 @@ function ConexoesSection() {
 }
 
 /* ---------------- API ---------------- */
-const WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/leads-webhook";
-
-function generateApiKey(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return "rz_live_" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-interface ApiKey {
-  id: string;
-  label: string;
-  key: string;
-  active: boolean;
-  created_at: string;
-  last_used_at: string | null;
-}
-
 interface AiProviderKey {
   id: string;
   provider: string;
@@ -4868,10 +4852,19 @@ interface AiProviderKey {
 }
 
 // Provedores de IA suportados (modelo BYOK — o cliente usa a chave da própria conta).
-const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string }[] = [
-  { id: "openai",    name: "OpenAI (ChatGPT)",   placeholder: "sk-...",     help: "platform.openai.com/api-keys" },
-  { id: "anthropic", name: "Anthropic (Claude)", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys" },
-  { id: "google",    name: "Google (Gemini)",    placeholder: "AIza...",    help: "aistudio.google.com/app/apikey" },
+const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string; agentUsage: string }[] = [
+  {
+    id: "openai", name: "OpenAI (ChatGPT)", placeholder: "sk-...", help: "platform.openai.com/api-keys",
+    agentUsage: "Nos Agentes de IA: gera os embeddings da Base de Conhecimento — no upload de documentos e em toda busca semântica durante as conversas. Chamada de embedding é bem mais barata que uma resposta de LLM, então o gasto tende a ser baixo (cresce com o volume de ingest e de conversas que consultam a Base). Exceção: se você escolher um modelo GPT na aba \"Modelo\" de algum agente, essa chave passa a responder as conversas também — aí o gasto sobe.",
+  },
+  {
+    id: "anthropic", name: "Anthropic (Claude)", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys",
+    agentUsage: "Nos Agentes de IA: é a chave de atuação — responde as conversas de verdade (modelo padrão dos agentes é Claude). Tende a gastar bem mais que a OpenAI, escalando direto com o volume de atendimento.",
+  },
+  {
+    id: "google", name: "Google (Gemini)", placeholder: "AIza...", help: "aistudio.google.com/app/apikey",
+    agentUsage: "Não é usada pelos Agentes de IA hoje — só pelo Bloco de IA das Automações.",
+  },
 ];
 
 // Cadastro das chaves de IA dos clientes (usadas pelo Bloco de IA das automações).
@@ -5120,6 +5113,14 @@ function AiProviderKeysCard() {
         subtitle="Cadastre as chaves das IAs que você já possui para liberar o Bloco de IA nas automações. O uso é cobrado diretamente pelo provedor na sua própria conta."
       />
 
+      <div className="space-y-1.5 mb-4">
+        {AI_PROVIDERS.map(p => (
+          <p key={p.id} className="text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground">{p.name}:</span> {p.agentUsage}
+          </p>
+        ))}
+      </div>
+
       {/* Formulário: selecionar provedor + colar chave */}
       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
         <select
@@ -5202,90 +5203,11 @@ function AiProviderKeysCard() {
 }
 
 function ApiSection() {
-  const { company } = useCompany();
-  const { user } = useAuth();
-  const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [newKeyModal, setNewKeyModal] = useState<{ key: string; label: string } | null>(null);
-  const [labelInput, setLabelInput] = useState("Chave padrão");
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
-  const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
-
-  const loadKeys = useCallback(async () => {
-    if (!company) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("webhook_api_keys")
-      .select("id, label, key, active, created_at, last_used_at")
-      .eq("company_id", company.id)
-      .order("created_at", { ascending: false });
-    setKeys((data as ApiKey[]) ?? []);
-    setLoading(false);
-  }, [company]);
-
-  useEffect(() => { loadKeys(); }, [loadKeys]);
-
-  const handleGenerate = async () => {
-    if (!company || !user) return;
-    setGenerating(true);
-    const newKey = generateApiKey();
-    const { data, error } = await supabase
-      .from("webhook_api_keys")
-      .insert({ company_id: company.id, owner_id: user.id, key: newKey, label: labelInput || "Chave padrão" })
-      .select("id, label, key, active, created_at, last_used_at")
-      .single();
-    setGenerating(false);
-    if (error) { toast.error("Erro ao gerar chave."); return; }
-    setKeys(prev => [data as ApiKey, ...prev]);
-    setNewKeyModal({ key: newKey, label: (data as ApiKey).label });
-    setShowCreateForm(false);
-    setLabelInput("Chave padrão");
-  };
-
-  const handleToggle = async (k: ApiKey) => {
-    const { error } = await supabase
-      .from("webhook_api_keys")
-      .update({ active: !k.active })
-      .eq("id", k.id);
-    if (error) { toast.error("Erro ao atualizar chave."); return; }
-    setKeys(prev => prev.map(x => x.id === k.id ? { ...x, active: !k.active } : x));
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const { error } = await supabase.from("webhook_api_keys").delete().eq("id", deleteTarget.id);
-    if (error) { toast.error("Erro ao remover chave."); return; }
-    setKeys(prev => prev.filter(x => x.id !== deleteTarget.id));
-    toast.success("Chave removida.");
-    setDeleteTarget(null);
-  };
-
-  const toggleVisible = (id: string) =>
-    setVisibleKeys(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
-
-  const fmtDate = (iso: string | null) => {
-    if (!iso) return "—";
-    return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
-  };
-
-  const curlExample = `curl -X POST ${WEBHOOK_URL} \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: SUA_CHAVE_AQUI" \\
-  -d '{
-    "name": "João Silva",
-    "phone": "11999998888",
-    "email": "joao@exemplo.com",
-    "source": "Site",
-    "notes": "Veio pelo formulário de contato"
-  }'`;
-
   return (
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
-        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Cadastre as chaves de IA dos seus provedores e gere chaves para integrações via webhook.</p>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Cadastre as chaves de IA dos seus provedores.</p>
       </div>
 
       {/* Meta Ads Conversions API */}
@@ -5293,213 +5215,6 @@ function ApiSection() {
 
       {/* Provedores de IA (BYOK) */}
       <AiProviderKeysCard />
-
-      {/* Webhook endpoint */}
-      <Card>
-        <SectionTitle
-          title="Endpoint do Webhook"
-          subtitle="Envie leads externos para o Rezult via HTTP POST"
-        />
-        <div className="flex gap-2 mb-4">
-          <Input
-            value={WEBHOOK_URL}
-            readOnly
-            className="border-card-border font-mono text-xs text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            className="border-card-border shrink-0"
-            onClick={() => { navigator.clipboard.writeText(WEBHOOK_URL); toast.success("URL copiada!"); }}
-          >
-            <Copy size={14} />
-          </Button>
-        </div>
-
-        {/* Campos aceitos */}
-        <div className="rounded-lg border border-card-border overflow-hidden mb-4">
-          <div className="bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-card-border">
-            Campos aceitos no body (JSON)
-          </div>
-          <div className="divide-y divide-card-border">
-            {[
-              { field: "name",        type: "string",  req: false, desc: "Nome do lead" },
-              { field: "phone",       type: "string",  req: false, desc: "Telefone / WhatsApp (somente números)" },
-              { field: "email",       type: "string",  req: false, desc: "E-mail do lead" },
-              { field: "pipeline_id", type: "uuid",    req: false, desc: "ID do pipeline (usa o primeiro se omitido)" },
-              { field: "stage_id",    type: "uuid",    req: false, desc: "ID da etapa (usa a primeira se omitido)" },
-              { field: "source",      type: "string",  req: false, desc: "Origem: Instagram, Facebook Ads, Indicação, Site, Outro" },
-              { field: "notes",       type: "string",  req: false, desc: "Observações" },
-              { field: "tags",        type: "string[]", req: false, desc: "Lista de tags (nomes)" },
-            ].map(r => (
-              <div key={r.field} className="grid grid-cols-[120px_80px_1fr] px-3 py-2 text-xs">
-                <span className="font-mono text-primary">{r.field}</span>
-                <span className="text-muted-foreground">{r.type}</span>
-                <span className="text-muted-foreground">{r.desc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Exemplo cURL */}
-        <details className="group">
-          <summary className="cursor-pointer text-xs font-medium text-muted-foreground flex items-center gap-1 select-none">
-            <span className="group-open:hidden">▶</span>
-            <span className="hidden group-open:inline">▼</span>
-            Ver exemplo cURL
-          </summary>
-          <div className="mt-2 bg-[#1A1A2E] rounded-lg p-4 font-mono text-xs text-[#E0E0E0] whitespace-pre overflow-x-auto relative">
-            {curlExample}
-            <button
-              onClick={() => { navigator.clipboard.writeText(curlExample); toast.success("Copiado!"); }}
-              className="absolute top-2 right-2 p-1.5 rounded bg-white/10 hover:bg-white/20 text-white"
-            >
-              <Copy size={12} />
-            </button>
-          </div>
-        </details>
-      </Card>
-
-      {/* Chaves */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <SectionTitle title="Suas chaves" subtitle="Cada chave autentica requisições do webhook" />
-          {!showCreateForm && (
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90 h-8"
-              onClick={() => setShowCreateForm(true)}
-            >
-              <Plus size={13} className="mr-1" /> Nova chave
-            </Button>
-          )}
-        </div>
-
-        {showCreateForm && (
-          <div className="flex gap-2 mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-            <Input
-              placeholder="Nome da chave (ex: Site, RD Station)"
-              value={labelInput}
-              onChange={e => setLabelInput(e.target.value)}
-              className="border-card-border text-sm h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              onKeyDown={e => e.key === "Enter" && handleGenerate()}
-            />
-            <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleGenerate} disabled={generating}>
-              {generating ? "Gerando..." : "Gerar"}
-            </Button>
-            <Button size="sm" variant="outline" className="h-9 shrink-0" onClick={() => setShowCreateForm(false)}>
-              Cancelar
-            </Button>
-          </div>
-        )}
-
-        {loading ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
-        ) : keys.length === 0 ? (
-          <div className="text-center py-8">
-            <KeyRound size={32} className="mx-auto mb-2 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">Nenhuma chave criada ainda.</p>
-            <p className="text-xs text-muted-foreground/50 mt-1">Clique em "Nova chave" para começar.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {keys.map(k => {
-              const visible = visibleKeys.has(k.id);
-              const masked  = k.key.slice(0, 12) + "••••••••••••••••••••••••";
-              return (
-                <div key={k.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{k.label}</p>
-                    <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">
-                      {visible ? k.key : masked}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Criada em {fmtDate(k.created_at)}
-                      {k.last_used_at && ` · Último uso ${fmtDate(k.last_used_at)}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => toggleVisible(k.id)}
-                      className="p-1.5 rounded hover:bg-muted text-muted-foreground"
-                      title={visible ? "Ocultar" : "Mostrar"}
-                    >
-                      {visible ? <EyeOff size={13} /> : <Eye size={13} />}
-                    </button>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(k.key); toast.success("Chave copiada!"); }}
-                      className="p-1.5 rounded hover:bg-muted text-muted-foreground"
-                      title="Copiar"
-                    >
-                      <Copy size={13} />
-                    </button>
-                    <Switch
-                      checked={k.active}
-                      onCheckedChange={() => handleToggle(k)}
-                      className="data-[state=checked]:bg-primary scale-75"
-                    />
-                    <button
-                      onClick={() => setDeleteTarget(k)}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive"
-                      title="Excluir"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      {/* Modal: chave recém-criada */}
-      <Dialog open={!!newKeyModal} onOpenChange={v => !v && setNewKeyModal(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Chave criada com sucesso</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground mb-3">
-            Copie e guarde sua chave agora. Por segurança, ela <strong>não será exibida novamente</strong>.
-          </p>
-          <div className="flex gap-2">
-            <Input
-              value={newKeyModal?.key ?? ""}
-              readOnly
-              className="font-mono text-xs border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="border-card-border shrink-0"
-              onClick={() => { navigator.clipboard.writeText(newKeyModal?.key ?? ""); toast.success("Copiada!"); }}
-            >
-              <Copy size={14} />
-            </Button>
-          </div>
-          <DialogFooter className="mt-3">
-            <Button className="bg-primary hover:bg-primary/90 w-full" onClick={() => setNewKeyModal(null)}>
-              <CheckCircle2 size={14} className="mr-1" /> Entendido, já copiei
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: confirmar exclusão */}
-      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Remover chave</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Tem certeza que deseja remover a chave <strong>{deleteTarget?.label}</strong>?
-            Integrações que usam esta chave deixarão de funcionar.
-          </p>
-          <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDelete}>Remover</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </>
   );
 }
