@@ -104,6 +104,7 @@ function AppRoutes() {
             <Route path="/contatos" element={<Navigate to="/leads" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agentes" element={<AgentesPage />} />
+            <Route path="/agentes/:id" element={<AgentesPage />} />
             <Route path="/rezult-pay" element={<RezultPayPage />} />
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />

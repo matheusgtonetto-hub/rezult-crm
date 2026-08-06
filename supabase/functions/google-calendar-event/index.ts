@@ -32,10 +32,10 @@ serve(async (req) => {
     const configuredInternalSecret = Deno.env.get("AGENT_INTERNAL_SECRET") ?? "";
     const isInternalCall = configuredInternalSecret !== "" && internalSecretHeader === configuredInternalSecret;
 
-    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string; user_id?: string };
+    let body: { event_id?: string; title?: string; description?: string; start_datetime?: string; duration_minutes?: number; attendees?: string[]; create_meet?: boolean; company_id?: string; user_id?: string; timezone?: string };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
-    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id, user_id: bodyUserId } = body;
+    const { event_id, title, description, start_datetime, duration_minutes = 60, attendees = [], create_meet = false, company_id, user_id: bodyUserId, timezone = "America/Sao_Paulo" } = body;
     if (!title || !start_datetime) {
       return json({ error: "missing required fields: title, start_datetime" }, 400);
     }
@@ -111,8 +111,8 @@ serve(async (req) => {
       const patch = {
         summary: title,
         description: description ?? "",
-        start: { dateTime: start_datetime, timeZone: "America/Sao_Paulo" },
-        end:   { dateTime: end_datetime,   timeZone: "America/Sao_Paulo" },
+        start: { dateTime: start_datetime, timeZone: timezone },
+        end:   { dateTime: end_datetime,   timeZone: timezone },
         ...(attendees.length > 0 && {
           attendees: attendees.map(email => ({ email })),
         }),
@@ -152,8 +152,8 @@ serve(async (req) => {
     const event = {
       summary: title,
       description: description ?? "",
-      start: { dateTime: start_datetime, timeZone: "America/Sao_Paulo" },
-      end:   { dateTime: end_datetime,   timeZone: "America/Sao_Paulo" },
+      start: { dateTime: start_datetime, timeZone: timezone },
+      end:   { dateTime: end_datetime,   timeZone: timezone },
       ...(attendees.length > 0 && {
         attendees: attendees.map(email => ({ email })),
       }),
