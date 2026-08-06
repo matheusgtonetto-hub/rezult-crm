@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
+import { IA_MODELS, IA_PROVIDER_LABELS, IA_COST_LABELS, type IaProvider } from "@/lib/ai-models";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useCRM } from "@/context/CRMContext";
@@ -94,7 +95,6 @@ type ApiConfig = { requests: ApiRequest[] };
 // Bloco de IA (BYOK): cada nó contém uma lista de ações de IA. Usa a chave do
 // provedor cadastrada em ai_provider_keys. O resultado de cada ação fica disponível
 // para os blocos seguintes como {{<outputVar>.resposta}} (ou campos extraídos).
-type IaProvider = "openai" | "anthropic" | "google";
 type IaActionType = "assistente_chat" | "gerar_texto" | "invocar_agente" | "transcricao_audio" | "intencao" | "sentimento" | "extrator_params";
 type IaIntencao = { id: string; nome: string; detalhes?: string; exemplos?: string };
 type IaSentimento = { id: string; nome: string; detalhes?: string };
@@ -284,27 +284,6 @@ const ACTION_TYPES = [
 // com selo "EM BREVE" e desabilitados (mesmo padrão do gatilho MCP Server Tool).
 const COMING_SOON_ACTIONS = new Set<string>(["javascript"]);
 
-// Modelos por provedor de IA (BYOK). Mantém os mais recentes/recomendados de cada um.
-const IA_MODELS: Record<IaProvider, { id: string; label: string }[]> = {
-  openai: [
-    { id: "gpt-4o-mini", label: "GPT-4o mini (rápido e barato)" },
-    { id: "gpt-4o",      label: "GPT-4o" },
-    { id: "gpt-4.1",     label: "GPT-4.1" },
-  ],
-  anthropic: [
-    { id: "claude-sonnet-4-6",         label: "Claude Sonnet 4.6 (equilibrado)" },
-    { id: "claude-opus-4-8",           label: "Claude Opus 4.8 (mais capaz)" },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (rápido)" },
-  ],
-  google: [
-    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (rápido)" },
-    { id: "gemini-1.5-pro",   label: "Gemini 1.5 Pro" },
-    { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  ],
-};
-const IA_PROVIDER_LABELS: Record<IaProvider, string> = {
-  openai: "OpenAI (ChatGPT)", anthropic: "Anthropic (Claude)", google: "Google (Gemini)",
-};
 
 // Catálogo de ações de IA (picker do bloco de IA). `soon` = exibida mas desabilitada.
 // `branch` = a ação gera portas de saída no nó (intenção/sentimento).
@@ -5757,7 +5736,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
                     {(Object.keys(IA_MODELS) as IaProvider[]).map(p => <option key={p} value={p}>{IA_PROVIDER_LABELS[p]}</option>)}
                   </select>
                   <select value={a.model} onChange={e => updateAction(a.id, { model: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 0 }}>
-                    {IA_MODELS[a.provider].map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    {IA_MODELS[a.provider].map(m => <option key={m.id} value={m.id}>{m.label} — {IA_COST_LABELS[m.cost]}</option>)}
                   </select>
                 </div>
               </div>

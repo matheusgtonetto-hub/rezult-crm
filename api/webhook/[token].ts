@@ -164,6 +164,13 @@ export default async function handler(req: Req, res: Res) {
   const ddi      = pick("phoneDdi") || "55";
   const email    = pick("email")   || null;
   const company  = pick("company") || null;
+  // Mapeados na UI (IntegracoesPage.tsx) mas nunca lidos antes -- todo lead
+  // criado por webhook nascia com value:0, mesmo vindo de uma venda real
+  // (ex: Hotmart/Kiwify notificando compra). Sem isso a métrica "Vendas
+  // feitas" da aba Performance dos Agentes nunca teria valor em R$.
+  const productSku   = pick("productSku")   || null;
+  const productName  = pick("productName")  || null;
+  const productPrice = Number(pick("productPrice").replace(",", ".")) || 0;
 
   // Campos adicionais (custom fields) mapeados
   const customFieldValues: Record<string, string> = {};
@@ -196,6 +203,8 @@ export default async function handler(req: Req, res: Res) {
           phone_ddi: ddi || undefined,
           email,
           tags: auto.tags && auto.tags.length > 0 ? auto.tags : undefined,
+          ...(productSku || productName ? { product_id: productSku ?? productName } : {}),
+          ...(productPrice > 0 ? { value: productPrice } : {}),
         })
         .eq("id", (existing as { id: string }).id);
 
@@ -237,7 +246,8 @@ export default async function handler(req: Req, res: Res) {
       entry_date:  new Date().toISOString().split("T")[0],
       notes:       notesExtra,
       tags:        auto.tags ?? [],
-      value:       0,
+      product_id:  productSku ?? productName,
+      value:       productPrice,
       position:    0,
       status:      "open",
     })

@@ -8,12 +8,35 @@ import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.11.0";
 //
 // ⚠️ CONFIANÇA POR TIPO DE ARQUIVO:
 //   .txt  — ALTA, decodificação direta, sem dependência externa
+//   .csv  — ALTA, é texto puro, mesmo caminho do .txt
+//   .json — ALTA, parse + stringify pra normalizar formatação (cai pro texto
+//           cru se não for JSON válido)
+//   .html — ALTA, strip de tags via regex (não é um parser HTML de verdade,
+//           mas suficiente pra extrair o texto visível pra embeddings)
 //   .pdf  — MEDIA, usa `unpdf` (biblioteca real, feita pra edge/Deno/Workers,
 //           mas não testei contra um PDF real do Rezult ainda)
 //   .docx — NÃO IMPLEMENTADO — não encontrei biblioteca de extração DOCX
 //           comprovadamente compatível com Deno edge runtime. Recomendo
 //           testar antes de liberar upload de .docx pro cliente, ou converter
 //           pra .txt/.pdf como passo manual até resolver isso.
+
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB — mesmo limite anunciado na UI
+
+// Extrator só-o-bastante-bom pra HTML: remove tags e normaliza espaços. Não é
+// um parser de verdade (não trata <script>/<style> como caso especial), mas
+// pro propósito de embeddings (texto visível pra busca semântica) é suficiente.
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,18 +141,31 @@ Deno.serve(async (req) => {
       .download(doc.storage_path as string);
     if (dlErr || !fileBlob) throw new Error(`download falhou: ${dlErr?.message}`);
 
+    if (fileBlob.size > MAX_FILE_BYTES) {
+      throw new Error(`arquivo muito grande (${(fileBlob.size / 1024 / 1024).toFixed(1)}MB) — máx 50MB`);
+    }
+
     const ext = (doc.file_name as string).split(".").pop()?.toLowerCase();
     let rawText = "";
 
-    if (ext === "txt") {
+    if (ext === "txt" || ext === "csv") {
       rawText = await fileBlob.text();
+    } else if (ext === "json") {
+      const raw = await fileBlob.text();
+      try {
+        rawText = JSON.stringify(JSON.parse(raw), null, 2);
+      } catch {
+        rawText = raw; // não é JSON válido — indexa como texto cru mesmo assim
+      }
+    } else if (ext === "html" || ext === "htm") {
+      rawText = stripHtml(await fileBlob.text());
     } else if (ext === "pdf") {
       const buf = new Uint8Array(await fileBlob.arrayBuffer());
       const pdf = await getDocumentProxy(buf);
       const { text } = await extractText(pdf, { mergePages: true });
       rawText = text;
     } else {
-      throw new Error(`extração para .${ext} não implementada — só .txt e .pdf por enquanto`);
+      throw new Error(`extração para .${ext} não implementada — só .txt, .csv, .json, .html e .pdf por enquanto`);
     }
 
     // Chave de embeddings: prioriza a chave própria da empresa (ai_provider_keys,
