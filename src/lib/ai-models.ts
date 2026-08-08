@@ -31,11 +31,13 @@ export const IA_COST_LABELS: Record<IaModelCost, string> = {
 };
 
 // Mesma paleta de badges já usada em outras telas do app (ex: STATUS_BADGE em
-// AgentesPage.tsx) — verde/âmbar/vermelho para baixo/médio/alto.
-export const IA_COST_STYLES: Record<IaModelCost, { bg: string; fg: string }> = {
-  baixo: { bg: "#E1F5EE", fg: "#128A68" },
-  medio: { bg: "#FEF3C7", fg: "#92400E" },
-  alto:  { bg: "#FEE2E2", fg: "#991B1B" },
+// AgentesPage.tsx) — verde/âmbar/vermelho para baixo/médio/alto. `border` é
+// um tom intermediário entre bg e fg (mesma matiz, um pouco mais escuro que
+// o fundo) pra dar contorno à tag sem competir com o texto.
+export const IA_COST_STYLES: Record<IaModelCost, { bg: string; fg: string; border: string }> = {
+  baixo: { bg: "#E1F5EE", fg: "#128A68", border: "#A7E8D0" },
+  medio: { bg: "#FEF3C7", fg: "#92400E", border: "#FCD34D" },
+  alto:  { bg: "#FEE2E2", fg: "#991B1B", border: "#FCA5A5" },
 };
 
 // Preço USD por 1M tokens, pra calcular "valor gasto em $" na aba

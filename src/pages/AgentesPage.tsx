@@ -19,6 +19,16 @@ import {
   Info,
   Lock,
   Settings2,
+  User,
+  BrainCircuit,
+  SlidersHorizontal,
+  Users,
+  Plug,
+  Settings,
+  Wrench,
+  TrendingUp,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,13 +79,13 @@ const AGENT_OBJECTIVES = [
 // agente que não agenda.
 const WIZARD_STEPS: { v: string; l: string }[] = [
   { v: "perfil", l: "Perfil" },
-  { v: "kb", l: "Base de Conhecimento" },
-  { v: "instrucoes", l: "Instruções" },
+  { v: "configuracoes", l: "Configurações" },
   { v: "comportamento", l: "Comportamento" },
   { v: "closers", l: "Vendedores" },
-  { v: "integracoes", l: "Integrações" },
-  { v: "configuracoes", l: "Configurações" },
   { v: "ferramentas", l: "Ferramentas" },
+  { v: "integracoes", l: "Integrações" },
+  { v: "kb", l: "Base de Conhecimento" },
+  { v: "instrucoes", l: "Instruções" },
   { v: "modelos", l: "Modelo" },
 ];
 
@@ -127,12 +137,29 @@ type BehaviorConfig = {
   // objetivo, sem se misturar com o contexto geral da aba Instruções.
   objective_instructions?: Record<string, string>;
   // Aba Closers -- configurações globais de agendamento (não por closer).
+  // fuso_horario também é usado pelo horário de atendimento abaixo (aba
+  // Perfil) -- é o mesmo fuso pras duas coisas, não faz sentido pedir 2x.
   fuso_horario?: string;
   duracao_reuniao_minutos?: number;
   intervalo_entre_reunioes?: boolean;
   intervalo_minutos?: number;
+  // Desligado = agenda só no calendário do Rezult (activities), sem exigir
+  // vendedor com Google conectado nem gerar link de vídeo. Ligado (padrão,
+  // preserva o comportamento de sempre) = exige Google Calendar do
+  // vendedor, com Meet como sub-opção.
+  google_calendar_ativo?: boolean;
   incluir_google_meet?: boolean;
   confirmar_antes_criar_evento?: boolean;
+  // Aba Configurações -- janela de horário em que o agente responde
+  // mensagens (HH:mm, no fuso de fuso_horario). Desativado = responde a
+  // qualquer hora (comportamento de hoje, preservado pra quem não mexer
+  // nisso). horario_atendimento_dias = dias da semana em que a janela vale;
+  // undefined = todos os dias (mesmo comportamento de antes dos dias
+  // existirem como opção).
+  horario_atendimento_ativo?: boolean;
+  horario_atendimento_inicio?: string;
+  horario_atendimento_fim?: string;
+  horario_atendimento_dias?: string[];
 };
 
 const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "objective_instructions">> = {
@@ -160,8 +187,23 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   duracao_reuniao_minutos: 60,
   intervalo_entre_reunioes: false,
   intervalo_minutos: 15,
+  google_calendar_ativo: true,
   incluir_google_meet: true,
   confirmar_antes_criar_evento: false,
+  horario_atendimento_ativo: false,
+  horario_atendimento_inicio: "08:00",
+  horario_atendimento_fim: "21:00",
+  horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
+};
+
+// Draft único que cobre TODO behavior_config (incluindo campos_qualificacao/
+// objective_instructions, de fora do BEHAVIOR_DEFAULTS) -- consolida o que
+// antes eram 3 cópias separadas (follow-up/configurações/agendamento) que se
+// sobrescreviam entre si ao salvar cada uma isoladamente.
+const BEHAVIOR_DRAFT_DEFAULTS: Required<BehaviorConfig> = {
+  ...BEHAVIOR_DEFAULTS,
+  campos_qualificacao: [],
+  objective_instructions: {},
 };
 
 const AGENT_TIMEZONES = [
@@ -173,15 +215,58 @@ const AGENT_TIMEZONES = [
 
 // Recomendação de modelo (passo "Modelo" do wizard de criação e aba
 // Modelos) -- regras simples baseadas nas escolhas já feitas nos passos
-// anteriores, não é IA nem aprendizado de máquina.
-function recommendModel(objectives: string[], enabledToolsCount: number): { modelId: string; reason: string } {
-  if (objectives.includes("atendimento")) {
-    return { modelId: "claude-sonnet-5", reason: "Atendimento com Base de Conhecimento pede mais raciocínio contextual pra responder com precisão." };
+// anteriores, não é IA nem aprendizado de máquina. Os sinais usados aqui são
+// só os campos que realmente entram no prompt/tools que o modelo recebe em
+// agent-sds-qualify/index.ts (buildDynamicSystemPrompt, buildBehaviorPromptExtra,
+// buildDynamicTools, retrieveKbContext) -- Vendedores e Integrações ficam de
+// fora de propósito: confirmado que nenhuma edge function lê
+// agent_whatsapp_connections/agent_meta_connections/agent_webhook_integrations/
+// agent_calendar_connections, e leads-webhook (Hotmart/Kiwify) roda
+// desacoplado do agente, sem tocar no prompt.
+type ComplexitySignals = {
+  objectives: string[];
+  toolCount: number; // enabledTools + finalizar_conversa/transferir_responsavel (cada um vira 1 tool definition a mais)
+  customContextLength: number; // aba Instruções
+  objectiveInstructionsLength: number; // soma das instruções por objetivo, aba Perfil
+  qualFieldsCount: number; // campos_qualificacao, aba Comportamento
+  kbDocsCount: number; // documentos habilitados na Base de Conhecimento (só pesa se objetivo "atendimento")
+};
+
+type ComplexityFactor = { label: string; weight: number };
+
+function computeComplexityFactors(s: ComplexitySignals): ComplexityFactor[] {
+  const factors: ComplexityFactor[] = [];
+  if (s.objectives.includes("atendimento")) {
+    factors.push({ label: "atendimento com Base de Conhecimento pede mais raciocínio contextual", weight: 2 });
+    if (s.kbDocsCount >= 8) factors.push({ label: `Base de Conhecimento extensa (${s.kbDocsCount} documentos)`, weight: 1.5 });
+    else if (s.kbDocsCount >= 3) factors.push({ label: `Base de Conhecimento com ${s.kbDocsCount} documentos`, weight: 0.5 });
   }
-  if (objectives.length === 1 && objectives.includes("qualificar") && enabledToolsCount < 5) {
-    return { modelId: "claude-haiku-4-5-20251001", reason: "Fluxo simples de qualificação -- um modelo mais rápido e barato já é suficiente." };
+  if (s.toolCount >= 8) factors.push({ label: `${s.toolCount} ferramentas habilitadas exigem mais capacidade de decisão`, weight: 2 });
+  else if (s.toolCount >= 4) factors.push({ label: `${s.toolCount} ferramentas habilitadas`, weight: 1 });
+  if (s.customContextLength > 800) factors.push({ label: "instruções longas e detalhadas", weight: 2 });
+  else if (s.customContextLength > 300) factors.push({ label: "instruções com bastante conteúdo", weight: 1 });
+  if (s.objectiveInstructionsLength > 400) factors.push({ label: "instruções específicas extensas por objetivo", weight: 1 });
+  if (s.qualFieldsCount >= 6) factors.push({ label: `mapeamento de ${s.qualFieldsCount} campos de qualificação`, weight: 1.5 });
+  else if (s.qualFieldsCount >= 3) factors.push({ label: `mapeamento de ${s.qualFieldsCount} campos de qualificação`, weight: 0.5 });
+  return factors;
+}
+
+function recommendModel(signals: ComplexitySignals): { modelId: string; reason: string } {
+  const factors = computeComplexityFactors(signals);
+  const score = factors.reduce((sum, f) => sum + f.weight, 0);
+
+  if (factors.length === 0) {
+    return { modelId: "claude-haiku-4-5-20251001", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
   }
-  return { modelId: "claude-sonnet-5", reason: "Equilíbrio entre inteligência e custo pra conversas de WhatsApp em tempo real." };
+
+  const top = [...factors].sort((a, b) => b.weight - a.weight).slice(0, 2).map((f) => f.label).join("; ");
+  if (score >= 5) {
+    return { modelId: "claude-opus-5", reason: `Configuração com bastante complexidade (${top}) -- vale a capacidade extra do Opus.` };
+  }
+  if (score <= 1) {
+    return { modelId: "claude-haiku-4-5-20251001", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
+  }
+  return { modelId: "claude-sonnet-5", reason: `Equilíbrio entre inteligência e custo, considerando ${top}.` };
 }
 
 function findModelLabel(modelId: string): string {
@@ -245,6 +330,16 @@ type WorkDay = { day: string; active: boolean; intervals: WorkInterval[] };
 const CLOSER_AVAILABILITY_DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const defaultCloserAvailability = (): WorkDay[] =>
   CLOSER_AVAILABILITY_DAYS.map((day) => ({ day, active: false, intervals: [{ start: "08:00", end: "18:00" }] }));
+// Ao selecionar um vendedor pra um agente (toggleCloser), a disponibilidade
+// já vem com Segunda-Sexta ativos das 08:00 às 18:00 -- evita o vendedor
+// ficar sem nenhum dia liberado (e o agente sem conseguir marcar reunião
+// com ele) até alguém lembrar de configurar manualmente.
+const defaultCloserAvailabilityOnSelect = (): WorkDay[] =>
+  CLOSER_AVAILABILITY_DAYS.map((day) => ({
+    day,
+    active: day !== "Sábado" && day !== "Domingo",
+    intervals: [{ start: "08:00", end: "18:00" }],
+  }));
 
 // DOCX fica de fora por enquanto — agent-kb-ingest ainda não tem extração
 // pra esse formato (sem biblioteca confirmada compatível com Deno).
@@ -292,7 +387,6 @@ export default function AgentesPage() {
   const [kbDraftName, setKbDraftName] = useState("");
   const [kbDraftDescription, setKbDraftDescription] = useState("");
   const [customContext, setCustomContext] = useState("");
-  const [objectiveInstructionsDraft, setObjectiveInstructionsDraft] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -306,9 +400,13 @@ export default function AgentesPage() {
   // save está em andamento, pra não deixar o usuário sem retorno visual
   // nem clicar duas vezes achando que não funcionou.
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [followupDraft, setFollowupDraft] = useState(BEHAVIOR_DEFAULTS);
-  const [configDraft, setConfigDraft] = useState(BEHAVIOR_DEFAULTS);
-  const [schedulingDraft, setSchedulingDraft] = useState(BEHAVIOR_DEFAULTS);
+  // Rascunho único de tudo que é campo do agente (fora do wizard, nada disso
+  // grava sozinho -- só via "Atualizar agente", ver commitX()/updateAgent()
+  // mais abaixo). No wizard, cada handler ainda commita na hora.
+  const [objectivesDraft, setObjectivesDraft] = useState<string[]>([]);
+  const [behaviorDraft, setBehaviorDraft] = useState<Required<BehaviorConfig>>(BEHAVIOR_DRAFT_DEFAULTS);
+  const [enabledToolsDraft, setEnabledToolsDraft] = useState<string[]>([]);
+  const [modelDraft, setModelDraft] = useState("");
   const [manualAutomations, setManualAutomations] = useState<AutomationOption[]>([]);
   // Etapa "Integrações" -- listas de conexões existentes na empresa (não
   // dependem do agente selecionado) + quais delas este agente usa.
@@ -321,6 +419,17 @@ export default function AgentesPage() {
   // Calendar não é uma lista de conexões da empresa -- vem dos vendedores
   // com Google Calendar conectado, escolhidos na etapa "Vendedores".
   const [agentCalendarEnabled, setAgentCalendarEnabled] = useState<Record<string, boolean>>({});
+  // Baselines (o que já está de fato salvo) dos domínios de lista/relação --
+  // closerIds/agentWhatsappIds/etc. acima viram "working state" (o que tá na
+  // tela); comparar contra essas cópias é como isAgentDirty sabe o que
+  // mudou, e é a partir do diff working-vs-saved que updateAgent() decide o
+  // que inserir/apagar/upsertar em cada tabela.
+  const [closerIdsSaved, setCloserIdsSaved] = useState<string[]>([]);
+  const [closerAvailabilitySaved, setCloserAvailabilitySaved] = useState<Record<string, WorkDay[]>>({});
+  const [agentWhatsappIdsSaved, setAgentWhatsappIdsSaved] = useState<string[]>([]);
+  const [agentMetaIdsSaved, setAgentMetaIdsSaved] = useState<string[]>([]);
+  const [agentWebhookIdsSaved, setAgentWebhookIdsSaved] = useState<string[]>([]);
+  const [agentCalendarEnabledSaved, setAgentCalendarEnabledSaved] = useState<Record<string, boolean>>({});
 
   const selected = agents.find((a) => a.id === selectedId) ?? null;
 
@@ -409,10 +518,10 @@ export default function AgentesPage() {
   useEffect(() => {
     if (!selectedId || !companyId) return;
     setCustomContext(selected?.custom_context ?? "");
-    setObjectiveInstructionsDraft(selected?.behavior_config.objective_instructions ?? {});
-    setFollowupDraft({ ...BEHAVIOR_DEFAULTS, ...(selected?.behavior_config ?? {}) });
-    setConfigDraft({ ...BEHAVIOR_DEFAULTS, ...(selected?.behavior_config ?? {}) });
-    setSchedulingDraft({ ...BEHAVIOR_DEFAULTS, ...(selected?.behavior_config ?? {}) });
+    setObjectivesDraft(selected?.objectives ?? []);
+    setBehaviorDraft({ ...BEHAVIOR_DRAFT_DEFAULTS, ...(selected?.behavior_config ?? {}) });
+    setEnabledToolsDraft(selected?.enabled_tools ?? []);
+    setModelDraft(selected?.model ?? "");
     setDocSearch("");
     setKbSearch("");
     (async () => {
@@ -425,17 +534,31 @@ export default function AgentesPage() {
         supabase.from("agent_webhook_integrations").select("connection_id").eq("agent_id", selectedId).eq("company_id", companyId).eq("enabled", true),
         supabase.from("agent_calendar_connections").select("user_id, enabled").eq("agent_id", selectedId).eq("company_id", companyId),
       ]);
-      setCloserIds((closersData ?? []).map((c) => c.user_id as string));
-      setMemberCalendarConnected({});
+      const closerIdsLoaded = (closersData ?? []).map((c) => c.user_id as string);
+      setCloserIds(closerIdsLoaded);
+      setCloserIdsSaved(closerIdsLoaded);
+      // memberCalendarConnected/memberCalendarEmail NÃO resetam aqui -- é
+      // status de conexão do Google Calendar por usuário da empresa, não por
+      // agente, então persiste ao trocar de agente (resetar forçaria o efeito
+      // de baixo a rebuscar, mas ele só depende de [members, selectedId,
+      // companyId] -- sem memberCalendarConnected nos deps ele nunca notaria
+      // o reset e ficaria travado em "Verificando..." pra sempre).
       setCloserAvailability({});
+      setCloserAvailabilitySaved({});
       setDocs((docsData ?? []) as KnowledgeDoc[]);
       setKbs((kbsData ?? []) as KnowledgeBase[]);
-      setAgentWhatsappIds((waLinks ?? []).map((r) => r.connection_id as string));
-      setAgentMetaIds((metaLinks ?? []).map((r) => r.connection_id as string));
-      setAgentWebhookIds((webhookLinks ?? []).map((r) => r.connection_id as string));
-      setAgentCalendarEnabled(
-        Object.fromEntries(((calLinks ?? []) as { user_id: string; enabled: boolean }[]).map((r) => [r.user_id, r.enabled])),
-      );
+      const waIdsLoaded = (waLinks ?? []).map((r) => r.connection_id as string);
+      const metaIdsLoaded = (metaLinks ?? []).map((r) => r.connection_id as string);
+      const webhookIdsLoaded = (webhookLinks ?? []).map((r) => r.connection_id as string);
+      const calendarLoaded = Object.fromEntries(((calLinks ?? []) as { user_id: string; enabled: boolean }[]).map((r) => [r.user_id, r.enabled]));
+      setAgentWhatsappIds(waIdsLoaded);
+      setAgentWhatsappIdsSaved(waIdsLoaded);
+      setAgentMetaIds(metaIdsLoaded);
+      setAgentMetaIdsSaved(metaIdsLoaded);
+      setAgentWebhookIds(webhookIdsLoaded);
+      setAgentWebhookIdsSaved(webhookIdsLoaded);
+      setAgentCalendarEnabled(calendarLoaded);
+      setAgentCalendarEnabledSaved(calendarLoaded);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, companyId]);
@@ -449,24 +572,42 @@ export default function AgentesPage() {
     const pending = allMemberIds.filter((id) => !(id in memberCalendarConnected));
     if (!pending.length) return;
     (async () => {
-      const [{ data: statusData }, { data: availData }] = await Promise.all([
-        supabase.functions.invoke("agent-closer-status", { body: { company_id: companyId, user_ids: pending } }),
-        supabase.from("agent_closer_availability").select("user_id, days").eq("agent_id", selectedId).in("user_id", pending),
-      ]);
-      const connectedIds = new Set((statusData?.connected ?? []) as string[]);
-      setMemberCalendarConnected((prev) => {
-        const next = { ...prev };
-        for (const id of pending) next[id] = connectedIds.has(id);
-        return next;
-      });
-      const emailsByUser = (statusData?.emails ?? {}) as Record<string, string>;
-      setMemberCalendarEmail((prev) => ({ ...prev, ...emailsByUser }));
-      const availByUser = new Map(((availData ?? []) as { user_id: string; days: WorkDay[] }[]).map((r) => [r.user_id, r.days]));
-      setCloserAvailability((prev) => {
-        const next = { ...prev };
-        for (const id of pending) next[id] = availByUser.get(id) ?? defaultCloserAvailability();
-        return next;
-      });
+      // Nunca deixa "Verificando..." travado pra sempre -- se a edge function
+      // ou a query falharem, marca os pendentes como não conectados (com log
+      // pra diagnóstico) em vez de silenciosamente não atualizar nada.
+      try {
+        const [{ data: statusData, error: statusError }, { data: availData }] = await Promise.all([
+          supabase.functions.invoke("agent-closer-status", { body: { company_id: companyId, user_ids: pending } }),
+          supabase.from("agent_closer_availability").select("user_id, days").eq("agent_id", selectedId).in("user_id", pending),
+        ]);
+        if (statusError) console.error("[agent-closer-status] erro:", statusError);
+        const connectedIds = new Set((statusData?.connected ?? []) as string[]);
+        setMemberCalendarConnected((prev) => {
+          const next = { ...prev };
+          for (const id of pending) next[id] = connectedIds.has(id);
+          return next;
+        });
+        const emailsByUser = (statusData?.emails ?? {}) as Record<string, string>;
+        setMemberCalendarEmail((prev) => ({ ...prev, ...emailsByUser }));
+        const availByUser = new Map(((availData ?? []) as { user_id: string; days: WorkDay[] }[]).map((r) => [r.user_id, r.days]));
+        setCloserAvailability((prev) => {
+          const next = { ...prev };
+          for (const id of pending) next[id] = availByUser.get(id) ?? defaultCloserAvailability();
+          return next;
+        });
+        setCloserAvailabilitySaved((prev) => {
+          const next = { ...prev };
+          for (const id of pending) next[id] = availByUser.get(id) ?? defaultCloserAvailability();
+          return next;
+        });
+      } catch (err) {
+        console.error("[agent-closer-status] falha inesperada:", err);
+        setMemberCalendarConnected((prev) => {
+          const next = { ...prev };
+          for (const id of pending) next[id] = false;
+          return next;
+        });
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, selectedId, companyId]);
@@ -554,14 +695,37 @@ export default function AgentesPage() {
     setSelectedId(null);
   }
 
-  async function toggleObjective(objectiveId: string, checked: boolean) {
+  // Commits reais no banco -- só chamados na hora durante o wizard (que
+  // continua salvando a cada passo, como sempre) ou em lote por
+  // updateAgent() no modo edição. Fora do wizard, os handlers abaixo só
+  // atualizam o rascunho local (XDraft) e nunca chamam essas funções direto.
+  async function commitObjectives(next: string[]) {
     if (!selected || !companyId) return;
-    const next = checked
-      ? [...selected.objectives, objectiveId]
-      : selected.objectives.filter((o) => o !== objectiveId);
     const { error } = await supabase.from("agents").update({ objectives: next }).eq("id", selected.id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar objetivo"); return; }
     setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, objectives: next } : a)));
+  }
+
+  async function commitBehavior(next: Required<BehaviorConfig>) {
+    if (!selected || !companyId) return;
+    const { error } = await supabase.from("agents").update({ behavior_config: next }).eq("id", selected.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao salvar"); return; }
+    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: next } : a)));
+  }
+
+  async function commitTools(next: string[]) {
+    if (!selected || !companyId) return;
+    const { error } = await supabase.from("agents").update({ enabled_tools: next }).eq("id", selected.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao atualizar ferramenta"); return; }
+    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, enabled_tools: next } : a)));
+  }
+
+  async function toggleObjective(objectiveId: string, checked: boolean) {
+    const next = checked
+      ? [...objectivesDraft, objectiveId]
+      : objectivesDraft.filter((o) => o !== objectiveId);
+    setObjectivesDraft(next);
+    if (wizardMode) await commitObjectives(next);
     // Sem "Agendar Reunião", a aba Vendedores some -- se o usuário estava
     // nela quando desmarcou o objetivo, cai pro Perfil em vez de ficar numa
     // aba que não existe mais na lista.
@@ -570,36 +734,27 @@ export default function AgentesPage() {
     }
   }
 
-  async function saveObjectiveInstruction(objectiveId: string) {
-    if (!selected || !companyId) return;
-    const text = objectiveInstructionsDraft[objectiveId] ?? "";
-    const current = selected.behavior_config.objective_instructions ?? {};
-    if ((current[objectiveId] ?? "") === text) return;
-    const nextInstructions = { ...current, [objectiveId]: text };
-    const nextConfig = { ...selected.behavior_config, objective_instructions: nextInstructions };
-    const { error } = await supabase.from("agents").update({ behavior_config: nextConfig }).eq("id", selected.id).eq("company_id", companyId);
-    if (error) { toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: nextConfig } : a)));
+  function updateObjectiveInstructionDraft(objectiveId: string, text: string) {
+    setBehaviorDraft((d) => ({ ...d, objective_instructions: { ...d.objective_instructions, [objectiveId]: text } }));
   }
 
-  async function toggleQualField(fieldId: string, checked: boolean) {
-    if (!selected || !companyId) return;
-    const current = selected.behavior_config.campos_qualificacao ?? [];
-    const next = checked ? [...current, fieldId] : current.filter((id) => id !== fieldId);
-    const nextConfig = { ...selected.behavior_config, campos_qualificacao: next };
-    const { error } = await supabase.from("agents").update({ behavior_config: nextConfig }).eq("id", selected.id).eq("company_id", companyId);
-    if (error) { toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: nextConfig } : a)));
+  async function commitObjectiveInstructionIfWizard() {
+    if (wizardMode) await commitBehavior(behaviorDraft);
   }
 
-  async function toggleTool(toolId: string, checked: boolean) {
-    if (!selected || !companyId) return;
+  function toggleQualField(fieldId: string, checked: boolean) {
+    const current = behaviorDraft.campos_qualificacao;
+    const next = { ...behaviorDraft, campos_qualificacao: checked ? [...current, fieldId] : current.filter((id) => id !== fieldId) };
+    setBehaviorDraft(next);
+    if (wizardMode) void commitBehavior(next);
+  }
+
+  function toggleTool(toolId: string, checked: boolean) {
     const next = checked
-      ? [...selected.enabled_tools, toolId]
-      : selected.enabled_tools.filter((t) => t !== toolId);
-    const { error } = await supabase.from("agents").update({ enabled_tools: next }).eq("id", selected.id).eq("company_id", companyId);
-    if (error) { toast.error("Erro ao atualizar ferramenta"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, enabled_tools: next } : a)));
+      ? [...enabledToolsDraft, toolId]
+      : enabledToolsDraft.filter((t) => t !== toolId);
+    setEnabledToolsDraft(next);
+    if (wizardMode) void commitTools(next);
   }
 
   // Avança o wizard e "destrava" o próximo número no stepper -- é essa
@@ -613,12 +768,18 @@ export default function AgentesPage() {
     });
   }
 
-  async function changeAgentModel(next: string) {
+  async function commitModel(next: string) {
     if (!selected || !companyId) return;
     const { error } = await supabase.from("agents").update({ model: next }).eq("id", selected.id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar modelo"); return; }
     setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, model: next } : a)));
-    toast.success("Modelo atualizado");
+  }
+
+  function changeAgentModel(next: string) {
+    setModelDraft(next);
+    if (wizardMode) {
+      void commitModel(next).then(() => toast.success("Modelo atualizado"));
+    }
   }
 
   // Recebe o agente explicitamente (não só `selected`) pra poder ser chamado
@@ -654,104 +815,121 @@ export default function AgentesPage() {
     toast.success(next ? "Agente ativado" : "Agente desativado");
   }
 
-  async function saveCustomContext(opts?: { silent?: boolean }) {
+  // Só usada pelo wizard (commit na hora ao sair do campo de Instruções) --
+  // no modo edição, updateAgent() grava o contexto junto com os outros
+  // campos escalares num update só.
+  async function saveCustomContext() {
     if (!selected || !companyId) return;
-    if (!opts?.silent) setSavingKey("instrucoes");
     const { error } = await supabase.from("agents").update({ custom_context: customContext }).eq("id", selected.id).eq("company_id", companyId);
-    if (!opts?.silent) setSavingKey(null);
-    if (error) { if (!opts?.silent) toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, custom_context: customContext } : a)));
-    if (!opts?.silent) toast.success("Contexto salvo");
-  }
-
-  // Toggles/selects de comportamento salvam na hora — só o bloco de
-  // follow-up (vários campos juntos) usa botão "Salvar" separado, pra não
-  // disparar um update a cada dígito digitado.
-  async function updateBehaviorConfig(patch: Partial<BehaviorConfig>) {
-    if (!selected || !companyId) return;
-    const next = { ...selected.behavior_config, ...patch };
-    const { error } = await supabase.from("agents").update({ behavior_config: next }).eq("id", selected.id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: next } : a)));
-    // Mantém os 3 drafts em sincronia com toggles que salvam na hora --
-    // senão o comparador de "algo mudou?" do botão "Atualizar agente"
-    // acusaria mudança pendente por causa de um campo que já foi salvo.
-    setFollowupDraft((d) => ({ ...d, ...patch }));
-    setConfigDraft((d) => ({ ...d, ...patch }));
-    setSchedulingDraft((d) => ({ ...d, ...patch }));
+    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, custom_context: customContext } : a)));
   }
 
-  async function saveFollowupConfig(opts?: { silent?: boolean }) {
-    if (!selected || !companyId) return;
-    if (!opts?.silent) setSavingKey("followup");
-    const next = { ...selected.behavior_config, ...followupDraft };
-    const { error } = await supabase.from("agents").update({ behavior_config: next }).eq("id", selected.id).eq("company_id", companyId);
-    if (!opts?.silent) setSavingKey(null);
-    if (error) { if (!opts?.silent) toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: next } : a)));
-    if (!opts?.silent) toast.success("Follow-up salvo");
+  // Todo toggle/select de Comportamento/Configurações passa por aqui --
+  // sempre atualiza o rascunho local; no wizard, também commita na hora
+  // (ver commitBehavior). Fora do wizard fica pendente até "Atualizar
+  // agente".
+  function updateBehaviorConfig(patch: Partial<BehaviorConfig>) {
+    const next = { ...behaviorDraft, ...patch };
+    setBehaviorDraft(next);
+    if (wizardMode) void commitBehavior(next);
   }
 
-  async function saveConfigDraft(opts?: { silent?: boolean }) {
-    if (!selected || !companyId) return;
-    if (!opts?.silent) setSavingKey("configuracoes");
-    const next = { ...selected.behavior_config, ...configDraft };
-    const { error } = await supabase.from("agents").update({ behavior_config: next }).eq("id", selected.id).eq("company_id", companyId);
-    if (!opts?.silent) setSavingKey(null);
-    if (error) { if (!opts?.silent) toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: next } : a)));
-    if (!opts?.silent) toast.success("Configurações salvas");
-  }
-
-  async function saveSchedulingConfig(opts?: { silent?: boolean }) {
-    if (!selected || !companyId) return;
-    if (!opts?.silent) setSavingKey("agendamento");
-    const next = { ...selected.behavior_config, ...schedulingDraft };
-    const { error } = await supabase.from("agents").update({ behavior_config: next }).eq("id", selected.id).eq("company_id", companyId);
-    if (!opts?.silent) setSavingKey(null);
-    if (error) { if (!opts?.silent) toast.error("Erro ao salvar"); return; }
-    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, behavior_config: next } : a)));
-    if (!opts?.silent) toast.success("Configurações de agendamento salvas");
-  }
-
-  // Botão "Atualizar agente" (fora do wizard) -- flush de todos os campos
-  // que usam draft local + botão "Salvar" próprio (Follow-up, Configurações,
-  // Agendamento, Instruções). O resto (toggles, selects, checkboxes) já
-  // salva na hora sozinho -- isso é uma rede de segurança pra quem edita
-  // um desses blocos e troca de aba sem clicar no "Salvar" específico dele.
+  // Botão "Atualizar agente" -- único ponto de gravação do modo edição.
+  // Grava os campos escalares do agente num update só, e diffa cada domínio
+  // de lista/relação (o que foi adicionado/removido/alterado desde o último
+  // save) pra decidir o que inserir/apagar/upsertar em cada tabela. Tudo em
+  // paralelo.
   async function updateAgent() {
     if (!selected || !companyId) return;
     setSavingKey("agente");
-    await Promise.all([
-      saveFollowupConfig({ silent: true }),
-      saveConfigDraft({ silent: true }),
-      saveSchedulingConfig({ silent: true }),
-      saveCustomContext({ silent: true }),
-    ]);
+
+    const closerAdded = closerIds.filter((id) => !closerIdsSaved.includes(id));
+    const closerRemoved = closerIdsSaved.filter((id) => !closerIds.includes(id));
+    const waAdded = agentWhatsappIds.filter((id) => !agentWhatsappIdsSaved.includes(id));
+    const waRemoved = agentWhatsappIdsSaved.filter((id) => !agentWhatsappIds.includes(id));
+    const metaAdded = agentMetaIds.filter((id) => !agentMetaIdsSaved.includes(id));
+    const metaRemoved = agentMetaIdsSaved.filter((id) => !agentMetaIds.includes(id));
+    const webhookAdded = agentWebhookIds.filter((id) => !agentWebhookIdsSaved.includes(id));
+    const webhookRemoved = agentWebhookIdsSaved.filter((id) => !agentWebhookIds.includes(id));
+    const calendarChanged = Object.keys(agentCalendarEnabled).filter((id) => agentCalendarEnabled[id] !== agentCalendarEnabledSaved[id]);
+    const availabilityChanged = Object.keys(closerAvailability).filter(
+      (id) => JSON.stringify(closerAvailability[id]) !== JSON.stringify(closerAvailabilitySaved[id]),
+    );
+
+    const writes = [
+      supabase.from("agents").update({
+        objectives: objectivesDraft,
+        behavior_config: behaviorDraft,
+        enabled_tools: enabledToolsDraft,
+        model: modelDraft,
+        custom_context: customContext,
+      }).eq("id", selected.id).eq("company_id", companyId),
+      ...(closerAdded.length ? [supabase.from("agent_closers").upsert(closerAdded.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id })), { onConflict: "agent_id,user_id", ignoreDuplicates: true })] : []),
+      ...(closerRemoved.length ? [supabase.from("agent_closers").delete().eq("agent_id", selected.id).in("user_id", closerRemoved)] : []),
+      ...(waAdded.length ? [supabase.from("agent_whatsapp_connections").upsert(waAdded.map((connection_id) => ({ agent_id: selected.id, company_id: companyId, connection_id })), { onConflict: "agent_id,connection_id", ignoreDuplicates: true })] : []),
+      ...(waRemoved.length ? [supabase.from("agent_whatsapp_connections").delete().eq("agent_id", selected.id).in("connection_id", waRemoved)] : []),
+      ...(metaAdded.length ? [supabase.from("agent_meta_connections").upsert(metaAdded.map((connection_id) => ({ agent_id: selected.id, company_id: companyId, connection_id })), { onConflict: "agent_id,connection_id", ignoreDuplicates: true })] : []),
+      ...(metaRemoved.length ? [supabase.from("agent_meta_connections").delete().eq("agent_id", selected.id).in("connection_id", metaRemoved)] : []),
+      ...(webhookAdded.length ? [supabase.from("agent_webhook_integrations").upsert(webhookAdded.map((connection_id) => ({ agent_id: selected.id, company_id: companyId, connection_id })), { onConflict: "agent_id,connection_id", ignoreDuplicates: true })] : []),
+      ...(webhookRemoved.length ? [supabase.from("agent_webhook_integrations").delete().eq("agent_id", selected.id).in("connection_id", webhookRemoved)] : []),
+      ...(calendarChanged.length ? [supabase.from("agent_calendar_connections").upsert(calendarChanged.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id, enabled: agentCalendarEnabled[user_id] })), { onConflict: "agent_id,user_id" })] : []),
+      ...(availabilityChanged.length ? [supabase.from("agent_closer_availability").upsert(availabilityChanged.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id, days: closerAvailability[user_id] })), { onConflict: "agent_id,user_id" })] : []),
+    ];
+
+    const results = await Promise.all(writes);
     setSavingKey(null);
+    if (results.some((r) => r.error)) { toast.error("Erro ao atualizar agente"); return; }
+
+    setAgents((prev) => prev.map((a) => (a.id === selected.id ? {
+      ...a,
+      objectives: objectivesDraft,
+      behavior_config: behaviorDraft,
+      enabled_tools: enabledToolsDraft,
+      model: modelDraft,
+      custom_context: customContext,
+    } : a)));
+    setCloserIdsSaved(closerIds);
+    setAgentWhatsappIdsSaved(agentWhatsappIds);
+    setAgentMetaIdsSaved(agentMetaIds);
+    setAgentWebhookIdsSaved(agentWebhookIds);
+    setAgentCalendarEnabledSaved(agentCalendarEnabled);
+    setCloserAvailabilitySaved(closerAvailability);
     toast.success("Agente atualizado");
   }
 
-  // Botão "Atualizar agente" só habilita se algo nos blocos de draft
-  // (Follow-up, Configurações, Agendamento, Instruções) realmente diverge
-  // do que está salvo -- compara contra a mesma baseline usada pra
-  // inicializar os drafts (behavior_config + defaults).
-  const behaviorBaseline = { ...BEHAVIOR_DEFAULTS, ...(selected?.behavior_config ?? {}) };
+  // Habilita "Atualizar agente" se qualquer domínio (campos do agente,
+  // vendedores + disponibilidade, integrações) tiver mudança pendente desde
+  // o último save.
   const isAgentDirty = !!selected && (
-    JSON.stringify(followupDraft) !== JSON.stringify(behaviorBaseline) ||
-    JSON.stringify(configDraft) !== JSON.stringify(behaviorBaseline) ||
-    JSON.stringify(schedulingDraft) !== JSON.stringify(behaviorBaseline) ||
-    customContext !== (selected?.custom_context ?? "")
+    JSON.stringify(objectivesDraft) !== JSON.stringify(selected.objectives) ||
+    JSON.stringify(behaviorDraft) !== JSON.stringify({ ...BEHAVIOR_DRAFT_DEFAULTS, ...selected.behavior_config }) ||
+    JSON.stringify(enabledToolsDraft) !== JSON.stringify(selected.enabled_tools) ||
+    modelDraft !== selected.model ||
+    customContext !== (selected.custom_context ?? "") ||
+    JSON.stringify([...closerIds].sort()) !== JSON.stringify([...closerIdsSaved].sort()) ||
+    JSON.stringify(closerAvailability) !== JSON.stringify(closerAvailabilitySaved) ||
+    JSON.stringify([...agentWhatsappIds].sort()) !== JSON.stringify([...agentWhatsappIdsSaved].sort()) ||
+    JSON.stringify([...agentMetaIds].sort()) !== JSON.stringify([...agentMetaIdsSaved].sort()) ||
+    JSON.stringify([...agentWebhookIds].sort()) !== JSON.stringify([...agentWebhookIdsSaved].sort()) ||
+    JSON.stringify(agentCalendarEnabled) !== JSON.stringify(agentCalendarEnabledSaved)
   );
 
+  // No wizard, cada toggle segue commitando na hora (rede primeiro, estado
+  // local só muda em caso de sucesso -- igual sempre foi). Fora do wizard,
+  // só atualiza o rascunho local; updateAgent() diffa working-vs-saved e
+  // decide o que inserir/apagar quando "Atualizar agente" for clicado.
   async function toggleCloser(userId: string, checked: boolean) {
-    if (!selected || !companyId) return;
     // Guarda contra clique duplicado (ex. clique no texto do label dispara
-    // onCheckedChange 2x em alguns navegadores) -- sem isso, o segundo
-    // insert bate na unique (agent_id, user_id) e mostra "Erro ao adicionar
-    // closer" mesmo já tendo funcionado da primeira vez.
+    // onCheckedChange 2x em alguns navegadores).
     const alreadyCloser = closerIds.includes(userId);
     if (checked === alreadyCloser) return;
+    if (!wizardMode) {
+      setCloserIds(checked ? [...closerIds, userId] : closerIds.filter((id) => id !== userId));
+      if (checked) await saveCloserAvailability(userId, defaultCloserAvailabilityOnSelect());
+      return;
+    }
+    if (!selected || !companyId) return;
     if (checked) {
       const { error } = await supabase.from("agent_closers").upsert(
         { agent_id: selected.id, company_id: companyId, user_id: userId },
@@ -759,16 +937,23 @@ export default function AgentesPage() {
       );
       if (error) { toast.error("Erro ao adicionar vendedor"); return; }
       setCloserIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+      setCloserIdsSaved((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+      await saveCloserAvailability(userId, defaultCloserAvailabilityOnSelect());
     } else {
       const { error } = await supabase.from("agent_closers").delete().eq("agent_id", selected.id).eq("user_id", userId);
       if (error) { toast.error("Erro ao remover vendedor"); return; }
       setCloserIds((prev) => prev.filter((id) => id !== userId));
+      setCloserIdsSaved((prev) => prev.filter((id) => id !== userId));
     }
   }
 
   // Etapa "Integrações" -- toggles de WhatsApp/Instagram-Messenger/Webhook
   // funcionam igual toggleCloser: linha existe = usado; some = não usado.
   async function toggleAgentWhatsapp(connectionId: string, checked: boolean) {
+    if (!wizardMode) {
+      setAgentWhatsappIds(checked ? [...agentWhatsappIds, connectionId] : agentWhatsappIds.filter((id) => id !== connectionId));
+      return;
+    }
     if (!selected || !companyId) return;
     if (checked) {
       const { error } = await supabase.from("agent_whatsapp_connections").upsert(
@@ -777,14 +962,20 @@ export default function AgentesPage() {
       );
       if (error) { toast.error("Erro ao vincular WhatsApp"); return; }
       setAgentWhatsappIds((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
+      setAgentWhatsappIdsSaved((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
     } else {
       const { error } = await supabase.from("agent_whatsapp_connections").delete().eq("agent_id", selected.id).eq("connection_id", connectionId);
       if (error) { toast.error("Erro ao desvincular WhatsApp"); return; }
       setAgentWhatsappIds((prev) => prev.filter((id) => id !== connectionId));
+      setAgentWhatsappIdsSaved((prev) => prev.filter((id) => id !== connectionId));
     }
   }
 
   async function toggleAgentMeta(connectionId: string, checked: boolean) {
+    if (!wizardMode) {
+      setAgentMetaIds(checked ? [...agentMetaIds, connectionId] : agentMetaIds.filter((id) => id !== connectionId));
+      return;
+    }
     if (!selected || !companyId) return;
     if (checked) {
       const { error } = await supabase.from("agent_meta_connections").upsert(
@@ -793,14 +984,20 @@ export default function AgentesPage() {
       );
       if (error) { toast.error("Erro ao vincular conexão"); return; }
       setAgentMetaIds((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
+      setAgentMetaIdsSaved((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
     } else {
       const { error } = await supabase.from("agent_meta_connections").delete().eq("agent_id", selected.id).eq("connection_id", connectionId);
       if (error) { toast.error("Erro ao desvincular conexão"); return; }
       setAgentMetaIds((prev) => prev.filter((id) => id !== connectionId));
+      setAgentMetaIdsSaved((prev) => prev.filter((id) => id !== connectionId));
     }
   }
 
   async function toggleAgentWebhook(connectionId: string, checked: boolean) {
+    if (!wizardMode) {
+      setAgentWebhookIds(checked ? [...agentWebhookIds, connectionId] : agentWebhookIds.filter((id) => id !== connectionId));
+      return;
+    }
     if (!selected || !companyId) return;
     if (checked) {
       const { error } = await supabase.from("agent_webhook_integrations").upsert(
@@ -809,16 +1006,22 @@ export default function AgentesPage() {
       );
       if (error) { toast.error("Erro ao vincular webhook"); return; }
       setAgentWebhookIds((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
+      setAgentWebhookIdsSaved((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
     } else {
       const { error } = await supabase.from("agent_webhook_integrations").delete().eq("agent_id", selected.id).eq("connection_id", connectionId);
       if (error) { toast.error("Erro ao desvincular webhook"); return; }
       setAgentWebhookIds((prev) => prev.filter((id) => id !== connectionId));
+      setAgentWebhookIdsSaved((prev) => prev.filter((id) => id !== connectionId));
     }
   }
 
   // Calendar já vem com linha pré-existente (efeito de auto-sync acima),
   // então aqui é sempre update do campo enabled, não insert/delete.
   async function toggleAgentCalendar(userId: string, checked: boolean) {
+    if (!wizardMode) {
+      setAgentCalendarEnabled((prev) => ({ ...prev, [userId]: checked }));
+      return;
+    }
     if (!selected || !companyId) return;
     const { error } = await supabase.from("agent_calendar_connections").upsert(
       { agent_id: selected.id, company_id: companyId, user_id: userId, enabled: checked },
@@ -826,16 +1029,19 @@ export default function AgentesPage() {
     );
     if (error) { toast.error("Erro ao atualizar calendário"); return; }
     setAgentCalendarEnabled((prev) => ({ ...prev, [userId]: checked }));
+    setAgentCalendarEnabledSaved((prev) => ({ ...prev, [userId]: checked }));
   }
 
   async function saveCloserAvailability(userId: string, days: WorkDay[]) {
-    if (!selected || !companyId) return;
     setCloserAvailability((prev) => ({ ...prev, [userId]: days }));
+    if (!wizardMode) return;
+    if (!selected || !companyId) return;
     const { error } = await supabase.from("agent_closer_availability").upsert(
       { agent_id: selected.id, company_id: companyId, user_id: userId, days },
       { onConflict: "agent_id,user_id" },
     );
-    if (error) toast.error("Erro ao salvar disponibilidade");
+    if (error) { toast.error("Erro ao salvar disponibilidade"); return; }
+    setCloserAvailabilitySaved((prev) => ({ ...prev, [userId]: days }));
   }
 
   function updateCloserAvailabilityDay(userId: string, dayIdx: number, patch: Partial<WorkDay>) {
@@ -856,7 +1062,17 @@ export default function AgentesPage() {
     }
     setUploading(true);
     try {
-      const path = `${companyId}/${crypto.randomUUID()}-${file.name}`;
+      // O nome do arquivo NÃO pode ir cru pra chave do Storage: acento,
+      // espaço, cedilha e afins fazem o upload falhar. Em português isso é a
+      // regra, não a exceção ("Políticas de convênio.txt"), e o erro chegava
+      // como um "Erro ao enviar documento" genérico, sem pista nenhuma.
+      // O nome original continua preservado na coluna file_name (é ele que
+      // aparece na tela e de onde o agent-kb-ingest tira a extensão) --
+      // aqui só a chave interna vira ASCII.
+      const nomeSeguro = file.name
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${companyId}/${crypto.randomUUID()}-${nomeSeguro}`;
       const { error: upErr } = await supabase.storage.from("agent-knowledge").upload(path, file);
       if (upErr) throw upErr;
 
@@ -882,8 +1098,14 @@ export default function AgentesPage() {
         if (refreshed) setDocs((prev) => prev.map((d) => (d.id === refreshed.id ? (refreshed as KnowledgeDoc) : d)));
       }, 4000);
     } catch (err) {
-      console.error(err);
-      toast.error("Erro ao enviar documento");
+      // "Erro ao enviar documento" sozinho não dizia NADA: podia ser storage,
+      // banco, permissão ou a função de ingestão. Mostra o motivo real, senão
+      // o usuário (e o suporte) ficam sem por onde começar.
+      console.error("[upload KB]", err);
+      const motivo = err instanceof Error ? err.message
+        : typeof err === "object" && err && "message" in err ? String((err as { message: unknown }).message)
+        : "";
+      toast.error(motivo ? `Erro ao enviar documento: ${motivo}` : "Erro ao enviar documento");
     } finally {
       setUploading(false);
     }
@@ -1037,47 +1259,34 @@ export default function AgentesPage() {
                 <p className="text-[#767676] text-[14px] mt-4">Selecione um agente para configurar</p>
               </div>
             ) : (() => {
-              const effectiveWizardSteps = WIZARD_STEPS.filter((s) => s.v !== "closers" || selected.objectives.includes("agendar"));
+              const effectiveWizardSteps = WIZARD_STEPS.filter((s) => s.v !== "closers" || objectivesDraft.includes("agendar"));
               const activeTabValue = wizardMode ? (effectiveWizardSteps[wizardStepIndex]?.v ?? "kb") : freeTab;
               return (
-              <Tabs value={activeTabValue} onValueChange={(v) => { if (!wizardMode) setFreeTab(v); }} className="w-full h-full min-h-0 flex flex-col">
-                <div className="px-6 pt-5 pb-0 border-b border-[#EEEEEE] shrink-0">
-                  <div className="mb-4 flex items-center gap-3">
+              <Tabs value={activeTabValue} onValueChange={(v) => { if (!wizardMode) setFreeTab(v); }} className="w-full h-full min-h-0 flex overflow-hidden">
+                {/* Sidebar esquerda -- avatar/nome no topo, etapas embaixo (numeradas no wizard, abas no modo livre) */}
+                <div className="w-[260px] shrink-0 border-r border-[#EEEEEE] overflow-y-auto flex flex-col">
+                  <div className="px-4 py-4 border-b border-[#EEEEEE] flex items-center gap-3 shrink-0">
                     <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={selected.avatar} size={20} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-[16px] font-bold text-[#111111]">{selected.name}</h2>
+                    <div className="min-w-0">
+                      <h2 className="text-[14px] font-bold text-[#111111] truncate">{selected.name}</h2>
                       {selected.description && (
-                        <p className="text-[12px] text-[#767676]">{selected.description}</p>
+                        <p className="text-[11px] text-[#767676] truncate">{selected.description}</p>
                       )}
                     </div>
-                    {wizardMode && (
-                      <Button variant="outline" onClick={abandonDraftAgent} className="h-8 text-[12px] shrink-0">
-                        Cancelar
-                      </Button>
-                    )}
-                    {!wizardMode && (
-                      <Button
-                        variant="outline"
-                        onClick={() => toggleActive(selected, !selected.active)}
-                        className={`h-8 text-[12px] shrink-0 ${selected.active ? "border-[#FCA5A5] text-[#991B1B] hover:bg-[#FEE2E2]" : "border-[#128A68] text-[#128A68] hover:bg-[#E1F5EE]"}`}
-                      >
-                        {selected.active ? "Desativar agente" : "Ativar agente"}
-                      </Button>
-                    )}
                   </div>
                   {wizardMode ? (
-                    <div className="pb-4 flex items-center flex-wrap gap-x-1 gap-y-2">
+                    <div className="flex flex-col gap-1 px-3 py-4">
                       {effectiveWizardSteps.map((s, idx) => {
                         const locked = idx > wizardMaxStepReached;
                         return (
-                        <div key={s.v} className="flex items-center">
                           <button
+                            key={s.v}
                             type="button"
                             disabled={locked}
                             onClick={() => { if (!locked) setWizardStepIndex(idx); }}
-                            className={`flex items-center gap-1.5 ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}
+                            className={`flex items-center gap-2 px-2 py-2 rounded-md text-left ${locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[#F5F5F5]"}`}
                           >
                             <span
                               className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
@@ -1093,51 +1302,44 @@ export default function AgentesPage() {
                             </span>
                             <span
                               className="text-[12px]"
-                              style={{ color: idx === wizardStepIndex ? "#111111" : locked ? "#CCCCCC" : "#AAAAAA", fontWeight: idx === wizardStepIndex ? 600 : 400 }}
+                              style={{ color: idx === wizardStepIndex ? "#111111" : locked ? "#CCCCCC" : "#767676", fontWeight: idx === wizardStepIndex ? 600 : 400 }}
                             >
                               {s.l}
                             </span>
                           </button>
-                          {idx < effectiveWizardSteps.length - 1 && <div className="w-4 h-px bg-[#EEEEEE] mx-2" />}
-                        </div>
                         );
                       })}
                     </div>
                   ) : (
-                  <TabsList className="bg-transparent p-0 h-auto gap-1 flex-wrap justify-start">
-                    {[
-                      { v: "perfil", l: "Perfil" },
-                      { v: "kb", l: "Base de Conhecimento" },
-                      { v: "instrucoes", l: "Instruções" },
-                      { v: "comportamento", l: "Comportamento" },
-                      { v: "closers", l: "Vendedores" },
-                      { v: "integracoes", l: "Integrações" },
-                      { v: "configuracoes", l: "Configurações" },
-                      { v: "ferramentas", l: "Ferramentas" },
-                      { v: "modelos", l: "Modelos" },
-                      { v: "performance", l: "Performance" },
-                    ].filter((t) => t.v !== "closers" || selected.objectives.includes("agendar")).map((t, idx) => (
-                      <TabsTrigger
-                        key={t.v}
-                        value={t.v}
-                        className="data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#128A68] data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5 flex items-center gap-1.5"
-                      >
-                        <span
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
-                          style={
-                            activeTabValue === t.v
-                              ? { background: "#128A68", color: "#FFFFFF" }
-                              : { background: "#E1F5EE", color: "#128A68" }
-                          }
+                    <TabsList className="flex flex-col items-stretch bg-transparent p-0 px-3 py-4 gap-1 h-auto">
+                      {[
+                        { v: "perfil", l: "Perfil", icon: User },
+                        { v: "configuracoes", l: "Configurações", icon: Settings },
+                        { v: "comportamento", l: "Comportamento", icon: SlidersHorizontal },
+                        { v: "closers", l: "Vendedores", icon: Users },
+                        { v: "ferramentas", l: "Ferramentas", icon: Wrench },
+                        { v: "integracoes", l: "Integrações", icon: Plug },
+                        { v: "kb", l: "Base de Conhecimento", icon: Brain },
+                        { v: "instrucoes", l: "Instruções", icon: FileText },
+                        { v: "modelos", l: "Modelos", icon: BrainCircuit },
+                        { v: "performance", l: "Performance", icon: TrendingUp },
+                      ].filter((t) => t.v !== "closers" || objectivesDraft.includes("agendar")).map((t) => (
+                        <TabsTrigger
+                          key={t.v}
+                          value={t.v}
+                          className="justify-start text-[#767676] data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#111111] data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
                         >
-                          {idx + 1}
-                        </span>
-                        {t.l}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                          <t.icon size={16} className="shrink-0" color={activeTabValue === t.v ? "#111111" : "#767676"} />
+                          <span className="flex-1 text-left">{t.l}</span>
+                          {activeTabValue === t.v && <ArrowRight size={14} className="shrink-0" color="#128A68" />}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
                   )}
                 </div>
+
+                {/* Coluna direita -- conteúdo da etapa + rodapé (Cancelar/Voltar/Avançar no wizard, Voltar-pra-grade/Atualizar no modo livre) */}
+                <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
                 {/* PERFIL */}
                 <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
@@ -1165,7 +1367,7 @@ export default function AgentesPage() {
                   </div>
                   <div className="space-y-2">
                     {AGENT_OBJECTIVES.map((o) => {
-                      const checked = selected.objectives.includes(o.id);
+                      const checked = objectivesDraft.includes(o.id);
                       return (
                         <div key={o.id} className="bg-white border border-[#EEEEEE] rounded-lg">
                           <label className="flex items-start gap-3 p-3 cursor-pointer">
@@ -1210,7 +1412,7 @@ export default function AgentesPage() {
                                         {g.items.map((f) => (
                                           <label key={f.id} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded cursor-pointer">
                                             <Checkbox
-                                              checked={(selected.behavior_config.campos_qualificacao ?? []).includes(f.id)}
+                                              checked={behaviorDraft.campos_qualificacao.includes(f.id)}
                                               onCheckedChange={(c) => toggleQualField(f.id, c === true)}
                                             />
                                             <span className="text-[12px] text-[#111111]">{f.label}</span>
@@ -1228,9 +1430,9 @@ export default function AgentesPage() {
                                   Regras ou detalhes de como o agente deve executar esse objetivo — soma ao prompt padrão dele, sem se misturar com as instruções gerais do agente.
                                 </p>
                                 <Textarea
-                                  value={objectiveInstructionsDraft[o.id] ?? ""}
-                                  onChange={(e) => setObjectiveInstructionsDraft((prev) => ({ ...prev, [o.id]: e.target.value }))}
-                                  onBlur={() => saveObjectiveInstruction(o.id)}
+                                  value={behaviorDraft.objective_instructions[o.id] ?? ""}
+                                  onChange={(e) => updateObjectiveInstructionDraft(o.id, e.target.value)}
+                                  onBlur={() => commitObjectiveInstructionIfWizard()}
                                   placeholder={`Ex: como o agente deve executar "${o.label}" nesse negócio específico`}
                                   className="text-[12px] min-h-[70px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                                 />
@@ -1241,7 +1443,7 @@ export default function AgentesPage() {
                       );
                     })}
                   </div>
-                  {selected.objectives.includes("qualificar") && (selected.behavior_config.campos_qualificacao ?? []).length === 0 && (
+                  {objectivesDraft.includes("qualificar") && behaviorDraft.campos_qualificacao.length === 0 && (
                     <div className="flex items-start gap-2.5 p-4 bg-[#FEF3C7] rounded-lg">
                       <AlertTriangle size={16} className="text-[#92400E] mt-0.5 shrink-0" />
                       <div className="text-[13px] text-[#92400E]">
@@ -1249,7 +1451,7 @@ export default function AgentesPage() {
                       </div>
                     </div>
                   )}
-                  {selected.objectives.includes("atendimento") && (
+                  {objectivesDraft.includes("atendimento") && (
                     <p className="text-[11px] text-[#767676]">
                       "Atendimento" usa os documentos da aba Base de Conhecimento pra responder — envie materiais lá pra esse objetivo funcionar bem.
                     </p>
@@ -1326,7 +1528,7 @@ export default function AgentesPage() {
                           <div className="text-[11px] text-[#767676]">Permite que o agente encerre a conversa automaticamente.</div>
                         </div>
                         <Switch
-                          checked={selected.behavior_config.finalizar_conversa ?? false}
+                          checked={behaviorDraft.finalizar_conversa ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ finalizar_conversa: v })}
                         />
                       </div>
@@ -1336,7 +1538,7 @@ export default function AgentesPage() {
                           <div className="text-[11px] text-[#767676]">Permite que o agente transfira o responsável quando identificar que finalizou o objetivo.</div>
                         </div>
                         <Switch
-                          checked={selected.behavior_config.transferir_responsavel ?? false}
+                          checked={behaviorDraft.transferir_responsavel ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ transferir_responsavel: v })}
                         />
                       </div>
@@ -1347,7 +1549,7 @@ export default function AgentesPage() {
                     <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Estilo de Comunicação</h3>
                     <div className="max-w-[280px] mb-2 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
                       <Select
-                        value={selected.behavior_config.estilo_comunicacao ?? "normal"}
+                        value={behaviorDraft.estilo_comunicacao ?? "normal"}
                         onValueChange={(v) => updateBehaviorConfig({ estilo_comunicacao: v as BehaviorConfig["estilo_comunicacao"] })}
                       >
                         <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
@@ -1365,7 +1567,7 @@ export default function AgentesPage() {
                           <div className="text-[11px] text-[#767676]">Permitir uso de emojis nas respostas.</div>
                         </div>
                         <Switch
-                          checked={selected.behavior_config.usar_emojis ?? false}
+                          checked={behaviorDraft.usar_emojis ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ usar_emojis: v })}
                         />
                       </div>
@@ -1375,7 +1577,7 @@ export default function AgentesPage() {
                           <div className="text-[11px] text-[#767676]">Assinar nome do agente nas mensagens.</div>
                         </div>
                         <Switch
-                          checked={selected.behavior_config.assinar_nome ?? false}
+                          checked={behaviorDraft.assinar_nome ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ assinar_nome: v })}
                         />
                       </div>
@@ -1383,13 +1585,13 @@ export default function AgentesPage() {
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-medium text-[#111111]">Dividir mensagens longas</div>
                           <div className="text-[11px] text-[#767676]">Dividir mensagens muito longas automaticamente.</div>
-                          {selected.behavior_config.dividir_mensagens && (
+                          {behaviorDraft.dividir_mensagens && (
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-[11px] text-[#666]">Acima de quantas palavras:</span>
                               <Input
                                 type="number"
                                 min={10}
-                                defaultValue={selected.behavior_config.dividir_mensagens_palavras ?? 80}
+                                defaultValue={behaviorDraft.dividir_mensagens_palavras ?? 80}
                                 onBlur={(e) => updateBehaviorConfig({ dividir_mensagens_palavras: Number(e.target.value) || 80 })}
                                 className="w-20 h-8 text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                               />
@@ -1397,7 +1599,7 @@ export default function AgentesPage() {
                           )}
                         </div>
                         <Switch
-                          checked={selected.behavior_config.dividir_mensagens ?? false}
+                          checked={behaviorDraft.dividir_mensagens ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ dividir_mensagens: v })}
                         />
                       </div>
@@ -1411,19 +1613,19 @@ export default function AgentesPage() {
                         <div className="text-[11px] text-[#767676]">Envia mensagem de acompanhamento quando o cliente não responde.</div>
                       </div>
                       <Switch
-                        checked={selected.behavior_config.followup_ativo ?? false}
+                        checked={behaviorDraft.followup_ativo ?? false}
                         onCheckedChange={(v) => updateBehaviorConfig({ followup_ativo: v })}
                       />
                     </div>
 
-                    {selected.behavior_config.followup_ativo && (
+                    {behaviorDraft.followup_ativo && (
                       <div className="space-y-4 p-4 border border-[#EEEEEE] rounded-lg">
                         <div>
                           <Label className="text-[12px]">Número de follow-ups</Label>
                           <Input
                             type="number" min={1} max={10}
-                            value={followupDraft.followup_max_tentativas}
-                            onChange={(e) => setFollowupDraft((d) => ({ ...d, followup_max_tentativas: Number(e.target.value) || 1 }))}
+                            value={behaviorDraft.followup_max_tentativas}
+                            onChange={(e) => updateBehaviorConfig({ followup_max_tentativas: Number(e.target.value) || 1 })}
                             className="mt-1 w-28 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
                         </div>
@@ -1432,13 +1634,13 @@ export default function AgentesPage() {
                           <div className="flex items-center gap-2 mt-1">
                             <Input
                               type="number" min={1}
-                              value={followupDraft.followup_intervalo_valor}
-                              onChange={(e) => setFollowupDraft((d) => ({ ...d, followup_intervalo_valor: Number(e.target.value) || 1 }))}
+                              value={behaviorDraft.followup_intervalo_valor}
+                              onChange={(e) => updateBehaviorConfig({ followup_intervalo_valor: Number(e.target.value) || 1 })}
                               className="w-28 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                             />
                             <Select
-                              value={followupDraft.followup_intervalo_unidade}
-                              onValueChange={(v) => setFollowupDraft((d) => ({ ...d, followup_intervalo_unidade: v as "minutos" | "horas" }))}
+                              value={behaviorDraft.followup_intervalo_unidade}
+                              onValueChange={(v) => updateBehaviorConfig({ followup_intervalo_unidade: v as "minutos" | "horas" })}
                             >
                               <SelectTrigger className="w-32 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                               <SelectContent>
@@ -1453,16 +1655,16 @@ export default function AgentesPage() {
                             Após as tentativas, transferir lead para uma automação
                           </div>
                           <Switch
-                            checked={followupDraft.followup_transferir_automacao}
-                            onCheckedChange={(v) => setFollowupDraft((d) => ({ ...d, followup_transferir_automacao: v }))}
+                            checked={behaviorDraft.followup_transferir_automacao}
+                            onCheckedChange={(v) => updateBehaviorConfig({ followup_transferir_automacao: v })}
                           />
                         </div>
-                        {followupDraft.followup_transferir_automacao && (
+                        {behaviorDraft.followup_transferir_automacao && (
                           <div>
                             <Label className="text-[12px]">Automação de destino</Label>
                             <Select
-                              value={followupDraft.followup_automacao_id ?? ""}
-                              onValueChange={(v) => setFollowupDraft((d) => ({ ...d, followup_automacao_id: v }))}
+                              value={behaviorDraft.followup_automacao_id ?? ""}
+                              onValueChange={(v) => updateBehaviorConfig({ followup_automacao_id: v })}
                             >
                               <SelectTrigger className="mt-1 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="Selecione uma automação" /></SelectTrigger>
                               <SelectContent>
@@ -1476,11 +1678,6 @@ export default function AgentesPage() {
                             )}
                           </div>
                         )}
-                        <div className="flex justify-end">
-                          <Button onClick={() => saveFollowupConfig()} disabled={savingKey === "followup"} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                            {savingKey === "followup" && <Loader2 size={14} className="animate-spin" />} Salvar follow-up
-                          </Button>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1494,29 +1691,16 @@ export default function AgentesPage() {
                       <p className="text-[12px] text-[#767676]">Regras que valem pra qualquer reunião marcada por esse agente, independente do vendedor.</p>
                     </div>
 
+                    <p className="text-[11px] text-[#767676]">
+                      O fuso horário do agente agora é definido na aba Perfil — ele vale tanto pro horário de atendimento quanto pro agendamento de reuniões aqui.
+                    </p>
                     <div className="grid grid-cols-2 gap-4 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
-                      <div>
-                        <Label className="text-[12px]">Fuso horário</Label>
-                        <Select
-                          value={schedulingDraft.fuso_horario}
-                          onValueChange={(v) => setSchedulingDraft((d) => ({ ...d, fuso_horario: v }))}
-                        >
-                          <SelectTrigger className="mt-1 bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {AGENT_TIMEZONES.map((tz) => (
-                              <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                       <div>
                         <Label className="text-[12px]">Duração padrão das reuniões (min)</Label>
                         <Input
                           type="number" min={5} step={5}
-                          value={schedulingDraft.duracao_reuniao_minutos}
-                          onChange={(e) => setSchedulingDraft((d) => ({ ...d, duracao_reuniao_minutos: Number(e.target.value) || 60 }))}
+                          value={behaviorDraft.duracao_reuniao_minutos}
+                          onChange={(e) => updateBehaviorConfig({ duracao_reuniao_minutos: Number(e.target.value) || 60 })}
                           className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                       </div>
@@ -1528,31 +1712,49 @@ export default function AgentesPage() {
                         <div className="text-[11px] text-[#767676]">Garante uma folga antes e depois de cada reunião já marcada, pra não empilhar compromissos do vendedor sem respiro.</div>
                       </div>
                       <Switch
-                        checked={schedulingDraft.intervalo_entre_reunioes}
-                        onCheckedChange={(v) => setSchedulingDraft((d) => ({ ...d, intervalo_entre_reunioes: v }))}
+                        checked={behaviorDraft.intervalo_entre_reunioes}
+                        onCheckedChange={(v) => updateBehaviorConfig({ intervalo_entre_reunioes: v })}
                       />
                     </div>
-                    {schedulingDraft.intervalo_entre_reunioes && (
+                    {behaviorDraft.intervalo_entre_reunioes && (
                       <div className="pl-3">
                         <Label className="text-[12px]">Intervalo (minutos)</Label>
                         <Input
                           type="number" min={5} step={5}
-                          value={schedulingDraft.intervalo_minutos}
-                          onChange={(e) => setSchedulingDraft((d) => ({ ...d, intervalo_minutos: Number(e.target.value) || 15 }))}
+                          value={behaviorDraft.intervalo_minutos}
+                          onChange={(e) => updateBehaviorConfig({ intervalo_minutos: Number(e.target.value) || 15 })}
                           className="mt-1 w-32 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
-                      <div>
-                        <div className="text-[13px] text-[#111111]">Incluir link do Google Meet</div>
-                        <div className="text-[11px] text-[#767676]">Adiciona automaticamente um link do Google Meet aos eventos criados.</div>
+                    <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[13px] text-[#111111]">Google Calendar</div>
+                          <div className="text-[11px] text-[#767676]">Exige que o vendedor tenha o Google conectado e cria o evento também no Google Calendar dele. Desligado: a reunião é marcada só no calendário do Rezult, sem exigir Google e sem link de vídeo.</div>
+                        </div>
+                        <Switch
+                          checked={behaviorDraft.google_calendar_ativo}
+                          onCheckedChange={(v) => updateBehaviorConfig({ google_calendar_ativo: v })}
+                        />
                       </div>
-                      <Switch
-                        checked={schedulingDraft.incluir_google_meet}
-                        onCheckedChange={(v) => setSchedulingDraft((d) => ({ ...d, incluir_google_meet: v }))}
-                      />
+                      {behaviorDraft.google_calendar_ativo ? (
+                        <div className="flex items-center justify-between pl-3 border-l-2 border-[#EEEEEE]">
+                          <div>
+                            <div className="text-[13px] text-[#111111]">Incluir link do Google Meet</div>
+                            <div className="text-[11px] text-[#767676]">Adiciona automaticamente um link do Google Meet aos eventos criados.</div>
+                          </div>
+                          <Switch
+                            checked={behaviorDraft.incluir_google_meet}
+                            onCheckedChange={(v) => updateBehaviorConfig({ incluir_google_meet: v })}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-[#767676] pl-3 border-l-2 border-[#EEEEEE]">
+                          Vendedores sem Google conectado também ficam elegíveis pra receber reuniões — elas aparecem no /calendario do Rezult, sem link de videochamada automático.
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
@@ -1561,16 +1763,11 @@ export default function AgentesPage() {
                         <div className="text-[11px] text-[#767676]">O agente pedirá confirmação antes de criar ou modificar eventos.</div>
                       </div>
                       <Switch
-                        checked={schedulingDraft.confirmar_antes_criar_evento}
-                        onCheckedChange={(v) => setSchedulingDraft((d) => ({ ...d, confirmar_antes_criar_evento: v }))}
+                        checked={behaviorDraft.confirmar_antes_criar_evento}
+                        onCheckedChange={(v) => updateBehaviorConfig({ confirmar_antes_criar_evento: v })}
                       />
                     </div>
 
-                    <div className="flex justify-end">
-                      <Button onClick={() => saveSchedulingConfig()} disabled={savingKey === "agendamento"} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                        {savingKey === "agendamento" && <Loader2 size={14} className="animate-spin" />} Salvar
-                      </Button>
-                    </div>
                   </div>
 
                   <div className="border-t border-[#EEEEEE] pt-4">
@@ -1595,6 +1792,15 @@ export default function AgentesPage() {
                               <div className="text-[13px] text-[#111111]">{m.full_name || m.email}</div>
                               <div className="text-[11px] text-[#767676]">{m.email}</div>
                             </div>
+                            {checked && connected && (
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-[#128A68] bg-[#E1F5EE] px-1.5 py-0.5 rounded-full shrink-0">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#128A68] opacity-75" />
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#128A68]" />
+                                </span>
+                                Google Calendar conectado
+                              </span>
+                            )}
                           </label>
 
                           {checked && (
@@ -1602,11 +1808,7 @@ export default function AgentesPage() {
                               <div className="pt-2">
                                 {connected === undefined ? (
                                   <span className="text-[11px] text-[#767676]">Verificando conexão com Google Calendar...</span>
-                                ) : connected ? (
-                                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#128A68] bg-[#E1F5EE] px-2 py-1 rounded-full">
-                                    <CheckCircle2 size={12} /> Google Calendar conectado
-                                  </span>
-                                ) : (
+                                ) : connected ? null : (
                                   <div className="flex items-start gap-2.5 p-2.5 bg-[#FEF3C7] rounded-lg">
                                     <AlertTriangle size={14} className="text-[#92400E] mt-0.5 shrink-0" />
                                     <div className="text-[11px] text-[#92400E]">
@@ -1723,7 +1925,7 @@ export default function AgentesPage() {
                     </div>
                   </div>
 
-                  {selected.objectives.includes("agendar") && (() => {
+                  {objectivesDraft.includes("agendar") && (() => {
                     const connectedMemberIds = members.map((m) => m.user_id).filter((id) => memberCalendarConnected[id]);
                     return (
                     <div>
@@ -1792,12 +1994,96 @@ export default function AgentesPage() {
 
                 {/* CONFIGURAÇÕES */}
                 <TabsContent value="configuracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                  <div>
+                    <h3 className="text-[14px] font-semibold text-[#111111]">Horário de atendimento</h3>
+                    <p className="text-[12px] text-[#767676]">
+                      Fuso horário do agente e, se quiser, a janela e os dias em que ele responde mensagens no dia a dia.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg space-y-4">
+                    <div className="max-w-[280px]">
+                      <Label className="text-[12px]">Fuso horário</Label>
+                      <Select
+                        value={behaviorDraft.fuso_horario}
+                        onValueChange={(v) => updateBehaviorConfig({ fuso_horario: v })}
+                      >
+                        <SelectTrigger className="mt-1 bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AGENT_TIMEZONES.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[13px] text-[#111111]">Restringir horário de atendimento</div>
+                        <div className="text-[11px] text-[#767676]">Fora da janela e dos dias abaixo, o agente não responde mensagens. Desligado = responde a qualquer hora, todo dia, como hoje.</div>
+                      </div>
+                      <Switch
+                        checked={behaviorDraft.horario_atendimento_ativo}
+                        onCheckedChange={(v) => updateBehaviorConfig({ horario_atendimento_ativo: v })}
+                      />
+                    </div>
+                    {behaviorDraft.horario_atendimento_ativo && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4 max-w-[280px]">
+                          <div>
+                            <Label className="text-[12px]">Início</Label>
+                            <Input
+                              type="time"
+                              value={behaviorDraft.horario_atendimento_inicio}
+                              onChange={(e) => updateBehaviorConfig({ horario_atendimento_inicio: e.target.value })}
+                              className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[12px]">Fim</Label>
+                            <Input
+                              type="time"
+                              value={behaviorDraft.horario_atendimento_fim}
+                              onChange={(e) => updateBehaviorConfig({ horario_atendimento_fim: e.target.value })}
+                              className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-[12px]">Dias da semana</Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {CLOSER_AVAILABILITY_DAYS.map((day) => {
+                              const activeDays = behaviorDraft.horario_atendimento_dias ?? CLOSER_AVAILABILITY_DAYS;
+                              const active = activeDays.includes(day);
+                              return (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    const current = behaviorDraft.horario_atendimento_dias ?? [...CLOSER_AVAILABILITY_DAYS];
+                                    const next = active ? current.filter((d) => d !== day) : [...current, day];
+                                    updateBehaviorConfig({ horario_atendimento_dias: next });
+                                  }}
+                                  className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${
+                                    active ? "bg-[#128A68] border-[#128A68] text-white" : "bg-white border-[#E5E5E5] text-[#767676] hover:bg-[#F5F5F5]"
+                                  }`}
+                                >
+                                  {day.slice(0, 3)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
                   <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
                     <Label className="text-[12px]">Delay de Resposta (minutos)</Label>
                     <Input
                       type="number" min={0}
-                      value={configDraft.delay_resposta_minutos}
-                      onChange={(e) => setConfigDraft((d) => ({ ...d, delay_resposta_minutos: Number(e.target.value) || 0 }))}
+                      value={behaviorDraft.delay_resposta_minutos}
+                      onChange={(e) => updateBehaviorConfig({ delay_resposta_minutos: Number(e.target.value) || 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[11px] text-[#767676] mt-1">
@@ -1809,8 +2095,8 @@ export default function AgentesPage() {
                     <Label className="text-[12px]">Mensagens consideradas no atendimento</Label>
                     <Input
                       type="number" min={1}
-                      value={configDraft.mensagens_consideradas}
-                      onChange={(e) => setConfigDraft((d) => ({ ...d, mensagens_consideradas: Number(e.target.value) || 30 }))}
+                      value={behaviorDraft.mensagens_consideradas}
+                      onChange={(e) => updateBehaviorConfig({ mensagens_consideradas: Number(e.target.value) || 30 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[11px] text-[#767676] mt-1">
@@ -1822,8 +2108,8 @@ export default function AgentesPage() {
                     <Label className="text-[12px]">Limite de interações da IA por atendimento</Label>
                     <Input
                       type="number" min={0}
-                      value={configDraft.limite_interacoes}
-                      onChange={(e) => setConfigDraft((d) => ({ ...d, limite_interacoes: Number(e.target.value) || 0 }))}
+                      value={behaviorDraft.limite_interacoes}
+                      onChange={(e) => updateBehaviorConfig({ limite_interacoes: Number(e.target.value) || 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[11px] text-[#767676] mt-1">
@@ -1840,7 +2126,7 @@ export default function AgentesPage() {
                       <div className="text-[11px] text-[#767676]">Enviar saudação automática ao iniciar conversa.</div>
                     </div>
                     <Switch
-                      checked={selected.behavior_config.saudacao_automatica ?? false}
+                      checked={behaviorDraft.saudacao_automatica ?? false}
                       onCheckedChange={(v) => updateBehaviorConfig({ saudacao_automatica: v })}
                     />
                   </div>
@@ -1853,17 +2139,17 @@ export default function AgentesPage() {
                         <div className="text-[11px] text-[#767676]">Ativar controle de tópicos permitidos/restritos.</div>
                       </div>
                       <Switch
-                        checked={selected.behavior_config.restringir_topicos ?? false}
+                        checked={behaviorDraft.restringir_topicos ?? false}
                         onCheckedChange={(v) => updateBehaviorConfig({ restringir_topicos: v })}
                       />
                     </div>
-                    {selected.behavior_config.restringir_topicos && (
+                    {behaviorDraft.restringir_topicos && (
                       <div className="space-y-3">
                         <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
                           <Label className="text-[12px]">Tópicos Permitidos</Label>
                           <Textarea
-                            value={configDraft.topicos_permitidos}
-                            onChange={(e) => setConfigDraft((d) => ({ ...d, topicos_permitidos: e.target.value }))}
+                            value={behaviorDraft.topicos_permitidos}
+                            onChange={(e) => updateBehaviorConfig({ topicos_permitidos: e.target.value })}
                             placeholder="Ex: preços, agendamento, dúvidas sobre o produto"
                             className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
@@ -1871,8 +2157,8 @@ export default function AgentesPage() {
                         <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
                           <Label className="text-[12px]">Tópicos Restritos</Label>
                           <Textarea
-                            value={configDraft.topicos_restritos}
-                            onChange={(e) => setConfigDraft((d) => ({ ...d, topicos_restritos: e.target.value }))}
+                            value={behaviorDraft.topicos_restritos}
+                            onChange={(e) => updateBehaviorConfig({ topicos_restritos: e.target.value })}
                             placeholder="Ex: concorrentes, assuntos jurídicos, política"
                             className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
@@ -1881,11 +2167,6 @@ export default function AgentesPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-end">
-                    <Button onClick={() => saveConfigDraft()} disabled={savingKey === "configuracoes"} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                      {savingKey === "configuracoes" && <Loader2 size={14} className="animate-spin" />} Salvar
-                    </Button>
-                  </div>
                 </TabsContent>
 
                 {/* MODELOS */}
@@ -1897,8 +2178,16 @@ export default function AgentesPage() {
                     </p>
                   </div>
                   {(() => {
-                    const rec = recommendModel(selected.objectives, selected.enabled_tools.length);
-                    if (rec.modelId === selected.model) return null;
+                    const complexitySignals: ComplexitySignals = {
+                      objectives: objectivesDraft,
+                      toolCount: enabledToolsDraft.length + (behaviorDraft.finalizar_conversa ? 1 : 0) + (behaviorDraft.transferir_responsavel ? 1 : 0),
+                      customContextLength: customContext.length,
+                      objectiveInstructionsLength: Object.values(behaviorDraft.objective_instructions ?? {}).reduce((sum, v) => sum + v.length, 0),
+                      qualFieldsCount: (behaviorDraft.campos_qualificacao ?? []).length,
+                      kbDocsCount: docs.filter((d) => d.enabled).length,
+                    };
+                    const rec = recommendModel(complexitySignals);
+                    if (rec.modelId === modelDraft) return null;
                     return (
                       <div className="flex items-start justify-between gap-3 p-3 bg-[#E1F5EE] rounded-lg">
                         <div className="text-[12px] text-[#128A68]">
@@ -1914,47 +2203,86 @@ export default function AgentesPage() {
                       </div>
                     );
                   })()}
-                  <div className="max-w-[360px] p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
-                    <Select value={selected.model} onValueChange={changeAgentModel}>
-                      <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Anthropic (Claude)</SelectLabel>
-                          {IA_MODELS.anthropic.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{m.label}</span>
-                                <span
-                                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-                                  style={{ background: IA_COST_STYLES[m.cost].bg, color: IA_COST_STYLES[m.cost].fg }}
-                                >
-                                  {IA_COST_LABELS[m.cost]}
-                                </span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>OpenAI (ChatGPT)</SelectLabel>
-                          {IA_MODELS.openai.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{m.label}</span>
-                                <span
-                                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-                                  style={{ background: IA_COST_STYLES[m.cost].bg, color: IA_COST_STYLES[m.cost].fg }}
-                                >
-                                  {IA_COST_LABELS[m.cost]}
-                                </span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    {(() => {
+                      const complexitySignals: ComplexitySignals = {
+                        objectives: objectivesDraft,
+                        toolCount: enabledToolsDraft.length + (behaviorDraft.finalizar_conversa ? 1 : 0) + (behaviorDraft.transferir_responsavel ? 1 : 0),
+                        customContextLength: customContext.length,
+                        objectiveInstructionsLength: Object.values(behaviorDraft.objective_instructions ?? {}).reduce((sum, v) => sum + v.length, 0),
+                        qualFieldsCount: (behaviorDraft.campos_qualificacao ?? []).length,
+                        kbDocsCount: docs.filter((d) => d.enabled).length,
+                      };
+                      const recommendedModelId = recommendModel(complexitySignals).modelId;
+                      return (
+                        <Select value={modelDraft} onValueChange={changeAgentModel}>
+                          <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Anthropic (Claude)</SelectLabel>
+                              {IA_MODELS.anthropic.map((m) => (
+                                <SelectItem key={m.id} value={m.id}>
+                                  <span className="flex items-center gap-2">
+                                    <span>{m.label}</span>
+                                    <span
+                                      className="text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                      style={{
+                                        background: IA_COST_STYLES[m.cost].bg,
+                                        color: IA_COST_STYLES[m.cost].fg,
+                                        borderColor: IA_COST_STYLES[m.cost].border,
+                                      }}
+                                    >
+                                      {IA_COST_LABELS[m.cost]}
+                                    </span>
+                                    {m.id === recommendedModelId && (
+                                      <span
+                                        className="flex items-center gap-0.5 text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                        style={{ background: "#E1F5EE", color: "#128A68", borderColor: "#A7E8D0" }}
+                                      >
+                                        <Check size={9} className="shrink-0" />
+                                        Recomendado
+                                      </span>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>OpenAI (ChatGPT)</SelectLabel>
+                              {IA_MODELS.openai.map((m) => (
+                                <SelectItem key={m.id} value={m.id}>
+                                  <span className="flex items-center gap-2">
+                                    <span>{m.label}</span>
+                                    <span
+                                      className="text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                      style={{
+                                        background: IA_COST_STYLES[m.cost].bg,
+                                        color: IA_COST_STYLES[m.cost].fg,
+                                        borderColor: IA_COST_STYLES[m.cost].border,
+                                      }}
+                                    >
+                                      {IA_COST_LABELS[m.cost]}
+                                    </span>
+                                    {m.id === recommendedModelId && (
+                                      <span
+                                        className="flex items-center gap-0.5 text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                        style={{ background: "#E1F5EE", color: "#128A68", borderColor: "#A7E8D0" }}
+                                      >
+                                        <Check size={9} className="shrink-0" />
+                                        Recomendado
+                                      </span>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()}
                   </div>
                   {(() => {
-                    const modelProvider = selected.model.startsWith("gpt-") ? "openai" : "anthropic";
+                    const modelProvider = modelDraft.startsWith("gpt-") ? "openai" : "anthropic";
                     const hasKey = modelProvider === "openai" ? hasOpenaiKey : hasAnthropicKey;
                     if (hasKey) return null;
                     return (
@@ -2003,7 +2331,7 @@ export default function AgentesPage() {
                                 <Checkbox
                                   className="mt-0.5"
                                   disabled={disabled}
-                                  checked={selected.enabled_tools.includes(t.id)}
+                                  checked={enabledToolsDraft.includes(t.id)}
                                   onCheckedChange={(checked) => toggleTool(t.id, checked === true)}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -2042,15 +2370,11 @@ export default function AgentesPage() {
                     <Textarea
                       value={customContext}
                       onChange={(e) => setCustomContext(e.target.value.slice(0, 2000))}
+                      onBlur={() => { if (wizardMode) void saveCustomContext(); }}
                       placeholder="Ex: Use um tom direto e informal. Nossos clientes costumam perguntar sobre X — sempre responda que..."
                       className="min-h-[200px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <div className="text-right text-[11px] text-[#767676] mt-1">{customContext.length} / 2000</div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={() => saveCustomContext()} disabled={savingKey === "instrucoes"} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                      {savingKey === "instrucoes" && <Loader2 size={14} className="animate-spin" />} Salvar
-                    </Button>
                   </div>
                 </TabsContent>
 
@@ -2063,42 +2387,60 @@ export default function AgentesPage() {
                   const currentStepValue = effectiveWizardSteps[wizardStepIndex]?.v;
                   const canAdvance =
                     currentStepValue === "perfil" ? (
-                      selected.objectives.length > 0 &&
-                      (!selected.objectives.includes("qualificar") || (selected.behavior_config.campos_qualificacao ?? []).length > 0)
+                      objectivesDraft.length > 0 &&
+                      (!objectivesDraft.includes("qualificar") || (behaviorDraft.campos_qualificacao ?? []).length > 0)
                     ) :
                     currentStepValue === "closers" ? closerIds.length > 0 :
                     true;
                   return (
-                  <div className="flex items-center justify-center gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
+                  <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
                     <Button
                       variant="outline"
-                      onClick={() => setWizardStepIndex((i) => Math.max(0, i - 1))}
-                      disabled={wizardStepIndex === 0}
+                      onClick={abandonDraftAgent}
+                      className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626] active:bg-[#991B1B] active:border-[#991B1B]"
                     >
-                      Voltar
+                      Cancelar
                     </Button>
-                    {wizardStepIndex < effectiveWizardSteps.length - 1 ? (
-                      <Button onClick={() => advanceWizard(effectiveWizardSteps.length)} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                        Avançar
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setWizardStepIndex((i) => Math.max(0, i - 1))}
+                        disabled={wizardStepIndex === 0}
+                      >
+                        Voltar
                       </Button>
-                    ) : (
-                      <Button onClick={finalizeAgent} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                        Criar
-                      </Button>
-                    )}
+                      {wizardStepIndex < effectiveWizardSteps.length - 1 ? (
+                        <Button onClick={() => advanceWizard(effectiveWizardSteps.length)} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                          Avançar
+                        </Button>
+                      ) : (
+                        <Button onClick={finalizeAgent} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                          Criar
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   );
                 })()}
                 {!wizardMode && (
-                  <div className="flex items-center justify-center gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
-                    <Button variant="outline" onClick={() => { setView("grid"); setSelectedId(null); }}>
-                      ← Voltar pra grade
+                  <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (isAgentDirty && !window.confirm("Sair sem salvar? As alterações pendentes serão descartadas.")) return;
+                        setView("grid");
+                        setSelectedId(null);
+                      }}
+                      className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626] active:bg-[#991B1B] active:border-[#991B1B]"
+                    >
+                      Cancelar
                     </Button>
                     <Button onClick={updateAgent} disabled={savingKey === "agente" || !isAgentDirty} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
                       {savingKey === "agente" && <Loader2 size={14} className="animate-spin" />} Atualizar agente
                     </Button>
                   </div>
                 )}
+                </div>
               </Tabs>
               );
             })()}
@@ -2313,24 +2655,43 @@ function PerformanceTab({
   active: boolean; activatedAt: string | null; activeSecondsTotal: number;
 }) {
   const [loading, setLoading] = useState(true);
-  const [meetingsCount, setMeetingsCount] = useState(0);
+  const [meetingsScheduled, setMeetingsScheduled] = useState(0);
+  const [meetingsHeld, setMeetingsHeld] = useState(0);
+  const [noShowCount, setNoShowCount] = useState(0);
   const [qualified, setQualified] = useState(0);
   const [notQualified, setNotQualified] = useState(0);
   const [costUsd, setCostUsd] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
   const [salesValue, setSalesValue] = useState(0);
+  const [conversationsCount, setConversationsCount] = useState(0);
+  const [successRate, setSuccessRate] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
     (async () => {
       setLoading(true);
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ count: meetings }, { data: leadsData }, { data: usageData }, { data: wonData }] = await Promise.all([
+      const [{ count: scheduled }, { count: held }, { count: noShow }, { data: leadsData }, { data: usageData }, { data: wonData }] = await Promise.all([
         closerIds.length
           ? supabase.from("activities").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("type", "meeting").in("owner_id", closerIds).gte("scheduled_at", sevenDaysAgo)
           : Promise.resolve({ count: 0 }),
+        // "Reuniões realizadas": reuniões marcadas pro time de vendas
+        // (mesmo filtro de owner_id/closerIds) que o vendedor de fato marcou
+        // como concluída (completed_at preenchido) -- ver CRMContext.tsx:1602.
+        closerIds.length
+          ? supabase.from("activities").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("type", "meeting").in("owner_id", closerIds).not("completed_at", "is", null).gte("completed_at", sevenDaysAgo)
+          : Promise.resolve({ count: 0 }),
+        // "Taxa de no-show": leads agendados pra reunião (mesmo filtro acima)
+        // que o vendedor marcou como não comparecimento (no_show_at
+        // preenchido) -- ver CRMContext.tsx:1664.
+        closerIds.length
+          ? supabase.from("activities").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("type", "meeting").in("owner_id", closerIds).not("no_show_at", "is", null).gte("no_show_at", sevenDaysAgo)
+          : Promise.resolve({ count: 0 }),
         supabase.from("leads").select("tags").eq("company_id", companyId).contains("tags", ["SDS: Qualificado"]),
-        supabase.from("agent_usage_log").select("cost_usd").eq("agent_id", agentId).gte("created_at", sevenDaysAgo),
+        // lead_id + success alimentam "Número de conversas" e "Taxa de
+        // sucesso" -- 1 linha por invocação do loop de IA (agent-sds-qualify),
+        // não por conversa, então agrupa por lead_id em memória abaixo.
+        supabase.from("agent_usage_log").select("cost_usd, lead_id, success").eq("agent_id", agentId).gte("created_at", sevenDaysAgo),
         // "Vendas feitas": leads.status='won' da empresa no período -- não é
         // atribuído estritamente a este agente (não existe agent_id em
         // leads hoje), mesma limitação já aceita pra "leads qualificados".
@@ -2339,16 +2700,33 @@ function PerformanceTab({
         // entrar numa etapa de "Ganho" no pipeline.
         supabase.from("leads").select("value").eq("company_id", companyId).eq("status", "won").gte("stage_entered_at", sevenDaysAgo),
       ]);
-      setMeetingsCount(meetings ?? 0);
+      setMeetingsScheduled(scheduled ?? 0);
+      setMeetingsHeld(held ?? 0);
+      setNoShowCount(noShow ?? 0);
       setQualified((leadsData ?? []).length);
       setCostUsd((usageData ?? []).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0));
       setSalesCount((wonData ?? []).length);
       setSalesValue((wonData ?? []).reduce((sum, r) => sum + (Number(r.value) || 0), 0));
       const { data: notQualifiedData } = await supabase.from("leads").select("tags").eq("company_id", companyId).contains("tags", ["SDS: Não qualificado"]);
       setNotQualified((notQualifiedData ?? []).length);
+
+      // "Taxa de sucesso": % das conversas cujas invocações no período foram
+      // TODAS sem erro (nenhuma chamada de IA falhou, nenhuma tool devolveu
+      // ok:false) -- não é conversão de negócio, é confiabilidade técnica.
+      const byLead = new Map<string, boolean>();
+      for (const row of usageData ?? []) {
+        const leadId = row.lead_id as string | null;
+        if (!leadId) continue;
+        const ok = row.success !== false;
+        byLead.set(leadId, (byLead.get(leadId) ?? true) && ok);
+      }
+      setConversationsCount(byLead.size);
+      setSuccessRate(byLead.size > 0 ? ([...byLead.values()].filter(Boolean).length / byLead.size) * 100 : null);
       setLoading(false);
     })();
   }, [agentId, companyId, closerIds]);
+
+  const noShowRate = meetingsScheduled > 0 ? (noShowCount / meetingsScheduled) * 100 : null;
 
   if (loading) {
     return <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-[#767676]" /></div>;
@@ -2358,8 +2736,17 @@ function PerformanceTab({
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#767676]"><CheckCircle2 size={12} /> Reuniões (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">{meetingsCount}</div>
+          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#767676]"><CheckCircle2 size={12} /> Reuniões agendadas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[#111111] mt-1">{meetingsScheduled}</div>
+        </div>
+        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#767676]"><CheckCircle2 size={12} /> Reuniões realizadas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[#128A68] mt-1">{meetingsHeld}</div>
+        </div>
+        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[#767676]">Taxa de no-show (7 dias)</div>
+          <div className="text-[24px] font-bold text-[#111111] mt-1">{noShowRate === null ? "—" : `${noShowRate.toFixed(0)}%`}</div>
+          <div className="text-[10px] text-[#CCCCCC] mt-0.5">{noShowCount} de {meetingsScheduled} agendadas</div>
         </div>
         <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[#767676]">Leads qualificados</div>
@@ -2368,6 +2755,15 @@ function PerformanceTab({
         <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[#767676]">Não qualificados</div>
           <div className="text-[24px] font-bold text-[#767676] mt-1">{notQualified}</div>
+        </div>
+        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[#767676]">Número de conversas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[#111111] mt-1">{conversationsCount}</div>
+        </div>
+        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[#767676]">Taxa de sucesso (7 dias)</div>
+          <div className="text-[24px] font-bold text-[#128A68] mt-1">{successRate === null ? "—" : `${successRate.toFixed(0)}%`}</div>
+          <div className="text-[10px] text-[#CCCCCC] mt-0.5">conversas sem erro do agente</div>
         </div>
         <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[#767676]">Valor gasto (7 dias)</div>

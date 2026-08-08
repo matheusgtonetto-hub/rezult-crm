@@ -57,3 +57,36 @@ verify_jwt = false
 # A Meta (Cloud API) chama este webhook externamente — verificação por hub.verify_token no GET.
 [functions.cloud-api-webhook]
 verify_jwt = false
+
+# ─── Agente SDS ──────────────────────────────────────────────────────────────
+# Todas as quatro funções abaixo são server-to-server: quem chama são os
+# webhooks de WhatsApp e o pg_cron, que se autenticam por segredo próprio
+# (x-internal-secret / automation_secret verificados dentro da própria
+# função), nunca por JWT de usuário. Com verify_jwt = true o gateway barrava
+# TODAS essas chamadas com 401 antes do código rodar -- o agente simplesmente
+# não respondia. Mantenha como false.
+[functions.agent-sds-qualify]
+verify_jwt = false
+
+[functions.agent-response-runner]
+verify_jwt = false
+
+[functions.agent-followup-runner]
+verify_jwt = false
+
+[functions.agent-business-hours-runner]
+verify_jwt = false
+
+# Chamada por DOIS caminhos: o app (JWT do usuário) e o agent-sds-qualify
+# (server-to-server, só com x-internal-secret). A própria função aceita os
+# dois e valida cada um -- ver isInternalCall em index.ts. Com verify_jwt =
+# true o gateway barrava a chamada do agente antes da função rodar, e o
+# agendamento de reunião falhava sempre com "erro de autorização", depois do
+# agente já ter prometido o horário pro lead. Mantenha como false.
+[functions.google-calendar-event]
+verify_jwt = false
+
+# Mesmo caso da google-calendar-event: app (JWT) e agente (x-internal-secret)
+# chamam esta função, e ela valida os dois por conta própria.
+[functions.google-calendar-delete]
+verify_jwt = false

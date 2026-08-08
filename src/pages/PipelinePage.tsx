@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck, BotMessageSquare } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -54,6 +54,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useFloatingChat } from "@/context/FloatingChatContext";
+import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 
@@ -115,6 +116,24 @@ export default function PipelinePage() {
   const { profile } = useProfile();
   const { can } = usePermissions();
   const navigate = useNavigate();
+
+  // Nome do agente SDS ativo da empresa -- só pra exibir o badge "Atendido
+  // por" no card do negócio quando a tag "Agente" estiver marcada nele.
+  // Não afeta se o agente de fato responde (isso é decidido só pela tag em
+  // whatsapp_conversations, no backend) -- é puramente visual.
+  const [agenteAtivoNome, setAgenteAtivoNome] = useState<string | null>(null);
+  useEffect(() => {
+    if (!company?.id) { setAgenteAtivoNome(null); return; }
+    supabase
+      .from("agents")
+      .select("name")
+      .eq("company_id", company.id)
+      .eq("type", "SDS")
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setAgenteAtivoNome((data?.name as string | undefined) ?? null));
+  }, [company?.id]);
   const { pipelineId } = useParams();
 
   const isAdmin = can("admin");
@@ -1032,6 +1051,19 @@ export default function PipelinePage() {
                                                 </span>
                                               </div>
                                             </div>
+
+                                            {/* Badge "Atendido por" -- puramente visual, reflete a tag "Agente"
+                                                (mesma tag que liga/desliga o agente por conversa no Multiatendimento).
+                                                Não decide nada, só mostra pro time que o bot está com a caneta. */}
+                                            {(lead.tags || []).includes("Agente") && agenteAtivoNome && (
+                                              <div
+                                                className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full mb-1.5"
+                                                style={{ color: "#6D28D9", background: "#EDE9FE" }}
+                                              >
+                                                <BotMessageSquare size={11} />
+                                                Atendido por: {agenteAtivoNome}
+                                              </div>
+                                            )}
 
                                             {/* Responsáveis — multi-select via popover */}
                                             <Popover

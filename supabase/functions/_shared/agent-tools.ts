@@ -208,17 +208,46 @@ async function listarNegociosPorAtendente(ctx: ToolCtx, input: Record<string, un
   return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("responsible", input.atendente_user_id as string));
 }
 
+// Pipeline do negócio da conversa -- mesma convenção do lead_id opcional: o
+// agente não tem como adivinhar UUID de pipeline, e exigir isso deixava as
+// ferramentas de funil inutilizáveis na prática.
+async function resolvePipelineId(ctx: ToolCtx, input: Record<string, unknown>): Promise<string | null> {
+  if (typeof input.pipeline_id === "string" && input.pipeline_id) return input.pipeline_id;
+  const { data: lead } = await ctx.db.from("leads").select("pipeline_id")
+    .eq("id", resolveLeadId(ctx, input)).eq("company_id", ctx.companyId).maybeSingle();
+  return (lead?.pipeline_id as string | undefined) ?? null;
+}
+
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 async function moverNegocioEstagio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  if (!input.column_id) return { ok: false, error: "column_id é obrigatório" };
-  const patch: Record<string, unknown> = { column_id: input.column_id };
-  if (input.pipeline_id) {
-    patch.pipeline_id = input.pipeline_id;
-  } else {
-    const { data: col } = await ctx.db.from("pipeline_columns").select("pipeline_id").eq("id", input.column_id as string).maybeSingle();
-    if (col?.pipeline_id) patch.pipeline_id = col.pipeline_id;
+  const pipelineId = await resolvePipelineId(ctx, input);
+  if (!pipelineId) return { ok: false, error: "negócio sem funil definido" };
+
+  // Aceita o NOME da etapa ("Em andamento"), não só o UUID: o modelo enxerga
+  // a conversa, não o banco. Antes exigia column_id em UUID, que ele não
+  // tinha como descobrir -- então dizia ao lead que "não conseguia mover".
+  const alvo = String(input.column_id ?? input.etapa ?? "").trim();
+  if (!alvo) return { ok: false, error: "informe a etapa de destino (nome ou id)" };
+
+  let columnId: string | null = UUID_RE.test(alvo) ? alvo : null;
+  if (!columnId) {
+    const { data: colunas } = await ctx.db.from("pipeline_columns")
+      .select("id, title").eq("pipeline_id", pipelineId).eq("company_id", ctx.companyId);
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const achada = (colunas ?? []).find((c: { title: string }) => norm(c.title) === norm(alvo))
+      ?? (colunas ?? []).find((c: { title: string }) => norm(c.title).includes(norm(alvo)));
+    if (!achada) {
+      const disponiveis = (colunas ?? []).map((c: { title: string }) => c.title).join(", ");
+      return { ok: false, error: `etapa "${alvo}" não existe neste funil. Etapas disponíveis: ${disponiveis}` };
+    }
+    columnId = achada.id as string;
   }
-  const { error } = await ctx.db.from("leads").update(patch).eq("id", id).eq("company_id", ctx.companyId);
+
+  const { error } = await ctx.db.from("leads")
+    .update({ column_id: columnId, pipeline_id: pipelineId })
+    .eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -276,15 +305,23 @@ async function consultarConversaPorLead(ctx: ToolCtx, input: Record<string, unkn
   const { data: lead } = await ctx.db.from("leads").select("whatsapp").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
   const phone = lead?.whatsapp as string | undefined;
   if (!phone) return { ok: false, error: "lead sem telefone" };
-  const { data, error } = await ctx.db.from("whatsapp_conversations").select("*").eq("company_id", ctx.companyId).in("phone", phoneVariantsLocal(phone)).maybeSingle();
+  // `.limit(1)` e não `.maybeSingle()`: o mesmo contato pode ter mais de uma
+  // linha em whatsapp_conversations (formatos de telefone diferentes, ou
+  // instância nova depois de reconectar o WhatsApp). Com maybeSingle isso
+  // virava erro em vez de devolver a conversa.
+  const { data, error } = await ctx.db.from("whatsapp_conversations").select("*").eq("company_id", ctx.companyId).in("phone", phoneVariantsLocal(phone)).order("last_msg_at", { ascending: false }).limit(1);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: data ?? null };
+  return { ok: true, data: data?.[0] ?? null };
 }
 
 async function buscarOuCriarConversaTelefone(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const phone = input.phone as string;
   if (!phone) return { ok: false, error: "phone é obrigatório" };
-  const { data: existing } = await ctx.db.from("whatsapp_conversations").select("*").eq("owner_id", ctx.ownerId).in("phone", phoneVariantsLocal(phone)).maybeSingle();
+  // `.limit(1)`: com maybeSingle, um contato que já tivesse 2 conversas
+  // devolvia erro -> `existing` ficava nulo -> esta tool criava MAIS uma
+  // conversa duplicada em cima das que já existiam.
+  const { data: existingRows } = await ctx.db.from("whatsapp_conversations").select("*").eq("owner_id", ctx.ownerId).in("phone", phoneVariantsLocal(phone)).order("last_msg_at", { ascending: false }).limit(1);
+  const existing = existingRows?.[0];
   if (existing) return { ok: true, data: existing };
   const { data: created, error } = await ctx.db.from("whatsapp_conversations").insert({
     owner_id: ctx.ownerId, company_id: ctx.companyId, phone,
@@ -326,7 +363,7 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
   { id: "criar_negocio", name: "criar_negocio", description: "Cria um novo negócio/oportunidade no pipeline do CRM", input_schema: { type: "object", properties: { name: str, pipeline_id: str, column_id: str, value: num, product_id: str }, required: ["pipeline_id", "column_id"] } },
   { id: "listar_negocios_por_estagio", name: "listar_negocios_por_estagio", description: "Lista negócios de um estágio específico do pipeline", input_schema: { type: "object", properties: { column_id: str }, required: ["column_id"] } },
   { id: "listar_negocios_por_atendente", name: "listar_negocios_por_atendente", description: "Lista negócios atribuídos a um atendente específico", input_schema: { type: "object", properties: { atendente_user_id: str }, required: ["atendente_user_id"] } },
-  { id: "mover_negocio_estagio", name: "mover_negocio_estagio", description: "Move um negócio para outro estágio do pipeline (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, column_id: str, pipeline_id: str }, required: ["column_id"] } },
+  { id: "mover_negocio_estagio", name: "mover_negocio_estagio", description: "Move um negócio para outra etapa do funil (padrão: o lead da conversa atual). Informe o NOME da etapa em `etapa` — o funil do negócio é descoberto sozinho.", input_schema: { type: "object", properties: { lead_id: str, etapa: { type: "string", description: 'Nome da etapa de destino, ex: "Em andamento". Use listar_etapas_pipeline se não souber os nomes.' }, column_id: str, pipeline_id: str }, required: [] } },
   { id: "ganhar_negocio", name: "ganhar_negocio", description: "Marca um negócio como ganho (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
   { id: "perder_negocio", name: "perder_negocio", description: "Marca um negócio como perdido (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, loss_reason_id: str } } },
   { id: "atualizar_atendente_negocio", name: "atualizar_atendente_negocio", description: "Atualiza o atendente responsável de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente_user_id: str }, required: ["atendente_user_id"] } },
@@ -361,7 +398,7 @@ for (const c of CATALOG_ENTITIES) {
 }
 TOOL_SCHEMAS.push(
   { id: "listar_grupos_pipeline", name: "listar_grupos_pipeline", description: "Lista os grupos de pipeline disponíveis", input_schema: { type: "object", properties: {} } },
-  { id: "listar_etapas_pipeline", name: "listar_etapas_pipeline", description: "Lista as etapas de um pipeline", input_schema: { type: "object", properties: { pipeline_id: str }, required: ["pipeline_id"] } },
+  { id: "listar_etapas_pipeline", name: "listar_etapas_pipeline", description: "Lista as etapas do funil. Sem parâmetros, usa o funil do negócio da conversa atual.", input_schema: { type: "object", properties: { pipeline_id: str }, required: [] } },
   { id: "listar_atendentes", name: "listar_atendentes", description: "Lista os atendentes (membros) da empresa", input_schema: { type: "object", properties: {} } },
   { id: "consultar_atendente", name: "consultar_atendente", description: "Recupera um atendente específico pelo ID", input_schema: { type: "object", properties: { user_id: str }, required: ["user_id"] } },
 );
@@ -401,7 +438,13 @@ export async function executeRegistryTool(ctx: ToolCtx, toolId: string, input: R
     case "listar_mensagens_conversa": return listarMensagensConversa(ctx, input);
 
     case "listar_grupos_pipeline": return genericList(ctx.db, "pipeline_groups", ctx.companyId);
-    case "listar_etapas_pipeline": return genericList(ctx.db, "pipeline_columns", ctx.companyId, (q) => q.eq("pipeline_id", input.pipeline_id as string), 50, "position");
+    case "listar_etapas_pipeline": {
+      // pipeline_id opcional: cai no funil do negócio da conversa. Exigir o
+      // UUID travava o agente -- ele não tem de onde tirar esse id.
+      const pid = await resolvePipelineId(ctx, input);
+      if (!pid) return { ok: false, error: "negócio sem funil definido" };
+      return genericList(ctx.db, "pipeline_columns", ctx.companyId, (q) => q.eq("pipeline_id", pid), 50, "position");
+    }
     case "listar_atendentes": {
       const { data, error } = await ctx.db.rpc("get_company_members", { p_company_id: ctx.companyId });
       if (error) return { ok: false, error: error.message };

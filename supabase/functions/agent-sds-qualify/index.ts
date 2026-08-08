@@ -53,8 +53,16 @@ const TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        start_datetime: { type: "string", description: "formato YYYY-MM-DDTHH:mm:ss, horário de Brasília" },
-        duration_minutes: { type: "number" },
+        start_datetime: { type: "string", description: "formato YYYY-MM-DDTHH:mm:ss, no fuso informado em DATA E HORA DE AGORA. Confira o ano antes de enviar." },
+        // Sem e-mail o convite do Google não tem para onde ir. A maioria dos
+        // leads chega por WhatsApp e nunca informou e-mail, então o agente
+        // precisa pedir na conversa -- e é aqui que ele devolve o valor,
+        // sem depender de outra ferramenta estar habilitada.
+        email: { type: "string", description: "E-mail do lead, para enviar o convite da reunião. Se o contexto disser que o lead não tem e-mail cadastrado, PERGUNTE antes de agendar e envie aqui. Fica salvo no cadastro." },
+        // Sem descrição, o modelo inventava a duração (num teste real mandou
+        // 50 min com 30 configurados). Omitir faz cair na duração padrão da
+        // aba Configurações -- que é o que o usuário configurou pra valer.
+        duration_minutes: { type: "number", description: "Opcional. NÃO envie este campo: a duração padrão configurada pela empresa é aplicada automaticamente. Só envie se o próprio lead pedir explicitamente outra duração." },
       },
       required: ["start_datetime"],
     },
@@ -187,7 +195,13 @@ async function retrieveKbContext(
     const embRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
-      body: JSON.stringify({ model: "text-embedding-3-large", input: query }),
+      // `dimensions: 1536` é obrigatório: a coluna embedding e a função
+      // match_agent_knowledge_chunks são vector(1536), e o
+      // text-embedding-3-large devolve 3072 por padrão. Sem isso a busca
+      // falhava por incompatibilidade de dimensão e o catch abaixo devolvia
+      // "" -- ou seja, o agente respondia como se a Base de Conhecimento
+      // estivesse vazia. Tem que casar com agent-kb-ingest/index.ts.
+      body: JSON.stringify({ model: "text-embedding-3-large", input: query, dimensions: 1536 }),
     });
     if (!embRes.ok) {
       console.error("[agent-sds-qualify] embeddings error:", embRes.status, await embRes.text());
@@ -260,9 +274,82 @@ type BehaviorConfig = {
   duracao_reuniao_minutos?: number;
   intervalo_entre_reunioes?: boolean;
   intervalo_minutos?: number;
+  // undefined = true (preserva o comportamento de sempre, pra agentes
+  // criados antes desse toggle existir). false = agenda só em "activities"
+  // (calendário do Rezult), sem exigir google_oauth_tokens do vendedor e
+  // sem chamar google-calendar-event -- ver pickAvailableCloser/
+  // agendar_reuniao_closer abaixo.
+  google_calendar_ativo?: boolean;
   incluir_google_meet?: boolean;
   confirmar_antes_criar_evento?: boolean;
+  // Aba Configurações -- janela de horário (HH:mm, no fuso de fuso_horario)
+  // e dias da semana em que o agente responde mensagens. Desativado =
+  // responde a qualquer hora, todo dia. horario_atendimento_dias undefined
+  // = todos os dias (mesmo comportamento de antes dos dias existirem).
+  horario_atendimento_ativo?: boolean;
+  horario_atendimento_inicio?: string;
+  horario_atendimento_fim?: string;
+  horario_atendimento_dias?: string[];
 };
+
+// Mesmo mapeamento de dia da semana usado no resto do arquivo (WEEKDAY_PT),
+// mas via Intl com timezone explícito -- getUTCDay() não serve aqui porque
+// precisamos do dia da semana NO FUSO do agente, que pode diferir do dia em
+// UTC perto da meia-noite.
+const WEEKDAY_EN_TO_PT: Record<string, string> = {
+  Sun: "Domingo", Mon: "Segunda", Tue: "Terça", Wed: "Quarta", Thu: "Quinta", Fri: "Sexta", Sat: "Sábado",
+};
+function currentWeekdayPt(timezone: string): string {
+  const en = new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short" }).format(new Date());
+  return WEEKDAY_EN_TO_PT[en] ?? "Segunda";
+}
+
+// Gate de horário de atendimento (aba Configurações): fora da janela/dias
+// configurados, o agente fica em silêncio -- mesmo padrão dos outros gates
+// desta function (sem chave de API, sem tag "Agente", etc.), sem mensagem
+// automática. Comparação lexicográfica de "HH:mm" (mesmo padrão já usado em
+// weekdayAndTimeFromNaiveDatetime/pickAvailableCloser) -- não cobre janelas
+// que cruzam a meia-noite (ex. 22:00-06:00), só o caso comum de janela no
+// mesmo dia (ex. 08:00-21:00).
+function isWithinBusinessHours(cfg: BehaviorConfig): boolean {
+  if (!cfg.horario_atendimento_ativo) return true;
+  const timezone = cfg.fuso_horario || "America/Sao_Paulo";
+  if (cfg.horario_atendimento_dias !== undefined && !cfg.horario_atendimento_dias.includes(currentWeekdayPt(timezone))) {
+    return false;
+  }
+  const nowHHMM = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, hourCycle: "h23", hour: "2-digit", minute: "2-digit",
+  }).format(new Date());
+  const inicio = cfg.horario_atendimento_inicio || "00:00";
+  const fim = cfg.horario_atendimento_fim || "23:59";
+  return nowHHMM >= inicio && nowHHMM <= fim;
+}
+
+// O modelo não tem relógio: sem receber a data de hoje explicitamente, ele
+// "chuta" a partir do treinamento dele e interpreta "amanhã"/"semana que
+// vem" com anos de diferença (num teste real, marcou 11/06/2025 quando hoje
+// era 07/08/2026). Como start_datetime é wall-clock SEM fuso (ver
+// weekdayAndTimeFromNaiveDatetime), a referência precisa vir no MESMO fuso
+// configurado na aba Configurações -- senão perto da meia-noite o dia dança.
+const WEEKDAY_EN_TO_PT_FULL: Record<string, string> = {
+  Sunday: "domingo", Monday: "segunda-feira", Tuesday: "terça-feira", Wednesday: "quarta-feira",
+  Thursday: "quinta-feira", Friday: "sexta-feira", Saturday: "sábado",
+};
+function buildNowContext(cfg: BehaviorConfig): string {
+  const timeZone = cfg.fuso_horario || "America/Sao_Paulo";
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone, hourCycle: "h23", weekday: "long",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date()).map((x) => [x.type, x.value]),
+  );
+  const diaSemana = WEEKDAY_EN_TO_PT_FULL[p.weekday] ?? p.weekday;
+  return [
+    `DATA E HORA DE AGORA: ${diaSemana}, ${p.day}/${p.month}/${p.year}, ${p.hour}:${p.minute} (fuso ${timeZone}).`,
+    `Use SEMPRE essa referência para interpretar "hoje", "amanhã", "essa semana", "segunda que vem" etc.`,
+    `Nunca agende no passado. Ao preencher start_datetime (formato YYYY-MM-DDTHH:mm:ss), use este mesmo fuso e confira o ano.`,
+  ].join(" ");
+}
 
 const ESTILO_PROMPTS: Record<string, string> = {
   formal: "Tom de comunicação: formal e profissional -- evite gírias, trate o lead com cordialidade e precisão.",
@@ -321,7 +408,15 @@ type ToolDispatcher = (name: string, input: Record<string, unknown>) => Promise<
 const MAX_TOOL_TURNS = 6;
 
 type LoopUsage = { inputTokens: number; outputTokens: number };
-type LoopResult = { actions: string[] | null; usage: LoopUsage };
+type LoopResult = { actions: string[] | null; usage: LoopUsage; success: boolean };
+
+// "success" alimenta a taxa de sucesso (aba Performance): true só quando a
+// chamada ao modelo não falhou (actions !== null) E nenhuma tool devolveu
+// { ok: false } nesse turno (ex: enviar_mensagem sem conexão de WhatsApp).
+// deno-lint-ignore no-explicit-any
+function toolFailed(result: any): boolean {
+  return !!result && typeof result === "object" && result.ok === false;
+}
 
 // Loop Anthropic: manda mensagens, se vier tool_use executa e devolve
 // tool_result, repete até o modelo não pedir mais tools ou bater o limite.
@@ -333,6 +428,7 @@ async function runAnthropicLoop(
   const messages: any[] = [{ role: "user", content: `Conversa até agora:\n${transcript}` }];
   const actions: string[] = [];
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
+  let anyToolFailed = false;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -342,7 +438,7 @@ async function runAnthropicLoop(
     });
     if (!res.ok) {
       console.error("[agent-sds-qualify] Anthropic error:", res.status, await res.text());
-      return { actions: actions.length > 0 ? actions : null, usage };
+      return { actions: actions.length > 0 ? actions : null, usage, success: false };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.input_tokens) || 0;
@@ -356,12 +452,13 @@ async function runAnthropicLoop(
     const toolResults = [];
     for (const block of toolUseBlocks) {
       const result = await dispatch(block.name, block.input ?? {});
+      if (toolFailed(result)) anyToolFailed = true;
       actions.push(block.name);
       toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
     }
     messages.push({ role: "user", content: toolResults });
   }
-  return { actions, usage };
+  return { actions, usage, success: !anyToolFailed };
 }
 
 // Loop OpenAI: mesma ideia, formato de mensagens diferente (tool_calls +
@@ -377,16 +474,28 @@ async function runOpenAiLoop(
   ];
   const actions: string[] = [];
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
+  let anyToolFailed = false;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, tools: toOpenAiTools(tools) }),
+      // reasoning_effort: "none" é OBRIGATÓRIO aqui. A família GPT-5.x liga
+      // raciocínio por padrão, e a própria OpenAI recusa a chamada:
+      // "Function tools with reasoning_effort are not supported ... in
+      // /v1/chat/completions. To use function tools, use /v1/responses or set
+      // reasoning_effort to 'none'." Como a ÚNICA forma do agente falar com o
+      // lead é a tool enviar_mensagem, sem isso todo agente com modelo GPT
+      // ficava 100% mudo -- e em silêncio: erro 400 na primeira chamada, zero
+      // tokens, nenhuma linha em agent_usage_log, nada no WhatsApp.
+      // Alternativa (maior): migrar este loop pra /v1/responses, que suporta
+      // tools COM raciocínio.
+      body: JSON.stringify({ model, messages, tools: toOpenAiTools(tools), reasoning_effort: "none" }),
     });
     if (!res.ok) {
-      console.error("[agent-sds-qualify] OpenAI error:", res.status, await res.text());
-      return { actions: actions.length > 0 ? actions : null, usage };
+      const detalhe = await res.text();
+      console.error("[agent-sds-qualify] OpenAI error:", res.status, detalhe);
+      return { actions: actions.length > 0 ? actions : null, usage, success: false };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
@@ -400,11 +509,12 @@ async function runOpenAiLoop(
     for (const call of toolCalls as any[]) {
       const input = JSON.parse(call.function.arguments || "{}");
       const result = await dispatch(call.function.name, input);
+      if (toolFailed(result)) anyToolFailed = true;
       actions.push(call.function.name as string);
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
   }
-  return { actions, usage };
+  return { actions, usage, success: !anyToolFailed };
 }
 
 // Espelho de IA_MODEL_PRICING (src/lib/ai-models.ts) -- Deno não importa de
@@ -426,6 +536,8 @@ async function logAgentUsage(
   companyId: string,
   model: string,
   usage: LoopUsage,
+  leadId: string,
+  success: boolean,
 ): Promise<void> {
   if (usage.inputTokens === 0 && usage.outputTokens === 0) return;
   const pricing = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
@@ -437,6 +549,8 @@ async function logAgentUsage(
     input_tokens: usage.inputTokens,
     output_tokens: usage.outputTokens,
     cost_usd: Number(costUsd.toFixed(4)),
+    lead_id: leadId,
+    success,
   });
 }
 
@@ -460,14 +574,47 @@ function phonesMatch(a: string, b: string): boolean {
 // Divide uma mensagem longa em partes de até `maxWords` palavras, quebrando
 // em fim de parágrafo/frase quando possível pra não cortar no meio de uma
 // ideia. Usado pelo toggle "Dividir mensagens longas" (aba Comportamento).
+// Teto de mensagens por resposta. Sem isso, uma resposta longa com limite
+// baixo virava rajada (num teste real: 8 mensagens em 8 segundos) -- padrão
+// que provedores de WhatsApp tratam como spam e que pode custar o BANIMENTO
+// do número da empresa. Passando do teto, aumenta o tamanho de cada parte em
+// vez de multiplicar a quantidade de mensagens.
+const MAX_PARTES_MENSAGEM = 5;
+
+function contaPalavras(s: string): number {
+  return s.trim().split(/\s+/).filter(Boolean).length;
+}
+
 function splitLongMessage(text: string, maxWords: number): string[] {
-  const words = text.trim().split(/\s+/);
-  if (words.length <= maxWords) return [text];
+  const total = contaPalavras(text);
+  if (total <= maxWords) return [text];
+  // Alvo efetivo: respeita o configurado, mas nunca gera mais que o teto.
+  maxWords = Math.max(maxWords, Math.ceil(total / MAX_PARTES_MENSAGEM));
+
+  // Antes isso cortava a cada N palavras na régua, no meio da frase ("...o
+  // valor da consulta é" / "R$ 200 e o retorno..."), e o
+  // split(/\s+/).join(" ") ainda achatava as quebras de linha do texto.
+  // Agora acumula frases/parágrafos inteiros até encostar no limite: cada
+  // parte termina onde uma ideia termina. Frase única maior que o limite vai
+  // inteira -- melhor uma parte grande do que uma frase partida ao meio.
+  const blocos = text
+    .split(/(?<=[.!?…])\s+|\n{2,}/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const parts: string[] = [];
-  for (let i = 0; i < words.length; i += maxWords) {
-    parts.push(words.slice(i, i + maxWords).join(" "));
+  let atual = "";
+  for (const bloco of blocos) {
+    const candidato = atual ? `${atual} ${bloco}` : bloco;
+    if (atual && contaPalavras(candidato) > maxWords) {
+      parts.push(atual);
+      atual = bloco;
+    } else {
+      atual = candidato;
+    }
   }
-  return parts;
+  if (atual) parts.push(atual);
+  return parts.length ? parts : [text];
 }
 
 function phoneVariants(raw: string): string[] {
@@ -499,26 +646,22 @@ async function resolveLead(
   return (candidates ?? []).find((l) => phonesMatch(String(l.whatsapp ?? ""), phone)) ?? null;
 }
 
-// ─── Tag "Agente" na conversa: liga/desliga o agente POR conversa, em cima do
+// ─── Tag "Agente" no negócio: liga/desliga o agente POR negócio, em cima do
 // liga/desliga por empresa que já existe em `agents.active`. Sem a tag, o
-// agente fica desligado nessa conversa mesmo com a empresa toda habilitada --
-// V1 do handoff manual (usuário adiciona a tag pra "transferir" a conversa
-// pro agente cuidar). upsertConversationForMessage já roda antes desta
-// function ser chamada (ver dapi/zapi/cloud-api-webhook), então a linha de
-// whatsapp_conversations pra este telefone já existe nesse ponto.
-async function hasAgentTag(
-  db: ReturnType<typeof createClient>,
-  companyId: string,
-  phone: string,
-): Promise<boolean> {
-  const { data: conversations } = await db
-    .from("whatsapp_conversations")
-    .select("phone, tags")
-    .eq("company_id", companyId)
-    .not("phone", "is", null);
-  return (conversations ?? []).some((c) =>
-    phonesMatch(String(c.phone ?? ""), phone) && ((c.tags as string[] | null) ?? []).includes("Agente")
-  );
+// agente fica desligado nesse negócio mesmo com a empresa toda habilitada --
+// handoff manual (usuário/automação adiciona a tag pra "transferir" o
+// negócio pro agente cuidar).
+//
+// A tag é checada em leads.tags (não em whatsapp_conversations.tags) porque
+// leads é a fonte real da verdade -- é ali que a automação ("Adicionar
+// tags") e o dropdown de tags do card no Pipeline gravam. Checar
+// whatsapp_conversations era o bug: aquela tabela só fica sincronizada com
+// leads.tags via um efeito que roda no navegador dentro do Multiatendimento
+// (e só quando alguém abre aquela conversa específica) -- então tag
+// adicionada por automação ou pelo card do Pipeline nunca chegava lá, e o
+// agente ficava mudo mesmo com a tag visível no negócio.
+function hasAgentTag(lead: Record<string, unknown>): boolean {
+  return ((lead.tags as string[] | null) ?? []).includes("Agente");
 }
 
 // ─── Seleção de closer (menor carga nos últimos 7 dias, com Google conectado) ─
@@ -571,6 +714,12 @@ async function pickAvailableCloser(
   startDatetime?: string,
   durationMinutes = 60,
   cfg: BehaviorConfig = {},
+  // Reagendamento: mantém o MESMO vendedor da reunião que está sendo movida
+  // (o lead já foi apresentado a ele), desde que continue passando em todos
+  // os filtros. `excludeActivityId` tira a própria reunião antiga da conta de
+  // conflitos -- senão ela bloqueava horários próximos ao dela mesma.
+  preferUserId?: string,
+  excludeActivityId?: string,
 ): Promise<{ userId: string } | null> {
   const { data: closers } = await db
     .from("agent_closers")
@@ -579,15 +728,54 @@ async function pickAvailableCloser(
     .eq("company_id", companyId);
   if (!closers?.length) return null;
 
+  // Com Google Calendar desligado (aba Vendedores), agenda só no calendário
+  // do Rezult -- não faz sentido exigir google_oauth_tokens do vendedor
+  // nesse modo. undefined = true (agentes de antes desse toggle continuam
+  // exigindo Google, sem mudança de comportamento).
+  const googleRequired = cfg.google_calendar_ativo !== false;
+
   let eligible: string[] = [];
-  for (const c of closers) {
-    const { data: token } = await db
-      .from("google_oauth_tokens")
-      .select("id")
-      .eq("user_id", c.user_id as string)
-      .maybeSingle();
-    if (token) eligible.push(c.user_id as string);
+  if (googleRequired) {
+    for (const c of closers) {
+      // `.limit(1)` em vez de `.maybeSingle()`: reconectar o Google pode
+      // deixar mais de uma linha de token pro mesmo usuário, e o maybeSingle
+      // devolvia ERRO nesse caso (não a primeira linha) -- o closer era
+      // tratado como "sem Google conectado" e o agendamento caía direto em
+      // escalar_humano, mesmo com o Calendar conectado e funcionando.
+      //
+      // O filtro por empresa tem que ser o MESMO de google-calendar-event
+      // (token da empresa, ou legado sem empresa). Sem isso os dois
+      // discordavam: aqui o closer passava por ter Google em QUALQUER
+      // empresa, e na hora de criar o evento voltava "google_not_connected"
+      // -- o agente já tinha prometido o horário pro lead e só então falhava.
+      const { data: tokens } = await db
+        .from("google_oauth_tokens")
+        .select("id")
+        .eq("user_id", c.user_id as string)
+        .or(`company_id.eq.${companyId},company_id.is.null`)
+        .limit(1);
+      if (tokens?.length) eligible.push(c.user_id as string);
+    }
+  } else {
+    eligible = closers.map((c) => c.user_id as string);
   }
+  if (!eligible.length) return null;
+
+  // Aba Integrações > Calendar: toggle por (agente, vendedor) -- default
+  // enabled=true no frontend quando o vendedor tem Google Calendar conectado
+  // (mesmo default aqui: sem linha em agent_calendar_connections = habilitado).
+  // Só exclui quando a empresa desligou explicitamente esse vendedor pra
+  // ESTE agente -- outro agente pode ter o mesmo vendedor habilitado.
+  const { data: calendarRows } = await db
+    .from("agent_calendar_connections")
+    .select("user_id, enabled")
+    .eq("agent_id", agentId)
+    .eq("company_id", companyId)
+    .in("user_id", eligible);
+  const calendarDisabled = new Set(
+    (calendarRows ?? []).filter((r) => r.enabled === false).map((r) => r.user_id as string),
+  );
+  if (calendarDisabled.size) eligible = eligible.filter((userId) => !calendarDisabled.has(userId));
   if (!eligible.length) return null;
 
   // Filtra por disponibilidade declarada na aba Closers, se houver. Closer
@@ -624,14 +812,16 @@ async function pickAvailableCloser(
     const endMs = startMs + durationMinutes * 60_000;
     const dayMs = 24 * 60 * 60_000;
 
-    const { data: busyRows } = await db
+    let busyQuery = db
       .from("activities")
-      .select("owner_id, scheduled_at, duration_minutes")
+      .select("id, owner_id, scheduled_at, duration_minutes")
       .eq("company_id", companyId)
       .eq("type", "meeting")
       .in("owner_id", eligible)
       .gte("scheduled_at", new Date(startMs - dayMs).toISOString())
       .lte("scheduled_at", new Date(endMs + dayMs).toISOString());
+    if (excludeActivityId) busyQuery = busyQuery.neq("id", excludeActivityId);
+    const { data: busyRows } = await busyQuery;
 
     const busyByUser = new Map<string, { start: number; end: number }[]>();
     for (const row of busyRows ?? []) {
@@ -648,6 +838,10 @@ async function pickAvailableCloser(
     });
   }
   if (!eligible.length) return null;
+
+  // Continuidade no reagendamento vence o balanceamento de carga: se o
+  // vendedor da reunião original segue elegível no horário novo, é ele.
+  if (preferUserId && eligible.includes(preferUserId)) return { userId: preferUserId };
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const counts = await Promise.all(
@@ -666,6 +860,78 @@ async function pickAvailableCloser(
   return { userId: counts[0].userId };
 }
 
+// Resumo em texto da disponibilidade dos vendedores, pro prompt. Sem isso o
+// agente ofertava horário no escuro ("consigo amanhã às 9h ou 10h") e só
+// descobria que o vendedor não atendia naquele dia DEPOIS que o lead
+// escolhia -- aí a ferramenta recusava e a conversa travava. Com a janela à
+// vista, ele já propõe horário que dá pra cumprir.
+async function buildAvailabilityContext(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  agentId: string,
+): Promise<string> {
+  const { data: closers } = await db
+    .from("agent_closers").select("user_id").eq("agent_id", agentId).eq("company_id", companyId);
+  if (!closers?.length) return "";
+
+  const { data: rows } = await db
+    .from("agent_closer_availability")
+    .select("days")
+    .eq("agent_id", agentId)
+    .in("user_id", closers.map((c) => c.user_id as string));
+  if (!rows?.length) return "";
+
+  // União das janelas de todos os vendedores: se QUALQUER um atende, o
+  // horário é ofertável (a escolha de quem atende é do pickAvailableCloser).
+  const porDia = new Map<string, Set<string>>();
+  for (const row of rows) {
+    for (const d of ((row.days as WorkDay[] | null) ?? [])) {
+      if (!d?.active || !d.intervals?.length) continue;
+      if (!porDia.has(d.day)) porDia.set(d.day, new Set());
+      for (const iv of d.intervals) porDia.get(d.day)!.add(`${iv.start}-${iv.end}`);
+    }
+  }
+  if (!porDia.size) return "";
+
+  const linhas = WEEKDAY_PT
+    .filter((dia) => porDia.has(dia))
+    .map((dia) => `${dia}: ${[...porDia.get(dia)!].join(", ")}`);
+
+  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}. Ofereça SOMENTE horários dentro dessas janelas; em qualquer outro dia ou horário não há atendimento. Se o lead pedir algo fora, diga que não há disponibilidade e proponha as opções válidas mais próximas.`;
+}
+
+// ─── Conexão de WhatsApp usada pelo agente ──────────────────────────────────
+// aba "Integrações" (agent_whatsapp_connections) declara quais linhas de
+// WhatsApp este agente pode usar. Com pelo menos 1 linha vinculada, o envio
+// FICA RESTRITO a elas -- nunca escolhe outra linha "aleatória" da empresa.
+// Sem nenhum vínculo (agente criado antes dessa aba existir, ou que nunca
+// configurou Integrações), mantém o comportamento anterior: qualquer linha
+// conectada da empresa. `.limit(1)` em vez de `.maybeSingle()` -- empresa com
+// 2+ linhas conectadas simultâneas não pode quebrar o envio inteiro.
+async function resolveOutboundConnection(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  agentId: string,
+): Promise<{ provider: string; instance_id: string; token: string; client_token: string | null } | null> {
+  const { data: assigned } = await db
+    .from("agent_whatsapp_connections")
+    .select("connection_id")
+    .eq("agent_id", agentId)
+    .eq("company_id", companyId)
+    .eq("enabled", true);
+  const assignedIds = (assigned ?? []).map((r) => r.connection_id as string);
+
+  let query = db
+    .from("whatsapp_connections")
+    .select("provider, instance_id, token, client_token")
+    .eq("company_id", companyId)
+    .eq("connected", true);
+  if (assignedIds.length) query = query.in("id", assignedIds);
+
+  const { data: rows } = await query.limit(1);
+  return (rows?.[0] as { provider: string; instance_id: string; token: string; client_token: string | null } | undefined) ?? null;
+}
+
 // ─── Saudação automática ─────────────────────────────────────────────────────
 // Enviada direto (sem passar pelo modelo/loop de tools) na primeira mensagem
 // de uma conversa nova -- por isso não conta como "interação da IA" pro
@@ -673,16 +939,12 @@ async function pickAvailableCloser(
 async function sendGreeting(
   db: ReturnType<typeof createClient>,
   companyId: string,
+  agentId: string,
   lead: Record<string, unknown>,
   agentName: string,
   cfg: BehaviorConfig,
 ): Promise<void> {
-  const { data: conn } = await db
-    .from("whatsapp_connections")
-    .select("provider, instance_id, token, client_token")
-    .eq("company_id", companyId)
-    .eq("connected", true)
-    .maybeSingle();
+  const conn = await resolveOutboundConnection(db, companyId, agentId);
   if (!conn) return;
 
   const creds: ZapiCreds = {
@@ -711,20 +973,68 @@ async function sendGreeting(
   });
 }
 
+// ─── Seleção de agente por linha de WhatsApp ────────────────────────────────
+// Entre os agentes SDS ativos da empresa, escolhe qual deve responder esta
+// mensagem, respeitando a aba Integrações (agent_whatsapp_connections):
+//   1. Agente com vínculo EXPLÍCITO pra esta linha (connectionId) vence.
+//   2. Sem vínculo explícito pra essa linha, cai pro agente sem NENHUM
+//      vínculo configurado (comportamento anterior a essa aba existir).
+//   3. Chamada sem connectionId (runners que não sabem a linha, ex.
+//      agent-business-hours-runner): mesma prioridade, mas sem filtrar por
+//      linha -- se houver 2+ agentes todos vinculados e nenhum "genérico",
+//      usa o primeiro de forma determinística (limitação conhecida: runners
+//      não carregam contexto de linha hoje).
+// deno-lint-ignore no-explicit-any
+async function pickAgentForConnection(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  candidates: any[],
+  connectionId: string | null,
+  // deno-lint-ignore no-explicit-any
+): Promise<any | null> {
+  const { data: assignments } = await db
+    .from("agent_whatsapp_connections")
+    .select("agent_id, connection_id")
+    .eq("company_id", companyId)
+    .in("agent_id", candidates.map((a) => a.id as string))
+    .eq("enabled", true);
+
+  const assignedAgentIds = new Set((assignments ?? []).map((r) => r.agent_id as string));
+  const unassigned = candidates.filter((a) => !assignedAgentIds.has(a.id as string));
+
+  if (connectionId) {
+    const specificAgentId = (assignments ?? [])
+      .find((r) => r.connection_id === connectionId)?.agent_id as string | undefined;
+    if (specificAgentId) return candidates.find((a) => a.id === specificAgentId) ?? null;
+    return unassigned[0] ?? null;
+  }
+
+  return unassigned[0] ?? candidates[0] ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
+  // Duas causas MUITO diferentes davam o mesmo "unauthorized" antes, o que
+  // tornava impossível distinguir "chamada indevida" de "segredo não
+  // configurado no servidor" -- neste segundo caso o agente fica mudo pra
+  // TODA a base, sem nenhum sinal. Agora cada uma tem seu próprio código e
+  // a de configuração grita no log.
   const internalSecret = req.headers.get("x-internal-secret") ?? "";
   const configuredSecret = Deno.env.get("AGENT_INTERNAL_SECRET") ?? "";
-  if (configuredSecret === "" || internalSecret !== configuredSecret) {
+  if (configuredSecret === "") {
+    console.error("[agent-sds-qualify] AGENT_INTERNAL_SECRET não está configurado no projeto — o agente não responde a NINGUÉM até isso ser definido (Supabase > Edge Functions > Secrets).");
+    return json({ error: "server_secret_not_configured" }, 503);
+  }
+  if (internalSecret !== configuredSecret) {
     return json({ error: "unauthorized" }, 401);
   }
 
-  let body: { companyId?: string; phone?: string };
+  let body: { companyId?: string; phone?: string; instanceId?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
 
-  const { companyId, phone } = body;
+  const { companyId, phone, instanceId } = body;
   if (!companyId || !phone) return json({ error: "missing_params" }, 400);
 
   const db = createClient(
@@ -744,16 +1054,41 @@ Deno.serve(async (req) => {
   // Roda sempre, independente dos gates abaixo (agente ativo, chave, tag).
   await db.from("agent_followup_state").update({ status: "cancelado" }).eq("lead_id", leadId).eq("status", "ativo");
 
-  const { data: agent } = await db
+  // Uma empresa pode ter mais de 1 agente SDS ativo simultâneo, cada um
+  // escopado a uma linha de WhatsApp diferente via agent_whatsapp_connections
+  // (aba Integrações) -- por isso não dá mais pra usar .single() aqui: com
+  // 2+ agentes ativos essa chamada quebraria a função inteira.
+  const { data: activeAgents } = await db
     .from("agents")
     .select("id, name, model, custom_context, objectives, enabled_tools, behavior_config")
     .eq("company_id", companyId)
     .eq("type", "SDS")
-    .eq("active", true)
-    .single();
-  if (!agent) return json({ skipped: "no_active_agent" }, 200);
+    .eq("active", true);
+  if (!activeAgents?.length) return json({ skipped: "no_active_agent" }, 200);
+
+  let inboundConnectionId: string | null = null;
+  if (instanceId) {
+    const { data: inboundConn } = await db
+      .from("whatsapp_connections")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("instance_id", instanceId)
+      .maybeSingle();
+    inboundConnectionId = (inboundConn?.id as string | undefined) ?? null;
+  }
+
+  const agent = await pickAgentForConnection(db, companyId, activeAgents, inboundConnectionId);
+  if (!agent) return json({ skipped: "connection_not_assigned_to_any_agent" }, 200);
 
   const behaviorConfig: BehaviorConfig = (agent.behavior_config as BehaviorConfig) ?? {};
+
+  // Gate por negócio ANTES de qualquer agendamento de trabalho futuro: sem a
+  // tag "Agente" não há nada a fazer com essa mensagem. Ficava depois do
+  // bloco de delay, então toda mensagem de qualquer lead NÃO marcado (a
+  // maioria absoluta, numa base real) criava uma linha em
+  // agent_pending_response e uma reinvocação da function minutos depois, só
+  // pra ser descartada aqui.
+  if (!hasAgentTag(lead)) return json({ skipped: "no_agent_tag" }, 200);
 
   // Delay de Resposta (com debounce): em vez de responder na hora, agenda
   // pra daqui a N minutos. Toda mensagem nova do lead durante a janela
@@ -762,6 +1097,9 @@ Deno.serve(async (req) => {
   // reinvoca esta mesma function com x-bypass-delay quando vence.
   const delayMinutos = Number(behaviorConfig.delay_resposta_minutos) || 0;
   const bypassDelay = req.headers.get("x-bypass-delay") === "true";
+  // >0 quando quem chamou foi o agent-followup-runner: o lead ficou em
+  // silêncio e esta execução é a N-ésima cutucada.
+  const followupAttempt = Number(req.headers.get("x-followup-attempt") ?? "") || 0;
   if (delayMinutos > 0 && !bypassDelay) {
     await db.from("agent_pending_response").upsert({
       company_id: companyId, phone, status: "pending",
@@ -787,29 +1125,64 @@ Deno.serve(async (req) => {
   const apiKey = companyKey?.api_key || "";
   if (!apiKey) return json({ skipped: "no_company_api_key" }, 200);
 
-  // Gate por conversa: mesmo com o agente ativo pra empresa, só atua nas
-  // conversas que o usuário marcou explicitamente com a tag "Agente".
-  if (!(await hasAgentTag(db, companyId, phone))) return json({ skipped: "no_agent_tag" }, 200);
+  // Conversa finalizada = atendimento encerrado, o agente não responde mais.
+  // Vale tanto pra tool finalizar_conversa quanto pro botão "Finalizar" do
+  // Multiatendimento. Antes, finalizar não segurava nada: o contador zerava e
+  // o agente voltava a atender na mensagem seguinte como se fosse um
+  // atendimento novo. Pra retomar, é o botão "Reabrir" no Multiatendimento
+  // (ou remover/recolocar a tag). Fica ANTES da chamada ao modelo, então
+  // conversa encerrada não gera custo de IA.
+  const { data: convStatus } = await db
+    .from("whatsapp_conversations")
+    .select("finished")
+    .eq("company_id", companyId)
+    .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
+    .order("last_msg_at", { ascending: false })
+    .limit(1);
+  if (convStatus?.[0]?.finished === true) return json({ skipped: "conversation_finished" }, 200);
+
+  // Gate de horário de atendimento (aba Configurações) -- roda de novo a
+  // cada reinvocação com x-bypass-delay, então uma resposta atrasada que só
+  // sairia fora da janela também é barrada aqui.
+  if (!isWithinBusinessHours(behaviorConfig)) return json({ skipped: "outside_business_hours" }, 200);
 
   const messageWindow = Number(behaviorConfig.mensagens_consideradas) || 30;
   const { data: messages } = await db
     .from("whatsapp_messages")
-    .select("from_me, body")
+    .select("from_me, body, created_at")
     .eq("company_id", companyId)
     .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
     .order("created_at", { ascending: false })
     .limit(messageWindow);
 
-  const transcript = (messages ?? []).reverse()
+  // `messages` vem do banco em ordem DECRESCENTE (mais nova primeiro).
+  // O transcript precisa da ordem cronológica, mas `.reverse()` altera o
+  // array no lugar -- por isso a cópia: sem ela, todo mundo que lesse
+  // `messages` depois daqui pegaria a ordem invertida sem perceber (era
+  // exatamente o que quebrava a busca na Base de Conhecimento, que acabava
+  // pesquisando pela mensagem MAIS ANTIGA da janela em vez da atual).
+  const cronologicas = [...(messages ?? [])].reverse();
+  const transcript = cronologicas
     .map((m) => `${m.from_me ? "Atendente" : "Lead"}: ${m.body}`)
     .join("\n");
+
+  // Há quanto tempo o lead está calado. Sem isso o agente escreve "faz um
+  // tempo que não conversamos" depois de 2 minutos de silêncio.
+  const ultimaDoLead = (messages ?? []).find((m) => !m.from_me)?.created_at as string | undefined;
+  const silencioMin = ultimaDoLead
+    ? Math.max(0, Math.round((Date.now() - new Date(ultimaDoLead).getTime()) / 60_000))
+    : null;
+  const silencioTexto = silencioMin === null ? null
+    : silencioMin < 60 ? `${silencioMin} minuto(s)`
+    : silencioMin < 1440 ? `${Math.round(silencioMin / 60)} hora(s)`
+    : `${Math.round(silencioMin / 1440)} dia(s)`;
 
   // Saudação automática: primeira mensagem desta conversa (ninguém do lado
   // do agente/atendente respondeu ainda). Não passa pelo modelo -- é texto
   // fixo, então não conta como interação da IA.
   const isFirstMessageEver = (messages ?? []).length <= 1 && !(messages ?? []).some((m) => m.from_me);
   if (behaviorConfig.saudacao_automatica && isFirstMessageEver) {
-    await sendGreeting(db, companyId, lead, (agent.name as string) ?? "", behaviorConfig);
+    await sendGreeting(db, companyId, agent.id as string, lead, (agent.name as string) ?? "", behaviorConfig);
   }
 
   // Limite de interações da IA por atendimento: ao atingir o limite, a
@@ -817,13 +1190,20 @@ Deno.serve(async (req) => {
   // despedir e encerrar/transferir (nunca continuar o atendimento normal).
   const limiteInteracoes = Number(behaviorConfig.limite_interacoes) || 0;
   if (limiteInteracoes > 0) {
-    const { data: conv } = await db
+    // Conversa mais recente do telefone. `.order().limit(1)` em vez de
+    // `.maybeSingle()`: o mesmo contato pode ter mais de uma linha em
+    // whatsapp_conversations (formatos diferentes de telefone, ou instâncias
+    // diferentes depois de reconectar o WhatsApp -- reconectar sempre gera um
+    // instance_id novo). Com 2+ linhas o maybeSingle devolvia ERRO, o count
+    // virava 0 e o limite de interações NUNCA era atingido.
+    const { data: convRows } = await db
       .from("whatsapp_conversations")
       .select("ai_interaction_count")
       .eq("company_id", companyId)
       .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
-      .maybeSingle();
-    const count = (conv?.ai_interaction_count as number | undefined) ?? 0;
+      .order("last_msg_at", { ascending: false })
+      .limit(1);
+    const count = (convRows?.[0]?.ai_interaction_count as number | undefined) ?? 0;
 
     if (count >= limiteInteracoes) {
       const canTransfer = !!behaviorConfig.transferir_responsavel;
@@ -844,7 +1224,7 @@ Deno.serve(async (req) => {
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
         : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch);
-      await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage);
+      await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success);
       if (closingResult.actions === null) return json({ error: "ai_request_failed" }, 502);
       return json({ ok: true, actions: closingResult.actions, interaction_limit_reached: true });
     }
@@ -867,6 +1247,8 @@ Deno.serve(async (req) => {
   } else {
     let kbContext = "";
     if (objectives.includes("atendimento")) {
+      // `messages` está em ordem decrescente, então o primeiro !from_me é a
+      // pergunta MAIS RECENTE do lead -- que é o que deve guiar a busca.
       const lastLeadMsg = (messages ?? []).find((m) => !m.from_me)?.body as string | undefined;
       kbContext = await retrieveKbContext(db, agent.id as string, companyId, lastLeadMsg || transcript);
     }
@@ -883,6 +1265,42 @@ Deno.serve(async (req) => {
     tools = buildDynamicTools(objectives, enabledTools, qualFields);
   }
 
+  // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
+  // o modelo agenda em datas inventadas. Fica antes do resto do prompt pra
+  // não competir com instruções longas de Base de Conhecimento.
+  system = `${buildNowContext(behaviorConfig)}\n\n${system}`;
+  // Agente legado (objectives vazio) também agenda -- a metodologia SDS fixa
+  // inclui marcar reunião -- então ele precisa da disponibilidade igual.
+  if (legacy || objectives.includes("agendar")) {
+    const disponibilidade = await buildAvailabilityContext(db, companyId, agent.id as string);
+    if (disponibilidade) system = `${system}\n\n${disponibilidade}`;
+
+    // A maior parte dos leads chega por WhatsApp e nunca informou e-mail
+    // (na base real do primeiro cliente, 81% estavam sem). Sem e-mail o
+    // convite do Google não chega em ninguém e o lead fica só com a
+    // mensagem solta -- o que aumenta o não-comparecimento.
+    const temEmail = typeof lead.email === "string" && lead.email.includes("@");
+    system = temEmail
+      ? `${system}\n\nO lead já tem e-mail cadastrado: o convite da reunião será enviado automaticamente. Não peça o e-mail de novo.`
+      : `${system}\n\nESTE LEAD NÃO TEM E-MAIL CADASTRADO. Antes de confirmar qualquer agendamento, peça o e-mail dele explicando que é para enviar o convite da reunião. Depois envie esse e-mail no campo "email" da tool agendar_reuniao_closer. Se ele recusar informar, agende assim mesmo e avise que o combinado fica pelo WhatsApp.`;
+  }
+  if (silencioTexto) {
+    system = `${system}\n\nO lead está sem responder há ${silencioTexto}. Calibre o tom por esse intervalo: poucos minutos NÃO são "faz tempo que não falamos". Só trate como reaproximação depois de dias.`;
+  }
+  // O agente É o atendimento. Prometer "vou te passar pra um atendente" sem
+  // de fato transferir cria uma expectativa que nunca se cumpre -- o lead
+  // fica esperando alguém que não vem. Se alguém perguntar diretamente se é
+  // um robô, deve responder com honestidade; o que não pode é anunciar uma
+  // transferência que não vai acontecer.
+  // Regra sobre COMPORTAMENTO, não sobre palavras. A primeira versão listava
+  // termos proibidos ("atendente", "equipe", "transferência") e o modelo
+  // apenas reformulou: "posso encaminhar pra uma pessoa responsável" -- e não
+  // chamou tool nenhuma. Promessa vazia: o lead espera um retorno que nunca
+  // vem, porque ninguém foi notificado.
+  system = `${system}\n\nVocê é quem está atendendo este lead, do início ao fim. NUNCA prometa, ofereça nem insinue que alguém vai responder, retornar, verificar, confirmar ou resolver algo depois — em NENHUMA formulação (vale para "encaminho pra alguém", "uma pessoa responsável te responde", "vou verificar e te retorno", "o time confirma com você", etc.). Diante de algo que você não sabe, existem só dois caminhos válidos: (a) chamar a tool de escalar/transferir AGORA, nesta mesma resposta — e aí sim você pode avisar que está passando para uma pessoa; ou (b) dizer com honestidade que não tem essa informação e seguir com o que está ao seu alcance. Se o lead perguntar diretamente se está falando com uma pessoa ou com IA, responda com sinceridade.
+
+NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema: não fale de CRM, cadastro, etapa/funil, ferramenta, sistema, registro, base de conhecimento nem do que você "consegue" ou "não consegue" fazer por dentro. O que acontece nos bastidores acontece em silêncio. Se algo não for possível, resolva pelo lado dele ("vou confirmar isso com você na conversa de segunda") sem descrever o motivo técnico. E se o lead pedir algo interno (mover cadastro, mudar etapa), apenas execute se tiver a ferramenta e siga a conversa normalmente, sem narrar a operação.`;
+
   // Comportamento é uma camada independente de Objetivos/Ferramentas --
   // aplica em cima do legado ou do dinâmico igualmente.
   const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "");
@@ -890,11 +1308,18 @@ Deno.serve(async (req) => {
   if (behaviorConfig.finalizar_conversa) tools = [...tools, FINALIZAR_CONVERSA_TOOL];
   if (behaviorConfig.transferir_responsavel) tools = [...tools, TRANSFERIR_RESPONSAVEL_TOOL];
 
+  // Follow-up: em vez de um texto fixo (que saía idêntico em toda tentativa
+  // e ignorava o que já tinha sido conversado), o próprio agente escreve a
+  // cutucada com o histórico à vista e no tom configurado.
+  if (followupAttempt > 0) {
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: o lead parou de responder e esta é a tentativa de reengajamento nº ${followupAttempt}. Escreva UMA mensagem curta retomando algo concreto da conversa acima (o assunto que ficou pendente, um horário já combinado, uma pergunta que ele não terminou de fazer). Não repita textualmente nenhuma mensagem sua anterior, não se reapresente e não invente informação que não esteja na conversa. Se já houver reunião marcada, apenas reforce que está de pé. Nesta mensagem NÃO ofereça transferir para outra pessoa nem prometa retorno de terceiros: o objetivo é só reabrir a conversa. Envie a mensagem pela tool enviar_mensagem.`;
+  }
+
   const toolCtx: ToolCtx = { db, companyId, ownerId: String(lead.owner_id ?? ""), leadId };
   const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
   const dispatch: ToolDispatcher = async (name, input) => {
     if (LEGACY_TOOL_NAMES.has(name)) {
-      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig });
+      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig, followupAttempt });
     }
     return await executeRegistryTool(toolCtx, name, input);
   };
@@ -902,7 +1327,7 @@ Deno.serve(async (req) => {
   const result = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatch)
     : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch);
-  await logAgentUsage(db, agent.id as string, companyId, model, result.usage);
+  await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success);
   if (result.actions === null) return json({ error: "ai_request_failed" }, 502);
 
   return json({ ok: true, actions: result.actions });
@@ -912,7 +1337,7 @@ Deno.serve(async (req) => {
 async function executeAgentTool(
   db: ReturnType<typeof createClient>,
   call: any,
-  ctx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig },
+  ctx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number },
 ): Promise<ToolResult> {
   const input = call.input ?? {};
 
@@ -926,9 +1351,25 @@ async function executeAgentTool(
       // Campos além de score/qualificado/motivo são os ids de
       // custom_field_items selecionados na aba Perfil (schema dinâmico —
       // ver buildQualificarLeadTool) -- caem direto no card do lead.
+      //
+      // A chave PRECISA ser validada: antes era gravada exatamente como o
+      // modelo mandasse, e num teste real ele devolveu
+      // "Você ja fez ou faz terapia?\n03c9d2d0-..." (rótulo + id) em vez do
+      // id puro. O valor era salvo numa chave que a tela não procura -- o
+      // agente dizia "registrei", o campo aparecia vazio, e o JSON do lead
+      // ia acumulando lixo. Aqui: aceita o id exato, ou resgata o UUID de
+      // dentro de uma chave deformada; qualquer outra coisa é descartada.
+      const idsValidos = new Set((ctx.behaviorConfig?.campos_qualificacao ?? []));
       const extraFields: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(input)) {
-        if (key !== "score" && key !== "qualificado" && key !== "motivo") extraFields[key] = value;
+        if (key === "score" || key === "qualificado" || key === "motivo") continue;
+        let campoId: string | null = idsValidos.has(key) ? key : null;
+        if (!campoId) {
+          const achado = key.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+          if (achado && idsValidos.has(achado[0])) campoId = achado[0];
+        }
+        if (campoId) extraFields[campoId] = value;
+        else console.warn(`[agent-sds-qualify] qualificar_lead devolveu campo desconhecido, descartado: ${key}`);
       }
 
       await db.from("leads").update({
@@ -939,19 +1380,109 @@ async function executeAgentTool(
     }
 
     case "agendar_reuniao_closer": {
-      // Config de agendamento vem da aba Closers -- todas opcionais, com
+      // Config de agendamento vem da aba Vendedores -- todas opcionais, com
       // fallback pro comportamento anterior (São Paulo, 60min, Meet sempre).
       const cfg = ctx.behaviorConfig ?? {};
       const timezone = cfg.fuso_horario || "America/Sao_Paulo";
       const duration = Number(input.duration_minutes) || Number(cfg.duracao_reuniao_minutos) || 60;
       const createMeet = cfg.incluir_google_meet ?? true;
+      // undefined = true (agentes de antes desse toggle continuam exigindo
+      // Google, sem mudança de comportamento) -- ver pickAvailableCloser.
+      const googleRequired = cfg.google_calendar_ativo !== false;
 
-      const closer = await pickAvailableCloser(db, ctx.companyId, ctx.agentId, input.start_datetime as string | undefined, duration, cfg);
+      // Reagendamento: se já existe reunião FUTURA desse lead, o lead está
+      // movendo ela -- não é uma segunda reunião. Antes o agente sempre
+      // inseria uma nova, deixando a antiga órfã no CRM e no Google Calendar
+      // ("reunião fantasma"): o vendedor via duas, o balanceamento de carga
+      // contava as duas, e o intervalo entre reuniões bloqueava horários que
+      // na verdade estavam livres.
+      const { data: futuras } = await db
+        .from("activities")
+        .select("id, owner_id, gcal_event_id")
+        .eq("company_id", ctx.companyId)
+        .eq("lead_id", ctx.leadId)
+        .eq("type", "meeting")
+        .gte("scheduled_at", new Date().toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(1);
+      const remarcar = futuras?.[0] ?? null;
+
+      // Padrão de nome do evento: "<empresa do negócio ou nome do lead> <>
+      // <empresa dona do CRM>". Ex.: "Matheus Tonetto <> Consultório
+      // Samantha". Antes era "Reunião — Fulano", que na agenda do vendedor
+      // não dizia de qual lado vinha cada parte.
+      const { data: empresaRow } = await db
+        .from("companies").select("name").eq("id", ctx.companyId).maybeSingle();
+      // E-mail informado agora na conversa entra no cadastro do lead (só
+      // preenche se estiver vazio -- nunca sobrescreve um e-mail já existente
+      // com o que o modelo entendeu de ouvido).
+      const emailInformado = typeof input.email === "string" && input.email.includes("@")
+        ? input.email.trim() : "";
+      const emailAtual = typeof ctx.lead.email === "string" && ctx.lead.email.includes("@")
+        ? ctx.lead.email : "";
+      let emailConvite = emailAtual;
+      if (!emailAtual && emailInformado) {
+        await db.from("leads").update({ email: emailInformado })
+          .eq("id", ctx.leadId).eq("company_id", ctx.companyId);
+        emailConvite = emailInformado;
+      }
+
+      const ladoLead = String(ctx.lead.company || ctx.lead.name || "Lead").trim();
+      const ladoEmpresa = String(empresaRow?.name ?? "").trim();
+      const tituloReuniao = ladoEmpresa ? `${ladoLead} <> ${ladoEmpresa}` : ladoLead;
+
+      const closer = await pickAvailableCloser(
+        db, ctx.companyId, ctx.agentId, input.start_datetime as string | undefined, duration, cfg,
+        remarcar?.owner_id as string | undefined,
+        remarcar?.id as string | undefined,
+      );
       if (!closer) {
-        // ninguém disponível (sem Google conectado, fora da janela de
-        // disponibilidade declarada, ou sem folga suficiente na agenda) —
-        // escala pra humano em vez de falhar silenciosamente
-        return await executeAgentTool(db, { name: "escalar_humano", input: { motivo: "Nenhum closer disponível nesse horário (conectado ao Google Calendar, dentro da janela liberada e sem conflito de agenda)" } }, ctx);
+        // ninguém disponível (sem Google conectado quando exigido, fora da
+        // janela de disponibilidade declarada, ou sem folga suficiente na
+        // agenda) — escala pra humano em vez de falhar silenciosamente
+        const motivo = googleRequired
+          ? "Nenhum closer disponível nesse horário (conectado ao Google Calendar, dentro da janela liberada e sem conflito de agenda)"
+          : "Nenhum closer disponível nesse horário (dentro da janela liberada e sem conflito de agenda)";
+        // Escala pro humano, mas devolve FALHA pro modelo. Antes retornava o
+        // resultado do escalar_humano, que é { ok: true } -- o modelo lia
+        // "deu certo" e anunciava pro lead "remarquei para domingo às 18h",
+        // sem que reunião nenhuma existisse. O lead ficava esperando um
+        // encontro que não estava na agenda de ninguém.
+        await executeAgentTool(db, { name: "escalar_humano", input: { motivo } }, ctx);
+        return {
+          ok: false,
+          error: `NÃO FOI AGENDADO. ${motivo}. Não diga ao lead que a reunião foi marcada ou remarcada: ela não foi. Explique que esse horário não está disponível e ofereça horários dentro da disponibilidade informada no seu contexto.`,
+        };
+      }
+
+      // Offset calculado a partir do fuso configurado (default São Paulo):
+      // sem ele aqui, o Postgres assumiria UTC e o horário salvo no CRM
+      // ficaria errado.
+      const offset = tzOffsetString(timezone, new Date(`${input.start_datetime}Z`));
+      const scheduledAt = `${input.start_datetime}${offset}`;
+
+      // Google Calendar desligado (aba Vendedores): agenda só no calendário
+      // do Rezult (activities) -- sem chamar google-calendar-event, sem
+      // link de vídeo automático.
+      if (!googleRequired) {
+        const semGoogle = {
+          company_id: ctx.companyId,
+          owner_id: closer.userId,
+          lead_id: ctx.leadId,
+          type: "meeting",
+          title: tituloReuniao,
+          scheduled_at: scheduledAt,
+          duration_minutes: duration,
+          meet_link: null,
+          gcal_event_id: null,
+          description: "Agendado automaticamente pelo agente SDS.",
+        };
+        if (remarcar) {
+          await db.from("activities").update(semGoogle).eq("id", remarcar.id);
+        } else {
+          await db.from("activities").insert(semGoogle);
+        }
+        return { ok: true, data: { meet_link: null, remarcada: !!remarcar } };
       }
 
       const calRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-event`, {
@@ -961,7 +1492,15 @@ async function executeAgentTool(
           "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
         },
         body: JSON.stringify({
-          title: `Reunião — ${ctx.lead.name ?? "Lead"}`,
+          // Com event_id a google-calendar-event faz PATCH no evento que já
+          // existe (move o horário) em vez de criar outro -- é isso que evita
+          // a reunião fantasma na agenda do vendedor. Só reusa quando o
+          // vendedor continua o mesmo; se mudou, o evento antigo é de outra
+          // pessoa e precisa mesmo de um evento novo.
+          ...(remarcar?.gcal_event_id && remarcar.owner_id === closer.userId
+            ? { event_id: remarcar.gcal_event_id }
+            : {}),
+          title: tituloReuniao,
           description: "Agendado automaticamente pelo agente SDS.",
           start_datetime: input.start_datetime,
           duration_minutes: duration,
@@ -969,6 +1508,12 @@ async function executeAgentTool(
           timezone,
           company_id: ctx.companyId,
           user_id: closer.userId,
+          // O lead precisa ser CONVIDADO, não só constar no título: sem isso
+          // o evento nascia sem participante nenhum, então ele não recebia
+          // convite, nem lembrete, nem o link do Meet na própria agenda --
+          // só a mensagem solta no WhatsApp. Lead sem e-mail cadastrado
+          // segue como antes (evento só na agenda do vendedor).
+          ...(emailConvite ? { attendees: [emailConvite] } : {}),
         }),
       });
 
@@ -979,23 +1524,24 @@ async function executeAgentTool(
       }
       const calData = await calRes.json();
 
-      // Offset calculado a partir do fuso configurado (default São Paulo):
-      // sem ele aqui, o Postgres assumiria UTC e o horário salvo no CRM
-      // ficaria errado em relação ao que foi criado no Google Calendar.
-      const offset = tzOffsetString(timezone, new Date(`${input.start_datetime}Z`));
-      await db.from("activities").insert({
+      const linhaReuniao = {
         company_id: ctx.companyId,
         owner_id: closer.userId,
         lead_id: ctx.leadId,
         type: "meeting",
-        title: `Reunião — ${ctx.lead.name ?? "Lead"}`,
-        scheduled_at: `${input.start_datetime}${offset}`,
+        title: tituloReuniao,
+        scheduled_at: scheduledAt,
         duration_minutes: duration,
         meet_link: calData.meet_link ?? null,
         gcal_event_id: calData.event_id ?? null,
         description: "Agendado automaticamente pelo agente SDS.",
-      });
-      return { ok: true, data: { meet_link: calData.meet_link ?? null } };
+      };
+      if (remarcar) {
+        await db.from("activities").update(linhaReuniao).eq("id", remarcar.id);
+      } else {
+        await db.from("activities").insert(linhaReuniao);
+      }
+      return { ok: true, data: { meet_link: calData.meet_link ?? null, remarcada: !!remarcar } };
     }
 
     case "mover_pipeline": {
@@ -1004,13 +1550,8 @@ async function executeAgentTool(
     }
 
     case "enviar_mensagem": {
-      const { data: conn } = await db
-        .from("whatsapp_connections")
-        .select("provider, instance_id, token, client_token")
-        .eq("company_id", ctx.companyId)
-        .eq("connected", true)
-        .maybeSingle();
-      if (!conn) return { ok: false, error: "nenhuma conexão de WhatsApp conectada" };
+      const conn = await resolveOutboundConnection(db, ctx.companyId, ctx.agentId);
+      if (!conn) return { ok: false, error: "nenhuma conexão de WhatsApp disponível para este agente" };
 
       const creds: ZapiCreds = {
         instanceId: String(conn.instance_id),
@@ -1036,13 +1577,25 @@ async function executeAgentTool(
           body: parts[i],
           type: "text",
         });
-        if (i < parts.length - 1) await new Promise<void>((r) => setTimeout(r, 600));
+        // Pausa proporcional ao tamanho da PRÓXIMA parte, simulando alguém
+        // digitando. Os 600ms fixos de antes disparavam tudo em poucos
+        // segundos: além de parecer robô, é o padrão que faz provedor de
+        // WhatsApp marcar o número como spam.
+        if (i < parts.length - 1) {
+          const pausaMs = Math.min(4000, 700 + contaPalavras(parts[i + 1]) * 100);
+          await new Promise<void>((r) => setTimeout(r, pausaMs));
+        }
       }
 
       // Follow-up automático: toda mensagem real do agente reinicia o
       // relógio de silêncio -- se o lead não responder no intervalo
       // configurado, agent-followup-runner assume a partir daqui.
-      if (cfg.followup_ativo) {
+      //
+      // Quando ESTA execução já é o follow-up (chamada pelo runner), não
+      // rearma nada: quem controla tentativa e próximo horário nesse caso é
+      // o runner. Sem essa guarda, cada follow-up zeraria o contador de
+      // tentativas e o lead seria cutucado para sempre.
+      if (cfg.followup_ativo && !ctx.followupAttempt) {
         const unitMs = cfg.followup_intervalo_unidade === "horas" ? 3_600_000 : 60_000;
         const intervalMs = (Number(cfg.followup_intervalo_valor) || 30) * unitMs;
         await db.from("agent_followup_state").upsert({
@@ -1055,8 +1608,12 @@ async function executeAgentTool(
       // sido dividida em várias partes (aba Configurações > "Limite de
       // interações"). Atualiza direto por incremento -- evita race entre
       // select e update se o webhook disparar duas vezes rápido.
+      // Conversa mais recente (mesmo motivo do gate de limite lá em cima:
+      // pode haver mais de uma linha pro mesmo telefone, e maybeSingle
+      // errava em vez de escolher uma -- o contador nunca subia).
       {
-        const { data: conv } = await db.from("whatsapp_conversations").select("id, ai_interaction_count").eq("company_id", ctx.companyId).in("phone", phoneVariants(phone)).maybeSingle();
+        const { data: convRows } = await db.from("whatsapp_conversations").select("id, ai_interaction_count").eq("company_id", ctx.companyId).in("phone", phoneVariants(phone)).order("last_msg_at", { ascending: false }).limit(1);
+        const conv = convRows?.[0];
         if (conv?.id) await db.from("whatsapp_conversations").update({ ai_interaction_count: ((conv.ai_interaction_count as number | undefined) ?? 0) + 1 }).eq("id", conv.id);
       }
 
@@ -1064,19 +1621,33 @@ async function executeAgentTool(
     }
 
     case "finalizar_conversa": {
-      const { data: conv } = await db.from("whatsapp_conversations").select("id").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? ""))).maybeSingle();
-      if (conv?.id) await db.from("whatsapp_conversations").update({ finished: true, ai_interaction_count: 0 }).eq("id", conv.id);
+      // Atualiza TODAS as linhas do telefone (não só uma): o mesmo contato
+      // pode ter conversas duplicadas, e antes o maybeSingle errava nesse
+      // caso e a conversa nunca era marcada como finalizada.
+      await db.from("whatsapp_conversations")
+        .update({ finished: true, ai_interaction_count: 0 })
+        .eq("company_id", ctx.companyId)
+        .in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
       return { ok: true };
     }
 
     case "transferir_responsavel": {
-      // Remove a tag "Agente" -- o agente para de responder essa conversa a
-      // partir daqui (mesmo gate que hasAgentTag já usa) -- e deixa uma nota
-      // pro humano que assumir entender o motivo.
-      const { data: conv } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? ""))).maybeSingle();
-      if (conv?.id) {
-        const nextTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== "Agente");
-        await db.from("whatsapp_conversations").update({ tags: nextTags, ai_interaction_count: 0 }).eq("id", conv.id);
+      // Remove a tag "Agente" de leads.tags -- é essa tabela que hasAgentTag
+      // checa (fonte real da verdade), então é isso que de fato desliga o
+      // agente pra esse negócio a partir daqui. Também remove de
+      // whatsapp_conversations.tags pra manter o filtro "Agente" do
+      // Multiatendimento coerente (mesmo padrão dual que a UI de lá usa) --
+      // e deixa uma nota pro humano que assumir entender o motivo.
+      const currentLeadTags = (ctx.lead.tags as string[] | null) ?? [];
+      const nextLeadTags = currentLeadTags.filter((t) => t !== "Agente");
+      await db.from("leads").update({ tags: nextLeadTags }).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
+
+      // Todas as linhas do telefone (mesmo motivo de finalizar_conversa) --
+      // cada uma tem sua própria lista de tags, então filtra uma a uma.
+      const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
+      for (const conv of convRows ?? []) {
+        const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== "Agente");
+        await db.from("whatsapp_conversations").update({ tags: nextConvTags, ai_interaction_count: 0 }).eq("id", conv.id);
       }
       await db.from("activities").insert({
         company_id: ctx.companyId,

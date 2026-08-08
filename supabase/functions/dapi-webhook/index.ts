@@ -232,7 +232,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
               "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
             },
-            body: JSON.stringify({ companyId, phone: cleanPhone }),
+            body: JSON.stringify({ companyId, phone: cleanPhone, instanceId: sessionId }),
           });
         } catch (e) {
           console.error("agent-sds-qualify call failed:", e);

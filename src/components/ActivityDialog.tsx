@@ -42,6 +42,23 @@ export const SCHED_TYPES: { type: ActivityType; icon: typeof CalendarDays; label
   { type: "follow_up", icon: RefreshCw,      label: "Follow-up" },
 ];
 
+// Padrão de nome do compromisso: "<empresa do negócio, ou nome do lead se ela
+// não estiver preenchida> <> <empresa dona do CRM>".
+// Ex.: "Matheus Tonetto <> Consultório Samantha". Mesmo formato que o agente
+// usa ao agendar sozinho (ver agent-sds-qualify/index.ts), pra agenda do
+// vendedor não ficar com dois padrões diferentes conforme quem marcou.
+// Continua editável: isto é só o valor inicial.
+export function tituloPadraoAtividade(
+  lead: { name: string; company?: string } | undefined,
+  nomeEmpresa: string | undefined,
+): string {
+  if (!lead) return "";
+  const ladoLead = (lead.company?.trim() || lead.name?.trim() || "").trim();
+  const ladoEmpresa = (nomeEmpresa ?? "").trim();
+  if (!ladoLead) return "";
+  return ladoEmpresa ? `${ladoLead} <> ${ladoEmpresa}` : ladoLead;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ActivitySubmitData {
@@ -157,7 +174,10 @@ export function ActivityDialog({
       setSelectedLeadId(initLeadId);
       setLeadSearch(initLeadId && leads[initLeadId] ? leads[initLeadId].name : "");
     } else {
-      setTitle("");
+      // Aberto pelo card do negócio: já nasce com o nome padronizado.
+      // Sem lead definido (contexto do calendário), fica vazio e o efeito
+      // abaixo preenche assim que um lead for escolhido.
+      setTitle(tituloPadraoAtividade(defaultLead, company?.name));
       setType("meeting");
       setDate(nd);
       setTime(nt);
@@ -305,6 +325,14 @@ export function ActivityDialog({
   };
 
   const activeLead = defaultLead ?? (selectedLeadId ? leads[selectedLeadId] : undefined);
+
+  // No calendário o lead é escolhido depois de abrir o diálogo -- aí o título
+  // padrão só pode ser montado neste momento. Só preenche se o campo estiver
+  // vazio, pra nunca sobrescrever o que a pessoa já digitou.
+  useEffect(() => {
+    if (!open || isEditing || !activeLead) return;
+    setTitle((atual) => (atual.trim() ? atual : tituloPadraoAtividade(activeLead, company?.name)));
+  }, [open, isEditing, activeLead, company?.name]);
   const activeLeadEmails = activeLead?.emails?.length ? activeLead.emails : (activeLead?.email ? [activeLead.email] : []);
   const q = participantInput.toLowerCase();
   const showActiveLead = !!activeLead && (

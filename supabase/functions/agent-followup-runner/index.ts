@@ -1,11 +1,16 @@
 // Rezult CRM — Agent Followup Runner Edge Function
 // Processa o ciclo de follow-up automático de um agente: quando o lead não
-// responde depois de um intervalo configurado (aba Comportamento), envia uma
-// nova tentativa; depois de esgotar as tentativas, opcionalmente aciona uma
-// automação de destino. Acionado por pg_cron a cada minuto.
+// responde depois de um intervalo configurado (aba Comportamento), pede uma
+// nova tentativa ao agente; depois de esgotar as tentativas, opcionalmente
+// aciona uma automação de destino. Acionado por pg_cron a cada minuto.
+//
+// Este runner NÃO escreve nem envia a mensagem: ele só controla o relógio
+// (quando cutucar, quantas vezes, quando desistir) e delega a redação e o
+// envio ao agent-sds-qualify, que tem o histórico da conversa, o tom
+// configurado e a linha de WhatsApp certa. Mesmo padrão do
+// agent-response-runner.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { sendWa, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +36,6 @@ type BehaviorConfig = {
   followup_intervalo_unidade?: "minutos" | "horas";
   followup_transferir_automacao?: boolean;
   followup_automacao_id?: string | null;
-  usar_emojis?: boolean;
 };
 
 Deno.serve(async (req: Request) => {
@@ -105,26 +109,42 @@ async function processOne(
     return { id: row.id, status: "concluido" };
   }
 
-  const { data: conn } = await db.from("whatsapp_connections").select("provider, instance_id, token, client_token").eq("company_id", row.company_id).eq("connected", true).maybeSingle();
-  if (!conn) return { id: row.id, error: "nenhuma conexão de WhatsApp conectada" };
-
-  const { data: lead } = await db.from("leads").select("name, owner_id").eq("id", row.lead_id).maybeSingle();
-  const leadName = (lead?.name as string | undefined)?.split(" ")[0] || "";
-  const emoji = cfg.usar_emojis ? " 🙂" : "";
-  const text = leadName
-    ? `Oi ${leadName}! Só passando pra saber se ainda tem interesse em continuar nossa conversa. Fico à disposição!${emoji}`
-    : `Oi! Só passando pra saber se ainda tem interesse em continuar nossa conversa. Fico à disposição!${emoji}`;
-
-  const creds: ZapiCreds = {
-    instanceId: String(conn.instance_id), token: String(conn.token),
-    clientToken: conn.client_token ? String(conn.client_token) : null,
-    provider: (["dapi", "cloud_api"].includes(String(conn.provider)) ? String(conn.provider) : "zapi") as "zapi" | "dapi" | "cloud_api",
-  };
-  await sendWa(creds, { kind: "text", phone: row.phone, message: text });
-  await db.from("whatsapp_messages").insert({
-    company_id: row.company_id, owner_id: lead?.owner_id as string | undefined,
-    instance_id: creds.instanceId, phone: row.phone, from_me: true, body: text, type: "text",
+  // A cutucada é escrita pelo próprio agente (agent-sds-qualify), não por um
+  // texto fixo aqui. Antes, toda tentativa mandava a MESMA frase, sem nenhum
+  // contexto da conversa e sem a assinatura/estilo configurados -- duas
+  // tentativas seguidas chegavam idênticas pro lead.
+  //
+  // Passar pelo agente também faz o follow-up herdar todos os gates dele:
+  // tag "Agente", conversa finalizada e horário de atendimento. Sem isso, um
+  // lead já transferido pra um humano continuava sendo cutucado pelo robô,
+  // atropelando o atendente.
+  const res = await fetch(`${supabaseUrl}/functions/v1/agent-sds-qualify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+      "x-bypass-delay": "true",
+      "x-followup-attempt": String(row.attempt_count + 1),
+    },
+    body: JSON.stringify({ companyId: row.company_id, phone: row.phone }),
   });
+  const payload = await res.json().catch(() => ({})) as { skipped?: string };
+
+  if (payload?.skipped) {
+    // Fora do horário de atendimento é só "ainda não": adia a tentativa em
+    // vez de desistir dela. Qualquer outro motivo (tag removida, conversa
+    // finalizada, agente desligado) significa que o ciclo perdeu o sentido.
+    if (payload.skipped === "outside_business_hours") {
+      const unitMsRetry = cfg.followup_intervalo_unidade === "horas" ? 3_600_000 : 60_000;
+      const retryMs = (Number(cfg.followup_intervalo_valor) || 30) * unitMsRetry;
+      await db.from("agent_followup_state")
+        .update({ next_attempt_at: new Date(Date.now() + retryMs).toISOString() })
+        .eq("id", row.id);
+      return { id: row.id, status: "adiado", motivo: payload.skipped };
+    }
+    await db.from("agent_followup_state").update({ status: "cancelado" }).eq("id", row.id);
+    return { id: row.id, status: "cancelado", motivo: payload.skipped };
+  }
 
   const unitMs = cfg.followup_intervalo_unidade === "horas" ? 3_600_000 : 60_000;
   const intervalMs = (Number(cfg.followup_intervalo_valor) || 30) * unitMs;

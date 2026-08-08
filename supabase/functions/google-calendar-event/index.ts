@@ -65,10 +65,21 @@ serve(async (req) => {
     // Busca token Google do usuário (filtrado por empresa para isolamento multi-tenant)
     let tokenQuery = db
       .from("google_oauth_tokens")
-      .select("access_token, refresh_token, token_expiry")
+      .select("id, access_token, refresh_token, token_expiry")
       .eq("user_id", userId);
-    if (company_id) tokenQuery = tokenQuery.eq("company_id", company_id);
-    const { data: tokenRow, error: tokenErr } = await tokenQuery.maybeSingle();
+    // Aceita o token da empresa pedida OU um token legado sem empresa
+    // (criado antes da coluna company_id existir) -- com `.eq(company_id)`
+    // puro, quem conectou o Google antes dessa coluna existir ficava sem
+    // agendamento nenhum. Ordena pra que o token específico da empresa
+    // ganhe do legado quando os dois existirem.
+    // `.limit(1)` e não `.maybeSingle()`: reconectar o Google deixa mais de
+    // uma linha por usuário, e o maybeSingle devolvia ERRO nesse caso, que
+    // caía no `tokenErr` abaixo e virava um "google_not_connected" mentiroso.
+    if (company_id) tokenQuery = tokenQuery.or(`company_id.eq.${company_id},company_id.is.null`);
+    const { data: tokenRows, error: tokenErr } = await tokenQuery
+      .order("company_id", { ascending: false, nullsFirst: false })
+      .limit(1);
+    const tokenRow = tokenRows?.[0];
 
     if (tokenErr || !tokenRow) {
       return json({ error: "google_not_connected" }, 400);
@@ -93,14 +104,15 @@ serve(async (req) => {
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json() as { access_token: string; expires_in?: number };
         accessToken = refreshData.access_token;
-        let updateQ = db.from("google_oauth_tokens").update({
+        // Atualiza exatamente a linha que foi usada (por id) -- antes o
+        // update era por user_id (+company_id) e, com token duplicado,
+        // podia gravar o access_token novo na linha errada.
+        await db.from("google_oauth_tokens").update({
           access_token: accessToken,
           token_expiry: refreshData.expires_in
             ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
             : null,
-        }).eq("user_id", userId);
-        if (company_id) updateQ = updateQ.eq("company_id", company_id);
-        await updateQ;
+        }).eq("id", tokenRow.id);
       } else {
         return json({ error: "token_refresh_failed" }, 502);
       }
@@ -118,8 +130,12 @@ serve(async (req) => {
         }),
       };
 
+      // sendUpdates=all: sem isso o Google adiciona o convidado no evento mas
+      // NÃO manda e-mail nenhum (o padrão da API é não notificar). O
+      // participante era incluído e nunca ficava sabendo -- nem do convite,
+      // nem quando o horário mudava.
       const patchRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}`,
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}?sendUpdates=all`,
         {
           method: "PATCH",
           headers: {
@@ -168,7 +184,9 @@ serve(async (req) => {
     };
 
     const calRes = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events${create_meet ? "?conferenceDataVersion=1" : ""}`,
+      // sendUpdates=all pelo mesmo motivo do PATCH acima: é o que faz o
+      // convite chegar de fato no e-mail do participante.
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all${create_meet ? "&conferenceDataVersion=1" : ""}`,
       {
         method:  "POST",
         headers: {

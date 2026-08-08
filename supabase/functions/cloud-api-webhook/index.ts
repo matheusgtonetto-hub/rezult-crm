@@ -228,7 +228,7 @@ serve(async (req) => {
                     "Content-Type": "application/json",
                     "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
                   },
-                  body: JSON.stringify({ companyId, phone: cleanPhone }),
+                  body: JSON.stringify({ companyId, phone: cleanPhone, instanceId: phoneNumberId }),
                 });
               } catch (e) {
                 console.error("cloud-api-webhook: agent-sds-qualify falhou:", e);

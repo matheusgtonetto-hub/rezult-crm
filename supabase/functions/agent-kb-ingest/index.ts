@@ -62,15 +62,29 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
+// A coluna agent_knowledge_chunks.embedding é vector(1536), mas o
+// text-embedding-3-large devolve 3072 dimensões por padrão. Sem pedir
+// `dimensions` explicitamente, TODO insert de chunk falhava por incompatibi-
+// lidade de dimensão -- e como o erro do insert era ignorado, o documento
+// era marcado "ready" com zero conteúdo indexado. A Base de Conhecimento
+// inteira ficava muda, sem nenhum sinal de erro. Precisa bater com o
+// vector(1536) da migration 20260723000001 e com a busca em
+// agent-sds-qualify/index.ts::retrieveKbContext.
+const EMBEDDING_DIMS = 1536;
+
 async function embed(text: string, apiKey: string): Promise<number[]> {
   const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "text-embedding-3-large", input: text }),
+    body: JSON.stringify({ model: "text-embedding-3-large", input: text, dimensions: EMBEDDING_DIMS }),
   });
   if (!res.ok) throw new Error(`embeddings HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
-  return data.data[0].embedding as number[];
+  const vetor = data.data[0].embedding as number[];
+  if (vetor.length !== EMBEDDING_DIMS) {
+    throw new Error(`embedding veio com ${vetor.length} dimensões, esperado ${EMBEDDING_DIMS}`);
+  }
+  return vetor;
 }
 
 Deno.serve(async (req) => {
@@ -181,14 +195,24 @@ Deno.serve(async (req) => {
     if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada (nem por empresa, nem global)");
 
     const chunks = chunkText(rawText);
+    // Documento sem texto extraível (PDF só de imagem, arquivo vazio) não é
+    // sucesso: antes virava "ready" com 0 chunks e o agente seguia sem saber
+    // de nada, enquanto a tela mostrava tudo certo.
+    if (chunks.length === 0) {
+      throw new Error("nenhum texto extraível encontrado no arquivo (PDF apenas de imagem? arquivo vazio?)");
+    }
+
     for (const content of chunks) {
       const embedding = await embed(content, openaiKey);
-      await db.from("agent_knowledge_chunks").insert({
+      // O erro do insert PRECISA ser checado: era ignorado, então falha de
+      // dimensão/permissão passava batido e o documento era dado como pronto.
+      const { error: chunkErr } = await db.from("agent_knowledge_chunks").insert({
         document_id: doc.id,
         company_id: doc.company_id,
         content,
         embedding,
       });
+      if (chunkErr) throw new Error(`falha ao gravar chunk: ${chunkErr.message}`);
     }
 
     await db.from("agent_knowledge_documents").update({ status: "ready" }).eq("id", doc.id);
