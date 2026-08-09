@@ -460,11 +460,14 @@ export default function AgentesPage() {
   const loadAgents = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    const [{ data: agentsData }, { data: anthropicKey }, { data: openaiKey }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
+    const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
         supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activated_at, active_seconds_total, draft").eq("company_id", companyId).order("created_at"),
-        supabase.from("ai_provider_keys").select("id").eq("company_id", companyId).eq("provider", "anthropic").eq("active", true).maybeSingle(),
-        supabase.from("ai_provider_keys").select("id").eq("company_id", companyId).eq("provider", "openai").eq("active", true).maybeSingle(),
+        // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
+        // da chave não pode vazar pros membros), então um membro lia zero
+        // linhas e a tela dizia "cadastre sua chave" com a chave cadastrada.
+        // A função devolve só os nomes dos provedores que têm chave ativa.
+        supabase.rpc("company_ai_providers", { p_company_id: companyId }),
         supabase.rpc("get_company_members", { p_company_id: companyId }),
         supabase.from("automations").select("id, name, flow").eq("company_id", companyId).eq("active", true),
         supabase.from("whatsapp_connections").select("id, name, phone, provider, connected").eq("company_id", companyId).order("created_at"),
@@ -472,8 +475,9 @@ export default function AgentesPage() {
         supabase.from("webhook_integrations").select("id, name, type, active").eq("company_id", companyId).order("created_at"),
       ]);
     setAgents(agentsData ?? []);
-    setHasAnthropicKey(!!anthropicKey);
-    setHasOpenaiKey(!!openaiKey);
+    const provedores = new Set(((aiProviders ?? []) as { provider: string }[]).map((p) => p.provider));
+    setHasAnthropicKey(provedores.has("anthropic"));
+    setHasOpenaiKey(provedores.has("openai"));
     setWhatsappConnections((whatsappData ?? []) as WhatsappConnectionOption[]);
     setMetaConnections((metaData ?? []) as MetaConnectionOption[]);
     setWebhookIntegrations((webhookData ?? []) as WebhookIntegrationOption[]);
@@ -817,17 +821,38 @@ export default function AgentesPage() {
   // tanto do card na grade quanto de dentro da tela de edição.
   async function toggleActive(agent: Agent, next: boolean) {
     if (!companyId) return;
-    if (next && !hasAnthropicKey) {
-      toast.error("Cadastre sua chave da Anthropic em Configurações antes de ativar o agente.");
-      return;
-    }
-    if (next && !hasOpenaiKey) {
-      toast.error("Cadastre sua chave da OpenAI em Configurações antes de ativar o agente.");
-      return;
-    }
-    if (next && agent.objectives.length === 0) {
-      toast.error("Marque pelo menos 1 objetivo na aba Perfil antes de ativar o agente.");
-      return;
+    // Só a chave do provedor DO MODELO escolhido é obrigatória. Antes exigia
+    // as duas, então quem assina só a Anthropic (ou só a OpenAI) não
+    // conseguia ativar nada -- e ninguém contrata os dois provedores pra
+    // usar um.
+    if (next) {
+      const provedorDoModelo = (agent.model ?? "").startsWith("gpt-") ? "openai" : "anthropic";
+      if (provedorDoModelo === "anthropic" && !hasAnthropicKey) {
+        toast.error("Cadastre sua chave da Anthropic em Configurações antes de ativar o agente.");
+        return;
+      }
+      if (provedorDoModelo === "openai" && !hasOpenaiKey) {
+        toast.error("Cadastre sua chave da OpenAI em Configurações antes de ativar o agente.");
+        return;
+      }
+      if (agent.objectives.length === 0) {
+        toast.error("Marque pelo menos 1 objetivo na aba Perfil antes de ativar o agente.");
+        return;
+      }
+      // A Base de Conhecimento gera embeddings pela OpenAI mesmo quando o
+      // modelo de chat é Claude. Sem essa chave, os documentos existem mas a
+      // busca devolve vazio e o agente responde como se não houvesse
+      // material nenhum -- em silêncio.
+      if (!hasOpenaiKey) {
+        const { count } = await supabase
+          .from("agent_knowledge_bases")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agent.id).eq("company_id", companyId);
+        if ((count ?? 0) > 0) {
+          toast.error("Este agente tem Base de Conhecimento, que usa a OpenAI para indexar. Cadastre a chave da OpenAI em Configurações antes de ativar.");
+          return;
+        }
+      }
     }
     // "Horas ativas" (aba Performance) = tempo de relógio com o toggle
     // ligado -- ao desligar, acumula o intervalo em active_seconds_total; ao
