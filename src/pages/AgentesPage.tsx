@@ -826,13 +826,22 @@ export default function AgentesPage() {
     // conseguia ativar nada -- e ninguém contrata os dois provedores pra
     // usar um.
     if (next) {
+      // Consulta na hora, em vez de usar o estado carregado quando a página
+      // montou: quem cadastra a chave em Configurações e volta pra cá sem
+      // recarregar continuava com a foto velha do banco, e a trava acusava
+      // "cadastre sua chave" com a chave já gravada, sem saída.
+      const { data: provedoresAgora } = await supabase.rpc("company_ai_providers", { p_company_id: companyId });
+      const chaves = new Set(((provedoresAgora ?? []) as { provider: string }[]).map((p) => p.provider));
+      setHasAnthropicKey(chaves.has("anthropic"));
+      setHasOpenaiKey(chaves.has("openai"));
+
       const provedorDoModelo = (agent.model ?? "").startsWith("gpt-") ? "openai" : "anthropic";
-      if (provedorDoModelo === "anthropic" && !hasAnthropicKey) {
-        toast.error("Cadastre sua chave da Anthropic em Configurações antes de ativar o agente.");
-        return;
-      }
-      if (provedorDoModelo === "openai" && !hasOpenaiKey) {
-        toast.error("Cadastre sua chave da OpenAI em Configurações antes de ativar o agente.");
+      if (!chaves.has(provedorDoModelo)) {
+        toast.error(
+          provedorDoModelo === "anthropic"
+            ? "Cadastre sua chave da Anthropic em Configurações antes de ativar o agente."
+            : "Cadastre sua chave da OpenAI em Configurações antes de ativar o agente.",
+        );
         return;
       }
       if (agent.objectives.length === 0) {
@@ -843,7 +852,7 @@ export default function AgentesPage() {
       // modelo de chat é Claude. Sem essa chave, os documentos existem mas a
       // busca devolve vazio e o agente responde como se não houvesse
       // material nenhum -- em silêncio.
-      if (!hasOpenaiKey) {
+      if (!chaves.has("openai")) {
         const { count } = await supabase
           .from("agent_knowledge_bases")
           .select("id", { count: "exact", head: true })
