@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendWa, type ZapiCreds } from "../_shared/whatsapp-send.ts";
+import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
@@ -86,6 +86,19 @@ const TOOLS = [
     },
   },
   {
+    // Sem isso o agente remarcava mas não cancelava: diante de "não vou
+    // conseguir mais", ele dizia que cancelou e o horário continuava
+    // ocupado na agenda do vendedor -- e o lembrete da reunião ainda
+    // dispararia depois, para um encontro que ninguém mais esperava.
+    name: "cancelar_reuniao",
+    description: "Cancela a reunião já marcada com este lead. Use quando ele avisar que não poderá comparecer. Se ele já indicar outro horário, prefira agendar_reuniao_closer (que remarca direto). Depois de cancelar, SEMPRE ofereça um novo horário na mesma mensagem — nunca encerre o assunto.",
+    input_schema: {
+      type: "object",
+      properties: { motivo: { type: "string", description: "O que o lead disse — fica registrado para o vendedor." } },
+      required: ["motivo"],
+    },
+  },
+  {
     name: "escalar_humano",
     description: "Passa a conversa para um atendente humano.",
     input_schema: {
@@ -163,7 +176,7 @@ function buildDynamicTools(objectives: string[], enabledTools: string[], qualFie
   const byName = (n: string) => TOOLS.find((t) => t.name === n);
   tools.push(byName("enviar_mensagem")!, byName("escalar_humano")!);
   if (objectives.includes("qualificar")) tools.push(buildQualificarLeadTool(qualFields));
-  if (objectives.includes("agendar")) tools.push(byName("agendar_reuniao_closer")!);
+  if (objectives.includes("agendar")) tools.push(byName("agendar_reuniao_closer")!, byName("cancelar_reuniao")!);
   for (const toolId of enabledTools) {
     const schema = TOOL_SCHEMAS.find((s) => s.id === toolId);
     if (schema) tools.push({ name: schema.name, description: schema.description, input_schema: schema.input_schema });
@@ -243,6 +256,13 @@ type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
+  // Quem o agente É na conversa. Sem isso ele oscilava sozinho: numa mesma
+  // conversa dizia "vocês podem explorar" (falando do profissional em
+  // terceira pessoa, como se fosse um intermediário) e logo depois falava
+  // como se fosse a própria clínica. O lead não sabia com quem estava
+  // falando. "propria" = é o profissional/empresa, primeira pessoa.
+  // "equipe" = é alguém do time falando EM NOME do profissional.
+  persona_voz?: "propria" | "equipe";
   usar_emojis?: boolean;
   assinar_nome?: boolean;
   dividir_mensagens?: boolean;
@@ -290,6 +310,13 @@ type BehaviorConfig = {
   horario_atendimento_inicio?: string;
   horario_atendimento_fim?: string;
   horario_atendimento_dias?: string[];
+  // Lembrete de reunião (aba Perfil, objetivo Agendar): dois avisos antes
+  // do encontro, um distante e um próximo.
+  lembrete_reuniao_ativo?: boolean;
+  lembrete_1_valor?: number;
+  lembrete_1_unidade?: "minutos" | "horas";
+  lembrete_2_valor?: number;
+  lembrete_2_unidade?: "minutos" | "horas";
 };
 
 // Mesmo mapeamento de dia da semana usado no resto do arquivo (WEEKDAY_PT),
@@ -356,11 +383,32 @@ const ESTILO_PROMPTS: Record<string, string> = {
   descontraida: "Tom de comunicação: descontraído e próximo -- pode usar linguagem mais informal e leve, sem perder o profissionalismo.",
 };
 
-function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string): string {
+function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEmpresa = ""): string {
   const lines: string[] = [];
+
+  // Pessoa do discurso — precisa vir cedo e explícita, senão o modelo
+  // alterna sozinho entre "eu atendo" e "vocês vão conversar" na mesma
+  // conversa, e o lead não entende se fala com o profissional ou com um
+  // intermediário.
+  const empresa = nomeEmpresa || "a empresa";
+  if (cfg.persona_voz === "equipe") {
+    lines.push(`QUEM VOCÊ É: você faz parte da equipe de ${empresa} e fala EM NOME do profissional, nunca como ele. Use terceira pessoa ao se referir ao atendimento dele ("ela vai te receber", "a agenda dela", "o trabalho dela") e primeira pessoa só para o que VOCÊ faz aqui na conversa ("eu te ajudo a marcar", "posso verificar"). Ao se apresentar, deixe claro que é da equipe.`);
+  } else {
+    lines.push(`QUEM VOCÊ É: você é ${empresa} falando diretamente com o cliente. Use SEMPRE a primeira pessoa para o atendimento ("eu te atendo", "minha agenda", "vou te receber", "no meu trabalho"). NUNCA se refira ao profissional em terceira pessoa nem diga "vocês vão conversar" — quem vai conversar com o lead é você.`);
+  }
+
   if (cfg.estilo_comunicacao && ESTILO_PROMPTS[cfg.estilo_comunicacao]) lines.push(ESTILO_PROMPTS[cfg.estilo_comunicacao]);
+  // Travessão é entrega imediata de texto gerado por IA: ninguém digita "—"
+  // no WhatsApp. Vírgula, ponto, dois-pontos e parênteses dão conta.
+  lines.push("NUNCA use travessão (— ou –) nas mensagens. Prefira vírgula, ponto, dois-pontos ou parênteses. Escreva como alguém digitando no WhatsApp, não como texto publicado.");
   lines.push(cfg.usar_emojis ? "Pode usar emojis nas mensagens, com moderação." : "Não use emojis nas mensagens.");
-  if (cfg.assinar_nome && agentName) lines.push(`Assine seu nome ("${agentName}") ao final das mensagens, de forma natural.`);
+  // Nome no TOPO em negrito, não no rodapé: no WhatsApp o nome no fim
+  // parecia assinatura de e-mail, e com a mensagem dividida ele só aparecia
+  // na última parte -- ou seja, o contato lia tudo sem saber quem falava.
+  // `*texto*` é o negrito do WhatsApp.
+  if (cfg.assinar_nome && agentName) {
+    lines.push(`Comece a resposta com *${agentName}* sozinho na primeira linha, e o conteúdo nas linhas seguintes. Se a resposta for dividida em várias mensagens, apenas a PRIMEIRA leva o nome — as demais vão direto ao conteúdo.`);
+  }
   if (cfg.finalizar_conversa) lines.push("Quando a conversa chegar a uma conclusão natural (objetivo atingido ou lead se despediu), use a tool finalizar_conversa.");
   if (cfg.transferir_responsavel) lines.push("Quando identificar que cumpriu seu objetivo nesta conversa, use a tool transferir_responsavel para passar o lead pra um humano dar continuidade.");
   if (cfg.restringir_topicos) {
@@ -579,41 +627,101 @@ function phonesMatch(a: string, b: string): boolean {
 // que provedores de WhatsApp tratam como spam e que pode custar o BANIMENTO
 // do número da empresa. Passando do teto, aumenta o tamanho de cada parte em
 // vez de multiplicar a quantidade de mensagens.
-const MAX_PARTES_MENSAGEM = 5;
+// Era 5 quando o objetivo do teto era conter RAJADA (8 mensagens em 8
+// segundos, padrão que provedor de WhatsApp trata como spam). Com o ritmo de
+// digitação atual as partes já saem espaçadas de 5 a 30 segundos, então o
+// risco de rajada acabou -- e um teto baixo passou a atrapalhar: ele
+// contrariava o número de palavras que o próprio usuário configurou,
+// forçando mensagens maiores do que ele pediu. Agora o teto serve só como
+// trava contra caso absurdo (resposta gigante virando 30 mensagens).
+const MAX_PARTES_MENSAGEM = 10;
 
 function contaPalavras(s: string): number {
   return s.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// ─── Ritmo de digitação ─────────────────────────────────────────────────────
+// Regra do produto: 1 segundo por palavra com MAIS DE 5 LETRAS. Palavras
+// curtas ("de", "para", "com") não contam -- são as longas que dão a
+// sensação de alguém realmente escrevendo.
+//
+// Os dois tetos existem por motivos diferentes:
+//  - por parte: o indicador do WhatsApp precisa ser renovado a cada ~10s
+//    (ver aguardarDigitando); acima de meio minuto numa única mensagem a
+//    espera passa de "humano" para "abandonado".
+//  - total: edge function tem limite de tempo de execução. Sem esse teto,
+//    uma resposta longa dividida em várias partes poderia estourar o limite
+//    e a função morrer NO MEIO do envio, deixando a conversa pela metade.
+const TETO_DIGITACAO_PARTE_MS = 30_000;
+const TETO_DIGITACAO_TOTAL_MS = 90_000;
+// Piso: mesmo um "Ok!" leva 5s de digitação. Resposta instantânea entrega
+// que é robô -- ninguém lê a mensagem, pensa e digita em meio segundo.
+const PISO_DIGITACAO_MS = 5_000;
+
+function tempoDigitacao(texto: string): number {
+  const longas = texto.trim().split(/\s+/)
+    .filter((p) => p.replace(/[^\p{L}\p{N}]/gu, "").length > 5).length;
+  return Math.max(PISO_DIGITACAO_MS, Math.min(TETO_DIGITACAO_PARTE_MS, 500 + longas * 1000));
+}
+
+// Espera mantendo o "digitando" vivo: a D-API aceita no máximo 15s por
+// chamada, então uma pausa longa precisa ser renovada em fatias, senão o
+// indicador some no meio e o contato acha que a conversa morreu.
+async function aguardarDigitando(
+  creds: ZapiCreds, phone: string, totalMs: number,
+): Promise<void> {
+  const FATIA_MS = 8000;
+  let restante = totalMs;
+  while (restante > 0) {
+    const agora = Math.min(FATIA_MS, restante);
+    await sendTyping(creds, phone, agora + 2000); // margem pra não piscar
+    await new Promise<void>((r) => setTimeout(r, agora));
+    restante -= agora;
+  }
+}
+
 function splitLongMessage(text: string, maxWords: number): string[] {
   const total = contaPalavras(text);
   if (total <= maxWords) return [text];
-  // Alvo efetivo: respeita o configurado, mas nunca gera mais que o teto.
-  maxWords = Math.max(maxWords, Math.ceil(total / MAX_PARTES_MENSAGEM));
 
-  // Antes isso cortava a cada N palavras na régua, no meio da frase ("...o
-  // valor da consulta é" / "R$ 200 e o retorno..."), e o
-  // split(/\s+/).join(" ") ainda achatava as quebras de linha do texto.
-  // Agora acumula frases/parágrafos inteiros até encostar no limite: cada
-  // parte termina onde uma ideia termina. Frase única maior que o limite vai
-  // inteira -- melhor uma parte grande do que uma frase partida ao meio.
+  // Corta em fim de frase/parágrafo, nunca no meio de uma ideia. Antes isso
+  // cortava a cada N palavras na régua ("...o valor da consulta é" / "R$ 200
+  // e o retorno...") e o split(/\s+/).join(" ") ainda achatava as quebras de
+  // linha. Frase única maior que o alvo vai inteira -- melhor uma parte
+  // grande do que uma frase partida ao meio.
   const blocos = text
     .split(/(?<=[.!?…])\s+|\n{2,}/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const parts: string[] = [];
-  let atual = "";
-  for (const bloco of blocos) {
-    const candidato = atual ? `${atual} ${bloco}` : bloco;
-    if (atual && contaPalavras(candidato) > maxWords) {
-      parts.push(atual);
-      atual = bloco;
-    } else {
-      atual = candidato;
+  const montar = (alvo: number): string[] => {
+    const out: string[] = [];
+    let atual = "";
+    for (const bloco of blocos) {
+      const candidato = atual ? `${atual} ${bloco}` : bloco;
+      if (atual && contaPalavras(candidato) > alvo) {
+        out.push(atual);
+        atual = bloco;
+      } else {
+        atual = candidato;
+      }
     }
+    if (atual) out.push(atual);
+    return out;
+  };
+
+  // O teto precisa ser verificado DE FATO, não estimado. Antes eu calculava
+  // o tamanho médio necessário (total / teto) e confiava nele -- só que,
+  // como frases inteiras nunca são partidas, duas frases de 25 palavras já
+  // estouram um alvo de 41 e cada uma vira uma parte. Num teste real isso
+  // gerou 8 mensagens com o teto valendo 5. Agora afrouxa o alvo até o
+  // número de partes realmente caber.
+  let alvo = maxWords;
+  let parts = montar(alvo);
+  for (let i = 0; i < 8 && parts.length > MAX_PARTES_MENSAGEM; i++) {
+    alvo = Math.ceil(alvo * 1.4);
+    parts = montar(alvo);
   }
-  if (atual) parts.push(atual);
   return parts.length ? parts : [text];
 }
 
@@ -961,6 +1069,11 @@ async function sendGreeting(
     ? `Olá, ${firstName}!${signature} Como posso te ajudar hoje?${emoji}`
     : `Olá!${signature} Como posso te ajudar hoje?${emoji}`;
 
+  // A saudação também passa pelo indicador de digitando -- é a PRIMEIRA
+  // impressão do contato, seria estranho justo ela aparecer do nada.
+  await sendTyping(creds, phone, 1500);
+  await new Promise<void>((r) => setTimeout(r, 1500));
+
   await sendWa(creds, { kind: "text", phone, message: text });
   await db.from("whatsapp_messages").insert({
     company_id: companyId,
@@ -1100,6 +1213,9 @@ Deno.serve(async (req) => {
   // >0 quando quem chamou foi o agent-followup-runner: o lead ficou em
   // silêncio e esta execução é a N-ésima cutucada.
   const followupAttempt = Number(req.headers.get("x-followup-attempt") ?? "") || 0;
+  // Preenchido pelo agent-meeting-reminder-runner: esta execução é o
+  // lembrete de uma reunião que está chegando (traz o horário dela).
+  const lembreteReuniao = req.headers.get("x-lembrete-reuniao") ?? "";
   if (delayMinutos > 0 && !bypassDelay) {
     await db.from("agent_pending_response").upsert({
       company_id: companyId, phone, status: "pending",
@@ -1146,10 +1262,15 @@ Deno.serve(async (req) => {
   // sairia fora da janela também é barrada aqui.
   if (!isWithinBusinessHours(behaviorConfig)) return json({ skipped: "outside_business_hours" }, 200);
 
+  // Nome da empresa: usado na pessoa do discurso ("você É a empresa" vs
+  // "você fala em nome dela") e no título das reuniões.
+  const { data: empresaAtual } = await db.from("companies").select("name").eq("id", companyId).maybeSingle();
+  const nomeEmpresa = String(empresaAtual?.name ?? "").trim();
+
   const messageWindow = Number(behaviorConfig.mensagens_consideradas) || 30;
   const { data: messages } = await db
     .from("whatsapp_messages")
-    .select("from_me, body, created_at")
+    .select("from_me, body, created_at, phone")
     .eq("company_id", companyId)
     .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
     .order("created_at", { ascending: false })
@@ -1168,6 +1289,15 @@ Deno.serve(async (req) => {
 
   // Há quanto tempo o lead está calado. Sem isso o agente escreve "faz um
   // tempo que não conversamos" depois de 2 minutos de silêncio.
+  // Telefone COMO O WHATSAPP CONHECE, tirado da mensagem real que chegou
+  // pelo webhook -- não do cadastro. leads.whatsapp costuma estar sem o
+  // código do país completo ("55996635570" em vez de "555596635570"): pra
+  // ENVIAR mensagem a D-API normaliza e funciona, mas o endpoint de presença
+  // monta o JID ao pé da letra e o "digitando" ia parar em outro chat
+  // (respondia success, e o contato nunca via nada).
+  const telefoneWhats = ((messages ?? [])[0]?.phone as string | undefined)
+    || String(lead.whatsapp ?? "");
+
   const ultimaDoLead = (messages ?? []).find((m) => !m.from_me)?.created_at as string | undefined;
   const silencioMin = ultimaDoLead
     ? Math.max(0, Math.round((Date.now() - new Date(ultimaDoLead).getTime()) / 60_000))
@@ -1216,7 +1346,7 @@ Deno.serve(async (req) => {
       const closingSystem = [
         DYNAMIC_BASE_INTRO,
         `IMPORTANTE: você atingiu o limite de respostas nesta conversa. Nesta mensagem, despeça-se cordialmente do cliente e, em seguida, chame OBRIGATORIAMENTE a tool ${closingTool.name}.`,
-        buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? ""),
+        buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa),
       ].filter(Boolean).join("\n\n");
       const closingCtx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
         { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig };
@@ -1299,11 +1429,11 @@ Deno.serve(async (req) => {
   // vem, porque ninguém foi notificado.
   system = `${system}\n\nVocê é quem está atendendo este lead, do início ao fim. NUNCA prometa, ofereça nem insinue que alguém vai responder, retornar, verificar, confirmar ou resolver algo depois — em NENHUMA formulação (vale para "encaminho pra alguém", "uma pessoa responsável te responde", "vou verificar e te retorno", "o time confirma com você", etc.). Diante de algo que você não sabe, existem só dois caminhos válidos: (a) chamar a tool de escalar/transferir AGORA, nesta mesma resposta — e aí sim você pode avisar que está passando para uma pessoa; ou (b) dizer com honestidade que não tem essa informação e seguir com o que está ao seu alcance. Se o lead perguntar diretamente se está falando com uma pessoa ou com IA, responda com sinceridade.
 
-NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema: não fale de CRM, cadastro, etapa/funil, ferramenta, sistema, registro, base de conhecimento nem do que você "consegue" ou "não consegue" fazer por dentro. O que acontece nos bastidores acontece em silêncio. Se algo não for possível, resolva pelo lado dele ("vou confirmar isso com você na conversa de segunda") sem descrever o motivo técnico. E se o lead pedir algo interno (mover cadastro, mudar etapa), apenas execute se tiver a ferramenta e siga a conversa normalmente, sem narrar a operação.`;
+NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema: não fale de CRM, cadastro, etapa/funil, ferramenta, sistema, registro, base de conhecimento nem do que você "consegue" ou "não consegue" fazer por dentro. O que acontece nos bastidores acontece em silêncio. Se algo não for possível, resolva pelo lado dele ("vou confirmar isso com você na conversa de segunda") sem descrever o motivo técnico. E se o lead pedir algo interno (mover cadastro, mudar etapa, registrar dado), execute se tiver a ferramenta e confirme em linguagem humana — "anotado", "já deixei registrado aqui" — NUNCA repetindo o jargão nem descrevendo a operação. Isso vale mesmo que o próprio lead use esses termos: não devolva "movi seu cadastro para a etapa X"; devolva algo como "perfeito, já está tudo certo por aqui".`;
 
   // Comportamento é uma camada independente de Objetivos/Ferramentas --
   // aplica em cima do legado ou do dinâmico igualmente.
-  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "");
+  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa);
   if (behaviorExtra) system = `${system}\n\n${behaviorExtra}`;
   if (behaviorConfig.finalizar_conversa) tools = [...tools, FINALIZAR_CONVERSA_TOOL];
   if (behaviorConfig.transferir_responsavel) tools = [...tools, TRANSFERIR_RESPONSAVEL_TOOL];
@@ -1311,18 +1441,51 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
   // Follow-up: em vez de um texto fixo (que saía idêntico em toda tentativa
   // e ignorava o que já tinha sido conversado), o próprio agente escreve a
   // cutucada com o histórico à vista e no tom configurado.
+  // Lembrete de reunião: o agente escreve a confirmação com o histórico à
+  // vista, em vez de um texto genérico. Objetivo é confirmar presença e dar
+  // uma saída fácil pra remarcar -- lead que não responde some no dia.
+  if (lembreteReuniao) {
+    const tz = behaviorConfig.fuso_horario || "America/Sao_Paulo";
+    const quando = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date(lembreteReuniao));
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). Se houver link da reunião no histórico, repita o link. Ofereça remarcar caso não dê mais — sem cobrar nem pressionar. Não recomece a apresentação e não repita textualmente mensagens anteriores suas. Envie pela tool enviar_mensagem.`;
+  }
+
   if (followupAttempt > 0) {
     system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: o lead parou de responder e esta é a tentativa de reengajamento nº ${followupAttempt}. Escreva UMA mensagem curta retomando algo concreto da conversa acima (o assunto que ficou pendente, um horário já combinado, uma pergunta que ele não terminou de fazer). Não repita textualmente nenhuma mensagem sua anterior, não se reapresente e não invente informação que não esteja na conversa. Se já houver reunião marcada, apenas reforce que está de pé. Nesta mensagem NÃO ofereça transferir para outra pessoa nem prometa retorno de terceiros: o objetivo é só reabrir a conversa. Envie a mensagem pela tool enviar_mensagem.`;
   }
 
   const toolCtx: ToolCtx = { db, companyId, ownerId: String(lead.owner_id ?? ""), leadId };
-  const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
+  const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "cancelar_reuniao", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
   const dispatch: ToolDispatcher = async (name, input) => {
     if (LEGACY_TOOL_NAMES.has(name)) {
-      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig, followupAttempt });
+      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig, followupAttempt, telefoneWhats, lembreteReuniao });
     }
     return await executeRegistryTool(toolCtx, name, input);
   };
+
+  // "Digitando..." começa AGORA, antes de chamar o modelo -- não só na hora
+  // de mandar a mensagem. O modelo leva ~8s pensando; com o indicador só no
+  // fim, o contato via 8 segundos de silêncio, um piscar de 2s e a mensagem
+  // aparecendo -- na prática, indicador nenhum. Agora ele vê "digitando"
+  // logo depois de mandar a mensagem dele, como numa conversa de verdade.
+  // Best-effort: se falhar, o fluxo segue igual (ver sendTyping).
+  {
+    const connPreview = await resolveOutboundConnection(db, companyId, agent.id as string);
+    if (connPreview) {
+      await sendTyping({
+        instanceId: String(connPreview.instance_id),
+        token: String(connPreview.token),
+        clientToken: connPreview.client_token ? String(connPreview.client_token) : null,
+        provider: (["dapi", "cloud_api"].includes(String(connPreview.provider)) ? String(connPreview.provider) : "zapi") as "zapi" | "dapi" | "cloud_api",
+      // 10s cobre o tempo típico do modelo (~8s) sem sobrar demais. O que
+      // realmente evita o indicador "sobrando" é o clearTyping no fim do
+      // envio -- este número é só o teto enquanto ele pensa.
+      }, telefoneWhats, 10000);
+    }
+  }
 
   const result = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatch)
@@ -1337,7 +1500,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
 async function executeAgentTool(
   db: ReturnType<typeof createClient>,
   call: any,
-  ctx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number },
+  ctx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number; telefoneWhats?: string; lembreteReuniao?: string },
 ): Promise<ToolResult> {
   const input = call.input ?? {};
 
@@ -1544,6 +1707,68 @@ async function executeAgentTool(
       return { ok: true, data: { meet_link: calData.meet_link ?? null, remarcada: !!remarcar } };
     }
 
+    case "cancelar_reuniao": {
+      const { data: futuras } = await db
+        .from("activities")
+        .select("id, owner_id, gcal_event_id, scheduled_at")
+        .eq("company_id", ctx.companyId)
+        .eq("lead_id", ctx.leadId)
+        .eq("type", "meeting")
+        .gte("scheduled_at", new Date().toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(1);
+      const reuniao = futuras?.[0];
+      if (!reuniao) {
+        return { ok: false, error: "não há reunião futura marcada com este lead. NÃO diga que cancelou." };
+      }
+
+      // Apaga do Google primeiro: se falhar, o evento continua na agenda do
+      // vendedor e cancelar só no CRM daria uma falsa sensação de resolvido
+      // -- o vendedor seguiria com o horário bloqueado.
+      if (reuniao.gcal_event_id) {
+        const delRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+          },
+          body: JSON.stringify({
+            event_id: reuniao.gcal_event_id,
+            company_id: ctx.companyId,
+            user_id: reuniao.owner_id,
+          }),
+        });
+        if (!delRes.ok) {
+          const detalhe = await delRes.text();
+          console.error("[agent-sds-qualify] google-calendar-delete falhou:", detalhe);
+          return { ok: false, error: `não foi possível cancelar na agenda: ${detalhe.slice(0, 160)}. NÃO diga ao lead que está cancelado.` };
+        }
+      }
+
+      // Lembretes pendentes somem junto (ON DELETE CASCADE cuidaria disso,
+      // mas o registro fica explícito aqui) e a reunião sai do CRM.
+      await db.from("agent_meeting_reminders").delete().eq("activity_id", reuniao.id);
+      await db.from("activities").delete().eq("id", reuniao.id).eq("company_id", ctx.companyId);
+
+      await db.from("activities").insert({
+        company_id: ctx.companyId,
+        owner_id: reuniao.owner_id ?? (ctx.lead.owner_id as string),
+        lead_id: ctx.leadId,
+        type: "note",
+        title: "Reunião cancelada pelo lead (via agente)",
+        description: String(input.motivo ?? "sem motivo informado"),
+      });
+      // A orientação vai no RESULTADO da tool, não só na descrição dela: o
+      // modelo lê isso no meio da execução, quando ainda está decidindo o que
+      // escrever. Sem isso ele cancelava e encerrava o assunto ("Cancelei a
+      // conversa de hoje.") -- e um lead que já tinha horário marcado ia
+      // embora sem ninguém tentar trazer de volta.
+      return {
+        ok: true,
+        orientacao: "Reunião cancelada. AGORA, nesta mesma resposta, ofereça remarcar: pergunte o que fica melhor e sugira horários concretos dentro da disponibilidade informada no seu contexto. Não encerre a conversa.",
+      };
+    }
+
     case "mover_pipeline": {
       await db.from("leads").update({ column_id: input.coluna_id }).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
       return { ok: true };
@@ -1562,9 +1787,24 @@ async function executeAgentTool(
       const phone = String(ctx.lead.whatsapp ?? "");
       const cfg = ctx.behaviorConfig ?? {};
       const fullText = String(input.texto ?? "");
-      const parts = cfg.dividir_mensagens ? splitLongMessage(fullText, Number(cfg.dividir_mensagens_palavras) || 80) : [fullText];
+      const parts = cfg.dividir_mensagens ? splitLongMessage(fullText, Number(cfg.dividir_mensagens_palavras) || 20) : [fullText];
+
+      // Calcula o tempo de cada parte e, se o total estourar o orçamento,
+      // comprime todas proporcionalmente -- melhor uma conversa um pouco
+      // mais rápida do que a function ser morta no meio do envio.
+      const temposBrutos = parts.map((p) => tempoDigitacao(p));
+      const somaBruta = temposBrutos.reduce((a, b) => a + b, 0);
+      const fator = somaBruta > TETO_DIGITACAO_TOTAL_MS ? TETO_DIGITACAO_TOTAL_MS / somaBruta : 1;
+      const tempos = temposBrutos.map((t) => Math.round(t * fator));
+
+      const telefonePresenca = ctx.telefoneWhats || phone;
 
       for (let i = 0; i < parts.length; i++) {
+        // "Digitando..." antes de CADA parte, pelo tempo proporcional ao
+        // texto dela: o contato vê o indicador e a mensagem chega quando ele
+        // para, igual a uma pessoa escrevendo.
+        await aguardarDigitando(creds, telefonePresenca, tempos[i]);
+
         await sendWa(creds, { kind: "text", phone, message: parts[i] });
         // owner_id é NOT NULL aqui também — mesmo padrão do automation-runner,
         // usa o responsável do lead.
@@ -1577,15 +1817,13 @@ async function executeAgentTool(
           body: parts[i],
           type: "text",
         });
-        // Pausa proporcional ao tamanho da PRÓXIMA parte, simulando alguém
-        // digitando. Os 600ms fixos de antes disparavam tudo em poucos
-        // segundos: além de parecer robô, é o padrão que faz provedor de
-        // WhatsApp marcar o número como spam.
-        if (i < parts.length - 1) {
-          const pausaMs = Math.min(4000, 700 + contaPalavras(parts[i + 1]) * 100);
-          await new Promise<void>((r) => setTimeout(r, pausaMs));
-        }
       }
+
+      // Encerra o "digitando" assim que a última parte sai. Sem isso o
+      // indicador ficava rodando até o timer expirar e, numa resposta curta,
+      // o contato via a mensagem chegar com o "digitando" ainda ativo --
+      // parecia que vinha mais coisa.
+      await clearTyping(creds, ctx.telefoneWhats || phone);
 
       // Follow-up automático: toda mensagem real do agente reinicia o
       // relógio de silêncio -- se o lead não responder no intervalo
@@ -1595,7 +1833,7 @@ async function executeAgentTool(
       // rearma nada: quem controla tentativa e próximo horário nesse caso é
       // o runner. Sem essa guarda, cada follow-up zeraria o contador de
       // tentativas e o lead seria cutucado para sempre.
-      if (cfg.followup_ativo && !ctx.followupAttempt) {
+      if (cfg.followup_ativo && !ctx.followupAttempt && !ctx.lembreteReuniao) {
         const unitMs = cfg.followup_intervalo_unidade === "horas" ? 3_600_000 : 60_000;
         const intervalMs = (Number(cfg.followup_intervalo_valor) || 30) * unitMs;
         await db.from("agent_followup_state").upsert({

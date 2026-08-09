@@ -29,7 +29,9 @@ import {
   TrendingUp,
   ArrowRight,
   Check,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,6 +113,7 @@ type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
+  persona_voz?: "propria" | "equipe";
   usar_emojis?: boolean;
   assinar_nome?: boolean;
   dividir_mensagens?: boolean;
@@ -160,16 +163,30 @@ type BehaviorConfig = {
   horario_atendimento_inicio?: string;
   horario_atendimento_fim?: string;
   horario_atendimento_dias?: string[];
+  lembrete_reuniao_ativo?: boolean;
+  lembrete_1_valor?: number;
+  lembrete_1_unidade?: "minutos" | "horas";
+  lembrete_2_valor?: number;
+  lembrete_2_unidade?: "minutos" | "horas";
 };
 
 const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "objective_instructions">> = {
   finalizar_conversa: false,
   transferir_responsavel: false,
   estilo_comunicacao: "normal",
+  // Padrão: o agente É a empresa. É o caso mais comum (negócio pequeno,
+  // profissional solo) e evita a conversa em terceira pessoa que soa como
+  // intermediário. Quem tem time atendendo troca para "equipe".
+  persona_voz: "propria",
   usar_emojis: false,
   assinar_nome: false,
-  dividir_mensagens: false,
-  dividir_mensagens_palavras: 80,
+  // Ligado por padrão: no WhatsApp, bloco de 150+ palavras numa mensagem só
+  // parece e-mail e cansa de ler. Gente escreve em mensagens curtas
+  // seguidas, e o agente acompanha isso (com "digitando..." entre elas).
+  // Quem quiser mensagem única desliga. Só vale pra agente NOVO -- os que já
+  // existem mantêm o que está salvo.
+  dividir_mensagens: true,
+  dividir_mensagens_palavras: 20,
   followup_ativo: false,
   followup_max_tentativas: 3,
   followup_intervalo_valor: 30,
@@ -194,6 +211,13 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   horario_atendimento_inicio: "08:00",
   horario_atendimento_fim: "21:00",
   horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
+  // Lembrete desligado por padrão, mas com os valores mais usados já
+  // preenchidos (24h antes + 1h antes) — quem ligar não precisa pensar.
+  lembrete_reuniao_ativo: false,
+  lembrete_1_valor: 24,
+  lembrete_1_unidade: "horas",
+  lembrete_2_valor: 1,
+  lembrete_2_unidade: "horas",
 };
 
 // Draft único que cobre TODO behavior_config (incluindo campos_qualificacao/
@@ -650,6 +674,13 @@ export default function AgentesPage() {
         avatar: draftAvatar,
         active: false,
         draft: true,
+        // Grava os padrões de comportamento já na criação. Sem isso o agente
+        // nascia com behavior_config = {} e a tela mentia: mostrava os
+        // toggles nos valores padrão (que vêm de BEHAVIOR_DRAFT_DEFAULTS),
+        // enquanto o agente rodava com tudo indefinido -- ou seja, o que o
+        // cliente via na aba Comportamento não era o que acontecia na
+        // conversa, a menos que ele por acaso mexesse em algum toggle.
+        behavior_config: BEHAVIOR_DEFAULTS,
       })
       .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activated_at, active_seconds_total, draft")
       .single();
@@ -1424,7 +1455,73 @@ export default function AgentesPage() {
                                 </>
                               )}
 
-                              <div className={o.id === "qualificar" ? "pt-1 border-t border-[#EEEEEE]" : ""}>
+                              {o.id === "agendar" && (
+                                <div className="pt-1 border-t border-[#EEEEEE]">
+                                  <div className="flex items-center justify-between pt-2">
+                                    <div className="pr-3">
+                                      <div className="text-[12px] font-medium text-[#111111]">Lembrete da reunião</div>
+                                      <p className="text-[11px] text-[#767676]">
+                                        O agente manda uma confirmação antes do horário marcado. Reduz o não comparecimento — entre o agendamento e o dia, o lead esfria.
+                                      </p>
+                                    </div>
+                                    <Switch
+                                      checked={behaviorDraft.lembrete_reuniao_ativo ?? false}
+                                      onCheckedChange={(v) => updateBehaviorConfig({ lembrete_reuniao_ativo: v })}
+                                    />
+                                  </div>
+
+                                  {behaviorDraft.lembrete_reuniao_ativo && (
+                                    <div className="mt-2 space-y-2">
+                                      {([1, 2] as const).map((n) => (
+                                        <div key={n} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded">
+                                          <span className="text-[11px] text-[#767676] w-[74px] shrink-0">
+                                            {n === 1 ? "1º lembrete" : "2º lembrete"}
+                                          </span>
+                                          <Input
+                                            type="number"
+                                            min={1}
+                                            className="h-8 w-[72px] bg-white text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                                            value={(n === 1 ? behaviorDraft.lembrete_1_valor : behaviorDraft.lembrete_2_valor) ?? ""}
+                                            onChange={(e) => updateBehaviorConfig(
+                                              n === 1
+                                                ? { lembrete_1_valor: Number(e.target.value) || 0 }
+                                                : { lembrete_2_valor: Number(e.target.value) || 0 },
+                                            )}
+                                          />
+                                          <Select
+                                            value={(n === 1 ? behaviorDraft.lembrete_1_unidade : behaviorDraft.lembrete_2_unidade) ?? "horas"}
+                                            onValueChange={(v) => updateBehaviorConfig(
+                                              n === 1
+                                                ? { lembrete_1_unidade: v as "minutos" | "horas" }
+                                                : { lembrete_2_unidade: v as "minutos" | "horas" },
+                                            )}
+                                          >
+                                            <SelectTrigger className="h-8 w-[110px] bg-white text-[12px] focus:ring-0 focus:ring-offset-0"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="minutos">minutos</SelectItem>
+                                              <SelectItem value="horas">horas</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <span className="text-[11px] text-[#767676]">antes da reunião</span>
+                                        </div>
+                                      ))}
+                                      <p className="text-[10px] text-[#767676]">
+                                        Deixe um dos campos vazio (ou em 0) para usar só um lembrete.
+                                        Entre 22h e 7h o envio espera o amanhecer, para não acordar o cliente, exceto se a reunião for nas 2 horas seguintes.
+                                      </p>
+                                      {/* Sem este aviso, ligar o toggle e deixar os dois campos zerados
+                                          resulta em nenhum lembrete, sem nada na tela indicando isso. */}
+                                      {!(Number(behaviorDraft.lembrete_1_valor) > 0) && !(Number(behaviorDraft.lembrete_2_valor) > 0) && (
+                                        <p className="text-[11px] text-[#B91C1C] bg-[#FEE2E2] border border-[#FCA5A5] rounded px-2 py-1.5">
+                                          Preencha ao menos um dos lembretes, senão nenhum aviso será enviado.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className={o.id === "qualificar" || o.id === "agendar" ? "pt-1 border-t border-[#EEEEEE]" : ""}>
                                 <div className="text-[12px] font-medium text-[#111111] pt-2">Instruções específicas</div>
                                 <p className="text-[11px] text-[#767676] mb-1.5">
                                   Regras ou detalhes de como o agente deve executar esse objetivo — soma ao prompt padrão dele, sem se misturar com as instruções gerais do agente.
@@ -1546,8 +1643,50 @@ export default function AgentesPage() {
                   </div>
 
                   <div className="border-t border-[#EEEEEE] pt-6">
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <h3 className="text-[14px] font-semibold text-[#111111]">Quem o agente é na conversa</h3>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" aria-label="Como funciona" className="text-[#767676] hover:text-[#111111] transition-colors">
+                            <HelpCircle size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[320px] text-[12px] leading-relaxed">
+                          <p className="font-semibold mb-1">Pessoa do discurso</p>
+                          <p className="mb-2">
+                            <b>Primeira pessoa:</b> o agente fala como se fosse o próprio profissional ou a empresa —
+                            “eu te atendo”, “minha agenda”. Indicado para profissional autônomo ou negócio pequeno.
+                          </p>
+                          <p className="mb-2">
+                            <b>Membro do time:</b> o agente fala em nome do profissional —
+                            “ela vai te receber”, “a agenda dela” — e se apresenta como parte da equipe.
+                            Indicado quando há um time atendendo.
+                          </p>
+                          <p className="text-[11px] opacity-80">
+                            Sem essa definição o agente alterna entre as duas na mesma conversa,
+                            e o cliente não entende com quem está falando.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                      <Select
+                        value={behaviorDraft.persona_voz ?? "propria"}
+                        onValueChange={(v) => updateBehaviorConfig({ persona_voz: v as BehaviorConfig["persona_voz"] })}
+                      >
+                        <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="propria">Primeira pessoa</SelectItem>
+                          <SelectItem value="equipe">Membro do time</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#EEEEEE] pt-6">
                     <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Estilo de Comunicação</h3>
-                    <div className="max-w-[280px] mb-2 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="mb-2 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
                       <Select
                         value={behaviorDraft.estilo_comunicacao ?? "normal"}
                         onValueChange={(v) => updateBehaviorConfig({ estilo_comunicacao: v as BehaviorConfig["estilo_comunicacao"] })}
@@ -1591,8 +1730,8 @@ export default function AgentesPage() {
                               <Input
                                 type="number"
                                 min={10}
-                                defaultValue={behaviorDraft.dividir_mensagens_palavras ?? 80}
-                                onBlur={(e) => updateBehaviorConfig({ dividir_mensagens_palavras: Number(e.target.value) || 80 })}
+                                defaultValue={behaviorDraft.dividir_mensagens_palavras ?? 20}
+                                onBlur={(e) => updateBehaviorConfig({ dividir_mensagens_palavras: Number(e.target.value) || 20 })}
                                 className="w-20 h-8 text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                               />
                             </div>

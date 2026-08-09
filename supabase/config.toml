@@ -90,3 +90,7 @@ verify_jwt = false
 # chamam esta função, e ela valida os dois por conta própria.
 [functions.google-calendar-delete]
 verify_jwt = false
+
+# Chamado só pelo pg_cron (segredo do motor), igual aos demais runners de agente.
+[functions.agent-meeting-reminder-runner]
+verify_jwt = false

@@ -18,6 +18,57 @@ export type WaMsg =
   | { kind: "image"; phone: string; url: string }
   | { kind: "document"; phone: string; url: string; fileName: string; ext: string };
 
+// Mostra "digitando..." pro contato antes da mensagem sair. É BEST-EFFORT:
+// qualquer falha aqui é engolida de propósito, porque indicador de presença
+// nunca pode impedir a mensagem real de ser enviada.
+//
+// Cobertura por provedor (verificado na documentação de cada um):
+//  - D-API .......... suportado (POST /chats/presence)
+//  - Z-API .......... NÃO tem endpoint pra ENVIAR presença; a doc só expõe
+//                     webhook pra RECEBER o status do outro lado.
+//  - Cloud API ...... a Meta suporta, mas exige o message_id da mensagem
+//                     recebida (vai junto com o "marcar como lida"), e esse
+//                     id não chega até aqui hoje. Fica pendente.
+// Provedor sem suporte simplesmente não faz nada -- a conversa segue igual,
+// só sem o indicador.
+export async function sendPresence(
+  creds: ZapiCreds,
+  phone: string,
+  presence: "typing" | "paused",
+  durationMs?: number,
+): Promise<void> {
+  if (creds.provider !== "dapi") return;
+  try {
+    await fetch("https://api.d-api.cloud/api/v1/chats/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": creds.token },
+      body: JSON.stringify({
+        sessionId: creds.instanceId,
+        to: phone,
+        presence,
+        // durationMs só faz sentido pro "typing"; o "paused" encerra na hora.
+        ...(presence === "typing" && durationMs
+          ? { durationMs: Math.max(1000, Math.min(15000, Math.round(durationMs))) }
+          : {}),
+      }),
+    });
+  } catch (e) {
+    console.warn(`[whatsapp-send] presença '${presence}' falhou (ignorado):`, e);
+  }
+}
+
+export async function sendTyping(creds: ZapiCreds, phone: string, durationMs: number): Promise<void> {
+  await sendPresence(creds, phone, "typing", durationMs);
+}
+
+// Encerra o "digitando" imediatamente. Sem isso o indicador continuava
+// rodando até o durationMs expirar -- numa resposta curta o contato via a
+// mensagem chegar e o "digitando" seguir por mais alguns segundos, como se
+// viesse mais coisa que nunca vinha.
+export async function clearTyping(creds: ZapiCreds, phone: string): Promise<void> {
+  await sendPresence(creds, phone, "paused");
+}
+
 export async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<void> {
   if (creds.provider === "dapi") { await sendDapi(creds, msg); return; }
   if (creds.provider === "cloud_api") { await sendCloudApi(creds, msg); return; }
