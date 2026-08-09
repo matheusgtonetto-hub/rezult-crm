@@ -31,26 +31,35 @@ export async function checkGoogleConnection(companyId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // Mesma regra do backend (google-calendar-event, google-calendar-delete,
+  // agent-sds-qualify): vale o token desta empresa OU um legado sem empresa,
+  // criado antes da coluna company_id existir. Com `.eq(company_id)` puro a
+  // tela dizia "Google não conectado" enquanto o agente agendava normalmente
+  // usando o token legado.
   const { data, error } = await supabase
     .from("google_oauth_tokens")
     .select("id, email, scopes, token_expiry")
     .eq("user_id", user.id)
-    .eq("company_id", companyId)
-    .maybeSingle();
+    .or(`company_id.eq.${companyId},company_id.is.null`)
+    .order("company_id", { ascending: false, nullsFirst: false })
+    .limit(1);
 
-  if (error || !data) return null;
-  return data as { id: string; email: string | null; scopes: string[] | null; token_expiry: string | null };
+  if (error || !data?.length) return null;
+  return data[0] as { id: string; email: string | null; scopes: string[] | null; token_expiry: string | null };
 }
 
 export async function disconnectGoogle(companyId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Usuário não autenticado");
 
+  // Apaga também a linha legada sem empresa: ela vale em qualquer empresa, e
+  // o backend continuaria usando o token depois do usuário clicar em
+  // "Desconectar" -- a tela dizia desconectado e o agente seguia agendando.
   const { error } = await supabase
     .from("google_oauth_tokens")
     .delete()
     .eq("user_id", user.id)
-    .eq("company_id", companyId);
+    .or(`company_id.eq.${companyId},company_id.is.null`);
 
   if (error) throw error;
 }

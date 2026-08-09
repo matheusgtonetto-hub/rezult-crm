@@ -58,12 +58,23 @@ Deno.serve(async (req) => {
   }
   if (!isMember) return json({ error: "forbidden" }, 403);
 
+  // O filtro por empresa tem que ser o MESMO de agent-sds-qualify e
+  // google-calendar-event: token desta empresa, ou legado sem empresa
+  // (criado antes da coluna company_id existir). Sem isso, quem conectou o
+  // Google em OUTRA empresa aparecia como "Google conectado" na aba
+  // Vendedores, mas na hora de agendar o agente não considerava o vendedor
+  // elegível e caía em escalar_humano, sem nada na tela explicando por quê.
   const { data: tokens } = await db
     .from("google_oauth_tokens")
-    .select("user_id, email")
-    .in("user_id", body.user_ids);
+    .select("user_id, email, company_id")
+    .in("user_id", body.user_ids)
+    .or(`company_id.eq.${body.company_id},company_id.is.null`);
 
-  const connected = (tokens ?? []).map((t) => t.user_id as string);
-  const emails = Object.fromEntries((tokens ?? []).map((t) => [t.user_id as string, t.email as string]));
+  // Um mesmo usuário pode ter as duas linhas (a da empresa e a legada). A
+  // da empresa vale, então ela sobrescreve o e-mail exibido.
+  const ordenados = [...(tokens ?? [])].sort((a, b) =>
+    (a.company_id ? 1 : 0) - (b.company_id ? 1 : 0));
+  const connected = [...new Set(ordenados.map((t) => t.user_id as string))];
+  const emails = Object.fromEntries(ordenados.map((t) => [t.user_id as string, t.email as string]));
   return json({ connected, emails });
 });

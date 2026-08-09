@@ -36,12 +36,20 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await db.auth.getUser(jwt);
     if (authError || !user) return json({ error: "unauthorized" }, 401);
 
+    // Mesma regra de google-calendar-event e google-calendar-delete: aceita o
+    // token da empresa OU um legado sem empresa, e o da empresa ganha. Com
+    // `.eq(company_id)` puro, quem conectou o Google antes dessa coluna
+    // existir ficava com "google_not_connected"; e o `.maybeSingle()` dava
+    // ERRO (não a primeira linha) quando reconectar deixava duas linhas.
     let tokenQuery = db
       .from("google_oauth_tokens")
-      .select("access_token, refresh_token, token_expiry")
+      .select("access_token, refresh_token, token_expiry, id")
       .eq("user_id", user.id);
-    if (company_id) tokenQuery = tokenQuery.eq("company_id", company_id);
-    const { data: tokenRow, error: tokenErr } = await tokenQuery.maybeSingle();
+    if (company_id) tokenQuery = tokenQuery.or(`company_id.eq.${company_id},company_id.is.null`);
+    const { data: tokenRows, error: tokenErr } = await tokenQuery
+      .order("company_id", { ascending: false, nullsFirst: false })
+      .limit(1);
+    const tokenRow = tokenRows?.[0];
 
     if (tokenErr || !tokenRow) return json({ error: "google_not_connected" }, 400);
 
@@ -63,14 +71,15 @@ serve(async (req) => {
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json() as { access_token: string; expires_in?: number };
         accessToken = refreshData.access_token;
-        let updateQ = db.from("google_oauth_tokens").update({
+        // Atualiza pelo id da linha escolhida: o update por user_id +
+        // company_id podia gravar o token novo numa linha diferente da que
+        // foi lida, deixando a renovação sem efeito.
+        await db.from("google_oauth_tokens").update({
           access_token: accessToken,
           token_expiry: refreshData.expires_in
             ? new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
             : null,
-        }).eq("user_id", user.id);
-        if (company_id) updateQ = updateQ.eq("company_id", company_id);
-        await updateQ;
+        }).eq("id", tokenRow.id);
       } else {
         return json({ error: "token_refresh_failed" }, 502);
       }
