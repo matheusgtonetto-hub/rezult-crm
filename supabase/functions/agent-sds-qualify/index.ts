@@ -122,8 +122,21 @@ com texto solto, isso não chega ao lead.
 `.trim();
 
 const OBJECTIVE_PROMPTS: Record<string, string> = {
-  qualificar: "OBJETIVO — Qualificar: avalie se o lead é um bom encaixe (ICP) fazendo perguntas de descoberta antes de qualquer oferta. Os campos da tool qualificar_lead indicam quais informações mapear ao longo da conversa (não precisa ser tudo de uma vez, nem na ordem exata) — registre o resultado chamando qualificar_lead. Nunca revele preço antes de entender a dor do lead.",
-  agendar: "OBJETIVO — Agendar Reunião: quando o lead estiver qualificado e pronto, ofereça horário e agende com agendar_reuniao_closer. Melhor perder um lead cedo do que perder um deal tarde — não force reunião com quem não é ICP.",
+  // O escopo é FECHADO nos campos configurados. A versão anterior mandava
+  // "fazer perguntas de descoberta" e "avaliar se o lead é bom encaixe", o
+  // que era um convite pro modelo inventar entrevista própria: num teste
+  // real, com os campos já respondidos num formulário, ele ignorou o
+  // agendamento e começou a investigar a vida do lead. Qualificar aqui é
+  // COLETAR os campos que a empresa configurou, nada além disso.
+  qualificar: `OBJETIVO — Qualificar: reunir os campos de qualificação configurados pela empresa. Esses campos são o escopo COMPLETO da qualificação.
+
+Regras, nesta ordem:
+1. NÃO invente perguntas fora desses campos. Nada de entrevista, diagnóstico, investigação de contexto ou "me conta mais sobre você". Se não é um dos campos configurados, não é sua pergunta.
+2. Se a informação de um campo JÁ apareceu (formulário, mensagem anterior, cadastro do lead), ela está coletada. Confirme em UMA frase curta e registre com qualificar_lead. Nunca pergunte de novo o que o lead já respondeu.
+3. Pergunte apenas os campos que ainda faltam, de forma direta e natural.
+4. Assim que todos os campos estiverem coletados, a qualificação ACABOU. Registre com qualificar_lead e siga para o próximo objetivo na MESMA resposta, sem esperar o lead pedir. Não prolongue a conversa procurando mais contexto.
+5. Nunca revele preço antes de entender a necessidade do lead.`,
+  agendar: "OBJETIVO — Agendar Reunião: assim que a qualificação estiver completa (ou se ela não for um objetivo deste agente), ofereça horário e agende com agendar_reuniao_closer. Não fique esperando um sinal extra de interesse nem crie etapas intermediárias: proponha o horário. Melhor perder um lead cedo do que perder um deal tarde, então não force reunião com quem claramente não é o público certo.",
   atendimento: "OBJETIVO — Atendimento: tire dúvidas e explique sobre a empresa usando o material de referência (Base de Conhecimento) informado abaixo. Se a resposta não estiver no material, seja honesto e ofereça escalar_humano em vez de inventar informação.",
 };
 
@@ -134,6 +147,21 @@ function buildDynamicSystemPrompt(
   objectiveInstructions: Record<string, string>,
 ): string {
   const blocks = [DYNAMIC_BASE_INTRO];
+
+  // Os objetivos são uma ESTEIRA, não uma lista de temas. Sem dizer isso, o
+  // modelo tratava cada objetivo como assunto independente e ficava preso no
+  // primeiro, alongando a conversa em vez de avançar. O que a empresa não
+  // configurou não é trabalho do agente: sem essa frase ele preenchia os
+  // buracos com etapas próprias.
+  const nomes = objectives.filter((o) => OBJECTIVE_PROMPTS[o]);
+  if (nomes.length) {
+    blocks.push(
+      `SEUS OBJETIVOS, NESTA ORDEM: ${nomes.join(" -> ")}.\n` +
+      `Trabalhe um de cada vez e avance assim que o atual estiver cumprido, sem esperar o lead pedir. ` +
+      `Estes são os ÚNICOS objetivos desta conversa: não crie etapas próprias entre eles nem depois do último.`,
+    );
+  }
+
   for (const o of objectives) {
     const base = OBJECTIVE_PROMPTS[o];
     if (!base) continue;
@@ -146,6 +174,32 @@ function buildDynamicSystemPrompt(
   if (kbContext) blocks.push(`BASE DE CONHECIMENTO (material da empresa — use pra responder com precisão):\n${kbContext}`);
   if (customContext) blocks.push(customContext);
   return blocks.join("\n\n");
+}
+
+// O agente conhecia só os RÓTULOS dos campos de qualificação (pelo schema da
+// tool), nunca os valores já gravados no card. Com isso ele não tinha como
+// saber o que faltava: ou repetia pergunta já respondida, ou inventava
+// pergunta nova pra "ter o que conversar". Este bloco entrega o estado real,
+// campo a campo, pra decisão virar determinística.
+function buildQualificationState(
+  qualFields: { id: string; label: string }[],
+  lead: Record<string, unknown>,
+): string {
+  if (!qualFields.length) return "";
+  const valores = (lead.custom_field_values as Record<string, unknown> | null) ?? {};
+  const linhas = qualFields.map((f) => {
+    const v = valores[f.id];
+    const preenchido = v !== undefined && v !== null && String(v).trim() !== "";
+    return preenchido ? `- ${f.label}: JÁ PREENCHIDO ("${String(v)}")` : `- ${f.label}: FALTANDO`;
+  });
+  const faltando = qualFields.filter((f) => {
+    const v = valores[f.id];
+    return v === undefined || v === null || String(v).trim() === "";
+  });
+  const fecho = faltando.length === 0
+    ? "Todos os campos já estão preenchidos. A qualificação está CONCLUÍDA: não pergunte nada dela de novo, confirme em uma frase curta e siga direto para o próximo objetivo."
+    : `Faltam ${faltando.length} campo(s). Pergunte SOMENTE esses. Se a resposta de algum já apareceu na conversa (inclusive em texto de formulário), registre com qualificar_lead em vez de perguntar.`;
+  return `ESTADO DA QUALIFICAÇÃO (campos configurados pela empresa — escopo completo):\n${linhas.join("\n")}\n${fecho}`;
 }
 
 type AnthropicToolDef = { name: string; description: string; input_schema: Record<string, unknown> };
@@ -1392,6 +1446,8 @@ Deno.serve(async (req) => {
       qualFields = (fieldsData ?? []) as { id: string; label: string }[];
     }
     system = buildDynamicSystemPrompt(objectives, agent.custom_context ?? "", kbContext, behaviorConfig.objective_instructions ?? {});
+    const estadoQualificacao = buildQualificationState(qualFields, lead);
+    if (estadoQualificacao) system = `${system}\n\n${estadoQualificacao}`;
     tools = buildDynamicTools(objectives, enabledTools, qualFields);
   }
 
