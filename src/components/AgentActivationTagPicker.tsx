@@ -18,12 +18,14 @@ const COR_PADRAO = "#6D28D9";
 type Props = {
   value: string | null;
   onChange: (tagName: string) => void;
-  /** tag -> nome do agente que já a usa. Uma tag ativa no máximo um agente. */
-  ocupadas?: Record<string, string>;
+  /** tag -> agente que já a usa. Uma tag ativa no máximo um agente. */
+  ocupadas?: Record<string, { id: string; name: string }>;
+  /** Agente sendo editado: a própria tag dele não conta como ocupada. */
+  agenteAtualId?: string;
   placeholder?: string;
 };
 
-export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, placeholder = "Escolher tag" }: Props) {
+export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agenteAtualId, placeholder = "Escolher tag" }: Props) {
   const { crmTags, addTag } = useCRM();
   const [aberto, setAberto] = useState(false);
   const [criando, setCriando] = useState(false);
@@ -80,9 +82,11 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, place
               crmTags.map((tag) => {
                 // Tag já usada por OUTRO agente fica visível mas bloqueada:
                 // esconder faria o usuário procurar uma tag que ele sabe que
-                // existe sem entender por que sumiu.
-                const donoOutro = ocupadas[tag.name];
-                const bloqueada = !!donoOutro && donoOutro !== "__self__";
+                // existe sem entender por que sumiu. A tag do PRÓPRIO agente
+                // não conta -- senão o card dele mostrava a própria tag
+                // bloqueada "em uso por ele mesmo".
+                const dono = ocupadas[tag.name];
+                const bloqueada = !!dono && dono.id !== agenteAtualId;
                 return (
                   <button
                     key={tag.id}
@@ -96,7 +100,7 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, place
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tag.color }} />
                       <span className="truncate">{tag.name}</span>
-                      {bloqueada && <span className="text-[10px] text-muted-foreground shrink-0">em uso por {donoOutro}</span>}
+                      {bloqueada && <span className="text-[10px] text-muted-foreground shrink-0">em uso por {dono.name}</span>}
                     </span>
                     {value === tag.name && <Check size={12} className="text-primary shrink-0" />}
                   </button>

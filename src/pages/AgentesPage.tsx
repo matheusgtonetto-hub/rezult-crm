@@ -402,8 +402,8 @@ export default function AgentesPage() {
   // bloqueada com o nome do dono em vez de escondê-la (esconder faria o
   // usuário procurar uma tag que ele sabe que existe, sem entender o sumiço).
   const tagsOcupadasPorAgente = useMemo(() => {
-    const mapa: Record<string, string> = {};
-    for (const a of agents) if (a.activation_tag) mapa[a.activation_tag] = a.name;
+    const mapa: Record<string, { id: string; name: string }> = {};
+    for (const a of agents) if (a.activation_tag) mapa[a.activation_tag] = { id: a.id, name: a.name };
     return mapa;
   }, [agents]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -845,7 +845,7 @@ export default function AgentesPage() {
   async function salvarTagAtivacao(agent: Agent, tag: string) {
     if (!companyId || tag === agent.activation_tag) return;
     const dono = tagsOcupadasPorAgente[tag];
-    if (dono && dono !== agent.name) { toast.error(`A tag "${tag}" já ativa o agente "${dono}".`); return; }
+    if (dono && dono.id !== agent.id) { toast.error(`A tag "${tag}" já ativa o agente "${dono.name}".`); return; }
     const { error } = await supabase.from("agents").update({ activation_tag: tag }).eq("id", agent.id).eq("company_id", companyId);
     if (error) {
       toast.error(error.code === "23505" ? `A tag "${tag}" já ativa outro agente.` : "Não foi possível salvar a tag.");
@@ -1351,6 +1351,7 @@ export default function AgentesPage() {
                       value={a.activation_tag}
                       onChange={(tag) => void salvarTagAtivacao(a, tag)}
                       ocupadas={tagsOcupadasPorAgente}
+                      agenteAtualId={a.id}
                       placeholder="Definir tag"
                     />
                   </div>
