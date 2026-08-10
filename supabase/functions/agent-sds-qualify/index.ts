@@ -100,7 +100,7 @@ const TOOLS = [
     // ocupado na agenda do vendedor -- e o lembrete da reunião ainda
     // dispararia depois, para um encontro que ninguém mais esperava.
     name: "cancelar_reuniao",
-    description: "Cancela a reunião já marcada com este lead. Use quando ele avisar que não poderá comparecer. Se ele já indicar outro horário, prefira agendar_reuniao_closer (que remarca direto). Depois de cancelar, SEMPRE ofereça um novo horário na mesma mensagem — nunca encerre o assunto.",
+    description: "Cancela a reunião já marcada com este lead. Use SOMENTE quando ele desmarcar sem dar outro horário. Se ele disser qualquer data ou hora nova (\"pode ser amanhã 8h\", \"consegue remarcar para sexta\", \"muda pras 14h\"), NÃO chame esta tool: chame agendar_reuniao_closer direto, que move o evento existente. Cancelar e criar de novo dispara um e-mail de \"Evento cancelado\" para o lead antes do convite novo, o que parece que a reunião caiu. Depois de cancelar de verdade, SEMPRE ofereça um novo horário na mesma mensagem — nunca encerre o assunto.",
     input_schema: {
       type: "object",
       properties: { motivo: { type: "string", description: "O que o lead disse — fica registrado para o vendedor." } },
