@@ -963,6 +963,7 @@ export default function CalendarPage() {
             meetLink: act?.meetLink,
             description: act?.title ? (act.description ?? "") : "",
             participants: act?.participants,
+            gcalEventId: act?.gcalEventId ?? editingEvent.gcalEventId,
           };
         })() : undefined}
       />

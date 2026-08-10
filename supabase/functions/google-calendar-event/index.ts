@@ -128,6 +128,19 @@ serve(async (req) => {
         ...(attendees.length > 0 && {
           attendees: attendees.map(email => ({ email })),
         }),
+        // Permite ADICIONAR o Meet a um evento que já existe. Sem isso, a
+        // única forma de gerar link era criando um evento novo -- e a tela de
+        // atividade fazia exatamente isso, deixando o evento antigo órfão na
+        // agenda do vendedor (duas reuniões no mesmo horário, com links
+        // diferentes, e o CRM apontando só para uma).
+        ...(create_meet && {
+          conferenceData: {
+            createRequest: {
+              requestId: crypto.randomUUID(),
+              conferenceSolutionKey: { type: "hangoutsMeet" },
+            },
+          },
+        }),
       };
 
       // sendUpdates=all: sem isso o Google adiciona o convidado no evento mas
@@ -135,7 +148,7 @@ serve(async (req) => {
       // participante era incluído e nunca ficava sabendo -- nem do convite,
       // nem quando o horário mudava.
       const patchRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}?sendUpdates=all`,
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event_id}?sendUpdates=all${create_meet ? "&conferenceDataVersion=1" : ""}`,
         {
           method: "PATCH",
           headers: {

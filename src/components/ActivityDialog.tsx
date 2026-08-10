@@ -96,6 +96,9 @@ interface Props {
     meetLink?: string;
     description?: string;
     leadId?: string;
+    // Evento do Google que a atividade já tem. Sem isso o diálogo não sabia
+    // que ele existia e criava um segundo evento ao gerar o link do Meet.
+    gcalEventId?: string;
   };
 }
 
@@ -135,6 +138,7 @@ export function ActivityDialog({
   const [generatingMeet, setGeneratingMeet] = useState(false);
   const [meetEventCreated, setMeetEventCreated] = useState(false);
   const [meetGcalEventId, setMeetGcalEventId] = useState<string | undefined>();
+  const eventoCriadoAquiRef = useRef(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const didSubmitRef = useRef(false);
@@ -192,7 +196,15 @@ export function ActivityDialog({
     setParticipantInput("");
     setDropdownOpen(false);
     setLeadDropdownOpen(false);
-    setMeetGcalEventId(undefined);
+    // Reaproveita o evento que a atividade JÁ tem. Antes isso vinha sempre
+    // undefined, então "Criar link do Google Meet" criava um evento novo no
+    // Google mesmo editando uma reunião existente -- o antigo ficava órfão na
+    // agenda do vendedor, mesma hora, link diferente, e o CRM apontando só
+    // para um dos dois.
+    setMeetGcalEventId(initialValues?.gcalEventId);
+    // Só apagamos no fechamento o evento que ESTE diálogo criou. Sem essa
+    // distinção, fechar sem salvar apagaria a reunião de verdade.
+    eventoCriadoAquiRef.current = false;
     setConfirmDelete(false);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -212,6 +224,9 @@ export function ActivityDialog({
       const startDt = `${date}T${time}:00`;
       const { data, error } = await supabase.functions.invoke("google-calendar-event", {
         body: {
+          // Com event_id o backend faz PATCH e adiciona o Meet ao evento que
+          // já existe, em vez de criar um segundo.
+          ...(meetGcalEventId ? { event_id: meetGcalEventId } : {}),
           title: title.trim() || "Reunião",
           description,
           start_datetime: startDt,
@@ -225,7 +240,10 @@ export function ActivityDialog({
       if (data?.meet_link) {
         setMeetLink(data.meet_link);
         setMeetEventCreated(true);
-        if (data.event_id) setMeetGcalEventId(data.event_id as string);
+        if (data.event_id) {
+          if (!meetGcalEventId) eventoCriadoAquiRef.current = true;
+          setMeetGcalEventId(data.event_id as string);
+        }
       } else {
         toast.error("Link do Meet não retornado. Verifique se o Google Calendar está conectado.");
       }
@@ -318,8 +336,19 @@ export function ActivityDialog({
   };
 
   const handleClose = () => {
-    if (meetGcalEventId && !didSubmitRef.current) {
-      supabase.functions.invoke("google-calendar-delete", { body: { event_id: meetGcalEventId, company_id: company?.id } }).catch(() => {});
+    if (meetGcalEventId && eventoCriadoAquiRef.current && !didSubmitRef.current) {
+      // functions.invoke NÃO lança em erro de HTTP: devolve { error }. O
+      // .catch() sozinho engolia toda falha de limpeza em silêncio, e o
+      // evento ficava para sempre na agenda do vendedor.
+      void supabase.functions
+        .invoke("google-calendar-delete", { body: { event_id: meetGcalEventId, company_id: company?.id } })
+        .then(({ error }) => {
+          if (error) {
+            console.error("[ActivityDialog] falha ao remover evento temporário do Google:", error);
+            toast.error("O evento criado para gerar o link do Meet não pôde ser removido da sua agenda. Apague-o manualmente no Google Calendar.");
+          }
+        })
+        .catch((e) => console.error("[ActivityDialog] falha ao remover evento temporário do Google:", e));
     }
     onClose();
   };

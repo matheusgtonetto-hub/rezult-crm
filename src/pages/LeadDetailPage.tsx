@@ -2935,6 +2935,7 @@ export default function LeadDetailPage() {
         meetLink: editingActivity.meetLink,
         description: editingActivity.title ? (editingActivity.description ?? "") : "",
         participants: editingActivity.participants,
+        gcalEventId: editingActivity.gcalEventId,
       } : undefined}
     />
 
