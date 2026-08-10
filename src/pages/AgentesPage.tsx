@@ -365,13 +365,15 @@ type WebhookIntegrationOption = { id: string; name: string; type: string; active
 type WorkInterval = { start: string; end: string };
 type WorkDay = { day: string; active: boolean; intervals: WorkInterval[] };
 const CLOSER_AVAILABILITY_DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+// Padrão ÚNICO de disponibilidade: segunda a sexta, 08:00 às 18:00. Vale
+// tanto ao marcar o vendedor quanto ao exibir quem ainda não tem
+// configuração salva. Mudar dali é decisão do usuário.
+//
+// Antes eram duas funções: uma com todos os dias FECHADOS, usada para exibir,
+// e outra com segunda a sexta, usada ao selecionar. A tela mostrava tudo
+// fechado para quem não tinha configuração, o que significa "o agente não
+// marca nada com essa pessoa" -- o oposto da intenção.
 const defaultCloserAvailability = (): WorkDay[] =>
-  CLOSER_AVAILABILITY_DAYS.map((day) => ({ day, active: false, intervals: [{ start: "08:00", end: "18:00" }] }));
-// Ao selecionar um vendedor pra um agente (toggleCloser), a disponibilidade
-// já vem com Segunda-Sexta ativos das 08:00 às 18:00 -- evita o vendedor
-// ficar sem nenhum dia liberado (e o agente sem conseguir marcar reunião
-// com ele) até alguém lembrar de configurar manualmente.
-const defaultCloserAvailabilityOnSelect = (): WorkDay[] =>
   CLOSER_AVAILABILITY_DAYS.map((day) => ({
     day,
     active: day !== "Sábado" && day !== "Domingo",
@@ -1070,7 +1072,7 @@ export default function AgentesPage() {
     if (checked === alreadyCloser) return;
     if (!wizardMode) {
       setCloserIds(checked ? [...closerIds, userId] : closerIds.filter((id) => id !== userId));
-      if (checked) await saveCloserAvailability(userId, defaultCloserAvailabilityOnSelect());
+      if (checked) await saveCloserAvailability(userId, defaultCloserAvailability());
       return;
     }
     if (!selected || !companyId) return;
@@ -1082,7 +1084,7 @@ export default function AgentesPage() {
       if (error) { toast.error("Erro ao adicionar vendedor"); return; }
       setCloserIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
       setCloserIdsSaved((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
-      await saveCloserAvailability(userId, defaultCloserAvailabilityOnSelect());
+      await saveCloserAvailability(userId, defaultCloserAvailability());
     } else {
       const { error } = await supabase.from("agent_closers").delete().eq("agent_id", selected.id).eq("user_id", userId);
       if (error) { toast.error("Erro ao remover vendedor"); return; }
