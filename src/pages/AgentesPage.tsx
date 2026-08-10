@@ -2170,7 +2170,11 @@ export default function AgentesPage() {
                               <div>
                                 <div className="text-[12px] font-medium text-[#111111]">Disponibilidade pra esse agente</div>
                                 <p className="text-[11px] text-[#767676] mb-1.5">
-                                  Dias e horários em que {m.full_name || "essa pessoa"} libera a agenda pro agente marcar reunião. Sem nenhum dia marcado, o agente pode agendar em qualquer horário.
+                                  {/* O texto antigo dizia que sem dia marcado o agente
+                                      agendava em qualquer horário. É o oposto do que o
+                                      backend faz: dia inativo descarta o vendedor naquele
+                                      dia, então com todos fechados ele nunca é escolhido. */}
+                                  Dias e horários em que {m.full_name || "essa pessoa"} libera a agenda pro agente marcar reunião. Com todos os dias fechados, o agente não consegue marcar nenhuma reunião com {m.full_name || "essa pessoa"}.
                                 </p>
                                 <div className="space-y-1">
                                   {availability.map((d, idx) => (
