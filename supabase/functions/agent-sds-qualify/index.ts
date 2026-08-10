@@ -479,7 +479,10 @@ function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEm
   // na última parte -- ou seja, o contato lia tudo sem saber quem falava.
   // `*texto*` é o negrito do WhatsApp.
   if (cfg.assinar_nome && agentName) {
-    lines.push(`Comece a resposta com *${agentName}* sozinho na primeira linha, e o conteúdo nas linhas seguintes. Se a resposta for dividida em várias mensagens, apenas a PRIMEIRA leva o nome — as demais vão direto ao conteúdo.`);
+    // O nome é inserido pelo código no envio (enviar_mensagem), em linha
+    // própria e sempre. Pedir ao modelo dava resultado irregular: às vezes
+    // saía, às vezes não, e colado no texto.
+    lines.push(`NÃO escreva seu nome no início da mensagem: o sistema adiciona a assinatura automaticamente. Escreva apenas o conteúdo.`);
   }
   if (cfg.finalizar_conversa) lines.push("Quando a conversa chegar a uma conclusão natural (objetivo atingido ou lead se despediu), use a tool finalizar_conversa.");
   if (cfg.transferir_responsavel) lines.push("Quando identificar que cumpriu seu objetivo nesta conversa, use a tool transferir_responsavel para passar o lead pra um humano dar continuidade.");
@@ -1621,8 +1624,8 @@ Deno.serve(async (req) => {
         `IMPORTANTE: você atingiu o limite de respostas nesta conversa. Nesta mensagem, despeça-se cordialmente do cliente e, em seguida, chame OBRIGATORIAMENTE a tool ${closingTool.name}.`,
         buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa),
       ].filter(Boolean).join("\n\n");
-      const closingCtx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
-        { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig };
+      const closingCtx: { companyId: string; leadId: string; agentId: string; agentName?: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
+        { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, lead, behaviorConfig };
       const closingDispatch: ToolDispatcher = (name, input) => executeAgentTool(db, { name, input }, closingCtx);
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
@@ -1776,7 +1779,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
   const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "cancelar_reuniao", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
   const dispatch: ToolDispatcher = async (name, input) => {
     if (LEGACY_TOOL_NAMES.has(name)) {
-      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, lead, behaviorConfig, followupAttempt, telefoneWhats, lembreteReuniao });
+      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, lead, behaviorConfig, followupAttempt, telefoneWhats, lembreteReuniao });
     }
     return await executeRegistryTool(toolCtx, name, input);
   };
@@ -1828,7 +1831,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
 async function executeAgentTool(
   db: ReturnType<typeof createClient>,
   call: any,
-  ctx: { companyId: string; leadId: string; agentId: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number; telefoneWhats?: string; lembreteReuniao?: string },
+  ctx: { companyId: string; leadId: string; agentId: string; agentName?: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number; telefoneWhats?: string; lembreteReuniao?: string },
 ): Promise<ToolResult> {
   const input = call.input ?? {};
 
@@ -2149,8 +2152,23 @@ async function executeAgentTool(
       };
       const phone = String(ctx.lead.whatsapp ?? "");
       const cfg = ctx.behaviorConfig ?? {};
-      const fullText = String(input.texto ?? "");
+      // Assinatura é feita AQUI, não pedida ao modelo. Como instrução de
+      // prompt ela saía de forma imprevisível: às vezes vinha, às vezes não,
+      // e quando vinha o divisor de mensagens juntava tudo por espaço e ela
+      // acabava colada no texto, na mesma linha.
+      const nomeAssinatura = cfg.assinar_nome && ctx.agentName ? String(ctx.agentName) : null;
+      let fullText = String(input.texto ?? "");
+      if (nomeAssinatura) {
+        // Remove o nome que o modelo tenha escrito por conta própria (com ou
+        // sem negrito, com ou sem quebra de linha) para não sair duplicado.
+        const nomeEscapado = nomeAssinatura.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        fullText = fullText.replace(new RegExp(`^\\s*\\*?${nomeEscapado}\\*?\\s*[:\\-]?\\s*`, "i"), "").trim();
+      }
       const parts = cfg.dividir_mensagens ? splitLongMessage(fullText, Number(cfg.dividir_mensagens_palavras) || 20) : [fullText];
+      // Só a PRIMEIRA parte leva o nome, em linha própria. Repetir em todas
+      // faria uma resposta de 5 mensagens começar 5 vezes com o mesmo nome,
+      // que é como robô se anuncia, não como pessoa conversa.
+      if (nomeAssinatura && parts.length) parts[0] = `*${nomeAssinatura}*\n${parts[0]}`;
 
       // Calcula o tempo de cada parte e, se o total estourar o orçamento,
       // comprime todas proporcionalmente -- melhor uma conversa um pouco
