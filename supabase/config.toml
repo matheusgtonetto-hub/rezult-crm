@@ -94,3 +94,10 @@ verify_jwt = false
 # Chamado só pelo pg_cron (segredo do motor), igual aos demais runners de agente.
 [functions.agent-meeting-reminder-runner]
 verify_jwt = false
+
+# Chamada só pelo agent-sds-qualify (server-to-server, x-internal-secret
+# verificado dentro da própria função). Sem verify_jwt = false o gateway
+# barraria a chamada antes de ela rodar, e a checagem de agenda do Google
+# falharia em silêncio -- o que faria o agente voltar a marcar em cima.
+[functions.google-freebusy]
+verify_jwt = false

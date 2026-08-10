@@ -1100,7 +1100,28 @@ async function pickAvailableCloser(
       if (!busyByUser.has(uid)) busyByUser.set(uid, []);
       busyByUser.get(uid)!.push({ start: s, end: e });
     }
+    // Soma a agenda Google do vendedor. A tabela activities só conhece o que
+    // passou pelo CRM; compromisso criado direto no Google Calendar (médico,
+    // almoço, bloqueio pessoal) era invisível e o agente marcava em cima.
+    const google = await consultarAgendaGoogle(
+      companyId, eligible,
+      new Date(startMs - dayMs).toISOString(),
+      new Date(endMs + dayMs).toISOString(),
+    );
+    for (const [uid, intervalos] of Object.entries(google.busy)) {
+      if (!busyByUser.has(uid)) busyByUser.set(uid, []);
+      for (const iv of intervalos) {
+        busyByUser.get(uid)!.push({ start: new Date(iv.start).getTime(), end: new Date(iv.end).getTime() });
+      }
+    }
+
     eligible = eligible.filter((userId) => {
+      // Agenda que não pôde ser lida não vira "livre": sem conseguir
+      // verificar, o vendedor sai da lista em vez de arriscar sobreposição.
+      if (google.naoVerificados.includes(userId)) {
+        console.warn(`[agent-sds-qualify] agenda Google de ${userId} não pôde ser verificada — vendedor excluído deste horário`);
+        return false;
+      }
       const busy = busyByUser.get(userId);
       if (!busy?.length) return true;
       return busy.every((b) => endMs + bufferMs <= b.start || startMs - bufferMs >= b.end);
@@ -1134,6 +1155,39 @@ async function pickAvailableCloser(
 // descobria que o vendedor não atendia naquele dia DEPOIS que o lead
 // escolhia -- aí a ferramenta recusava e a conversa travava. Com a janela à
 // vista, ele já propõe horário que dá pra cumprir.
+// Consulta a agenda Google dos vendedores. Devolve os intervalos ocupados e,
+// separadamente, quem não pôde ser verificado -- a diferença importa: tratar
+// "não consegui ler" como "está livre" é justamente o que marca reunião em
+// cima de outra.
+async function consultarAgendaGoogle(
+  companyId: string,
+  userIds: string[],
+  timeMin: string,
+  timeMax: string,
+): Promise<{ busy: Record<string, { start: string; end: string }[]>; naoVerificados: string[] }> {
+  const vazio = { busy: {}, naoVerificados: userIds };
+  if (!userIds.length) return { busy: {}, naoVerificados: [] };
+  try {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-freebusy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": Deno.env.get("AGENT_INTERNAL_SECRET") ?? "",
+      },
+      body: JSON.stringify({ company_id: companyId, user_ids: userIds, time_min: timeMin, time_max: timeMax }),
+    });
+    if (!res.ok) {
+      console.error("[agent-sds-qualify] google-freebusy falhou:", res.status, await res.text());
+      return vazio;
+    }
+    const data = await res.json() as { busy?: Record<string, { start: string; end: string }[]>; nao_verificados?: string[] };
+    return { busy: data.busy ?? {}, naoVerificados: data.nao_verificados ?? [] };
+  } catch (e) {
+    console.error("[agent-sds-qualify] google-freebusy exceção:", e);
+    return vazio;
+  }
+}
+
 async function buildAvailabilityContext(
   db: ReturnType<typeof createClient>,
   companyId: string,
@@ -1172,7 +1226,7 @@ async function buildAvailabilityContext(
   // a reserva era recusada -- com o lead já achando que tinha marcado.
   const timezone = cfg.fuso_horario || "America/Sao_Paulo";
   const agora = new Date();
-  const { data: ocupadas } = await db
+  const { data: ocupadasCrm } = await db
     .from("activities")
     .select("scheduled_at, duration_minutes")
     .eq("company_id", companyId)
@@ -1183,8 +1237,24 @@ async function buildAvailabilityContext(
     .order("scheduled_at", { ascending: true })
     .limit(40);
 
+  // Junta os compromissos do Google aos do CRM, para o agente não OFERECER um
+  // horário que já está tomado (a trava do pickAvailableCloser é a última
+  // linha de defesa; oferecer e depois recusar é péssimo para o lead).
+  const janelaFim = new Date(agora.getTime() + 21 * 24 * 60 * 60_000);
+  const agendaGoogle = await consultarAgendaGoogle(
+    companyId, closers.map((c) => c.user_id as string),
+    agora.toISOString(), janelaFim.toISOString(),
+  );
+  const doGoogle = Object.values(agendaGoogle.busy).flat().map((iv) => ({
+    scheduled_at: iv.start,
+    duration_minutes: Math.max(1, Math.round((new Date(iv.end).getTime() - new Date(iv.start).getTime()) / 60_000)),
+  }));
+  const ocupadas = [...(ocupadasCrm ?? []), ...doGoogle]
+    .sort((a, b) => new Date(a.scheduled_at as string).getTime() - new Date(b.scheduled_at as string).getTime())
+    .slice(0, 60);
+
   let blocoOcupado = "";
-  if (ocupadas?.length) {
+  if (ocupadas.length) {
     const fmt = new Intl.DateTimeFormat("pt-BR", {
       timeZone: timezone, weekday: "short", day: "2-digit", month: "2-digit",
       hour: "2-digit", minute: "2-digit",
