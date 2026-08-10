@@ -1525,7 +1525,7 @@ export default function AgentesPage() {
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
                 {/* PERFIL */}
-                <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   {(!hasAnthropicKey || !hasOpenaiKey) && (
                     <div className="flex items-start gap-2.5 p-4 bg-[#FEE2E2] rounded-lg">
                       <AlertTriangle size={16} className="text-[#991B1B] mt-0.5 shrink-0" />
@@ -1593,7 +1593,7 @@ export default function AgentesPage() {
                                       <div key={g.id} className="space-y-1.5">
                                         <div className="text-[10px] font-semibold uppercase tracking-wide text-[#767676]">{g.name}</div>
                                         {g.items.map((f) => (
-                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded cursor-pointer">
+                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-white border border-[#EEEEEE] rounded cursor-pointer">
                                             <Checkbox
                                               checked={behaviorDraft.campos_qualificacao.includes(f.id)}
                                               onCheckedChange={(c) => toggleQualField(f.id, c === true)}
@@ -1625,7 +1625,7 @@ export default function AgentesPage() {
                                   {behaviorDraft.lembrete_reuniao_ativo && (
                                     <div className="mt-2 space-y-2">
                                       {([1, 2] as const).map((n) => (
-                                        <div key={n} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded">
+                                        <div key={n} className="flex items-center gap-2 p-2 bg-white border border-[#EEEEEE] rounded">
                                           <span className="text-[11px] text-[#767676] w-[74px] shrink-0">
                                             {n === 1 ? "1º lembrete" : "2º lembrete"}
                                           </span>
@@ -1708,7 +1708,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* BASE DE CONHECIMENTO */}
-                <TabsContent value="kb" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="kb" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Bases de Conhecimento</h3>
                     <p className="text-[12px] text-[#767676]">
@@ -1767,11 +1767,11 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* COMPORTAMENTO */}
-                <TabsContent value="comportamento" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="comportamento" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div className="border-t border-[#EEEEEE] pt-6 first:border-t-0 first:pt-0">
                     <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Encerramento e transferência</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[#111111]">Finalizar conversa</div>
                           <div className="text-[11px] text-[#767676]">Permite que o agente encerre a conversa automaticamente.</div>
@@ -1781,7 +1781,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ finalizar_conversa: v })}
                         />
                       </div>
-                      <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-[13px] font-medium text-[#111111]">Transferir responsável</div>
@@ -1824,7 +1824,7 @@ export default function AgentesPage() {
                           (inclusive automaticamente, quando um agendamento
                           falha). O que faltava era destinatário -- sem ele a
                           escalação virava só uma nota que ninguém lê. */}
-                      <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div className="text-[13px] font-medium text-[#111111]">Quando o agente não conseguir resolver</div>
                         <div className="text-[11px] text-[#767676]">
                           O agente escala para uma pessoa quando trava numa dúvida que não sabe responder ou quando um agendamento falha. A conversa vai para a caixa de quem você escolher aqui.
@@ -1878,7 +1878,7 @@ export default function AgentesPage() {
                       </Tooltip>
                     </div>
 
-                    <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <Select
                         value={behaviorDraft.persona_voz ?? "propria"}
                         onValueChange={(v) => updateBehaviorConfig({ persona_voz: v as BehaviorConfig["persona_voz"] })}
@@ -1894,7 +1894,7 @@ export default function AgentesPage() {
 
                   <div className="border-t border-[#EEEEEE] pt-6">
                     <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Estilo de Comunicação</h3>
-                    <div className="mb-2 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="mb-2 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <Select
                         value={behaviorDraft.estilo_comunicacao ?? "normal"}
                         onValueChange={(v) => updateBehaviorConfig({ estilo_comunicacao: v as BehaviorConfig["estilo_comunicacao"] })}
@@ -1908,7 +1908,7 @@ export default function AgentesPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[#111111]">Usar Emojis</div>
                           <div className="text-[11px] text-[#767676]">Permitir uso de emojis nas respostas.</div>
@@ -1918,7 +1918,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ usar_emojis: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[#111111]">Assinar nome do agente</div>
                           <div className="text-[11px] text-[#767676]">Assinar nome do agente nas mensagens.</div>
@@ -1928,7 +1928,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ assinar_nome: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-medium text-[#111111]">Dividir mensagens longas</div>
                           <div className="text-[11px] text-[#767676]">Dividir mensagens muito longas automaticamente.</div>
@@ -1954,7 +1954,7 @@ export default function AgentesPage() {
                   </div>
 
                   <div className="border-t border-[#EEEEEE] pt-6">
-                    <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg mb-3">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg mb-3">
                       <div>
                         <div className="text-[13px] font-medium text-[#111111]">Follow-up automático</div>
                         <div className="text-[11px] text-[#767676]">Envia mensagem de acompanhamento quando o cliente não responde.</div>
@@ -1997,7 +1997,7 @@ export default function AgentesPage() {
                             </Select>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
+                        <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                           <div className="text-[13px] font-medium text-[#111111]">
                             Após as tentativas, transferir lead para uma automação
                           </div>
@@ -2031,7 +2031,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* CLOSERS */}
-                <TabsContent value="closers" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="closers" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-[14px] font-semibold text-[#111111]">Configurações de agendamento</h3>
@@ -2041,7 +2041,7 @@ export default function AgentesPage() {
                     <p className="text-[11px] text-[#767676]">
                       O fuso horário do agente agora é definido na aba Perfil — ele vale tanto pro horário de atendimento quanto pro agendamento de reuniões aqui.
                     </p>
-                    <div className="grid grid-cols-2 gap-4 p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <div>
                         <Label className="text-[12px]">Duração padrão das reuniões (min)</Label>
                         <Input
@@ -2053,7 +2053,7 @@ export default function AgentesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <div>
                         <div className="text-[13px] text-[#111111]">Intervalo entre reuniões</div>
                         <div className="text-[11px] text-[#767676]">Garante uma folga antes e depois de cada reunião já marcada, pra não empilhar compromissos do vendedor sem respiro.</div>
@@ -2075,7 +2075,7 @@ export default function AgentesPage() {
                       </div>
                     )}
 
-                    <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg space-y-3">
+                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-[13px] text-[#111111]">Google Calendar</div>
@@ -2104,7 +2104,7 @@ export default function AgentesPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <div>
                         <div className="text-[13px] text-[#111111]">Confirmar antes de criar eventos</div>
                         <div className="text-[11px] text-[#767676]">O agente pedirá confirmação antes de criar ou modificar eventos.</div>
@@ -2223,7 +2223,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* INTEGRAÇÕES */}
-                <TabsContent value="integracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="integracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Integrações</h3>
                     <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
@@ -2232,7 +2232,7 @@ export default function AgentesPage() {
                   {/* Como o negócio chega até ESTE agente, e o efeito de
                       restringir linhas: o agente só lê e responde nas linhas
                       marcadas abaixo. */}
-                  <div className="rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] p-3">
+                  <div className="rounded-lg border border-[#EEEEEE] bg-white p-3">
                     <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
                     <div className="flex flex-wrap items-center gap-2">
                       {selected.activation_tag ? (
@@ -2356,7 +2356,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* PERFORMANCE */}
-                <TabsContent value="performance" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="performance" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <PerformanceTab
                     agentId={selected.id}
                     companyId={companyId ?? ""}
@@ -2368,14 +2368,14 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* CONFIGURAÇÕES */}
-                <TabsContent value="configuracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="configuracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Horário de atendimento</h3>
                     <p className="text-[12px] text-[#767676]">
                       Fuso horário do agente e, se quiser, a janela e os dias em que ele responde mensagens no dia a dia.
                     </p>
                   </div>
-                  <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg space-y-4">
+                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-4">
                     <div className="max-w-[280px]">
                       <Label className="text-[12px]">Fuso horário</Label>
                       <Select
@@ -2453,7 +2453,7 @@ export default function AgentesPage() {
                     )}
                   </div>
 
-                  <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <Label className="text-[12px]">Delay de Resposta (minutos)</Label>
                     <Input
                       type="number" min={0}
@@ -2466,7 +2466,7 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <Label className="text-[12px]">Mensagens consideradas no atendimento</Label>
                     <Input
                       type="number" min={1}
@@ -2479,7 +2479,7 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <Label className="text-[12px]">Limite de interações da IA por atendimento</Label>
                     <Input
                       type="number" min={0}
@@ -2495,7 +2495,7 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <div>
                       <div className="text-[13px] font-medium text-[#111111]">Saudação automática</div>
                       <div className="text-[11px] text-[#767676]">Enviar saudação automática ao iniciar conversa.</div>
@@ -2508,7 +2508,7 @@ export default function AgentesPage() {
 
                   <div className="border-t border-[#EEEEEE] pt-6">
                     <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Restrições</h3>
-                    <div className="flex items-center justify-between p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg mb-3">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg mb-3">
                       <div>
                         <div className="text-[13px] font-medium text-[#111111]">Restringir tópicos</div>
                         <div className="text-[11px] text-[#767676]">Ativar controle de tópicos permitidos/restritos.</div>
@@ -2520,7 +2520,7 @@ export default function AgentesPage() {
                     </div>
                     {behaviorDraft.restringir_topicos && (
                       <div className="space-y-3">
-                        <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                        <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                           <Label className="text-[12px]">Tópicos Permitidos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_permitidos}
@@ -2529,7 +2529,7 @@ export default function AgentesPage() {
                             className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
                         </div>
-                        <div className="p-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg">
+                        <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
                           <Label className="text-[12px]">Tópicos Restritos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_restritos}
@@ -2545,7 +2545,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* MODELOS */}
-                <TabsContent value="modelos" className="p-6 space-y-4 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="modelos" className="p-6 space-y-4 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Modelo de IA</h3>
                     <p className="text-[12px] text-[#767676]">
@@ -2672,14 +2672,14 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* FERRAMENTAS */}
-                <TabsContent value="ferramentas" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="ferramentas" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Ferramentas do CRM</h3>
                     <p className="text-[12px] text-[#767676]">
                       Quais operações do CRM esse agente pode chamar durante a conversa. Ferramentas "Destrutiva" (excluir) ainda não estão liberadas.
                     </p>
                   </div>
-                  <div className="flex items-start justify-between gap-3 p-3 bg-[#F5F5F5] rounded-lg">
+                  <div className="flex items-start justify-between gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <div className="text-[12px] text-[#666666]">
                       <span className="font-medium text-[#111111]">Quer que o agente saiba de vendas feitas em ferramentas externas</span> (Hotmart, Kiwify, etc.)? Configure um Webhook de entrada em Configurações → Integrações e mapeie os campos de produto/valor — as vendas aparecem automaticamente aqui e na Performance.
                     </div>
@@ -2734,7 +2734,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* INSTRUÇÕES */}
-                <TabsContent value="instrucoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0">
+                <TabsContent value="instrucoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Instruções</h3>
                     <p className="text-[12px] text-[#767676]">
