@@ -605,8 +605,13 @@ async function runAnthropicLoop(
   // executando, e antes disso a função terminava sem nunca falar com o lead:
   // reunião remarcada no Google e no CRM, e do lado de lá silêncio total.
   // Aqui a última palavra é forçada a ser uma mensagem.
-  if (esgotouRodadas && !actions.includes("enviar_mensagem")) {
-    console.warn("[agent-sds-qualify] teto de rodadas de tools atingido sem enviar_mensagem — forçando a mensagem final");
+  // Invariante: turno que chegou ao modelo TERMINA falando com o lead. Antes
+  // isso só valia quando o teto de rodadas estourava, e sobrava um caminho
+  // mudo -- o turno acabar por conta própria sem nenhum envio e sem texto
+  // final para resgatar. Aconteceu de verdade: o agente recusou um horário
+  // ocupado corretamente e o lead não recebeu nada.
+  if (!actions.includes("enviar_mensagem")) {
+    console.warn(`[agent-sds-qualify] turno terminou sem enviar_mensagem (esgotou rodadas: ${esgotouRodadas}, ações: ${actions.join(",") || "nenhuma"}) — forçando a mensagem final`);
     const ferramentaEnvio = tools.find((t) => t.name === "enviar_mensagem");
     if (ferramentaEnvio) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -694,8 +699,13 @@ async function runOpenAiLoop(
   }
 
   // Mesma trava do loop Anthropic: teto de rodadas não pode virar silêncio.
-  if (esgotouRodadas && !actions.includes("enviar_mensagem")) {
-    console.warn("[agent-sds-qualify] teto de rodadas de tools atingido sem enviar_mensagem — forçando a mensagem final");
+  // Invariante: turno que chegou ao modelo TERMINA falando com o lead. Antes
+  // isso só valia quando o teto de rodadas estourava, e sobrava um caminho
+  // mudo -- o turno acabar por conta própria sem nenhum envio e sem texto
+  // final para resgatar. Aconteceu de verdade: o agente recusou um horário
+  // ocupado corretamente e o lead não recebeu nada.
+  if (!actions.includes("enviar_mensagem")) {
+    console.warn(`[agent-sds-qualify] turno terminou sem enviar_mensagem (esgotou rodadas: ${esgotouRodadas}, ações: ${actions.join(",") || "nenhuma"}) — forçando a mensagem final`);
     const ferramentaEnvio = tools.find((t) => t.name === "enviar_mensagem");
     if (ferramentaEnvio) {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -913,6 +923,47 @@ async function resolveLead(
     .eq("company_id", companyId)
     .not("whatsapp", "is", null);
   return (candidates ?? []).find((l) => phonesMatch(String(l.whatsapp ?? ""), phone)) ?? null;
+}
+
+// leads.responsible, leads.responsibles e whatsapp_conversations.assigned_to
+// guardam o NOME de exibição do atendente, não o id (conferido na base real:
+// 2168 leads e 56 conversas, todos com nome, nenhum com UUID). Já
+// activities.owner_id é uuid de verdade. Misturar os dois grava lixo num lado
+// ou faz o insert falhar no outro -- e o insert do Supabase devolve { error }
+// em vez de lançar, então a falha passa em silêncio.
+//
+// A configuração da tela guarda o user_id; o fallback vem de
+// leads.responsible, que é nome. Esta função aceita os dois e devolve o par.
+async function resolverAtendente(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  valor: string | null | undefined,
+): Promise<{ id: string | null; nome: string | null }> {
+  const bruto = String(valor ?? "").trim();
+  if (!bruto) return { id: null, nome: null };
+
+  const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bruto);
+  if (ehUuid) {
+    const { data } = await db.from("profiles").select("id, full_name, email").eq("id", bruto).maybeSingle();
+    return { id: bruto, nome: String(data?.full_name || data?.email || "") || null };
+  }
+
+  // Veio nome: procura o id correspondente entre as pessoas da empresa, para
+  // poder usar em colunas uuid. Sem achar, o nome ainda serve para as colunas
+  // de texto.
+  const { data: membros } = await db
+    .from("company_members").select("user_id").eq("company_id", companyId);
+  const ids = (membros ?? []).map((m) => m.user_id as string);
+  const { data: dono } = await db.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
+  if (dono?.owner_id) ids.push(dono.owner_id as string);
+  if (ids.length) {
+    const { data: perfis } = await db.from("profiles").select("id, full_name, email").in("id", ids);
+    const achado = (perfis ?? []).find((p) =>
+      String(p.full_name ?? "").trim().toLowerCase() === bruto.toLowerCase() ||
+      String(p.email ?? "").trim().toLowerCase() === bruto.toLowerCase());
+    if (achado) return { id: achado.id as string, nome: String(achado.full_name || achado.email || bruto) };
+  }
+  return { id: null, nome: bruto };
 }
 
 // ─── Tag "Agente" no negócio: liga/desliga o agente POR negócio, em cima do
@@ -1185,6 +1236,17 @@ async function consultarAgendaGoogle(
 ): Promise<{ busy: Record<string, { start: string; end: string }[]>; naoVerificados: string[] }> {
   const vazio = { busy: {}, naoVerificados: userIds };
   if (!userIds.length) return { busy: {}, naoVerificados: [] };
+
+  // Interruptor de emergência. Esta é a única parte do agente que faz chamada
+  // de rede externa dentro do fluxo (edge function -> Google), então é a
+  // primeira suspeita quando o banco satura. Desligado, o agente volta a
+  // conferir conflito só pela tabela activities, que era o comportamento
+  // antes de 2026-08-10 -- compromisso criado direto no Google Calendar volta
+  // a ser invisível, e isso é aceitável por um período curto.
+  // Religar: definir AGENT_FREEBUSY_ENABLED=1 nos secrets do projeto.
+  if ((Deno.env.get("AGENT_FREEBUSY_ENABLED") ?? "") !== "1") {
+    return { busy: {}, naoVerificados: [] };
+  }
   try {
     const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-freebusy`, {
       method: "POST",
@@ -2298,11 +2360,13 @@ async function executeAgentTool(
       // "transferência" só desligava o agente: o negócio ficava sem
       // responsável e a conversa fora da caixa de qualquer atendente -- o CRM
       // dizia transferido e ninguém recebia nada.
-      const destinatario = ctx.behaviorConfig?.transferir_responsavel_user_id ?? null;
+      const destino = await resolverAtendente(db, ctx.companyId, ctx.behaviorConfig?.transferir_responsavel_user_id);
       const patchLead: Record<string, unknown> = { tags: nextLeadTags };
-      if (destinatario) {
-        patchLead.responsible = destinatario;
-        patchLead.responsibles = [destinatario];
+      // Nome, não id: é o que essas colunas guardam em toda a base. Gravar o
+      // uuid aqui faria o CRM exibir um identificador no lugar da pessoa.
+      if (destino.nome) {
+        patchLead.responsible = destino.nome;
+        patchLead.responsibles = [destino.nome];
       }
       await db.from("leads").update(patchLead).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
 
@@ -2315,18 +2379,15 @@ async function executeAgentTool(
         // assigned_to é o que faz a conversa aparecer na caixa daquele
         // atendente no Multiatendimento. Sem isso a transferência existia só
         // no card do negócio, e quem ia atender não era avisado de nada.
-        if (destinatario) patchConv.assigned_to = destinatario;
+        if (destino.nome) patchConv.assigned_to = destino.nome;
         await db.from("whatsapp_conversations").update(patchConv).eq("id", conv.id);
       }
 
-      let nomeDestinatario = "";
-      if (destinatario) {
-        const { data: perfil } = await db.from("profiles").select("full_name, email").eq("id", destinatario).maybeSingle();
-        nomeDestinatario = String(perfil?.full_name || perfil?.email || "");
-      }
-      await db.from("activities").insert({
+      const nomeDestinatario = destino.nome ?? "";
+      const { error: erroNota } = await db.from("activities").insert({
         company_id: ctx.companyId,
-        owner_id: destinatario ?? (ctx.lead.owner_id as string),
+        // owner_id é uuid: usa o id resolvido, nunca o nome.
+        owner_id: destino.id ?? (ctx.lead.owner_id as string),
         lead_id: ctx.leadId,
         type: "note",
         title: nomeDestinatario
@@ -2334,7 +2395,10 @@ async function executeAgentTool(
           : "Agente transferiu a conversa — objetivo concluído",
         description: String(input.motivo ?? "sem motivo informado"),
       });
-      if (!destinatario) {
+      // insert do Supabase devolve { error } em vez de lançar: sem checar,
+      // uma nota que não entrou passa despercebida.
+      if (erroNota) console.error("[agent-sds-qualify] falha ao registrar a nota de transferência:", erroNota.message);
+      if (!destino.nome) {
         console.warn(`[agent-sds-qualify] transferir_responsavel sem destinatário configurado (agente ${ctx.agentId}) — o agente foi desligado mas o negócio ficou sem responsável`);
       }
       return { ok: true, orientacao: nomeDestinatario ? `Conversa transferida para ${nomeDestinatario}. Avise o lead que alguém do time vai continuar o atendimento, sem prometer prazo.` : undefined };
@@ -2349,35 +2413,37 @@ async function executeAgentTool(
       // responsável que o negócio já tem. Esse fallback importa porque numa
       // base onde os leads já têm dono a escalação chega na pessoa certa sem
       // configuração nenhuma.
-      const paraQuem = ctx.behaviorConfig?.escalar_humano_user_id
-        ?? (ctx.lead.responsible as string | null)
-        ?? null;
+      // Config guarda user_id; o fallback (leads.responsible) guarda nome.
+      // resolverAtendente aceita os dois e devolve o par certo para cada
+      // tipo de coluna.
+      const alvo = await resolverAtendente(
+        db, ctx.companyId,
+        ctx.behaviorConfig?.escalar_humano_user_id ?? (ctx.lead.responsible as string | null),
+      );
 
-      if (paraQuem) {
+      if (alvo.nome) {
         // assigned_to é o que coloca a conversa na caixa daquele atendente no
         // Multiatendimento -- é isso que faz a escalação existir na prática.
+        // Guarda NOME, igual ao resto da base.
         await db.from("whatsapp_conversations")
-          .update({ assigned_to: paraQuem })
+          .update({ assigned_to: alvo.nome })
           .eq("company_id", ctx.companyId)
           .in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
       } else {
         console.warn(`[agent-sds-qualify] escalar_humano sem destinatário (agente ${ctx.agentId}, lead ${ctx.leadId}) — a nota foi criada mas ninguém foi avisado`);
       }
 
-      let nome = "";
-      if (paraQuem) {
-        const { data: perfil } = await db.from("profiles").select("full_name, email").eq("id", paraQuem).maybeSingle();
-        nome = String(perfil?.full_name || perfil?.email || "");
-      }
-      await db.from("activities").insert({
+      const nome = alvo.nome ?? "";
+      const { error: erroEscala } = await db.from("activities").insert({
         company_id: ctx.companyId,
-        // owner_id é NOT NULL em activities
-        owner_id: paraQuem ?? (ctx.lead.owner_id as string),
+        // owner_id é uuid NOT NULL: nome aqui faz o insert falhar em silêncio.
+        owner_id: alvo.id ?? (ctx.lead.owner_id as string),
         lead_id: ctx.leadId,
         type: "note",
         title: nome ? `Agente escalou para ${nome}` : "Agente SDS escalou pra atendimento humano",
         description: String(input.motivo ?? "sem motivo informado"),
       });
+      if (erroEscala) console.error("[agent-sds-qualify] falha ao registrar a nota de escalação:", erroEscala.message);
 
       // O agente NÃO é desligado aqui, de propósito: escalar_humano também é
       // chamado automaticamente quando o agendamento falha, e uma falha
