@@ -348,6 +348,9 @@ type BehaviorConfig = {
   followup_transferir_automacao?: boolean;
   followup_automacao_id?: string | null;
   // Aba Configurações
+  // Delay em SEGUNDOS. A chave antiga (delay_resposta_minutos) continua sendo
+  // lida para agentes criados antes da mudança.
+  delay_resposta_segundos?: number;
   delay_resposta_minutos?: number;
   mensagens_consideradas?: number;
   limite_interacoes?: number;
@@ -548,6 +551,10 @@ function toOpenAiTools(tools: AnthropicToolDef[]) {
 type ToolDispatcher = (name: string, input: Record<string, unknown>) => Promise<ToolResult>;
 
 const MAX_TOOL_TURNS = 6;
+
+// Acima disso não vale segurar a execução aberta esperando: o cron assume, com
+// a imprecisão de um minuto dele, que é irrelevante num delay longo.
+const DELAY_MAX_ESPERA_INLINE_S = 60;
 
 type LoopUsage = { inputTokens: number; outputTokens: number };
 // `finalText` é o texto que o modelo escreveu na última volta, quando parou
@@ -1632,7 +1639,10 @@ Deno.serve(async (req) => {
   // reescreve o horário (upsert por company_id+phone) -- só responde depois
   // que o lead ficar quieto pelo intervalo inteiro. agent-response-runner
   // reinvoca esta mesma function com x-bypass-delay quando vence.
-  const delayMinutos = Number(behaviorConfig.delay_resposta_minutos) || 0;
+  // Segundos, com fallback para a configuração antiga em minutos.
+  const delaySegundos = behaviorConfig.delay_resposta_segundos !== undefined
+    ? Number(behaviorConfig.delay_resposta_segundos) || 0
+    : (Number(behaviorConfig.delay_resposta_minutos) || 0) * 60;
   const bypassDelay = req.headers.get("x-bypass-delay") === "true";
   // >0 quando quem chamou foi o agent-followup-runner: o lead ficou em
   // silêncio e esta execução é a N-ésima cutucada.
@@ -1640,12 +1650,40 @@ Deno.serve(async (req) => {
   // Preenchido pelo agent-meeting-reminder-runner: esta execução é o
   // lembrete de uma reunião que está chegando (traz o horário dela).
   const lembreteReuniao = req.headers.get("x-lembrete-reuniao") ?? "";
-  if (delayMinutos > 0 && !bypassDelay) {
+  if (delaySegundos > 0 && !bypassDelay) {
+    // A linha de controle é gravada nos DOIS caminhos: é ela que faz o
+    // debounce (mensagem nova empurra o horário, então só a última responde).
     await db.from("agent_pending_response").upsert({
       company_id: companyId, phone, status: "pending",
-      respond_at: new Date(Date.now() + delayMinutos * 60_000).toISOString(),
+      respond_at: new Date(Date.now() + delaySegundos * 1000).toISOString(),
     }, { onConflict: "company_id,phone" });
-    return json({ skipped: "delayed", respond_at_in_minutes: delayMinutos }, 200);
+
+    // Espera curta acontece AQUI, na própria execução. Pelo cron a precisão
+    // seria de um minuto (ele acorda de minuto em minuto), e um delay de 15s
+    // viraria até 60s -- o campo prometeria algo que o sistema não entrega.
+    if (delaySegundos <= DELAY_MAX_ESPERA_INLINE_S) {
+      await new Promise((r) => setTimeout(r, delaySegundos * 1000));
+
+      // Disputa pela linha: quem apagar, responde. Se o lead mandou outra
+      // mensagem durante a espera, o respond_at foi empurrado para o futuro e
+      // o `lte` não casa -- esta execução sai calada e quem responde é a
+      // última. Se o cron chegou antes, a linha já não existe. Sem essa
+      // reivindicação atômica, duas mensagens seguidas gerariam duas
+      // respostas para a mesma pessoa.
+      const { data: reivindicada } = await db
+        .from("agent_pending_response")
+        .delete()
+        .eq("company_id", companyId)
+        .eq("phone", phone)
+        .lte("respond_at", new Date().toISOString())
+        .select("id");
+      if (!reivindicada?.length) {
+        return json({ skipped: "delay_reiniciado_ou_ja_processado" }, 200);
+      }
+      // Segue o fluxo normal e responde nesta mesma execução.
+    } else {
+      return json({ skipped: "delayed", respond_at_in_seconds: delaySegundos }, 200);
+    }
   }
 
   const model = (agent.model as string) || "claude-sonnet-5";

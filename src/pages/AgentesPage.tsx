@@ -133,6 +133,9 @@ type BehaviorConfig = {
   followup_transferir_automacao?: boolean;
   followup_automacao_id?: string | null;
   // Aba Configurações
+  // Delay em SEGUNDOS. A chave antiga (delay_resposta_minutos) ainda é lida
+  // pelo backend para agentes criados antes da mudança.
+  delay_resposta_segundos?: number;
   delay_resposta_minutos?: number;
   mensagens_consideradas?: number;
   limite_interacoes?: number;
@@ -203,6 +206,7 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   followup_intervalo_unidade: "minutos",
   followup_transferir_automacao: false,
   followup_automacao_id: null,
+  delay_resposta_segundos: 0,
   delay_resposta_minutos: 0,
   mensagens_consideradas: 30,
   limite_interacoes: 0,
@@ -2489,15 +2493,21 @@ export default function AgentesPage() {
                   </div>
 
                   <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
-                    <Label className="text-[12px]">Delay de Resposta (minutos)</Label>
+                    <Label className="text-[12px]">Delay de Resposta (segundos)</Label>
                     <Input
                       type="number" min={0}
-                      value={behaviorDraft.delay_resposta_minutos}
-                      onChange={(e) => updateBehaviorConfig({ delay_resposta_minutos: Number(e.target.value) || 0 })}
+                      // Agente antigo tem o valor em minutos: converte na
+                      // exibição para o campo nunca mostrar "1" querendo
+                      // dizer 60.
+                      value={behaviorDraft.delay_resposta_segundos ?? (behaviorDraft.delay_resposta_minutos ?? 0) * 60}
+                      onChange={(e) => updateBehaviorConfig({ delay_resposta_segundos: Number(e.target.value) || 0, delay_resposta_minutos: 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[11px] text-[#767676] mt-1">
-                      Espera esse tempo antes de responder — se o lead mandar mais mensagens durante a espera, o relógio reinicia e o agente responde só uma vez, depois que ele parar. 0 = responde na hora.
+                      Espera esse tempo depois da última mensagem do lead antes de começar a responder. Se ele mandar mais mensagens durante a espera, o relógio reinicia e o agente responde uma vez só, considerando todas. 0 = responde na hora.
+                    </p>
+                    <p className="text-[11px] text-[#767676] mt-1">
+                      O tempo de digitação vem depois disso: com 15 segundos aqui, o "digitando..." aparece aos 15 e a primeira mensagem chega por volta dos 20.
                     </p>
                   </div>
 
