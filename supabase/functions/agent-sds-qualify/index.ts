@@ -510,7 +510,21 @@ type ToolDispatcher = (name: string, input: Record<string, unknown>) => Promise<
 const MAX_TOOL_TURNS = 6;
 
 type LoopUsage = { inputTokens: number; outputTokens: number };
-type LoopResult = { actions: string[] | null; usage: LoopUsage; success: boolean };
+// `finalText` é o texto que o modelo escreveu na última volta, quando parou
+// de pedir tools. Ele NÃO chega ao lead sozinho: o único canal é a tool
+// enviar_mensagem. Antes esse texto era descartado em silêncio -- num teste
+// real o agente registrou a qualificação e escreveu a resposta como texto, e
+// o lead não recebeu absolutamente nada. Agora ele volta pra quem chamou,
+// que usa como rede de segurança.
+type LoopResult = { actions: string[] | null; usage: LoopUsage; success: boolean; finalText: string };
+
+// deno-lint-ignore no-explicit-any
+function textoDosBlocos(content: any): string {
+  if (typeof content === "string") return content.trim();
+  if (!Array.isArray(content)) return "";
+  // deno-lint-ignore no-explicit-any
+  return content.filter((b: any) => b?.type === "text").map((b: any) => String(b.text ?? "")).join("\n").trim();
+}
 
 // "success" alimenta a taxa de sucesso (aba Performance): true só quando a
 // chamada ao modelo não falhou (actions !== null) E nenhuma tool devolveu
@@ -531,6 +545,7 @@ async function runAnthropicLoop(
   const actions: string[] = [];
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
   let anyToolFailed = false;
+  let finalText = "";
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -540,14 +555,14 @@ async function runAnthropicLoop(
     });
     if (!res.ok) {
       console.error("[agent-sds-qualify] Anthropic error:", res.status, await res.text());
-      return { actions: actions.length > 0 ? actions : null, usage, success: false };
+      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.input_tokens) || 0;
     usage.outputTokens += Number(data.usage?.output_tokens) || 0;
     // deno-lint-ignore no-explicit-any
     const toolUseBlocks = (data.content ?? []).filter((b: any) => b.type === "tool_use");
-    if (toolUseBlocks.length === 0) break;
+    if (toolUseBlocks.length === 0) { finalText = textoDosBlocos(data.content); break; }
 
     messages.push({ role: "assistant", content: data.content });
     // deno-lint-ignore no-explicit-any
@@ -560,7 +575,7 @@ async function runAnthropicLoop(
     }
     messages.push({ role: "user", content: toolResults });
   }
-  return { actions, usage, success: !anyToolFailed };
+  return { actions, usage, success: !anyToolFailed, finalText };
 }
 
 // Loop OpenAI: mesma ideia, formato de mensagens diferente (tool_calls +
@@ -577,6 +592,7 @@ async function runOpenAiLoop(
   const actions: string[] = [];
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
   let anyToolFailed = false;
+  let finalText = "";
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -597,14 +613,14 @@ async function runOpenAiLoop(
     if (!res.ok) {
       const detalhe = await res.text();
       console.error("[agent-sds-qualify] OpenAI error:", res.status, detalhe);
-      return { actions: actions.length > 0 ? actions : null, usage, success: false };
+      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
     usage.outputTokens += Number(data.usage?.completion_tokens) || 0;
     const msg = data.choices?.[0]?.message;
     const toolCalls = msg?.tool_calls ?? [];
-    if (toolCalls.length === 0) break;
+    if (toolCalls.length === 0) { finalText = textoDosBlocos(msg?.content); break; }
 
     messages.push(msg);
     // deno-lint-ignore no-explicit-any
@@ -616,7 +632,7 @@ async function runOpenAiLoop(
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
   }
-  return { actions, usage, success: !anyToolFailed };
+  return { actions, usage, success: !anyToolFailed, finalText };
 }
 
 // Espelho de IA_MODEL_PRICING (src/lib/ai-models.ts) -- Deno não importa de
@@ -1410,6 +1426,13 @@ Deno.serve(async (req) => {
         : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch);
       await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success);
       if (closingResult.actions === null) return json({ error: "ai_request_failed" }, 502);
+      // Mesma rede de segurança do fluxo principal: texto sem envio = lead
+      // sem receber nada. Aqui dói mais ainda, porque esta é a ÚLTIMA
+      // mensagem antes do agente se calar por limite de interações.
+      if (!closingResult.actions.includes("enviar_mensagem") && closingResult.finalText) {
+        console.warn(`[agent-sds-qualify] mensagem de encerramento veio em texto sem enviar_mensagem (lead ${leadId}) — enviando o texto como resgate`);
+        await closingDispatch("enviar_mensagem", { texto: closingResult.finalText });
+      }
       return json({ ok: true, actions: closingResult.actions, interaction_limit_reached: true });
     }
   }
@@ -1549,7 +1572,20 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
   await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success);
   if (result.actions === null) return json({ error: "ai_request_failed" }, 502);
 
-  return json({ ok: true, actions: result.actions });
+  // Rede de segurança: o modelo pode encerrar o turno escrevendo em TEXTO em
+  // vez de chamar enviar_mensagem. O prompt proíbe, mas proibição no prompt
+  // não é garantia -- e quando acontece o lead simplesmente não recebe nada,
+  // sem erro em lugar nenhum (num teste real o agente registrou a
+  // qualificação inteira e ficou mudo). Se o turno terminou com texto e sem
+  // nenhum envio, esse texto vira a mensagem.
+  let resgatou = false;
+  if (!result.actions.includes("enviar_mensagem") && result.finalText) {
+    console.warn(`[agent-sds-qualify] modelo respondeu em texto sem chamar enviar_mensagem (lead ${leadId}) — enviando o texto como resgate`);
+    await dispatch("enviar_mensagem", { texto: result.finalText });
+    resgatou = true;
+  }
+
+  return json({ ok: true, actions: result.actions, texto_resgatado: resgatou });
 });
 
 // deno-lint-ignore no-explicit-any
