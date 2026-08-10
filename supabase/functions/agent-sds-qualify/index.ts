@@ -1064,12 +1064,17 @@ async function pickAvailableCloser(
   }
   if (!eligible.length) return null;
 
-  // Intervalo entre reuniões (aba Closers, opcional): exclui closer que já
-  // tem reunião perto demais do horário pedido, contando a folga antes E
-  // depois. Sem essa config ligada, preserva o comportamento anterior
-  // (só evita choque exato via ordenação por menor carga, sem folga).
-  if (startDatetime && cfg.intervalo_entre_reunioes) {
-    const bufferMs = (Number(cfg.intervalo_minutos) || 15) * 60_000;
+  // Conflito de agenda. Roda SEMPRE que há horário pedido -- antes só rodava
+  // com o toggle "Intervalo entre reuniões" ligado, e o comentário anterior
+  // afirmava que sem ele a ordenação por menor carga evitava choque exato.
+  // Não evita: a ordenação escolhe QUAL vendedor entre vários, e com um
+  // vendedor só ele é sempre devolvido, ocupado ou não. Com o toggle
+  // desligado (o padrão) o agente marcava em cima de reunião existente.
+  //
+  // O toggle passa a controlar apenas a FOLGA entre reuniões, que é o que ele
+  // sempre prometeu na tela. Sobreposição direta é bloqueada de qualquer jeito.
+  if (startDatetime) {
+    const bufferMs = cfg.intervalo_entre_reunioes ? (Number(cfg.intervalo_minutos) || 15) * 60_000 : 0;
     const timezone = cfg.fuso_horario || "America/Sao_Paulo";
     const offset = tzOffsetString(timezone, new Date(`${startDatetime}Z`));
     const startMs = new Date(`${startDatetime}${offset}`).getTime();
@@ -1133,6 +1138,7 @@ async function buildAvailabilityContext(
   db: ReturnType<typeof createClient>,
   companyId: string,
   agentId: string,
+  cfg: BehaviorConfig,
 ): Promise<string> {
   const { data: closers } = await db
     .from("agent_closers").select("user_id").eq("agent_id", agentId).eq("company_id", companyId);
@@ -1161,7 +1167,38 @@ async function buildAvailabilityContext(
     .filter((dia) => porDia.has(dia))
     .map((dia) => `${dia}: ${[...porDia.get(dia)!].join(", ")}`);
 
-  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}. Ofereça SOMENTE horários dentro dessas janelas; em qualquer outro dia ou horário não há atendimento. Se o lead pedir algo fora, diga que não há disponibilidade e proponha as opções válidas mais próximas.`;
+  // Horários já ocupados. Sem isso o agente conhecia a janela de atendimento
+  // mas não a agenda: oferecia um horário cheio, o lead aceitava, e só então
+  // a reserva era recusada -- com o lead já achando que tinha marcado.
+  const timezone = cfg.fuso_horario || "America/Sao_Paulo";
+  const agora = new Date();
+  const { data: ocupadas } = await db
+    .from("activities")
+    .select("scheduled_at, duration_minutes")
+    .eq("company_id", companyId)
+    .eq("type", "meeting")
+    .in("owner_id", closers.map((c) => c.user_id as string))
+    .gte("scheduled_at", agora.toISOString())
+    .lte("scheduled_at", new Date(agora.getTime() + 21 * 24 * 60 * 60_000).toISOString())
+    .order("scheduled_at", { ascending: true })
+    .limit(40);
+
+  let blocoOcupado = "";
+  if (ocupadas?.length) {
+    const fmt = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: timezone, weekday: "short", day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+    const itens = ocupadas.map((r) => {
+      const inicio = new Date(r.scheduled_at as string);
+      const fim = new Date(inicio.getTime() + (Number(r.duration_minutes) || 60) * 60_000);
+      const hFim = new Intl.DateTimeFormat("pt-BR", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(fim);
+      return `${fmt.format(inicio)} até ${hFim}`;
+    });
+    blocoOcupado = `\n\nHORÁRIOS JÁ OCUPADOS (não ofereça nenhum destes, nem horário que se sobreponha a eles): ${itens.join(" | ")}.`;
+  }
+
+  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}. Ofereça SOMENTE horários dentro dessas janelas; em qualquer outro dia ou horário não há atendimento. Se o lead pedir algo fora, diga que não há disponibilidade e proponha as opções válidas mais próximas.${blocoOcupado}`;
 }
 
 // ─── Conexão de WhatsApp usada pelo agente ──────────────────────────────────
@@ -1577,7 +1614,7 @@ Deno.serve(async (req) => {
   // Agente legado (objectives vazio) também agenda -- a metodologia SDS fixa
   // inclui marcar reunião -- então ele precisa da disponibilidade igual.
   if (legacy || objectives.includes("agendar")) {
-    const disponibilidade = await buildAvailabilityContext(db, companyId, agent.id as string);
+    const disponibilidade = await buildAvailabilityContext(db, companyId, agent.id as string, behaviorConfig);
     if (disponibilidade) system = `${system}\n\n${disponibilidade}`;
 
     // A maior parte dos leads chega por WhatsApp e nunca informou e-mail
