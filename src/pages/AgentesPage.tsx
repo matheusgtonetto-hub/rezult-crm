@@ -2883,6 +2883,20 @@ export default function AgentesPage() {
               </p>
             </div>
             <div>
+              <Label className="text-[12px]">Tag de ativação</Label>
+              <div className="mt-1">
+                <AgentActivationTagPicker
+                  value={draftActivationTag}
+                  onChange={setDraftActivationTag}
+                  ocupadas={tagsOcupadasPorAgente}
+                  placeholder="Escolher ou criar uma tag"
+                />
+              </div>
+              <p className="text-[11px] text-[#767676] mt-1">
+                O agente atende os negócios que tiverem essa tag no card. Cada tag ativa um único agente.
+              </p>
+            </div>
+            <div>
               <Label className="text-[12px]">Ícone</Label>
               <div className="mt-1 flex flex-wrap gap-2">
                 {Object.entries(AGENT_AVATARS).map(([key, Icon]) => (
@@ -2901,20 +2915,6 @@ export default function AgentesPage() {
                 ))}
               </div>
               <p className="text-[11px] text-[#767676] mt-1">Meramente ilustrativo.</p>
-            </div>
-            <div>
-              <Label className="text-[12px]">Tag de ativação</Label>
-              <div className="mt-1">
-                <AgentActivationTagPicker
-                  value={draftActivationTag}
-                  onChange={setDraftActivationTag}
-                  ocupadas={tagsOcupadasPorAgente}
-                  placeholder="Escolher ou criar uma tag"
-                />
-              </div>
-              <p className="text-[11px] text-[#767676] mt-1">
-                O agente atende os negócios que tiverem essa tag no card. Cada tag ativa um único agente.
-              </p>
             </div>
           </div>
           <DialogFooter>
