@@ -2061,9 +2061,6 @@ export default function AgentesPage() {
                       <p className="text-[12px] text-[#767676]">Regras que valem pra qualquer reunião marcada por esse agente, independente do vendedor.</p>
                     </div>
 
-                    <p className="text-[11px] text-[#767676]">
-                      O fuso horário do agente agora é definido na aba Perfil — ele vale tanto pro horário de atendimento quanto pro agendamento de reuniões aqui.
-                    </p>
                     <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <div>
                         <Label className="text-[12px]">Duração padrão das reuniões (min)</Label>
