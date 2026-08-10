@@ -1749,6 +1749,9 @@ async function executeAgentTool(
           meet_link: null,
           gcal_event_id: null,
           description: "Agendado automaticamente pelo agente SDS.",
+          // Sem Google não sai convite, mas o card ainda precisa mostrar com
+          // quem é a reunião.
+          participants: emailConvite ? [emailConvite] : null,
         };
         if (remarcar) {
           await db.from("activities").update(semGoogle).eq("id", remarcar.id);
@@ -1757,6 +1760,18 @@ async function executeAgentTool(
         }
         return { ok: true, data: { meet_link: null, remarcada: !!remarcar } };
       }
+
+      // E-mail da conta Google do vendedor -- é a agenda onde o evento nasce,
+      // e não necessariamente o e-mail de login dele no CRM.
+      const { data: tokenCloser } = await db
+        .from("google_oauth_tokens")
+        .select("email")
+        .eq("user_id", closer.userId)
+        .or(`company_id.eq.${ctx.companyId},company_id.is.null`)
+        .order("company_id", { ascending: false, nullsFirst: false })
+        .limit(1);
+      const emailVendedor = (tokenCloser?.[0]?.email as string | undefined) ?? null;
+      const convidados = [...new Set([emailConvite, emailVendedor].filter((e): e is string => !!e))];
 
       const calRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-event`, {
         method: "POST",
@@ -1786,7 +1801,12 @@ async function executeAgentTool(
           // convite, nem lembrete, nem o link do Meet na própria agenda --
           // só a mensagem solta no WhatsApp. Lead sem e-mail cadastrado
           // segue como antes (evento só na agenda do vendedor).
-          ...(emailConvite ? { attendees: [emailConvite] } : {}),
+          //
+          // O vendedor entra junto: o evento é criado COM o token dele, então
+          // ele é o organizador, e organizador não aparece na lista de
+          // convidados. O lead recebia um convite onde ele era o único
+          // participante, sem nem saber com quem ia falar.
+          ...(convidados.length ? { attendees: convidados } : {}),
         }),
       });
 
@@ -1808,6 +1828,10 @@ async function executeAgentTool(
         meet_link: calData.meet_link ?? null,
         gcal_event_id: calData.event_id ?? null,
         description: "Agendado automaticamente pelo agente SDS.",
+        // Mesmo campo que o ActivityDialog grava quando um humano marca:
+        // sem ele o card da atividade no CRM não mostrava convidado nenhum,
+        // e o vendedor não tinha como saber se o convite tinha ido.
+        participants: convidados.length ? convidados : null,
       };
       if (remarcar) {
         await db.from("activities").update(linhaReuniao).eq("id", remarcar.id);
