@@ -97,6 +97,7 @@ interface AgentRow {
   id: string;
   company_id: string;
   behavior_config: BehaviorConfig | null;
+  activation_tag: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -130,7 +131,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: agents, error: agentsError } = await supabase
     .from("agents")
-    .select("id, company_id, behavior_config")
+    .select("id, company_id, behavior_config, activation_tag")
     .eq("type", "SDS")
     .eq("active", true);
   if (agentsError) return json({ error: agentsError.message }, 500);
@@ -148,7 +149,10 @@ Deno.serve(async (req: Request) => {
       .from("leads")
       .select("whatsapp, tags")
       .eq("company_id", agent.company_id)
-      .contains("tags", ["Agente"])
+      // Tag de ativação DESTE agente, não a string fixa: cada agente tem a
+      // sua (agents.activation_tag), e com "Agente" cravado aqui um agente de
+      // tag própria nunca retomaria conversa na abertura do expediente.
+      .contains("tags", [String(agent.activation_tag ?? "Agente")])
       .not("whatsapp", "is", null);
 
     for (const lead of taggedLeads ?? []) {

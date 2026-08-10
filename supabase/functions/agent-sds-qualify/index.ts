@@ -927,17 +927,21 @@ async function resolveLead(
 // (e só quando alguém abre aquela conversa específica) -- então tag
 // adicionada por automação ou pelo card do Pipeline nunca chegava lá, e o
 // agente ficava mudo mesmo com a tag visível no negócio.
-function hasAgentTag(lead: Record<string, unknown>): boolean {
+// Cada agente tem a SUA tag de ativação, escolhida pelo usuário
+// (agents.activation_tag). O negócio é atendido pelo agente cuja tag está no
+// card -- vínculo explícito, em vez de inferir pela linha de WhatsApp.
+//
+// Antes a tag era a string fixa "Agente" para a empresa inteira: ela dizia só
+// SE algum agente atende, e QUAL atende saía de um desempate arbitrário. Com
+// dois agentes, o que respondia podia mudar no meio da conversa.
+// deno-lint-ignore no-explicit-any
+function agenteDaTagDoLead(lead: Record<string, unknown>, candidates: any[]): any | null {
   const tags = (lead.tags as string[] | null) ?? [];
-  // "Agente" = qualquer agente (quem atende é decidido pela linha).
-  // "Agente: <nome>" = este negócio é daquele agente especificamente.
-  return tags.includes("Agente") || tags.some((t) => t.startsWith("Agente: "));
-}
-
-// Nome do agente pedido explicitamente pela tag do lead, se houver.
-function agenteExigidoPelaTag(lead: Record<string, unknown>): string | null {
-  const tag = ((lead.tags as string[] | null) ?? []).find((t) => t.startsWith("Agente: "));
-  return tag ? tag.slice("Agente: ".length).trim() : null;
+  if (!tags.length) return null;
+  return candidates.find((a) => {
+    const tag = String(a.activation_tag ?? "").trim();
+    return tag !== "" && tags.includes(tag);
+  }) ?? null;
 }
 
 // ─── Seleção de closer (menor carga nos últimos 7 dias, com Google conectado) ─
@@ -1373,42 +1377,21 @@ async function sendGreeting(
 //      usa o primeiro de forma determinística (limitação conhecida: runners
 //      não carregam contexto de linha hoje).
 // deno-lint-ignore no-explicit-any
-async function pickAgentForConnection(
+// Linhas de WhatsApp vinculadas a um agente. Lista vazia = agente sem
+// restrição de linha (atende qualquer uma), que é o comportamento de quem
+// nunca abriu a aba Integrações.
+async function linhasDoAgente(
   db: ReturnType<typeof createClient>,
   companyId: string,
-  candidates: any[],
-  connectionId: string | null,
-  agenteExigido?: string | null,
-  // deno-lint-ignore no-explicit-any
-): Promise<any | null> {
-  // Tag "Agente: <nome>" manda em tudo: é escolha explícita de quem cuida
-  // deste negócio, e vence a inferência pela linha de WhatsApp.
-  if (agenteExigido) {
-    const escolhido = candidates.find((a) => String(a.name ?? "").trim() === agenteExigido);
-    // Se o agente pedido existe mas não está ativo, ele não aparece em
-    // candidates: melhor ninguém responder do que outro agente responder no
-    // lugar dele, com outra persona e outro objetivo.
-    return escolhido ?? null;
-  }
-
-  const { data: assignments } = await db
+  agentId: string,
+): Promise<string[]> {
+  const { data } = await db
     .from("agent_whatsapp_connections")
-    .select("agent_id, connection_id")
+    .select("connection_id")
     .eq("company_id", companyId)
-    .in("agent_id", candidates.map((a) => a.id as string))
+    .eq("agent_id", agentId)
     .eq("enabled", true);
-
-  const assignedAgentIds = new Set((assignments ?? []).map((r) => r.agent_id as string));
-  const unassigned = candidates.filter((a) => !assignedAgentIds.has(a.id as string));
-
-  if (connectionId) {
-    const specificAgentId = (assignments ?? [])
-      .find((r) => r.connection_id === connectionId)?.agent_id as string | undefined;
-    if (specificAgentId) return candidates.find((a) => a.id === specificAgentId) ?? null;
-    return unassigned[0] ?? null;
-  }
-
-  return unassigned[0] ?? candidates[0] ?? null;
+  return (data ?? []).map((r) => r.connection_id as string);
 }
 
 Deno.serve(async (req) => {
@@ -1469,7 +1452,7 @@ Deno.serve(async (req) => {
   // 2+ agentes ativos essa chamada quebraria a função inteira.
   const { data: activeAgents } = await db
     .from("agents")
-    .select("id, name, model, custom_context, objectives, enabled_tools, behavior_config")
+    .select("id, name, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
     .eq("company_id", companyId)
     .eq("type", "SDS")
     .eq("active", true)
@@ -1490,18 +1473,26 @@ Deno.serve(async (req) => {
     inboundConnectionId = (inboundConn?.id as string | undefined) ?? null;
   }
 
-  const agent = await pickAgentForConnection(db, companyId, activeAgents, inboundConnectionId, agenteExigidoPelaTag(lead));
-  if (!agent) return json({ skipped: "connection_not_assigned_to_any_agent" }, 200);
-
-  const behaviorConfig: BehaviorConfig = (agent.behavior_config as BehaviorConfig) ?? {};
-
-  // Gate por negócio ANTES de qualquer agendamento de trabalho futuro: sem a
-  // tag "Agente" não há nada a fazer com essa mensagem. Ficava depois do
-  // bloco de delay, então toda mensagem de qualquer lead NÃO marcado (a
+  // Gate por negócio ANTES de qualquer trabalho futuro: sem a tag de ativação
+  // de algum agente ativo, não há nada a fazer com essa mensagem. Ficava
+  // depois do bloco de delay, então toda mensagem de lead NÃO marcado (a
   // maioria absoluta, numa base real) criava uma linha em
   // agent_pending_response e uma reinvocação da function minutos depois, só
   // pra ser descartada aqui.
-  if (!hasAgentTag(lead)) return json({ skipped: "no_agent_tag" }, 200);
+  const agent = agenteDaTagDoLead(lead, activeAgents);
+  if (!agent) return json({ skipped: "no_agent_tag" }, 200);
+
+  // A linha em que o lead escreveu precisa ser uma das linhas deste agente.
+  // Sem isso ele responderia por OUTRO número, e o lead receberia mensagem de
+  // um contato que nunca acionou enquanto o número que ele procurou fica
+  // mudo. Agente sem linha vinculada não tem restrição.
+  const linhasDele = await linhasDoAgente(db, companyId, agent.id as string);
+  if (linhasDele.length && inboundConnectionId && !linhasDele.includes(inboundConnectionId)) {
+    console.warn(`[agent-sds-qualify] lead ${leadId} tem a tag do agente ${agent.id}, mas escreveu numa linha que não é dele — ninguém responde`);
+    return json({ skipped: "linha_nao_pertence_ao_agente" }, 200);
+  }
+
+  const behaviorConfig: BehaviorConfig = (agent.behavior_config as BehaviorConfig) ?? {};
 
   // Delay de Resposta (com debounce): em vez de responder na hora, agenda
   // pra daqui a N minutos. Toda mensagem nova do lead durante a janela
@@ -1568,11 +1559,26 @@ Deno.serve(async (req) => {
   const nomeEmpresa = String(empresaAtual?.name ?? "").trim();
 
   const messageWindow = Number(behaviorConfig.mensagens_consideradas) || 30;
-  const { data: messages } = await db
+  // Histórico ESCOPADO às linhas deste agente. Antes filtrava só por empresa e
+  // telefone: numa empresa com duas linhas, o agente de uma lia tudo que o
+  // lead conversou na outra -- inclusive com um humano de outro setor -- e
+  // podia citar aquilo na resposta. Agente sem linha vinculada continua vendo
+  // tudo (comportamento de quem nunca configurou Integrações).
+  let messagesQuery = db
     .from("whatsapp_messages")
     .select("from_me, body, created_at, phone")
     .eq("company_id", companyId)
-    .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
+    .in("phone", phoneVariants(String(lead.whatsapp ?? "")));
+  if (linhasDele.length) {
+    const { data: conexoes } = await db
+      .from("whatsapp_connections")
+      .select("instance_id")
+      .eq("company_id", companyId)
+      .in("id", linhasDele);
+    const instancias = (conexoes ?? []).map((c) => c.instance_id as string).filter(Boolean);
+    if (instancias.length) messagesQuery = messagesQuery.in("instance_id", instancias);
+  }
+  const { data: messages } = await messagesQuery
     .order("created_at", { ascending: false })
     .limit(messageWindow);
 
@@ -1648,8 +1654,8 @@ Deno.serve(async (req) => {
         `IMPORTANTE: você atingiu o limite de respostas nesta conversa. Nesta mensagem, despeça-se cordialmente do cliente e, em seguida, chame OBRIGATORIAMENTE a tool ${closingTool.name}.`,
         buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa),
       ].filter(Boolean).join("\n\n");
-      const closingCtx: { companyId: string; leadId: string; agentId: string; agentName?: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
-        { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, lead, behaviorConfig };
+      const closingCtx: { companyId: string; leadId: string; agentId: string; agentName?: string; activationTag?: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
+        { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, activationTag: (agent.activation_tag as string | null) ?? undefined, lead, behaviorConfig };
       const closingDispatch: ToolDispatcher = (name, input) => executeAgentTool(db, { name, input }, closingCtx);
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
@@ -1803,7 +1809,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
   const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "cancelar_reuniao", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
   const dispatch: ToolDispatcher = async (name, input) => {
     if (LEGACY_TOOL_NAMES.has(name)) {
-      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, lead, behaviorConfig, followupAttempt, telefoneWhats, lembreteReuniao });
+      return await executeAgentTool(db, { name, input }, { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, activationTag: (agent.activation_tag as string | null) ?? undefined, lead, behaviorConfig, followupAttempt, telefoneWhats, lembreteReuniao });
     }
     return await executeRegistryTool(toolCtx, name, input);
   };
@@ -1855,7 +1861,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
 async function executeAgentTool(
   db: ReturnType<typeof createClient>,
   call: any,
-  ctx: { companyId: string; leadId: string; agentId: string; agentName?: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number; telefoneWhats?: string; lembreteReuniao?: string },
+  ctx: { companyId: string; leadId: string; agentId: string; agentName?: string; activationTag?: string; lead: Record<string, unknown>; behaviorConfig?: BehaviorConfig; followupAttempt?: number; telefoneWhats?: string; lembreteReuniao?: string },
 ): Promise<ToolResult> {
   const input = call.input ?? {};
 
@@ -2275,21 +2281,23 @@ async function executeAgentTool(
     }
 
     case "transferir_responsavel": {
-      // Remove a tag "Agente" de leads.tags -- é essa tabela que hasAgentTag
-      // checa (fonte real da verdade), então é isso que de fato desliga o
-      // agente pra esse negócio a partir daqui. Também remove de
-      // whatsapp_conversations.tags pra manter o filtro "Agente" do
-      // Multiatendimento coerente (mesmo padrão dual que a UI de lá usa) --
-      // e deixa uma nota pro humano que assumir entender o motivo.
+      // Remove a tag de ativação DESTE agente de leads.tags -- é o que de
+      // fato o desliga neste negócio, já que o roteamento é por
+      // agents.activation_tag. Com a tag literal "Agente" fixa aqui, um agente
+      // com tag própria continuaria ativo depois de "transferir para humano":
+      // o CRM diria transferido e o robô seguiria respondendo por cima do
+      // atendente. Também remove de whatsapp_conversations.tags pra manter o
+      // filtro do Multiatendimento coerente (mesmo padrão dual que a UI usa).
+      const tagDesteAgente = String(ctx.activationTag ?? "Agente");
       const currentLeadTags = (ctx.lead.tags as string[] | null) ?? [];
-      const nextLeadTags = currentLeadTags.filter((t) => t !== "Agente");
+      const nextLeadTags = currentLeadTags.filter((t) => t !== tagDesteAgente);
       await db.from("leads").update({ tags: nextLeadTags }).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
 
       // Todas as linhas do telefone (mesmo motivo de finalizar_conversa) --
       // cada uma tem sua própria lista de tags, então filtra uma a uma.
       const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
       for (const conv of convRows ?? []) {
-        const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== "Agente");
+        const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== tagDesteAgente);
         await db.from("whatsapp_conversations").update({ tags: nextConvTags, ai_interaction_count: 0 }).eq("id", conv.id);
       }
       await db.from("activities").insert({

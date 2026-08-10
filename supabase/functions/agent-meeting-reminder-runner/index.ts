@@ -36,6 +36,7 @@ interface AgentRow {
   id: string;
   company_id: string;
   behavior_config: BehaviorConfig | null;
+  activation_tag: string | null;
 }
 
 function antecedenciaMs(valor: number | undefined, unidade: string | undefined): number | null {
@@ -75,7 +76,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: agents, error } = await supabase
     .from("agents")
-    .select("id, company_id, behavior_config")
+    .select("id, company_id, behavior_config, activation_tag")
     .eq("type", "SDS")
     .eq("active", true);
   if (error) return json({ error: error.message }, 500);
@@ -122,11 +123,13 @@ Deno.serve(async (req: Request) => {
 
       // Gate da tag: se o negócio foi transferido pra um humano, quem cuida
       // do lembrete é ele. Consistente com todos os outros gates do agente.
+      // Usa a tag de ativação DESTE agente (agents.activation_tag): com a
+      // string fixa "Agente", agente com tag própria nunca mandaria lembrete.
       const { data: lead } = await supabase
         .from("leads").select("whatsapp, tags")
         .eq("id", reuniao.lead_id as string).eq("company_id", agent.company_id).maybeSingle();
       const tags = (lead?.tags as string[] | null) ?? [];
-      if (!tags.includes("Agente")) continue;
+      if (!tags.includes(String(agent.activation_tag ?? "Agente"))) continue;
       const phone = String(lead?.whatsapp ?? "");
       if (!phone) continue;
 

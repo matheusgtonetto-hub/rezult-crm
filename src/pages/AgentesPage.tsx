@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Bot,
   Plus,
@@ -64,6 +64,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
+import { AgentActivationTagPicker } from "@/components/AgentActivationTagPicker";
 
 // Objetivo final do agente — múltipla escolha. Substitui o antigo seletor de
 // "Tipo": o que o agente faz é definido por isso + pelas ferramentas
@@ -313,6 +314,9 @@ type Agent = {
   objectives: string[];
   enabled_tools: string[];
   behavior_config: BehaviorConfig;
+  // Tag que liga este agente num negócio. O lead com essa tag no card é
+  // atendido por ele. Única por empresa (índice no banco).
+  activation_tag: string | null;
   activated_at: string | null;
   active_seconds_total: number;
   // true enquanto o agente está sendo criado pelo wizard e ainda não foi
@@ -393,6 +397,15 @@ export default function AgentesPage() {
 
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [draftActivationTag, setDraftActivationTag] = useState<string | null>(null);
+  // tag -> nome do agente que já a usa. Alimenta o seletor, que mostra a tag
+  // bloqueada com o nome do dono em vez de escondê-la (esconder faria o
+  // usuário procurar uma tag que ele sabe que existe, sem entender o sumiço).
+  const tagsOcupadasPorAgente = useMemo(() => {
+    const mapa: Record<string, string> = {};
+    for (const a of agents) if (a.activation_tag) mapa[a.activation_tag] = a.name;
+    return mapa;
+  }, [agents]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
   const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
@@ -462,7 +475,7 @@ export default function AgentesPage() {
     setLoading(true);
     const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
-        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activated_at, active_seconds_total, draft").eq("company_id", companyId).order("created_at"),
+        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft").eq("company_id", companyId).order("created_at"),
         // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
         // da chave não pode vazar pros membros), então um membro lia zero
         // linhas e a tela dizia "cadastre sua chave" com a chave cadastrada.
@@ -665,6 +678,7 @@ export default function AgentesPage() {
   async function createAgent() {
     if (!companyId || !user?.id) return;
     if (!draftName.trim()) { toast.error("Informe o nome do agente"); return; }
+    if (!draftActivationTag) { toast.error("Escolha a tag que vai ativar este agente"); return; }
     // Tipo não é mais escolhido na criação — só "SDS" existe hoje, e a troca
     // (quando houver mais tipos) acontece na aba "Tipos" do agente já criado.
     const { data, error } = await supabase
@@ -676,6 +690,7 @@ export default function AgentesPage() {
         name: draftName.trim(),
         description: draftDescription.trim() || null,
         avatar: draftAvatar,
+        activation_tag: draftActivationTag,
         active: false,
         draft: true,
         // Grava os padrões de comportamento já na criação. Sem isso o agente
@@ -686,15 +701,22 @@ export default function AgentesPage() {
         // conversa, a menos que ele por acaso mexesse em algum toggle.
         behavior_config: BEHAVIOR_DEFAULTS,
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activated_at, active_seconds_total, draft")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft")
       .single();
-    if (error || !data) { toast.error("Erro ao criar agente"); return; }
+    if (error || !data) {
+      // 23505 = unique_violation do índice (company_id, activation_tag).
+      toast.error(error?.code === "23505"
+        ? `A tag "${draftActivationTag}" já ativa outro agente. Escolha outra.`
+        : "Erro ao criar agente");
+      return;
+    }
     setAgents((prev) => [...prev, data]);
     setSelectedId(data.id);
     setOpenDialog(false);
     setDraftName("");
     setDraftDescription("");
     setDraftAvatar(DEFAULT_AVATAR);
+    setDraftActivationTag(null);
     // Objetivo (e o resto do Perfil) não é pedido aqui -- é o 1º passo do
     // próprio wizard. O agente só fica visível na grade quando o wizard é
     // concluído (finalizeAgent) -- até lá, draft=true.
@@ -817,6 +839,22 @@ export default function AgentesPage() {
     }
   }
 
+  // Troca a tag de ativação direto do card da grade. O índice único no banco
+  // é quem garante a exclusividade -- a checagem local só evita a ida ao
+  // servidor no caso óbvio.
+  async function salvarTagAtivacao(agent: Agent, tag: string) {
+    if (!companyId || tag === agent.activation_tag) return;
+    const dono = tagsOcupadasPorAgente[tag];
+    if (dono && dono !== agent.name) { toast.error(`A tag "${tag}" já ativa o agente "${dono}".`); return; }
+    const { error } = await supabase.from("agents").update({ activation_tag: tag }).eq("id", agent.id).eq("company_id", companyId);
+    if (error) {
+      toast.error(error.code === "23505" ? `A tag "${tag}" já ativa outro agente.` : "Não foi possível salvar a tag.");
+      return;
+    }
+    setAgents((prev) => prev.map((a) => (a.id === agent.id ? { ...a, activation_tag: tag } : a)));
+    toast.success("Tag de ativação atualizada");
+  }
+
   // Recebe o agente explicitamente (não só `selected`) pra poder ser chamado
   // tanto do card na grade quanto de dentro da tela de edição.
   async function toggleActive(agent: Agent, next: boolean) {
@@ -846,6 +884,12 @@ export default function AgentesPage() {
       }
       if (agent.objectives.length === 0) {
         toast.error("Marque pelo menos 1 objetivo na aba Perfil antes de ativar o agente.");
+        return;
+      }
+      // Sem tag de ativação o agente nunca é acionado por negócio nenhum:
+      // ficaria ligado na tela e mudo na prática, sem nada explicando.
+      if (!agent.activation_tag) {
+        toast.error("Defina a tag de ativação deste agente antes de ativar.");
         return;
       }
       // A Base de Conhecimento gera embeddings pela OpenAI mesmo quando o
@@ -1300,6 +1344,15 @@ export default function AgentesPage() {
                   <div className="flex items-center gap-1.5 mb-3">
                     <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
                     <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+                  </div>
+                  <div className="mb-3">
+                    <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold mb-1">Tag de ativação</p>
+                    <AgentActivationTagPicker
+                      value={a.activation_tag}
+                      onChange={(tag) => void salvarTagAtivacao(a, tag)}
+                      ocupadas={tagsOcupadasPorAgente}
+                      placeholder="Definir tag"
+                    />
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
                     <button
@@ -2051,24 +2104,28 @@ export default function AgentesPage() {
                     <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
                   </div>
 
-                  {/* Como o negócio chega até ESTE agente. Com mais de um
-                      agente na empresa, a tag genérica "Agente" não diz qual
-                      deles atende -- quem decide é a linha. A tag própria
-                      resolve isso de forma explícita. */}
+                  {/* Como o negócio chega até ESTE agente, e o efeito de
+                      restringir linhas: o agente só lê e responde nas linhas
+                      marcadas abaixo. */}
                   <div className="rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] p-3">
                     <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
-                        Agente: {selected.name}
-                      </span>
-                      <span className="text-[12px] text-[#767676]">direciona o negócio para este agente, em qualquer linha.</span>
-                    </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
-                        Agente
+                      {selected.activation_tag ? (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
+                          {selected.activation_tag}
+                        </span>
+                      ) : (
+                        <span className="text-[12px] font-medium" style={{ color: "#E24B4A" }}>Sem tag de ativação.</span>
+                      )}
+                      <span className="text-[12px] text-[#767676]">
+                        {selected.activation_tag
+                          ? "Negócios com essa tag no card são atendidos por este agente. Você troca a tag no card em Agentes."
+                          : "Defina a tag no card em Agentes: sem ela o agente nunca é acionado."}
                       </span>
-                      <span className="text-[12px] text-[#767676]">ativa qualquer agente; quem atende é definido pela linha de WhatsApp abaixo.</span>
                     </div>
+                    <p className="text-[12px] text-[#767676] mt-2">
+                      Marcando linhas abaixo, o agente passa a ler e responder <span className="font-medium text-[#111111]">somente</span> nelas. Sem nenhuma marcada, ele atende qualquer linha da empresa.
+                    </p>
                   </div>
 
                   <div>
@@ -2687,6 +2744,20 @@ export default function AgentesPage() {
                 ))}
               </div>
               <p className="text-[11px] text-[#767676] mt-1">Meramente ilustrativo.</p>
+            </div>
+            <div>
+              <Label className="text-[12px]">Tag de ativação</Label>
+              <div className="mt-1">
+                <AgentActivationTagPicker
+                  value={draftActivationTag}
+                  onChange={setDraftActivationTag}
+                  ocupadas={tagsOcupadasPorAgente}
+                  placeholder="Escolher ou criar uma tag"
+                />
+              </div>
+              <p className="text-[11px] text-[#767676] mt-1">
+                O agente atende os negócios que tiverem essa tag no card. Cada tag ativa um único agente.
+              </p>
             </div>
           </div>
           <DialogFooter>
