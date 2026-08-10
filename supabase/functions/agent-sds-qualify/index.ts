@@ -1111,10 +1111,14 @@ async function pickAvailableCloser(
   if (calendarDisabled.size) eligible = eligible.filter((userId) => !calendarDisabled.has(userId));
   if (!eligible.length) return null;
 
-  // Filtra por disponibilidade declarada na aba Closers, se houver. Closer
-  // sem disponibilidade configurada pra esse agente é tratado como "sem
-  // restrição" -- preserva o comportamento anterior pra quem nunca abriu
-  // essa aba nova (ex. agentes já em produção antes dessa feature existir).
+  // Filtra pela disponibilidade declarada na aba Vendedores. Vendedor sem
+  // registro cai no MESMO padrão que a tela mostra e que o sistema grava ao
+  // marcá-lo (segunda a sexta, 08:00 às 18:00).
+  //
+  // Antes, sem registro significava "sem restrição nenhuma": a tela exibia
+  // segunda a sexta e o agente aceitaria sábado às 3h. Esse caso só existia
+  // para vendedores marcados antes desta aba existir, e hoje não há nenhum na
+  // base -- então some a divergência em vez de ficar como armadilha.
   // Horário no passado NUNCA é válido. Num teste real o agente ofereceu
   // "hoje 14h, 15h ou 16h" às 17h56, e nada no código impedia de agendar --
   // a checagem só olhava dia da semana, janela e conflito. Reunião no passado
@@ -1136,9 +1140,13 @@ async function pickAvailableCloser(
       .eq("agent_id", agentId)
       .in("user_id", eligible);
     const availByUser = new Map((availRows ?? []).map((r) => [r.user_id as string, r.days as WorkDay[]]));
+    const PADRAO_SEM_REGISTRO: WorkDay[] = WEEKDAY_PT.map((dia) => ({
+      day: dia,
+      active: dia !== "Sábado" && dia !== "Domingo",
+      intervals: [{ start: "08:00", end: "18:00" }],
+    }));
     eligible = eligible.filter((userId) => {
-      const days = availByUser.get(userId);
-      if (!days?.length) return true;
+      const days = availByUser.get(userId)?.length ? availByUser.get(userId)! : PADRAO_SEM_REGISTRO;
       const day = days.find((d) => d.day === parsed.weekday);
       if (!day?.active) return false;
       // A reunião precisa CABER na janela, não só começar dentro dela. Antes
