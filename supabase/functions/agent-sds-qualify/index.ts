@@ -1547,7 +1547,26 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
       timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit",
       hour: "2-digit", minute: "2-digit",
     }).format(new Date(lembreteReuniao));
-    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). Se houver link da reunião no histórico, repita o link. Ofereça remarcar caso não dê mais — sem cobrar nem pressionar. Não recomece a apresentação e não repita textualmente mensagens anteriores suas. Envie pela tool enviar_mensagem.`;
+
+    // O link vem da reunião, não do histórico. A instrução antiga era "se
+    // houver link no histórico, repita o link" -- e o link nunca esteve lá,
+    // porque o agente também não o enviava na confirmação. Resultado: lembrete
+    // sem link nenhum, que é justamente o que a pessoa precisa na hora.
+    const { data: reuniaoLembrete } = await db
+      .from("activities")
+      .select("meet_link")
+      .eq("lead_id", leadId)
+      .eq("company_id", companyId)
+      .eq("type", "meeting")
+      .eq("scheduled_at", lembreteReuniao)
+      .limit(1);
+    const linkLembrete = (reuniaoLembrete?.[0]?.meet_link as string | undefined) ?? null;
+
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). ${
+      linkLembrete
+        ? `Inclua o link da videochamada em texto: ${linkLembrete}. Nada além disso: no lembrete a pessoa precisa do horário e do link, não de explicação sobre o serviço.`
+        : `Esta reunião não tem link de vídeo — não invente nenhum nem prometa enviar depois.`
+    } Ofereça remarcar caso não dê mais — sem cobrar nem pressionar. Não recomece a apresentação e não repita textualmente mensagens anteriores suas. Envie pela tool enviar_mensagem.`;
   }
 
   if (followupAttempt > 0) {
@@ -1758,7 +1777,11 @@ async function executeAgentTool(
         } else {
           await db.from("activities").insert(semGoogle);
         }
-        return { ok: true, data: { meet_link: null, remarcada: !!remarcar } };
+        return {
+          ok: true,
+          orientacao: `Reunião ${remarcar ? "remarcada" : "marcada"}. Confirme ao lead nesta mesma resposta com dia e horário. Esta reunião NÃO tem link de vídeo: não prometa nenhum.`,
+          data: { meet_link: null, remarcada: !!remarcar },
+        };
       }
 
       // E-mail da conta Google do vendedor -- é a agenda onde o evento nasce,
@@ -1838,7 +1861,14 @@ async function executeAgentTool(
       } else {
         await db.from("activities").insert(linhaReuniao);
       }
-      return { ok: true, data: { meet_link: calData.meet_link ?? null, remarcada: !!remarcar } };
+      // A orientação vai NO RESULTADO da tool, não no prompt: é o que o
+      // modelo lê ao compor a resposta. Sem ela ele confirmava o horário e
+      // dizia "te enviei o convite por e-mail", sem o link -- e quem não abre
+      // e-mail ficava sem saber por onde entrar.
+      const orientacao = calData.meet_link
+        ? `Reunião ${remarcar ? "remarcada" : "marcada"}. Confirme ao lead nesta mesma resposta com dia, horário E o link da videochamada em texto: ${calData.meet_link}. O link precisa aparecer na mensagem do WhatsApp, não basta dizer que foi por e-mail.`
+        : `Reunião ${remarcar ? "remarcada" : "marcada"}. Confirme ao lead nesta mesma resposta com dia e horário. Não prometa link de vídeo: esta reunião não tem.`;
+      return { ok: true, orientacao, data: { meet_link: calData.meet_link ?? null, remarcada: !!remarcar } };
     }
 
     case "cancelar_reuniao": {
