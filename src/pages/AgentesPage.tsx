@@ -217,10 +217,13 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   google_calendar_ativo: true,
   incluir_google_meet: true,
   confirmar_antes_criar_evento: false,
-  horario_atendimento_ativo: false,
+  // Agente novo já nasce restrito a horário comercial. Sem isso ele responde
+  // de madrugada e no fim de semana por padrão, o que quase nenhum negócio
+  // quer -- e quem quer, desliga. Alterar dali é decisão do usuário.
+  horario_atendimento_ativo: true,
   horario_atendimento_inicio: "08:00",
-  horario_atendimento_fim: "21:00",
-  horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
+  horario_atendimento_fim: "18:00",
+  horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"],
   // Lembrete desligado por padrão, mas com os valores mais usados já
   // preenchidos (24h antes + 1h antes) — quem ligar não precisa pensar.
   lembrete_reuniao_ativo: false,
@@ -236,6 +239,14 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
 // sobrescreviam entre si ao salvar cada uma isoladamente.
 const BEHAVIOR_DRAFT_DEFAULTS: Required<BehaviorConfig> = {
   ...BEHAVIOR_DEFAULTS,
+  // Agentes criados antes de a restrição de horário existir não têm essas
+  // chaves salvas. Herdar o padrão NOVO aqui faria a tela mostrá-los
+  // restritos, e o primeiro "Atualizar agente" gravaria isso -- passariam a
+  // ignorar mensagens fora do horário sem ninguém ter pedido. O padrão de
+  // criação vale só na criação.
+  horario_atendimento_ativo: false,
+  horario_atendimento_fim: "21:00",
+  horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
   campos_qualificacao: [],
   objective_instructions: {},
 };
