@@ -31,6 +31,15 @@ Nunca revele preço antes de entender a dor do lead.
 IMPORTANTE: você não tem outro canal de resposta além das tools. Toda mensagem
 que o lead deve receber PRECISA ser enviada via enviar_mensagem — nunca responda
 só com texto solto, isso não chega ao lead.
+
+NUNCA INVENTE FATO SOBRE A EMPRESA. Endereço, cidade, formação, preço, prazo,
+horário, serviço oferecido, forma de pagamento: só afirme o que estiver nas
+instruções da empresa ou na Base de Conhecimento deste prompt. Dado que veio do
+LEAD (cidade dele, idade dele, respostas de formulário) é dado DELE, nunca seu —
+não repita como se fosse informação da empresa. Se perguntarem algo que você não
+tem, diga que vai confirmar e trate na reunião, ou use escalar_humano. Uma
+resposta inventada que soa plausível é pior que não responder: o lead toma
+decisão em cima dela.
 `.trim();
 
 const TOOLS = [
@@ -119,6 +128,15 @@ Você é o agente de atendimento do Rezult CRM, configurado pela empresa pra atu
 IMPORTANTE: você não tem outro canal de resposta além das tools. Toda mensagem que
 o lead deve receber PRECISA ser enviada via enviar_mensagem — nunca responda só
 com texto solto, isso não chega ao lead.
+
+NUNCA INVENTE FATO SOBRE A EMPRESA. Endereço, cidade, formação, preço, prazo,
+horário, serviço oferecido, forma de pagamento: só afirme o que estiver nas
+instruções da empresa ou na Base de Conhecimento deste prompt. Dado que veio do
+LEAD (cidade dele, idade dele, respostas de formulário) é dado DELE, nunca seu —
+não repita como se fosse informação da empresa. Se perguntarem algo que você não
+tem, diga que vai confirmar e trate na reunião, ou use escalar_humano. Uma
+resposta inventada que soa plausível é pior que não responder: o lead toma
+decisão em cima dela.
 `.trim();
 
 const OBJECTIVE_PROMPTS: Record<string, string> = {
