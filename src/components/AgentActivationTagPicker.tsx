@@ -36,11 +36,21 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
+  // Dois modos de renderização, por necessidade e não por gosto:
+  //
+  // - No card de /agentes o menu vai em PORTAL com posição fixa, porque a
+  //   grade vive num container com overflow-y-auto que recortava a lista na
+  //   borda do card.
+  // - Dentro do diálogo modal do Radix ele fica ABSOLUTO, sem portal: o
+  //   diálogo aplica pointer-events: none em tudo que está fora dele e prende
+  //   o foco dentro, então um menu portado ao body aparece mas não recebe
+  //   clique nem digitação. Foi assim que o "Criar nova tag" parou de
+  //   funcionar na criação do agente. O diálogo não recorta conteúdo, então
+  //   ali o posicionamento absoluto basta.
+  const [dentroDeDialogo, setDentroDeDialogo] = useState(false);
+
   const tagAtual = crmTags.find((t) => t.name === value);
 
-  // O menu vai em portal com posição fixa porque o card vive dentro de um
-  // container com overflow-y-auto: posicionado de forma absoluta ele era
-  // recortado na borda do card e a lista aparecia cortada pela metade.
   const posicionar = () => {
     const r = gatilhoRef.current?.getBoundingClientRect();
     if (!r) return;
@@ -55,6 +65,10 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
 
   useLayoutEffect(() => {
     if (!aberto) return;
+    const emDialogo = !!gatilhoRef.current?.closest('[role="dialog"]');
+    setDentroDeDialogo(emDialogo);
+    if (emDialogo) return;
+
     posicionar();
     // Reposiciona em scroll/resize: com posição fixa, o menu não acompanha
     // sozinho e ficaria "solto" longe do campo.
@@ -89,7 +103,7 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
       return;
     }
     setSalvando(true);
-    const ok = await addTag(nome, `Ativa o agente neste negócio. Remover a tag devolve a conversa para atendimento humano.`, COR_PADRAO);
+    const ok = await addTag(nome, "Ativa o agente neste negócio. Remover a tag devolve a conversa para atendimento humano.", COR_PADRAO);
     setSalvando(false);
     if (!ok) return;
     onChange(nome);
@@ -97,6 +111,75 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
     setCriando(false);
     setAberto(false);
   }
+
+  const conteudoMenu = (
+    <>
+      <div className="max-h-44 overflow-y-auto">
+        {crmTags.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground italic">Nenhuma tag cadastrada.</p>
+        ) : (
+          crmTags.map((tag) => {
+            // Tag já usada por OUTRO agente fica visível mas bloqueada:
+            // esconder faria o usuário procurar uma tag que ele sabe que
+            // existe sem entender por que sumiu. A tag do PRÓPRIO agente não
+            // conta -- senão o card dele mostrava a própria tag bloqueada
+            // "em uso por ele mesmo".
+            const dono = ocupadas[tag.name];
+            const bloqueada = !!dono && dono.id !== agenteAtualId;
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                disabled={bloqueada}
+                onClick={() => { onChange(tag.name); setAberto(false); }}
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
+                  bloqueada ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"
+                }`}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tag.color }} />
+                  <span className="truncate">{tag.name}</span>
+                  {bloqueada && <span className="text-[10px] text-muted-foreground shrink-0">em uso por {dono.name}</span>}
+                </span>
+                {value === tag.name && <Check size={12} className="text-primary shrink-0" />}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      <div className="border-t border-card-border p-2">
+        {criando ? (
+          <div className="flex gap-1.5">
+            <input
+              autoFocus
+              value={nomeNova}
+              onChange={(e) => setNomeNova(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void criarTag(); } }}
+              placeholder="Nome da tag"
+              className="flex-1 px-2 py-1.5 text-sm rounded border border-card-border bg-background focus:outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              disabled={salvando}
+              onClick={() => void criarTag()}
+              className="px-2.5 py-1.5 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
+            >
+              {salvando ? "..." : "Criar"}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCriando(true)}
+            className="w-full flex items-center gap-1.5 px-1 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus size={13} /> Criar nova tag
+          </button>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <div className="relative">
@@ -121,79 +204,23 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
         <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-2" />
       </button>
 
-      {aberto && pos && createPortal(
+      {aberto && (dentroDeDialogo ? (
+        <div
+          ref={menuRef}
+          className="absolute z-50 top-full left-0 right-0 mt-1 rounded-lg border border-card-border bg-card shadow-lg overflow-hidden"
+        >
+          {conteudoMenu}
+        </div>
+      ) : pos ? createPortal(
         <div
           ref={menuRef}
           style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 60 }}
           className="rounded-lg border border-card-border bg-card shadow-lg overflow-hidden"
         >
-          <div className="max-h-44 overflow-y-auto">
-            {crmTags.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground italic">Nenhuma tag cadastrada.</p>
-            ) : (
-              crmTags.map((tag) => {
-                // Tag já usada por OUTRO agente fica visível mas bloqueada:
-                // esconder faria o usuário procurar uma tag que ele sabe que
-                // existe sem entender por que sumiu. A tag do PRÓPRIO agente
-                // não conta -- senão o card dele mostrava a própria tag
-                // bloqueada "em uso por ele mesmo".
-                const dono = ocupadas[tag.name];
-                const bloqueada = !!dono && dono.id !== agenteAtualId;
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    disabled={bloqueada}
-                    onClick={() => { onChange(tag.name); setAberto(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
-                      bloqueada ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tag.color }} />
-                      <span className="truncate">{tag.name}</span>
-                      {bloqueada && <span className="text-[10px] text-muted-foreground shrink-0">em uso por {dono.name}</span>}
-                    </span>
-                    {value === tag.name && <Check size={12} className="text-primary shrink-0" />}
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <div className="border-t border-card-border p-2">
-            {criando ? (
-              <div className="flex gap-1.5">
-                <input
-                  autoFocus
-                  value={nomeNova}
-                  onChange={(e) => setNomeNova(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void criarTag(); } }}
-                  placeholder="Nome da tag"
-                  className="flex-1 px-2 py-1.5 text-sm rounded border border-card-border bg-background focus:outline-none focus:border-primary"
-                />
-                <button
-                  type="button"
-                  disabled={salvando}
-                  onClick={() => void criarTag()}
-                  className="px-2.5 py-1.5 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
-                >
-                  {salvando ? "..." : "Criar"}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCriando(true)}
-                className="w-full flex items-center gap-1.5 px-1 py-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Plus size={13} /> Criar nova tag
-              </button>
-            )}
-          </div>
+          {conteudoMenu}
         </div>,
         document.body,
-      )}
+      ) : null)}
     </div>
   );
 }
