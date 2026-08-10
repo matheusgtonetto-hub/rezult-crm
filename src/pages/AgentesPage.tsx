@@ -2051,6 +2051,26 @@ export default function AgentesPage() {
                     <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
                   </div>
 
+                  {/* Como o negócio chega até ESTE agente. Com mais de um
+                      agente na empresa, a tag genérica "Agente" não diz qual
+                      deles atende -- quem decide é a linha. A tag própria
+                      resolve isso de forma explícita. */}
+                  <div className="rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] p-3">
+                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
+                        Agente: {selected.name}
+                      </span>
+                      <span className="text-[12px] text-[#767676]">direciona o negócio para este agente, em qualquer linha.</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
+                        Agente
+                      </span>
+                      <span className="text-[12px] text-[#767676]">ativa qualquer agente; quem atende é definido pela linha de WhatsApp abaixo.</span>
+                    </div>
+                  </div>
+
                   <div>
                     <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">WhatsApp</h4>
                     <div className="space-y-1.5">

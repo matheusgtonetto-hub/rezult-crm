@@ -928,7 +928,16 @@ async function resolveLead(
 // adicionada por automação ou pelo card do Pipeline nunca chegava lá, e o
 // agente ficava mudo mesmo com a tag visível no negócio.
 function hasAgentTag(lead: Record<string, unknown>): boolean {
-  return ((lead.tags as string[] | null) ?? []).includes("Agente");
+  const tags = (lead.tags as string[] | null) ?? [];
+  // "Agente" = qualquer agente (quem atende é decidido pela linha).
+  // "Agente: <nome>" = este negócio é daquele agente especificamente.
+  return tags.includes("Agente") || tags.some((t) => t.startsWith("Agente: "));
+}
+
+// Nome do agente pedido explicitamente pela tag do lead, se houver.
+function agenteExigidoPelaTag(lead: Record<string, unknown>): string | null {
+  const tag = ((lead.tags as string[] | null) ?? []).find((t) => t.startsWith("Agente: "));
+  return tag ? tag.slice("Agente: ".length).trim() : null;
 }
 
 // ─── Seleção de closer (menor carga nos últimos 7 dias, com Google conectado) ─
@@ -1369,8 +1378,19 @@ async function pickAgentForConnection(
   companyId: string,
   candidates: any[],
   connectionId: string | null,
+  agenteExigido?: string | null,
   // deno-lint-ignore no-explicit-any
 ): Promise<any | null> {
+  // Tag "Agente: <nome>" manda em tudo: é escolha explícita de quem cuida
+  // deste negócio, e vence a inferência pela linha de WhatsApp.
+  if (agenteExigido) {
+    const escolhido = candidates.find((a) => String(a.name ?? "").trim() === agenteExigido);
+    // Se o agente pedido existe mas não está ativo, ele não aparece em
+    // candidates: melhor ninguém responder do que outro agente responder no
+    // lugar dele, com outra persona e outro objetivo.
+    return escolhido ?? null;
+  }
+
   const { data: assignments } = await db
     .from("agent_whatsapp_connections")
     .select("agent_id, connection_id")
@@ -1452,7 +1472,11 @@ Deno.serve(async (req) => {
     .select("id, name, model, custom_context, objectives, enabled_tools, behavior_config")
     .eq("company_id", companyId)
     .eq("type", "SDS")
-    .eq("active", true);
+    .eq("active", true)
+    // Sem ORDER BY o Postgres devolve em ordem arbitrária, e o desempate por
+    // `unassigned[0]` podia trocar de agente entre uma mensagem e outra da
+    // MESMA conversa -- personas diferentes respondendo alternadamente.
+    .order("created_at", { ascending: true });
   if (!activeAgents?.length) return json({ skipped: "no_active_agent" }, 200);
 
   let inboundConnectionId: string | null = null;
@@ -1466,7 +1490,7 @@ Deno.serve(async (req) => {
     inboundConnectionId = (inboundConn?.id as string | undefined) ?? null;
   }
 
-  const agent = await pickAgentForConnection(db, companyId, activeAgents, inboundConnectionId);
+  const agent = await pickAgentForConnection(db, companyId, activeAgents, inboundConnectionId, agenteExigidoPelaTag(lead));
   if (!agent) return json({ skipped: "connection_not_assigned_to_any_agent" }, 200);
 
   const behaviorConfig: BehaviorConfig = (agent.behavior_config as BehaviorConfig) ?? {};
