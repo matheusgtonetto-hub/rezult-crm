@@ -1345,10 +1345,21 @@ async function buildAvailabilityContext(
       const hFim = new Intl.DateTimeFormat("pt-BR", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(fim);
       return `${fmt.format(inicio)} até ${hFim}`;
     });
-    blocoOcupado = `\n\nHORÁRIOS JÁ OCUPADOS (não ofereça nenhum destes, nem horário que se sobreponha a eles): ${itens.join(" | ")}.`;
+    blocoOcupado = `\n\nHORÁRIOS JÁ OCUPADOS (não agende nenhum destes, nem horário que se sobreponha a eles): ${itens.join(" | ")}.`;
   }
 
-  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}. Ofereça SOMENTE horários dentro dessas janelas; em qualquer outro dia ou horário não há atendimento. Se o lead pedir algo fora, diga que não há disponibilidade e proponha as opções válidas mais próximas.${blocoOcupado}`;
+  // Perguntar antes de listar. Enumerar opções obriga o agente a resolver
+  // sozinho a conta de "janela menos ocupados", e num teste real ele errou
+  // para o lado conservador: com 10h-11h ocupado, ofereceu "a partir das 12h"
+  // e queimou as 11h, que estava livre. Perguntando primeiro, ele só precisa
+  // validar UM horário -- conta que a tool já faz de forma exata.
+  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}.
+
+COMO CONDUZIR O AGENDAMENTO:
+1. PERGUNTE ao lead qual dia e horário ficam melhores para ele. Não liste opções nem enumere horários livres por conta própria: você erra a conta e queima horário que estava disponível.
+2. Só mencione a faixa de atendimento acima se o lead pedir algo claramente fora dela (outro dia da semana, ou horário fora do expediente).
+3. Quando ele disser um horário, tente agendar. A ferramenta confere a agenda de verdade e recusa se estiver ocupado.
+4. Se a ferramenta recusar, ofereça o horário livre MAIS PRÓXIMO do que ele pediu (antes ou depois, o que estiver mais perto), usando a lista de ocupados abaixo. Se não souber qual é o mais próximo com segurança, peça outra sugestão a ele em vez de chutar.${blocoOcupado}`;
 }
 
 // ─── Conexão de WhatsApp usada pelo agente ──────────────────────────────────
@@ -2039,7 +2050,7 @@ async function executeAgentTool(
         await executeAgentTool(db, { name: "escalar_humano", input: { motivo } }, ctx);
         return {
           ok: false,
-          error: `NÃO FOI AGENDADO. ${motivo}. Não diga ao lead que a reunião foi marcada ou remarcada: ela não foi. Explique que esse horário não está disponível e ofereça horários dentro da disponibilidade informada no seu contexto.`,
+          error: `NÃO FOI AGENDADO. ${motivo}. Não diga ao lead que a reunião foi marcada ou remarcada: ela não foi. Explique que esse horário específico não está livre e ofereça o horário disponível MAIS PRÓXIMO do que ele pediu (antes ou depois, o que estiver mais perto), com base na lista de ocupados do seu contexto. Se não conseguir determinar o mais próximo com segurança, peça outra sugestão de horário a ele em vez de chutar.`,
         };
       }
 
