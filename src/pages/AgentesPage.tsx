@@ -382,6 +382,11 @@ const defaultCloserAvailability = (): WorkDay[] =>
 
 // DOCX fica de fora por enquanto — agent-kb-ingest ainda não tem extração
 // pra esse formato (sem biblioteca confirmada compatível com Deno).
+// Instruções da empresa entram INTEIRAS no prompt de toda execução do agente,
+// então este limite é custo por mensagem, não só espaço de tela. A coluna no
+// banco é `text`, sem limite -- o corte sempre foi só aqui.
+const LIMITE_INSTRUCOES = 50000;
+
 const SUPPORTED_KB_EXTENSIONS = ["pdf", "txt", "csv", "html", "htm", "json"];
 
 const STATUS_BADGE: Record<KnowledgeDoc["status"], { bg: string; fg: string; label: string }> = {
@@ -2744,12 +2749,12 @@ export default function AgentesPage() {
                   <div>
                     <Textarea
                       value={customContext}
-                      onChange={(e) => setCustomContext(e.target.value.slice(0, 2000))}
+                      onChange={(e) => setCustomContext(e.target.value.slice(0, LIMITE_INSTRUCOES))}
                       onBlur={() => { if (wizardMode) void saveCustomContext(); }}
                       placeholder="Ex: Use um tom direto e informal. Nossos clientes costumam perguntar sobre X — sempre responda que..."
                       className="min-h-[200px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <div className="text-right text-[11px] text-[#767676] mt-1">{customContext.length} / 2000</div>
+                    <div className="text-right text-[11px] text-[#767676] mt-1">{customContext.length.toLocaleString("pt-BR")} / {LIMITE_INSTRUCOES.toLocaleString("pt-BR")}</div>
                   </div>
                 </TabsContent>
 
