@@ -2751,10 +2751,22 @@ export default function AgentesPage() {
                       value={customContext}
                       onChange={(e) => setCustomContext(e.target.value.slice(0, LIMITE_INSTRUCOES))}
                       onBlur={() => { if (wizardMode) void saveCustomContext(); }}
-                      placeholder="Ex: Use um tom direto e informal. Nossos clientes costumam perguntar sobre X — sempre responda que..."
-                      className="min-h-[200px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      placeholder="Ex: Use um tom direto e informal. Nossos clientes costumam perguntar sobre X, sempre responda que..."
+                      className="min-h-[200px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <div className="text-right text-[11px] text-[#767676] mt-1">{customContext.length.toLocaleString("pt-BR")} / {LIMITE_INSTRUCOES.toLocaleString("pt-BR")}</div>
+                    {/* Peso em tokens visível a partir de um texto já
+                        considerável. Instruções entram inteiras no prompt de
+                        toda execução, então o custo é por mensagem trocada --
+                        e isso é invisível para quem escreve. Informar, não
+                        limitar: quem constrói um agente robusto decide. */}
+                    <div className="flex items-center justify-between gap-3 mt-1">
+                      <span className="text-[11px] text-[#767676]">
+                        {customContext.length > 4000 && (
+                          <>Somam cerca de <span className="font-medium text-[#111111]">{Math.round(customContext.length / 4).toLocaleString("pt-BR")} tokens</span> a cada mensagem trocada com cada lead. Material de consulta (tabelas, FAQ, procedimentos) custa menos na Base de Conhecimento, que busca só o trecho relevante.</>
+                        )}
+                      </span>
+                      <span className="text-[11px] text-[#767676] shrink-0">{customContext.length.toLocaleString("pt-BR")} / {LIMITE_INSTRUCOES.toLocaleString("pt-BR")}</span>
+                    </div>
                   </div>
                 </TabsContent>
 
