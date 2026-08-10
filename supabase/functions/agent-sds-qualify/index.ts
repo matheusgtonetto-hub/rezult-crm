@@ -1630,7 +1630,21 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
       .limit(1);
     const linkLembrete = (reuniaoLembrete?.[0]?.meet_link as string | undefined) ?? null;
 
-    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). ${
+    // "hoje" ou "amanhã" calculado em código, não deixado para o modelo. Num
+    // lembrete real das 07:00 ele disse "nossa consulta é AMANHÃ" sobre uma
+    // reunião que era duas horas depois, no mesmo dia: copiou a expressão do
+    // follow-up da noite anterior, que estava certa quando foi escrita.
+    const diaNaTz = (d: Date) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(d);
+    const diasDeDiferenca = Math.round(
+      (Date.parse(diaNaTz(new Date(lembreteReuniao))) - Date.parse(diaNaTz(new Date()))) / 86_400_000,
+    );
+    const referenciaDia = diasDeDiferenca === 0 ? "HOJE"
+      : diasDeDiferenca === 1 ? "AMANHÃ"
+      : `daqui a ${diasDeDiferenca} dias`;
+
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Ela acontece ${referenciaDia} — use exatamente essa referência de dia e NÃO copie "hoje"/"amanhã" de mensagens anteriores suas, que foram escritas em outro dia. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). ${
       linkLembrete
         ? `Inclua o link da videochamada em texto: ${linkLembrete}. Nada além disso: no lembrete a pessoa precisa do horário e do link, não de explicação sobre o serviço.`
         : `Esta reunião não tem link de vídeo — não invente nenhum nem prometa enviar depois.`
