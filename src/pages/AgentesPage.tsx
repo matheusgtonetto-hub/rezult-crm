@@ -113,6 +113,10 @@ function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: 
 type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
+  // Para QUEM a conversa vai quando o agente transfere. Sem isso a
+  // "transferência" só desligava o agente e não entregava a conversa a
+  // ninguém.
+  transferir_responsavel_user_id?: string | null;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
   persona_voz?: "propria" | "equipe";
   usar_emojis?: boolean;
@@ -174,6 +178,7 @@ type BehaviorConfig = {
 const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "objective_instructions">> = {
   finalizar_conversa: false,
   transferir_responsavel: false,
+  transferir_responsavel_user_id: null,
   estilo_comunicacao: "normal",
   // Padrão: o agente É a empresa. É o caso mais comum (negócio pequeno,
   // profissional solo) e evita a conversa em terceira pessoa que soa como
@@ -890,6 +895,13 @@ export default function AgentesPage() {
       // ficaria ligado na tela e mudo na prática, sem nada explicando.
       if (!agent.activation_tag) {
         toast.error("Defina a tag de ativação deste agente antes de ativar.");
+        return;
+      }
+      // "Transferir responsável" ligado sem destinatário entregaria a conversa
+      // a ninguém: o agente se desliga e o negócio fica órfão, fora da caixa
+      // de qualquer atendente.
+      if (agent.behavior_config?.transferir_responsavel && !agent.behavior_config?.transferir_responsavel_user_id) {
+        toast.error("Escolha para quem o agente transfere a conversa (aba Comportamento) antes de ativar.");
         return;
       }
       // A Base de Conhecimento gera embeddings pela OpenAI mesmo quando o
@@ -1744,15 +1756,43 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ finalizar_conversa: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                        <div>
-                          <div className="text-[13px] font-medium text-[#111111]">Transferir responsável</div>
-                          <div className="text-[11px] text-[#767676]">Permite que o agente transfira o responsável quando identificar que finalizou o objetivo.</div>
+                      <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-[13px] font-medium text-[#111111]">Transferir responsável</div>
+                            <div className="text-[11px] text-[#767676]">Permite que o agente transfira o responsável quando identificar que finalizou o objetivo.</div>
+                          </div>
+                          <Switch
+                            checked={behaviorDraft.transferir_responsavel ?? false}
+                            onCheckedChange={(v) => updateBehaviorConfig({ transferir_responsavel: v })}
+                          />
                         </div>
-                        <Switch
-                          checked={behaviorDraft.transferir_responsavel ?? false}
-                          onCheckedChange={(v) => updateBehaviorConfig({ transferir_responsavel: v })}
-                        />
+                        {/* Sem destinatário a transferência não entrega a
+                            conversa a ninguém: o agente desliga e o lead fica
+                            órfão, sem aparecer na caixa de nenhum atendente. */}
+                        {behaviorDraft.transferir_responsavel && (
+                          <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
+                            <Label className="text-[11px] text-[#767676]">Transferir para</Label>
+                            <Select
+                              value={behaviorDraft.transferir_responsavel_user_id ?? ""}
+                              onValueChange={(v) => updateBehaviorConfig({ transferir_responsavel_user_id: v })}
+                            >
+                              <SelectTrigger className="mt-1 bg-white h-9 text-[13px]">
+                                <SelectValue placeholder="Escolha quem recebe a conversa" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {members.map((m) => (
+                                  <SelectItem key={m.user_id} value={m.user_id}>{m.full_name || m.email}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!behaviorDraft.transferir_responsavel_user_id && (
+                              <p className="text-[11px] mt-1" style={{ color: "#E24B4A" }}>
+                                Escolha o destinatário. Sem ele, a transferência apenas desliga o agente e o negócio fica sem responsável.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

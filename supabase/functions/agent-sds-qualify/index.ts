@@ -327,6 +327,7 @@ async function retrieveKbContext(
 type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
+  transferir_responsavel_user_id?: string | null;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
   // Quem o agente É na conversa. Sem isso ele oscilava sozinho: numa mesma
   // conversa dizia "vocês podem explorar" (falando do profissional em
@@ -2291,24 +2292,51 @@ async function executeAgentTool(
       const tagDesteAgente = String(ctx.activationTag ?? "Agente");
       const currentLeadTags = (ctx.lead.tags as string[] | null) ?? [];
       const nextLeadTags = currentLeadTags.filter((t) => t !== tagDesteAgente);
-      await db.from("leads").update({ tags: nextLeadTags }).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
+
+      // Destinatário configurado na aba Comportamento. Sem ele, a
+      // "transferência" só desligava o agente: o negócio ficava sem
+      // responsável e a conversa fora da caixa de qualquer atendente -- o CRM
+      // dizia transferido e ninguém recebia nada.
+      const destinatario = ctx.behaviorConfig?.transferir_responsavel_user_id ?? null;
+      const patchLead: Record<string, unknown> = { tags: nextLeadTags };
+      if (destinatario) {
+        patchLead.responsible = destinatario;
+        patchLead.responsibles = [destinatario];
+      }
+      await db.from("leads").update(patchLead).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
 
       // Todas as linhas do telefone (mesmo motivo de finalizar_conversa) --
       // cada uma tem sua própria lista de tags, então filtra uma a uma.
       const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
       for (const conv of convRows ?? []) {
         const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== tagDesteAgente);
-        await db.from("whatsapp_conversations").update({ tags: nextConvTags, ai_interaction_count: 0 }).eq("id", conv.id);
+        const patchConv: Record<string, unknown> = { tags: nextConvTags, ai_interaction_count: 0 };
+        // assigned_to é o que faz a conversa aparecer na caixa daquele
+        // atendente no Multiatendimento. Sem isso a transferência existia só
+        // no card do negócio, e quem ia atender não era avisado de nada.
+        if (destinatario) patchConv.assigned_to = destinatario;
+        await db.from("whatsapp_conversations").update(patchConv).eq("id", conv.id);
+      }
+
+      let nomeDestinatario = "";
+      if (destinatario) {
+        const { data: perfil } = await db.from("profiles").select("full_name, email").eq("id", destinatario).maybeSingle();
+        nomeDestinatario = String(perfil?.full_name || perfil?.email || "");
       }
       await db.from("activities").insert({
         company_id: ctx.companyId,
-        owner_id: ctx.lead.owner_id as string,
+        owner_id: destinatario ?? (ctx.lead.owner_id as string),
         lead_id: ctx.leadId,
         type: "note",
-        title: "Agente transferiu a conversa — objetivo concluído",
+        title: nomeDestinatario
+          ? `Agente transferiu a conversa para ${nomeDestinatario} — objetivo concluído`
+          : "Agente transferiu a conversa — objetivo concluído",
         description: String(input.motivo ?? "sem motivo informado"),
       });
-      return { ok: true };
+      if (!destinatario) {
+        console.warn(`[agent-sds-qualify] transferir_responsavel sem destinatário configurado (agente ${ctx.agentId}) — o agente foi desligado mas o negócio ficou sem responsável`);
+      }
+      return { ok: true, orientacao: nomeDestinatario ? `Conversa transferida para ${nomeDestinatario}. Avise o lead que alguém do time vai continuar o atendimento, sem prometer prazo.` : undefined };
     }
 
     case "escalar_humano": {
