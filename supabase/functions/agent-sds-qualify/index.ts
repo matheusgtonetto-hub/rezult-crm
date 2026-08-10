@@ -1141,7 +1141,17 @@ async function pickAvailableCloser(
       if (!days?.length) return true;
       const day = days.find((d) => d.day === parsed.weekday);
       if (!day?.active) return false;
-      return day.intervals.some((iv) => parsed.hhmm >= iv.start && parsed.hhmm <= iv.end);
+      // A reunião precisa CABER na janela, não só começar dentro dela. Antes
+      // conferia apenas o início: com janela até 18:00 e consulta de 60min,
+      // um pedido das 18:00 passava (18:00 <= 18:00) e agendava das 18h às
+      // 19h, uma hora depois do expediente fechar.
+      const emMinutos = (hhmm: string) => {
+        const [h, m] = hhmm.split(":").map(Number);
+        return (h || 0) * 60 + (m || 0);
+      };
+      const inicioMin = emMinutos(parsed.hhmm);
+      const fimMin = inicioMin + durationMinutes;
+      return day.intervals.some((iv) => inicioMin >= emMinutos(iv.start) && fimMin <= emMinutos(iv.end));
     });
   }
   if (!eligible.length) return null;
