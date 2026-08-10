@@ -787,6 +787,21 @@ export default function AgentesPage() {
   // "Cancelar" durante o wizard de criação -- descarta o rascunho. Cascata
   // já cobre agent_closers/agent_knowledge_bases/agent_usage_log etc. (on
   // delete cascade das migrações anteriores).
+  // Sair da tela durante o wizard sem passar por aqui deixava o rascunho vivo
+  // no banco: invisível na grade (draft = true) e ainda segurando a tag de
+  // ativação, que aparecia como "em uso" por um agente que o usuário não
+  // conseguia mais encontrar. Todo ponto que navega para fora usa esta função.
+  async function sairDoWizard(destino: string) {
+    if (!wizardMode || !selected || !companyId) { navigate(destino); return; }
+    if (!window.confirm("Sair agora descarta o agente que você está criando, incluindo a tag reservada para ele. Continuar?")) return;
+    const { error } = await supabase.from("agents").delete().eq("id", selected.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao descartar o agente em criação"); return; }
+    setAgents((prev) => prev.filter((a) => a.id !== selected.id));
+    setWizardMode(false);
+    setSelectedId(null);
+    navigate(destino);
+  }
+
   async function abandonDraftAgent() {
     if (!selected || !companyId) return;
     if (!window.confirm("Sair sem salvar? O agente criado até aqui será descartado.")) return;
@@ -1552,7 +1567,7 @@ export default function AgentesPage() {
                           ? "Sem chave da Anthropic cadastrada — o agente não pode ser ativado até você cadastrar uma em Configurações."
                           : "Sem chave da OpenAI cadastrada — o agente não pode ser ativado até você cadastrar uma em Configurações (também necessária pra upload de documentos na Base de Conhecimento)."}
                       </div>
-                      <Button variant="outline" onClick={() => navigate("/configuracoes/api")} className="h-7 text-[11px] shrink-0 border-[#991B1B] text-[#991B1B] hover:bg-[#FEE2E2]">
+                      <Button variant="outline" onClick={() => void sairDoWizard("/configuracoes/api")} className="h-7 text-[11px] shrink-0 border-[#991B1B] text-[#991B1B] hover:bg-[#FEE2E2]">
                         Ir pra Configurações
                       </Button>
                     </div>
@@ -1594,7 +1609,7 @@ export default function AgentesPage() {
                                     </div>
                                     <Button
                                       variant="outline"
-                                      onClick={() => navigate("/configuracoes/campos")}
+                                      onClick={() => void sairDoWizard("/configuracoes/campos")}
                                       className="h-8 text-[12px] shrink-0 mt-2"
                                     >
                                       Editar campos
@@ -2180,7 +2195,7 @@ export default function AgentesPage() {
                                     <AlertTriangle size={14} className="text-[#92400E] mt-0.5 shrink-0" />
                                     <div className="text-[11px] text-[#92400E]">
                                       {m.full_name || m.email} ainda não conectou o Google Calendar — sem isso o agente não consegue agendar reunião pra essa pessoa. Peça pra ela acessar{" "}
-                                      <button onClick={() => navigate("/configuracoes/integracoes")} className="underline font-medium">
+                                      <button onClick={() => void sairDoWizard("/configuracoes/integracoes")} className="underline font-medium">
                                         Configurações → Integrações
                                       </button>{" "}
                                       e conectar.
@@ -2698,14 +2713,6 @@ export default function AgentesPage() {
                     <p className="text-[12px] text-[#767676]">
                       Quais operações do CRM esse agente pode chamar durante a conversa. Ferramentas "Destrutiva" (excluir) ainda não estão liberadas.
                     </p>
-                  </div>
-                  <div className="flex items-start justify-between gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg">
-                    <div className="text-[12px] text-[#666666]">
-                      <span className="font-medium text-[#111111]">Quer que o agente saiba de vendas feitas em ferramentas externas</span> (Hotmart, Kiwify, etc.)? Configure um Webhook de entrada em Configurações → Integrações e mapeie os campos de produto/valor — as vendas aparecem automaticamente aqui e na Performance.
-                    </div>
-                    <Button variant="outline" onClick={() => navigate("/configuracoes/integracoes")} className="h-8 text-[12px] shrink-0">
-                      Ir pra Integrações
-                    </Button>
                   </div>
                   {AGENT_TOOL_ENTITIES.map((entity) => {
                     const tools = AGENT_TOOLS.filter((t) => t.entity === entity);
