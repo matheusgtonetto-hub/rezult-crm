@@ -1321,7 +1321,17 @@ Deno.serve(async (req) => {
   // O lead acabou de mandar mensagem -- qualquer ciclo de follow-up
   // automático pendente pra ele perde o sentido (não está mais em silêncio).
   // Roda sempre, independente dos gates abaixo (agente ativo, chave, tag).
-  await db.from("agent_followup_state").update({ status: "cancelado" }).eq("lead_id", leadId).eq("status", "ativo");
+  //
+  // Só que nem toda execução vem de mensagem do lead: follow-up e lembrete
+  // são disparados por cron. Sem esta condição, a PRÓPRIA tentativa de
+  // follow-up cancelava o ciclo que a originou -- o runner então gravava
+  // attempt_count e next_attempt_at numa linha já cancelada, e o tick
+  // seguinte não a encontrava mais. Resultado: o follow-up parava sempre na
+  // tentativa 1, nunca chegando ao máximo configurado, sem nenhum erro.
+  const veioDeMensagemDoLead = !req.headers.get("x-followup-attempt") && !req.headers.get("x-lembrete-reuniao");
+  if (veioDeMensagemDoLead) {
+    await db.from("agent_followup_state").update({ status: "cancelado" }).eq("lead_id", leadId).eq("status", "ativo");
+  }
 
   // Uma empresa pode ter mais de 1 agente SDS ativo simultâneo, cada um
   // escopado a uma linha de WhatsApp diferente via agent_whatsapp_connections
