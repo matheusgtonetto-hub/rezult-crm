@@ -1337,13 +1337,40 @@ export default function AgentesPage() {
                       <AgentAvatarIcon avatar={a.avatar} size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-bold text-[#111111] truncate">{a.name}</p>
-                      {a.description && <p className="text-[11px] text-[#767676] truncate">{a.description}</p>}
+                      {/* title: com o estado ocupando a direita da linha, nome
+                          longo trunca cedo -- o hover devolve o texto inteiro. */}
+                      <p title={a.name} className="text-[14px] font-bold text-[#111111] truncate">{a.name}</p>
+                      {a.description && <p title={a.description} className="text-[11px] text-[#767676] truncate">{a.description}</p>}
+                    </div>
+                    {/* Estado na mesma linha do nome, à direita: é a
+                        informação que o usuário procura primeiro ao bater o
+                        olho na grade. */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
+                      <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
-                    <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+
+                  {/* Objetivos: o que o agente faz de fato. Sem isso, dois
+                      agentes com nomes parecidos ficam indistinguíveis na
+                      grade e só dá pra saber entrando na edição. */}
+                  <div className="mb-3">
+                    <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold mb-1">Objetivos</p>
+                    {a.objectives.length === 0 ? (
+                      <span className="text-[12px]" style={{ color: "#E24B4A" }}>Nenhum objetivo definido</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {AGENT_OBJECTIVES.filter((o) => a.objectives.includes(o.id)).map((o) => (
+                          <span
+                            key={o.id}
+                            title={o.description}
+                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#128A68]/10 text-[#128A68]"
+                          >
+                            {o.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="mb-3">
                     <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold mb-1">Tag de ativação</p>
