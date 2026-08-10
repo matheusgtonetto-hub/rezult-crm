@@ -7,7 +7,8 @@
 //
 // Usado em dois lugares: no diálogo "Novo agente" e no card em /agentes.
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Plus, Check } from "lucide-react";
 import { useCRM } from "@/context/CRMContext";
 import { toast } from "sonner";
@@ -31,8 +32,54 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
   const [criando, setCriando] = useState(false);
   const [nomeNova, setNomeNova] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const gatilhoRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const tagAtual = crmTags.find((t) => t.name === value);
+
+  // O menu vai em portal com posição fixa porque o card vive dentro de um
+  // container com overflow-y-auto: posicionado de forma absoluta ele era
+  // recortado na borda do card e a lista aparecia cortada pela metade.
+  const posicionar = () => {
+    const r = gatilhoRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const alturaMenu = 260;
+    const cabeAbaixo = window.innerHeight - r.bottom > alturaMenu;
+    setPos({
+      top: cabeAbaixo ? r.bottom + 4 : Math.max(8, r.top - alturaMenu - 4),
+      left: r.left,
+      width: r.width,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!aberto) return;
+    posicionar();
+    // Reposiciona em scroll/resize: com posição fixa, o menu não acompanha
+    // sozinho e ficaria "solto" longe do campo.
+    const ao = () => posicionar();
+    window.addEventListener("scroll", ao, true);
+    window.addEventListener("resize", ao);
+    return () => {
+      window.removeEventListener("scroll", ao, true);
+      window.removeEventListener("resize", ao);
+    };
+  }, [aberto]);
+
+  // Fecha ao clicar fora. Sem isso o menu só fechava escolhendo uma tag, e
+  // ficava aberto por cima do resto da tela.
+  useEffect(() => {
+    if (!aberto) return;
+    const aoClicar = (e: MouseEvent) => {
+      const alvo = e.target as Node;
+      if (gatilhoRef.current?.contains(alvo) || menuRef.current?.contains(alvo)) return;
+      setAberto(false);
+      setCriando(false);
+    };
+    document.addEventListener("mousedown", aoClicar);
+    return () => document.removeEventListener("mousedown", aoClicar);
+  }, [aberto]);
 
   async function criarTag() {
     const nome = nomeNova.trim();
@@ -54,6 +101,7 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
   return (
     <div className="relative">
       <button
+        ref={gatilhoRef}
         type="button"
         onClick={() => setAberto((v) => !v)}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors min-h-9 ${
@@ -73,8 +121,12 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
         <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-2" />
       </button>
 
-      {aberto && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-lg border border-card-border bg-card shadow-md overflow-hidden">
+      {aberto && pos && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 60 }}
+          className="rounded-lg border border-card-border bg-card shadow-lg overflow-hidden"
+        >
           <div className="max-h-44 overflow-y-auto">
             {crmTags.length === 0 ? (
               <p className="px-3 py-2 text-xs text-muted-foreground italic">Nenhuma tag cadastrada.</p>
@@ -139,7 +191,8 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
