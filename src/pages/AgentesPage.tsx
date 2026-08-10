@@ -117,6 +117,9 @@ type BehaviorConfig = {
   // "transferência" só desligava o agente e não entregava a conversa a
   // ninguém.
   transferir_responsavel_user_id?: string | null;
+  // Quem recebe a conversa quando o agente escala por não conseguir
+  // resolver. Sem ninguém, a escalação vira só uma nota que ninguém lê.
+  escalar_humano_user_id?: string | null;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
   persona_voz?: "propria" | "equipe";
   usar_emojis?: boolean;
@@ -179,6 +182,7 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   finalizar_conversa: false,
   transferir_responsavel: false,
   transferir_responsavel_user_id: null,
+  escalar_humano_user_id: null,
   estilo_comunicacao: "normal",
   // Padrão: o agente É a empresa. É o caso mais comum (negócio pequeno,
   // profissional solo) e evita a conversa em terceira pessoa que soa como
@@ -1793,6 +1797,34 @@ export default function AgentesPage() {
                             )}
                           </div>
                         )}
+                      </div>
+
+                      {/* Escalação não é toggle: o agente sempre pode escalar
+                          (inclusive automaticamente, quando um agendamento
+                          falha). O que faltava era destinatário -- sem ele a
+                          escalação virava só uma nota que ninguém lê. */}
+                      <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                        <div className="text-[13px] font-medium text-[#111111]">Quando o agente não conseguir resolver</div>
+                        <div className="text-[11px] text-[#767676]">
+                          O agente escala para uma pessoa quando trava numa dúvida que não sabe responder ou quando um agendamento falha. A conversa vai para a caixa de quem você escolher aqui.
+                        </div>
+                        <Label className="text-[11px] text-[#767676] mt-3 block">Escalar para</Label>
+                        <Select
+                          value={behaviorDraft.escalar_humano_user_id ?? ""}
+                          onValueChange={(v) => updateBehaviorConfig({ escalar_humano_user_id: v })}
+                        >
+                          <SelectTrigger className="mt-1 bg-white h-9 text-[13px]">
+                            <SelectValue placeholder="Responsável atual do negócio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {members.map((m) => (
+                              <SelectItem key={m.user_id} value={m.user_id}>{m.full_name || m.email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-[#767676] mt-1">
+                          Sem escolha, vai para o responsável que o negócio já tiver. Se o negócio também não tiver responsável, ninguém é avisado.
+                        </p>
                       </div>
                     </div>
                   </div>

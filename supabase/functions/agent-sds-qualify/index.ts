@@ -328,6 +328,7 @@ type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
   transferir_responsavel_user_id?: string | null;
+  escalar_humano_user_id?: string | null;
   estilo_comunicacao?: "normal" | "formal" | "descontraida";
   // Quem o agente É na conversa. Sem isso ele oscilava sozinho: numa mesma
   // conversa dizia "vocês podem explorar" (falando do profissional em
@@ -2340,16 +2341,50 @@ async function executeAgentTool(
     }
 
     case "escalar_humano": {
-      // owner_id é NOT NULL em activities — usa o responsável já atribuído ao lead
+      // Antes isso só escrevia uma nota no histórico do negócio. Nota não
+      // notifica ninguém: o agente "escalava para um humano" e o humano nunca
+      // ficava sabendo. Agora a conversa é atribuída a alguém de verdade.
+      //
+      // Destinatário: o configurado na aba Comportamento; sem ele, o
+      // responsável que o negócio já tem. Esse fallback importa porque numa
+      // base onde os leads já têm dono a escalação chega na pessoa certa sem
+      // configuração nenhuma.
+      const paraQuem = ctx.behaviorConfig?.escalar_humano_user_id
+        ?? (ctx.lead.responsible as string | null)
+        ?? null;
+
+      if (paraQuem) {
+        // assigned_to é o que coloca a conversa na caixa daquele atendente no
+        // Multiatendimento -- é isso que faz a escalação existir na prática.
+        await db.from("whatsapp_conversations")
+          .update({ assigned_to: paraQuem })
+          .eq("company_id", ctx.companyId)
+          .in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
+      } else {
+        console.warn(`[agent-sds-qualify] escalar_humano sem destinatário (agente ${ctx.agentId}, lead ${ctx.leadId}) — a nota foi criada mas ninguém foi avisado`);
+      }
+
+      let nome = "";
+      if (paraQuem) {
+        const { data: perfil } = await db.from("profiles").select("full_name, email").eq("id", paraQuem).maybeSingle();
+        nome = String(perfil?.full_name || perfil?.email || "");
+      }
       await db.from("activities").insert({
         company_id: ctx.companyId,
-        owner_id: ctx.lead.owner_id as string,
+        // owner_id é NOT NULL em activities
+        owner_id: paraQuem ?? (ctx.lead.owner_id as string),
         lead_id: ctx.leadId,
         type: "note",
-        title: "Agente SDS escalou pra atendimento humano",
+        title: nome ? `Agente escalou para ${nome}` : "Agente SDS escalou pra atendimento humano",
         description: String(input.motivo ?? "sem motivo informado"),
       });
-      return { ok: true };
+
+      // O agente NÃO é desligado aqui, de propósito: escalar_humano também é
+      // chamado automaticamente quando o agendamento falha, e uma falha
+      // passageira (token do Google expirado, por exemplo) silenciaria o
+      // agente para sempre naquele negócio. Quem assume tira a tag de
+      // ativação no card quando quiser assumir de vez.
+      return { ok: true, orientacao: "Alguém do time foi avisado e vai assumir. Diga isso ao lead nesta mesma resposta, sem prometer prazo e sem inventar quem vai falar com ele." };
     }
 
     default:
