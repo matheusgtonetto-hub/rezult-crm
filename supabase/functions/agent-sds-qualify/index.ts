@@ -564,6 +564,7 @@ async function runAnthropicLoop(
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
   let anyToolFailed = false;
   let finalText = "";
+  let esgotouRodadas = true;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -580,7 +581,7 @@ async function runAnthropicLoop(
     usage.outputTokens += Number(data.usage?.output_tokens) || 0;
     // deno-lint-ignore no-explicit-any
     const toolUseBlocks = (data.content ?? []).filter((b: any) => b.type === "tool_use");
-    if (toolUseBlocks.length === 0) { finalText = textoDosBlocos(data.content); break; }
+    if (toolUseBlocks.length === 0) { finalText = textoDosBlocos(data.content); esgotouRodadas = false; break; }
 
     messages.push({ role: "assistant", content: data.content });
     // deno-lint-ignore no-explicit-any
@@ -593,6 +594,41 @@ async function runAnthropicLoop(
     }
     messages.push({ role: "user", content: toolResults });
   }
+
+  // Estourar o teto de rodadas não pode custar a resposta ao lead. Com muitas
+  // tools de CRM habilitadas o modelo gasta as rodadas consultando e
+  // executando, e antes disso a função terminava sem nunca falar com o lead:
+  // reunião remarcada no Google e no CRM, e do lado de lá silêncio total.
+  // Aqui a última palavra é forçada a ser uma mensagem.
+  if (esgotouRodadas && !actions.includes("enviar_mensagem")) {
+    console.warn("[agent-sds-qualify] teto de rodadas de tools atingido sem enviar_mensagem — forçando a mensagem final");
+    const ferramentaEnvio = tools.find((t) => t.name === "enviar_mensagem");
+    if (ferramentaEnvio) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model, max_tokens: 1024, system, messages,
+          tools: [ferramentaEnvio],
+          tool_choice: { type: "tool", name: "enviar_mensagem" },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        usage.inputTokens += Number(data.usage?.input_tokens) || 0;
+        usage.outputTokens += Number(data.usage?.output_tokens) || 0;
+        // deno-lint-ignore no-explicit-any
+        for (const block of (data.content ?? []).filter((b: any) => b.type === "tool_use")) {
+          const result = await dispatch(block.name, block.input ?? {});
+          if (toolFailed(result)) anyToolFailed = true;
+          actions.push(block.name);
+        }
+      } else {
+        console.error("[agent-sds-qualify] falha ao forçar mensagem final:", res.status, await res.text());
+      }
+    }
+  }
+
   return { actions, usage, success: !anyToolFailed, finalText };
 }
 
@@ -611,6 +647,7 @@ async function runOpenAiLoop(
   const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
   let anyToolFailed = false;
   let finalText = "";
+  let esgotouRodadas = true;
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -638,7 +675,7 @@ async function runOpenAiLoop(
     usage.outputTokens += Number(data.usage?.completion_tokens) || 0;
     const msg = data.choices?.[0]?.message;
     const toolCalls = msg?.tool_calls ?? [];
-    if (toolCalls.length === 0) { finalText = textoDosBlocos(msg?.content); break; }
+    if (toolCalls.length === 0) { finalText = textoDosBlocos(msg?.content); esgotouRodadas = false; break; }
 
     messages.push(msg);
     // deno-lint-ignore no-explicit-any
@@ -650,6 +687,37 @@ async function runOpenAiLoop(
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
   }
+
+  // Mesma trava do loop Anthropic: teto de rodadas não pode virar silêncio.
+  if (esgotouRodadas && !actions.includes("enviar_mensagem")) {
+    console.warn("[agent-sds-qualify] teto de rodadas de tools atingido sem enviar_mensagem — forçando a mensagem final");
+    const ferramentaEnvio = tools.find((t) => t.name === "enviar_mensagem");
+    if (ferramentaEnvio) {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model, messages, reasoning_effort: "none",
+          tools: toOpenAiTools([ferramentaEnvio]),
+          tool_choice: { type: "function", function: { name: "enviar_mensagem" } },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
+        usage.outputTokens += Number(data.usage?.completion_tokens) || 0;
+        // deno-lint-ignore no-explicit-any
+        for (const call of (data.choices?.[0]?.message?.tool_calls ?? []) as any[]) {
+          const result = await dispatch(call.function.name, JSON.parse(call.function.arguments || "{}"));
+          if (toolFailed(result)) anyToolFailed = true;
+          actions.push(call.function.name as string);
+        }
+      } else {
+        console.error("[agent-sds-qualify] falha ao forçar mensagem final:", res.status, await res.text());
+      }
+    }
+  }
+
   return { actions, usage, success: !anyToolFailed, finalText };
 }
 
