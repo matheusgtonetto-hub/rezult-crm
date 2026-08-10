@@ -626,10 +626,8 @@ export default function AgentesPage() {
       // ou a query falharem, marca os pendentes como não conectados (com log
       // pra diagnóstico) em vez de silenciosamente não atualizar nada.
       try {
-        const [{ data: statusData, error: statusError }, { data: availData }] = await Promise.all([
-          supabase.functions.invoke("agent-closer-status", { body: { company_id: companyId, user_ids: pending } }),
-          supabase.from("agent_closer_availability").select("user_id, days").eq("agent_id", selectedId).in("user_id", pending),
-        ]);
+        const { data: statusData, error: statusError } =
+          await supabase.functions.invoke("agent-closer-status", { body: { company_id: companyId, user_ids: pending } });
         if (statusError) console.error("[agent-closer-status] erro:", statusError);
         const connectedIds = new Set((statusData?.connected ?? []) as string[]);
         setMemberCalendarConnected((prev) => {
@@ -639,17 +637,6 @@ export default function AgentesPage() {
         });
         const emailsByUser = (statusData?.emails ?? {}) as Record<string, string>;
         setMemberCalendarEmail((prev) => ({ ...prev, ...emailsByUser }));
-        const availByUser = new Map(((availData ?? []) as { user_id: string; days: WorkDay[] }[]).map((r) => [r.user_id, r.days]));
-        setCloserAvailability((prev) => {
-          const next = { ...prev };
-          for (const id of pending) next[id] = availByUser.get(id) ?? defaultCloserAvailability();
-          return next;
-        });
-        setCloserAvailabilitySaved((prev) => {
-          const next = { ...prev };
-          for (const id of pending) next[id] = availByUser.get(id) ?? defaultCloserAvailability();
-          return next;
-        });
       } catch (err) {
         console.error("[agent-closer-status] falha inesperada:", err);
         setMemberCalendarConnected((prev) => {
@@ -683,6 +670,38 @@ export default function AgentesPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, memberCalendarConnected, selectedId, companyId, agentCalendarEnabled]);
+
+  // Disponibilidade dos vendedores é POR AGENTE, então recarrega sempre que o
+  // agente selecionado muda. Antes ela era lida junto com o status do Google,
+  // que é por USUÁRIO e fica em cache entre agentes: assim que o status já era
+  // conhecido, o efeito saía cedo e a disponibilidade nunca era buscada. A
+  // tela caía no padrão (todos os dias DESATIVADOS), parecendo "sem restrição
+  // configurada" -- e salvar nesse estado apagava a configuração real,
+  // deixando o vendedor sem nenhum dia liberado.
+  useEffect(() => {
+    if (!selectedId || !companyId || !members.length) return;
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("agent_closer_availability")
+        .select("user_id, days")
+        .eq("agent_id", selectedId)
+        .eq("company_id", companyId);
+      if (cancelado) return;
+      if (error) {
+        // Sem os dados reais, NÃO preenche com o padrão: um "Atualizar agente"
+        // depois disso gravaria o padrão por cima do que está salvo.
+        console.error("[agent_closer_availability] falha ao carregar:", error);
+        return;
+      }
+      const porUsuario = new Map(((data ?? []) as { user_id: string; days: WorkDay[] }[]).map((r) => [r.user_id, r.days]));
+      const proximo: Record<string, WorkDay[]> = {};
+      for (const m of members) proximo[m.user_id] = porUsuario.get(m.user_id) ?? defaultCloserAvailability();
+      setCloserAvailability(proximo);
+      setCloserAvailabilitySaved(proximo);
+    })();
+    return () => { cancelado = true; };
+  }, [selectedId, companyId, members]);
 
   async function createAgent() {
     if (!companyId || !user?.id) return;

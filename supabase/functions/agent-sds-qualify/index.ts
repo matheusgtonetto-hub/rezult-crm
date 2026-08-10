@@ -1115,6 +1115,19 @@ async function pickAvailableCloser(
   // sem disponibilidade configurada pra esse agente é tratado como "sem
   // restrição" -- preserva o comportamento anterior pra quem nunca abriu
   // essa aba nova (ex. agentes já em produção antes dessa feature existir).
+  // Horário no passado NUNCA é válido. Num teste real o agente ofereceu
+  // "hoje 14h, 15h ou 16h" às 17h56, e nada no código impedia de agendar --
+  // a checagem só olhava dia da semana, janela e conflito. Reunião no passado
+  // entra no CRM e no Google e ninguém aparece.
+  if (startDatetime) {
+    const tzAgora = cfg.fuso_horario || "America/Sao_Paulo";
+    const inicioMs = new Date(`${startDatetime}${tzOffsetString(tzAgora, new Date(`${startDatetime}Z`))}`).getTime();
+    if (inicioMs <= Date.now()) {
+      console.warn(`[agent-sds-qualify] horário pedido já passou (${startDatetime}) — recusado`);
+      return null;
+    }
+  }
+
   const parsed = startDatetime ? weekdayAndTimeFromNaiveDatetime(startDatetime) : null;
   if (parsed) {
     const { data: availRows } = await db
@@ -1356,6 +1369,7 @@ async function buildAvailabilityContext(
   return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}.
 
 COMO CONDUZIR O AGENDAMENTO:
+0. HOJE a faixa disponível começa AGORA, não no início do expediente: nunca ofereça nem aceite horário que já passou. Confira sempre contra a data e hora atuais informadas no topo deste prompt.
 1. PERGUNTE ao lead qual dia e horário ficam melhores para ele. Não liste opções nem enumere horários livres por conta própria: você erra a conta e queima horário que estava disponível.
 2. Só mencione a faixa de atendimento acima se o lead pedir algo claramente fora dela (outro dia da semana, ou horário fora do expediente).
 3. Quando ele disser um horário, tente agendar. A ferramenta confere a agenda de verdade e recusa se estiver ocupado.
@@ -2039,9 +2053,18 @@ async function executeAgentTool(
         // ninguém disponível (sem Google conectado quando exigido, fora da
         // janela de disponibilidade declarada, ou sem folga suficiente na
         // agenda) — escala pra humano em vez de falhar silenciosamente
-        const motivo = googleRequired
-          ? "Nenhum closer disponível nesse horário (conectado ao Google Calendar, dentro da janela liberada e sem conflito de agenda)"
-          : "Nenhum closer disponível nesse horário (dentro da janela liberada e sem conflito de agenda)";
+        // Motivo específico quando o horário já passou: sem isso o agente
+        // dizia "não tenho disponibilidade" para um horário de hoje mais
+        // cedo, e o lead não entendia o porquê.
+        const offsetChecagem = tzOffsetString(timezone, new Date(`${input.start_datetime}Z`));
+        const jaPassou = input.start_datetime
+          ? new Date(`${input.start_datetime}${offsetChecagem}`).getTime() <= Date.now()
+          : false;
+        const motivo = jaPassou
+          ? "Esse horário já passou"
+          : googleRequired
+            ? "Nenhum closer disponível nesse horário (conectado ao Google Calendar, dentro da janela liberada e sem conflito de agenda)"
+            : "Nenhum closer disponível nesse horário (dentro da janela liberada e sem conflito de agenda)";
         // Escala pro humano, mas devolve FALHA pro modelo. Antes retornava o
         // resultado do escalar_humano, que é { ok: true } -- o modelo lia
         // "deu certo" e anunciava pro lead "remarquei para domingo às 18h",
