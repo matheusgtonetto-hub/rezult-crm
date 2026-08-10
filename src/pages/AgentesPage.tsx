@@ -1898,7 +1898,14 @@ export default function AgentesPage() {
                   </div>
 
                   <div className="border-t border-[#EEEEEE] pt-6">
-                    <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Estilo de Comunicação</h3>
+                    <h3 className="text-[14px] font-semibold text-[#111111]">Estilo de Comunicação</h3>
+                    {/* O estilo também define a temperatura enviada ao modelo
+                        (formal = mais previsível). É a mesma dimensão que
+                        concorrentes expõem como slider de "temperatura", numa
+                        unidade que o cliente não sabe operar. */}
+                    <p className="text-[12px] text-[#767676] mb-3">
+                      Define o tom das mensagens e o quanto o agente varia a forma de responder. Formal é o mais previsível e consistente entre conversas; descontraída é o mais criativo.
+                    </p>
                     <div className="mb-2 p-3 bg-white border border-[#EEEEEE] rounded-lg">
                       <Select
                         value={behaviorDraft.estilo_comunicacao ?? "normal"}

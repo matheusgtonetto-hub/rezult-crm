@@ -452,6 +452,23 @@ function buildNowContext(cfg: BehaviorConfig): string {
   ].join(" ");
 }
 
+// Temperatura derivada do estilo de comunicação, em vez de virar mais um
+// controle na tela. Concorrentes expõem o slider cru: é a mesma dimensão que
+// "estilo", só que numa unidade que o cliente não sabe operar, e errar nela
+// não dá erro -- só deixa o agente incoerente entre conversas, sem ninguém
+// conseguir ligar uma coisa à outra.
+//
+// Antes nenhuma temperatura era enviada, então rodava no padrão do provedor
+// (o mais criativo). Para um agente que representa uma profissional, isso
+// significa respostas que variam de tom entre um lead e outro.
+const TEMPERATURA_POR_ESTILO: Record<string, number> = {
+  formal: 0.3,
+  normal: 0.6,
+  descontraida: 0.9,
+};
+const temperaturaDoEstilo = (cfg: BehaviorConfig): number =>
+  TEMPERATURA_POR_ESTILO[cfg.estilo_comunicacao ?? "normal"] ?? 0.6;
+
 const ESTILO_PROMPTS: Record<string, string> = {
   formal: "Tom de comunicação: formal e profissional -- evite gírias, trate o lead com cordialidade e precisão.",
   descontraida: "Tom de comunicação: descontraído e próximo -- pode usar linguagem mais informal e leve, sem perder o profissionalismo.",
@@ -561,7 +578,7 @@ function toolFailed(result: any): boolean {
 // tool_result, repete até o modelo não pedir mais tools ou bater o limite.
 async function runAnthropicLoop(
   apiKey: string, model: string, system: string, transcript: string,
-  tools: AnthropicToolDef[], dispatch: ToolDispatcher,
+  tools: AnthropicToolDef[], dispatch: ToolDispatcher, temperature?: number,
 ): Promise<LoopResult> {
   // deno-lint-ignore no-explicit-any
   const messages: any[] = [{ role: "user", content: `Conversa até agora:\n${transcript}` }];
@@ -575,7 +592,7 @@ async function runAnthropicLoop(
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 1024, system, tools, messages }),
+      body: JSON.stringify({ model, max_tokens: 1024, system, tools, messages, ...(temperature !== undefined ? { temperature } : {}) }),
     });
     if (!res.ok) {
       console.error("[agent-sds-qualify] Anthropic error:", res.status, await res.text());
@@ -619,6 +636,7 @@ async function runAnthropicLoop(
         headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model, max_tokens: 1024, system, messages,
+          ...(temperature !== undefined ? { temperature } : {}),
           tools: [ferramentaEnvio],
           tool_choice: { type: "tool", name: "enviar_mensagem" },
         }),
@@ -663,6 +681,14 @@ async function runOpenAiLoop(
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      // Temperatura NÃO é enviada aqui de propósito, diferente do caminho
+      // Anthropic. A família GPT-5.x roda como modelo de raciocínio e recusa
+      // parâmetros de amostragem em /v1/chat/completions -- e a recusa é 400
+      // na primeira chamada, ou seja, agente 100% mudo em silêncio, que é
+      // exatamente o que já aconteceu aqui com o reasoning_effort. Sem
+      // confirmar em teste real com cada modelo GPT suportado, não vale o
+      // risco: o estilo de comunicação continua valendo pelo prompt.
+      //
       // reasoning_effort: "none" é OBRIGATÓRIO aqui. A família GPT-5.x liga
       // raciocínio por padrão, e a própria OpenAI recusa a chamada:
       // "Function tools with reasoning_effort are not supported ... in
@@ -1766,7 +1792,7 @@ Deno.serve(async (req) => {
       const closingDispatch: ToolDispatcher = (name, input) => executeAgentTool(db, { name, input }, closingCtx);
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
-        : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch);
+        : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch, temperaturaDoEstilo(behaviorConfig));
       await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success);
       if (closingResult.actions === null) return json({ error: "ai_request_failed" }, 502);
       // Mesma rede de segurança do fluxo principal: texto sem envio = lead
@@ -1944,7 +1970,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
 
   const result = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatch)
-    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch);
+    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch, temperaturaDoEstilo(behaviorConfig));
   await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success);
   if (result.actions === null) return json({ error: "ai_request_failed" }, 502);
 
