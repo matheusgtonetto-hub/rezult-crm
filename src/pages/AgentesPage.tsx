@@ -126,8 +126,15 @@ const AGENT_AVATARS: Record<string, typeof Bot> = {
 // fato da empresa, não é política comercial, não é objeção e não é exemplo, e
 // também não cabe nas instruções por objetivo, porque atravessa todos eles.
 // Era o único tipo de regra sem casa em lugar nenhum do produto.
+// "Sobre os produtos" existe porque não há outra fonte para isso no agente
+// mais comum do produto. A tabela `products` guarda nome, sku e valor, sem
+// campo de descrição, então listar_produtos entrega uma tabela de preços pelada
+// ("Consulta avulsa, 250,00"). E a Base de Conhecimento só é consultada quando
+// o objetivo Atendimento está marcado -- um agente que qualifica e agenda nunca
+// encosta nela. Sem esta seção, ele não sabe o que a empresa vende.
 const SECOES_INSTRUCOES = [
   "Sobre a empresa",
+  "Sobre os produtos",
   "Regras de negócio",
   "Objeções comuns",
   "Casos específicos",
@@ -153,6 +160,9 @@ const PLACEHOLDER_INSTRUCOES = [
   "",
   "# Sobre a empresa",
   "Atendemos clientes em todo o Brasil, presencial e online. Trabalhamos com planos mensais e projetos avulsos.",
+  "",
+  "# Sobre os produtos",
+  "Plano mensal a partir de R$ 300, com acompanhamento incluído. Projeto avulso é orçado conforme o escopo.",
   "",
   "# Regras de negócio",
   "Nunca informe valores antes de entender a necessidade do cliente.",
@@ -3033,7 +3043,7 @@ export default function AgentesPage() {
                       placeholder={PLACEHOLDER_INSTRUCOES}
                       // Alto o bastante para o placeholder inteiro caber: um
                       // exemplo cortado na metade orienta pior que nenhum.
-                      className="min-h-[420px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="min-h-[470px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     {/* Peso em tokens visível a partir de um texto já
                         considerável. Instruções entram inteiras no prompt de
