@@ -70,6 +70,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { AgentActivationTagPicker } from "@/components/AgentActivationTagPicker";
+import { AgentTestChat } from "@/components/AgentTestChat";
 
 // Objetivo final do agente — múltipla escolha. Substitui o antigo seletor de
 // "Tipo": o que o agente faz é definido por isso + pelas ferramentas
@@ -95,6 +96,10 @@ const WIZARD_STEPS: { v: string; l: string }[] = [
   { v: "kb", l: "Base de Conhecimento" },
   { v: "instrucoes", l: "Instruções" },
   { v: "modelos", l: "Modelo" },
+  // Última etapa de propósito: só aqui o agente já tem objetivo, instruções,
+  // ferramentas e modelo definidos. Testar antes disso mostraria um agente
+  // pela metade e ensinaria a coisa errada sobre ele.
+  { v: "teste", l: "Testar" },
 ];
 
 // Ícones ilustrativos pra atrelar ao agente na criação — meramente visual,
@@ -1733,6 +1738,7 @@ export default function AgentesPage() {
                         { v: "instrucoes", l: "Instruções", icon: FileText },
                         { v: "modelos", l: "Modelos", icon: BrainCircuit },
                         { v: "performance", l: "Performance", icon: TrendingUp },
+                        { v: "teste", l: "Testar", icon: MessageSquare },
                       ].filter((t) => t.v !== "closers" || objectivesDraft.includes("agendar")).map((t) => (
                         <TabsTrigger
                           key={t.v}
@@ -2664,6 +2670,11 @@ export default function AgentesPage() {
                     activatedAt={selected.activated_at}
                     activeSecondsTotal={selected.active_seconds_total}
                   />
+                </TabsContent>
+
+                {/* TESTAR */}
+                <TabsContent value="teste" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                  <AgentTestChat agentId={selected.id} />
                 </TabsContent>
 
                 {/* CONFIGURAÇÕES */}

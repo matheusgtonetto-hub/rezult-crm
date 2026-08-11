@@ -819,7 +819,9 @@ async function logAgentUsage(
   companyId: string,
   model: string,
   usage: LoopUsage,
-  leadId: string,
+  // null no modo teste: lead_id tem FK para leads, e o lead da simulação não
+  // existe no banco. A coluna é nullable justamente para casos assim.
+  leadId: string | null,
   success: boolean,
 ): Promise<void> {
   if (usage.inputTokens === 0 && usage.outputTokens === 0) return;
@@ -1538,9 +1540,383 @@ async function linhasDoAgente(
   return (data ?? []).map((r) => r.connection_id as string);
 }
 
+// ─── Montagem de UMA execução do agente ─────────────────────────────────────
+// Devolve o system prompt e a lista de tools. Tudo que ela precisa entra por
+// parâmetro: a função não busca lead nem histórico, quem faz isso é o handler.
+//
+// Foi extraída daqui para que o modo de teste (preview) use EXATAMENTE este
+// prompt. Se o teste montasse o dele, viraria um prompt paralelo: o cliente
+// aprovaria um agente na tela e receberia outro em produção -- o mesmo risco
+// que já se evita no follow-up e no lembrete de reunião, que também só
+// acrescentam contexto a este bloco.
+async function montarExecucaoDoAgente(
+  db: ReturnType<typeof createClient>,
+  p: {
+    // deno-lint-ignore no-explicit-any
+    agent: any;
+    behaviorConfig: BehaviorConfig;
+    companyId: string;
+    leadId: string;
+    lead: Record<string, unknown>;
+    // deno-lint-ignore no-explicit-any
+    messages: any[] | null;
+    transcript: string;
+    nomeEmpresa: string;
+    silencioTexto: string | null;
+    isFirstMessageEver: boolean;
+    lembreteReuniao: string;
+    followupAttempt: number;
+  },
+): Promise<{ system: string; tools: AnthropicToolDef[] }> {
+  // Desestrutura sem renomear: o corpo abaixo é o mesmo que rodava no handler,
+  // linha por linha, para a extração não mudar comportamento nenhum.
+  const { agent, behaviorConfig, companyId, leadId, lead, messages, transcript,
+          nomeEmpresa, silencioTexto, isFirstMessageEver, lembreteReuniao, followupAttempt } = p;
+
+  // Compat: agentes criados antes da aba "Perfil"/Objetivos ter sido
+  // introduzida têm objectives=[] e continuam no comportamento fixo antigo
+  // -- zero mudança de comportamento pra quem já está em produção. O
+  // caminho novo (dinâmico) só entra quando a empresa marcou pelo menos um
+  // objetivo de propósito.
+  const objectives = (agent.objectives as string[] | null) ?? [];
+  const enabledTools = (agent.enabled_tools as string[] | null) ?? [];
+  const legacy = objectives.length === 0;
+
+  // A Base de Conhecimento vale para QUALQUER agente, com qualquer objetivo.
+  // Antes só era consultada com "atendimento" marcado, e isso era bug, não
+  // decisão: quem qualifica e agenda também recebe pergunta de lead no meio da
+  // conversa. O DYNAMIC_BASE_INTRO já mandava, para todo agente, "só afirme o
+  // que estiver nas instruções da empresa ou na Base de Conhecimento deste
+  // prompt" -- ou seja, o prompt citava uma fonte que nunca era injetada. Na
+  // prática: o primeiro cliente tinha um documento carregado, a tela mostrava
+  // ele lá, e nenhuma resposta jamais o usou.
+  //
+  // `messages` está em ordem decrescente, então o primeiro !from_me é a
+  // pergunta MAIS RECENTE do lead -- que é o que deve guiar a busca.
+  const ultimaDoLead = (messages ?? []).find((m) => !m.from_me)?.body as string | undefined;
+  const kbContext = await retrieveKbContext(db, agent.id as string, companyId, ultimaDoLead || transcript);
+
+  let system: string;
+  let tools: AnthropicToolDef[];
+  if (legacy) {
+    system = `${SDS_METHODOLOGY}\n\n${agent.custom_context ?? ""}`;
+    if (kbContext) system = `${system}\n\nBASE DE CONHECIMENTO (material da empresa — use pra responder com precisão):\n${kbContext}`;
+    tools = TOOLS;
+  } else {
+    let qualFields: { id: string; label: string }[] = [];
+    if (objectives.includes("qualificar") && behaviorConfig.campos_qualificacao?.length) {
+      const { data: fieldsData } = await db
+        .from("custom_field_items")
+        .select("id, label")
+        .in("id", behaviorConfig.campos_qualificacao)
+        .eq("company_id", companyId);
+      qualFields = (fieldsData ?? []) as { id: string; label: string }[];
+    }
+    system = buildDynamicSystemPrompt(objectives, agent.custom_context ?? "", kbContext, behaviorConfig.objective_instructions ?? {});
+    const estadoQualificacao = buildQualificationState(qualFields, lead);
+    if (estadoQualificacao) system = `${system}\n\n${estadoQualificacao}`;
+    tools = buildDynamicTools(objectives, enabledTools, qualFields);
+  }
+
+  // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
+  // o modelo agenda em datas inventadas. Fica antes do resto do prompt pra
+  // não competir com instruções longas de Base de Conhecimento.
+  system = `${buildNowContext(behaviorConfig)}\n\n${system}`;
+  // Agente legado (objectives vazio) também agenda -- a metodologia SDS fixa
+  // inclui marcar reunião -- então ele precisa da disponibilidade igual.
+  if (legacy || objectives.includes("agendar")) {
+    const disponibilidade = await buildAvailabilityContext(db, companyId, agent.id as string, behaviorConfig);
+    if (disponibilidade) system = `${system}\n\n${disponibilidade}`;
+
+    // A maior parte dos leads chega por WhatsApp e nunca informou e-mail
+    // (na base real do primeiro cliente, 81% estavam sem). Sem e-mail o
+    // convite do Google não chega em ninguém e o lead fica só com a
+    // mensagem solta -- o que aumenta o não-comparecimento.
+    const temEmail = typeof lead.email === "string" && lead.email.includes("@");
+    system = temEmail
+      ? `${system}\n\nO lead já tem e-mail cadastrado: o convite da reunião será enviado automaticamente. Não peça o e-mail de novo.`
+      : `${system}\n\nESTE LEAD NÃO TEM E-MAIL CADASTRADO. Antes de confirmar qualquer agendamento, peça o e-mail dele explicando que é para enviar o convite da reunião. Depois envie esse e-mail no campo "email" da tool agendar_reuniao_closer. Se ele recusar informar, agende assim mesmo e avise que o combinado fica pelo WhatsApp.`;
+  }
+  if (silencioTexto) {
+    system = `${system}\n\nO lead está sem responder há ${silencioTexto}. Calibre o tom por esse intervalo: poucos minutos NÃO são "faz tempo que não falamos". Só trate como reaproximação depois de dias.`;
+  }
+
+  // Saudação automática. Era uma mensagem SEPARADA de texto fixo ("Olá, {nome}!
+  // Como posso te ajudar hoje?") enviada antes desta execução -- e o código
+  // seguia adiante, então o lead recebia duas aberturas: a fixa, que ignorava o
+  // que ele tinha acabado de escrever, e a real do modelo logo depois. Além de
+  // duplicada, a fixa era a única mensagem do agente que não absorvia nada do
+  // que a empresa configurou: nem tom, nem instruções, nem Base de
+  // Conhecimento, nem se o agente fala como a empresa ou como equipe.
+  //
+  // Como o modelo já vai responder essa mesma primeira mensagem, a saudação
+  // não precisa existir como envio próprio: vira uma linha no prompt desta
+  // execução. Mesmo padrão do follow-up e do lembrete de reunião.
+  if (behaviorConfig.saudacao_automatica && isFirstMessageEver) {
+    system = `${system}\n\nESTA É A PRIMEIRA MENSAGEM desta conversa. Antes de entrar no objetivo, cumprimente o lead pelo primeiro nome (se você souber) e diga em UMA frase quem está falando. Emende no objetivo na MESMA mensagem, respondendo o que ele escreveu: não mande uma mensagem só de saudação, e não pergunte "como posso ajudar" se ele já disse o que quer.`;
+  }
+  // O agente É o atendimento. Prometer "vou te passar pra um atendente" sem
+  // de fato transferir cria uma expectativa que nunca se cumpre -- o lead
+  // fica esperando alguém que não vem. Se alguém perguntar diretamente se é
+  // um robô, deve responder com honestidade; o que não pode é anunciar uma
+  // transferência que não vai acontecer.
+  // Regra sobre COMPORTAMENTO, não sobre palavras. A primeira versão listava
+  // termos proibidos ("atendente", "equipe", "transferência") e o modelo
+  // apenas reformulou: "posso encaminhar pra uma pessoa responsável" -- e não
+  // chamou tool nenhuma. Promessa vazia: o lead espera um retorno que nunca
+  // vem, porque ninguém foi notificado.
+  system = `${system}\n\nVocê é quem está atendendo este lead, do início ao fim. NUNCA prometa, ofereça nem insinue que alguém vai responder, retornar, verificar, confirmar ou resolver algo depois — em NENHUMA formulação (vale para "encaminho pra alguém", "uma pessoa responsável te responde", "vou verificar e te retorno", "o time confirma com você", etc.). Diante de algo que você não sabe, existem só dois caminhos válidos: (a) chamar a tool de escalar/transferir AGORA, nesta mesma resposta — e aí sim você pode avisar que está passando para uma pessoa; ou (b) dizer com honestidade que não tem essa informação e seguir com o que está ao seu alcance. Se o lead perguntar diretamente se está falando com uma pessoa ou com IA, responda com sinceridade.
+
+NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema: não fale de CRM, cadastro, etapa/funil, ferramenta, sistema, registro, base de conhecimento nem do que você "consegue" ou "não consegue" fazer por dentro. O que acontece nos bastidores acontece em silêncio. Se algo não for possível, resolva pelo lado dele ("vou confirmar isso com você na conversa de segunda") sem descrever o motivo técnico. E se o lead pedir algo interno (mover cadastro, mudar etapa, registrar dado), execute se tiver a ferramenta e confirme em linguagem humana — "anotado", "já deixei registrado aqui" — NUNCA repetindo o jargão nem descrevendo a operação. Isso vale mesmo que o próprio lead use esses termos: não devolva "movi seu cadastro para a etapa X"; devolva algo como "perfeito, já está tudo certo por aqui".`;
+
+  // Comportamento é uma camada independente de Objetivos/Ferramentas --
+  // aplica em cima do legado ou do dinâmico igualmente.
+  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa, String(agent.description ?? "").trim());
+  if (behaviorExtra) system = `${system}\n\n${behaviorExtra}`;
+  if (behaviorConfig.finalizar_conversa) tools = [...tools, FINALIZAR_CONVERSA_TOOL];
+  if (behaviorConfig.transferir_responsavel) tools = [...tools, TRANSFERIR_RESPONSAVEL_TOOL];
+
+  // Follow-up: em vez de um texto fixo (que saía idêntico em toda tentativa
+  // e ignorava o que já tinha sido conversado), o próprio agente escreve a
+  // cutucada com o histórico à vista e no tom configurado.
+  // Lembrete de reunião: o agente escreve a confirmação com o histórico à
+  // vista, em vez de um texto genérico. Objetivo é confirmar presença e dar
+  // uma saída fácil pra remarcar -- lead que não responde some no dia.
+  if (lembreteReuniao) {
+    const tz = behaviorConfig.fuso_horario || "America/Sao_Paulo";
+    const quando = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date(lembreteReuniao));
+
+    // O link vem da reunião, não do histórico. A instrução antiga era "se
+    // houver link no histórico, repita o link" -- e o link nunca esteve lá,
+    // porque o agente também não o enviava na confirmação. Resultado: lembrete
+    // sem link nenhum, que é justamente o que a pessoa precisa na hora.
+    const { data: reuniaoLembrete } = await db
+      .from("activities")
+      .select("meet_link")
+      .eq("lead_id", leadId)
+      .eq("company_id", companyId)
+      .eq("type", "meeting")
+      .eq("scheduled_at", lembreteReuniao)
+      .limit(1);
+    const linkLembrete = (reuniaoLembrete?.[0]?.meet_link as string | undefined) ?? null;
+
+    // "hoje" ou "amanhã" calculado em código, não deixado para o modelo. Num
+    // lembrete real das 07:00 ele disse "nossa consulta é AMANHÃ" sobre uma
+    // reunião que era duas horas depois, no mesmo dia: copiou a expressão do
+    // follow-up da noite anterior, que estava certa quando foi escrita.
+    const diaNaTz = (d: Date) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(d);
+    const diasDeDiferenca = Math.round(
+      (Date.parse(diaNaTz(new Date(lembreteReuniao))) - Date.parse(diaNaTz(new Date()))) / 86_400_000,
+    );
+    const referenciaDia = diasDeDiferenca === 0 ? "HOJE"
+      : diasDeDiferenca === 1 ? "AMANHÃ"
+      : `daqui a ${diasDeDiferenca} dias`;
+
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Ela acontece ${referenciaDia} — use exatamente essa referência de dia e NÃO copie "hoje"/"amanhã" de mensagens anteriores suas, que foram escritas em outro dia. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). ${
+      linkLembrete
+        ? `Inclua o link da videochamada em texto: ${linkLembrete}. Nada além disso: no lembrete a pessoa precisa do horário e do link, não de explicação sobre o serviço.`
+        : `Esta reunião não tem link de vídeo — não invente nenhum nem prometa enviar depois.`
+    } Ofereça remarcar caso não dê mais — sem cobrar nem pressionar. Não recomece a apresentação e não repita textualmente mensagens anteriores suas. Envie pela tool enviar_mensagem.`;
+  }
+
+  if (followupAttempt > 0) {
+    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: o lead parou de responder e esta é a tentativa de reengajamento nº ${followupAttempt}. Escreva UMA mensagem curta retomando algo concreto da conversa acima (o assunto que ficou pendente, um horário já combinado, uma pergunta que ele não terminou de fazer). Não repita textualmente nenhuma mensagem sua anterior, não se reapresente e não invente informação que não esteja na conversa. Se já houver reunião marcada, apenas reforce que está de pé. Nesta mensagem NÃO ofereça transferir para outra pessoa nem prometa retorno de terceiros: o objetivo é só reabrir a conversa. Envie a mensagem pela tool enviar_mensagem.`;
+  }
+
+  return { system, tools };
+}
+
+// ─── Modo teste (preview) ───────────────────────────────────────────────────
+// Conversa de mentira com o agente de verdade: mesma montagem de prompt da
+// conversa real (montarExecucaoDoAgente), mas sem tocar em WhatsApp nem no
+// banco de negócios.
+//
+// Só o que é ESCRITA vira simulação. Leitura de catálogo roda de verdade --
+// se o agente não enxergasse os produtos e as etapas reais, o teste ensinaria
+// pouco justamente sobre "quanto custa?", que é a pergunta mais comum.
+//
+// As intenções de escrita voltam para a tela ("marcaria reunião 14/08 15:00")
+// em vez de sumirem: ver o que o agente FARIA é a parte mais valiosa do teste,
+// e é o que nenhuma conversa real mostra antes de já ter acontecido.
+const LEITURAS_REAIS_NO_TESTE = new Set([
+  "listar_produtos", "listar_tags", "listar_listas", "listar_campos_adicionais",
+  "listar_pipelines", "listar_grupos_pipeline", "listar_motivos_perda",
+  "listar_horarios_trabalho", "listar_departamentos", "listar_conexoes",
+  "listar_atendentes", "listar_leads", "listar_conversas",
+]);
+
+// Como cada escrita é descrita para quem está testando. Sem isso a tela
+// mostraria "chamou qualificar_lead", que é jargão de dentro do sistema.
+function descreverAcaoSimulada(nome: string, input: Record<string, unknown>): string {
+  const v = (k: string) => String(input[k] ?? "").trim();
+  switch (nome) {
+    case "qualificar_lead": {
+      const campos = Object.entries(input)
+        .filter(([k, val]) => k !== "resultado" && String(val ?? "").trim())
+        .map(([k, val]) => `${k} = ${val}`);
+      return `registraria a qualificação${campos.length ? `: ${campos.join(", ")}` : ""}`;
+    }
+    case "agendar_reuniao_closer": return `marcaria reunião em ${v("start_datetime") || "data não informada"}`;
+    case "cancelar_reuniao":       return "cancelaria a reunião marcada";
+    case "mover_negocio_estagio":  return `moveria o negócio para a etapa "${v("etapa") || v("column_id")}"`;
+    case "adicionar_tag_lead":     return `adicionaria a tag "${v("tag")}"`;
+    case "remover_tag_lead":       return `removeria a tag "${v("tag")}"`;
+    case "atualizar_lead_notas":   return "escreveria uma anotação no card";
+    case "definir_campo_adicional_lead": return `preencheria "${v("campo") || v("field_key")}" com "${v("value")}"`;
+    case "escalar_humano":         return "passaria a conversa para uma pessoa";
+    case "transferir_responsavel": return "transferiria o atendimento";
+    case "finalizar_conversa":     return "encerraria o atendimento";
+    case "ganhar_negocio":         return "marcaria o negócio como ganho";
+    case "perder_negocio":         return "marcaria o negócio como perdido";
+    case "atualizar_total_negocio": return `mudaria o valor do negócio para ${v("value")}`;
+    default:                       return `usaria a ferramenta ${nome}`;
+  }
+}
+
+async function executarTeste(
+  db: ReturnType<typeof createClient>,
+  req: Request,
+  body: { agent_id?: string; mensagens?: { de?: string; texto?: string }[] },
+): Promise<Response> {
+  const agentId = String(body.agent_id ?? "");
+  const mensagens = (body.mensagens ?? []).filter((m) => String(m?.texto ?? "").trim());
+  if (!agentId) return json({ error: "missing_agent_id" }, 400);
+  if (!mensagens.length) return json({ error: "sem_mensagens" }, 400);
+
+  const { data: agent } = await db
+    .from("agents")
+    .select("id, company_id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
+    .eq("id", agentId)
+    .maybeSingle();
+  if (!agent) return json({ error: "agent_not_found" }, 404);
+  const companyId = agent.company_id as string;
+
+  // Autenticação pelo JWT do navegador, nunca pelo segredo interno: quem testa
+  // é uma pessoa logada, e o segredo só existe no servidor. Mesmo padrão do
+  // agent-kb-ingest. Service role bypassa RLS, então a checagem de acesso à
+  // empresa é feita aqui no código, à mão.
+  const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const { data: userData } = await db.auth.getUser(jwt);
+  const uid = userData?.user?.id;
+  if (!uid) return json({ error: "unauthorized" }, 401);
+  const { data: empresa } = await db.from("companies").select("owner_id, name").eq("id", companyId).maybeSingle();
+  let permitido = empresa?.owner_id === uid;
+  if (!permitido) {
+    const { data: membro } = await db
+      .from("company_members").select("user_id")
+      .eq("company_id", companyId).eq("user_id", uid).limit(1);
+    permitido = !!membro?.length;
+  }
+  if (!permitido) return json({ error: "forbidden" }, 403);
+
+  const behaviorConfig = ((agent.behavior_config as BehaviorConfig | null) ?? {}) as BehaviorConfig;
+  const model = (agent.model as string) || "claude-sonnet-5";
+  const provider = providerForModel(model);
+  const { data: companyKey } = await db
+    .from("ai_provider_keys").select("api_key")
+    .eq("company_id", companyId).eq("provider", provider).eq("active", true)
+    .maybeSingle();
+  const apiKey = companyKey?.api_key || "";
+  if (!apiKey) return json({ error: "no_company_api_key", provider }, 400);
+
+  // Lead de mentira, e de propósito VAZIO: sem e-mail e sem nenhum campo
+  // preenchido é exatamente o estado de um lead novo chegando pelo WhatsApp.
+  // Preencher aqui faria o teste pular a parte que mais importa, que é ver o
+  // agente coletando o que falta.
+  const leadFalso: Record<string, unknown> = {
+    id: "00000000-0000-0000-0000-000000000000",
+    company_id: companyId,
+    owner_id: empresa?.owner_id ?? "",
+    name: "Lead de teste",
+    whatsapp: "",
+    email: null,
+    tags: agent.activation_tag ? [agent.activation_tag] : [],
+    custom_field_values: {},
+  };
+
+  // Transcript no mesmo formato do real, e `messages` na ordem decrescente que
+  // o resto do código espera (mais nova primeiro).
+  const transcript = mensagens
+    .map((m) => `${m.de === "agente" ? "Você" : "Lead"}: ${String(m.texto).trim()}`)
+    .join("\n");
+  const messagesDesc = [...mensagens].reverse().map((m) => ({
+    from_me: m.de === "agente",
+    body: String(m.texto).trim(),
+  }));
+
+  const { system, tools } = await montarExecucaoDoAgente(db, {
+    agent,
+    behaviorConfig,
+    companyId,
+    leadId: leadFalso.id as string,
+    lead: leadFalso,
+    messages: messagesDesc,
+    transcript,
+    nomeEmpresa: String(empresa?.name ?? "").trim(),
+    silencioTexto: null,
+    isFirstMessageEver: mensagens.length === 1 && mensagens[0].de !== "agente",
+    lembreteReuniao: "",
+    followupAttempt: 0,
+  });
+
+  const respostas: string[] = [];
+  const acoes: string[] = [];
+  const toolCtx: ToolCtx = { db, companyId, ownerId: String(leadFalso.owner_id ?? ""), leadId: leadFalso.id as string };
+
+  const dispatchTeste: ToolDispatcher = async (nome, input) => {
+    if (nome === "enviar_mensagem") {
+      const texto = String(input.texto ?? input.mensagem ?? "").trim();
+      if (texto) respostas.push(texto);
+      return { ok: true };
+    }
+    if (LEITURAS_REAIS_NO_TESTE.has(nome)) {
+      return await executeRegistryTool(toolCtx, nome, input);
+    }
+    acoes.push(descreverAcaoSimulada(nome, input));
+    return { ok: true, data: { simulado: true } };
+  };
+
+  const resultado = provider === "openai"
+    ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatchTeste)
+    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatchTeste, temperaturaDoEstilo(behaviorConfig));
+
+  // O teste custa token igual à conversa real, então entra no consumo. Sem
+  // isso a fatura do provedor não bateria com o painel de uso.
+  await logAgentUsage(db, agentId, companyId, model, resultado.usage, null, resultado.success);
+
+  if (resultado.actions === null) return json({ error: "ai_request_failed" }, 502);
+  // Mesma rede de segurança do fluxo real: texto sem enviar_mensagem é
+  // resposta que o lead nunca receberia.
+  if (!respostas.length && resultado.finalText) respostas.push(resultado.finalText);
+
+  return json({ ok: true, respostas, acoes });
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  // O corpo é lido UMA vez: Request.json() consome o stream, então o ramo de
+  // teste precisa receber o objeto já parseado em vez de ler de novo.
+  let corpo: Record<string, unknown>;
+  try { corpo = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+
+  // Modo teste vem do navegador, com JWT do usuário, e nunca traz o segredo
+  // interno -- por isso desvia ANTES da checagem dele. Daqui pra baixo é o
+  // caminho da conversa real: WhatsApp, delay, limites, gravação.
+  if (corpo.preview === true) {
+    const db = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    return await executarTeste(db, req, corpo as { agent_id?: string; mensagens?: { de?: string; texto?: string }[] });
+  }
 
   // Duas causas MUITO diferentes davam o mesmo "unauthorized" antes, o que
   // tornava impossível distinguir "chamada indevida" de "segredo não
@@ -1557,8 +1933,9 @@ Deno.serve(async (req) => {
     return json({ error: "unauthorized" }, 401);
   }
 
-  let body: { companyId?: string; phone?: string; instanceId?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+  // Já parseado lá em cima: req.json() consome o stream e uma segunda leitura
+  // devolveria erro, deixando o agente mudo para toda a base.
+  const body = corpo as { companyId?: string; phone?: string; instanceId?: string };
 
   const { companyId, phone, instanceId } = body;
   if (!companyId || !phone) return json({ error: "missing_params" }, 400);
@@ -1845,160 +2222,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Compat: agentes criados antes da aba "Perfil"/Objetivos ter sido
-  // introduzida têm objectives=[] e continuam no comportamento fixo antigo
-  // -- zero mudança de comportamento pra quem já está em produção. O
-  // caminho novo (dinâmico) só entra quando a empresa marcou pelo menos um
-  // objetivo de propósito.
-  const objectives = (agent.objectives as string[] | null) ?? [];
-  const enabledTools = (agent.enabled_tools as string[] | null) ?? [];
-  const legacy = objectives.length === 0;
-
-  // A Base de Conhecimento vale para QUALQUER agente, com qualquer objetivo.
-  // Antes só era consultada com "atendimento" marcado, e isso era bug, não
-  // decisão: quem qualifica e agenda também recebe pergunta de lead no meio da
-  // conversa. O DYNAMIC_BASE_INTRO já mandava, para todo agente, "só afirme o
-  // que estiver nas instruções da empresa ou na Base de Conhecimento deste
-  // prompt" -- ou seja, o prompt citava uma fonte que nunca era injetada. Na
-  // prática: o primeiro cliente tinha um documento carregado, a tela mostrava
-  // ele lá, e nenhuma resposta jamais o usou.
-  //
-  // `messages` está em ordem decrescente, então o primeiro !from_me é a
-  // pergunta MAIS RECENTE do lead -- que é o que deve guiar a busca.
-  const ultimaDoLead = (messages ?? []).find((m) => !m.from_me)?.body as string | undefined;
-  const kbContext = await retrieveKbContext(db, agent.id as string, companyId, ultimaDoLead || transcript);
-
-  let system: string;
-  let tools: AnthropicToolDef[];
-  if (legacy) {
-    system = `${SDS_METHODOLOGY}\n\n${agent.custom_context ?? ""}`;
-    if (kbContext) system = `${system}\n\nBASE DE CONHECIMENTO (material da empresa — use pra responder com precisão):\n${kbContext}`;
-    tools = TOOLS;
-  } else {
-    let qualFields: { id: string; label: string }[] = [];
-    if (objectives.includes("qualificar") && behaviorConfig.campos_qualificacao?.length) {
-      const { data: fieldsData } = await db
-        .from("custom_field_items")
-        .select("id, label")
-        .in("id", behaviorConfig.campos_qualificacao)
-        .eq("company_id", companyId);
-      qualFields = (fieldsData ?? []) as { id: string; label: string }[];
-    }
-    system = buildDynamicSystemPrompt(objectives, agent.custom_context ?? "", kbContext, behaviorConfig.objective_instructions ?? {});
-    const estadoQualificacao = buildQualificationState(qualFields, lead);
-    if (estadoQualificacao) system = `${system}\n\n${estadoQualificacao}`;
-    tools = buildDynamicTools(objectives, enabledTools, qualFields);
-  }
-
-  // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
-  // o modelo agenda em datas inventadas. Fica antes do resto do prompt pra
-  // não competir com instruções longas de Base de Conhecimento.
-  system = `${buildNowContext(behaviorConfig)}\n\n${system}`;
-  // Agente legado (objectives vazio) também agenda -- a metodologia SDS fixa
-  // inclui marcar reunião -- então ele precisa da disponibilidade igual.
-  if (legacy || objectives.includes("agendar")) {
-    const disponibilidade = await buildAvailabilityContext(db, companyId, agent.id as string, behaviorConfig);
-    if (disponibilidade) system = `${system}\n\n${disponibilidade}`;
-
-    // A maior parte dos leads chega por WhatsApp e nunca informou e-mail
-    // (na base real do primeiro cliente, 81% estavam sem). Sem e-mail o
-    // convite do Google não chega em ninguém e o lead fica só com a
-    // mensagem solta -- o que aumenta o não-comparecimento.
-    const temEmail = typeof lead.email === "string" && lead.email.includes("@");
-    system = temEmail
-      ? `${system}\n\nO lead já tem e-mail cadastrado: o convite da reunião será enviado automaticamente. Não peça o e-mail de novo.`
-      : `${system}\n\nESTE LEAD NÃO TEM E-MAIL CADASTRADO. Antes de confirmar qualquer agendamento, peça o e-mail dele explicando que é para enviar o convite da reunião. Depois envie esse e-mail no campo "email" da tool agendar_reuniao_closer. Se ele recusar informar, agende assim mesmo e avise que o combinado fica pelo WhatsApp.`;
-  }
-  if (silencioTexto) {
-    system = `${system}\n\nO lead está sem responder há ${silencioTexto}. Calibre o tom por esse intervalo: poucos minutos NÃO são "faz tempo que não falamos". Só trate como reaproximação depois de dias.`;
-  }
-
-  // Saudação automática. Era uma mensagem SEPARADA de texto fixo ("Olá, {nome}!
-  // Como posso te ajudar hoje?") enviada antes desta execução -- e o código
-  // seguia adiante, então o lead recebia duas aberturas: a fixa, que ignorava o
-  // que ele tinha acabado de escrever, e a real do modelo logo depois. Além de
-  // duplicada, a fixa era a única mensagem do agente que não absorvia nada do
-  // que a empresa configurou: nem tom, nem instruções, nem Base de
-  // Conhecimento, nem se o agente fala como a empresa ou como equipe.
-  //
-  // Como o modelo já vai responder essa mesma primeira mensagem, a saudação
-  // não precisa existir como envio próprio: vira uma linha no prompt desta
-  // execução. Mesmo padrão do follow-up e do lembrete de reunião.
-  if (behaviorConfig.saudacao_automatica && isFirstMessageEver) {
-    system = `${system}\n\nESTA É A PRIMEIRA MENSAGEM desta conversa. Antes de entrar no objetivo, cumprimente o lead pelo primeiro nome (se você souber) e diga em UMA frase quem está falando. Emende no objetivo na MESMA mensagem, respondendo o que ele escreveu: não mande uma mensagem só de saudação, e não pergunte "como posso ajudar" se ele já disse o que quer.`;
-  }
-  // O agente É o atendimento. Prometer "vou te passar pra um atendente" sem
-  // de fato transferir cria uma expectativa que nunca se cumpre -- o lead
-  // fica esperando alguém que não vem. Se alguém perguntar diretamente se é
-  // um robô, deve responder com honestidade; o que não pode é anunciar uma
-  // transferência que não vai acontecer.
-  // Regra sobre COMPORTAMENTO, não sobre palavras. A primeira versão listava
-  // termos proibidos ("atendente", "equipe", "transferência") e o modelo
-  // apenas reformulou: "posso encaminhar pra uma pessoa responsável" -- e não
-  // chamou tool nenhuma. Promessa vazia: o lead espera um retorno que nunca
-  // vem, porque ninguém foi notificado.
-  system = `${system}\n\nVocê é quem está atendendo este lead, do início ao fim. NUNCA prometa, ofereça nem insinue que alguém vai responder, retornar, verificar, confirmar ou resolver algo depois — em NENHUMA formulação (vale para "encaminho pra alguém", "uma pessoa responsável te responde", "vou verificar e te retorno", "o time confirma com você", etc.). Diante de algo que você não sabe, existem só dois caminhos válidos: (a) chamar a tool de escalar/transferir AGORA, nesta mesma resposta — e aí sim você pode avisar que está passando para uma pessoa; ou (b) dizer com honestidade que não tem essa informação e seguir com o que está ao seu alcance. Se o lead perguntar diretamente se está falando com uma pessoa ou com IA, responda com sinceridade.
-
-NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema: não fale de CRM, cadastro, etapa/funil, ferramenta, sistema, registro, base de conhecimento nem do que você "consegue" ou "não consegue" fazer por dentro. O que acontece nos bastidores acontece em silêncio. Se algo não for possível, resolva pelo lado dele ("vou confirmar isso com você na conversa de segunda") sem descrever o motivo técnico. E se o lead pedir algo interno (mover cadastro, mudar etapa, registrar dado), execute se tiver a ferramenta e confirme em linguagem humana — "anotado", "já deixei registrado aqui" — NUNCA repetindo o jargão nem descrevendo a operação. Isso vale mesmo que o próprio lead use esses termos: não devolva "movi seu cadastro para a etapa X"; devolva algo como "perfeito, já está tudo certo por aqui".`;
-
-  // Comportamento é uma camada independente de Objetivos/Ferramentas --
-  // aplica em cima do legado ou do dinâmico igualmente.
-  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa, String(agent.description ?? "").trim());
-  if (behaviorExtra) system = `${system}\n\n${behaviorExtra}`;
-  if (behaviorConfig.finalizar_conversa) tools = [...tools, FINALIZAR_CONVERSA_TOOL];
-  if (behaviorConfig.transferir_responsavel) tools = [...tools, TRANSFERIR_RESPONSAVEL_TOOL];
-
-  // Follow-up: em vez de um texto fixo (que saía idêntico em toda tentativa
-  // e ignorava o que já tinha sido conversado), o próprio agente escreve a
-  // cutucada com o histórico à vista e no tom configurado.
-  // Lembrete de reunião: o agente escreve a confirmação com o histórico à
-  // vista, em vez de um texto genérico. Objetivo é confirmar presença e dar
-  // uma saída fácil pra remarcar -- lead que não responde some no dia.
-  if (lembreteReuniao) {
-    const tz = behaviorConfig.fuso_horario || "America/Sao_Paulo";
-    const quando = new Intl.DateTimeFormat("pt-BR", {
-      timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit",
-      hour: "2-digit", minute: "2-digit",
-    }).format(new Date(lembreteReuniao));
-
-    // O link vem da reunião, não do histórico. A instrução antiga era "se
-    // houver link no histórico, repita o link" -- e o link nunca esteve lá,
-    // porque o agente também não o enviava na confirmação. Resultado: lembrete
-    // sem link nenhum, que é justamente o que a pessoa precisa na hora.
-    const { data: reuniaoLembrete } = await db
-      .from("activities")
-      .select("meet_link")
-      .eq("lead_id", leadId)
-      .eq("company_id", companyId)
-      .eq("type", "meeting")
-      .eq("scheduled_at", lembreteReuniao)
-      .limit(1);
-    const linkLembrete = (reuniaoLembrete?.[0]?.meet_link as string | undefined) ?? null;
-
-    // "hoje" ou "amanhã" calculado em código, não deixado para o modelo. Num
-    // lembrete real das 07:00 ele disse "nossa consulta é AMANHÃ" sobre uma
-    // reunião que era duas horas depois, no mesmo dia: copiou a expressão do
-    // follow-up da noite anterior, que estava certa quando foi escrita.
-    const diaNaTz = (d: Date) => new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(d);
-    const diasDeDiferenca = Math.round(
-      (Date.parse(diaNaTz(new Date(lembreteReuniao))) - Date.parse(diaNaTz(new Date()))) / 86_400_000,
-    );
-    const referenciaDia = diasDeDiferenca === 0 ? "HOJE"
-      : diasDeDiferenca === 1 ? "AMANHÃ"
-      : `daqui a ${diasDeDiferenca} dias`;
-
-    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: esta é uma mensagem de LEMBRETE da reunião marcada para ${quando}. Ela acontece ${referenciaDia} — use exatamente essa referência de dia e NÃO copie "hoje"/"amanhã" de mensagens anteriores suas, que foram escritas em outro dia. Escreva UMA mensagem curta lembrando do encontro e pedindo uma confirmação simples ("consegue confirmar?"). ${
-      linkLembrete
-        ? `Inclua o link da videochamada em texto: ${linkLembrete}. Nada além disso: no lembrete a pessoa precisa do horário e do link, não de explicação sobre o serviço.`
-        : `Esta reunião não tem link de vídeo — não invente nenhum nem prometa enviar depois.`
-    } Ofereça remarcar caso não dê mais — sem cobrar nem pressionar. Não recomece a apresentação e não repita textualmente mensagens anteriores suas. Envie pela tool enviar_mensagem.`;
-  }
-
-  if (followupAttempt > 0) {
-    system = `${system}\n\nCONTEXTO DESTA EXECUÇÃO: o lead parou de responder e esta é a tentativa de reengajamento nº ${followupAttempt}. Escreva UMA mensagem curta retomando algo concreto da conversa acima (o assunto que ficou pendente, um horário já combinado, uma pergunta que ele não terminou de fazer). Não repita textualmente nenhuma mensagem sua anterior, não se reapresente e não invente informação que não esteja na conversa. Se já houver reunião marcada, apenas reforce que está de pé. Nesta mensagem NÃO ofereça transferir para outra pessoa nem prometa retorno de terceiros: o objetivo é só reabrir a conversa. Envie a mensagem pela tool enviar_mensagem.`;
-  }
+  const { system, tools } = await montarExecucaoDoAgente(db, {
+    agent, behaviorConfig, companyId, leadId, lead, messages, transcript,
+    nomeEmpresa, silencioTexto, isFirstMessageEver, lembreteReuniao, followupAttempt,
+  });
 
   const toolCtx: ToolCtx = { db, companyId, ownerId: String(lead.owner_id ?? ""), leadId };
   const LEGACY_TOOL_NAMES = new Set(["qualificar_lead", "agendar_reuniao_closer", "mover_pipeline", "cancelar_reuniao", "enviar_mensagem", "escalar_humano", "finalizar_conversa", "transferir_responsavel"]);
