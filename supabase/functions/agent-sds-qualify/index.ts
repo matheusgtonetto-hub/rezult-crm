@@ -266,6 +266,22 @@ async function retrieveKbContext(
   query: string,
 ): Promise<string> {
   if (!query.trim()) return "";
+
+  // Agora que a busca roda em todo agente, e não só nos de atendimento, o
+  // caso mais comum passou a ser "agente sem nenhum documento". Cada busca
+  // custa uma chamada de embedding paga na OpenAI, por mensagem, por lead:
+  // sem esta checagem a maioria dos agentes pagaria por uma busca que só pode
+  // voltar vazia. A consulta abaixo é indexada e local.
+  const { data: temDocumento } = await db
+    .from("agent_knowledge_documents")
+    .select("id")
+    .eq("agent_id", agentId)
+    .eq("company_id", companyId)
+    .eq("enabled", true)
+    .eq("status", "ready")
+    .limit(1);
+  if (!temDocumento?.length) return "";
+
   const { data: openaiKeyRow } = await db
     .from("ai_provider_keys")
     .select("api_key")
@@ -1853,19 +1869,27 @@ Deno.serve(async (req) => {
   const enabledTools = (agent.enabled_tools as string[] | null) ?? [];
   const legacy = objectives.length === 0;
 
+  // A Base de Conhecimento vale para QUALQUER agente, com qualquer objetivo.
+  // Antes só era consultada com "atendimento" marcado, e isso era bug, não
+  // decisão: quem qualifica e agenda também recebe pergunta de lead no meio da
+  // conversa. O DYNAMIC_BASE_INTRO já mandava, para todo agente, "só afirme o
+  // que estiver nas instruções da empresa ou na Base de Conhecimento deste
+  // prompt" -- ou seja, o prompt citava uma fonte que nunca era injetada. Na
+  // prática: o primeiro cliente tinha um documento carregado, a tela mostrava
+  // ele lá, e nenhuma resposta jamais o usou.
+  //
+  // `messages` está em ordem decrescente, então o primeiro !from_me é a
+  // pergunta MAIS RECENTE do lead -- que é o que deve guiar a busca.
+  const ultimaDoLead = (messages ?? []).find((m) => !m.from_me)?.body as string | undefined;
+  const kbContext = await retrieveKbContext(db, agent.id as string, companyId, ultimaDoLead || transcript);
+
   let system: string;
   let tools: AnthropicToolDef[];
   if (legacy) {
     system = `${SDS_METHODOLOGY}\n\n${agent.custom_context ?? ""}`;
+    if (kbContext) system = `${system}\n\nBASE DE CONHECIMENTO (material da empresa — use pra responder com precisão):\n${kbContext}`;
     tools = TOOLS;
   } else {
-    let kbContext = "";
-    if (objectives.includes("atendimento")) {
-      // `messages` está em ordem decrescente, então o primeiro !from_me é a
-      // pergunta MAIS RECENTE do lead -- que é o que deve guiar a busca.
-      const lastLeadMsg = (messages ?? []).find((m) => !m.from_me)?.body as string | undefined;
-      kbContext = await retrieveKbContext(db, agent.id as string, companyId, lastLeadMsg || transcript);
-    }
     let qualFields: { id: string; label: string }[] = [];
     if (objectives.includes("qualificar") && behaviorConfig.campos_qualificacao?.length) {
       const { data: fieldsData } = await db
