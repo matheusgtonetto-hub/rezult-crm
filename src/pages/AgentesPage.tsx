@@ -2391,10 +2391,23 @@ export default function AgentesPage() {
                       })),
                     ];
 
-                    const ordem = ["WhatsApp", "Instagram / Messenger", "Calendar", "Webhooks"];
-                    const categorias = ordem.filter((cat) => cards.some((c) => c.categoria === cat));
-                    // Categoria que ficou vazia (ex.: desmarcou "Agendar" e o
-                    // Calendar sumiu) não pode deixar a grade em branco sem
+                    // Todo canal suportado aparece como chip, mesmo zerado. Um
+                    // chip que só nasce depois de existir conexão esconde o que
+                    // o agente é capaz de fazer: quem nunca ligou um WhatsApp
+                    // não descobre que podia. Zerado, o chip leva ao lugar onde
+                    // se conecta. Calendar é a exceção e some quando o objetivo
+                    // "Agendar" está desmarcado, porque aí a agenda dos
+                    // vendedores não influencia nada.
+                    const categorias = ["WhatsApp", "Instagram / Messenger", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : []), "Webhooks"];
+                    const vazios: Record<string, string> = {
+                      "WhatsApp": "Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.",
+                      "Instagram / Messenger": "Nenhuma página do Instagram ou Messenger conectada. Conecte em Configurações → Conexões.",
+                      "Calendar": "Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.",
+                      "Webhooks": "Nenhum webhook de entrada configurado. Configure em Configurações → Integrações.",
+                      "Todos": "Conecte um WhatsApp, uma página do Instagram ou um webhook em Configurações → Conexões para escolher onde este agente atua.",
+                    };
+                    // Categoria que deixou de existir (Calendar depois de
+                    // desmarcar "Agendar") não pode deixar a grade em branco sem
                     // explicação: volta pra "Todos".
                     const catAtiva = catIntegracao !== "Todos" && !categorias.includes(catIntegracao) ? "Todos" : catIntegracao;
                     const visiveis = catAtiva === "Todos" ? cards : cards.filter((c) => c.categoria === catAtiva);
@@ -2415,71 +2428,67 @@ export default function AgentesPage() {
                           )}
                         </div>
 
-                        {cards.length === 0 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {[{ cat: "Todos", n: cards.length }, ...categorias.map((cat) => ({ cat, n: cards.filter((c) => c.categoria === cat).length }))].map(({ cat, n }) => {
+                            const ativo = catAtiva === cat;
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setCatIntegracao(cat)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
+                                  ativo
+                                    ? "bg-[#128A68] border-[#128A68] text-white"
+                                    : "bg-white border-[#EEEEEE] text-[#111111] hover:border-[#CCCCCC]"
+                                }`}
+                              >
+                                {cat}
+                                <span className={ativo ? "text-white/70" : n === 0 ? "text-[#CCCCCC]" : "text-[#767676]"}>{n}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {visiveis.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-16 text-center">
                             <div className="w-12 h-12 rounded-xl bg-white border border-[#EEEEEE] flex items-center justify-center mb-4">
                               <Link2 size={22} className="text-[#767676]" />
                             </div>
-                            <p className="text-[13px] font-semibold text-[#111111] mb-1">Nenhuma conexão disponível</p>
-                            <p className="text-[12px] text-[#767676] max-w-[380px]">
-                              Conecte um WhatsApp, uma página do Instagram ou um webhook em Configurações → Conexões para escolher onde este agente atua.
-                            </p>
+                            <p className="text-[13px] font-semibold text-[#111111] mb-1">Nada conectado aqui ainda</p>
+                            <p className="text-[12px] text-[#767676] max-w-[380px]">{vazios[catAtiva] ?? vazios["Todos"]}</p>
                           </div>
                         ) : (
-                          <>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {[{ cat: "Todos", n: cards.length }, ...categorias.map((cat) => ({ cat, n: cards.filter((c) => c.categoria === cat).length }))].map(({ cat, n }) => {
-                                const ativo = catAtiva === cat;
-                                return (
-                                  <button
-                                    key={cat}
-                                    type="button"
-                                    onClick={() => setCatIntegracao(cat)}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
-                                      ativo
-                                        ? "bg-[#128A68] border-[#128A68] text-white"
-                                        : "bg-white border-[#EEEEEE] text-[#111111] hover:border-[#CCCCCC]"
-                                    }`}
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {visiveis.map((c) => (
+                              <div key={c.chave} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[#128A68]" : "bg-[#767676]/40"}`} />
+                                    <span className={`text-[11px] font-medium ${c.conectado ? "text-[#128A68]" : "text-[#767676]"}`}>
+                                      {c.conectado ? "Conectado" : "Desconectado"}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold shrink-0 ml-2 truncate">{c.categoria}</span>
+                                </div>
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-[#EEEEEE]"
+                                    style={{ background: c.cor }}
                                   >
-                                    {cat}
-                                    <span className={ativo ? "text-white/70" : "text-[#767676]"}>{n}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                              {visiveis.map((c) => (
-                                <div key={c.chave} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[#128A68]" : "bg-[#767676]/40"}`} />
-                                      <span className={`text-[11px] font-medium ${c.conectado ? "text-[#128A68]" : "text-[#767676]"}`}>
-                                        {c.conectado ? "Conectado" : "Desconectado"}
-                                      </span>
-                                    </div>
-                                    <span className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold shrink-0 ml-2 truncate">{c.categoria}</span>
+                                    {c.icone}
                                   </div>
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <div
-                                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-[#EEEEEE]"
-                                      style={{ background: c.cor }}
-                                    >
-                                      {c.icone}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-[13px] font-bold text-[#111111] truncate">{c.titulo}</p>
-                                      <p className="text-[11px] text-[#767676] truncate">{c.subtitulo}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
-                                    <span className="text-[12px] font-medium text-[#767676]">Usar neste agente</span>
-                                    <Switch checked={c.usa} onCheckedChange={c.alternar} />
+                                  <div className="min-w-0">
+                                    <p className="text-[13px] font-bold text-[#111111] truncate">{c.titulo}</p>
+                                    <p className="text-[11px] text-[#767676] truncate">{c.subtitulo}</p>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          </>
+                                <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
+                                  <span className="text-[12px] font-medium text-[#767676]">Usar neste agente</span>
+                                  <Switch checked={c.usa} onCheckedChange={c.alternar} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </>
                     );
