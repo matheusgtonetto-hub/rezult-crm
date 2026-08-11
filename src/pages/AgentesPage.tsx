@@ -30,6 +30,8 @@ import {
   ArrowRight,
   Check,
   HelpCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -49,7 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { IA_MODELS, IA_COST_LABELS, IA_COST_STYLES } from "@/lib/ai-models";
-import { AGENT_TOOLS, AGENT_TOOL_ENTITIES, AGENT_TOOL_CATEGORY_LABELS, AGENT_TOOL_CATEGORY_STYLES } from "@/lib/agent-tools";
+import { AGENT_TOOLS, AGENT_TOOL_ENTITIES, AGENT_TOOL_CATEGORY_LABELS, AGENT_TOOL_CATEGORY_STYLES, ferramentasRecomendadas } from "@/lib/agent-tools";
 import {
   Dialog,
   DialogContent,
@@ -481,6 +483,10 @@ export default function AgentesPage() {
   const [objectivesDraft, setObjectivesDraft] = useState<string[]>([]);
   const [behaviorDraft, setBehaviorDraft] = useState<Required<BehaviorConfig>>(BEHAVIOR_DRAFT_DEFAULTS);
   const [enabledToolsDraft, setEnabledToolsDraft] = useState<string[]>([]);
+  // Etapa "Ferramentas": o catálogo inteiro fica atrás de um botão. Aberto de
+  // saída, ele é uma parede de 70 caixas que faz parecer que o agente precisa
+  // de alguma coisa ali -- e não precisa de nenhuma.
+  const [verTodasFerramentas, setVerTodasFerramentas] = useState(false);
   const [modelDraft, setModelDraft] = useState("");
   const [manualAutomations, setManualAutomations] = useState<AutomationOption[]>([]);
   // Etapa "Integrações" -- listas de conexões existentes na empresa (não
@@ -892,6 +898,26 @@ export default function AgentesPage() {
     setEnabledToolsDraft(next);
     if (wizardMode) void commitTools(next);
   }
+
+  // Sugestão inicial de ferramentas, aplicada UMA vez por agente, ao chegar
+  // na etapa durante a criação, e só quando ele ainda não tem nenhuma
+  // marcada. Nunca toca em agente que já existe: quem não marcou nada fez uma
+  // escolha, e reaplicar sugestão numa edição ligaria ferramenta pelas costas
+  // de quem já rodou o agente em produção.
+  const sugestaoFerramentasRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!wizardMode || !selected) return;
+    const passos = WIZARD_STEPS.filter((s) => s.v !== "closers" || objectivesDraft.includes("agendar"));
+    if (passos[wizardStepIndex]?.v !== "ferramentas") return;
+    if (sugestaoFerramentasRef.current === selected.id) return;
+    sugestaoFerramentasRef.current = selected.id;
+    if ((selected.enabled_tools ?? []).length > 0) return;
+    const sugeridas = ferramentasRecomendadas(objectivesDraft);
+    if (!sugeridas.length) return;
+    setEnabledToolsDraft(sugeridas);
+    void commitTools(sugeridas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardMode, wizardStepIndex, objectivesDraft, selected]);
 
   // Avança o wizard e "destrava" o próximo número no stepper -- é essa
   // função (não um setWizardStepIndex direto) que marca um passo como
@@ -2729,56 +2755,105 @@ export default function AgentesPage() {
 
                 {/* FERRAMENTAS */}
                 <TabsContent value="ferramentas" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
-                  <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Ferramentas do CRM</h3>
-                    <p className="text-[12px] text-[#767676]">
-                      Quais operações do CRM esse agente pode chamar durante a conversa. Ferramentas "Destrutiva" (excluir) ainda não estão liberadas.
-                    </p>
-                  </div>
-                  {AGENT_TOOL_ENTITIES.map((entity) => {
-                    const tools = AGENT_TOOLS.filter((t) => t.entity === entity);
-                    return (
-                      <div key={entity}>
-                        <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">{entity}</h4>
-                        <div className="space-y-1.5">
-                          {tools.map((t) => {
-                            const disabled = t.category === "destrutiva" || !t.implemented;
-                            const catStyle = AGENT_TOOL_CATEGORY_STYLES[t.category];
-                            return (
-                              <label
-                                key={t.id}
-                                className={`flex items-start gap-3 p-2.5 border border-[#EEEEEE] rounded-lg ${
-                                  disabled ? "opacity-50 cursor-not-allowed bg-[#FAFAFA]" : "cursor-pointer bg-white"
-                                }`}
+                  {(() => {
+                    // Só entra na lista o que existe de verdade. As caixas
+                    // permanentemente cinzas (destrutivas e as ainda não
+                    // implementadas) eram 25 das 73 e faziam a etapa parecer
+                    // maior e mais obrigatória do que é.
+                    const disponiveis = AGENT_TOOLS.filter((t) => t.implemented && t.category !== "destrutiva");
+                    const idsRecomendados = ferramentasRecomendadas(objectivesDraft);
+                    const recomendadas = disponiveis.filter((t) => idsRecomendados.includes(t.id));
+                    const demais = disponiveis.filter((t) => !idsRecomendados.includes(t.id));
+                    const marcadasNasDemais = demais.filter((t) => enabledToolsDraft.includes(t.id)).length;
+
+                    const caixa = (t: typeof AGENT_TOOLS[number]) => {
+                      const catStyle = AGENT_TOOL_CATEGORY_STYLES[t.category];
+                      return (
+                        <label
+                          key={t.id}
+                          className="flex items-start gap-3 p-2.5 border border-[#EEEEEE] rounded-lg cursor-pointer bg-white"
+                        >
+                          <Checkbox
+                            className="mt-0.5"
+                            checked={enabledToolsDraft.includes(t.id)}
+                            onCheckedChange={(checked) => toggleTool(t.id, checked === true)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[13px] font-medium text-[#111111]">{t.label}</span>
+                              <span
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                                style={{ background: catStyle.bg, color: catStyle.fg }}
                               >
-                                <Checkbox
-                                  className="mt-0.5"
-                                  disabled={disabled}
-                                  checked={enabledToolsDraft.includes(t.id)}
-                                  onCheckedChange={(checked) => toggleTool(t.id, checked === true)}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-[13px] font-medium text-[#111111]">{t.label}</span>
-                                    <span
-                                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
-                                      style={{ background: catStyle.bg, color: catStyle.fg }}
-                                    >
-                                      {AGENT_TOOL_CATEGORY_LABELS[t.category]}
-                                    </span>
-                                    {!t.implemented && t.category !== "destrutiva" && (
-                                      <span className="text-[10px] text-[#767676]">(em implementação)</span>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] text-[#767676]">{t.description}</div>
-                                </div>
-                              </label>
-                            );
-                          })}
+                                {AGENT_TOOL_CATEGORY_LABELS[t.category]}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#767676]">{t.description}</div>
+                          </div>
+                        </label>
+                      );
+                    };
+
+                    return (
+                      <>
+                        <div>
+                          <h3 className="text-[14px] font-semibold text-[#111111]">Ferramentas do CRM</h3>
+                          <p className="text-[12px] text-[#767676]">
+                            Qualificar, agendar e responder o agente já faz sem marcar nada aqui. Estas são as operações
+                            extras que ele pode executar no CRM enquanto conversa, como mover o card de etapa ou consultar
+                            o catálogo. Cada uma marcada entra no raciocínio dele em toda mensagem, então menos costuma
+                            render mais.
+                          </p>
                         </div>
-                      </div>
+
+                        {recomendadas.length > 0 && (
+                          <div>
+                            <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">
+                              Recomendadas para os objetivos deste agente
+                            </h4>
+                            <div className="space-y-1.5">{recomendadas.map(caixa)}</div>
+                          </div>
+                        )}
+
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setVerTodasFerramentas((v) => !v)}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-[#EEEEEE] bg-white text-[13px] font-medium text-[#111111] hover:border-[#CCCCCC] transition-colors cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              {verTodasFerramentas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              Ver todas as ferramentas do CRM ({demais.length})
+                            </span>
+                            {marcadasNasDemais > 0 && (
+                              <span className="text-[11px] font-medium text-[#128A68] bg-[#128A68]/10 px-2 py-0.5 rounded-full">
+                                {marcadasNasDemais} marcada{marcadasNasDemais > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </button>
+
+                          {verTodasFerramentas && (
+                            <div className="mt-4 space-y-6">
+                              {AGENT_TOOL_ENTITIES.map((entity) => {
+                                const doGrupo = demais.filter((t) => t.entity === entity);
+                                if (!doGrupo.length) return null;
+                                return (
+                                  <div key={entity}>
+                                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">{entity}</h4>
+                                    <div className="space-y-1.5">{doGrupo.map(caixa)}</div>
+                                  </div>
+                                );
+                              })}
+                              <p className="text-[11px] text-[#767676]">
+                                Operações de exclusão e de criação de configuração (funis, campos, departamentos) ainda não
+                                estão disponíveis para agentes.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </>
                     );
-                  })}
+                  })()}
                 </TabsContent>
 
                 {/* INSTRUÇÕES */}

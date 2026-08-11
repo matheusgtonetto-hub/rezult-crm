@@ -70,7 +70,10 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   // ── Conversas ──────────────────────────────────────────────────────────
   { id: "listar_conversas",              label: "Listar Conversas",               description: "Lista conversas com filtros opcionais e paginação",                        category: "leitura", entity: "Conversas", implemented: true },
   { id: "consultar_conversa_por_lead",   label: "Consultar Conversa por Lead",    description: "Recupera a conversa de um lead específico pelo ID",                        category: "leitura", entity: "Conversas", implemented: true },
-  { id: "enviar_mensagem",               label: "Enviar Mensagem",                description: "Envia uma mensagem em uma conversa",                                       category: "acao",    entity: "Conversas", implemented: true },
+  // "Enviar Mensagem" saiu daqui: é ferramenta do núcleo, todo agente já tem
+  // sempre (buildDynamicTools em agent-sds-qualify). Como caixa de seleção
+  // ela não fazia nada -- não existe schema com esse id no backend -- e dava
+  // a impressão de que sem marcar o agente não responderia.
   { id: "buscar_ou_criar_conversa_telefone", label: "Buscar ou Criar Conversa por Telefone", description: "Busca uma conversa existente pelo telefone ou cria uma nova",     category: "acao",    entity: "Conversas", implemented: true },
   { id: "listar_mensagens_conversa",     label: "Listar Mensagens da Conversa",   description: "Lista as mensagens de uma conversa",                                       category: "leitura", entity: "Conversas", implemented: true },
 
@@ -143,3 +146,38 @@ export const AGENT_TOOL_ENTITIES = [
   "Campos Adicionais", "Pipelines", "Atendentes", "Motivos de Perda",
   "Horários de Trabalho", "Departamentos", "Conexões",
 ] as const;
+
+// ─── Recomendação por objetivo ──────────────────────────────────────────────
+//
+// Nada aqui é necessário pro agente funcionar: qualificar, agendar e
+// responder já vêm das ferramentas do núcleo, ligadas pelo objetivo no
+// próprio backend. Esta lista é curta de propósito.
+//
+// Cada ferramenta marcada entra no prompt de TODA mensagem, com nome,
+// descrição e schema. Marcar dezenas custa token por mensagem, por lead, pra
+// sempre, e aumenta a chance do modelo chamar a ferramenta errada em vez de
+// simplesmente responder. Por isso a recomendação é o mínimo que poupa
+// trabalho humano de verdade, não tudo que é tecnicamente possível.
+//
+// Fora da lista por decisão, não por esquecimento:
+//   - atualizar_lead_notas: escreve no card, mas ninguém pediu que o agente
+//     anote sozinho. Fica como escolha explícita.
+//   - adicionar/remover_tag_lead: o agente pode remover a própria tag de
+//     ativação e se desligar da conversa.
+//   - atualizar_atendente_lead: troca o dono do lead sem o vendedor saber.
+//   - ganhar/perder_negocio: fecha venda no CRM a partir de uma conversa.
+export const FERRAMENTAS_RECOMENDADAS: Record<string, string[]> = {
+  // Move o card pra etapa certa sozinho. É a operação que mais economiza
+  // trabalho manual, e erra barato: com o nome errado, a ferramenta devolve
+  // as etapas válidas do funil e o modelo corrige na hora.
+  qualificar: ["mover_negocio_estagio"],
+  agendar: ["mover_negocio_estagio"],
+  // Leitura pura, sem risco: responde preço e catálogo sem depender de a
+  // empresa ter alimentado a Base de Conhecimento.
+  atendimento: ["listar_produtos", "consultar_produto"],
+};
+
+export function ferramentasRecomendadas(objectives: string[]): string[] {
+  const ids = objectives.flatMap((o) => FERRAMENTAS_RECOMENDADAS[o] ?? []);
+  return [...new Set(ids)];
+}
