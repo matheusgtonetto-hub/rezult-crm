@@ -493,7 +493,7 @@ const ESTILO_PROMPTS: Record<string, string> = {
   descontraida: "Tom de comunicação: descontraído e próximo -- pode usar linguagem mais informal e leve, sem perder o profissionalismo.",
 };
 
-function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEmpresa = ""): string {
+function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEmpresa = "", quemEAgente = ""): string {
   const lines: string[] = [];
 
   // Pessoa do discurso — precisa vir cedo e explícita, senão o modelo
@@ -506,6 +506,13 @@ function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEm
   } else {
     lines.push(`QUEM VOCÊ É: você é ${empresa} falando diretamente com o cliente. Use SEMPRE a primeira pessoa para o atendimento ("eu te atendo", "minha agenda", "vou te receber", "no meu trabalho"). NUNCA se refira ao profissional em terceira pessoa nem diga "vocês vão conversar" — quem vai conversar com o lead é você.`);
   }
+
+  // A descrição escrita pela empresa completa o bloco acima. O seletor de voz
+  // dá a PESSOA do discurso (primeira pessoa ou membro do time); a descrição
+  // dá a substância -- nome, profissão, formação, como atende. Sem ela o
+  // agente em modo "equipe" dizia "ela vai te receber" sem saber quem é "ela",
+  // e o em primeira pessoa se apresentava só pelo nome da empresa.
+  if (quemEAgente) lines.push(quemEAgente);
 
   if (cfg.estilo_comunicacao && ESTILO_PROMPTS[cfg.estilo_comunicacao]) lines.push(ESTILO_PROMPTS[cfg.estilo_comunicacao]);
   // Travessão é entrega imediata de texto gerado por IA: ninguém digita "—"
@@ -1562,7 +1569,7 @@ Deno.serve(async (req) => {
   // 2+ agentes ativos essa chamada quebraria a função inteira.
   const { data: activeAgents } = await db
     .from("agents")
-    .select("id, name, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
+    .select("id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
     .eq("company_id", companyId)
     .eq("type", "SDS")
     .eq("active", true)
@@ -1790,7 +1797,7 @@ Deno.serve(async (req) => {
       const closingSystem = [
         DYNAMIC_BASE_INTRO,
         `IMPORTANTE: você atingiu o limite de respostas nesta conversa. Nesta mensagem, despeça-se cordialmente do cliente e, em seguida, chame OBRIGATORIAMENTE a tool ${closingTool.name}.`,
-        buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa),
+        buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa, String(agent.description ?? "").trim()),
       ].filter(Boolean).join("\n\n");
       const closingCtx: { companyId: string; leadId: string; agentId: string; agentName?: string; activationTag?: string; lead: Record<string, unknown>; behaviorConfig: BehaviorConfig } =
         { companyId, leadId, agentId: agent.id as string, agentName: agent.name as string, activationTag: (agent.activation_tag as string | null) ?? undefined, lead, behaviorConfig };
@@ -1909,7 +1916,7 @@ NUNCA exponha bastidores ao lead. Ele é um cliente, não um operador do sistema
 
   // Comportamento é uma camada independente de Objetivos/Ferramentas --
   // aplica em cima do legado ou do dinâmico igualmente.
-  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa);
+  const behaviorExtra = buildBehaviorPromptExtra(behaviorConfig, (agent.name as string) ?? "", nomeEmpresa, String(agent.description ?? "").trim());
   if (behaviorExtra) system = `${system}\n\n${behaviorExtra}`;
   if (behaviorConfig.finalizar_conversa) tools = [...tools, FINALIZAR_CONVERSA_TOOL];
   if (behaviorConfig.transferir_responsavel) tools = [...tools, TRANSFERIR_RESPONSAVEL_TOOL];

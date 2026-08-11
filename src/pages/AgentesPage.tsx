@@ -482,6 +482,9 @@ const defaultCloserAvailability = (): WorkDay[] =>
 // então este limite é custo por mensagem, não só espaço de tela. A coluna no
 // banco é `text`, sem limite -- o corte sempre foi só aqui.
 const LIMITE_INSTRUCOES = 50000;
+// Descrição do agente entra no bloco de identidade do prompt, em toda
+// mensagem. É apresentação, não material de consulta.
+const LIMITE_DESCRICAO = 1000;
 
 const SUPPORTED_KB_EXTENSIONS = ["pdf", "txt", "csv", "html", "htm", "json"];
 
@@ -562,6 +565,7 @@ export default function AgentesPage() {
   // Etapa "Integrações": chip de categoria selecionado. "Todos" mostra a
   // grade inteira, que é o estado em que a etapa abre.
   const [catIntegracao, setCatIntegracao] = useState("Todos");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
   const [modelDraft, setModelDraft] = useState("");
   const [manualAutomations, setManualAutomations] = useState<AutomationOption[]>([]);
   // Etapa "Integrações" -- listas de conexões existentes na empresa (não
@@ -691,6 +695,7 @@ export default function AgentesPage() {
       : (cfgSalva.delay_resposta_minutos ?? 0) * 60;
     setBehaviorDraft({ ...BEHAVIOR_DRAFT_DEFAULTS, ...cfgSalva, delay_resposta_segundos: delayNormalizado });
     setEnabledToolsDraft(selected?.enabled_tools ?? []);
+    setDescriptionDraft(selected?.description ?? "");
     setModelDraft(selected?.model ?? "");
     setDocSearch("");
     setKbSearch("");
@@ -929,6 +934,14 @@ export default function AgentesPage() {
     const { error } = await supabase.from("agents").update({ objectives: next }).eq("id", selected.id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar objetivo"); return; }
     setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, objectives: next } : a)));
+  }
+
+  async function commitDescription() {
+    if (!selected || !companyId) return;
+    const valor = descriptionDraft.trim() || null;
+    const { error } = await supabase.from("agents").update({ description: valor }).eq("id", selected.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao salvar"); return; }
+    setAgents((prev) => prev.map((a) => (a.id === selected.id ? { ...a, description: valor } : a)));
   }
 
   async function commitBehavior(next: Required<BehaviorConfig>) {
@@ -1193,6 +1206,7 @@ export default function AgentesPage() {
         behavior_config: behaviorDraft,
         enabled_tools: enabledToolsDraft,
         model: modelDraft,
+        description: descriptionDraft.trim() || null,
         custom_context: customContext,
       }).eq("id", selected.id).eq("company_id", companyId),
       ...(closerAdded.length ? [supabase.from("agent_closers").upsert(closerAdded.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id })), { onConflict: "agent_id,user_id", ignoreDuplicates: true })] : []),
@@ -1236,6 +1250,7 @@ export default function AgentesPage() {
     JSON.stringify(behaviorDraft) !== JSON.stringify({ ...BEHAVIOR_DRAFT_DEFAULTS, ...selected.behavior_config }) ||
     JSON.stringify(enabledToolsDraft) !== JSON.stringify(selected.enabled_tools) ||
     modelDraft !== selected.model ||
+    descriptionDraft !== (selected.description ?? "") ||
     customContext !== (selected.custom_context ?? "") ||
     JSON.stringify([...closerIds].sort()) !== JSON.stringify([...closerIdsSaved].sort()) ||
     JSON.stringify(closerAvailability) !== JSON.stringify(closerAvailabilitySaved) ||
@@ -2062,7 +2077,7 @@ export default function AgentesPage() {
                       </Tooltip>
                     </div>
 
-                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-4">
                       <Select
                         value={behaviorDraft.persona_voz ?? "propria"}
                         onValueChange={(v) => updateBehaviorConfig({ persona_voz: v as BehaviorConfig["persona_voz"] })}
@@ -2073,6 +2088,34 @@ export default function AgentesPage() {
                           <SelectItem value="equipe">Membro do time</SelectItem>
                         </SelectContent>
                       </Select>
+
+                      {/* Fica colado no seletor porque os dois compõem o mesmo
+                          bloco do prompt: o seletor dá a pessoa do discurso, o
+                          texto dá a substância (nome, profissão, como atende). */}
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[12px]">Descrição do agente</Label>
+                          <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
+                            <Info size={12} /> Usada como instrução pela IA
+                          </span>
+                        </div>
+                        <Textarea
+                          value={descriptionDraft}
+                          onChange={(e) => setDescriptionDraft(e.target.value.slice(0, LIMITE_DESCRICAO))}
+                          onBlur={() => { if (wizardMode) void commitDescription(); }}
+                          placeholder={
+                            (behaviorDraft.persona_voz ?? "propria") === "equipe"
+                              ? "Ex: Você é a Caroline, assistente da Samantha Oliveira, psicóloga com orientação psicanalítica. Ela atende adultos, presencial em Florianópolis e online para todo o Brasil."
+                              : "Ex: Você é psicóloga com orientação psicanalítica, atende adultos, presencial em Florianópolis e online para todo o Brasil."
+                          }
+                          className="mt-1 min-h-[110px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                        />
+                        <div className="flex justify-end mt-1">
+                          <span className="text-[11px] text-[#767676]">
+                            {descriptionDraft.length.toLocaleString("pt-BR")} / {LIMITE_DESCRICAO.toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -3147,15 +3190,21 @@ export default function AgentesPage() {
               />
             </div>
             <div>
-              <Label className="text-[12px]">Descrição</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className="text-[12px]">Descrição</Label>
+                <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
+                  <Info size={12} /> Usada como instrução pela IA
+                </span>
+              </div>
               <Textarea
                 value={draftDescription}
-                onChange={(e) => setDraftDescription(e.target.value)}
-                placeholder="Ex: Agente que qualifica leads do Instagram"
+                onChange={(e) => setDraftDescription(e.target.value.slice(0, LIMITE_DESCRICAO))}
+                placeholder="Ex: Você é psicóloga com orientação psicanalítica, atende adultos, presencial em Florianópolis e online para todo o Brasil."
                 className="mt-1 min-h-[70px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               <p className="text-[11px] text-[#767676] mt-1">
-                Esse campo é apenas para organização. Não afeta o comportamento da IA.
+                Quem é o agente na conversa: profissão, formação, como atende. Dá pra escrever depois e ajustar em
+                Comportamento, junto da escolha entre falar em primeira pessoa ou como membro do time.
               </p>
             </div>
             <div>
