@@ -594,7 +594,11 @@ type LoopUsage = { inputTokens: number; outputTokens: number };
 // real o agente registrou a qualificação e escreveu a resposta como texto, e
 // o lead não recebeu absolutamente nada. Agora ele volta pra quem chamou,
 // que usa como rede de segurança.
-type LoopResult = { actions: string[] | null; usage: LoopUsage; success: boolean; finalText: string };
+// erroProvedor: a resposta crua da Anthropic/OpenAI quando a chamada falha.
+// Sem carregar isso pra fora, o único sintoma que sobrava era "ai_request_failed",
+// e a causa (chave sem acesso ao modelo, crédito acabado, id inválido) ficava
+// só no log da função, onde ninguém vai olhar.
+type LoopResult = { actions: string[] | null; usage: LoopUsage; success: boolean; finalText: string; erroProvedor?: string };
 
 // deno-lint-ignore no-explicit-any
 function textoDosBlocos(content: any): string {
@@ -633,8 +637,9 @@ async function runAnthropicLoop(
       body: JSON.stringify({ model, max_tokens: 1024, system, tools, messages, ...(temperature !== undefined ? { temperature } : {}) }),
     });
     if (!res.ok) {
-      console.error("[agent-sds-qualify] Anthropic error:", res.status, await res.text());
-      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText };
+      const detalheAnthropic = await res.text();
+      console.error("[agent-sds-qualify] Anthropic error:", res.status, detalheAnthropic);
+      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText, erroProvedor: `Anthropic ${res.status}: ${detalheAnthropic.slice(0, 400)}` };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.input_tokens) || 0;
@@ -742,7 +747,7 @@ async function runOpenAiLoop(
     if (!res.ok) {
       const detalhe = await res.text();
       console.error("[agent-sds-qualify] OpenAI error:", res.status, detalhe);
-      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText };
+      return { actions: actions.length > 0 ? actions : null, usage, success: false, finalText, erroProvedor: `OpenAI ${res.status}: ${detalhe.slice(0, 400)}` };
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
@@ -1785,15 +1790,15 @@ async function executarTeste(
 ): Promise<Response> {
   const agentId = String(body.agent_id ?? "");
   const mensagens = (body.mensagens ?? []).filter((m) => String(m?.texto ?? "").trim());
-  if (!agentId) return json({ error: "missing_agent_id" }, 400);
-  if (!mensagens.length) return json({ error: "sem_mensagens" }, 400);
+  if (!agentId) return json({ error: "missing_agent_id" }, 200);
+  if (!mensagens.length) return json({ error: "sem_mensagens" }, 200);
 
   const { data: agent } = await db
     .from("agents")
     .select("id, company_id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
     .eq("id", agentId)
     .maybeSingle();
-  if (!agent) return json({ error: "agent_not_found" }, 404);
+  if (!agent) return json({ error: "agent_not_found" }, 200);
   const companyId = agent.company_id as string;
 
   // Autenticação pelo JWT do navegador, nunca pelo segredo interno: quem testa
@@ -1803,7 +1808,7 @@ async function executarTeste(
   const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data: userData } = await db.auth.getUser(jwt);
   const uid = userData?.user?.id;
-  if (!uid) return json({ error: "unauthorized" }, 401);
+  if (!uid) return json({ error: "unauthorized" }, 200);
   const { data: empresa } = await db.from("companies").select("owner_id, name").eq("id", companyId).maybeSingle();
   let permitido = empresa?.owner_id === uid;
   if (!permitido) {
@@ -1812,7 +1817,7 @@ async function executarTeste(
       .eq("company_id", companyId).eq("user_id", uid).limit(1);
     permitido = !!membro?.length;
   }
-  if (!permitido) return json({ error: "forbidden" }, 403);
+  if (!permitido) return json({ error: "forbidden" }, 200);
 
   const behaviorConfig = ((agent.behavior_config as BehaviorConfig | null) ?? {}) as BehaviorConfig;
   const model = (agent.model as string) || "claude-sonnet-5";
@@ -1822,7 +1827,7 @@ async function executarTeste(
     .eq("company_id", companyId).eq("provider", provider).eq("active", true)
     .maybeSingle();
   const apiKey = companyKey?.api_key || "";
-  if (!apiKey) return json({ error: "no_company_api_key", provider }, 400);
+  if (!apiKey) return json({ error: "no_company_api_key", provider }, 200);
 
   // Lead de mentira, e de propósito VAZIO: sem e-mail e sem nenhum campo
   // preenchido é exatamente o estado de um lead novo chegando pelo WhatsApp.
@@ -1889,7 +1894,14 @@ async function executarTeste(
   // isso a fatura do provedor não bateria com o painel de uso.
   await logAgentUsage(db, agentId, companyId, model, resultado.usage, null, resultado.success);
 
-  if (resultado.actions === null) return json({ error: "ai_request_failed" }, 502);
+  // Erro do teste volta com HTTP 200 de propósito. supabase.functions.invoke
+  // não entrega o corpo da resposta quando o status não é 2xx: o navegador
+  // recebia só "erro" genérico e a causa real morria aqui dentro. Este
+  // endpoint é de tela, não de máquina, então quem decide o que mostrar é o
+  // campo `error` do corpo.
+  if (resultado.actions === null) {
+    return json({ error: "ai_request_failed", detalhe: resultado.erroProvedor ?? null }, 200);
+  }
   // Mesma rede de segurança do fluxo real: texto sem enviar_mensagem é
   // resposta que o lead nunca receberia.
   if (!respostas.length && resultado.finalText) respostas.push(resultado.finalText);

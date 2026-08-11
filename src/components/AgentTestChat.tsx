@@ -47,14 +47,20 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
       // functions.invoke NÃO lança em erro HTTP: sem checar as duas coisas, a
       // tela ficaria em silêncio como se o agente não tivesse o que dizer.
       const falha = (data as { error?: string } | null)?.error;
+      const detalhe = (data as { detalhe?: string | null } | null)?.detalhe;
       if (error || falha) {
+        // O detalhe é a resposta crua do provedor de IA (chave sem acesso ao
+        // modelo, crédito acabado, id inválido). Sem ele o usuário lia "tente
+        // de novo" para um problema que nenhuma tentativa resolve.
         setErro(
           falha === "no_company_api_key"
             ? "Cadastre a chave de IA do provedor do modelo escolhido em Configurações para testar."
             : falha === "ai_request_failed"
-            ? "O modelo não respondeu. Tente enviar de novo."
+            ? `O provedor de IA recusou a chamada.${detalhe ? ` ${detalhe}` : " Verifique a chave e o modelo escolhido em Modelos."}`
             : falha === "forbidden" || falha === "unauthorized"
             ? "Você não tem acesso a este agente."
+            : falha === "agent_not_found"
+            ? "Agente não encontrado. Recarregue a página."
             : "Não consegui falar com o agente agora. Tente de novo.",
         );
         return;
@@ -149,7 +155,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
         <div ref={fimRef} />
       </div>
 
-      {erro && <p className="text-[12px] text-[#DC2626] mt-2">{erro}</p>}
+      {erro && <p className="text-[12px] text-[#DC2626] mt-2 break-words">{erro}</p>}
 
       <div className="flex items-center gap-2 mt-3">
         <input
