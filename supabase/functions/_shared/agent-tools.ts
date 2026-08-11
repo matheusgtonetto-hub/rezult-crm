@@ -132,9 +132,22 @@ async function atualizarLeadContatos(ctx: ToolCtx, input: Record<string, unknown
   return { ok: true };
 }
 
+// ACRESCENTA à nota, nunca sobrescreve. A versão anterior gravava
+// `notes: input.notes` direto: bastava o agente anotar uma frase pra apagar
+// tudo que o vendedor tinha escrito no card, sem aviso e sem como recuperar.
+// A anotação do agente entra datada e separada, pra quem lê depois saber
+// quem escreveu o quê.
 async function atualizarLeadNotas(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const { error } = await ctx.db.from("leads").update({ notes: input.notes ?? "" }).eq("id", id).eq("company_id", ctx.companyId);
+  const texto = String(input.notes ?? "").trim();
+  if (!texto) return { ok: false, error: "notes é obrigatório" };
+  const { data: lead } = await ctx.db.from("leads").select("notes").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
+  const atual = String(lead?.notes ?? "").trim();
+  const carimbo = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const nova = `[${carimbo} · agente] ${texto}`;
+  const { error } = await ctx.db.from("leads")
+    .update({ notes: atual ? `${atual}\n\n${nova}` : nova })
+    .eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -150,13 +163,42 @@ async function definirCampoAdicionalLead(ctx: ToolCtx, input: Record<string, unk
   return { ok: true };
 }
 
+// `leads.responsible` e `leads.responsibles` guardam NOME de exibição, não
+// uuid (conferido na base real: milhares de linhas, nenhum uuid). Gravar o
+// user_id aqui deixava o card com um uuid no lugar do nome e o filtro por
+// responsável parava de encontrar o lead. Aceita nome ou uuid e sempre grava
+// o nome; se não achar ninguém, devolve a lista de quem existe pro modelo
+// corrigir em vez de inventar.
+async function resolverNomeAtendente(ctx: ToolCtx, valor: string): Promise<{ nome: string | null; disponiveis: string[] }> {
+  const { data: membros } = await ctx.db.from("company_members").select("user_id").eq("company_id", ctx.companyId);
+  const ids = ((membros ?? []) as { user_id: string }[]).map((m) => m.user_id);
+  if (ctx.ownerId && !ids.includes(ctx.ownerId)) ids.push(ctx.ownerId);
+  if (!ids.length) return { nome: null, disponiveis: [] };
+
+  const { data: perfis } = await ctx.db.from("profiles").select("id, full_name, email").in("id", ids);
+  const pessoas = ((perfis ?? []) as { id: string; full_name: string | null; email: string | null }[])
+    .map((p) => ({ id: p.id, nome: String(p.full_name || p.email || "").trim(), email: String(p.email ?? "").trim() }))
+    .filter((p) => p.nome);
+
+  const alvo = valor.trim().toLowerCase();
+  const achado = pessoas.find((p) =>
+    p.id.toLowerCase() === alvo ||
+    p.nome.toLowerCase() === alvo ||
+    p.email.toLowerCase() === alvo);
+  return { nome: achado?.nome ?? null, disponiveis: pessoas.map((p) => p.nome) };
+}
+
 async function atualizarAtendenteLead(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const atendente = input.atendente_user_id as string;
-  if (!atendente) return { ok: false, error: "atendente_user_id é obrigatório" };
-  const { error } = await ctx.db.from("leads").update({ responsible: atendente, responsibles: [atendente] }).eq("id", id).eq("company_id", ctx.companyId);
+  const atendente = String(input.atendente_user_id ?? input.atendente ?? "").trim();
+  if (!atendente) return { ok: false, error: "informe o atendente (nome ou id)" };
+  const { nome, disponiveis } = await resolverNomeAtendente(ctx, atendente);
+  if (!nome) {
+    return { ok: false, error: `"${atendente}" não é um atendente desta empresa. Atendentes disponíveis: ${disponiveis.join(", ") || "nenhum"}` };
+  }
+  const { error } = await ctx.db.from("leads").update({ responsible: nome, responsibles: [nome] }).eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return { ok: true, data: { responsavel: nome } };
 }
 
 async function listarNegociosDoLead(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
@@ -169,16 +211,44 @@ async function listarNegociosDoLead(ctx: ToolCtx, input: Record<string, unknown>
   return { ok: true, data };
 }
 
+// Tags de sistema aceitas pelo trigger sanitize_lead_tags mesmo sem linha em
+// public.tags. Tem que espelhar a lista de lá.
+const TAGS_SISTEMA = ["Agente", "SDS: Qualificado", "SDS: Não qualificado"];
+
 async function tagOp(ctx: ToolCtx, input: Record<string, unknown>, add: boolean): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const tagName = input.tag as string;
+  const tagName = String(input.tag ?? "").trim();
   if (!tagName) return { ok: false, error: "tag é obrigatório" };
-  const { data: lead } = await ctx.db.from("leads").select("tags").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
+  const { data: lead } = await ctx.db.from("leads").select("tags, owner_id").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
   const current: string[] = (lead?.tags as string[]) ?? [];
-  const next = add ? [...new Set([...current, tagName])] : current.filter((t) => t !== tagName);
-  const { error } = await ctx.db.from("leads").update({ tags: next }).eq("id", id).eq("company_id", ctx.companyId);
+
+  // Falha silenciosa que isso corrige: o trigger sanitize_lead_tags APAGA
+  // qualquer tag que não exista em public.tags, mas o update volta sem erro.
+  // O agente dizia "pronto, já marquei" e o card continuava igual. Agora a
+  // tag inexistente vira erro com a lista das que existem, e o modelo escolhe
+  // uma de verdade em vez de inventar de novo.
+  if (add) {
+    const permitidaPorPrefixo = TAGS_SISTEMA.includes(tagName) || tagName.startsWith("Agente: ");
+    if (!permitidaPorPrefixo) {
+      const { data: existentes } = await ctx.db.from("tags").select("name").eq("owner_id", lead?.owner_id ?? ctx.ownerId);
+      const nomes = ((existentes ?? []) as { name: string }[]).map((t) => t.name);
+      const igual = nomes.find((n) => n.toLowerCase() === tagName.toLowerCase());
+      if (!igual) {
+        return { ok: false, error: `a tag "${tagName}" não existe neste CRM e não seria salva. Tags disponíveis: ${nomes.join(", ") || "nenhuma"}` };
+      }
+      // Usa o nome exato cadastrado: diferença de maiúscula/acento faria o
+      // trigger recusar do mesmo jeito.
+      input.tag = igual;
+    }
+  }
+
+  const alvo = String(input.tag ?? tagName).trim();
+  const next = add ? [...new Set([...current, alvo])] : current.filter((t) => t !== alvo);
+  const { data: atualizado, error } = await ctx.db.from("leads")
+    .update({ tags: next }).eq("id", id).eq("company_id", ctx.companyId)
+    .select("tags").maybeSingle();
   if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return { ok: true, data: { tags: (atualizado?.tags as string[]) ?? next } };
 }
 
 // ─── Negócios (mesma tabela leads) ─────────────────────────────────────────
