@@ -485,8 +485,23 @@ const TEMPERATURA_POR_ESTILO: Record<string, number> = {
   normal: 0.6,
   descontraida: 0.9,
 };
-const temperaturaDoEstilo = (cfg: BehaviorConfig): number =>
-  TEMPERATURA_POR_ESTILO[cfg.estilo_comunicacao ?? "normal"] ?? 0.6;
+// Nem todo modelo aceita `temperature`. A família Claude 5 recusa o parâmetro
+// com 400 ("`temperature` is deprecated for this model") e derruba o pedido
+// INTEIRO -- o agente fica mudo, não é uma degradação suave. Foi o que
+// aconteceu: o agente do primeiro cliente foi trocado de Haiku 4.5 para
+// Sonnet 5 e parou de responder, sem nada na tela dizendo por quê.
+//
+// Lista de PERMISSÃO, não de bloqueio: um modelo novo que a gente não conheça
+// roda sem temperature, e o pior caso é o estilo chegar só pelo texto do
+// prompt (ESTILO_PROMPTS logo abaixo, que continua valendo em qualquer
+// modelo). O contrário derrubaria a conversa.
+const MODELOS_QUE_ACEITAM_TEMPERATURA = new Set([
+  "claude-haiku-4-5-20251001",
+]);
+const temperaturaDoEstilo = (cfg: BehaviorConfig, model: string): number | undefined =>
+  MODELOS_QUE_ACEITAM_TEMPERATURA.has(model)
+    ? TEMPERATURA_POR_ESTILO[cfg.estilo_comunicacao ?? "normal"] ?? 0.6
+    : undefined;
 
 const ESTILO_PROMPTS: Record<string, string> = {
   formal: "Tom de comunicação: formal e profissional -- evite gírias, trate o lead com cordialidade e precisão.",
@@ -1888,7 +1903,7 @@ async function executarTeste(
 
   const resultado = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatchTeste)
-    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatchTeste, temperaturaDoEstilo(behaviorConfig));
+    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatchTeste, temperaturaDoEstilo(behaviorConfig, model));
 
   // O teste custa token igual à conversa real, então entra no consumo. Sem
   // isso a fatura do provedor não bateria com o painel de uso.
@@ -2220,7 +2235,7 @@ Deno.serve(async (req) => {
       const closingDispatch: ToolDispatcher = (name, input) => executeAgentTool(db, { name, input }, closingCtx);
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
-        : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch, temperaturaDoEstilo(behaviorConfig));
+        : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch, temperaturaDoEstilo(behaviorConfig, model));
       await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success);
       if (closingResult.actions === null) return json({ error: "ai_request_failed" }, 502);
       // Mesma rede de segurança do fluxo principal: texto sem envio = lead
@@ -2271,7 +2286,7 @@ Deno.serve(async (req) => {
 
   const result = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatch)
-    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch, temperaturaDoEstilo(behaviorConfig));
+    : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch, temperaturaDoEstilo(behaviorConfig, model));
   await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success);
   if (result.actions === null) return json({ error: "ai_request_failed" }, 502);
 
