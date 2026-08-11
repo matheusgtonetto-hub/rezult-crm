@@ -110,6 +110,25 @@ const AGENT_AVATARS: Record<string, typeof Bot> = {
   headphones: Headphones,
   message: MessageSquare,
 };
+// Andaimes da aba "Instruções". Clicar num chip escreve o título markdown no
+// texto; o conteúdo é do usuário.
+//
+// Por que estas quatro e não Persona/Objetivo/Tom: cada uma cobre algo que NÃO
+// tem campo em nenhuma outra aba. Tom e Objetivo têm -- e não são texto, são
+// configuração que muda o sistema (estilo define a temperatura do modelo,
+// objetivo define quais ferramentas o agente recebe). Um chip convidando a
+// escrever sobre eles criaria uma segunda fonte de verdade que perde a briga
+// em silêncio, porque o parâmetro já foi enviado antes de o texto ser lido.
+//
+// Título markdown não é enfeite: as instruções entram cruas no system prompt,
+// e seção nomeada melhora a aderência do modelo.
+const SECOES_INSTRUCOES = [
+  "Sobre a empresa",
+  "Regras de negócio",
+  "Objeções comuns",
+  "Exemplos de resposta",
+];
+
 const DEFAULT_AVATAR = "bot";
 function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: number }) {
   const Icon = AGENT_AVATARS[avatar ?? ""] ?? Bot;
@@ -904,6 +923,32 @@ export default function AgentesPage() {
     const next = { ...behaviorDraft, campos_qualificacao: checked ? [...current, fieldId] : current.filter((id) => id !== fieldId) };
     setBehaviorDraft(next);
     if (wizardMode) void commitBehavior(next);
+  }
+
+  // Andaime da aba "Instruções": escreve o título da seção e deixa o cursor
+  // embaixo dele. Clicar de novo num título que já existe leva o cursor até
+  // ele em vez de duplicar -- duas seções "# Sobre a empresa" no mesmo prompt
+  // é o modelo lendo duas verdades sobre a mesma coisa.
+  const instrucoesRef = useRef<HTMLTextAreaElement>(null);
+  function inserirSecaoInstrucao(titulo: string) {
+    const marcador = `# ${titulo}`;
+    const ta = instrucoesRef.current;
+    const jaExiste = customContext.indexOf(marcador);
+    if (jaExiste >= 0) {
+      const fim = jaExiste + marcador.length;
+      ta?.focus();
+      ta?.setSelectionRange(fim, fim);
+      return;
+    }
+    const base = customContext.trimEnd();
+    const texto = base ? `${base}\n\n${marcador}\n` : `${marcador}\n`;
+    if (texto.length > LIMITE_INSTRUCOES) return;
+    setCustomContext(texto);
+    // Depois do render, senão o setSelectionRange cai no valor antigo.
+    requestAnimationFrame(() => {
+      ta?.focus();
+      ta?.setSelectionRange(texto.length, texto.length);
+    });
   }
 
   function toggleTool(toolId: string, checked: boolean) {
@@ -2916,16 +2961,38 @@ export default function AgentesPage() {
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Instruções</h3>
                     <p className="text-[12px] text-[#767676]">
-                      Defina como o agente deve se comportar, responder e tomar decisões.
+                      O que o agente precisa saber sobre a empresa e sobre como responder. Tom de voz, objetivos e
+                      comportamento são configurados nas outras etapas, não aqui.
                     </p>
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {SECOES_INSTRUCOES.map((titulo) => {
+                      const jaTem = customContext.includes(`# ${titulo}`);
+                      return (
+                        <button
+                          key={titulo}
+                          type="button"
+                          onClick={() => inserirSecaoInstrucao(titulo)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#EEEEEE] bg-white text-[12px] font-medium text-[#111111] hover:border-[#CCCCCC] transition-colors cursor-pointer"
+                        >
+                          {jaTem
+                            ? <Check size={12} className="text-[#128A68]" />
+                            : <Plus size={12} className="text-[#767676]" />}
+                          {titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div>
                     <Textarea
+                      ref={instrucoesRef}
                       value={customContext}
                       onChange={(e) => setCustomContext(e.target.value.slice(0, LIMITE_INSTRUCOES))}
                       onBlur={() => { if (wizardMode) void saveCustomContext(); }}
-                      placeholder="Ex: Use um tom direto e informal. Nossos clientes costumam perguntar sobre X, sempre responda que..."
-                      className="min-h-[200px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      placeholder={"Ex:\n\n# Sobre a empresa\nClínica de psicologia em Florianópolis. Atendimento presencial e online, sessões de 50 minutos.\n\n# Regras de negócio\nNunca informe valores antes de entender a demanda do lead."}
+                      className="min-h-[280px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     {/* Peso em tokens visível a partir de um texto já
                         considerável. Instruções entram inteiras no prompt de
