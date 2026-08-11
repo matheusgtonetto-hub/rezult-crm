@@ -2415,30 +2415,6 @@ export default function AgentesPage() {
                           )}
                         </div>
 
-                        {/* Como o negócio chega até ESTE agente, e o efeito de
-                            restringir linhas: o agente só lê e responde nas
-                            conexões marcadas. */}
-                        <div className="rounded-lg border border-[#EEEEEE] bg-white p-3">
-                          <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {selected.activation_tag ? (
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
-                                {selected.activation_tag}
-                              </span>
-                            ) : (
-                              <span className="text-[12px] font-medium" style={{ color: "#E24B4A" }}>Sem tag de ativação.</span>
-                            )}
-                            <span className="text-[12px] text-[#767676]">
-                              {selected.activation_tag
-                                ? "Negócios com essa tag no card são atendidos por este agente. Você troca a tag no card em Agentes."
-                                : "Defina a tag no card em Agentes: sem ela o agente nunca é acionado."}
-                            </span>
-                          </div>
-                          <p className="text-[12px] text-[#767676] mt-2">
-                            Marcando conexões abaixo, o agente passa a ler e responder <span className="font-medium text-[#111111]">somente</span> nelas. Sem nenhuma marcada, ele atende qualquer linha da empresa.
-                          </p>
-                        </div>
-
                         {cards.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-16 text-center">
                             <div className="w-12 h-12 rounded-xl bg-white border border-[#EEEEEE] flex items-center justify-center mb-4">
