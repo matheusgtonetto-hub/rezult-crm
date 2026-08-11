@@ -1448,7 +1448,26 @@ async function buildAvailabilityContext(
   // para o lado conservador: com 10h-11h ocupado, ofereceu "a partir das 12h"
   // e queimou as 11h, que estava livre. Perguntando primeiro, ele só precisa
   // validar UM horário -- conta que a tool já faz de forma exata.
-  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}.
+  // Quem atende. O agente marcava reunião com uma pessoa cujo nome ele não
+  // sabia: perguntado "com quem eu vou falar?", ou se esquivava ou inventava.
+  //
+  // Só os NOMES, sem prometer escolha: agendar_reuniao_closer não tem
+  // parâmetro de vendedor, quem decide é o pickAvailableCloser pela agenda.
+  // Deixar o agente sugerir "prefere com a Ana ou com o João?" seria vender
+  // uma opção que a ferramenta não sabe cumprir.
+  const { data: perfisCloser } = await db
+    .from("profiles").select("full_name, email")
+    .in("id", closers.map((c) => c.user_id as string));
+  const nomes = ((perfisCloser ?? []) as { full_name: string | null; email: string | null }[])
+    .map((p) => String(p.full_name || p.email || "").trim())
+    .filter(Boolean);
+  const blocoQuemAtende = nomes.length === 1
+    ? `\n\nQUEM ATENDE a reunião: ${nomes[0]}. Se o lead perguntar com quem vai falar, é esse o nome.`
+    : nomes.length > 1
+    ? `\n\nQUEM ATENDE a reunião: ${nomes.join(", ")} — quem estiver livre no horário escolhido. Se o lead perguntar com quem vai falar, diga que é a equipe e cite os nomes; NÃO ofereça escolher entre eles, porque a definição depende da agenda.`
+    : "";
+
+  return `DISPONIBILIDADE PARA AGENDAMENTO (fuso do agente) — ${linhas.join(" | ")}.${blocoQuemAtende}
 
 COMO CONDUZIR O AGENDAMENTO:
 0. HOJE a faixa disponível começa AGORA, não no início do expediente: nunca ofereça nem aceite horário que já passou. Confira sempre contra a data e hora atuais informadas no topo deste prompt.
