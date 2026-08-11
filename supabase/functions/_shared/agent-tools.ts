@@ -152,15 +152,32 @@ async function atualizarLeadNotas(ctx: ToolCtx, input: Record<string, unknown>):
   return { ok: true };
 }
 
+// As chaves de custom_field_values são os UUIDs de custom_field_items, e o
+// modelo não tem como adivinhar UUID: ele mandava o nome do campo
+// ("profissao"). Como a coluna é jsonb, o banco aceitava a chave inventada
+// sem erro, a ferramenta devolvia ok e o card do lead continuava vazio.
+// Falha silenciosa completa. Agora aceita o nome OU o id, valida contra os
+// campos que existem e devolve a lista quando não acha.
 async function definirCampoAdicionalLead(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const fieldKey = input.field_key as string;
-  if (!fieldKey) return { ok: false, error: "field_key é obrigatório" };
+  const bruto = String(input.field_key ?? input.campo ?? "").trim();
+  if (!bruto) return { ok: false, error: "informe o campo (nome ou id)" };
+
+  const { data: campos } = await ctx.db.from("custom_field_items").select("id, label").eq("company_id", ctx.companyId);
+  const lista = ((campos ?? []) as { id: string; label: string }[]);
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const achado = lista.find((c) => c.id === bruto)
+    ?? lista.find((c) => norm(c.label) === norm(bruto))
+    ?? lista.find((c) => norm(c.label).includes(norm(bruto)));
+  if (!achado) {
+    return { ok: false, error: `o campo "${bruto}" não existe neste CRM. Campos disponíveis: ${lista.map((c) => c.label).join(", ") || "nenhum"}` };
+  }
+
   const { data: lead } = await ctx.db.from("leads").select("custom_field_values").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
   const current = (lead?.custom_field_values as Record<string, unknown>) ?? {};
-  const { error } = await ctx.db.from("leads").update({ custom_field_values: { ...current, [fieldKey]: input.value } }).eq("id", id).eq("company_id", ctx.companyId);
+  const { error } = await ctx.db.from("leads").update({ custom_field_values: { ...current, [achado.id]: input.value } }).eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return { ok: true, data: { campo: achado.label } };
 }
 
 // `leads.responsible` e `leads.responsibles` guardam NOME de exibição, não
@@ -273,9 +290,18 @@ async function listarNegociosPorEstagio(ctx: ToolCtx, input: Record<string, unkn
   return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("column_id", input.column_id as string));
 }
 
+// Filtrava `responsible` pelo uuid do atendente, mas a coluna guarda NOME de
+// exibição (2170 leads na base, nenhum uuid). Resultado: a ferramenta sempre
+// devolvia lista vazia, e o agente concluía que o vendedor não tinha negócio
+// nenhum. Resolve nome ou uuid antes de filtrar.
 async function listarNegociosPorAtendente(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
-  if (!input.atendente_user_id) return { ok: false, error: "atendente_user_id é obrigatório" };
-  return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("responsible", input.atendente_user_id as string));
+  const bruto = String(input.atendente_user_id ?? input.atendente ?? "").trim();
+  if (!bruto) return { ok: false, error: "informe o atendente (nome ou id)" };
+  const { nome, disponiveis } = await resolverNomeAtendente(ctx, bruto);
+  if (!nome) {
+    return { ok: false, error: `"${bruto}" não é um atendente desta empresa. Atendentes disponíveis: ${disponiveis.join(", ") || "nenhum"}` };
+  }
+  return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("responsible", nome));
 }
 
 // Pipeline do negócio da conversa -- mesma convenção do lead_id opcional: o
