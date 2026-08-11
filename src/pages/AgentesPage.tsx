@@ -571,7 +571,6 @@ export default function AgentesPage() {
   const [uploading, setUploading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [draftName, setDraftName] = useState("");
-  const [draftDescription, setDraftDescription] = useState("");
   const [draftAvatar, setDraftAvatar] = useState(DEFAULT_AVATAR);
   const [freeTab, setFreeTab] = useState("perfil");
   const [wizardMode, setWizardMode] = useState(false);
@@ -875,7 +874,6 @@ export default function AgentesPage() {
         owner_id: user.id,
         type: "SDS",
         name: draftName.trim(),
-        description: draftDescription.trim() || null,
         avatar: draftAvatar,
         activation_tag: draftActivationTag,
         active: false,
@@ -901,7 +899,6 @@ export default function AgentesPage() {
     setSelectedId(data.id);
     setOpenDialog(false);
     setDraftName("");
-    setDraftDescription("");
     setDraftAvatar(DEFAULT_AVATAR);
     setDraftActivationTag(null);
     // Objetivo (e o resto do Perfil) não é pedido aqui -- é o 1º passo do
@@ -3214,18 +3211,6 @@ export default function AgentesPage() {
                 onChange={(e) => setDraftName(e.target.value)}
                 placeholder="Ex: Agente SDS"
                 className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <Label className="text-[12px]">Descrição</Label>
-                <DescricaoAgenteBadge />
-              </div>
-              <Textarea
-                value={draftDescription}
-                onChange={(e) => setDraftDescription(e.target.value.slice(0, LIMITE_DESCRICAO))}
-                placeholder="Ex: Você é um atendente na empresa [Nome da empresa], e seu trabalho é qualificar e agendar potenciais clientes para uma demonstração do produto com o time de vendas."
-                className="mt-1 min-h-[70px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
