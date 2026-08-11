@@ -32,7 +32,12 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  Instagram,
+  CalendarDays,
+  Webhook,
+  Link2,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -487,6 +492,9 @@ export default function AgentesPage() {
   // saída, ele é uma parede de 70 caixas que faz parecer que o agente precisa
   // de alguma coisa ali -- e não precisa de nenhuma.
   const [verTodasFerramentas, setVerTodasFerramentas] = useState(false);
+  // Etapa "Integrações": chip de categoria selecionado. "Todos" mostra a
+  // grade inteira, que é o estado em que a etapa abre.
+  const [catIntegracao, setCatIntegracao] = useState("Todos");
   const [modelDraft, setModelDraft] = useState("");
   const [manualAutomations, setManualAutomations] = useState<AutomationOption[]>([]);
   // Etapa "Integrações" -- listas de conexões existentes na empresa (não
@@ -616,6 +624,11 @@ export default function AgentesPage() {
     setModelDraft(selected?.model ?? "");
     setDocSearch("");
     setKbSearch("");
+    // Filtros de tela não são do agente, são de quem está olhando: trocar de
+    // agente com um chip de categoria preso do anterior esconderia conexões
+    // sem motivo aparente.
+    setCatIntegracao("Todos");
+    setVerTodasFerramentas(false);
     (async () => {
       const [{ data: closersData }, { data: docsData }, { data: kbsData }, { data: waLinks }, { data: metaLinks }, { data: webhookLinks }, { data: calLinks }] = await Promise.all([
         supabase.from("agent_closers").select("user_id").eq("agent_id", selectedId).eq("company_id", companyId),
@@ -2303,135 +2316,198 @@ export default function AgentesPage() {
 
                 {/* INTEGRAÇÕES */}
                 <TabsContent value="integracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
-                  <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Integrações</h3>
-                    <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
-                  </div>
+                  {(() => {
+                    // Mesma linguagem visual de Configurações → Conexões: card
+                    // branco com status no topo, ícone colorido e o controle no
+                    // rodapé. Antes eram quatro listas empilhadas de checkbox,
+                    // uma por canal, e a etapa crescia sem fim conforme a
+                    // empresa conectava mais coisa. Os chips substituem os
+                    // títulos de seção: a divisão continua existindo, mas filtra
+                    // em vez de alongar a página.
+                    type CardIntegracao = {
+                      chave: string;
+                      categoria: string;
+                      titulo: string;
+                      subtitulo: string;
+                      conectado: boolean;
+                      usa: boolean;
+                      alternar: (v: boolean) => void;
+                      icone: React.ReactNode;
+                      cor: string;
+                    };
 
-                  {/* Como o negócio chega até ESTE agente, e o efeito de
-                      restringir linhas: o agente só lê e responde nas linhas
-                      marcadas abaixo. */}
-                  <div className="rounded-lg border border-[#EEEEEE] bg-white p-3">
-                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {selected.activation_tag ? (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
-                          {selected.activation_tag}
-                        </span>
-                      ) : (
-                        <span className="text-[12px] font-medium" style={{ color: "#E24B4A" }}>Sem tag de ativação.</span>
-                      )}
-                      <span className="text-[12px] text-[#767676]">
-                        {selected.activation_tag
-                          ? "Negócios com essa tag no card são atendidos por este agente. Você troca a tag no card em Agentes."
-                          : "Defina a tag no card em Agentes: sem ela o agente nunca é acionado."}
-                      </span>
-                    </div>
-                    <p className="text-[12px] text-[#767676] mt-2">
-                      Marcando linhas abaixo, o agente passa a ler e responder <span className="font-medium text-[#111111]">somente</span> nelas. Sem nenhuma marcada, ele atende qualquer linha da empresa.
-                    </p>
-                  </div>
+                    const cards: CardIntegracao[] = [
+                      ...whatsappConnections.map((c) => ({
+                        chave: `wa-${c.id}`,
+                        categoria: "WhatsApp",
+                        titulo: c.name,
+                        subtitulo: c.phone || "WhatsApp",
+                        conectado: c.connected,
+                        usa: agentWhatsappIds.includes(c.id),
+                        alternar: (v: boolean) => toggleAgentWhatsapp(c.id, v),
+                        icone: <WhatsAppIcon size={20} />,
+                        cor: "#FFFFFF",
+                      })),
+                      ...metaConnections.map((c) => ({
+                        chave: `meta-${c.id}`,
+                        categoria: "Instagram / Messenger",
+                        titulo: c.page_name ?? c.instagram_username ?? "Conexão",
+                        subtitulo: c.provider === "instagram" ? "Instagram" : "Messenger",
+                        conectado: c.active,
+                        usa: agentMetaIds.includes(c.id),
+                        alternar: (v: boolean) => toggleAgentMeta(c.id, v),
+                        icone: c.provider === "instagram"
+                          ? <Instagram size={18} color="#FFF" />
+                          : <MessageSquare size={18} color="#FFF" />,
+                        cor: c.provider === "instagram" ? "#E1306C" : "#0084FF",
+                      })),
+                      // Calendar só aparece pra quem agenda: pra um agente que
+                      // não marca reunião, a agenda dos vendedores não muda nada.
+                      ...(objectivesDraft.includes("agendar")
+                        ? members
+                            .filter((m) => memberCalendarConnected[m.user_id])
+                            .map((m) => ({
+                              chave: `cal-${m.user_id}`,
+                              categoria: "Calendar",
+                              titulo: memberCalendarEmail[m.user_id] || m.full_name || m.email || m.user_id,
+                              subtitulo: "Google Calendar",
+                              conectado: true,
+                              usa: agentCalendarEnabled[m.user_id] ?? true,
+                              alternar: (v: boolean) => toggleAgentCalendar(m.user_id, v),
+                              icone: <CalendarDays size={18} color="#FFF" />,
+                              cor: "#4285F4",
+                            }))
+                        : []),
+                      ...webhookIntegrations.map((c) => ({
+                        chave: `wh-${c.id}`,
+                        categoria: "Webhooks",
+                        titulo: c.name,
+                        subtitulo: "Webhook de entrada",
+                        conectado: c.active,
+                        usa: agentWebhookIds.includes(c.id),
+                        alternar: (v: boolean) => toggleAgentWebhook(c.id, v),
+                        icone: <Webhook size={18} color="#FFF" />,
+                        cor: "#111111",
+                      })),
+                    ];
 
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">WhatsApp</h4>
-                    <div className="space-y-1.5">
-                      {whatsappConnections.map((c) => (
-                        <label key={c.id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg cursor-pointer">
-                          <Checkbox
-                            checked={agentWhatsappIds.includes(c.id)}
-                            onCheckedChange={(checked) => toggleAgentWhatsapp(c.id, checked === true)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-[#111111]">{c.name}{c.phone ? ` — ${c.phone}` : ""}</div>
-                          </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${c.connected ? "bg-[#E1F5EE] text-[#128A68]" : "bg-[#F5F5F5] text-[#767676]"}`}>
-                            {c.connected ? "Conectado" : "Desconectado"}
-                          </span>
-                        </label>
-                      ))}
-                      {whatsappConnections.length === 0 && (
-                        <p className="text-[12px] text-[#767676] py-3">Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.</p>
-                      )}
-                    </div>
-                  </div>
+                    const ordem = ["WhatsApp", "Instagram / Messenger", "Calendar", "Webhooks"];
+                    const categorias = ordem.filter((cat) => cards.some((c) => c.categoria === cat));
+                    // Categoria que ficou vazia (ex.: desmarcou "Agendar" e o
+                    // Calendar sumiu) não pode deixar a grade em branco sem
+                    // explicação: volta pra "Todos".
+                    const catAtiva = catIntegracao !== "Todos" && !categorias.includes(catIntegracao) ? "Todos" : catIntegracao;
+                    const visiveis = catAtiva === "Todos" ? cards : cards.filter((c) => c.categoria === catAtiva);
+                    const emUso = cards.filter((c) => c.usa).length;
 
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Instagram / Messenger</h4>
-                    <div className="space-y-1.5">
-                      {metaConnections.map((c) => (
-                        <label key={c.id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg cursor-pointer">
-                          <Checkbox
-                            checked={agentMetaIds.includes(c.id)}
-                            onCheckedChange={(checked) => toggleAgentMeta(c.id, checked === true)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-[#111111]">{c.page_name ?? c.instagram_username ?? "Conexão"}</div>
-                            <div className="text-[11px] text-[#767676]">{c.provider === "instagram" ? "Instagram" : "Messenger"}</div>
-                          </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${c.active ? "bg-[#E1F5EE] text-[#128A68]" : "bg-[#F5F5F5] text-[#767676]"}`}>
-                            {c.active ? "Conectado" : "Desconectado"}
-                          </span>
-                        </label>
-                      ))}
-                      {metaConnections.length === 0 && (
-                        <p className="text-[12px] text-[#767676] py-3">Nenhuma página do Instagram/Messenger conectada. Conecte em Configurações → Conexões.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {objectivesDraft.includes("agendar") && (() => {
-                    const connectedMemberIds = members.map((m) => m.user_id).filter((id) => memberCalendarConnected[id]);
                     return (
-                    <div>
-                      <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Calendar</h4>
-                      <div className="space-y-1.5">
-                        {connectedMemberIds.map((id) => {
-                          const m = members.find((mm) => mm.user_id === id);
-                          return (
-                            <label key={id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg cursor-pointer">
-                              <Checkbox
-                                checked={agentCalendarEnabled[id] ?? true}
-                                onCheckedChange={(checked) => toggleAgentCalendar(id, checked === true)}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-[13px] text-[#111111]">{memberCalendarEmail[id] || m?.full_name || m?.email || id}</div>
-                              </div>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 bg-[#E1F5EE] text-[#128A68]">Conectado</span>
-                            </label>
-                          );
-                        })}
-                        {connectedMemberIds.length === 0 && (
-                          <p className="text-[12px] text-[#767676] py-3">
-                            Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.
+                      <>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-[14px] font-semibold text-[#111111]">Integrações</h3>
+                            <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
+                          </div>
+                          {emUso > 0 && (
+                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-medium text-[#128A68] bg-[#128A68]/10 px-2.5 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#128A68]" />
+                              {emUso} em uso
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Como o negócio chega até ESTE agente, e o efeito de
+                            restringir linhas: o agente só lê e responde nas
+                            conexões marcadas. */}
+                        <div className="rounded-lg border border-[#EEEEEE] bg-white p-3">
+                          <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Como ativar este agente num negócio</h4>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {selected.activation_tag ? (
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium text-white" style={{ background: "#6D28D9" }}>
+                                {selected.activation_tag}
+                              </span>
+                            ) : (
+                              <span className="text-[12px] font-medium" style={{ color: "#E24B4A" }}>Sem tag de ativação.</span>
+                            )}
+                            <span className="text-[12px] text-[#767676]">
+                              {selected.activation_tag
+                                ? "Negócios com essa tag no card são atendidos por este agente. Você troca a tag no card em Agentes."
+                                : "Defina a tag no card em Agentes: sem ela o agente nunca é acionado."}
+                            </span>
+                          </div>
+                          <p className="text-[12px] text-[#767676] mt-2">
+                            Marcando conexões abaixo, o agente passa a ler e responder <span className="font-medium text-[#111111]">somente</span> nelas. Sem nenhuma marcada, ele atende qualquer linha da empresa.
                           </p>
+                        </div>
+
+                        {cards.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-[#EEEEEE] flex items-center justify-center mb-4">
+                              <Link2 size={22} className="text-[#767676]" />
+                            </div>
+                            <p className="text-[13px] font-semibold text-[#111111] mb-1">Nenhuma conexão disponível</p>
+                            <p className="text-[12px] text-[#767676] max-w-[380px]">
+                              Conecte um WhatsApp, uma página do Instagram ou um webhook em Configurações → Conexões para escolher onde este agente atua.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {[{ cat: "Todos", n: cards.length }, ...categorias.map((cat) => ({ cat, n: cards.filter((c) => c.categoria === cat).length }))].map(({ cat, n }) => {
+                                const ativo = catAtiva === cat;
+                                return (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => setCatIntegracao(cat)}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
+                                      ativo
+                                        ? "bg-[#128A68] border-[#128A68] text-white"
+                                        : "bg-white border-[#EEEEEE] text-[#111111] hover:border-[#CCCCCC]"
+                                    }`}
+                                  >
+                                    {cat}
+                                    <span className={ativo ? "text-white/70" : "text-[#767676]"}>{n}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                              {visiveis.map((c) => (
+                                <div key={c.chave} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[#128A68]" : "bg-[#767676]/40"}`} />
+                                      <span className={`text-[11px] font-medium ${c.conectado ? "text-[#128A68]" : "text-[#767676]"}`}>
+                                        {c.conectado ? "Conectado" : "Desconectado"}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold shrink-0 ml-2 truncate">{c.categoria}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div
+                                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-[#EEEEEE]"
+                                      style={{ background: c.cor }}
+                                    >
+                                      {c.icone}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-[13px] font-bold text-[#111111] truncate">{c.titulo}</p>
+                                      <p className="text-[11px] text-[#767676] truncate">{c.subtitulo}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
+                                    <span className="text-[12px] font-medium text-[#767676]">Usar neste agente</span>
+                                    <Switch checked={c.usa} onCheckedChange={c.alternar} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )}
-                      </div>
-                    </div>
+                      </>
                     );
                   })()}
-
-                  <div>
-                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">Webhooks de entrada</h4>
-                    <div className="space-y-1.5">
-                      {webhookIntegrations.map((c) => (
-                        <label key={c.id} className="flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg cursor-pointer">
-                          <Checkbox
-                            checked={agentWebhookIds.includes(c.id)}
-                            onCheckedChange={(checked) => toggleAgentWebhook(c.id, checked === true)}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-[#111111]">{c.name}</div>
-                          </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${c.active ? "bg-[#E1F5EE] text-[#128A68]" : "bg-[#F5F5F5] text-[#767676]"}`}>
-                            {c.active ? "Ativo" : "Inativo"}
-                          </span>
-                        </label>
-                      ))}
-                      {webhookIntegrations.length === 0 && (
-                        <p className="text-[12px] text-[#767676] py-3">Nenhum webhook de entrada configurado. Configure em Configurações → Integrações.</p>
-                      )}
-                    </div>
-                  </div>
                 </TabsContent>
 
                 {/* PERFORMANCE */}
