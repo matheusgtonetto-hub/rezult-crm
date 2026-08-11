@@ -206,7 +206,11 @@ const BEHAVIOR_DEFAULTS: Required<Omit<BehaviorConfig, "campos_qualificacao" | "
   followup_intervalo_unidade: "minutos",
   followup_transferir_automacao: false,
   followup_automacao_id: null,
-  delay_resposta_segundos: 0,
+  // 20s cobre a maioria das digitações longas sem o agente responder no meio
+  // da frase. Não dá para esperar o lead parar de digitar (ver comentário em
+  // dapi-webhook), então o delay é o que temos -- e 20 é o ponto em que a
+  // conversa ainda parece viva. Quem quiser, muda.
+  delay_resposta_segundos: 20,
   delay_resposta_minutos: 0,
   mensagens_consideradas: 30,
   limite_interacoes: 0,
@@ -251,6 +255,9 @@ const BEHAVIOR_DRAFT_DEFAULTS: Required<BehaviorConfig> = {
   horario_atendimento_ativo: false,
   horario_atendimento_fim: "21:00",
   horario_atendimento_dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
+  // Idem para o delay: agente existente mantém o que tem (0 ou o convertido
+  // de minutos), não herda os 20s de agente novo.
+  delay_resposta_segundos: 0,
   campos_qualificacao: [],
   objective_instructions: {},
 };
@@ -591,7 +598,14 @@ export default function AgentesPage() {
     if (!selectedId || !companyId) return;
     setCustomContext(selected?.custom_context ?? "");
     setObjectivesDraft(selected?.objectives ?? []);
-    setBehaviorDraft({ ...BEHAVIOR_DRAFT_DEFAULTS, ...(selected?.behavior_config ?? {}) });
+    // Normaliza o delay antigo (minutos) aqui, e não na exibição: como os
+    // padrões já trazem delay_resposta_segundos definido, um `??` na tela
+    // nunca dispararia -- o campo mostraria 0 enquanto o backend esperava 60.
+    const cfgSalva = selected?.behavior_config ?? {};
+    const delayNormalizado = cfgSalva.delay_resposta_segundos !== undefined
+      ? cfgSalva.delay_resposta_segundos
+      : (cfgSalva.delay_resposta_minutos ?? 0) * 60;
+    setBehaviorDraft({ ...BEHAVIOR_DRAFT_DEFAULTS, ...cfgSalva, delay_resposta_segundos: delayNormalizado });
     setEnabledToolsDraft(selected?.enabled_tools ?? []);
     setModelDraft(selected?.model ?? "");
     setDocSearch("");
@@ -2496,10 +2510,7 @@ export default function AgentesPage() {
                     <Label className="text-[12px]">Delay de Resposta (segundos)</Label>
                     <Input
                       type="number" min={0}
-                      // Agente antigo tem o valor em minutos: converte na
-                      // exibição para o campo nunca mostrar "1" querendo
-                      // dizer 60.
-                      value={behaviorDraft.delay_resposta_segundos ?? (behaviorDraft.delay_resposta_minutos ?? 0) * 60}
+                      value={behaviorDraft.delay_resposta_segundos}
                       onChange={(e) => updateBehaviorConfig({ delay_resposta_segundos: Number(e.target.value) || 0, delay_resposta_minutos: 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
