@@ -138,23 +138,28 @@ const SECOES_INSTRUCOES = [
 // o chip escreve o título e deixa o usuário diante de uma linha em branco, e
 // título sem exemplo não diz o que se espera embaixo dele. "Objeções comuns"
 // e "Casos específicos" são justamente os que ninguém adivinha sozinho.
+//
+// Os exemplos são deliberadamente sem ramo: quem lê precisa reconhecer a FORMA
+// da frase e trocar o conteúdo pelo negócio dele. Exemplo de clínica ensina a
+// escrever sobre clínica, e a maior parte de quem monta agente aqui não tem
+// uma.
 const PLACEHOLDER_INSTRUCOES = [
   "Ex:",
   "",
   "# Sobre a empresa",
-  "Clínica de psicologia em Florianópolis. Presencial e online, sessões de 50 minutos.",
+  "Atendemos clientes em todo o Brasil, presencial e online. Trabalhamos com planos mensais e projetos avulsos.",
   "",
   "# Regras de negócio",
-  "Nunca informe valores antes de entender a demanda do lead.",
+  "Nunca informe valores antes de entender a necessidade do cliente.",
   "",
   "# Objeções comuns",
-  '"Está caro": a primeira sessão é de avaliação, sem compromisso de continuidade.',
+  '"Está caro": lembre que a primeira conversa é gratuita e sem compromisso.',
   "",
   "# Casos específicos",
-  "Se o lead disser que já é paciente, trate como remarcação em vez de qualificar.",
+  "Se o contato já for cliente, trate como suporte e não como venda nova.",
   "",
   "# Exemplos de resposta",
-  '"Oi! Vi que você procurou a gente. Me conta rapidinho o que está te trazendo aqui?"',
+  '"Oi! Vi que você entrou em contato. Me conta rapidinho o que você está buscando?"',
 ].join("\n");
 
 const DEFAULT_AVATAR = "bot";
