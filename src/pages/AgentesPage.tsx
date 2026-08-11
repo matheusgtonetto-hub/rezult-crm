@@ -947,6 +947,22 @@ export default function AgentesPage() {
     navigate(destino);
   }
 
+  // Descarte de rascunho a partir da GRADE, sem precisar entrar no wizard.
+  //
+  // Existia só a limpeza no unmount da tela, e ela falha justamente no jeito
+  // mais comum de abandonar: fechar a aba, onde o React não roda cleanup
+  // nenhum. O rascunho então virava fantasma -- não aparecia em lugar nenhum,
+  // não dava pra retomar, e continuava segurando a tag de ativação (índice
+  // único), impedindo qualquer outro agente de usar aquela tag.
+  async function descartarRascunho(a: Agent) {
+    if (!companyId) return;
+    if (!window.confirm(`Descartar o rascunho "${a.name}"? A tag de ativação dele fica livre de novo.`)) return;
+    const { error } = await supabase.from("agents").delete().eq("id", a.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao descartar o rascunho"); return; }
+    setAgents((prev) => prev.filter((x) => x.id !== a.id));
+    toast.success("Rascunho descartado");
+  }
+
   async function abandonDraftAgent() {
     if (!selected || !companyId) return;
     if (!window.confirm("Sair sem salvar? O agente criado até aqui será descartado.")) return;
@@ -1586,7 +1602,10 @@ export default function AgentesPage() {
             </Button>
           </div>
 
-          {agents.filter((a) => !a.draft).length === 0 ? (
+          {/* Rascunho conta como agente na grade: some do "nenhum agente
+              ainda", senão a tela dizia que não havia nada enquanto o card do
+              rascunho aparecia logo abaixo. */}
+          {agents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
               <Bot size={64} color="#E5E5E5" />
               <h2 className="text-[20px] font-bold text-[#111111] mt-4">Nenhum agente configurado</h2>
@@ -1599,8 +1618,8 @@ export default function AgentesPage() {
             </div>
           ) : (
             <div className="grid gap-4 overflow-y-auto" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-              {agents.filter((a) => !a.draft).map((a) => (
-                <div key={a.id} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+              {agents.map((a) => (
+                <div key={a.id} className={`bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow ${a.draft ? "border border-dashed border-[#CCCCCC]" : "border border-[#EEEEEE]"}`}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={a.avatar} size={18} />
@@ -1615,8 +1634,14 @@ export default function AgentesPage() {
                         informação que o usuário procura primeiro ao bater o
                         olho na grade. */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
-                      <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+                      {a.draft ? (
+                        <span className="text-[11px] font-semibold text-[#767676] bg-[#F5F5F5] px-2 py-0.5 rounded-full">Rascunho</span>
+                      ) : (
+                        <>
+                          <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
+                          <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1652,6 +1677,23 @@ export default function AgentesPage() {
                     />
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
+                    {a.draft ? (
+                      <>
+                        <button
+                          onClick={() => { setSelectedId(a.id); setWizardMode(true); setWizardStepIndex(0); setWizardMaxStepReached(0); setView("detail"); }}
+                          className="flex items-center gap-1.5 text-[13px] font-medium text-[#128A68] hover:text-[#0F7357] transition-colors cursor-pointer"
+                        >
+                          <ArrowRight size={14} /> Continuar
+                        </button>
+                        <button
+                          onClick={() => void descartarRascunho(a)}
+                          className="text-[13px] font-medium text-[#767676] hover:text-[#DC2626] transition-colors cursor-pointer"
+                        >
+                          Descartar
+                        </button>
+                      </>
+                    ) : (
+                    <>
                     <button
                       onClick={() => { setSelectedId(a.id); setWizardMode(false); setFreeTab("perfil"); setView("detail"); }}
                       className="flex items-center gap-1.5 text-[13px] font-medium text-[#767676] hover:text-[#111111] transition-colors cursor-pointer"
@@ -1659,6 +1701,8 @@ export default function AgentesPage() {
                       <Settings2 size={14} /> Editar
                     </button>
                     <Switch checked={a.active} onCheckedChange={(v) => toggleActive(a, v)} />
+                    </>
+                    )}
                   </div>
                 </div>
               ))}
