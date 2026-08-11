@@ -33,6 +33,7 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarDays,
+  Webhook,
   Link2,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -481,6 +482,7 @@ type Member = { user_id: string; full_name: string; email: string; avatar_url: s
 
 type WhatsappConnectionOption = { id: string; name: string; phone: string | null; provider: string; connected: boolean };
 type MetaConnectionOption = { id: string; provider: string; page_name: string | null; instagram_username: string | null; active: boolean };
+type WebhookIntegrationOption = { id: string; name: string; type: string; active: boolean };
 
 // Mesmo shape de WorkDay/WorkInterval do WorkSchedulesManager (usado em
 // Configurações > Horários de trabalho) -- aqui é uma disponibilidade à
@@ -601,8 +603,10 @@ export default function AgentesPage() {
   // integração de Instagram/Messenger ainda não está pronta. Não apagar a
   // carga junto -- é ela que faz a categoria voltar sem retrabalho.
   const [metaConnections, setMetaConnections] = useState<MetaConnectionOption[]>([]);
+  const [webhookIntegrations, setWebhookIntegrations] = useState<WebhookIntegrationOption[]>([]);
   const [agentWhatsappIds, setAgentWhatsappIds] = useState<string[]>([]);
   const [agentMetaIds, setAgentMetaIds] = useState<string[]>([]);
+  const [agentWebhookIds, setAgentWebhookIds] = useState<string[]>([]);
   // Calendar não é uma lista de conexões da empresa -- vem dos vendedores
   // com Google Calendar conectado, escolhidos na etapa "Vendedores".
   const [agentCalendarEnabled, setAgentCalendarEnabled] = useState<Record<string, boolean>>({});
@@ -615,6 +619,7 @@ export default function AgentesPage() {
   const [closerAvailabilitySaved, setCloserAvailabilitySaved] = useState<Record<string, WorkDay[]>>({});
   const [agentWhatsappIdsSaved, setAgentWhatsappIdsSaved] = useState<string[]>([]);
   const [agentMetaIdsSaved, setAgentMetaIdsSaved] = useState<string[]>([]);
+  const [agentWebhookIdsSaved, setAgentWebhookIdsSaved] = useState<string[]>([]);
   const [agentCalendarEnabledSaved, setAgentCalendarEnabledSaved] = useState<Record<string, boolean>>({});
 
   const selected = agents.find((a) => a.id === selectedId) ?? null;
@@ -622,7 +627,7 @@ export default function AgentesPage() {
   const loadAgents = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }] =
+    const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
         supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft").eq("company_id", companyId).order("created_at"),
         // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
@@ -634,6 +639,7 @@ export default function AgentesPage() {
         supabase.from("automations").select("id, name, flow").eq("company_id", companyId).eq("active", true),
         supabase.from("whatsapp_connections").select("id, name, phone, provider, connected").eq("company_id", companyId).order("created_at"),
         supabase.from("meta_connections").select("id, provider, page_name, instagram_username, active").eq("company_id", companyId).order("created_at"),
+        supabase.from("webhook_integrations").select("id, name, type, active").eq("company_id", companyId).order("created_at"),
       ]);
     setAgents(agentsData ?? []);
     const provedores = new Set(((aiProviders ?? []) as { provider: string }[]).map((p) => p.provider));
@@ -641,6 +647,7 @@ export default function AgentesPage() {
     setHasOpenaiKey(provedores.has("openai"));
     setWhatsappConnections((whatsappData ?? []) as WhatsappConnectionOption[]);
     setMetaConnections((metaData ?? []) as MetaConnectionOption[]);
+    setWebhookIntegrations((webhookData ?? []) as WebhookIntegrationOption[]);
     // get_company_members devolve a coluna "id" (profiles.id == auth.users.id),
     // não "user_id" -- sem esse mapeamento, m.user_id fica undefined em todo
     // lugar que usa `members` (checkbox de Closers nunca reflete o estado
@@ -726,12 +733,13 @@ export default function AgentesPage() {
     setCatIntegracao("Todos");
     setVerTodasFerramentas(false);
     (async () => {
-      const [{ data: closersData }, { data: docsData }, { data: kbsData }, { data: waLinks }, { data: metaLinks }, { data: calLinks }] = await Promise.all([
+      const [{ data: closersData }, { data: docsData }, { data: kbsData }, { data: waLinks }, { data: metaLinks }, { data: webhookLinks }, { data: calLinks }] = await Promise.all([
         supabase.from("agent_closers").select("user_id").eq("agent_id", selectedId).eq("company_id", companyId),
         supabase.from("agent_knowledge_documents").select("id, file_name, status, error_detail, created_at, enabled, knowledge_base_id").eq("agent_id", selectedId).eq("company_id", companyId).order("created_at", { ascending: false }),
         supabase.from("agent_knowledge_bases").select("id, name, description, enabled").eq("agent_id", selectedId).eq("company_id", companyId).order("created_at", { ascending: false }),
         supabase.from("agent_whatsapp_connections").select("connection_id").eq("agent_id", selectedId).eq("company_id", companyId).eq("enabled", true),
         supabase.from("agent_meta_connections").select("connection_id").eq("agent_id", selectedId).eq("company_id", companyId).eq("enabled", true),
+        supabase.from("agent_webhook_integrations").select("connection_id").eq("agent_id", selectedId).eq("company_id", companyId).eq("enabled", true),
         supabase.from("agent_calendar_connections").select("user_id, enabled").eq("agent_id", selectedId).eq("company_id", companyId),
       ]);
       const closerIdsLoaded = (closersData ?? []).map((c) => c.user_id as string);
@@ -749,11 +757,14 @@ export default function AgentesPage() {
       setKbs((kbsData ?? []) as KnowledgeBase[]);
       const waIdsLoaded = (waLinks ?? []).map((r) => r.connection_id as string);
       const metaIdsLoaded = (metaLinks ?? []).map((r) => r.connection_id as string);
+      const webhookIdsLoaded = (webhookLinks ?? []).map((r) => r.connection_id as string);
       const calendarLoaded = Object.fromEntries(((calLinks ?? []) as { user_id: string; enabled: boolean }[]).map((r) => [r.user_id, r.enabled]));
       setAgentWhatsappIds(waIdsLoaded);
       setAgentWhatsappIdsSaved(waIdsLoaded);
       setAgentMetaIds(metaIdsLoaded);
       setAgentMetaIdsSaved(metaIdsLoaded);
+      setAgentWebhookIds(webhookIdsLoaded);
+      setAgentWebhookIdsSaved(webhookIdsLoaded);
       setAgentCalendarEnabled(calendarLoaded);
       setAgentCalendarEnabledSaved(calendarLoaded);
     })();
@@ -1208,6 +1219,8 @@ export default function AgentesPage() {
     const waRemoved = agentWhatsappIdsSaved.filter((id) => !agentWhatsappIds.includes(id));
     const metaAdded = agentMetaIds.filter((id) => !agentMetaIdsSaved.includes(id));
     const metaRemoved = agentMetaIdsSaved.filter((id) => !agentMetaIds.includes(id));
+    const webhookAdded = agentWebhookIds.filter((id) => !agentWebhookIdsSaved.includes(id));
+    const webhookRemoved = agentWebhookIdsSaved.filter((id) => !agentWebhookIds.includes(id));
     const calendarChanged = Object.keys(agentCalendarEnabled).filter((id) => agentCalendarEnabled[id] !== agentCalendarEnabledSaved[id]);
     const availabilityChanged = Object.keys(closerAvailability).filter(
       (id) => JSON.stringify(closerAvailability[id]) !== JSON.stringify(closerAvailabilitySaved[id]),
@@ -1228,6 +1241,8 @@ export default function AgentesPage() {
       ...(waRemoved.length ? [supabase.from("agent_whatsapp_connections").delete().eq("agent_id", selected.id).in("connection_id", waRemoved)] : []),
       ...(metaAdded.length ? [supabase.from("agent_meta_connections").upsert(metaAdded.map((connection_id) => ({ agent_id: selected.id, company_id: companyId, connection_id })), { onConflict: "agent_id,connection_id", ignoreDuplicates: true })] : []),
       ...(metaRemoved.length ? [supabase.from("agent_meta_connections").delete().eq("agent_id", selected.id).in("connection_id", metaRemoved)] : []),
+      ...(webhookAdded.length ? [supabase.from("agent_webhook_integrations").upsert(webhookAdded.map((connection_id) => ({ agent_id: selected.id, company_id: companyId, connection_id })), { onConflict: "agent_id,connection_id", ignoreDuplicates: true })] : []),
+      ...(webhookRemoved.length ? [supabase.from("agent_webhook_integrations").delete().eq("agent_id", selected.id).in("connection_id", webhookRemoved)] : []),
       ...(calendarChanged.length ? [supabase.from("agent_calendar_connections").upsert(calendarChanged.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id, enabled: agentCalendarEnabled[user_id] })), { onConflict: "agent_id,user_id" })] : []),
       ...(availabilityChanged.length ? [supabase.from("agent_closer_availability").upsert(availabilityChanged.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id, days: closerAvailability[user_id] })), { onConflict: "agent_id,user_id" })] : []),
     ];
@@ -1247,6 +1262,7 @@ export default function AgentesPage() {
     setCloserIdsSaved(closerIds);
     setAgentWhatsappIdsSaved(agentWhatsappIds);
     setAgentMetaIdsSaved(agentMetaIds);
+    setAgentWebhookIdsSaved(agentWebhookIds);
     setAgentCalendarEnabledSaved(agentCalendarEnabled);
     setCloserAvailabilitySaved(closerAvailability);
     toast.success("Agente atualizado");
@@ -1266,6 +1282,7 @@ export default function AgentesPage() {
     JSON.stringify(closerAvailability) !== JSON.stringify(closerAvailabilitySaved) ||
     JSON.stringify([...agentWhatsappIds].sort()) !== JSON.stringify([...agentWhatsappIdsSaved].sort()) ||
     JSON.stringify([...agentMetaIds].sort()) !== JSON.stringify([...agentMetaIdsSaved].sort()) ||
+    JSON.stringify([...agentWebhookIds].sort()) !== JSON.stringify([...agentWebhookIdsSaved].sort()) ||
     JSON.stringify(agentCalendarEnabled) !== JSON.stringify(agentCalendarEnabledSaved)
   );
 
@@ -1301,7 +1318,7 @@ export default function AgentesPage() {
     }
   }
 
-  // Etapa "Integrações" -- toggles de WhatsApp e Calendar
+  // Etapa "Integrações" -- toggles de WhatsApp/Instagram-Messenger/Webhook
   // funcionam igual toggleCloser: linha existe = usado; some = não usado.
   async function toggleAgentWhatsapp(connectionId: string, checked: boolean) {
     if (!wizardMode) {
@@ -1344,6 +1361,28 @@ export default function AgentesPage() {
       if (error) { toast.error("Erro ao desvincular conexão"); return; }
       setAgentMetaIds((prev) => prev.filter((id) => id !== connectionId));
       setAgentMetaIdsSaved((prev) => prev.filter((id) => id !== connectionId));
+    }
+  }
+
+  async function toggleAgentWebhook(connectionId: string, checked: boolean) {
+    if (!wizardMode) {
+      setAgentWebhookIds(checked ? [...agentWebhookIds, connectionId] : agentWebhookIds.filter((id) => id !== connectionId));
+      return;
+    }
+    if (!selected || !companyId) return;
+    if (checked) {
+      const { error } = await supabase.from("agent_webhook_integrations").upsert(
+        { agent_id: selected.id, company_id: companyId, connection_id: connectionId },
+        { onConflict: "agent_id,connection_id", ignoreDuplicates: true },
+      );
+      if (error) { toast.error("Erro ao vincular webhook"); return; }
+      setAgentWebhookIds((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
+      setAgentWebhookIdsSaved((prev) => (prev.includes(connectionId) ? prev : [...prev, connectionId]));
+    } else {
+      const { error } = await supabase.from("agent_webhook_integrations").delete().eq("agent_id", selected.id).eq("connection_id", connectionId);
+      if (error) { toast.error("Erro ao desvincular webhook"); return; }
+      setAgentWebhookIds((prev) => prev.filter((id) => id !== connectionId));
+      setAgentWebhookIdsSaved((prev) => prev.filter((id) => id !== connectionId));
     }
   }
 
@@ -2453,6 +2492,11 @@ export default function AgentesPage() {
                       categoria: string;
                       titulo: string;
                       subtitulo: string;
+                      // O que marcar significa muda por canal: numa linha de
+                      // WhatsApp é restringir onde o agente atende; num webhook
+                      // é adotar os negócios que entram por ali. Rótulo único no
+                      // rodapé escondia essa diferença.
+                      rodape: string;
                       conectado: boolean;
                       usa: boolean;
                       alternar: (v: boolean) => void;
@@ -2464,6 +2508,7 @@ export default function AgentesPage() {
                       ...whatsappConnections.map((c) => ({
                         chave: `wa-${c.id}`,
                         categoria: "WhatsApp",
+                        rodape: "Atender nesta linha",
                         titulo: c.name,
                         subtitulo: c.phone || "WhatsApp",
                         conectado: c.connected,
@@ -2486,6 +2531,7 @@ export default function AgentesPage() {
                             .map((m) => ({
                               chave: `cal-${m.user_id}`,
                               categoria: "Calendar",
+                              rodape: "Consultar esta agenda",
                               titulo: memberCalendarEmail[m.user_id] || m.full_name || m.email || m.user_id,
                               subtitulo: "Google Calendar",
                               conectado: true,
@@ -2495,6 +2541,18 @@ export default function AgentesPage() {
                               cor: "#4285F4",
                             }))
                         : []),
+                      ...webhookIntegrations.map((c) => ({
+                        chave: `wh-${c.id}`,
+                        categoria: "Webhooks",
+                        rodape: "Atender negócios que entram por aqui",
+                        titulo: c.name,
+                        subtitulo: "Entrada de negócios",
+                        conectado: c.active,
+                        usa: agentWebhookIds.includes(c.id),
+                        alternar: (v: boolean) => toggleAgentWebhook(c.id, v),
+                        icone: <Webhook size={18} color="#FFF" />,
+                        cor: "#111111",
+                      })),
                     ];
 
                     // Todo canal suportado aparece como chip, mesmo zerado. Um
@@ -2504,11 +2562,12 @@ export default function AgentesPage() {
                     // se conecta. Calendar é a exceção e some quando o objetivo
                     // "Agendar" está desmarcado, porque aí a agenda dos
                     // vendedores não influencia nada.
-                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : [])];
+                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : []), "Webhooks"];
                     const vazios: Record<string, string> = {
                       "WhatsApp": "Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.",
                       "Calendar": "Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.",
-                      "Todos": "Conecte um WhatsApp em Configurações → Conexões para escolher onde este agente atua.",
+                      "Webhooks": "Nenhum webhook de entrada configurado. Crie um em Configurações → Integrações para receber negócios de plataformas externas, como checkout e formulários.",
+                      "Todos": "Conecte um WhatsApp ou um webhook em Configurações → Conexões para escolher onde este agente atua.",
                     };
                     // Categoria que deixou de existir (Calendar depois de
                     // desmarcar "Agendar") não pode deixar a grade em branco sem
@@ -2587,7 +2646,7 @@ export default function AgentesPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
-                                  <span className="text-[12px] font-medium text-[#767676]">Usar neste agente</span>
+                                  <span className="text-[12px] font-medium text-[#767676]">{c.rodape}</span>
                                   <Switch checked={c.usa} onCheckedChange={c.alternar} />
                                 </div>
                               </div>

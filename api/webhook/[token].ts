@@ -181,7 +181,23 @@ export default async function handler(req: Req, res: Res) {
     }
   }
 
-  // ── 7. Upsert por ID externo (se mapeado) ───────────────────────────────────
+  // ── 7. Tags finais: as do webhook + as dos agentes vinculados ───────────────
+  // Agentes de IA vinculados a esta integração (aba Integrações do agente).
+  // A tag de ativação deles entra junto das tags configuradas no webhook: é a
+  // tag que aciona o agente num negócio, então marcar o webhook no agente
+  // passa a significar "os negócios que entram por aqui são atendidos por
+  // mim". Um mecanismo só de roteamento, o mesmo de sempre.
+  const { data: agentesVinculados } = await supabase
+    .from("agent_webhook_integrations")
+    .select("agents!inner(activation_tag, active)")
+    .eq("connection_id", integration.id)
+    .eq("enabled", true);
+  const tagsDeAgente = ((agentesVinculados ?? []) as unknown as { agents: { activation_tag: string | null; active: boolean } }[])
+    .filter((r) => r.agents?.active && r.agents.activation_tag)
+    .map((r) => r.agents.activation_tag as string);
+  const tagsFinais = [...new Set([...(auto.tags ?? []), ...tagsDeAgente])];
+
+  // ── 8. Upsert por ID externo (se mapeado) ───────────────────────────────────
   const externalId = pick("externalId");
   if (externalId) {
     // Verifica se já existe lead com essa origem+externalId via notes tag
@@ -202,7 +218,10 @@ export default async function handler(req: Req, res: Res) {
           whatsapp: phone || undefined,
           phone_ddi: ddi || undefined,
           email,
-          tags: auto.tags && auto.tags.length > 0 ? auto.tags : undefined,
+          // No lead que já existe as tags também precisam trazer a do agente,
+          // senão reenviar o mesmo evento tirava o agente de um negócio que
+          // ele já estava atendendo.
+          tags: tagsFinais.length > 0 ? tagsFinais : undefined,
           ...(productSku || productName ? { product_id: productSku ?? productName } : {}),
           ...(productPrice > 0 ? { value: productPrice } : {}),
         })
@@ -224,13 +243,18 @@ export default async function handler(req: Req, res: Res) {
     }
   }
 
-  // ── 8. Cria novo lead ───────────────────────────────────────────────────────
+  // ── 9. Cria novo lead ───────────────────────────────────────────────────────
   const notesExtra = externalId ? `[ext:${externalId}]` : "";
 
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
     .insert({
       owner_id:    integration.owner_id,
+      // Sem company_id o negócio nasce órfão: some da tela do CRM (que filtra
+      // por empresa) e o agente nunca o encontra, porque toda consulta dele é
+      // escopada por company_id. Nenhum lead tinha sido criado por aqui ainda,
+      // então isso nunca apareceu.
+      company_id:  integration.company_id,
       deal_number: dealNumber,
       name,
       company,
@@ -245,7 +269,7 @@ export default async function handler(req: Req, res: Res) {
       origin:      "Outro",
       entry_date:  new Date().toISOString().split("T")[0],
       notes:       notesExtra,
-      tags:        auto.tags ?? [],
+      tags:        tagsFinais,
       product_id:  productSku ?? productName,
       value:       productPrice,
       position:    0,
@@ -261,7 +285,7 @@ export default async function handler(req: Req, res: Res) {
 
   const leadId = (lead as { id: string }).id;
 
-  // ── 9. Atividade de criação ─────────────────────────────────────────────────
+  // ── 10. Atividade de criação ─────────────────────────────────────────────────
   await supabase.from("activities").insert({
     owner_id:    integration.owner_id,
     lead_id:     leadId,

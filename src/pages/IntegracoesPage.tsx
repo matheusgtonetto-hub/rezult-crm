@@ -722,15 +722,6 @@ export default function IntegracoesPage() {
                             {crmTags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                           </select>
                           <p style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>Segure Ctrl para selecionar múltiplas tags</p>
-                          {/* É por aqui que um lead vindo de webhook cai num
-                              agente de IA: o agente é acionado pela tag de
-                              ativação dele no negócio. Sem essa dica, a
-                              ligação existia mas ninguém tinha como descobrir
-                              sozinho. */}
-                          <p style={{ fontSize: 11, color: "#767676", marginTop: 6, lineHeight: 1.4 }}>
-                            Para um agente de IA atender os negócios criados por este webhook, selecione aqui a tag
-                            de ativação dele (definida no card do agente, em Agentes).
-                          </p>
                         </div>
                       </div>
                     </div>
