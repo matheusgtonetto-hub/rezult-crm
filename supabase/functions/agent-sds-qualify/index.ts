@@ -507,11 +507,19 @@ function buildBehaviorPromptExtra(cfg: BehaviorConfig, agentName: string, nomeEm
     lines.push(`QUEM VOCÊ É: você é ${empresa} falando diretamente com o cliente. Use SEMPRE a primeira pessoa para o atendimento ("eu te atendo", "minha agenda", "vou te receber", "no meu trabalho"). NUNCA se refira ao profissional em terceira pessoa nem diga "vocês vão conversar" — quem vai conversar com o lead é você.`);
   }
 
+  // O agente não sabia o próprio nome. Ele só existia como assinatura, inserida
+  // pelo código no envio, e o prompt inclusive mandava NÃO escrever o nome no
+  // início da mensagem -- então perguntar "com quem eu falo?" não tinha
+  // resposta. As duas coisas convivem: saber o nome e não repetir ele na
+  // abertura de cada mensagem.
+  if (agentName) lines.push(`Seu nome é ${agentName}. É esse o nome que você usa ao se apresentar ou quando o lead pergunta com quem está falando.`);
+
   // A descrição escrita pela empresa completa o bloco acima. O seletor de voz
   // dá a PESSOA do discurso (primeira pessoa ou membro do time); a descrição
-  // dá a substância -- nome, profissão, formação, como atende. Sem ela o
-  // agente em modo "equipe" dizia "ela vai te receber" sem saber quem é "ela",
-  // e o em primeira pessoa se apresentava só pelo nome da empresa.
+  // dá a substância -- papel, profissão, de quem ele fala, como a empresa
+  // atende. Sem ela o agente em modo "equipe" dizia "ela vai te receber" sem
+  // saber quem é "ela", e o em primeira pessoa se apresentava só pelo nome da
+  // empresa.
   if (quemEAgente) lines.push(quemEAgente);
 
   if (cfg.estilo_comunicacao && ESTILO_PROMPTS[cfg.estilo_comunicacao]) lines.push(ESTILO_PROMPTS[cfg.estilo_comunicacao]);

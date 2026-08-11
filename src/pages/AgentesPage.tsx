@@ -178,6 +178,35 @@ const PLACEHOLDER_INSTRUCOES = [
   'Resposta: "Depende do que você precisa. Me conta rapidinho o seu caso que eu te passo certinho."',
 ].join("\n");
 
+// Selo do campo "Descrição", nos dois lugares onde ele aparece (diálogo de
+// criação e etapa Comportamento). A explicação fica no hover do ícone em vez
+// de um parágrafo embaixo do campo: o texto corrido empurrava o campo pra
+// baixo e era lido uma vez só, na primeira visita.
+function DescricaoAgenteBadge() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label="Como a descrição é usada" className="flex items-center gap-1 text-[11px] text-[#128A68] cursor-help">
+          <Info size={12} /> Usada como instrução pela IA
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-[320px] text-[12px] leading-relaxed">
+        <p className="mb-2">
+          É aqui que você diz <b>quem o agente é</b> na conversa: o papel dele, de quem ele fala e como a empresa
+          atende. O texto entra no início do prompt, em toda mensagem.
+        </p>
+        <p className="mb-2">
+          Escreva na segunda pessoa, falando com ele: “Você é um atendente da [empresa] e seu trabalho é…”.
+        </p>
+        <p className="text-[11px] opacity-80">
+          Funciona junto da escolha entre falar em primeira pessoa ou como membro do time, em Comportamento. Pode
+          ficar em branco agora e ser escrito depois.
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 const DEFAULT_AVATAR = "bot";
 function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: number }) {
   const Icon = AGENT_AVATARS[avatar ?? ""] ?? Bot;
@@ -2095,9 +2124,7 @@ export default function AgentesPage() {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <Label className="text-[12px]">Descrição do agente</Label>
-                          <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
-                            <Info size={12} /> Usada como instrução pela IA
-                          </span>
+                          <DescricaoAgenteBadge />
                         </div>
                         <Textarea
                           value={descriptionDraft}
@@ -3192,9 +3219,7 @@ export default function AgentesPage() {
             <div>
               <div className="flex items-center gap-1.5">
                 <Label className="text-[12px]">Descrição</Label>
-                <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
-                  <Info size={12} /> Usada como instrução pela IA
-                </span>
+                <DescricaoAgenteBadge />
               </div>
               <Textarea
                 value={draftDescription}
@@ -3202,10 +3227,6 @@ export default function AgentesPage() {
                 placeholder="Ex: Você é um atendente na empresa [Nome da empresa], e seu trabalho é qualificar e agendar potenciais clientes para uma demonstração do produto com o time de vendas."
                 className="mt-1 min-h-[70px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
-              <p className="text-[11px] text-[#767676] mt-1">
-                Quem é o agente na conversa: profissão, formação, como atende. Dá pra escrever depois e ajustar em
-                Comportamento, junto da escolha entre falar em primeira pessoa ou como membro do time.
-              </p>
             </div>
             <div>
               <Label className="text-[12px]">Tag de ativação</Label>
