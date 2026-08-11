@@ -2105,8 +2105,8 @@ export default function AgentesPage() {
                           onBlur={() => { if (wizardMode) void commitDescription(); }}
                           placeholder={
                             (behaviorDraft.persona_voz ?? "propria") === "equipe"
-                              ? "Ex: Você é a Caroline, assistente da Samantha Oliveira, psicóloga com orientação psicanalítica. Ela atende adultos, presencial em Florianópolis e online para todo o Brasil."
-                              : "Ex: Você é psicóloga com orientação psicanalítica, atende adultos, presencial em Florianópolis e online para todo o Brasil."
+                              ? "Ex: Você é um atendente na empresa [Nome da empresa], e seu trabalho é qualificar e agendar potenciais clientes para uma demonstração do produto com o time de vendas."
+                              : "Ex: Você é [Nome do profissional], da empresa [Nome da empresa], e seu trabalho é qualificar quem procura a empresa e agendar essas pessoas na sua própria agenda."
                           }
                           className="mt-1 min-h-[110px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
@@ -3199,7 +3199,7 @@ export default function AgentesPage() {
               <Textarea
                 value={draftDescription}
                 onChange={(e) => setDraftDescription(e.target.value.slice(0, LIMITE_DESCRICAO))}
-                placeholder="Ex: Você é psicóloga com orientação psicanalítica, atende adultos, presencial em Florianópolis e online para todo o Brasil."
+                placeholder="Ex: Você é um atendente na empresa [Nome da empresa], e seu trabalho é qualificar e agendar potenciais clientes para uma demonstração do produto com o time de vendas."
                 className="mt-1 min-h-[70px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
               <p className="text-[11px] text-[#767676] mt-1">
