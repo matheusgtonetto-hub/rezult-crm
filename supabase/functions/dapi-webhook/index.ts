@@ -86,6 +86,14 @@ serve(async (req) => {
     // ── Mensagens recebidas ─────────────────────────────────────────────────────
     if (event !== "messages.received") {
       // Outros eventos (status de mensagem, presença, grupos, etc.) — ignorados.
+      //
+      // Investigado em 2026-08-10 se dava para esperar o lead PARAR de digitar
+      // antes de contar o delay de resposta. Não compensa: na D-API o
+      // "digitando" vem embutido no evento `presence`, que precisa ser
+      // habilitado por sessão, dispara a cada mudança de disponibilidade de
+      // cada contato, e depende do lead não esconder "online"/"visto por
+      // último". Funcionaria para uns leads e não para outros, sem explicação
+      // possível. O delay configurável cobre o caso com previsibilidade.
       return new Response("ok", { status: 200 });
     }
 
