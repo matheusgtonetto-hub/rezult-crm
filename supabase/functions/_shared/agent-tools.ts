@@ -62,6 +62,40 @@ function resolveLeadId(ctx: ToolCtx, input: Record<string, unknown>): string {
   return (input.lead_id as string | undefined) || ctx.leadId;
 }
 
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const norm = (s: string) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+// Traduz o nome que o modelo escreveu ("Consulta avulsa") para o uuid da
+// linha. É o padrão de TODA ferramenta que precisa de id: o modelo enxerga a
+// conversa, não o banco, e não tem de onde tirar um uuid. Quando não acha,
+// devolve no próprio erro a lista do que existe -- é o que faz o modelo
+// corrigir na mesma resposta em vez de dizer ao lead que "não conseguiu".
+//
+// Sem isso, cada ferramenta dessas só funcionava se o usuário tivesse marcado
+// também a ferramenta de listar correspondente, e ninguém tinha como saber
+// disso pela tela.
+async function resolverPorNome(
+  ctx: ToolCtx, tabela: string, coluna: string, valor: unknown,
+  filtro?: (q: Db) => Db,
+): Promise<{ id: string; nome: string } | { erro: string }> {
+  const bruto = String(valor ?? "").trim();
+  let q = ctx.db.from(tabela).select(`id, ${coluna}`).eq("company_id", ctx.companyId);
+  if (filtro) q = filtro(q);
+  const { data } = await q;
+  const linhas = ((data ?? []) as Record<string, string>[]);
+  const opcoes = linhas.map((l) => l[coluna]).filter(Boolean);
+
+  if (!bruto) return { erro: `informe qual. Opções: ${opcoes.join(", ") || "nenhuma"}` };
+  if (UUID_RE.test(bruto)) {
+    const porId = linhas.find((l) => l.id === bruto);
+    if (porId) return { id: porId.id, nome: porId[coluna] };
+  }
+  const achado = linhas.find((l) => norm(l[coluna]) === norm(bruto))
+    ?? linhas.find((l) => norm(l[coluna]).includes(norm(bruto)));
+  if (achado) return { id: achado.id, nome: achado[coluna] };
+  return { erro: `"${bruto}" não existe aqui. Opções: ${opcoes.join(", ") || "nenhuma"}` };
+}
+
 // ─── Leads ───────────────────────────────────────────────────────────────
 
 async function listarLeads(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
@@ -160,24 +194,14 @@ async function atualizarLeadNotas(ctx: ToolCtx, input: Record<string, unknown>):
 // campos que existem e devolve a lista quando não acha.
 async function definirCampoAdicionalLead(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const bruto = String(input.field_key ?? input.campo ?? "").trim();
-  if (!bruto) return { ok: false, error: "informe o campo (nome ou id)" };
-
-  const { data: campos } = await ctx.db.from("custom_field_items").select("id, label").eq("company_id", ctx.companyId);
-  const lista = ((campos ?? []) as { id: string; label: string }[]);
-  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const achado = lista.find((c) => c.id === bruto)
-    ?? lista.find((c) => norm(c.label) === norm(bruto))
-    ?? lista.find((c) => norm(c.label).includes(norm(bruto)));
-  if (!achado) {
-    return { ok: false, error: `o campo "${bruto}" não existe neste CRM. Campos disponíveis: ${lista.map((c) => c.label).join(", ") || "nenhum"}` };
-  }
+  const campo = await resolverPorNome(ctx, "custom_field_items", "label", input.field_key ?? input.campo);
+  if ("erro" in campo) return { ok: false, error: `campo adicional: ${campo.erro}` };
 
   const { data: lead } = await ctx.db.from("leads").select("custom_field_values").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
   const current = (lead?.custom_field_values as Record<string, unknown>) ?? {};
-  const { error } = await ctx.db.from("leads").update({ custom_field_values: { ...current, [achado.id]: input.value } }).eq("id", id).eq("company_id", ctx.companyId);
+  const { error } = await ctx.db.from("leads").update({ custom_field_values: { ...current, [campo.id]: input.value } }).eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { campo: achado.label } };
+  return { ok: true, data: { campo: campo.nome } };
 }
 
 // `leads.responsible` e `leads.responsibles` guardam NOME de exibição, não
@@ -270,15 +294,51 @@ async function tagOp(ctx: ToolCtx, input: Record<string, unknown>, add: boolean)
 
 // ─── Negócios (mesma tabela leads) ─────────────────────────────────────────
 
+// Exigia pipeline_id E column_id em uuid, dois valores que o modelo não tinha
+// de onde tirar: na prática a ferramenta só funcionava se o usuário tivesse
+// marcado também listar_pipelines e listar_etapas_pipeline, e ainda assim
+// custava duas rodadas de descoberta antes de criar. Agora funil e etapa
+// aceitam nome, o funil cai no do negócio da conversa e a etapa cai na
+// primeira do funil.
 async function criarNegocio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
-  if (!input.pipeline_id || !input.column_id) return { ok: false, error: "pipeline_id e column_id são obrigatórios" };
+  let pipelineId: string | null = null;
+  if (input.pipeline_id ?? input.funil) {
+    const funil = await resolverPorNome(ctx, "pipelines", "name", input.pipeline_id ?? input.funil);
+    if ("erro" in funil) return { ok: false, error: `funil: ${funil.erro}` };
+    pipelineId = funil.id;
+  } else {
+    pipelineId = await resolvePipelineId(ctx, input);
+  }
+  if (!pipelineId) return { ok: false, error: "não achei em qual funil criar. Informe o nome do funil." };
+
+  let columnId: string;
+  if (input.column_id ?? input.etapa) {
+    const etapa = await resolverEtapa(ctx, pipelineId, input.column_id ?? input.etapa);
+    if ("erro" in etapa) return { ok: false, error: `etapa: ${etapa.erro}` };
+    columnId = etapa.id;
+  } else {
+    const { data: primeira } = await ctx.db.from("pipeline_columns")
+      .select("id").eq("pipeline_id", pipelineId).eq("company_id", ctx.companyId)
+      .order("position", { ascending: true }).limit(1);
+    const inicial = (primeira ?? [])[0]?.id as string | undefined;
+    if (!inicial) return { ok: false, error: "esse funil não tem nenhuma etapa" };
+    columnId = inicial;
+  }
+
+  let productId: string | null = null;
+  if (input.product_id ?? input.produto) {
+    const produto = await resolverPorNome(ctx, "products", "name", input.product_id ?? input.produto);
+    if ("erro" in produto) return { ok: false, error: `produto: ${produto.erro}` };
+    productId = produto.id;
+  }
+
   const { data: maxRow } = await ctx.db.from("leads").select("deal_number").eq("owner_id", ctx.ownerId).order("deal_number", { ascending: false }).limit(1).maybeSingle();
   const nextDealNumber = ((maxRow?.deal_number as number | undefined) ?? 1000) + 1;
   const insertRow = {
     owner_id: ctx.ownerId, company_id: ctx.companyId, status: "open", deal_number: nextDealNumber,
     name: (input.name as string) || "Novo negócio (agente)",
-    pipeline_id: input.pipeline_id, column_id: input.column_id,
-    value: input.value ?? null, product_id: input.product_id ?? null,
+    pipeline_id: pipelineId, column_id: columnId,
+    value: input.value ?? null, product_id: productId,
   };
   const { data, error } = await ctx.db.from("leads").insert(insertRow).select("id, deal_number, name").single();
   if (error) return { ok: false, error: error.message };
@@ -286,8 +346,11 @@ async function criarNegocio(ctx: ToolCtx, input: Record<string, unknown>): Promi
 }
 
 async function listarNegociosPorEstagio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
-  if (!input.column_id) return { ok: false, error: "column_id é obrigatório" };
-  return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("column_id", input.column_id as string));
+  const pipelineId = await resolvePipelineId(ctx, input);
+  if (!pipelineId) return { ok: false, error: "negócio sem funil definido" };
+  const etapa = await resolverEtapa(ctx, pipelineId, input.column_id ?? input.etapa);
+  if ("erro" in etapa) return { ok: false, error: `etapa: ${etapa.erro}` };
+  return genericList(ctx.db, "leads", ctx.companyId, (q) => q.eq("column_id", etapa.id));
 }
 
 // Filtrava `responsible` pelo uuid do atendente, mas a coluna guarda NOME de
@@ -314,38 +377,26 @@ async function resolvePipelineId(ctx: ToolCtx, input: Record<string, unknown>): 
   return (lead?.pipeline_id as string | undefined) ?? null;
 }
 
-const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+// Resolve a etapa pelo NOME dentro de um funil. O modelo enxerga a conversa,
+// não o banco: exigir column_id em uuid deixava ele dizendo ao lead que "não
+// conseguia mover".
+function resolverEtapa(ctx: ToolCtx, pipelineId: string, valor: unknown) {
+  return resolverPorNome(ctx, "pipeline_columns", "title", valor, (q) => q.eq("pipeline_id", pipelineId));
+}
 
 async function moverNegocioEstagio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
   const pipelineId = await resolvePipelineId(ctx, input);
   if (!pipelineId) return { ok: false, error: "negócio sem funil definido" };
 
-  // Aceita o NOME da etapa ("Em andamento"), não só o UUID: o modelo enxerga
-  // a conversa, não o banco. Antes exigia column_id em UUID, que ele não
-  // tinha como descobrir -- então dizia ao lead que "não conseguia mover".
-  const alvo = String(input.column_id ?? input.etapa ?? "").trim();
-  if (!alvo) return { ok: false, error: "informe a etapa de destino (nome ou id)" };
-
-  let columnId: string | null = UUID_RE.test(alvo) ? alvo : null;
-  if (!columnId) {
-    const { data: colunas } = await ctx.db.from("pipeline_columns")
-      .select("id, title").eq("pipeline_id", pipelineId).eq("company_id", ctx.companyId);
-    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    const achada = (colunas ?? []).find((c: { title: string }) => norm(c.title) === norm(alvo))
-      ?? (colunas ?? []).find((c: { title: string }) => norm(c.title).includes(norm(alvo)));
-    if (!achada) {
-      const disponiveis = (colunas ?? []).map((c: { title: string }) => c.title).join(", ");
-      return { ok: false, error: `etapa "${alvo}" não existe neste funil. Etapas disponíveis: ${disponiveis}` };
-    }
-    columnId = achada.id as string;
-  }
+  const etapa = await resolverEtapa(ctx, pipelineId, input.column_id ?? input.etapa);
+  if ("erro" in etapa) return { ok: false, error: `etapa: ${etapa.erro}` };
 
   const { error } = await ctx.db.from("leads")
-    .update({ column_id: columnId, pipeline_id: pipelineId })
+    .update({ column_id: etapa.id, pipeline_id: pipelineId })
     .eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return { ok: true, data: { etapa: etapa.nome } };
 }
 
 async function ganharNegocio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
@@ -358,7 +409,14 @@ async function ganharNegocio(ctx: ToolCtx, input: Record<string, unknown>): Prom
 async function perderNegocio(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
   const patch: Record<string, unknown> = { status: "lost" };
-  if (input.loss_reason_id) patch.loss_reason_id = input.loss_reason_id;
+  // Motivo continua opcional, mas agora vale pelo nome. Só o uuid, ninguém
+  // conseguia informar, então na prática todo negócio perdido ia sem motivo.
+  const informado = input.loss_reason_id ?? input.motivo;
+  if (informado) {
+    const motivo = await resolverPorNome(ctx, "loss_reasons", "name", informado);
+    if ("erro" in motivo) return { ok: false, error: `motivo de perda: ${motivo.erro}` };
+    patch.loss_reason_id = motivo.id;
+  }
   const { error } = await ctx.db.from("leads").update(patch).eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -366,7 +424,13 @@ async function perderNegocio(ctx: ToolCtx, input: Record<string, unknown>): Prom
 
 async function atualizarProdutoNegocio(ctx: ToolCtx, input: Record<string, unknown>, remove: boolean): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
-  const { error } = await ctx.db.from("leads").update({ product_id: remove ? null : (input.product_id ?? null) }).eq("id", id).eq("company_id", ctx.companyId);
+  let productId: string | null = null;
+  if (!remove) {
+    const produto = await resolverPorNome(ctx, "products", "name", input.product_id ?? input.produto);
+    if ("erro" in produto) return { ok: false, error: `produto: ${produto.erro}` };
+    productId = produto.id;
+  }
+  const { error } = await ctx.db.from("leads").update({ product_id: productId }).eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -442,6 +506,14 @@ async function listarMensagensConversa(ctx: ToolCtx, input: Record<string, unkno
 const str = { type: "string" };
 const num = { type: "number" };
 
+// Regra de ouro dos schemas: NENHUMA ferramenta pode exigir um uuid que o
+// modelo não tenha como descobrir sozinho. Tudo que aponta para outra tabela
+// (etapa, funil, produto, atendente, campo, motivo) aceita o NOME, e a
+// ferramenta devolve a lista do que existe quando não acha. Sem isso, cada
+// uma dessas só funcionava se o usuário tivesse marcado junto a ferramenta de
+// listar correspondente -- dependência invisível na tela.
+const nomeOuId = (oQue: string) => ({ type: "string", description: `${oQue}. Pode ser o nome exato; se errar, a resposta traz as opções válidas.` });
+
 export const TOOL_SCHEMAS: ToolSchema[] = [
   { id: "listar_leads", name: "listar_leads", description: "Lista leads com filtros opcionais e paginação", input_schema: { type: "object", properties: { status: str, responsible: str, search: str, limit: num, offset: num } } },
   { id: "consultar_lead", name: "consultar_lead", description: "Recupera um lead específico pelo ID (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
@@ -449,21 +521,21 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
   { id: "atualizar_lead_info", name: "atualizar_lead_info", description: "Atualiza informações básicas de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, name: str, email: str, whatsapp: str, company: str, value: num, priority: str, origin: str } } },
   { id: "atualizar_lead_endereco", name: "atualizar_lead_endereco", description: "Atualiza o endereço de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, address: str, addr_number: str, complement: str, neighborhood: str, city: str, state: str, zip_code: str, country: str } } },
   { id: "atualizar_lead_contatos", name: "atualizar_lead_contatos", description: "Atualiza os contatos (email/whatsapp) de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, email: str, whatsapp: str, phone_ddi: str } } },
-  { id: "atualizar_lead_notas", name: "atualizar_lead_notas", description: "Atualiza as notas de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, notes: str }, required: ["notes"] } },
-  { id: "definir_campo_adicional_lead", name: "definir_campo_adicional_lead", description: "Define o valor de um campo adicional de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, field_key: str, value: str }, required: ["field_key", "value"] } },
-  { id: "atualizar_atendente_lead", name: "atualizar_atendente_lead", description: "Atualiza o atendente responsável de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente_user_id: str }, required: ["atendente_user_id"] } },
+  { id: "atualizar_lead_notas", name: "atualizar_lead_notas", description: "Acrescenta uma anotação ao lead, datada e identificada como sua (padrão: o lead da conversa atual). Não apaga o que já estava escrito.", input_schema: { type: "object", properties: { lead_id: str, notes: str }, required: ["notes"] } },
+  { id: "definir_campo_adicional_lead", name: "definir_campo_adicional_lead", description: "Preenche um campo adicional do lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, campo: nomeOuId("Campo a preencher"), value: str }, required: ["campo", "value"] } },
+  { id: "atualizar_atendente_lead", name: "atualizar_atendente_lead", description: "Troca o atendente responsável de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente: nomeOuId("Atendente que passa a ser responsável") }, required: ["atendente"] } },
   { id: "listar_negocios_do_lead", name: "listar_negocios_do_lead", description: "Lista outros negócios do mesmo contato do lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
-  { id: "adicionar_tag_lead", name: "adicionar_tag_lead", description: "Adiciona uma tag a um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, tag: str }, required: ["tag"] } },
+  { id: "adicionar_tag_lead", name: "adicionar_tag_lead", description: "Adiciona uma tag a um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, tag: nomeOuId("Tag a adicionar") }, required: ["tag"] } },
   { id: "remover_tag_lead", name: "remover_tag_lead", description: "Remove uma tag de um lead (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, tag: str }, required: ["tag"] } },
 
-  { id: "criar_negocio", name: "criar_negocio", description: "Cria um novo negócio/oportunidade no pipeline do CRM", input_schema: { type: "object", properties: { name: str, pipeline_id: str, column_id: str, value: num, product_id: str }, required: ["pipeline_id", "column_id"] } },
-  { id: "listar_negocios_por_estagio", name: "listar_negocios_por_estagio", description: "Lista negócios de um estágio específico do pipeline", input_schema: { type: "object", properties: { column_id: str }, required: ["column_id"] } },
-  { id: "listar_negocios_por_atendente", name: "listar_negocios_por_atendente", description: "Lista negócios atribuídos a um atendente específico", input_schema: { type: "object", properties: { atendente_user_id: str }, required: ["atendente_user_id"] } },
-  { id: "mover_negocio_estagio", name: "mover_negocio_estagio", description: "Move um negócio para outra etapa do funil (padrão: o lead da conversa atual). Informe o NOME da etapa em `etapa` — o funil do negócio é descoberto sozinho.", input_schema: { type: "object", properties: { lead_id: str, etapa: { type: "string", description: 'Nome da etapa de destino, ex: "Em andamento". Use listar_etapas_pipeline se não souber os nomes.' }, column_id: str, pipeline_id: str }, required: [] } },
+  { id: "criar_negocio", name: "criar_negocio", description: "Cria um novo negócio/oportunidade. Sem funil informado, usa o funil do negócio da conversa atual; sem etapa, entra na primeira etapa do funil.", input_schema: { type: "object", properties: { name: str, funil: nomeOuId("Funil onde criar"), etapa: nomeOuId("Etapa onde entrar"), value: num, produto: nomeOuId("Produto associado") } } },
+  { id: "listar_negocios_por_estagio", name: "listar_negocios_por_estagio", description: "Lista os negócios que estão numa etapa do funil", input_schema: { type: "object", properties: { etapa: nomeOuId("Etapa a consultar"), pipeline_id: str }, required: ["etapa"] } },
+  { id: "listar_negocios_por_atendente", name: "listar_negocios_por_atendente", description: "Lista negócios de um atendente", input_schema: { type: "object", properties: { atendente: nomeOuId("Atendente") }, required: ["atendente"] } },
+  { id: "mover_negocio_estagio", name: "mover_negocio_estagio", description: "Move um negócio para outra etapa do funil (padrão: o lead da conversa atual). O funil é descoberto sozinho.", input_schema: { type: "object", properties: { lead_id: str, etapa: nomeOuId('Etapa de destino, ex: "Em andamento"') }, required: ["etapa"] } },
   { id: "ganhar_negocio", name: "ganhar_negocio", description: "Marca um negócio como ganho (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
-  { id: "perder_negocio", name: "perder_negocio", description: "Marca um negócio como perdido (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, loss_reason_id: str } } },
-  { id: "atualizar_atendente_negocio", name: "atualizar_atendente_negocio", description: "Atualiza o atendente responsável de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente_user_id: str }, required: ["atendente_user_id"] } },
-  { id: "adicionar_produto_negocio", name: "adicionar_produto_negocio", description: "Associa um produto a um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, product_id: str }, required: ["product_id"] } },
+  { id: "perder_negocio", name: "perder_negocio", description: "Marca um negócio como perdido (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, motivo: nomeOuId("Motivo da perda, opcional") } } },
+  { id: "atualizar_atendente_negocio", name: "atualizar_atendente_negocio", description: "Troca o atendente responsável de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente: nomeOuId("Atendente que passa a ser responsável") }, required: ["atendente"] } },
+  { id: "adicionar_produto_negocio", name: "adicionar_produto_negocio", description: "Associa um produto a um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, produto: nomeOuId("Produto a associar") }, required: ["produto"] } },
   { id: "remover_produto_negocio", name: "remover_produto_negocio", description: "Remove o produto de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
   { id: "atualizar_total_negocio", name: "atualizar_total_negocio", description: "Atualiza o valor total de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, value: num }, required: ["value"] } },
 
@@ -473,30 +545,30 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
   { id: "listar_mensagens_conversa", name: "listar_mensagens_conversa", description: "Lista as mensagens mais recentes de uma conversa por telefone", input_schema: { type: "object", properties: { phone: str, limit: num }, required: ["phone"] } },
 ];
 
-// Entidades de catálogo com padrão idêntico listar/consultar — evita repetir
-// 20 funções quase iguais. `table` é o nome real no banco.
-const CATALOG_ENTITIES: { entity: string; table: string; listId: string; getId: string; label: string; orderBy?: string }[] = [
-  { entity: "produtos",      table: "products",            listId: "listar_produtos",           getId: "consultar_produto",           label: "produto" },
-  { entity: "tags",          table: "tags",                 listId: "listar_tags",               getId: "consultar_tag",               label: "tag" },
-  { entity: "listas",        table: "lists",                listId: "listar_listas",             getId: "consultar_lista",             label: "lista" },
+// Entidades de catálogo: só "listar". O "consultar por ID" que existia para
+// cada uma foi aposentado — devolvia a mesma linha que o listar já traz, e
+// era justamente o grupo que exigia um uuid impossível de adivinhar. Quem
+// precisa de um item específico lê a lista.
+const CATALOG_ENTITIES: { entity: string; table: string; listId: string; label: string; orderBy?: string }[] = [
+  { entity: "produtos",      table: "products",            listId: "listar_produtos",           label: "produto" },
+  { entity: "tags",          table: "tags",                listId: "listar_tags",               label: "tag" },
+  { entity: "listas",        table: "lists",               listId: "listar_listas",             label: "lista" },
   // custom_field_items não tem created_at -- ordena por position.
-  { entity: "campos",        table: "custom_field_items",   listId: "listar_campos_adicionais",  getId: "consultar_campo_adicional",   label: "campo adicional", orderBy: "position" },
-  { entity: "pipelines",     table: "pipelines",            listId: "listar_pipelines",           getId: "",                            label: "pipeline" },
-  { entity: "motivos_perda", table: "loss_reasons",         listId: "listar_motivos_perda",       getId: "consultar_motivo_perda",      label: "motivo de perda" },
-  { entity: "horarios",      table: "work_schedules",       listId: "listar_horarios_trabalho",   getId: "consultar_horario_trabalho",  label: "horário de trabalho" },
-  { entity: "departamentos", table: "departments",          listId: "listar_departamentos",       getId: "consultar_departamento",      label: "departamento" },
-  { entity: "conexoes",      table: "whatsapp_connections", listId: "listar_conexoes",             getId: "consultar_conexao",           label: "conexão" },
+  { entity: "campos",        table: "custom_field_items",  listId: "listar_campos_adicionais",  label: "campo adicional", orderBy: "position" },
+  { entity: "pipelines",     table: "pipelines",           listId: "listar_pipelines",          label: "funil" },
+  { entity: "motivos_perda", table: "loss_reasons",        listId: "listar_motivos_perda",      label: "motivo de perda" },
+  { entity: "horarios",      table: "work_schedules",      listId: "listar_horarios_trabalho",  label: "horário de trabalho" },
+  { entity: "departamentos", table: "departments",         listId: "listar_departamentos",      label: "departamento" },
+  { entity: "conexoes",      table: "whatsapp_connections", listId: "listar_conexoes",          label: "conexão" },
 ];
 
 for (const c of CATALOG_ENTITIES) {
   TOOL_SCHEMAS.push({ id: c.listId, name: c.listId, description: `Lista ${c.label}s disponíveis`, input_schema: { type: "object", properties: { limit: num } } });
-  if (c.getId) TOOL_SCHEMAS.push({ id: c.getId, name: c.getId, description: `Recupera um(a) ${c.label} específico(a) pelo ID`, input_schema: { type: "object", properties: { id: str }, required: ["id"] } });
 }
 TOOL_SCHEMAS.push(
   { id: "listar_grupos_pipeline", name: "listar_grupos_pipeline", description: "Lista os grupos de pipeline disponíveis", input_schema: { type: "object", properties: {} } },
   { id: "listar_etapas_pipeline", name: "listar_etapas_pipeline", description: "Lista as etapas do funil. Sem parâmetros, usa o funil do negócio da conversa atual.", input_schema: { type: "object", properties: { pipeline_id: str }, required: [] } },
   { id: "listar_atendentes", name: "listar_atendentes", description: "Lista os atendentes (membros) da empresa", input_schema: { type: "object", properties: {} } },
-  { id: "consultar_atendente", name: "consultar_atendente", description: "Recupera um atendente específico pelo ID", input_schema: { type: "object", properties: { user_id: str }, required: ["user_id"] } },
 );
 
 // ─── Dispatcher ─────────────────────────────────────────────────────────
@@ -546,19 +618,15 @@ export async function executeRegistryTool(ctx: ToolCtx, toolId: string, input: R
       if (error) return { ok: false, error: error.message };
       return { ok: true, data };
     }
-    case "consultar_atendente": {
-      const { data, error } = await ctx.db.rpc("get_company_members", { p_company_id: ctx.companyId });
-      if (error) return { ok: false, error: error.message };
-      const found = (data ?? []).find((m: { user_id: string }) => m.user_id === input.user_id);
-      return found ? { ok: true, data: found } : { ok: false, error: "não encontrado" };
-    }
   }
 
-  const catalog = CATALOG_ENTITIES.find((c) => c.listId === toolId || c.getId === toolId);
+  const catalog = CATALOG_ENTITIES.find((c) => c.listId === toolId);
   if (catalog) {
-    if (toolId === catalog.listId) return genericList(ctx.db, catalog.table, ctx.companyId, undefined, Number(input.limit) || 50, catalog.orderBy ?? "created_at");
-    return genericGet(ctx.db, catalog.table, ctx.companyId, input.id as string);
+    return genericList(ctx.db, catalog.table, ctx.companyId, undefined, Number(input.limit) || 50, catalog.orderBy ?? "created_at");
   }
 
-  return { ok: false, error: `ferramenta "${toolId}" ainda não implementada` };
+  // Agente salvo antes de uma ferramenta ser aposentada continua com o id em
+  // enabled_tools. Ele nem chega aqui (sem schema, o modelo não a enxerga),
+  // mas se chegar, erra explicado em vez de silenciosamente não fazer nada.
+  return { ok: false, error: `a ferramenta "${toolId}" não existe mais` };
 }
