@@ -1475,52 +1475,6 @@ async function resolveOutboundConnection(
   return (rows?.[0] as { provider: string; instance_id: string; token: string; client_token: string | null } | undefined) ?? null;
 }
 
-// ─── Saudação automática ─────────────────────────────────────────────────────
-// Enviada direto (sem passar pelo modelo/loop de tools) na primeira mensagem
-// de uma conversa nova -- por isso não conta como "interação da IA" pro
-// limite configurado em Configurações.
-async function sendGreeting(
-  db: ReturnType<typeof createClient>,
-  companyId: string,
-  agentId: string,
-  lead: Record<string, unknown>,
-  agentName: string,
-  cfg: BehaviorConfig,
-): Promise<void> {
-  const conn = await resolveOutboundConnection(db, companyId, agentId);
-  if (!conn) return;
-
-  const creds: ZapiCreds = {
-    instanceId: String(conn.instance_id),
-    token: String(conn.token),
-    clientToken: conn.client_token ? String(conn.client_token) : null,
-    provider: (["dapi", "cloud_api"].includes(String(conn.provider)) ? String(conn.provider) : "zapi") as "zapi" | "dapi" | "cloud_api",
-  };
-  const phone = String(lead.whatsapp ?? "");
-  const firstName = String(lead.name ?? "").split(" ")[0];
-  const emoji = cfg.usar_emojis ? " 👋" : "";
-  const signature = cfg.assinar_nome && agentName ? ` Aqui é ${agentName}.` : "";
-  const text = firstName
-    ? `Olá, ${firstName}!${signature} Como posso te ajudar hoje?${emoji}`
-    : `Olá!${signature} Como posso te ajudar hoje?${emoji}`;
-
-  // A saudação também passa pelo indicador de digitando -- é a PRIMEIRA
-  // impressão do contato, seria estranho justo ela aparecer do nada.
-  await sendTyping(creds, phone, 1500);
-  await new Promise<void>((r) => setTimeout(r, 1500));
-
-  await sendWa(creds, { kind: "text", phone, message: text });
-  await db.from("whatsapp_messages").insert({
-    company_id: companyId,
-    owner_id: lead.owner_id as string,
-    instance_id: creds.instanceId,
-    phone,
-    from_me: true,
-    body: text,
-    type: "text",
-  });
-}
-
 // ─── Seleção de agente por linha de WhatsApp ────────────────────────────────
 // Entre os agentes SDS ativos da empresa, escolhe qual deve responder esta
 // mensagem, respeitando a aba Integrações (agent_whatsapp_connections):
@@ -1800,13 +1754,10 @@ Deno.serve(async (req) => {
     : silencioMin < 1440 ? `${Math.round(silencioMin / 60)} hora(s)`
     : `${Math.round(silencioMin / 1440)} dia(s)`;
 
-  // Saudação automática: primeira mensagem desta conversa (ninguém do lado
-  // do agente/atendente respondeu ainda). Não passa pelo modelo -- é texto
-  // fixo, então não conta como interação da IA.
+  // Primeira mensagem desta conversa: ninguém do lado do agente/atendente
+  // respondeu ainda. Vira instrução no prompt lá embaixo, não mensagem
+  // separada -- ver o bloco da saudação junto da montagem do system.
   const isFirstMessageEver = (messages ?? []).length <= 1 && !(messages ?? []).some((m) => m.from_me);
-  if (behaviorConfig.saudacao_automatica && isFirstMessageEver) {
-    await sendGreeting(db, companyId, agent.id as string, lead, (agent.name as string) ?? "", behaviorConfig);
-  }
 
   // Limite de interações da IA por atendimento: ao atingir o limite, a
   // PRÓXIMA mensagem do cliente ainda gera 1 resposta -- mas restrita a se
@@ -1926,6 +1877,21 @@ Deno.serve(async (req) => {
   }
   if (silencioTexto) {
     system = `${system}\n\nO lead está sem responder há ${silencioTexto}. Calibre o tom por esse intervalo: poucos minutos NÃO são "faz tempo que não falamos". Só trate como reaproximação depois de dias.`;
+  }
+
+  // Saudação automática. Era uma mensagem SEPARADA de texto fixo ("Olá, {nome}!
+  // Como posso te ajudar hoje?") enviada antes desta execução -- e o código
+  // seguia adiante, então o lead recebia duas aberturas: a fixa, que ignorava o
+  // que ele tinha acabado de escrever, e a real do modelo logo depois. Além de
+  // duplicada, a fixa era a única mensagem do agente que não absorvia nada do
+  // que a empresa configurou: nem tom, nem instruções, nem Base de
+  // Conhecimento, nem se o agente fala como a empresa ou como equipe.
+  //
+  // Como o modelo já vai responder essa mesma primeira mensagem, a saudação
+  // não precisa existir como envio próprio: vira uma linha no prompt desta
+  // execução. Mesmo padrão do follow-up e do lembrete de reunião.
+  if (behaviorConfig.saudacao_automatica && isFirstMessageEver) {
+    system = `${system}\n\nESTA É A PRIMEIRA MENSAGEM desta conversa. Antes de entrar no objetivo, cumprimente o lead pelo primeiro nome (se você souber) e diga em UMA frase quem está falando. Emende no objetivo na MESMA mensagem, respondendo o que ele escreveu: não mande uma mensagem só de saudação, e não pergunte "como posso ajudar" se ele já disse o que quer.`;
   }
   // O agente É o atendimento. Prometer "vou te passar pra um atendente" sem
   // de fato transferir cria uma expectativa que nunca se cumpre -- o lead

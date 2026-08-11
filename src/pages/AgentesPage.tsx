@@ -2729,7 +2729,7 @@ export default function AgentesPage() {
                   <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
                     <div>
                       <div className="text-[13px] font-medium text-[#111111]">Saudação automática</div>
-                      <div className="text-[11px] text-[#767676]">Enviar saudação automática ao iniciar conversa.</div>
+                      <div className="text-[11px] text-[#767676]">Na primeira mensagem da conversa, o agente se apresenta antes de entrar no objetivo. Continua sendo uma mensagem só, com o tom e as instruções que você configurou. Desligado, ele já vai direto ao ponto.</div>
                     </div>
                     <Switch
                       checked={behaviorDraft.saudacao_automatica ?? false}
