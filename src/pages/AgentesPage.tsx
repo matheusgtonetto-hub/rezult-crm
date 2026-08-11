@@ -143,6 +143,11 @@ const SECOES_INSTRUCOES = [
 // da frase e trocar o conteúdo pelo negócio dele. Exemplo de clínica ensina a
 // escrever sobre clínica, e a maior parte de quem monta agente aqui não tem
 // uma.
+//
+// "Exemplos de resposta" vem como PAR (o que o cliente manda / como o agente
+// devolve). Uma frase solta ali não é exemplo de resposta, é exemplo de
+// abertura, e o modelo aprende muito mais da correspondência pergunta-resposta
+// do que de uma frase sem o que a motivou.
 const PLACEHOLDER_INSTRUCOES = [
   "Ex:",
   "",
@@ -159,7 +164,8 @@ const PLACEHOLDER_INSTRUCOES = [
   "Se o contato já for cliente, trate como suporte e não como venda nova.",
   "",
   "# Exemplos de resposta",
-  '"Oi! Vi que você entrou em contato. Me conta rapidinho o que você está buscando?"',
+  'Cliente: "quanto custa?"',
+  'Resposta: "Depende do que você precisa. Me conta rapidinho o seu caso que eu te passo certinho."',
 ].join("\n");
 
 const DEFAULT_AVATAR = "bot";
@@ -3027,7 +3033,7 @@ export default function AgentesPage() {
                       placeholder={PLACEHOLDER_INSTRUCOES}
                       // Alto o bastante para o placeholder inteiro caber: um
                       // exemplo cortado na metade orienta pior que nenhum.
-                      className="min-h-[380px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="min-h-[420px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     {/* Peso em tokens visível a partir de um texto já
                         considerável. Instruções entram inteiras no prompt de
