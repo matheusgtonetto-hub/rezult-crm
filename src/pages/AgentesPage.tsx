@@ -33,7 +33,6 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarDays,
-  Webhook,
   Link2,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -603,6 +602,9 @@ export default function AgentesPage() {
   // integração de Instagram/Messenger ainda não está pronta. Não apagar a
   // carga junto -- é ela que faz a categoria voltar sem retrabalho.
   const [metaConnections, setMetaConnections] = useState<MetaConnectionOption[]>([]);
+  // Webhook segue sendo carregado e salvo, mas hoje não aparece na etapa: a
+  // configuração de webhooks ainda vai amadurecer. Não apagar a carga junto --
+  // é ela que faz a categoria voltar sem retrabalho.
   const [webhookIntegrations, setWebhookIntegrations] = useState<WebhookIntegrationOption[]>([]);
   const [agentWhatsappIds, setAgentWhatsappIds] = useState<string[]>([]);
   const [agentMetaIds, setAgentMetaIds] = useState<string[]>([]);
@@ -2541,18 +2543,13 @@ export default function AgentesPage() {
                               cor: "#4285F4",
                             }))
                         : []),
-                      ...webhookIntegrations.map((c) => ({
-                        chave: `wh-${c.id}`,
-                        categoria: "Webhooks",
-                        rodape: "Atender negócios que entram por aqui",
-                        titulo: c.name,
-                        subtitulo: "Entrada de negócios",
-                        conectado: c.active,
-                        usa: agentWebhookIds.includes(c.id),
-                        alternar: (v: boolean) => toggleAgentWebhook(c.id, v),
-                        icone: <Webhook size={18} color="#FFF" />,
-                        cor: "#111111",
-                      })),
+                      // Webhooks ficam de fora enquanto a configuração deles
+                      // não amadurece. O roteamento já funciona ponta a ponta:
+                      // api/webhook/[token].ts lê agent_webhook_integrations e
+                      // aplica a tag de ativação do agente no negócio criado.
+                      // O carregamento e o toggleAgentWebhook seguem de pé,
+                      // então voltar é devolver este bloco e a categoria na
+                      // lista de chips.
                     ];
 
                     // Todo canal suportado aparece como chip, mesmo zerado. Um
@@ -2562,12 +2559,11 @@ export default function AgentesPage() {
                     // se conecta. Calendar é a exceção e some quando o objetivo
                     // "Agendar" está desmarcado, porque aí a agenda dos
                     // vendedores não influencia nada.
-                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : []), "Webhooks"];
+                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : [])];
                     const vazios: Record<string, string> = {
                       "WhatsApp": "Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.",
                       "Calendar": "Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.",
-                      "Webhooks": "Nenhum webhook de entrada configurado. Crie um em Configurações → Integrações para receber negócios de plataformas externas, como checkout e formulários.",
-                      "Todos": "Conecte um WhatsApp ou um webhook em Configurações → Conexões para escolher onde este agente atua.",
+                      "Todos": "Conecte um WhatsApp em Configurações → Conexões para escolher onde este agente atua.",
                     };
                     // Categoria que deixou de existir (Calendar depois de
                     // desmarcar "Agendar") não pode deixar a grade em branco sem
