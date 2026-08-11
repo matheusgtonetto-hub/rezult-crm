@@ -122,12 +122,40 @@ const AGENT_AVATARS: Record<string, typeof Bot> = {
 //
 // Título markdown não é enfeite: as instruções entram cruas no system prompt,
 // e seção nomeada melhora a aderência do modelo.
+// "Casos específicos" é a regra condicional ("se acontecer X, faça Y"). Não é
+// fato da empresa, não é política comercial, não é objeção e não é exemplo, e
+// também não cabe nas instruções por objetivo, porque atravessa todos eles.
+// Era o único tipo de regra sem casa em lugar nenhum do produto.
 const SECOES_INSTRUCOES = [
   "Sobre a empresa",
   "Regras de negócio",
   "Objeções comuns",
+  "Casos específicos",
   "Exemplos de resposta",
 ];
+
+// O placeholder mostra as cinco seções preenchidas, não só as duas primeiras:
+// o chip escreve o título e deixa o usuário diante de uma linha em branco, e
+// título sem exemplo não diz o que se espera embaixo dele. "Objeções comuns"
+// e "Casos específicos" são justamente os que ninguém adivinha sozinho.
+const PLACEHOLDER_INSTRUCOES = [
+  "Ex:",
+  "",
+  "# Sobre a empresa",
+  "Clínica de psicologia em Florianópolis. Presencial e online, sessões de 50 minutos.",
+  "",
+  "# Regras de negócio",
+  "Nunca informe valores antes de entender a demanda do lead.",
+  "",
+  "# Objeções comuns",
+  '"Está caro": a primeira sessão é de avaliação, sem compromisso de continuidade.',
+  "",
+  "# Casos específicos",
+  "Se o lead disser que já é paciente, trate como remarcação em vez de qualificar.",
+  "",
+  "# Exemplos de resposta",
+  '"Oi! Vi que você procurou a gente. Me conta rapidinho o que está te trazendo aqui?"',
+].join("\n");
 
 const DEFAULT_AVATAR = "bot";
 function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: number }) {
@@ -2991,8 +3019,10 @@ export default function AgentesPage() {
                       value={customContext}
                       onChange={(e) => setCustomContext(e.target.value.slice(0, LIMITE_INSTRUCOES))}
                       onBlur={() => { if (wizardMode) void saveCustomContext(); }}
-                      placeholder={"Ex:\n\n# Sobre a empresa\nClínica de psicologia em Florianópolis. Atendimento presencial e online, sessões de 50 minutos.\n\n# Regras de negócio\nNunca informe valores antes de entender a demanda do lead."}
-                      className="min-h-[280px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      placeholder={PLACEHOLDER_INSTRUCOES}
+                      // Alto o bastante para o placeholder inteiro caber: um
+                      // exemplo cortado na metade orienta pior que nenhum.
+                      className="min-h-[380px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     {/* Peso em tokens visível a partir de um texto já
                         considerável. Instruções entram inteiras no prompt de
