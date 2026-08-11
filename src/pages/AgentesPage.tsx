@@ -32,7 +32,6 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  Instagram,
   CalendarDays,
   Webhook,
   Link2,
@@ -500,6 +499,9 @@ export default function AgentesPage() {
   // Etapa "Integrações" -- listas de conexões existentes na empresa (não
   // dependem do agente selecionado) + quais delas este agente usa.
   const [whatsappConnections, setWhatsappConnections] = useState<WhatsappConnectionOption[]>([]);
+  // Meta segue sendo carregado e salvo, mas hoje não aparece na etapa: a
+  // integração de Instagram/Messenger ainda não está pronta. Não apagar a
+  // carga junto -- é ela que faz a categoria voltar sem retrabalho.
   const [metaConnections, setMetaConnections] = useState<MetaConnectionOption[]>([]);
   const [webhookIntegrations, setWebhookIntegrations] = useState<WebhookIntegrationOption[]>([]);
   const [agentWhatsappIds, setAgentWhatsappIds] = useState<string[]>([]);
@@ -2348,19 +2350,12 @@ export default function AgentesPage() {
                         icone: <WhatsAppIcon size={20} />,
                         cor: "#FFFFFF",
                       })),
-                      ...metaConnections.map((c) => ({
-                        chave: `meta-${c.id}`,
-                        categoria: "Instagram / Messenger",
-                        titulo: c.page_name ?? c.instagram_username ?? "Conexão",
-                        subtitulo: c.provider === "instagram" ? "Instagram" : "Messenger",
-                        conectado: c.active,
-                        usa: agentMetaIds.includes(c.id),
-                        alternar: (v: boolean) => toggleAgentMeta(c.id, v),
-                        icone: c.provider === "instagram"
-                          ? <Instagram size={18} color="#FFF" />
-                          : <MessageSquare size={18} color="#FFF" />,
-                        cor: c.provider === "instagram" ? "#E1306C" : "#0084FF",
-                      })),
+                      // Instagram / Messenger fica de fora enquanto a
+                      // integração não está pronta: oferecer a escolha antes da
+                      // entrega é prometer atendimento numa página que o agente
+                      // ainda não lê. O carregamento das conexões Meta e o
+                      // toggleAgentMeta continuam de pé, então voltar é
+                      // devolver este bloco e a categoria na lista de chips.
                       // Calendar só aparece pra quem agenda: pra um agente que
                       // não marca reunião, a agenda dos vendedores não muda nada.
                       ...(objectivesDraft.includes("agendar")
@@ -2398,13 +2393,12 @@ export default function AgentesPage() {
                     // se conecta. Calendar é a exceção e some quando o objetivo
                     // "Agendar" está desmarcado, porque aí a agenda dos
                     // vendedores não influencia nada.
-                    const categorias = ["WhatsApp", "Instagram / Messenger", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : []), "Webhooks"];
+                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : []), "Webhooks"];
                     const vazios: Record<string, string> = {
                       "WhatsApp": "Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.",
-                      "Instagram / Messenger": "Nenhuma página do Instagram ou Messenger conectada. Conecte em Configurações → Conexões.",
                       "Calendar": "Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.",
                       "Webhooks": "Nenhum webhook de entrada configurado. Configure em Configurações → Integrações.",
-                      "Todos": "Conecte um WhatsApp, uma página do Instagram ou um webhook em Configurações → Conexões para escolher onde este agente atua.",
+                      "Todos": "Conecte um WhatsApp ou um webhook em Configurações → Conexões para escolher onde este agente atua.",
                     };
                     // Categoria que deixou de existir (Calendar depois de
                     // desmarcar "Agendar") não pode deixar a grade em branco sem
