@@ -1406,11 +1406,19 @@ export default function MultiatendimentoPage() {
   // Mantém a instância (número) da conversa ativa selecionada — ao reabrir a
   // conversa, volta a usar o mesmo número que estava sendo conversado.
   useEffect(() => {
-    if (active?.instanceId && active.instanceId !== selectedInstance) {
-      setSelectedInstance(active.instanceId);
-    }
+    if (!active?.instanceId || active.instanceId === selectedInstance) return;
+    // Só adota a conexão da conversa se ela ainda EXISTE para este usuário.
+    //
+    // Sem essa checagem, uma conversa criada por uma conexão que não está mais
+    // disponível (removida, ou de outra empresa) deixava selectedInstance
+    // apontando para o nada: o envio falhava com "número desconectado" e a tela
+    // mandava escolher outra conexão, enquanto o cabeçalho já exibia uma
+    // conexão válida. Beco sem saída. Caindo na primeira conexão disponível, a
+    // conversa continua utilizável.
+    const existe = instances.some(i => i.instanceId === active.instanceId);
+    setSelectedInstance(existe ? active.instanceId : (instances[0]?.instanceId ?? ""));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.instanceId]);
+  }, [activeId, active?.instanceId, instances]);
 
   // ── listener global de mensagens recebidas (sem filtro de telefone) ──
   // Trata tanto conversas existentes (phone mismatch de código de país)
