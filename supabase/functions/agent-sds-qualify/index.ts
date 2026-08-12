@@ -1772,14 +1772,20 @@ const LEITURAS_REAIS_NO_TESTE = new Set([
 
 // Como cada escrita é descrita para quem está testando. Sem isso a tela
 // mostraria "chamou qualificar_lead", que é jargão de dentro do sistema.
-function descreverAcaoSimulada(nome: string, input: Record<string, unknown>): string {
+function descreverAcaoSimulada(nome: string, input: Record<string, unknown>, rotulos: Record<string, string> = {}): string {
   const v = (k: string) => String(input[k] ?? "").trim();
   switch (nome) {
     case "qualificar_lead": {
+      // As chaves aqui são os UUIDs dos campos adicionais. Imprimir cru
+      // devolvia "03c9d2d0-45a8-... = Não" na tela, que não diz nada a
+      // ninguém -- é o mesmo vazamento de jargão que o agente é proibido de
+      // fazer com o lead. "motivo" e "score" ficam de fora: são ruído para
+      // quem está lendo o que o agente FEZ.
       const campos = Object.entries(input)
-        .filter(([k, val]) => k !== "resultado" && String(val ?? "").trim())
-        .map(([k, val]) => `${k} = ${val}`);
-      return `registraria a qualificação${campos.length ? `: ${campos.join(", ")}` : ""}`;
+        .filter(([k, val]) => !["resultado", "motivo", "score", "qualificado"].includes(k) && String(val ?? "").trim())
+        .map(([k, val]) => `${rotulos[k] ?? k} = ${val}`);
+      const veredito = String(input.qualificado ?? "") === "true" || input.qualificado === true ? "qualificado" : "não qualificado";
+      return `marcaria o lead como ${veredito}${campos.length ? ` e registraria: ${campos.join(", ")}` : ""}`;
     }
     case "agendar_reuniao_closer": return `marcaria reunião em ${v("start_datetime") || "data não informada"}`;
     case "cancelar_reuniao":       return "cancelaria a reunião marcada";
@@ -1884,6 +1890,18 @@ async function executarTeste(
     followupAttempt: 0,
   });
 
+  // Rótulos dos campos de qualificação, para a tela mostrar a pergunta em vez
+  // do uuid dela. O agente responde por uuid porque é assim que o valor é
+  // gravado; quem lê o teste precisa da pergunta.
+  const rotulosDosCampos: Record<string, string> = {};
+  if (behaviorConfig.campos_qualificacao?.length) {
+    const { data: campos } = await db
+      .from("custom_field_items").select("id, label")
+      .in("id", behaviorConfig.campos_qualificacao)
+      .eq("company_id", companyId);
+    for (const c of ((campos ?? []) as { id: string; label: string }[])) rotulosDosCampos[c.id] = c.label;
+  }
+
   const respostas: string[] = [];
   const acoes: string[] = [];
   const toolCtx: ToolCtx = { db, companyId, ownerId: String(leadFalso.owner_id ?? ""), leadId: leadFalso.id as string };
@@ -1897,7 +1915,7 @@ async function executarTeste(
     if (LEITURAS_REAIS_NO_TESTE.has(nome)) {
       return await executeRegistryTool(toolCtx, nome, input);
     }
-    acoes.push(descreverAcaoSimulada(nome, input));
+    acoes.push(descreverAcaoSimulada(nome, input, rotulosDosCampos));
     return { ok: true, data: { simulado: true } };
   };
 
