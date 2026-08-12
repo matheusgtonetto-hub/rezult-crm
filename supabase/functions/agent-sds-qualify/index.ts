@@ -2703,6 +2703,12 @@ async function executeAgentTool(
           from_me: true,
           body: parts[i],
           type: "text",
+          // Sem estes dois, o Multiatendimento não tinha como saber quem falou:
+          // caía no nome do usuário logado, então a resposta do agente aparecia
+          // assinada por quem estivesse olhando a tela, e cada atendente via um
+          // autor diferente para a mesma mensagem.
+          sender_name: ctx.agentName ?? null,
+          sent_by_agent: true,
         });
       }
 

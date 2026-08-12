@@ -109,11 +109,13 @@ type Conversation = {
   contactId?: string;   // contato (pessoa) vinculado — setado ao atribuir atendente
 };
 
+// porAgente: mensagem enviada pelo agente de IA, não por uma pessoa. Muda o
+// avatar exibido na bolha.
 type Msg =
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "audio";  duration: string; src?: string; date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "audio";  duration: string; src?: string; date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
+  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
   | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
 
 type Meeting = { date: string; time: string; owner: string; note: string };
@@ -210,11 +212,11 @@ function previewLabelFor(type: string | undefined, body: string | null | undefin
 // from_me (enviadas por automação, outro membro ou outro dispositivo) entram como
 // "agent" com o nome de quem enviou.
 function buildIncomingMsg(
-  m: { id?: string; body?: string; type?: string; media_url?: string; from_me?: boolean; sender_name?: string },
+  m: { id?: string; body?: string; type?: string; media_url?: string; from_me?: boolean; sender_name?: string; sent_by_agent?: boolean },
   timeStr: string,
 ): Msg {
   const base = m.from_me
-    ? { id: m.id as string, from: "agent" as const, agent: m.sender_name ?? "Automação", time: timeStr, date: "Hoje", read: true }
+    ? { id: m.id as string, from: "agent" as const, agent: m.sender_name ?? (m.sent_by_agent ? "Agente" : "Automação"), porAgente: !!m.sent_by_agent, time: timeStr, date: "Hoje", read: true }
     : { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false };
   if (m.type === "audio")    return { ...base, kind: "audio" as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
   if (m.type === "image")    return { ...base, kind: "image" as const, src: m.media_url ?? "", caption: m.body ?? "" };
@@ -1397,7 +1399,8 @@ export default function MultiatendimentoPage() {
           const base = {
             id:    m.id,
             from:  (m.from_me ? "agent" : "lead") as "agent" | "lead",
-            agent: m.from_me ? (m.sender_name ?? nomeAtendente) : undefined,
+            agent: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : undefined,
+            porAgente: !!m.sent_by_agent,
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
             date:  dateLabel,
             read:  true as const,
@@ -1442,7 +1445,7 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; momment?: number; created_at?: string; type?: string; media_url?: string };
+          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; sent_by_agent?: boolean; momment?: number; created_at?: string; type?: string; media_url?: string };
           // from_me também é processado: mensagens enviadas por AUTOMAÇÕES (ou por
           // outro membro/dispositivo) chegam só por aqui. Antes eram ignoradas, então
           // o áudio da automação não aparecia ao vivo e o preview da conversa nunca
@@ -3542,6 +3545,25 @@ export default function MultiatendimentoPage() {
                             )}
                           </div>
                         </div>
+                        {/* Avatar de quem enviou, do lado direito. O lead já tinha
+                            o dele à esquerda; do lado do atendente não havia
+                            nenhum, então uma conversa com dois atendentes e o
+                            agente era um bloco verde uniforme, e só o nome em
+                            letra pequena dizia quem falou.
+
+                            Agente usa o mesmo ícone e a mesma cor roxa do filtro
+                            "Agente" da lista de conversas: é a identidade que a
+                            tela já usa para ele. Atendente usa a foto do perfil,
+                            caindo nas iniciais quando não tem. */}
+                        {isAgent && (
+                          m.porAgente ? (
+                            <div title={m.agent ?? "Agente"} style={{ width: 28, height: 28, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 8 }}>
+                              <BotMessageSquare size={15} color="#6D28D9" />
+                            </div>
+                          ) : (
+                            <ConvAvatar name={m.agent ?? ""} avatarUrl={m.agent === nomeAtendente ? (profile?.avatar_url ?? undefined) : undefined} size={28} fontSize={10} style={{ marginLeft: 8 }} />
+                          )
+                        )}
                       </div>
                     );
                   })}
