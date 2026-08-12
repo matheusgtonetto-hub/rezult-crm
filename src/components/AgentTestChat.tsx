@@ -134,8 +134,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
           <h3 className="text-[14px] font-semibold text-[#111111]">Testar agente</h3>
           <p className="text-[12px] text-[#767676]">
             Converse como se fosse o lead. É o mesmo agente e o mesmo prompt da conversa real, mas nada é enviado
-            no WhatsApp e nada é gravado no negócio. A conversa fica guardada até você clicar em Recomeçar, então
-            dá para sair, ajustar o agente e voltar de onde parou.
+            no WhatsApp e nada é gravado no negócio.
           </p>
         </div>
         {mensagens.length > 0 && (
