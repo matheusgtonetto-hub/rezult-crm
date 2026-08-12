@@ -9,6 +9,7 @@ import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
+import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
 import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
@@ -127,7 +128,9 @@ type ConvState = {
   answered?: boolean; // true assim que o atendente envia a 1ª mensagem na conversa (ver bumpPreview)
 };
 
-type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string; provider: "zapi" | "dapi" | "cloud_api" };
+// wabaId só existe na Cloud API, e serve para listar os modelos de mensagem
+// aprovados quando a janela de 24h fecha.
+type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string; provider: "zapi" | "dapi" | "cloud_api"; wabaId?: string | null };
 
 /* ── emoji list ───────────────────────────────────────────────────────── */
 const EMOJIS = [
@@ -1156,6 +1159,50 @@ export default function MultiatendimentoPage() {
   const rawColIdx      = pipelineCols.length > 0 ? pipelineCols.findIndex(c => c.id === effectiveLead?.stage) : -1;
   const activeStageIdx = pipelineCols.length > 0 ? (rawColIdx >= 0 ? rawColIdx : 0) : (cs?.stageIdx ?? 0);
 
+  // ── Janela de 24h da Cloud API ───────────────────────────────────────
+  // Regra da Meta: passadas 24h da última mensagem DO CLIENTE, o WhatsApp
+  // oficial recusa texto livre e só aceita modelo aprovado. Vale só para
+  // cloud_api; D-API e Z-API não têm essa restrição.
+  //
+  // O corte é calculado no banco, não a partir das mensagens já na tela: o
+  // tipo Msg guarda só hora e dia formatados para exibição ("14:07", "Hoje"),
+  // que não dão para comparar com precisão de 24 horas.
+  const [janelaFechaEm, setJanelaFechaEm] = useState<Date | null>(null);
+  const [enviandoModelo, setEnviandoModelo] = useState(false);
+
+  useEffect(() => {
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (!activeId || inst?.provider !== "cloud_api" || !active?.phone || !company?.id) {
+      setJanelaFechaEm(null);
+      return;
+    }
+    let cancelado = false;
+    (async () => {
+      const { data } = await supabase
+        .from("whatsapp_messages")
+        .select("created_at")
+        .eq("company_id", company.id)
+        .in("phone", phoneVariants(active.phone as string))
+        .eq("from_me", false)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (cancelado) return;
+      const ultima = data?.[0]?.created_at as string | undefined;
+      setJanelaFechaEm(ultima ? new Date(new Date(ultima).getTime() + 24 * 60 * 60_000) : null);
+    })();
+    return () => { cancelado = true; };
+    // cs?.messages.length entra de propósito: mensagem nova do cliente chegando
+    // pelo realtime reabre a janela, e a tela precisa trocar o seletor de
+    // modelos pela caixa de texto na hora.
+  }, [activeId, selectedInstance, instances, active?.phone, company?.id, cs?.messages.length]);
+
+  const instanciaAtual = instances.find(i => i.instanceId === selectedInstance);
+  // Fechada também quando o contato NUNCA escreveu: nesse caso não existe
+  // janela para estar aberta, e a Meta recusa texto livre do mesmo jeito.
+  const janelaModeloFechada = instanciaAtual?.provider === "cloud_api"
+    && !cs?.finished
+    && (!janelaFechaEm || janelaFechaEm.getTime() <= Date.now());
+
   // ── carregar conversas do Supabase (carga inicial + botão atualizar) ─
   const [conversationsRefreshing, setConversationsRefreshing] = useState(false);
 
@@ -1633,6 +1680,7 @@ export default function MultiatendimentoPage() {
         phone:       c.phone ?? c.instanceId,
         label:       c.name,
         provider:    (["dapi", "cloud_api"].includes(c.provider ?? "") ? c.provider : "zapi") as "zapi" | "dapi" | "cloud_api",
+        wabaId:      c.wabaId ?? null,
       }));
     setInstances(insts);
     setSelectedInstance(prev => {
@@ -2592,6 +2640,75 @@ export default function MultiatendimentoPage() {
     }
   }
 
+  // Envio de MODELO, o único caminho possível com a janela de 24h fechada.
+  //
+  // Espelha o sendMessage de propósito, em vez de reaproveitá-lo: o payload é
+  // outro (type: "template", com nome, idioma e componentes) e o corpo que vai
+  // para o banco é o texto RESOLVIDO, não o modelo cru. Quem abrir a conversa
+  // amanhã precisa ler "sua consulta é terça às 15h", não "{{1}} às {{2}}".
+  async function enviarModelo(modelo: Modelo, valores: Record<string, string>, textoResolvido: string) {
+    if (!activeId || !active?.phone) return;
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (!inst?.token) { toast.error("Conexão sem token."); return; }
+
+    const cleanPhone = phoneVariants(active.phone)[0] ?? active.phone.replace(/\D/g, "");
+    const msgId = crypto.randomUUID();
+    setEnviandoModelo(true);
+
+    try {
+      const numeradas = Object.keys(valores).sort((a, b) => Number(a) - Number(b));
+      const res = await fetch(`https://graph.facebook.com/v21.0/${inst.instanceId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${inst.token}` },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: cleanPhone,
+          type: "template",
+          template: {
+            name: modelo.name,
+            language: { code: modelo.language },
+            ...(numeradas.length
+              ? { components: [{ type: "body", parameters: numeradas.map(n => ({ type: "text", text: valores[n] })) }] }
+              : {}),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(`Erro ao enviar modelo: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
+        return;
+      }
+
+      updateCs(activeId, {
+        messages: [...(cs?.messages ?? []), {
+          id: msgId, from: "agent", agent: user?.email?.split("@")[0] ?? "Você",
+          time: nowTime(), kind: "text", text: textoResolvido, date: "Hoje", read: false,
+        }],
+      });
+      bumpPreview(activeId, textoResolvido);
+
+      if (user) {
+        const { error } = await supabase.from("whatsapp_messages").insert({
+          id: msgId, owner_id: tenantId, company_id: company?.id ?? null,
+          instance_id: inst.instanceId, phone: cleanPhone, from_me: true,
+          body: textoResolvido, type: "text", momment: Date.now(),
+          sender_name: user.email?.split("@")[0] ?? "Você",
+        });
+        if (error) {
+          console.error("[Multiatendimento] Falha ao persistir modelo enviado:", error);
+          toast.error("Modelo enviado, mas houve erro ao salvar no histórico.");
+        }
+      }
+      // O modelo enviado NÃO reabre a janela: quem reabre é a resposta do
+      // cliente. Só a próxima mensagem dele libera o texto livre de novo.
+      toast.success("Modelo enviado");
+    } catch {
+      toast.error("Falha ao enviar o modelo.");
+    } finally {
+      setEnviandoModelo(false);
+    }
+  }
+
   // Único gatilho que tira uma conversa de "Não iniciadas" -- por design,
   // enviar mensagem (bumpPreview) não faz mais isso sozinho, só esse clique.
   function markAsRead(id: string) {
@@ -3513,7 +3630,28 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* linha de entrada */}
-              {recording ? (
+              {/* Janela fechada: a caixa de texto sai de cena e entra o
+                  seletor de modelos. Deixar o campo ali seria convidar o
+                  atendente a escrever uma mensagem inteira para receber uma
+                  recusa da Meta depois de mandar. */}
+              {janelaModeloFechada && (
+                <div style={{ border: "1px solid #FDE68A", background: "#FFFBEB", borderRadius: 10, padding: "10px 12px" }}>
+                  <p style={{ fontSize: 12, color: "#92400E", lineHeight: 1.45, marginBottom: 8 }}>
+                    {janelaFechaEm
+                      ? "Passaram mais de 24h desde a última mensagem deste contato."
+                      : "Este contato ainda não escreveu para você."}
+                    {" "}No WhatsApp oficial, só dá para falar com ele por um modelo aprovado pela Meta. Ele volta a
+                    aceitar mensagem livre assim que responder.
+                  </p>
+                  <WhatsappTemplatePicker
+                    wabaId={instanciaAtual?.wabaId ?? null}
+                    token={instanciaAtual?.token ?? ""}
+                    enviando={enviandoModelo}
+                    onEnviar={enviarModelo}
+                  />
+                </div>
+              )}
+              {janelaModeloFechada ? null : recording ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E53E3E", animation: "pulse 1s ease-in-out infinite" }} />
                   <span style={{ fontSize: 13, color: "#E53E3E", fontVariantNumeric: "tabular-nums" }}>
