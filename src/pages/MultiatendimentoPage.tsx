@@ -3493,7 +3493,7 @@ export default function MultiatendimentoPage() {
                               sem ler nome por nome. Vale igual do lado
                               esquerdo em conversa de grupo. */}
                           <div style={{ fontSize: 11, marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
-                            <span style={{ color: corDoNome(isAgent ? (m.agent ?? "") : convName(active)), fontWeight: 600 }}>
+                            <span style={{ color: corDoNome(isAgent ? (m.agent ?? "") : convName(active), isAgent ? "atendente" : "cliente"), fontWeight: 600 }}>
                               {isAgent ? m.agent : convName(active)}
                             </span>
                             <span style={{ color: "#AAA" }}> • {m.time}</span>
