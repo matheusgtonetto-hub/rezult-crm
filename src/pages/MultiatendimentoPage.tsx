@@ -3590,9 +3590,6 @@ export default function MultiatendimentoPage() {
                 <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                   <Paperclip size={18} color={cs.finished ? "#DDD" : "#AAA"} />
                 </span>
-                <span title="Agendar atividade" onClick={() => { if (!cs.finished) { setShowScheduleDialog(true); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <CalendarIcon size={18} color={cs.finished ? "#DDD" : "#AAA"} />
-                </span>
                 <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
                   <FolderOpen size={18} color={showFiles ? "#128A68" : "#AAA"} />
                 </span>
