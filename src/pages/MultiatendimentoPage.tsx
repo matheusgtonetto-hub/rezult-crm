@@ -118,6 +118,10 @@ type Msg =
   | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
   | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
 
+// 10 linhas de 20px. Acima disso a caixa rola em vez de continuar crescendo:
+// sem teto, uma mensagem longa empurra a conversa inteira para fora da tela.
+const ALTURA_MAX_MENSAGEM = 200;
+
 type Meeting = { date: string; time: string; owner: string; note: string };
 
 type ConvState = {
@@ -1181,6 +1185,15 @@ export default function MultiatendimentoPage() {
   // que não dão para comparar com precisão de 24 horas.
   const [janelaFechaEm, setJanelaFechaEm] = useState<Date | null>(null);
   const [enviandoModelo, setEnviandoModelo] = useState(false);
+  // Cresce a caixa conforme o texto. Zera a altura antes de medir, senão o
+  // scrollHeight nunca diminui e a caixa fica grande depois de apagar texto.
+  const campoMensagemRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = campoMensagemRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, ALTURA_MAX_MENSAGEM) + "px";
+  }, [inputValue]);
   const [modelosAbertos, setModelosAbertos] = useState(false);
 
   useEffect(() => {
@@ -3772,7 +3785,7 @@ export default function MultiatendimentoPage() {
                   <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
                 </div>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, position: "relative" }}>
                   {shortcutSuggestions.length > 0 && (
                     <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
                       <div style={{ fontSize: 10, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
@@ -3790,7 +3803,15 @@ export default function MultiatendimentoPage() {
                       ))}
                     </div>
                   )}
-                  <input
+                  {/* Caixa que cresce em vez de campo de uma linha só. Antes
+                      o texto rolava na horizontal e o começo da mensagem
+                      sumia à esquerda: quem escrevia um parágrafo perdia de
+                      vista o que já tinha escrito. Cresce até 10 linhas e daí
+                      passa a rolar, para a conversa não ser empurrada para
+                      fora da tela por uma mensagem longa. */}
+                  <textarea
+                    ref={campoMensagemRef}
+                    rows={1}
                     value={inputValue}
                     onChange={e => { setInputValue(e.target.value); handleTypingActivity(); }}
                     onKeyDown={e => {
@@ -3809,7 +3830,7 @@ export default function MultiatendimentoPage() {
                       : "Mensagem..."
                     }
                     disabled={cs.finished || janelaModeloFechada}
-                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished || janelaModeloFechada ? 0.5 : 1 }}
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: "20px", color: "#111", padding: "4px 0", fontFamily: "inherit", resize: "none", overflowY: "auto", maxHeight: ALTURA_MAX_MENSAGEM, opacity: cs.finished || janelaModeloFechada ? 0.5 : 1 }}
                   />
                   <button
                     onClick={() => { sendMessage(); setShowEmoji(false); }}
