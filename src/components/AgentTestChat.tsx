@@ -15,12 +15,51 @@ import { supabase } from "@/lib/supabase";
 
 type Mensagem = { de: "lead" | "agente"; texto: string; acoes?: string[] };
 
+// A conversa fica no navegador, por agente, e só some no "Recomeçar".
+//
+// Sem isso ela vivia apenas em memória, e o ciclo para o qual esta tela existe
+// -- testar, ver algo errado, ir ajustar em Instruções, voltar -- destruía o
+// teste toda vez, porque trocar de aba desmonta o componente. Recarregar a
+// página tinha o mesmo efeito.
+//
+// localStorage e não banco: isto é rascunho de quem está configurando, não
+// registro do negócio. Guardar no servidor exigiria migração, RLS, política de
+// expiração e uma resposta para "quem enxerga o teste de quem" -- peso demais
+// para um bloco de notas.
+const chaveConversa = (agentId: string) => `rezult:teste-agente:${agentId}`;
+// Teto para a conversa não crescer sem fim no armazenamento do navegador.
+const MAX_MENSAGENS_GUARDADAS = 60;
+
+function lerConversaSalva(agentId: string): Mensagem[] {
+  try {
+    const bruto = localStorage.getItem(chaveConversa(agentId));
+    const dados = bruto ? JSON.parse(bruto) : null;
+    return Array.isArray(dados) ? (dados as Mensagem[]) : [];
+  } catch {
+    // Dado corrompido não pode derrubar a tela: começa vazio.
+    return [];
+  }
+}
+
 export function AgentTestChat({ agentId }: { agentId: string }) {
-  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [mensagens, setMensagens] = useState<Mensagem[]>(() => lerConversaSalva(agentId));
   const [entrada, setEntrada] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const fimRef = useRef<HTMLDivElement>(null);
+
+  // Troca de agente troca a conversa: o histórico de um não faz sentido no
+  // prompt do outro.
+  useEffect(() => {
+    setMensagens(lerConversaSalva(agentId));
+    setErro(null);
+  }, [agentId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(chaveConversa(agentId), JSON.stringify(mensagens.slice(-MAX_MENSAGENS_GUARDADAS)));
+    } catch { /* armazenamento cheio ou bloqueado: o teste segue só em memória */ }
+  }, [mensagens, agentId]);
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -95,13 +134,18 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
           <h3 className="text-[14px] font-semibold text-[#111111]">Testar agente</h3>
           <p className="text-[12px] text-[#767676]">
             Converse como se fosse o lead. É o mesmo agente e o mesmo prompt da conversa real, mas nada é enviado
-            no WhatsApp e nada é gravado no negócio.
+            no WhatsApp e nada é gravado no negócio. A conversa fica guardada até você clicar em Recomeçar, então
+            dá para sair, ajustar o agente e voltar de onde parou.
           </p>
         </div>
         {mensagens.length > 0 && (
           <button
             type="button"
-            onClick={() => { setMensagens([]); setErro(null); }}
+            onClick={() => {
+              setMensagens([]);
+              setErro(null);
+              try { localStorage.removeItem(chaveConversa(agentId)); } catch { /* ignora */ }
+            }}
             className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#767676] hover:text-[#111111] transition-colors cursor-pointer"
           >
             <RotateCcw size={13} /> Recomeçar
