@@ -3617,19 +3617,13 @@ export default function MultiatendimentoPage() {
                     livre. */}
                 {instanciaAtual?.provider === "cloud_api" && (
                   <div style={{ position: "relative", display: "inline-flex" }}>
-                    <button
+                    <span
                       title="Modelos aprovados pela Meta"
                       onClick={() => { setModelosAbertos(v => !v); setShowEmoji(false); setShowFiles(false); setQmPickerOpen(false); }}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        background: modelosAbertos || janelaModeloFechada ? "#E1F5EE" : "none",
-                        border: janelaModeloFechada ? "1px solid #128A68" : "none",
-                        borderRadius: 6, padding: "3px 8px", cursor: "pointer",
-                      }}
+                      style={{ display: "inline-flex", cursor: "pointer" }}
                     >
-                      <FileText size={15} color={modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA"} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA" }}>Modelos</span>
-                    </button>
+                      <FileText size={18} color={modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA"} />
+                    </span>
                     {modelosAbertos && (
                       <>
                         <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
