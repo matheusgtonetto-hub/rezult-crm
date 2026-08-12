@@ -14,7 +14,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -1169,6 +1169,7 @@ export default function MultiatendimentoPage() {
   // que não dão para comparar com precisão de 24 horas.
   const [janelaFechaEm, setJanelaFechaEm] = useState<Date | null>(null);
   const [enviandoModelo, setEnviandoModelo] = useState(false);
+  const [modelosAbertos, setModelosAbertos] = useState(false);
 
   useEffect(() => {
     const inst = instances.find(i => i.instanceId === selectedInstance);
@@ -3353,7 +3354,7 @@ export default function MultiatendimentoPage() {
                                 <svg viewBox="0 0 24 24" width={14} height={14}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
                                 <div>
                                   <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "#128A68" : "#111" }}>{inst.label}</div>
-                                  <div style={{ fontSize: 10, color: "#AAA" }}>Z-API</div>
+                                  <div style={{ fontSize: 10, color: "#AAA" }}>{inst.provider === "cloud_api" ? "WhatsApp Oficial" : inst.provider === "dapi" ? "D-API" : "Z-API"}</div>
                                 </div>
                                 {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="#128A68" style={{ marginLeft: "auto" }} />}
                               </button>
@@ -3601,6 +3602,41 @@ export default function MultiatendimentoPage() {
                 >
                   <Sparkles size={16} color="#128A68" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
                 </button>
+                {/* Modelos aprovados da Meta. Só aparece na conexão oficial,
+                    porque é a única com a regra de janela de 24h. Fica sempre
+                    disponível, não só com a janela fechada: às vezes o
+                    atendente quer usar um modelo pronto mesmo podendo escrever
+                    livre. */}
+                {instanciaAtual?.provider === "cloud_api" && (
+                  <div style={{ position: "relative", display: "inline-flex" }}>
+                    <button
+                      title="Modelos aprovados pela Meta"
+                      onClick={() => { setModelosAbertos(v => !v); setShowEmoji(false); setShowFiles(false); setQmPickerOpen(false); }}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        background: modelosAbertos || janelaModeloFechada ? "#E1F5EE" : "none",
+                        border: janelaModeloFechada ? "1px solid #128A68" : "none",
+                        borderRadius: 6, padding: "3px 8px", cursor: "pointer",
+                      }}
+                    >
+                      <FileText size={15} color={modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA"} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA" }}>Modelos</span>
+                    </button>
+                    {modelosAbertos && (
+                      <>
+                        <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 340, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 12 }}>
+                          <WhatsappTemplatePicker
+                            wabaId={instanciaAtual?.wabaId ?? null}
+                            token={instanciaAtual?.token ?? ""}
+                            enviando={enviandoModelo}
+                            onEnviar={(m, v, texto) => { void enviarModelo(m, v, texto).then(() => setModelosAbertos(false)); }}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div style={{ position: "relative", display: "inline-flex" }}>
                   <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                     <Zap size={18} color={qmPickerOpen ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
@@ -3634,24 +3670,7 @@ export default function MultiatendimentoPage() {
                   seletor de modelos. Deixar o campo ali seria convidar o
                   atendente a escrever uma mensagem inteira para receber uma
                   recusa da Meta depois de mandar. */}
-              {janelaModeloFechada && (
-                <div style={{ border: "1px solid #FDE68A", background: "#FFFBEB", borderRadius: 10, padding: "10px 12px" }}>
-                  <p style={{ fontSize: 12, color: "#92400E", lineHeight: 1.45, marginBottom: 8 }}>
-                    {janelaFechaEm
-                      ? "Passaram mais de 24h desde a última mensagem deste contato."
-                      : "Este contato ainda não escreveu para você."}
-                    {" "}No WhatsApp oficial, só dá para falar com ele por um modelo aprovado pela Meta. Ele volta a
-                    aceitar mensagem livre assim que responder.
-                  </p>
-                  <WhatsappTemplatePicker
-                    wabaId={instanciaAtual?.wabaId ?? null}
-                    token={instanciaAtual?.token ?? ""}
-                    enviando={enviandoModelo}
-                    onEnviar={enviarModelo}
-                  />
-                </div>
-              )}
-              {janelaModeloFechada ? null : recording ? (
+              {recording ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E53E3E", animation: "pulse 1s ease-in-out infinite" }} />
                   <span style={{ fontSize: 13, color: "#E53E3E", fontVariantNumeric: "tabular-nums" }}>
@@ -3693,16 +3712,20 @@ export default function MultiatendimentoPage() {
                       }
                       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); setShowEmoji(false); }
                     }}
-                    placeholder={cs.finished ? "Conversa finalizada — reabra para responder" : "Mensagem..."}
-                    disabled={cs.finished}
-                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished ? 0.5 : 1 }}
+                    placeholder={
+                      cs.finished ? "Conversa finalizada — reabra para responder"
+                      : janelaModeloFechada ? "Passaram 24h sem mensagem do contato — use Modelos para retomar"
+                      : "Mensagem..."
+                    }
+                    disabled={cs.finished || janelaModeloFechada}
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#111", padding: "4px 0", fontFamily: "inherit", opacity: cs.finished || janelaModeloFechada ? 0.5 : 1 }}
                   />
                   <button
                     onClick={() => { sendMessage(); setShowEmoji(false); }}
-                    disabled={!inputValue.trim() || cs.finished}
-                    style={{ background: inputValue.trim() && !cs.finished ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                    disabled={!inputValue.trim() || cs.finished || janelaModeloFechada}
+                    style={{ background: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
                   >
-                    <Send size={16} color={inputValue.trim() && !cs.finished ? "#FFF" : "#AAA"} />
+                    <Send size={16} color={inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#FFF" : "#AAA"} />
                   </button>
                 </div>
               )}
