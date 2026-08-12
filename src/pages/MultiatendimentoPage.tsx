@@ -2145,13 +2145,14 @@ export default function MultiatendimentoPage() {
           leadName: effectiveLead?.name ?? active?.name ?? undefined,
           stage: activeStages[activeStageIdx] ?? undefined,
           pipeline: linkedPipeline?.name ?? undefined,
+          companyId: company?.id ?? undefined,
         },
       });
 
       const result = (data ?? {}) as { suggestion?: string; error?: string };
       if (error || result.error) {
         if (result.error === "not_configured") {
-          toast.error("IA não configurada. Adicione a chave ANTHROPIC_API_KEY nas Edge Functions do Supabase.");
+          toast.error("Cadastre a chave da Anthropic em Configurações → Chaves de API para usar a sugestão com IA.");
         } else {
           toast.error("Não foi possível gerar a sugestão. Tente novamente.");
         }
@@ -3588,16 +3589,16 @@ export default function MultiatendimentoPage() {
               {/* toolbar de ações */}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
                 <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Paperclip size={18} color={cs.finished ? "#DDD" : "#AAA"} />
+                  <Paperclip size={18} color={cs.finished ? "#DDD" : "#128A68"} />
                 </span>
                 <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
-                  <FolderOpen size={18} color={showFiles ? "#128A68" : "#AAA"} />
+                  <FolderOpen size={18} color={cs.finished ? "#DDD" : "#128A68"} />
                 </span>
                 <span title="Emoji" onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Smile size={18} color={showEmoji ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
+                  <Smile size={18} color={cs.finished ? "#DDD" : "#128A68"} />
                 </span>
                 <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { if (recording) stopRecording(); else startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#AAA")} />
+                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#128A68")} />
                 </span>
                 <button
                   onClick={suggestAI}
@@ -3619,7 +3620,7 @@ export default function MultiatendimentoPage() {
                       onClick={() => { setModelosAbertos(v => !v); setShowEmoji(false); setShowFiles(false); setQmPickerOpen(false); }}
                       style={{ display: "inline-flex", cursor: "pointer" }}
                     >
-                      <FileText size={18} color={modelosAbertos || janelaModeloFechada ? "#128A68" : "#AAA"} />
+                      <FileText size={18} color={cs.finished ? "#DDD" : "#128A68"} />
                     </span>
                     {modelosAbertos && (
                       <>
@@ -3638,7 +3639,7 @@ export default function MultiatendimentoPage() {
                 )}
                 <div style={{ position: "relative", display: "inline-flex" }}>
                   <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                    <Zap size={18} color={qmPickerOpen ? "#128A68" : (cs.finished ? "#DDD" : "#AAA")} />
+                    <Zap size={18} color={cs.finished ? "#DDD" : "#128A68"} />
                   </span>
                   {qmPickerOpen && (
                     <>

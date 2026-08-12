@@ -23,12 +23,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-  if (!apiKey) {
-    // Funcionalidade pronta, mas a chave ainda não foi configurada.
-    return json({ error: "not_configured" }, 200);
-  }
-
   // Autentica o usuário pelo JWT (evita uso anônimo da chave de IA)
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -39,8 +33,27 @@ Deno.serve(async (req) => {
   const { data: userData, error: userErr } = await db.auth.getUser(jwt);
   if (userErr || !userData?.user) return json({ error: "unauthorized" }, 401);
 
-  let body: { messages?: InMsg[]; leadName?: string; stage?: string; pipeline?: string };
+  let body: { messages?: InMsg[]; leadName?: string; stage?: string; pipeline?: string; companyId?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+
+  // Chave da EMPRESA (BYOK), o mesmo padrão do agente. Antes esta função
+  // exigia um ANTHROPIC_API_KEY global do projeto, que nenhum cliente tem: o
+  // botão de sugestão nascia morto para todo mundo, respondendo "not_configured"
+  // com status 200. A variável de ambiente fica como último recurso, para
+  // ambiente de desenvolvimento.
+  let apiKey = "";
+  if (body.companyId) {
+    const { data: chave } = await db
+      .from("ai_provider_keys")
+      .select("api_key")
+      .eq("company_id", body.companyId)
+      .eq("provider", "anthropic")
+      .eq("active", true)
+      .maybeSingle();
+    apiKey = (chave?.api_key as string) ?? "";
+  }
+  if (!apiKey) apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+  if (!apiKey) return json({ error: "not_configured" }, 200);
 
   const msgs = (body.messages ?? []).filter(m => (m.text ?? "").trim()).slice(-30);
   if (msgs.length === 0) return json({ error: "empty_conversation" }, 400);
