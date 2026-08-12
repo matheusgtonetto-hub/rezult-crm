@@ -3625,13 +3625,24 @@ export default function MultiatendimentoPage() {
                     {modelosAbertos && (
                       <>
                         <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 340, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 12 }}>
-                          <WhatsappTemplatePicker
-                            wabaId={instanciaAtual?.wabaId ?? null}
-                            token={instanciaAtual?.token ?? ""}
-                            enviando={enviandoModelo}
-                            onEnviar={(m, v, texto) => { void enviarModelo(m, v, texto).then(() => setModelosAbertos(false)); }}
-                          />
+                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 340, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
+                          <div style={{ padding: "12px 14px 10px" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Modelos aprovados</span>
+                            <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                              {janelaModeloFechada
+                                ? "Passaram 24h sem mensagem deste contato. Pelo WhatsApp oficial, só um modelo aprovado pela Meta retoma a conversa."
+                                : "Textos aprovados pela Meta. Vão direto ao contato, sem edição."}
+                            </p>
+                          </div>
+                          <div style={{ height: 1, background: "#EEEEEE" }} />
+                          <div style={{ padding: 12 }}>
+                            <WhatsappTemplatePicker
+                              wabaId={instanciaAtual?.wabaId ?? null}
+                              token={instanciaAtual?.token ?? ""}
+                              enviando={enviandoModelo}
+                              onEnviar={(m, v, texto) => { void enviarModelo(m, v, texto).then(() => setModelosAbertos(false)); }}
+                            />
+                          </div>
                         </div>
                       </>
                     )}
@@ -3644,21 +3655,60 @@ export default function MultiatendimentoPage() {
                   {qmPickerOpen && (
                     <>
                       <div onClick={() => setQmPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 280, maxHeight: 260, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
-                        {qmList.length === 0 ? (
-                          <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 12, color: "#AAA" }}>Nenhuma mensagem rápida.<br />Crie em Configurações.</div>
-                        ) : qmList.map(q => (
-                          <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
-                              {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
+                      {/* Mesma anatomia do popover de Modelos: cabeçalho com
+                          título e contagem, divisória, lista rolável e rodapé
+                          com a ação. Sem isso a lista aparecia solta, sem dizer
+                          o que era nem o que dava para fazer ali. */}
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
+                        <div style={{ padding: "12px 14px 10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Mensagens rápidas</span>
+                            {qmList.length > 0 && (
+                              <span style={{ fontSize: 11, color: "#767676", background: "#F5F5F5", borderRadius: 20, padding: "1px 8px" }}>{qmList.length}</span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                            Textos prontos seus. Vão para o campo de digitação e você edita antes de enviar.
+                          </p>
+                        </div>
+                        <div style={{ height: 1, background: "#EEEEEE" }} />
+
+                        <div style={{ maxHeight: 240, overflowY: "auto", padding: 6 }}>
+                          {qmList.length === 0 ? (
+                            <div style={{ padding: "18px 12px", textAlign: "center", fontSize: 12, color: "#888", lineHeight: 1.5 }}>
+                              Nenhuma mensagem rápida ainda.<br />Crie a primeira para responder o de sempre em um clique.
                             </div>
-                            <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
-                          </button>
-                        ))}
+                          ) : qmList.map(q => (
+                            <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                                {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div style={{ height: 1, background: "#EEEEEE" }} />
+                        {/* Leva direto para a aba certa, já com o formulário
+                            aberto: criar uma mensagem rápida é o que a pessoa
+                            quer fazer quando percebe que falta uma. */}
+                        <button
+                          onClick={() => {
+                            setQmPickerOpen(false);
+                            setSettingsTab("quick");
+                            setShowMultiSettings(true);
+                            openNewQuickMessage();
+                          }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: "10px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#128A68" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                        >
+                          <Plus size={13} /> Criar mensagem rápida
+                        </button>
                       </div>
                     </>
                   )}

@@ -131,24 +131,45 @@ export function WhatsappTemplatePicker({
   }
 
   if (!escolhido) {
+    // Agrupado por categoria porque a Meta trata Utilidade e Marketing de
+    // formas diferentes: Marketing tem limite diário por contato e pode ser
+    // silenciado por quem recebe. Quem escolhe precisa ver isso antes.
+    const porCategoria = modelos.reduce<Record<string, Modelo[]>>((acc, m) => {
+      const chave = m.category === "UTILITY" ? "Utilidade"
+        : m.category === "MARKETING" ? "Marketing"
+        : m.category === "AUTHENTICATION" ? "Autenticação"
+        : "Outros";
+      (acc[chave] ??= []).push(m);
+      return acc;
+    }, {});
+
     return (
-      <div style={{ maxHeight: 190, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-        {modelos.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => { setEscolhido(m); setValores({}); }}
-            style={{ width: "100%", textAlign: "left", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#CCCCCC")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#EEEEEE")}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{m.name}</span>
-              <span style={{ fontSize: 10, color: "#767676", background: "#F5F5F5", borderRadius: 4, padding: "1px 5px" }}>{m.language}</span>
+      <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+        {Object.entries(porCategoria).map(([categoria, lista]) => (
+          <div key={categoria}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
+              {categoria}
             </div>
-            <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {corpoDoModelo(m)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {lista.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setEscolhido(m); setValores({}); }}
+                  style={{ width: "100%", textAlign: "left", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#CCCCCC")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#EEEEEE")}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{m.name}</span>
+                    <span style={{ fontSize: 10, color: "#767676", background: "#F5F5F5", borderRadius: 4, padding: "1px 5px" }}>{m.language}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {corpoDoModelo(m)}
+                  </div>
+                </button>
+              ))}
             </div>
-          </button>
+          </div>
         ))}
       </div>
     );
