@@ -9,6 +9,8 @@ import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/context/ProfileContext";
+import { corDoNome } from "@/lib/nomeColorido";
 import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
 import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
@@ -544,6 +546,14 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
+  const { profile } = useProfile();
+  // Nome do atendente nas mensagens. Antes saía o começo do e-mail
+  // ("matheusgtonetto"), que é identificador de login, não nome de pessoa: o
+  // cliente do outro lado nunca vê isso, mas o time inteiro via, em toda
+  // bolha. O nome de verdade está em Configurações → Perfil.
+  const nomeAtendente = (profile?.full_name ?? "").trim()
+    || user?.email?.split("@")[0]
+    || "Você";
   // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
   // (owner da empresa), não do usuário logado — que pode ser membro de várias empresas.
   const tenantId = company?.owner_id ?? null;
@@ -1146,7 +1156,7 @@ export default function MultiatendimentoPage() {
       type: "note",
       date: new Date().toISOString(),
       description: html,
-      userName: user?.email?.split("@")[0] ?? undefined,
+      userName: nomeAtendente,
     });
     if (notesDivRef.current) notesDivRef.current.innerHTML = "";
     setNotesActive(false);
@@ -1344,7 +1354,7 @@ export default function MultiatendimentoPage() {
           const base = {
             id:    m.id,
             from:  (isFromMe ? "agent" : "lead") as "agent" | "lead",
-            agent: isFromMe ? (user.email?.split("@")[0] ?? "Você") : undefined,
+            agent: isFromMe ? (nomeAtendente) : undefined,
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
             date:  dateLabel,
             read:  true as const,
@@ -1387,7 +1397,7 @@ export default function MultiatendimentoPage() {
           const base = {
             id:    m.id,
             from:  (m.from_me ? "agent" : "lead") as "agent" | "lead",
-            agent: m.from_me ? (m.sender_name ?? user.email?.split("@")[0] ?? "Você") : undefined,
+            agent: m.from_me ? (m.sender_name ?? nomeAtendente) : undefined,
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
             date:  dateLabel,
             read:  true as const,
@@ -1642,7 +1652,7 @@ export default function MultiatendimentoPage() {
               const base = {
                 id: m.id,
                 from: isFromMe ? "agent" as const : "lead" as const,
-                agent: isFromMe ? (user?.email?.split("@")[0] ?? "Você") : undefined,
+                agent: isFromMe ? (nomeAtendente) : undefined,
                 time: timeStr, date: "Hoje", read: true as const,
               };
               const newMsg: Msg = { ...base, kind: "text" as const, text: m.content ?? "" };
@@ -1941,8 +1951,8 @@ export default function MultiatendimentoPage() {
       }
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = isImage
-        ? { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "image", src: mediaUrl ?? URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
-        : { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "file",  filename: file.name, url: mediaUrl ?? undefined, date: "Hoje", read: false };
+        ? { id: msgId, from: "agent", agent: nomeAtendente, time: nowTime(), kind: "image", src: mediaUrl ?? URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
+        : { id: msgId, from: "agent", agent: nomeAtendente, time: nowTime(), kind: "file",  filename: file.name, url: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
@@ -1957,7 +1967,7 @@ export default function MultiatendimentoPage() {
         type:        isImage ? "image" : "document",
         media_url:   mediaUrl,
         momment:     Date.now(),
-        sender_name: user.email?.split("@")[0] ?? "Você",
+        sender_name: nomeAtendente,
       });
       if (insErr) { console.error("[file] insert:", insErr); toast.error(`Arquivo enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Arquivo enviado!", { id: "file-send" });
@@ -2096,7 +2106,7 @@ export default function MultiatendimentoPage() {
         }
       }
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
-      const newMsg: Msg = { id: msgId, from: "agent", agent: user.email?.split("@")[0] ?? "Você", time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
+      const newMsg: Msg = { id: msgId, from: "agent", agent: nomeAtendente, time: nowTime(), kind: "audio", duration, src: mediaUrl ?? undefined, date: "Hoje", read: false };
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, "🎤 Mensagem de áudio");
       // Persiste no banco para histórico futuro
@@ -2111,7 +2121,7 @@ export default function MultiatendimentoPage() {
         type:        "audio",
         media_url:   mediaUrl,
         momment:     Date.now(),
-        sender_name: user.email?.split("@")[0] ?? "Você",
+        sender_name: nomeAtendente,
       });
       if (insErr) { console.error("[audio] insert:", insErr); toast.error(`Áudio enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Áudio enviado!", { id: "audio-send" });
@@ -2492,7 +2502,7 @@ export default function MultiatendimentoPage() {
     const msg: Msg = {
       id: msgId,
       from: "agent",
-      agent: user?.email?.split("@")[0] ?? "Você",
+      agent: nomeAtendente,
       time: nowTime(),
       kind: "text",
       text,
@@ -2640,7 +2650,7 @@ export default function MultiatendimentoPage() {
           body:        text,
           type:        "text",
           momment:     Date.now(),
-          sender_name: user.email?.split("@")[0] ?? "Você",
+          sender_name: nomeAtendente,
         });
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
@@ -2691,7 +2701,7 @@ export default function MultiatendimentoPage() {
 
       updateCs(activeId, {
         messages: [...(cs?.messages ?? []), {
-          id: msgId, from: "agent", agent: user?.email?.split("@")[0] ?? "Você",
+          id: msgId, from: "agent", agent: nomeAtendente,
           time: nowTime(), kind: "text", text: textoResolvido, date: "Hoje", read: false,
         }],
       });
@@ -2702,7 +2712,7 @@ export default function MultiatendimentoPage() {
           id: msgId, owner_id: tenantId, company_id: company?.id ?? null,
           instance_id: inst.instanceId, phone: cleanPhone, from_me: true,
           body: textoResolvido, type: "text", momment: Date.now(),
-          sender_name: user.email?.split("@")[0] ?? "Você",
+          sender_name: nomeAtendente,
         });
         if (error) {
           console.error("[Multiatendimento] Falha ao persistir modelo enviado:", error);
@@ -2798,7 +2808,7 @@ export default function MultiatendimentoPage() {
       toast.error("Crie um negócio pra essa conversa antes de atribuir um responsável.");
       return;
     }
-    const fromName = user.email?.split("@")[0] ?? "Você";
+    const fromName = nomeAtendente;
     const primary = memberNames[0] ?? "";
     const sysText = memberNames.length > 0
       ? `Responsável do negócio atualizado para ${memberNames.join(", ")} por ${fromName}`
@@ -2895,7 +2905,7 @@ export default function MultiatendimentoPage() {
       date: new Date().toISOString(),
       type: "stage_change",
       description: `Movido de "${from.colTitle}" para "${to.colTitle}".`,
-      userName: user?.email?.split("@")[0],
+      userName: nomeAtendente,
     });
     if (currentStep + 1 === steps.length - 1) {
       toast.success(`Etapa alterada para ${to.colTitle}`);
@@ -2912,7 +2922,7 @@ export default function MultiatendimentoPage() {
       date: new Date().toISOString(),
       type: "stage_change",
       description: `Movido de "${pendingStageBack.fromTitle}" para "${pendingStageBack.toTitle}".`,
-      userName: user?.email?.split("@")[0],
+      userName: nomeAtendente,
     });
     toast.success(`Etapa alterada para ${pendingStageBack.toTitle}`);
     setPendingStageBack(null);
@@ -3476,8 +3486,17 @@ export default function MultiatendimentoPage() {
                           <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
                         <div style={{ maxWidth: "65%" }}>
-                          <div style={{ fontSize: 11, color: "#AAA", marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
-                            {isAgent ? `${m.agent} • ${m.time}` : `${convName(active)} • ${m.time}`}
+                          {/* Nome colorido, hora em cinza. O lado direito é
+                              compartilhado entre os atendentes e o agente de
+                              IA, todos com a mesma bolha verde: a cor do nome
+                              é o que deixa ver de relance quem respondeu o quê
+                              sem ler nome por nome. Vale igual do lado
+                              esquerdo em conversa de grupo. */}
+                          <div style={{ fontSize: 11, marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
+                            <span style={{ color: corDoNome(isAgent ? (m.agent ?? "") : convName(active)), fontWeight: 600 }}>
+                              {isAgent ? m.agent : convName(active)}
+                            </span>
+                            <span style={{ color: "#AAA" }}> • {m.time}</span>
                           </div>
                           <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                             {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
