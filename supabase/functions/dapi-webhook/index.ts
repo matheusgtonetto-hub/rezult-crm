@@ -145,6 +145,30 @@ serve(async (req) => {
       }
     }
 
+    // Resolve a conversa ANTES de inserir, para a mensagem já nascer com o
+    // vínculo em vez de depender de casar telefone por texto na hora de ler.
+    //
+    // A ordem inverteu na Fase 1 do plano de atendimentos. É seguro porque a
+    // deduplicação por message_id acima já retornou: entrega repetida não chega
+    // aqui, então não fica bombardeando preview e last_msg_at da conversa.
+    //
+    // Efeito colateral aceito: se o insert da mensagem falhar por erro real de
+    // banco, a conversa fica com o preview de uma mensagem que não foi gravada.
+    // A próxima mensagem corrige sozinha, e é melhor que o inverso (mensagem
+    // gravada sem conversa, que é justamente o que produziu as 80 órfãs do
+    // disparo).
+    let conversationId: string | null = null;
+    try {
+      conversationId = await upsertConversationForMessage(supabase, {
+        ownerId, companyId, instanceId: sessionId, phone: cleanPhone,
+        name: fromMe ? null : senderName, // from_me: senderName é o dono da sessão, não serve de nome da conversa,
+        preview: previewLabelFor(msgType, body),
+        fromMe,
+      });
+    } catch (e) {
+      console.error("dapi-webhook: upsertConversationForMessage failed:", e);
+    }
+
     const { error } = await supabase
       .from("whatsapp_messages")
       .insert({
@@ -160,6 +184,7 @@ serve(async (req) => {
         momment:     momment,
         chat_name:   senderName,
         sender_name: senderName,
+        conversation_id: conversationId,
       });
 
     if (error) {
@@ -168,20 +193,6 @@ serve(async (req) => {
       // nova persistida, então não faz sentido acionar retomada de automação
       // abaixo. Sempre "ok" pra D-API de qualquer forma.
       return new Response("ok", { status: 200 });
-    }
-
-    // Garante a linha em whatsapp_conversations no servidor — não depender de
-    // alguém estar com o Multiatendimento aberto no navegador nesse instante
-    // (ver comentário em _shared/upsert-conversation.ts).
-    try {
-      await upsertConversationForMessage(supabase, {
-        ownerId, companyId, instanceId: sessionId, phone: cleanPhone,
-        name: fromMe ? null : senderName, // from_me: senderName é o dono da sessão, não serve de nome da conversa
-        preview: previewLabelFor(msgType, body),
-        fromMe,
-      });
-    } catch (e) {
-      console.error("dapi-webhook: upsertConversationForMessage failed:", e);
     }
 
     // ── Retoma automações pausadas no bloco "Entrada do usuário" ────────────────

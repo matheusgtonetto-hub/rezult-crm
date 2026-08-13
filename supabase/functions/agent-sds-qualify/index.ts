@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
 import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
+import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -2668,6 +2669,29 @@ async function executeAgentTool(
         await sendWa(creds, { kind: "text", phone, message: parts[i] });
         // owner_id é NOT NULL aqui também — mesmo padrão do automation-runner,
         // usa o responsável do lead.
+        // Conversa primeiro, mensagem depois, igual aos webhooks e runners.
+        //
+        // Antes o agente era o ÚNICO caminho de envio que nunca chamava
+        // upsertConversationForMessage: ele respondia, a mensagem era gravada, e
+        // se ainda não existisse linha em whatsapp_conversations nada aparecia no
+        // CRM. Funcionava na prática porque o agente costuma responder a uma
+        // mensagem recebida, e o webhook já tinha criado a conversa -- mas em
+        // primeiro contato (follow-up, lembrete de reunião) não havia nada.
+        let conversationId: string | null = null;
+        try {
+          conversationId = await upsertConversationForMessage(db, {
+            ownerId: ctx.lead.owner_id as string,
+            companyId: ctx.companyId,
+            instanceId: creds.instanceId,
+            phone,
+            name: (ctx.lead.name as string | undefined) ?? null,
+            preview: previewLabelFor("text", parts[i]),
+            fromMe: true,
+          });
+        } catch (e) {
+          console.error("[agent-sds-qualify] upsertConversationForMessage falhou:", e);
+        }
+
         await db.from("whatsapp_messages").insert({
           company_id: ctx.companyId,
           owner_id: ctx.lead.owner_id as string,
@@ -2676,6 +2700,7 @@ async function executeAgentTool(
           from_me: true,
           body: parts[i],
           type: "text",
+          conversation_id: conversationId,
           // Sem estes dois, o Multiatendimento não tinha como saber quem falou:
           // caía no nome do usuário logado, então a resposta do agente aparecia
           // assinada por quem estivesse olhando a tela, e cada atendente via um

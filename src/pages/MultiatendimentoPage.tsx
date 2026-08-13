@@ -55,6 +55,32 @@ function nowTime() {
 }
 // Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
 // Normaliza um telefone BR para o núcleo DDD + 8 dígitos finais, tolerando o
+// Insere mensagem já vinculada à conversa, sem nunca perder a mensagem.
+//
+// A tela gera o id da conversa no cliente (ver a reconciliação mais abaixo) e
+// grava com upsert + ignoreDuplicates. Numa corrida com o realtime, o navegador
+// pode acabar segurando um id que não existe em whatsapp_conversations -- e a
+// chave estrangeira recusaria o insert inteiro.
+//
+// Perder a mensagem para preservar o vínculo seria trocar o essencial pelo
+// acessório: a mensagem é o fato, o agrupamento é conveniência. Em erro de
+// chave estrangeira (23503) regrava sem o vínculo e avisa no console; o
+// backfill da migration recupera o vínculo depois.
+async function inserirMensagemVinculada(
+  payload: Record<string, unknown>,
+  conversationId: string | null | undefined,
+): Promise<{ error: { message: string; code?: string } | null }> {
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .insert({ ...payload, conversation_id: conversationId ?? null });
+  if (!error) return { error: null };
+  if (error.code !== "23503" || !conversationId) return { error };
+  console.warn(
+    `[multiatendimento] conversa ${conversationId} não existe no banco; mensagem gravada sem vínculo.`,
+  );
+  return await supabase.from("whatsapp_messages").insert(payload);
+}
+
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
   Mariana:     { bg: "#EDE9FE", fg: "#534AB7" },
@@ -1944,7 +1970,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
-      const { error: insErr } = await supabase.from("whatsapp_messages").insert({
+      const { error: insErr } = await inserirMensagemVinculada({
         id:          msgId,
         owner_id:    tenantId,
         company_id:  company?.id ?? null,
@@ -1956,7 +1982,7 @@ export default function MultiatendimentoPage() {
         media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: nomeAtendente,
-      });
+      }, activeId);
       if (insErr) { console.error("[file] insert:", insErr); toast.error(`Arquivo enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Arquivo enviado!", { id: "file-send" });
     } catch (err) {
@@ -2098,7 +2124,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, "🎤 Mensagem de áudio");
       // Persiste no banco para histórico futuro
-      const { error: insErr } = await supabase.from("whatsapp_messages").insert({
+      const { error: insErr } = await inserirMensagemVinculada({
         id:          msgId,
         owner_id:    tenantId,
         company_id:  company?.id ?? null,
@@ -2110,7 +2136,7 @@ export default function MultiatendimentoPage() {
         media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: nomeAtendente,
-      });
+      }, activeId);
       if (insErr) { console.error("[audio] insert:", insErr); toast.error(`Áudio enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Áudio enviado!", { id: "audio-send" });
     } catch (err) {
@@ -2628,7 +2654,7 @@ export default function MultiatendimentoPage() {
 
       // Persiste no banco para histórico futuro
       if (user) {
-        const { error: sendPersistError } = await supabase.from("whatsapp_messages").insert({
+        const { error: sendPersistError } = await inserirMensagemVinculada({
           id:          msgId,
           owner_id:    tenantId,
           company_id:  company?.id ?? null,
@@ -2639,7 +2665,7 @@ export default function MultiatendimentoPage() {
           type:        "text",
           momment:     Date.now(),
           sender_name: nomeAtendente,
-        });
+        }, activeId);
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
           toast.error("Mensagem enviada, mas houve erro ao salvar no histórico.");
@@ -2701,12 +2727,12 @@ export default function MultiatendimentoPage() {
       bumpPreview(activeId, textoResolvido);
 
       if (user) {
-        const { error } = await supabase.from("whatsapp_messages").insert({
+        const { error } = await inserirMensagemVinculada({
           id: msgId, owner_id: tenantId, company_id: company?.id ?? null,
           instance_id: inst.instanceId, phone: cleanPhone, from_me: true,
           body: textoResolvido, type: "text", momment: Date.now(),
           sender_name: nomeAtendente,
-        });
+        }, activeId);
         if (error) {
           console.error("[Multiatendimento] Falha ao persistir modelo enviado:", error);
           toast.error("Modelo enviado, mas houve erro ao salvar no histórico.");
@@ -2823,7 +2849,7 @@ export default function MultiatendimentoPage() {
       });
       // Persiste com a INSTÂNCIA da conversa — a query de histórico filtra por phone + instance_id.
       const phoneForSystem = (conv.phone ?? "").replace(/\D/g, "") || conv.id;
-      supabase.from("whatsapp_messages").insert({
+      inserirMensagemVinculada({
         id:          msgId,
         owner_id:    tenantId,
         company_id:  company?.id ?? null,
@@ -2834,7 +2860,7 @@ export default function MultiatendimentoPage() {
         type:        "system",
         momment:     Date.now(),
         sender_name: null,
-      }).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
+      }, conv.id).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
       supabase.from("whatsapp_conversations")
         .update({ assigned_to: primary || null })
         .eq("id", conv.id)

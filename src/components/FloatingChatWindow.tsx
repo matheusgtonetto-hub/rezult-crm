@@ -241,6 +241,27 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       }
 
       if (!sendOk) return;
+
+      // Vincula à conversa existente, se houver. Diferente do Multiatendimento,
+      // aqui não há conversa em contexto: o chat flutuante abre a partir do card
+      // do lead, não da caixa de entrada.
+      //
+      // Se NÃO existir conversa, esta mensagem fica sem vínculo de propósito.
+      // Criar uma aqui é decisão de produto, não de código: significaria que
+      // mandar um recado rápido pelo pipeline passa a abrir uma thread na caixa
+      // de entrada de todo mundo. Enquanto isso não for decidido, o null diz a
+      // verdade, e é exatamente essa a situação das 80 mensagens sem conversa
+      // que o backfill encontrou.
+      const { data: conversa } = await supabase
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("owner_id", company.owner_id)
+        .eq("instance_id", inst.instanceId)
+        .in("phone", variantesDeTelefone(lead.whatsapp))
+        .order("last_msg_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       // Persiste para histórico -- mesmo padrão de owner_id/company_id usado
       // no resto do app (dono da empresa, não o usuário logado).
       await supabase.from("whatsapp_messages").insert({
@@ -253,6 +274,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         type:        "text",
         momment:     Date.now(),
         sender_name: agentName,
+        conversation_id: conversa?.id ?? null,
       });
     } catch {
       toast.error("Falha ao enviar mensagem via WhatsApp");

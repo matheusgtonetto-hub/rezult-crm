@@ -1441,18 +1441,14 @@ async function executeFlow(
               } else {
                 await sendWa(creds, { kind: "text", phone: rawPhone, message: parts[i] });
               }
-              // Persiste no histórico de conversas (mesma tabela do multiatendimento)
-              await supabase.from("whatsapp_messages").insert({
-                owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
-                phone: rawPhone, from_me: true, body: parts[i], type: "text",
-              });
-              // Garante whatsapp_conversations no servidor -- sem isso, uma
-              // automação disparando fora do horário em que alguém está com o
-              // Multiatendimento aberto deixa a conversa "órfã" (mensagens
-              // existem, mas não aparecem em lugar nenhum do CRM).
+              // Conversa primeiro, mensagem depois: assim ela nasce com o
+              // vínculo. Sem isso a automação deixava a conversa "órfã" quando
+              // ninguém estava com o Multiatendimento aberto (mensagem existe,
+              // não aparece em lugar nenhum do CRM).
+              let conversationId: string | null = null;
               if (ownerId) {
                 try {
-                  await upsertConversationForMessage(supabase, {
+                  conversationId = await upsertConversationForMessage(supabase, {
                     ownerId, companyId: company_id ?? null, instanceId: creds.instanceId,
                     phone: rawPhone, name: (leadData?.name as string | undefined) ?? null,
                     preview: previewLabelFor("text", parts[i]), fromMe: true,
@@ -1461,6 +1457,12 @@ async function executeFlow(
                   console.error("automation-runner: upsertConversationForMessage failed:", e);
                 }
               }
+              // Persiste no histórico de conversas (mesma tabela do multiatendimento)
+              await supabase.from("whatsapp_messages").insert({
+                owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
+                phone: rawPhone, from_me: true, body: parts[i], type: "text",
+                conversation_id: conversationId,
+              });
               // Pequeno intervalo entre partes para preservar a ordem de entrega
               if (!isLast) await new Promise<void>((r) => setTimeout(r, 600));
             }
@@ -1509,14 +1511,11 @@ async function executeFlow(
                 await sendWa(creds, { kind: "document", phone: rawPhone, url: fileUrl, fileName: sb.fileName ?? `arquivo.${ext || "pdf"}`, ext });
               }
             }
-            await supabase.from("whatsapp_messages").insert({
-              owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
-              phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
-              media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
-            });
+            // Conversa primeiro, mensagem depois (mesma razão do bloco de texto).
+            let conversationIdMidia: string | null = null;
             if (ownerId) {
               try {
-                await upsertConversationForMessage(supabase, {
+                conversationIdMidia = await upsertConversationForMessage(supabase, {
                   ownerId, companyId: company_id ?? null, instanceId: creds.instanceId,
                   phone: rawPhone, name: (leadData?.name as string | undefined) ?? null,
                   preview: previewLabelFor(msgType, sb.fileName ?? fileUrl), fromMe: true,
@@ -1525,6 +1524,12 @@ async function executeFlow(
                 console.error("automation-runner: upsertConversationForMessage failed:", e);
               }
             }
+            await supabase.from("whatsapp_messages").insert({
+              owner_id: leadData?.owner_id ?? null, company_id, instance_id: creds.instanceId,
+              phone: rawPhone, from_me: true, body: sb.fileName ?? fileUrl, type: msgType,
+              media_url: fileUrl, // URL pública para reprodução/preview no Multiatendimento
+              conversation_id: conversationIdMidia,
+            });
             sentCount++;
 
           } else if (sb.type === "entrada_usuario") {

@@ -106,17 +106,10 @@ async function processFollowup(
 
   await sendWa(creds, { kind: "text", phone: row.phone, message: row.message });
 
-  await supabase.from("whatsapp_messages").insert({
-    owner_id: row.owner_id,
-    instance_id: creds.instanceId,
-    phone: row.phone,
-    from_me: true,
-    body: row.message,
-    type: "text",
-  });
-
+  // Conversa primeiro, mensagem depois: assim ela nasce com o vínculo.
+  let conversationId: string | null = null;
   try {
-    await upsertConversationForMessage(supabase, {
+    conversationId = await upsertConversationForMessage(supabase, {
       ownerId: row.owner_id,
       companyId: row.company_id ?? null,
       instanceId: creds.instanceId,
@@ -127,6 +120,17 @@ async function processFollowup(
   } catch (e) {
     console.error("scheduled-followup-runner: upsertConversationForMessage failed:", e);
   }
+
+  await supabase.from("whatsapp_messages").insert({
+    owner_id: row.owner_id,
+    company_id: row.company_id ?? null,
+    instance_id: creds.instanceId,
+    phone: row.phone,
+    from_me: true,
+    body: row.message,
+    type: "text",
+    conversation_id: conversationId,
+  });
 
   await supabase.from("scheduled_followups")
     .update({ status: "enviado", sent_at: new Date().toISOString() })

@@ -18,6 +18,20 @@ import { variantesDeTelefone } from "./telefone.ts";
 // webhooks sempre usam, e cada mensagem real criava uma segunda conversa.
 // A regra de variantes vive em _shared/telefone.ts.
 
+/**
+ * Devolve o id da conversa (existente ou recém-criada), ou null quando não
+ * conseguiu resolver.
+ *
+ * Passou a devolver o id na Fase 1 do plano de atendimentos: quem chama insere
+ * a mensagem logo depois e grava esse id em whatsapp_messages.conversation_id,
+ * para a mensagem NASCER vinculada em vez de depender de casar telefone por
+ * texto na hora de ler.
+ *
+ * Null não é erro do chamador: significa "não sei a que conversa isto pertence".
+ * A mensagem ainda deve ser gravada, com conversation_id nulo, porque a mensagem
+ * é o fato e o agrupamento é secundário. Perder a mensagem para preservar o
+ * vínculo seria trocar o essencial pelo acessório.
+ */
 // deno-lint-ignore no-explicit-any
 export async function upsertConversationForMessage(supabase: any, params: {
   ownerId: string;
@@ -27,7 +41,7 @@ export async function upsertConversationForMessage(supabase: any, params: {
   name?: string | null;
   preview: string;
   fromMe: boolean;
-}): Promise<void> {
+}): Promise<string | null> {
   const { ownerId, companyId, instanceId, phone, name, preview, fromMe } = params;
   const nowIso = new Date().toISOString();
   // Inbound: fica não-lida (vira "Aguardando" assim que a conversa tiver
@@ -48,11 +62,14 @@ export async function upsertConversationForMessage(supabase: any, params: {
     await supabase.from("whatsapp_conversations")
       .update({ preview, last_msg_at: nowIso, read })
       .eq("id", existing.id);
-    return;
+    return existing.id as string;
   }
 
+  // Id gerado aqui, não pelo banco, justamente para poder devolvê-lo sem uma
+  // segunda ida ao servidor.
+  const novoId = crypto.randomUUID();
   const { error } = await supabase.from("whatsapp_conversations").insert({
-    id: crypto.randomUUID(),
+    id: novoId,
     owner_id: ownerId,
     company_id: companyId,
     instance_id: instanceId,
@@ -65,26 +82,35 @@ export async function upsertConversationForMessage(supabase: any, params: {
     read,
   });
 
-  if (!error) return;
+  if (!error) return novoId;
   if (error.code !== "23505") {
     console.error("upsertConversationForMessage: insert error:", error);
-    return;
+    return null;
   }
   // Corrida: outra chamada concorrente (ou o próprio cliente, com a tela
   // aberta, via seu próprio listener realtime) já criou a linha entre o
   // select e o insert acima — só atualiza a que venceu.
+  //
+  // Busca por VARIANTES, não por igualdade exata. Quem venceu a corrida pode ter
+  // gravado o telefone em outro formato (com 55, sem o nono), e com `.eq` esta
+  // consulta não encontrava nada: a conversa ficava sem o preview atualizado e,
+  // agora que devolvemos o id, a mensagem nasceria sem vínculo. É o mesmo
+  // descuido de formato que o select lá em cima já evitava.
   const { data: winner } = await supabase
     .from("whatsapp_conversations")
     .select("id")
     .eq("owner_id", ownerId)
     .eq("instance_id", instanceId)
-    .eq("phone", phone)
+    .in("phone", variantesDeTelefone(phone))
+    .limit(1)
     .maybeSingle();
   if (winner?.id) {
     await supabase.from("whatsapp_conversations")
       .update({ preview, last_msg_at: nowIso, read })
       .eq("id", winner.id);
+    return winner.id as string;
   }
+  return null;
 }
 
 // Espelha src/pages/MultiatendimentoPage.tsx::previewLabelFor — mesmo texto

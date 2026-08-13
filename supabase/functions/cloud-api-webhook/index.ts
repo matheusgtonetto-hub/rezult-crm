@@ -141,6 +141,23 @@ serve(async (req) => {
           ? Number(timestamp) * 1000
           : Date.now();
 
+        // Resolve a conversa ANTES de inserir, para a mensagem já nascer com o
+        // vínculo em vez de depender de casar telefone por texto na hora de ler.
+        // A ordem inverteu na Fase 1 do plano de atendimentos; é seguro porque a
+        // deduplicação por message_id acima já deu `continue`, então entrega
+        // repetida não chega aqui.
+        let conversationId: string | null = null;
+        try {
+          conversationId = await upsertConversationForMessage(supabase, {
+            ownerId, companyId, instanceId: phoneNumberId, phone: cleanPhone,
+            name: senderName,
+            preview: previewLabelFor(msgType, body),
+            fromMe: false,
+          });
+        } catch (e) {
+          console.error("cloud-api-webhook: upsertConversationForMessage failed:", e);
+        }
+
         const { error } = await supabase.from("whatsapp_messages").insert({
           owner_id:    ownerId,
           company_id:  companyId,
@@ -154,24 +171,11 @@ serve(async (req) => {
           momment,
           chat_name:   senderName,
           sender_name: senderName,
+          conversation_id: conversationId,
         });
 
         if (error && error.code !== "23505") {
           console.error("cloud-api-webhook: erro ao inserir mensagem:", error);
-        }
-
-        // Garante a linha em whatsapp_conversations no servidor — não depender
-        // de alguém estar com o Multiatendimento aberto no navegador nesse
-        // instante (ver comentário em _shared/upsert-conversation.ts).
-        try {
-          await upsertConversationForMessage(supabase, {
-            ownerId, companyId, instanceId: phoneNumberId, phone: cleanPhone,
-            name: senderName,
-            preview: previewLabelFor(msgType, body),
-            fromMe: false,
-          });
-        } catch (e) {
-          console.error("cloud-api-webhook: upsertConversationForMessage failed:", e);
         }
 
         // Retoma automações pausadas em "Entrada do usuário"

@@ -113,6 +113,22 @@ serve(async (req) => {
     }
   }
 
+  // Resolve a conversa ANTES de inserir, para a mensagem já nascer com o vínculo
+  // em vez de depender de casar telefone por texto na hora de ler. A ordem
+  // inverteu na Fase 1 do plano de atendimentos; é seguro porque a deduplicação
+  // por message_id acima já retornou, então entrega repetida não chega aqui.
+  let conversationId: string | null = null;
+  try {
+    conversationId = await upsertConversationForMessage(supabase, {
+      ownerId, companyId, instanceId: String(instanceId), phone: cleanPhone,
+      name: fromMe ? null : ((senderName as string | undefined) ?? (chatName as string | undefined) ?? null),
+      preview: previewLabelFor(msgType, body),
+      fromMe: !!fromMe,
+    });
+  } catch (e) {
+    console.error("zapi-webhook: upsertConversationForMessage failed:", e);
+  }
+
   const { error } = await supabase
     .from("whatsapp_messages")
     .insert({
@@ -128,6 +144,7 @@ serve(async (req) => {
       momment:     momment ?? null,
       chat_name:   chatName ?? null,
       sender_name: senderName ?? null,
+      conversation_id: conversationId,
     });
 
   if (error) {
@@ -137,20 +154,6 @@ serve(async (req) => {
     }
     console.error("Insert error:", error);
     return new Response("db error", { status: 500 });
-  }
-
-  // Garante a linha em whatsapp_conversations no servidor — não depender de
-  // alguém estar com o Multiatendimento aberto no navegador nesse instante
-  // (ver comentário em _shared/upsert-conversation.ts).
-  try {
-    await upsertConversationForMessage(supabase, {
-      ownerId, companyId, instanceId: String(instanceId), phone: cleanPhone,
-      name: fromMe ? null : ((senderName as string | undefined) ?? (chatName as string | undefined) ?? null),
-      preview: previewLabelFor(msgType, body),
-      fromMe: !!fromMe,
-    });
-  } catch (e) {
-    console.error("zapi-webhook: upsertConversationForMessage failed:", e);
   }
 
   // ── Retoma automações pausadas no bloco "Entrada do usuário" ────────────────
