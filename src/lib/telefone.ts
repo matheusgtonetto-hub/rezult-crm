@@ -7,6 +7,7 @@
 // Reexport puro, de propósito: no dia em que aparecer lógica só de frontend
 // aqui dentro, volta a existir duas versões da mesma regra, que é exatamente o
 // que este arquivo foi criado para acabar.
+export type { TelefoneBruto } from "../../supabase/functions/_shared/telefone.ts";
 export {
   somenteDigitos,
   normalizarTelefoneBr,

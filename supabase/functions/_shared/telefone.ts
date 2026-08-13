@@ -15,8 +15,20 @@
 //   núcleo   → DDD + 8 dígitos, sem país e sem o nono. É a chave de comparação.
 //   variante → cada forma plausível de o mesmo número estar gravado no banco.
 
+/**
+ * O que os chamadores de fato têm em mãos: coluna de texto que pode ser nula,
+ * campo opcional de formulário, ou número vindo de JSON de webhook.
+ *
+ * Deliberadamente NÃO é `unknown`. As cópias antigas tipavam `string`, e trocar
+ * por `unknown` faria o compilador aceitar um array ou objeto passado por
+ * engano: `String(["48","99"])` vira "48,99", que normaliza para "4899" e
+ * consulta o telefone de outra pessoa, calado. Este alias aceita tudo que
+ * aparece de verdade e barra o resto na compilação.
+ */
+export type TelefoneBruto = string | number | null | undefined;
+
 /** Descarta tudo que não for dígito. Aceita null/undefined sem reclamar. */
-export function somenteDigitos(bruto: unknown): string {
+export function somenteDigitos(bruto: TelefoneBruto): string {
   return String(bruto ?? "").replace(/\D/g, "");
 }
 
@@ -36,7 +48,7 @@ export function somenteDigitos(bruto: unknown): string {
  *
  * Número que não parece brasileiro sai só com os dígitos, sem invenção.
  */
-export function normalizarTelefoneBr(bruto: unknown): string {
+export function normalizarTelefoneBr(bruto: TelefoneBruto): string {
   let d = somenteDigitos(bruto);
   if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
   if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
@@ -50,7 +62,7 @@ export function normalizarTelefoneBr(bruto: unknown): string {
  * nada: "98888" pode ser o final de milhares de números, e responder "sim" aí
  * juntaria conversas de clientes diferentes na mesma thread.
  */
-export function telefonesIguais(a: unknown, b: unknown): boolean {
+export function telefonesIguais(a: TelefoneBruto, b: TelefoneBruto): boolean {
   const na = normalizarTelefoneBr(a);
   const nb = normalizarTelefoneBr(b);
   if (na.length < 10 || nb.length < 10) return false;
@@ -68,7 +80,7 @@ export function telefonesIguais(a: unknown, b: unknown): boolean {
  * Número curto demais volta como veio, sem variante inventada: melhor uma
  * consulta que não acha nada do que uma que acha a conversa de outro cliente.
  */
-export function variantesDeTelefone(bruto: unknown): string[] {
+export function variantesDeTelefone(bruto: TelefoneBruto): string[] {
   const nucleo = normalizarTelefoneBr(bruto);
   if (nucleo.length < 10) {
     const d = somenteDigitos(bruto);
