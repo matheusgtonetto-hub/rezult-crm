@@ -6,6 +6,7 @@ import { upsertContact } from "@/lib/contacts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { normalizarTelefoneBr, telefonesIguais } from "@/lib/telefone";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,18 +29,6 @@ const EMAIL_KEYS  = ["email", "e-mail", "correio", "mail"];
 // negócio com pipeline aberto) — duplicado aqui só pra conseguir categorizar o
 // motivo de cada linha pulada no resumo pós-importação, sem mexer no contrato
 // de addLead (usado por muito mais telas além desta).
-function normalizeBrPhoneForMatch(raw: string | undefined): string {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phonesMatchForImport(a: string | undefined, b: string | undefined): boolean {
-  const na = normalizeBrPhoneForMatch(a);
-  const nb = normalizeBrPhoneForMatch(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10);
-}
 
 interface ImportResult {
   name: string;
@@ -170,12 +159,12 @@ export function ImportLeadsModal({ open, onClose }: Props) {
       const displayName = name || phone || email;
       if (!displayName) continue;
 
-      const normPhone = normalizeBrPhoneForMatch(phone);
+      const normPhone = normalizarTelefoneBr(phone);
 
       // Mesma regra que addLead vai aplicar — pré-checa só pra dar um motivo
       // claro no resumo, sem duplicar o toast.error que addLead já dispara.
       const existingConflict = Object.values(existingLeads).find(l =>
-        l.pipelineId && l.dealStatus === "open" && phonesMatchForImport(l.whatsapp, phone)
+        l.pipelineId && l.dealStatus === "open" && telefonesIguais(l.whatsapp, phone)
       );
       if (existingConflict) {
         rowResults.push({ name: displayName, phone, status: "duplicate", detail: `já tem negócio aberto (#${existingConflict.dealNumber})` });

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
+import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -860,18 +861,6 @@ async function logAgentUsage(
 }
 
 // ─── Resolução de telefone brasileiro (portado de MultiatendimentoPage.tsx) ─
-function normalizeBrPhone(raw: string): string {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phonesMatch(a: string, b: string): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10);
-}
 // Todas as variantes plausíveis de como o telefone pode estar salvo (com/sem
 // 55, com/sem o 9º dígito) — usado pra buscar histórico com IN em vez de
 // igualdade exata, já que whatsapp_messages.phone e leads.whatsapp não têm
@@ -982,17 +971,6 @@ function splitLongMessage(text: string, maxWords: number): string[] {
   return parts.length ? parts : [text];
 }
 
-function phoneVariants(raw: string): string[] {
-  const core = normalizeBrPhone(raw);
-  if (core.length < 10) {
-    const d = (raw ?? "").replace(/\D/g, "");
-    return d ? [d] : [];
-  }
-  const ddd = core.slice(0, 2);
-  const eight = core.slice(-8);
-  const with9 = `${ddd}9${eight}`;
-  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
-}
 
 // ─── Resolução telefone → lead ──────────────────────────────────────────────
 // Os 3 webhooks (zapi/dapi/cloud_api) só têm phone + company_id disponíveis
@@ -1008,7 +986,7 @@ async function resolveLead(
     .select("*")
     .eq("company_id", companyId)
     .not("whatsapp", "is", null);
-  return (candidates ?? []).find((l) => phonesMatch(String(l.whatsapp ?? ""), phone)) ?? null;
+  return (candidates ?? []).find((l) => telefonesIguais(String(l.whatsapp ?? ""), phone)) ?? null;
 }
 
 // leads.responsible, leads.responsibles e whatsapp_conversations.assigned_to
@@ -2140,7 +2118,7 @@ Deno.serve(async (req) => {
     .from("whatsapp_conversations")
     .select("finished")
     .eq("company_id", companyId)
-    .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
+    .in("phone", variantesDeTelefone(String(lead.whatsapp ?? "")))
     .order("last_msg_at", { ascending: false })
     .limit(1);
   if (convStatus?.[0]?.finished === true) return json({ skipped: "conversation_finished" }, 200);
@@ -2165,7 +2143,7 @@ Deno.serve(async (req) => {
     .from("whatsapp_messages")
     .select("from_me, body, created_at, phone")
     .eq("company_id", companyId)
-    .in("phone", phoneVariants(String(lead.whatsapp ?? "")));
+    .in("phone", variantesDeTelefone(String(lead.whatsapp ?? "")));
   if (linhasDele.length) {
     const { data: conexoes } = await db
       .from("whatsapp_connections")
@@ -2230,7 +2208,7 @@ Deno.serve(async (req) => {
       .from("whatsapp_conversations")
       .select("ai_interaction_count")
       .eq("company_id", companyId)
-      .in("phone", phoneVariants(String(lead.whatsapp ?? "")))
+      .in("phone", variantesDeTelefone(String(lead.whatsapp ?? "")))
       .order("last_msg_at", { ascending: false })
       .limit(1);
     const count = (convRows?.[0]?.ai_interaction_count as number | undefined) ?? 0;
@@ -2743,7 +2721,7 @@ async function executeAgentTool(
       // pode haver mais de uma linha pro mesmo telefone, e maybeSingle
       // errava em vez de escolher uma -- o contador nunca subia).
       {
-        const { data: convRows } = await db.from("whatsapp_conversations").select("id, ai_interaction_count").eq("company_id", ctx.companyId).in("phone", phoneVariants(phone)).order("last_msg_at", { ascending: false }).limit(1);
+        const { data: convRows } = await db.from("whatsapp_conversations").select("id, ai_interaction_count").eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(phone)).order("last_msg_at", { ascending: false }).limit(1);
         const conv = convRows?.[0];
         if (conv?.id) await db.from("whatsapp_conversations").update({ ai_interaction_count: ((conv.ai_interaction_count as number | undefined) ?? 0) + 1 }).eq("id", conv.id);
       }
@@ -2758,7 +2736,7 @@ async function executeAgentTool(
       await db.from("whatsapp_conversations")
         .update({ finished: true, ai_interaction_count: 0 })
         .eq("company_id", ctx.companyId)
-        .in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
+        .in("phone", variantesDeTelefone(String(ctx.lead.whatsapp ?? "")));
       return { ok: true };
     }
 
@@ -2790,7 +2768,7 @@ async function executeAgentTool(
 
       // Todas as linhas do telefone (mesmo motivo de finalizar_conversa) --
       // cada uma tem sua própria lista de tags, então filtra uma a uma.
-      const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
+      const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(String(ctx.lead.whatsapp ?? "")));
       for (const conv of convRows ?? []) {
         const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== tagDesteAgente);
         const patchConv: Record<string, unknown> = { tags: nextConvTags, ai_interaction_count: 0 };
@@ -2846,7 +2824,7 @@ async function executeAgentTool(
         await db.from("whatsapp_conversations")
           .update({ assigned_to: alvo.nome })
           .eq("company_id", ctx.companyId)
-          .in("phone", phoneVariants(String(ctx.lead.whatsapp ?? "")));
+          .in("phone", variantesDeTelefone(String(ctx.lead.whatsapp ?? "")));
       } else {
         console.warn(`[agent-sds-qualify] escalar_humano sem destinatário (agente ${ctx.agentId}, lead ${ctx.leadId}) — a nota foi criada mas ninguém foi avisado`);
       }

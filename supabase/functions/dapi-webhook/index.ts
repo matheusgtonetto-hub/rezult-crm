@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { normalizarTelefoneBr, telefonesIguais } from "../_shared/telefone.ts";
 
 // Webhook da D-API (https://d-api.cloud). Espelha o zapi-webhook, mas traduz o
 // formato de payload da D-API — eventos `{ event, sessionId, data }` — para o
@@ -13,18 +14,6 @@ const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Normaliza um telefone brasileiro para DDD + 8 dígitos finais (mesma lógica do
 // zapi-webhook), tolerando o código do país 55 e o 9º dígito do celular.
-function normalizeBrPhone(raw: string): string {
-  let d = String(raw).replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phonesMatch(a: string, b: string): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10);
-}
 
 // "5511999999999@s.whatsapp.net" → "5511999999999"
 function jidToPhone(jid: unknown): string {
@@ -205,7 +194,7 @@ serve(async (req) => {
         .eq("owner_id", ownerId)
         .order("created_at", { ascending: true });
       const awaiting = (awaitingRows as { id: string; phone: string }[] | null ?? [])
-        .find((r) => phonesMatch(r.phone, cleanPhone));
+        .find((r) => telefonesIguais(r.phone, cleanPhone));
 
       if (awaiting?.id) {
         const { data: cfgRows } = await supabase

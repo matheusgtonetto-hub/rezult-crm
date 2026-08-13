@@ -1,24 +1,13 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { normalizarTelefoneBr, telefonesIguais } from "../_shared/telefone.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Token configurado no painel Meta → URL de callback / Verificar token
 const VERIFY_TOKEN = Deno.env.get("CLOUD_API_WEBHOOK_TOKEN") ?? "rezult_cloud_webhook";
 
-function normalizeBrPhone(raw: string): string {
-  let d = String(raw).replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phonesMatch(a: string, b: string): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10);
-}
 
 serve(async (req) => {
   // ── Verificação do webhook (GET) ─────────────────────────────────────────
@@ -194,7 +183,7 @@ serve(async (req) => {
             .order("created_at", { ascending: true });
 
           const awaiting = (awaitingRows as { id: string; phone: string }[] | null ?? [])
-            .find(r => phonesMatch(r.phone, cleanPhone));
+            .find(r => telefonesIguais(r.phone, cleanPhone));
 
           if (awaiting?.id) {
             const { data: cfgRows } = await supabase

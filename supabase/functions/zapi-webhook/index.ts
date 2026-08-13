@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { normalizarTelefoneBr, telefonesIguais } from "../_shared/telefone.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -10,19 +11,6 @@ const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 //  - o 9º dígito de celular (ex.: 31989904484 → 3189904484), que o WhatsApp/Z-API
 //    às vezes entrega sem o 9. Comparar só os últimos dígitos não basta porque o
 //    9 desloca a contagem; por isso reduzimos ao núcleo DDD + 8 dígitos.
-function normalizeBrPhone(raw: string): string {
-  let d = String(raw).replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // remove código do país
-  // 11 dígitos = DDD(2) + 9 + 8 dígitos de celular → remove o 9 para casar com 8 dígitos
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d; // DDD(2) + 8 dígitos
-}
-function phonesMatch(a: string, b: string): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10); // DDD + 8 dígitos
-}
 
 serve(async (req) => {
   // Health check
@@ -182,7 +170,7 @@ serve(async (req) => {
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: true });
     const awaiting = (awaitingRows as { id: string; phone: string }[] | null ?? [])
-      .find((r) => phonesMatch(r.phone, cleanPhone));
+      .find((r) => telefonesIguais(r.phone, cleanPhone));
 
     if (awaiting?.id) {
       const { data: cfgRows } = await supabase

@@ -12,6 +12,7 @@
 // dos casos reais (agente sempre está numa conversa de UM lead específico).
 
 // deno-lint-ignore no-explicit-any
+import { variantesDeTelefone } from "./telefone.ts";
 type Db = any;
 
 export type ToolCtx = {
@@ -445,16 +446,6 @@ async function atualizarTotalNegocio(ctx: ToolCtx, input: Record<string, unknown
 
 // ─── Conversas ──────────────────────────────────────────────────────────
 
-function phoneVariantsLocal(raw: string): string[] {
-  let core = String(raw ?? "").replace(/\D/g, "");
-  if (core.length > 11 && core.startsWith("55")) core = core.slice(2);
-  if (core.length === 11 && core[2] === "9") core = core.slice(0, 2) + core.slice(3);
-  if (core.length < 10) return [String(raw ?? "").replace(/\D/g, "")].filter(Boolean);
-  const ddd = core.slice(0, 2);
-  const eight = core.slice(-8);
-  const with9 = `${ddd}9${eight}`;
-  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
-}
 
 async function listarConversas(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   return genericList(ctx.db, "whatsapp_conversations", ctx.companyId, (q) => q, Number(input.limit) || 20);
@@ -469,7 +460,7 @@ async function consultarConversaPorLead(ctx: ToolCtx, input: Record<string, unkn
   // linha em whatsapp_conversations (formatos de telefone diferentes, ou
   // instância nova depois de reconectar o WhatsApp). Com maybeSingle isso
   // virava erro em vez de devolver a conversa.
-  const { data, error } = await ctx.db.from("whatsapp_conversations").select("*").eq("company_id", ctx.companyId).in("phone", phoneVariantsLocal(phone)).order("last_msg_at", { ascending: false }).limit(1);
+  const { data, error } = await ctx.db.from("whatsapp_conversations").select("*").eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(phone)).order("last_msg_at", { ascending: false }).limit(1);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: data?.[0] ?? null };
 }
@@ -480,7 +471,7 @@ async function buscarOuCriarConversaTelefone(ctx: ToolCtx, input: Record<string,
   // `.limit(1)`: com maybeSingle, um contato que já tivesse 2 conversas
   // devolvia erro -> `existing` ficava nulo -> esta tool criava MAIS uma
   // conversa duplicada em cima das que já existiam.
-  const { data: existingRows } = await ctx.db.from("whatsapp_conversations").select("*").eq("owner_id", ctx.ownerId).in("phone", phoneVariantsLocal(phone)).order("last_msg_at", { ascending: false }).limit(1);
+  const { data: existingRows } = await ctx.db.from("whatsapp_conversations").select("*").eq("owner_id", ctx.ownerId).in("phone", variantesDeTelefone(phone)).order("last_msg_at", { ascending: false }).limit(1);
   const existing = existingRows?.[0];
   if (existing) return { ok: true, data: existing };
   const { data: created, error } = await ctx.db.from("whatsapp_conversations").insert({
@@ -495,7 +486,7 @@ async function listarMensagensConversa(ctx: ToolCtx, input: Record<string, unkno
   const phone = input.phone as string;
   if (!phone) return { ok: false, error: "phone é obrigatório" };
   const { data, error } = await ctx.db.from("whatsapp_messages").select("from_me, body, type, created_at")
-    .eq("company_id", ctx.companyId).in("phone", phoneVariantsLocal(phone))
+    .eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(phone))
     .order("created_at", { ascending: false }).limit(Number(input.limit) || 30);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data };

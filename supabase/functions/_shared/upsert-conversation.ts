@@ -14,18 +14,9 @@
 // um webhook (ex.: "Nova conversa" a partir de um Lead, cujo telefone vem no
 // formato "+55...") nunca batia com o telefone limpo (só dígitos) que os
 // webhooks sempre usam, e cada mensagem real criava uma segunda conversa.
-function phoneVariants(raw: string): string[] {
-  let core = String(raw).replace(/\D/g, "");
-  if (core.length > 11 && core.startsWith("55")) core = core.slice(2);
-  if (core.length === 11 && core[2] === "9") core = core.slice(0, 2) + core.slice(3);
-  if (core.length < 10) return [String(raw).replace(/\D/g, "")].filter(Boolean);
-  const ddd = core.slice(0, 2);
-  const eight = core.slice(-8);
-  const with9 = `${ddd}9${eight}`;
-  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
-}
 
 // deno-lint-ignore no-explicit-any
+import { variantesDeTelefone } from "./telefone.ts";
 export async function upsertConversationForMessage(supabase: any, params: {
   ownerId: string;
   companyId: string | null;
@@ -47,7 +38,7 @@ export async function upsertConversationForMessage(supabase: any, params: {
     .select("id")
     .eq("owner_id", ownerId)
     .eq("instance_id", instanceId)
-    .in("phone", phoneVariants(phone))
+    .in("phone", variantesDeTelefone(phone))
     .limit(1)
     .maybeSingle();
 

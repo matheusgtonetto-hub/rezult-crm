@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import type { Contact } from "@/lib/contacts";
 import { PLAN_LIMITS } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
+import { telefonesIguais } from "@/lib/telefone";
 
 interface CRMContextType {
   crmLoading: boolean;
@@ -281,19 +282,6 @@ async function syncResponsibleToConversations(personId: string | undefined, resp
 // Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
 // dígito do celular) — mesma lógica usada em MultiatendimentoPage.tsx e nos
 // webhooks, duplicada aqui de propósito (evita acoplar módulos independentes).
-function normalizeBrPhone(raw: string | undefined): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phonesMatch(a: string | undefined, b: string | undefined): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10);
-}
-
 // Um lead só pode ter um negócio (pipelineId preenchido) aberto por vez.
 // "Mesmo contato" é decidido em 3 sinais, na ordem em que existem hoje no
 // app: person_id (esquema novo, só o Multiatendimento popula), contact_id
@@ -310,7 +298,7 @@ function findOpenNegocioConflict(
     if (!l.pipelineId || l.dealStatus !== "open") return false;
     if (candidate.personId && l.personId === candidate.personId) return true;
     if (candidate.contactId && (l.id === candidate.contactId || l.contactId === candidate.contactId)) return true;
-    return phonesMatch(l.whatsapp, candidate.whatsapp);
+    return telefonesIguais(l.whatsapp, candidate.whatsapp);
   });
 }
 

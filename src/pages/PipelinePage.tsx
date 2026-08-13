@@ -57,6 +57,7 @@ import { useFloatingChat } from "@/context/FloatingChatContext";
 import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { normalizarTelefoneBr } from "@/lib/telefone";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -77,12 +78,6 @@ type StatusFilter = "open" | "won" | "lost" | "all";
 // Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
 // dígito) -- mesma lógica usada em MultiatendimentoPage.tsx/CRMContext.tsx,
 // duplicada aqui só pra chave do cache de avatares deste board.
-function normalizeBrPhone(raw: string | undefined): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
 
 export default function PipelinePage() {
   const {
@@ -481,7 +476,7 @@ export default function PipelinePage() {
   const avatarRetriedRef = useRef<Set<string>>(new Set());
 
   const fetchCardAvatar = useCallback((phone: string | undefined, force = false) => {
-    const p = normalizeBrPhone(phone);
+    const p = normalizarTelefoneBr(phone);
     if (!p || fetchingAvatarsRef.current.has(p) || (!force && avatarUrls[p])) return;
     const inst = whatsappConnections.find(c => c.connected && c.active);
     if (!inst) return;
@@ -505,7 +500,7 @@ export default function PipelinePage() {
 
   // URL da foto expirou/falhou: busca uma nova, uma única vez por número.
   const refetchCardAvatar = (phone?: string) => {
-    const p = normalizeBrPhone(phone);
+    const p = normalizarTelefoneBr(phone);
     if (!p || avatarRetriedRef.current.has(p)) return;
     avatarRetriedRef.current.add(p);
     setAvatarUrls(prev => { const n = { ...prev }; delete n[p]; return n; });
@@ -1024,7 +1019,7 @@ export default function PipelinePage() {
                                             <div className="flex items-center gap-2 mb-1.5">
                                               <ProfileAvatar
                                                 name={lead.name}
-                                                avatarUrl={avatarUrls[normalizeBrPhone(lead.whatsapp)]}
+                                                avatarUrl={avatarUrls[normalizarTelefoneBr(lead.whatsapp)]}
                                                 size={32}
                                                 onError={() => refetchCardAvatar(lead.whatsapp)}
                                                 style={{ backgroundColor: col.color, fontSize: 12 }}

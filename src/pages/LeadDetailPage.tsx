@@ -94,6 +94,7 @@ import { ActivityDialog } from "@/components/ActivityDialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import { toast } from "sonner";
 import type { ActivityType } from "@/data/mockData";
+import { variantesDeTelefone } from "@/lib/telefone";
 
 type TabKey = "anotacoes" | "atividades" | "email" | "arquivos";
 
@@ -610,13 +611,12 @@ export default function LeadDetailPage() {
       }))));
     // Arquivos do WhatsApp (mensagens com tipo image/document vinculadas pelo telefone)
     if (lead.whatsapp) {
-      const phone = lead.whatsapp.replace(/\D/g, "");
-      const phoneAlt = phone.startsWith("55") ? phone.slice(2) : `55${phone}`;
+
       supabase.from("whatsapp_messages")
         .select("id, body, type, from_me, sender_name, created_at, momment")
         .eq("owner_id", user.id)
         .in("type", ["image", "document"])
-        .or(`phone.eq.${phone},phone.eq.${phoneAlt}`)
+        .in("phone", variantesDeTelefone(lead.whatsapp))
         .order("created_at", { ascending: false })
         .limit(100)
         .then(({ data }) => setWaFiles((data ?? []).map((r: { id: string; body: string | null; type: string; from_me: boolean; sender_name: string | null; created_at: string | null; momment: number }) => ({

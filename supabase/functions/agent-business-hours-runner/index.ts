@@ -22,6 +22,7 @@
 // liberar) são limpas no início de cada execução (mais de 2 minutos).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { normalizarTelefoneBr, variantesDeTelefone } from "../_shared/telefone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,23 +74,6 @@ function isWithinBusinessHours(cfg: BehaviorConfig): boolean {
 // Mesmas variantes de telefone usadas em agent-sds-qualify/index.ts --
 // whatsapp_conversations.phone e whatsapp_messages.phone não têm formato
 // consistente entre si (com/sem 55, com/sem o 9º dígito).
-function normalizeBrPhone(raw: string): string {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
-function phoneVariants(raw: string): string[] {
-  const core = normalizeBrPhone(raw);
-  if (core.length < 10) {
-    const d = (raw ?? "").replace(/\D/g, "");
-    return d ? [d] : [];
-  }
-  const ddd = core.slice(0, 2);
-  const eight = core.slice(-8);
-  const with9 = `${ddd}9${eight}`;
-  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
-}
 
 const STALE_MS = 3 * 60 * 1000;
 
@@ -157,7 +141,7 @@ Deno.serve(async (req: Request) => {
 
     for (const lead of taggedLeads ?? []) {
       const phone = String(lead.whatsapp ?? "");
-      const variants = phoneVariants(phone);
+      const variants = variantesDeTelefone(phone);
       if (!variants.length) continue;
 
       const { data: lastMsg } = await supabase

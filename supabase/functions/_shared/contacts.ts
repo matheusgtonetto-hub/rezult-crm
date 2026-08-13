@@ -7,13 +7,8 @@
 // negócio criado no servidor também fique ligado a um contacts.id via
 // leads.person_id.
 
-function normalizeBrPhone(raw: string | undefined | null): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
 
+import { normalizarTelefoneBr } from "./telefone.ts";
 export type UpsertContactInput = {
   companyId: string;
   ownerId: string;
@@ -36,7 +31,7 @@ function toRow(input: UpsertContactInput) {
 
 // deno-lint-ignore no-explicit-any
 export async function upsertContact(supabase: any, input: UpsertContactInput): Promise<string | undefined> {
-  const phoneNormalized = input.phone ? normalizeBrPhone(input.phone) : "";
+  const phoneNormalized = input.phone ? normalizarTelefoneBr(input.phone) : "";
 
   if (phoneNormalized) {
     const { data: found } = await supabase.from("contacts")

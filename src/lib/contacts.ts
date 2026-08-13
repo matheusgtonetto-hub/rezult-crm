@@ -1,14 +1,5 @@
 import { supabase } from "@/lib/supabase";
-
-// Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
-// dígito do celular) — mesma lógica usada em MultiatendimentoPage.tsx e
-// CRMContext.tsx, duplicada aqui de propósito (evita acoplar módulos independentes).
-function normalizeBrPhone(raw: string | undefined): string {
-  let d = String(raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
-  return d;
-}
+import { normalizarTelefoneBr } from "@/lib/telefone";
 
 export type Contact = {
   id: string;
@@ -111,7 +102,7 @@ function toRow(input: UpsertContactInput) {
  * enviados, já que refletem uma edição explícita do formulário.
  */
 export async function upsertContact(input: UpsertContactInput): Promise<string | undefined> {
-  const phoneNormalized = input.phone ? normalizeBrPhone(input.phone) : "";
+  const phoneNormalized = input.phone ? normalizarTelefoneBr(input.phone) : "";
 
   if (phoneNormalized) {
     const { data: found } = await supabase.from("contacts")

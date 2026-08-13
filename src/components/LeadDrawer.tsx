@@ -6,6 +6,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { upsertContact } from "@/lib/contacts";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { supabase } from "@/lib/supabase";
+import { telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -134,11 +135,6 @@ interface WaConv {
   last_msg_at: string | null; finished: boolean; read: boolean;
 }
 
-function phoneVariants(raw: string) {
-  const d = raw.replace(/\D/g, "");
-  return d.startsWith("55") ? [d, d.slice(2)] : [d, `55${d}`];
-}
-
 export function LeadDrawer({ leadId, open, onClose }: Props) {
   const {
     leads, updateLead, pipelines, teamMembers,
@@ -207,10 +203,9 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     const [{ data: fData }, { data: wData }] = await Promise.all([
       supabase.from("lead_files").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
       (() => {
-        const [p1, p2] = phoneVariants(leadPhone);
         return supabase.from("whatsapp_messages").select("id,body,type,from_me,sender_name,created_at,momment")
           .eq("owner_id", user.id).in("type", ["image","document"])
-          .or(`phone.eq.${p1},phone.eq.${p2}`)
+          .in("phone", variantesDeTelefone(leadPhone))
           .order("momment", { ascending: false }).limit(50);
       })(),
     ]);
@@ -230,9 +225,8 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const loadConvs = useCallback(async () => {
     if (!user || !lead) return;
     setConvsLoading(true);
-    const [p1, p2] = phoneVariants(leadPhone);
     const { data } = await supabase.from("whatsapp_conversations").select("id,name,phone,preview,last_msg_at,finished,read")
-      .eq("owner_id", user.id).or(`phone.eq.${p1},phone.eq.${p2}`)
+      .eq("owner_id", user.id).in("phone", variantesDeTelefone(leadPhone))
       .order("last_msg_at", { ascending: false });
     setConvs((data ?? []) as WaConv[]);
     setConvsLoading(false);
@@ -255,13 +249,10 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   // Negócios relacionados: todos os leads do mesmo contato (person_id), sempre
   // incluindo o próprio (mostrado com badge "ESTE" abaixo). Enquanto person_id
   // não estiver 100% backfilled, cai pro casamento antigo por telefone/e-mail.
-  const phoneNorm = lead.whatsapp?.replace(/\D/g, "") ?? "";
   const relatedLeads = lead.personId
     ? Object.values(leads).filter(l => l.personId === lead.personId)
     : Object.values(leads).filter(l => {
-        if (!l.whatsapp) return false;
-        const lp = l.whatsapp.replace(/\D/g, "");
-        const samePhone = lp === phoneNorm || (phoneNorm.startsWith("55") ? lp === phoneNorm.slice(2) : `55${lp}` === phoneNorm);
+        const samePhone = telefonesIguais(l.whatsapp, lead.whatsapp);
         const sameEmail = !!(lead.email && l.email && lead.email === l.email);
         return samePhone || sameEmail;
       });

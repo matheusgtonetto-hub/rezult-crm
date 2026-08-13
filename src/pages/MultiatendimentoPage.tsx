@@ -30,6 +30,7 @@ import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import { upsertContact, type Contact } from "@/lib/contacts";
+import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -57,32 +58,6 @@ function nowTime() {
 // código do país 55 e o 9º dígito de celular — que o WhatsApp/Z-API às vezes
 // entrega sem o 9 (ex.: 553189904484 ↔ 31989904484). Comparar pelos últimos N
 // dígitos não basta porque o 9 desloca a contagem.
-function normalizeBrPhone(raw: string): string {
-  let d = (raw ?? "").replace(/\D/g, "");
-  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // remove código do país
-  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3); // remove o 9 extra
-  return d; // DDD(2) + 8 dígitos
-}
-function phonesMatch(a: string, b: string): boolean {
-  const na = normalizeBrPhone(a);
-  const nb = normalizeBrPhone(b);
-  if (na.length < 10 || nb.length < 10) return false;
-  return na.slice(-10) === nb.slice(-10); // DDD + 8 dígitos
-}
-// Todas as variantes plausíveis de como o telefone pode estar salvo (com/sem 55,
-// com/sem o 9º dígito) — para montar a query OR do histórico de mensagens.
-function phoneVariants(raw: string): string[] {
-  const core = normalizeBrPhone(raw); // DDD + 8
-  if (core.length < 10) {
-    const d = (raw ?? "").replace(/\D/g, "");
-    return d ? [d] : [];
-  }
-  const ddd = core.slice(0, 2);
-  const eight = core.slice(-8);
-  const with9 = `${ddd}9${eight}`; // DDD + 9 + 8 (celular)
-  return [...new Set([core, with9, `55${core}`, `55${with9}`])];
-}
-
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
   Mariana:     { bg: "#EDE9FE", fg: "#534AB7" },
@@ -1069,7 +1044,7 @@ export default function MultiatendimentoPage() {
       if (best) return best;
     }
     if (conv.phone) {
-      const byPhone = Object.values(leads).filter(l => phonesMatch(l.whatsapp ?? "", conv.phone ?? ""));
+      const byPhone = Object.values(leads).filter(l => telefonesIguais(l.whatsapp ?? "", conv.phone ?? ""));
       const best = pickBestLead(byPhone);
       if (best) return best;
     }
@@ -1208,7 +1183,7 @@ export default function MultiatendimentoPage() {
         .from("whatsapp_messages")
         .select("created_at")
         .eq("company_id", company.id)
-        .in("phone", phoneVariants(active.phone as string))
+        .in("phone", variantesDeTelefone(active.phone as string))
         .eq("from_me", false)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -1279,7 +1254,7 @@ export default function MultiatendimentoPage() {
 
     // Conversas que já existem, por chave (instância, telefone normalizado)
     const haveKeys = new Set(
-      existingRows.map(r => `${r.instance_id ?? ""}|${normalizeBrPhone(r.phone ?? "")}`),
+      existingRows.map(r => `${r.instance_id ?? ""}|${normalizarTelefoneBr(r.phone ?? "")}`),
     );
 
     // Agrupa por (instância, telefone normalizado): cada número é uma conversa
@@ -1288,7 +1263,7 @@ export default function MultiatendimentoPage() {
     const convMap = new Map<string, WaMsgRow>();
     for (const m of msgs) {
       if (m.type === "system") continue; // mensagem de sistema não cria conversa
-      const key = `${m.instance_id ?? ""}|${normalizeBrPhone(m.phone)}`;
+      const key = `${m.instance_id ?? ""}|${normalizarTelefoneBr(m.phone)}`;
       if (haveKeys.has(key) || convMap.has(key)) continue;
       convMap.set(key, m as WaMsgRow);
     }
@@ -1389,7 +1364,7 @@ export default function MultiatendimentoPage() {
     // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
     // que foram salvas com o ID da conversa como chave (quando não há telefone real)
     const phoneFilter = rawPhone
-      ? [...phoneVariants(rawPhone).map(v => `phone.eq.${v}`), `phone.eq.${activeId}`].join(",")
+      ? [...variantesDeTelefone(rawPhone).map(v => `phone.eq.${v}`), `phone.eq.${activeId}`].join(",")
       : `phone.eq.${activeId}`;
 
     let histQuery = supabase
@@ -1475,7 +1450,7 @@ export default function MultiatendimentoPage() {
           // instância do mesmo lead é uma conversa separada e recebe seu próprio evento).
           if (m.type === "system") {
             const sysConv = convListRef.current.find(c =>
-              c.id === msgPhone || (phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst))
+              c.id === msgPhone || (telefonesIguais(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst))
             );
             if (sysConv) {
               setConvStates(prev => {
@@ -1492,7 +1467,7 @@ export default function MultiatendimentoPage() {
           // Procura conversa pelo telefone E pela instância (cada número é uma conversa
           // separada). Conversas legadas sem instância casam por telefone.
           const existing = convListRef.current.find(c =>
-            phonesMatch(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
+            telefonesIguais(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
           );
 
           const previewLabel = previewLabelFor(m.type, m.body);
@@ -1794,7 +1769,7 @@ export default function MultiatendimentoPage() {
     // uma conversa "fantasma" (id = leadId) duplicando a real.
     const existing = convList.find(c => c.id === leadId)
       ?? (lead.whatsapp
-        ? convList.find(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", lead.whatsapp ?? ""))
+        ? convList.find(c => c.channel === "whatsapp" && telefonesIguais(c.phone ?? "", lead.whatsapp ?? ""))
         : undefined);
     if (existing) {
       setActiveId(existing.id);
@@ -2374,7 +2349,7 @@ export default function MultiatendimentoPage() {
     // Já existe um thread desse lead nesse número?
     const existing = convList.find(c =>
       c.id !== active.id &&
-      phonesMatch(c.phone ?? "", active.phone ?? "") &&
+      telefonesIguais(c.phone ?? "", active.phone ?? "") &&
       (c.instanceId ?? "") === targetInstanceId,
     );
     if (existing) {
@@ -2687,7 +2662,7 @@ export default function MultiatendimentoPage() {
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
 
-    const cleanPhone = phoneVariants(active.phone)[0] ?? active.phone.replace(/\D/g, "");
+    const cleanPhone = variantesDeTelefone(active.phone)[0] ?? active.phone.replace(/\D/g, "");
     const msgId = crypto.randomUUID();
     setEnviandoModelo(true);
 
@@ -2785,7 +2760,7 @@ export default function MultiatendimentoPage() {
     }
     if (!contactId) return undefined;
 
-    const sameContact = convList.filter(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", conv.phone ?? ""));
+    const sameContact = convList.filter(c => c.channel === "whatsapp" && telefonesIguais(c.phone ?? "", conv.phone ?? ""));
     setConvList(prev => prev.map(c => sameContact.some(x => x.id === c.id) ? { ...c, contactId } : c));
     await supabase.from("whatsapp_conversations").update({ contact_id: contactId }).in("id", sameContact.map(c => c.id));
     return contactId;
@@ -2801,7 +2776,7 @@ export default function MultiatendimentoPage() {
     const contactId = linkedLead?.personId;
     if (!contactId) return;
 
-    const sameContact = convList.filter(c => c.channel === "whatsapp" && phonesMatch(c.phone ?? "", conv.phone ?? ""));
+    const sameContact = convList.filter(c => c.channel === "whatsapp" && telefonesIguais(c.phone ?? "", conv.phone ?? ""));
     setConvList(prev => prev.map(c => sameContact.some(x => x.id === c.id) ? { ...c, contactId } : c));
     await supabase.from("whatsapp_conversations").update({ contact_id: contactId }).in("id", sameContact.map(c => c.id));
   }
