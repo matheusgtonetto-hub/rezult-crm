@@ -103,6 +103,14 @@ where m.conversation_id is null
   and c.owner_id = m.owner_id
   and c.instance_id is not distinct from m.instance_id
   and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone)
+  -- Guarda de comprimento, espelhando telefonesIguais() no TypeScript, que se
+  -- RECUSA a afirmar igualdade abaixo de 10 digitos: "98888" pode ser o final de
+  -- milhares de numeros. O backfill so comparava igualdade de nucleo, e sem esta
+  -- linha uma conversa com telefone NULO (existe 1 na base) tem nucleo vazio e
+  -- casaria com qualquer mensagem cujo telefone tambem normalize para vazio.
+  -- Hoje nenhuma mensagem tem nucleo curto, entao a guarda nao muda vinculo
+  -- nenhum; ela existe para o primeiro webhook que gravar telefone invalido.
+  and length(public.nucleo_telefone(m.phone)) >= 10
   -- Guarda de empresa. O escopo natural aqui seria company_id, mas a tela casa
   -- por owner_id e a Fase 1 se propoe a nao mudar o que aparece, entao o
   -- owner_id fica. Acontece que owner_id e por PESSOA, nao por empresa: no dia
@@ -160,4 +168,5 @@ where m.conversation_id is null
   and c.owner_id = m.owner_id
   and c.instance_id is null
   and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone)
+  and length(public.nucleo_telefone(m.phone)) >= 10
   and (m.company_id is null or c.company_id is null or m.company_id = c.company_id);
