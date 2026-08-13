@@ -13,6 +13,12 @@ const webhookSecret  = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
 const META_PIXEL_ID  = Deno.env.get("META_PIXEL_ID")  ?? "";
 const META_CAPI_TOKEN = Deno.env.get("META_CAPI_TOKEN") ?? "";
 
+// Fábrica em vez de chamada solta: dá um tipo nomeável para passar adiante.
+// ReturnType<typeof createClient> sem argumentos resolve para outra instância
+// genérica e não casa com o cliente realmente criado aqui.
+const criarDb = () => createClient(supabaseUrl, serviceKey);
+type DB = ReturnType<typeof criarDb>;
+
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -101,6 +107,137 @@ function normalizeStatus(raw: string): string {
   return "active";
 }
 
+// ── Datas da assinatura ──────────────────────────────────────────────────────
+// Converte epoch em ISO SEM nunca lançar. A versão antiga chamava
+// new Date(x * 1000).toISOString() direto: quando x vinha undefined o resultado
+// era NaN e o toISOString derrubava o handler inteiro com "Invalid time value",
+// antes mesmo de qualquer escrita no banco. Uma assinatura paga ficava com a
+// data de vencimento congelada e a empresa caía em modo free no fim do ciclo.
+function unixParaIso(segundos: unknown): string | null {
+  if (typeof segundos !== "number" || !Number.isFinite(segundos)) return null;
+  const data = new Date(segundos * 1000);
+  return Number.isNaN(data.getTime()) ? null : data.toISOString();
+}
+
+// A Stripe moveu current_period_start/end do objeto Subscription para os ITENS
+// da assinatura na versão de API 2025-03-31.basil. O apiVersion fixado no
+// construtor governa só as chamadas que NÓS fazemos; o payload que a Stripe
+// ENVIA no webhook vem na versão configurada no endpoint dela. Por isso lemos
+// os dois lugares em vez de assumir um formato.
+function extrairPeriodo(sub: Stripe.Subscription): { inicio: string | null; fim: string | null } {
+  // deno-lint-ignore no-explicit-any
+  const bruto = sub as any;
+  const item = bruto?.items?.data?.[0];
+  return {
+    inicio: unixParaIso(bruto?.current_period_start ?? item?.current_period_start),
+    fim:    unixParaIso(bruto?.current_period_end   ?? item?.current_period_end),
+  };
+}
+
+// Fonte única de verdade para renovação, upgrade e cancelamento agendado.
+//
+// Busca a assinatura na Stripe em vez de ler o corpo do evento: o retrieve sai
+// na versão de API fixada no construtor, que é estável, enquanto o formato do
+// evento muda quando a Stripe atualiza o endpoint. Assim uma mudança de versão
+// lá não derruba a cobrança aqui de novo.
+async function sincronizarAssinatura(
+  db: DB,
+  subId: string,
+  origem: string,
+  extras: { companyId?: string | null; planName?: string | null; billingPeriod?: string | null } = {},
+): Promise<void> {
+  const sub = await stripe.subscriptions.retrieve(subId);
+  const periodo = extrairPeriodo(sub);
+
+  if (!periodo.fim) {
+    // Não sabemos até quando o plano vale: melhor não escrever nada do que
+    // gravar uma data errada e bloquear (ou liberar) um cliente indevidamente.
+    console.error(
+      `[${origem}] período ausente em ${subId}. Campos da subscription:`,
+      Object.keys(sub as Record<string, unknown>).join(","),
+      "| campos do item:",
+      // deno-lint-ignore no-explicit-any
+      Object.keys(((sub as any)?.items?.data?.[0] ?? {}) as Record<string, unknown>).join(","),
+    );
+    return;
+  }
+
+  // A linha existente é o fallback para plano e empresa: numa renovação o
+  // evento não carrega o metadata que o checkout carregava.
+  const { data: linhaAtual } = await db
+    .from("subscriptions")
+    .select("company_id, plan_name, billing_period, owner_user_id")
+    .eq("stripe_subscription_id", subId)
+    .limit(1)
+    .maybeSingle();
+
+  const companyId = sub.metadata?.companyId
+    ?? extras.companyId
+    ?? (linhaAtual?.company_id as string | undefined)
+    ?? null;
+
+  const planName = extras.planName
+    ?? sub.metadata?.planName
+    ?? (linhaAtual?.plan_name as string | undefined)
+    ?? null;
+
+  const billingPeriod = extras.billingPeriod
+    ?? sub.metadata?.billingPeriod
+    ?? (linhaAtual?.billing_period as string | undefined)
+    ?? null;
+
+  if (!companyId) {
+    console.error(`[${origem}] não foi possível resolver companyId para ${subId} — nada gravado`);
+    return;
+  }
+
+  const dados = {
+    company_id:             companyId,
+    // Numa renovação o metadata pode não vir. Sem o fallback, o upsert zeraria
+    // o dono que o checkout já tinha gravado.
+    owner_user_id:          sub.metadata?.userId
+                              ?? (linhaAtual?.owner_user_id as string | undefined)
+                              ?? null,
+    stripe_customer_id:     typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
+    stripe_subscription_id: subId,
+    stripe_price_id:        sub.items.data[0]?.price.id ?? null,
+    plan_name:              planName,
+    billing_period:         billingPeriod,
+    status:                 normalizeStatus(sub.status),
+    trial_ends_at:          unixParaIso(sub.trial_end),
+    current_period_start:   periodo.inicio,
+    current_period_end:     periodo.fim,
+    canceled_at:            unixParaIso(sub.canceled_at),
+    updated_at:             new Date().toISOString(),
+  };
+
+  const { error: erroSub } = await db
+    .from("subscriptions")
+    .upsert(dados, { onConflict: "stripe_subscription_id" });
+
+  if (erroSub) {
+    console.error(`[${origem}] erro no upsert subscriptions:`, erroSub);
+    throw new Error(`Upsert subscriptions falhou: ${erroSub.message}`);
+  }
+
+  const atualizacaoEmpresa: Record<string, string> = { plan_expires_at: periodo.fim };
+  if (planName) atualizacaoEmpresa.plan = planName;
+
+  const { error: erroEmpresa } = await db
+    .from("companies")
+    .update(atualizacaoEmpresa)
+    .eq("id", companyId);
+
+  if (erroEmpresa) {
+    console.error(`[${origem}] erro ao atualizar companies:`, erroEmpresa);
+    throw new Error(`Update companies falhou: ${erroEmpresa.message}`);
+  }
+
+  console.log(
+    `[${origem}] sincronizado ${subId}: plano=${planName} status=${dados.status} vence=${periodo.fim}`,
+  );
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -127,7 +264,7 @@ serve(async (req) => {
 
   console.log(`[webhook] evento recebido: ${event.type} id=${event.id}`);
 
-  const db = createClient(supabaseUrl, serviceKey);
+  const db = criarDb();
 
   try {
     switch (event.type) {
@@ -153,54 +290,11 @@ serve(async (req) => {
           break;
         }
 
-        const sub = await stripe.subscriptions.retrieve(subId);
-        console.log("[checkout.session.completed] subscription recuperada: status=", sub.status, "trial_end=", sub.trial_end);
-
-        const upsertData = {
-          company_id:             companyId,
-          owner_user_id:          userId   ?? null,
-          stripe_customer_id:     session.customer as string,
-          stripe_subscription_id: subId,
-          stripe_price_id:        sub.items.data[0]?.price.id ?? null,
-          plan_name:              planName      ?? null,
-          billing_period:         billingPeriod ?? null,
-          status:                 normalizeStatus(sub.status),
-          trial_ends_at:          sub.trial_end
-                                    ? new Date(sub.trial_end * 1000).toISOString()
-                                    : null,
-          current_period_start:   new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end:     new Date(sub.current_period_end   * 1000).toISOString(),
-          updated_at:             new Date().toISOString(),
-        };
-
-        console.log("[checkout.session.completed] upsert payload:", upsertData);
-
-        const { error: upsertErr } = await db
-          .from("subscriptions")
-          .upsert(upsertData, { onConflict: "stripe_subscription_id" });
-
-        if (upsertErr) {
-          console.error("[checkout.session.completed] erro no upsert subscriptions:", upsertErr);
-          throw new Error(`Upsert subscriptions falhou: ${upsertErr.message}`);
-        }
-
-        console.log("[checkout.session.completed] subscription salva com sucesso");
-
-        if (planName) {
-          const { error: companyErr } = await db
-            .from("companies")
-            .update({
-              plan:            planName,
-              plan_expires_at: new Date(sub.current_period_end * 1000).toISOString(),
-            })
-            .eq("id", companyId);
-
-          if (companyErr) {
-            console.error("[checkout.session.completed] erro ao atualizar companies:", companyErr);
-          } else {
-            console.log("[checkout.session.completed] companies atualizado: plan=", planName);
-          }
-        }
+        await sincronizarAssinatura(db, subId, "checkout.session.completed", {
+          companyId,
+          planName,
+          billingPeriod,
+        });
 
         // Dispara evento de conversão no Meta CAPI
         await sendMetaConversion({
@@ -218,42 +312,45 @@ serve(async (req) => {
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         console.log("[customer.subscription.updated] sub.id=", sub.id, "status=", sub.status);
+        await sincronizarAssinatura(db, sub.id, "customer.subscription.updated");
+        break;
+      }
 
-        const { error: updateErr } = await db
-          .from("subscriptions")
-          .update({
-            status:               normalizeStatus(sub.status),
-            stripe_price_id:      sub.items.data[0]?.price.id ?? null,
-            trial_ends_at:        sub.trial_end
-                                    ? new Date(sub.trial_end * 1000).toISOString()
-                                    : null,
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end:   new Date(sub.current_period_end   * 1000).toISOString(),
-            canceled_at:          sub.canceled_at
-                                    ? new Date(sub.canceled_at * 1000).toISOString()
-                                    : null,
-            updated_at:           new Date().toISOString(),
-          })
-          .eq("stripe_subscription_id", sub.id);
+      // Renovação paga. É o evento canônico do ciclo mensal: antes o sistema
+      // dependia só do customer.subscription.updated, então uma falha ali
+      // congelava a data de vencimento sem deixar rastro no banco.
+      case "invoice.payment_succeeded": {
+        // deno-lint-ignore no-explicit-any
+        const invoice = event.data.object as any;
+        // O campo mudou de lugar entre versões da API da Stripe: era
+        // invoice.subscription, virou invoice.parent.subscription_details.
+        const subId: string | null =
+          (typeof invoice?.subscription === "string" ? invoice.subscription : null)
+          ?? invoice?.parent?.subscription_details?.subscription
+          ?? invoice?.lines?.data?.[0]?.subscription
+          ?? null;
 
-        if (updateErr) {
-          console.error("[customer.subscription.updated] erro no update:", updateErr);
+        console.log("[invoice.payment_succeeded] subId=", subId, "billing_reason=", invoice?.billing_reason);
+
+        if (!subId) {
+          console.log("[invoice.payment_succeeded] fatura sem assinatura — ignorando");
+          break;
         }
 
-        const companyId = sub.metadata?.companyId;
-        if (companyId) {
-          await db
-            .from("companies")
-            .update({ plan_expires_at: new Date(sub.current_period_end * 1000).toISOString() })
-            .eq("id", companyId);
-        }
+        await sincronizarAssinatura(db, subId, "invoice.payment_succeeded");
         break;
       }
 
       case "customer.subscription.deleted": {
-        const sub       = event.data.object as Stripe.Subscription;
-        const companyId = sub.metadata?.companyId;
+        const sub = event.data.object as Stripe.Subscription;
         console.log("[customer.subscription.deleted] sub.id=", sub.id);
+
+        const { data: linha } = await db
+          .from("subscriptions")
+          .select("company_id")
+          .eq("stripe_subscription_id", sub.id)
+          .limit(1)
+          .maybeSingle();
 
         await db
           .from("subscriptions")
@@ -264,15 +361,25 @@ serve(async (req) => {
           })
           .eq("stripe_subscription_id", sub.id);
 
+        // Metadata pode faltar no evento; a linha do banco é o fallback.
+        const companyId = sub.metadata?.companyId ?? (linha?.company_id as string | undefined);
         if (companyId) {
           await db.from("companies").update({ plan: "free" }).eq("id", companyId);
+        } else {
+          console.error("[customer.subscription.deleted] companyId não resolvido para", sub.id);
         }
         break;
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subId   = invoice.subscription as string | null;
+        // deno-lint-ignore no-explicit-any
+        const invoice = event.data.object as any;
+        // Mesma mudança de lugar do payment_succeeded.
+        const subId: string | null =
+          (typeof invoice?.subscription === "string" ? invoice.subscription : null)
+          ?? invoice?.parent?.subscription_details?.subscription
+          ?? invoice?.lines?.data?.[0]?.subscription
+          ?? null;
         console.log("[invoice.payment_failed] subId=", subId);
         if (subId) {
           await db
