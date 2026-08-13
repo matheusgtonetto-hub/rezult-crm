@@ -9,14 +9,18 @@ import { variantesDeTelefone } from "./telefone.ts";
 // "penduradas" em whatsapp_messages sem aparecer em lugar nenhum no CRM.
 // Usado por dapi-webhook, zapi-webhook, cloud-api-webhook e automation-runner.
 
-// Todas as variantes plausíveis de como o telefone pode ter sido salvo (com/sem
-// "+", com/sem código do país 55, com/sem o 9º dígito de celular) -- mesmo
-// núcleo de normalização usado no cliente (MultiatendimentoPage.tsx) e nos
-// webhooks (zapi-webhook, dapi-webhook). Sem isso, uma conversa criada fora de
-// um webhook (ex.: "Nova conversa" a partir de um Lead, cujo telefone vem no
-// formato "+55...") nunca batia com o telefone limpo (só dígitos) que os
-// webhooks sempre usam, e cada mensagem real criava uma segunda conversa.
-// A regra de variantes vive em _shared/telefone.ts.
+// A busca da conversa usa variantesDeTelefone (de _shared/telefone.ts), porque
+// cada canal grava o número de um jeito: com ou sem o código do país, com ou sem
+// o nono dígito. Sem isso, uma conversa criada fora de um webhook (ex.: "Nova
+// conversa" a partir de um Lead, cujo telefone vem como "+55...") nunca batia
+// com o telefone limpo que os webhooks gravam, e cada mensagem real criava uma
+// segunda conversa.
+//
+// As variantes NÃO cobrem sinal de "+" nem qualquer outra pontuação: são só
+// dígitos. Medido na base: de 234 telefones distintos em whatsapp_messages, 232
+// caem numa das quatro variantes e 1 está gravado como "+5555996635570", que
+// nenhuma delas alcança. É um dos motivos de a Fase 1 ter movido a leitura de
+// mensagens para conversation_id, que não depende de formato nenhum.
 
 /**
  * Devolve o id da conversa (existente ou recém-criada), ou null quando não
