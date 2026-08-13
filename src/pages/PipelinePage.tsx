@@ -219,7 +219,16 @@ export default function PipelinePage() {
   const zapiInstances = useMemo(
     () => whatsappConnections
       .filter(c => c.connected && c.active)
-      .map(c => ({ instanceId: c.instanceId, label: c.phone ? `${c.name} · ${c.phone}` : c.name })),
+      .map(c => ({
+        instanceId: c.instanceId,
+        // Só mostra o número quando ele acrescenta informação. A conexão costuma
+        // ser batizada com o próprio número, e aí o rótulo saía repetido:
+        // "554891152442 · 554891152442". Compara pelo núcleo para pegar também o
+        // caso de estar salvo em formatos diferentes nos dois campos.
+        label: c.phone && normalizarTelefoneBr(c.name) !== normalizarTelefoneBr(c.phone)
+          ? `${c.name} · ${c.phone}`
+          : (c.name || c.phone || c.instanceId),
+      })),
     [whatsappConnections]
   );
 

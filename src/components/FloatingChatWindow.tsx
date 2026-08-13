@@ -10,13 +10,13 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { variantesDeTelefone } from "@/lib/telefone";
 import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
+import { EMOJIS } from "@/lib/emojis";
 import {
   Check,
   Minus,
   X,
   Paperclip,
   Smile,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 
@@ -61,6 +61,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
+  const [showEmoji, setShowEmoji] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -479,7 +480,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
 
         {/* Footer */}
         <div
-          className="flex items-center gap-2 border-t shrink-0"
+          className="flex items-center gap-2 border-t shrink-0 relative"
           style={{
             height: 52,
             padding: "8px 12px",
@@ -490,20 +491,26 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary" aria-label="Anexar">
             <Paperclip size={16} style={{ color: "#AAAAAA" }} />
           </button>
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary" aria-label="Emoji">
-            <Smile size={16} style={{ color: "#AAAAAA" }} />
-          </button>
           <button
-            className="flex items-center justify-center"
-            style={{
-              background: "#E1F5EE",
-              padding: 4,
-              borderRadius: 6,
-            }}
-            aria-label="IA"
+            onClick={() => setShowEmoji(v => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary"
+            aria-label="Emoji"
           >
-            <Sparkles size={14} style={{ color: "#128A68" }} />
+            <Smile size={16} style={{ color: showEmoji ? "#128A68" : "#AAAAAA" }} />
           </button>
+          {showEmoji && (
+            <div style={{ position: "absolute", bottom: "100%", left: 8, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {EMOJIS.map(e => (
+                  <button key={e} onClick={() => { setDraft(v => v + e); setShowEmoji(false); }}
+                    style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", borderRadius: 6, lineHeight: 1 }}
+                    onMouseEnter={ev => (ev.currentTarget.style.background = "#F5F5F5")}
+                    onMouseLeave={ev => (ev.currentTarget.style.background = "none")}
+                  >{e}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <input
             type="text"
             value={draft}

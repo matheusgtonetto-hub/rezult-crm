@@ -33,6 +33,7 @@ import { CreateDealDialog } from "@/components/CreateDealDialog";
 import { upsertContact, type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { previewLabelFor } from "@/lib/conversas";
+import { EMOJIS } from "@/lib/emojis";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -141,12 +142,6 @@ type ConvState = {
 type ZApiInstance = { instanceId: string; token: string; clientToken: string; phone: string; label: string; provider: "zapi" | "dapi" | "cloud_api"; wabaId?: string | null };
 
 /* ── emoji list ───────────────────────────────────────────────────────── */
-const EMOJIS = [
-  "😀","😃","😄","😁","😅","😂","🤣","😊","😍","🥰","😘","😎","🤩","🥳","😇",
-  "🤔","😬","😒","😔","😢","😭","😤","😡","🥺","😱","😴","😜","😝","🤯","🫡",
-  "👍","👎","👏","🙌","🤝","💪","✌️","🤞","👋","🫶","❤️","🔥","⭐","✅","💯",
-  "🎉","🚀","💡","📞","💬","📧","📅","🗓️","📋","✏️","🔔","💰","📊","🏆","🎯",
-];
 
 const AI_TEMPLATES: Record<number, string[]> = {
   0: ["Olá! Tudo bem? Estou entrando em contato para conhecer melhor as suas necessidades. Tem alguns minutos?", "Boa tarde! Vi que você demonstrou interesse. Posso apresentar nossa solução?"],
