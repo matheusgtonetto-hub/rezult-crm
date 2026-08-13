@@ -7,6 +7,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { variantesDeTelefone } from "@/lib/telefone";
 import {
   Check,
   Minus,
@@ -92,7 +93,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     supabase
       .from("whatsapp_messages")
       .select("*")
-      .eq("phone", cleanPhone)
+      // Variantes, não igualdade exata. O telefone do lead vem do formulário
+      // ("+55 48 99115-2442" -> 5548991152442) e o das mensagens vem do canal,
+      // que grava com ou sem o 55 e com ou sem o nono dígito. Com `.eq` o chat
+      // flutuante abria vazio sempre que os dois formatos não coincidiam, que é
+      // o caso comum. Mesmo defeito já corrigido em LeadDrawer e LeadDetailPage.
+      .in("phone", variantesDeTelefone(lead.whatsapp))
       .order("created_at", { ascending: true })
       .limit(100)
       .then(({ data }) => {
@@ -106,11 +112,15 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         })));
       });
 
+    // Mesmas variantes do histórico acima. Com `phone=eq.` o chat carregava o
+    // histórico certo e depois ficava mudo: a mensagem nova chegava gravada em
+    // outro formato e o filtro do realtime não a reconhecia.
+    const variantes = variantesDeTelefone(lead.whatsapp);
     const ch = supabase
       .channel(`fchat-${cleanPhone}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=eq.${cleanPhone}` },
+        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=in.(${variantes.join(",")})` },
         (payload) => {
           const m = payload.new as { from_me: boolean; chat_name?: string; body?: string; momment?: number; created_at?: string };
           if (m.from_me) return;

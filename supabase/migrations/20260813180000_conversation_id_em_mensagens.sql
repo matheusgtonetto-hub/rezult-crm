@@ -29,11 +29,20 @@
 --      a base tem "+5555996635570" de verdade, que é um número gaúcho.
 --   2. tira o nono dígito do celular, exigido pela operadora desde 2013, que
 --      cada canal grava de um jeito.
+--
+-- `set search_path = ''` não é enfeite. Sem isso o linter do Supabase acusa
+-- `function_search_path_mutable`, e o motivo é concreto: uma função IMMUTABLE
+-- cujo search_path varia por sessão pode resolver nomes diferentes conforme
+-- quem chama. Aqui só há built-in do pg_catalog, que é sempre visível mesmo com
+-- o caminho vazio, então travar não custa nada e fecha a porta antes de alguém
+-- criar um índice funcional em cima desta função, que é quando isso passa a ser
+-- corrupção de índice em vez de aviso.
 create or replace function public.nucleo_telefone(bruto text)
 returns text
 language sql
 immutable
 parallel safe
+set search_path = ''
 as $$
   select case
            when length(d2) = 11 and substr(d2, 3, 1) = '9'
