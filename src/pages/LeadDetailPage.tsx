@@ -611,7 +611,6 @@ export default function LeadDetailPage() {
       }))));
     // Arquivos do WhatsApp (mensagens com tipo image/document vinculadas pelo telefone)
     if (lead.whatsapp) {
-
       supabase.from("whatsapp_messages")
         .select("id, body, type, from_me, sender_name, created_at, momment")
         .eq("owner_id", user.id)

@@ -279,9 +279,6 @@ async function syncResponsibleToConversations(personId: string | undefined, resp
   if (error) console.error("syncResponsibleToConversations:", error.message);
 }
 
-// Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
-// dígito do celular) — mesma lógica usada em MultiatendimentoPage.tsx e nos
-// webhooks, duplicada aqui de propósito (evita acoplar módulos independentes).
 // Um lead só pode ter um negócio (pipelineId preenchido) aberto por vez.
 // "Mesmo contato" é decidido em 3 sinais, na ordem em que existem hoje no
 // app: person_id (esquema novo, só o Multiatendimento popula), contact_id

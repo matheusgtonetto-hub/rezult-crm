@@ -75,10 +75,6 @@ const COLUMN_COLORS = [
 type SortKey = "recent" | "oldest" | "value" | "name";
 type StatusFilter = "open" | "won" | "lost" | "all";
 
-// Normaliza telefone BR pra DDD + 8 dígitos (tolera código do país e o 9º
-// dígito) -- mesma lógica usada em MultiatendimentoPage.tsx/CRMContext.tsx,
-// duplicada aqui só pra chave do cache de avatares deste board.
-
 export default function PipelinePage() {
   const {
     pipelines,

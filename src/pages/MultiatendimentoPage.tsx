@@ -55,9 +55,6 @@ function nowTime() {
 }
 // Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
 // Normaliza um telefone BR para o núcleo DDD + 8 dígitos finais, tolerando o
-// código do país 55 e o 9º dígito de celular — que o WhatsApp/Z-API às vezes
-// entrega sem o 9 (ex.: 553189904484 ↔ 31989904484). Comparar pelos últimos N
-// dígitos não basta porque o 9 desloca a contagem.
 const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
   Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
   Mariana:     { bg: "#EDE9FE", fg: "#534AB7" },
@@ -2662,7 +2659,12 @@ export default function MultiatendimentoPage() {
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
 
-    const cleanPhone = variantesDeTelefone(active.phone)[0] ?? active.phone.replace(/\D/g, "");
+    // Dígitos como estão, IGUAL aos outros quatro envios desta tela (texto,
+    // imagem, áudio, presença). Aqui usava a primeira variante normalizada, que
+    // é o núcleo DDD+8 SEM o código do país: a Meta recebia 4891152442 no lugar
+    // de 5548991152442 e recusava o envio. Nunca apareceu porque a conta ainda
+    // não tinha modelo aprovado para exercitar este caminho.
+    const cleanPhone = active.phone.replace(/\D/g, "");
     const msgId = crypto.randomUUID();
     setEnviandoModelo(true);
 

@@ -26,9 +26,9 @@ const PHONE_KEYS  = ["telefone", "celular", "fone", "whatsapp", "phone", "mobile
 const EMAIL_KEYS  = ["email", "e-mail", "correio", "mail"];
 
 // Mesmo sinal que CRMContext::findOpenNegocioConflict usa (telefone normalizado,
-// negócio com pipeline aberto) — duplicado aqui só pra conseguir categorizar o
-// motivo de cada linha pulada no resumo pós-importação, sem mexer no contrato
-// de addLead (usado por muito mais telas além desta).
+// negócio com pipeline aberto) — repetida na pré-checagem só pra conseguir
+// categorizar o motivo de cada linha pulada no resumo pós-importação, sem mexer
+// no contrato de addLead (usado por muito mais telas além desta).
 
 interface ImportResult {
   name: string;
