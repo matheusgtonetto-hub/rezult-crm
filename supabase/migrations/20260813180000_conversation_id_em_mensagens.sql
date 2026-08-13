@@ -102,7 +102,22 @@ from public.whatsapp_conversations c
 where m.conversation_id is null
   and c.owner_id = m.owner_id
   and c.instance_id is not distinct from m.instance_id
-  and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone);
+  and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone)
+  -- Guarda de empresa. O escopo natural aqui seria company_id, mas a tela casa
+  -- por owner_id e a Fase 1 se propoe a nao mudar o que aparece, entao o
+  -- owner_id fica. Acontece que owner_id e por PESSOA, nao por empresa: no dia
+  -- em que um cliente criar a segunda empresa, o mesmo telefone atendido nas
+  -- duas cruzaria a fronteira -- e aqui o erro fica gravado no banco, protegido
+  -- por chave estrangeira, nao so exibido na tela.
+  --
+  -- Tolera nulo dos dois lados de proposito: existe 1 mensagem antiga com
+  -- company_id nulo cuja conversa sabe a empresa certa, e exigir igualdade
+  -- estrita a desvincularia sem motivo.
+  --
+  -- Conferido: hoje sao 10 donos para 10 empresas, entao a guarda nao muda
+  -- nenhum vinculo. Ela existe para o dia em que isso deixar de ser verdade.
+  and (m.company_id is null or c.company_id is null or m.company_id = c.company_id)
+;
 
 -- Segunda passada: mensagem de sistema guarda o ID DA CONVERSA na coluna phone.
 --
@@ -144,4 +159,5 @@ from public.whatsapp_conversations c
 where m.conversation_id is null
   and c.owner_id = m.owner_id
   and c.instance_id is null
-  and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone);
+  and public.nucleo_telefone(c.phone) = public.nucleo_telefone(m.phone)
+  and (m.company_id is null or c.company_id is null or m.company_id = c.company_id);
