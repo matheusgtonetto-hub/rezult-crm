@@ -113,8 +113,10 @@ export async function upsertConversationForMessage(supabase: any, params: {
   return null;
 }
 
-// Espelha src/pages/MultiatendimentoPage.tsx::previewLabelFor — mesmo texto
-// de preview usado no cliente, pra não ter dois formatos diferentes.
+// Texto de preview da conversa. Usado pelos webhooks, pelos runners e pelo
+// cliente (via src/lib/conversas.ts) -- uma definição só, em vez das duas que
+// existiam aqui e em MultiatendimentoPage.tsx com um comentário prometendo que
+// não iam divergir.
 export function previewLabelFor(type: string | undefined, body: string | null | undefined): string {
   if (type === "audio")    return "🎤 Mensagem de áudio";
   if (type === "image")    return "🖼️ Imagem";

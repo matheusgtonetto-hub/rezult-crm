@@ -31,6 +31,7 @@ import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import { upsertContact, type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
+import { previewLabelFor } from "@/lib/conversas";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -201,13 +202,6 @@ function parseAudioDuration(raw?: string | null): string {
   return "";
 }
 
-// Rótulo de pré-visualização (lista de conversas) conforme o tipo da mensagem.
-function previewLabelFor(type: string | undefined, body: string | null | undefined): string {
-  if (type === "audio")    return "🎤 Mensagem de áudio";
-  if (type === "image")    return "🖼️ Imagem";
-  if (type === "document") return `📎 ${body || "Arquivo"}`;
-  return body ?? "";
-}
 
 // Monta uma mensagem chegada via realtime respeitando o tipo. Antes, toda mensagem
 // era renderizada como texto — áudio/imagem/documento não apareciam. Mensagens

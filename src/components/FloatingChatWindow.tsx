@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { variantesDeTelefone } from "@/lib/telefone";
+import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
 import {
   Check,
   Minus,
@@ -242,25 +243,30 @@ export function FloatingChatWindow({ leadId, index }: Props) {
 
       if (!sendOk) return;
 
-      // Vincula à conversa existente, se houver. Diferente do Multiatendimento,
-      // aqui não há conversa em contexto: o chat flutuante abre a partir do card
-      // do lead, não da caixa de entrada.
+      // Cria a conversa se ainda não existir, e devolve o id para a mensagem
+      // nascer vinculada. Mesma função que os webhooks usam, não uma cópia.
       //
-      // Se NÃO existir conversa, esta mensagem fica sem vínculo de propósito.
-      // Criar uma aqui é decisão de produto, não de código: significaria que
-      // mandar um recado rápido pelo pipeline passa a abrir uma thread na caixa
-      // de entrada de todo mundo. Enquanto isso não for decidido, o null diz a
-      // verdade, e é exatamente essa a situação das 80 mensagens sem conversa
-      // que o backfill encontrou.
-      const { data: conversa } = await supabase
-        .from("whatsapp_conversations")
-        .select("id")
-        .eq("owner_id", company.owner_id)
-        .eq("instance_id", inst.instanceId)
-        .in("phone", variantesDeTelefone(lead.whatsapp))
-        .order("last_msg_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Criar SÓ no envio é o ponto: abrir o chat flutuante para espiar o
+      // histórico não abre thread na caixa de entrada de ninguém. Quem manda
+      // mensagem está iniciando um atendimento de fato, e aí ele tem que
+      // aparecer no Multiatendimento como qualquer outro.
+      //
+      // É este caminho que produzia mensagem sem conversa: 80 delas, para 20
+      // leads, sentadas no banco sem aparecer em lugar nenhum do CRM.
+      let conversationId: string | null = null;
+      try {
+        conversationId = await upsertConversationForMessage(supabase, {
+          ownerId: company.owner_id,
+          companyId: company.id,
+          instanceId: inst.instanceId,
+          phone: cleanPhone,
+          name: lead.name,
+          preview: previewLabelFor("text", text),
+          fromMe: true,
+        });
+      } catch (e) {
+        console.error("[chat-flutuante] não consegui criar/achar a conversa:", e);
+      }
 
       // Persiste para histórico -- mesmo padrão de owner_id/company_id usado
       // no resto do app (dono da empresa, não o usuário logado).
@@ -274,7 +280,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         type:        "text",
         momment:     Date.now(),
         sender_name: agentName,
-        conversation_id: conversa?.id ?? null,
+        conversation_id: conversationId,
       });
     } catch {
       toast.error("Falha ao enviar mensagem via WhatsApp");
