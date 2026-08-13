@@ -123,3 +123,44 @@ export function previewLabelFor(type: string | undefined, body: string | null | 
   if (type === "document") return `📎 ${body || "Arquivo"}`;
   return body ?? "";
 }
+
+/**
+ * Ids das conversas de um telefone, para buscar mensagens pelo VÍNCULO em vez
+ * de casar texto na tabela de mensagens.
+ *
+ * Existe porque casar telefone direto em whatsapp_messages tem três problemas
+ * que só pioram com o tamanho da base:
+ *
+ *   1. formato. Um telefone gravado como "+5555996635570" não casa com nenhuma
+ *      das quatro variantes, que são só dígitos. Existe 1 assim na base hoje.
+ *   2. colisão. Casar pelos últimos 8 dígitos junta DDDs diferentes: 11 91152442
+ *      e 48 91152442 são pessoas diferentes. Hoje não colide, mas a chance
+ *      cresce com o quadrado do número de contatos.
+ *   3. custo. `ilike '%12345678'` não usa índice, então é varredura completa.
+ *
+ * A conversa resolve os três: casa uma vez, por núcleo, numa tabela pequena
+ * (centenas de linhas), e a partir daí a busca de mensagens é por id indexado.
+ */
+// deno-lint-ignore no-explicit-any
+export async function idsDeConversasPorTelefone(supabase: any, params: {
+  ownerId?: string | null;
+  companyId?: string | null;
+  phone: string;
+  instancias?: string[];
+}): Promise<string[]> {
+  const { ownerId, companyId, phone, instancias } = params;
+  const variantes = variantesDeTelefone(phone);
+  if (!variantes.length) return [];
+
+  let q = supabase.from("whatsapp_conversations").select("id").in("phone", variantes);
+  if (ownerId) q = q.eq("owner_id", ownerId);
+  if (companyId) q = q.eq("company_id", companyId);
+  if (instancias?.length) q = q.in("instance_id", instancias);
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("idsDeConversasPorTelefone:", error);
+    return [];
+  }
+  return ((data ?? []) as { id: string }[]).map((c) => c.id);
+}

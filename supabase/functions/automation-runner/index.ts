@@ -3,7 +3,7 @@
 // Chamado pelos triggers PostgreSQL via pg_net.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 import { upsertContact } from "../_shared/contacts.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
@@ -1809,12 +1809,19 @@ async function buildConversationContext(
   const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
   const ownerId = (comp as { owner_id?: string } | null)?.owner_id;
   if (!ownerId) return "";
-  const last8 = digits.slice(-8);
+  // Pelo vínculo, não por `ilike '%ultimos8'`. Aquele casava QUALQUER número
+  // terminado nos mesmos 8 dígitos, atravessando DDD -- 11 91152442 e
+  // 48 91152442 são pessoas diferentes. Este texto vai dentro de uma mensagem
+  // enviada ao lead, então misturar conversa aqui é vazar conversa de um
+  // cliente para outro. Hoje não colide na base, mas a chance cresce com o
+  // quadrado do número de contatos, e `ilike '%...'` ainda por cima não usa
+  // índice.
+  const conversas = await idsDeConversasPorTelefone(supabase, { ownerId, phone: String(phone ?? "") });
+  if (!conversas.length) return "";
   const { data: msgs } = await supabase
     .from("whatsapp_messages")
     .select("body, type, from_me, created_at, phone")
-    .eq("owner_id", ownerId)
-    .ilike("phone", `%${last8}`)
+    .in("conversation_id", conversas)
     .order("created_at", { ascending: false })
     .limit(30);
   const rows = ((msgs ?? []) as { body?: string; type?: string; from_me?: boolean }[]).reverse();
@@ -1931,13 +1938,15 @@ async function runIaTranscription(
   const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
   const ownerId = (comp as { owner_id?: string } | null)?.owner_id;
   if (!ownerId) return "";
-  const last8 = digits.slice(-8);
+  // Mesmo motivo do histórico acima: áudio de outro cliente reenviado como se
+  // fosse deste seria pior ainda que texto trocado.
+  const conversas = await idsDeConversasPorTelefone(supabase, { ownerId, phone: String(phone ?? "") });
+  if (!conversas.length) return "";
   const { data: msgs } = await supabase
     .from("whatsapp_messages")
     .select("media_url, type, created_at, phone")
-    .eq("owner_id", ownerId)
+    .in("conversation_id", conversas)
     .eq("type", "audio")
-    .ilike("phone", `%${last8}`)
     .order("created_at", { ascending: false })
     .limit(action.audioSource === "ultimo" ? 1 : 8);
   const urls = ((msgs ?? []) as { media_url?: string }[]).map((m) => m.media_url).filter((u): u is string => !!u).reverse();
