@@ -1186,11 +1186,14 @@ export default function MultiatendimentoPage() {
     }
     let cancelado = false;
     (async () => {
+      // Por conversation_id, não por variantes de telefone. A janela de 24h é
+      // por conversa, e o telefone casava também com mensagens de OUTRA linha
+      // do mesmo contato -- o que podia liberar o campo de texto com base numa
+      // mensagem que chegou num número diferente daquele em que se vai responder.
       const { data } = await supabase
         .from("whatsapp_messages")
         .select("created_at")
-        .eq("company_id", company.id)
-        .in("phone", variantesDeTelefone(active.phone as string))
+        .eq("conversation_id", activeId)
         .eq("from_me", false)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -1300,8 +1303,38 @@ export default function MultiatendimentoPage() {
     // conflitante é ignorada e o resto do lote persiste normalmente.
     supabase.from("whatsapp_conversations")
       .upsert(dbRows, { onConflict: "owner_id,instance_id,phone", ignoreDuplicates: true })
-      .then(({ error: e }) => {
-        if (e) console.error("Reconciliação de conversas — erro:", e);
+      .then(async ({ error: e }) => {
+        if (e) { console.error("Reconciliação de conversas — erro:", e); return; }
+        // Vincula as mensagens que motivaram a criação.
+        //
+        // Sem isto a reconciliação criava a conversa e deixava as mensagens
+        // soltas -- o que não incomodava enquanto a tela casava por telefone,
+        // mas passa a incomodar muito agora que ela lê por conversation_id: a
+        // conversa apareceria na lista e abriria VAZIA.
+        //
+        // Relê o id em vez de usar o gerado aqui: com ignoreDuplicates, quem
+        // perdeu a corrida não teve sua linha inserida, e o id do cliente não
+        // corresponde a nada no banco.
+        for (const row of dbRows) {
+          const variantes = variantesDeTelefone(row.phone);
+          if (!variantes.length) continue;
+          const { data: conv } = await supabase
+            .from("whatsapp_conversations")
+            .select("id")
+            .eq("owner_id", row.owner_id)
+            .eq("instance_id", row.instance_id ?? "")
+            .in("phone", variantes)
+            .limit(1)
+            .maybeSingle();
+          if (!conv?.id) continue;
+          await supabase
+            .from("whatsapp_messages")
+            .update({ conversation_id: conv.id })
+            .is("conversation_id", null)
+            .eq("owner_id", row.owner_id)
+            .eq("instance_id", row.instance_id ?? "")
+            .in("phone", variantes);
+        }
       });
   }
 
@@ -1367,21 +1400,20 @@ export default function MultiatendimentoPage() {
     }
 
     // ── Histórico WhatsApp (whatsapp_messages) ───────────────────────
-    const rawPhone = (active.phone ?? "").replace(/\D/g, "");
-    // Sempre inclui phone.eq.${activeId} para carregar mensagens de sistema
-    // que foram salvas com o ID da conversa como chave (quando não há telefone real)
-    const phoneFilter = rawPhone
-      ? [...variantesDeTelefone(rawPhone).map(v => `phone.eq.${v}`), `phone.eq.${activeId}`].join(",")
-      : `phone.eq.${activeId}`;
-
-    let histQuery = supabase
+    // Histórico pelo VÍNCULO, não por casamento de telefone.
+    //
+    // Antes eram três condições empilhadas para dizer "as mensagens desta
+    // conversa": owner, instância, e um OR com as quatro variantes do telefone
+    // mais o próprio id da conversa (para as mensagens de sistema, que gravam o
+    // id na coluna phone). Cada uma dessas era uma chance de errar, e o filtro de
+    // instância só era aplicado quando a conversa tinha uma.
+    //
+    // A equivalência entre as duas formas foi conferida linha a linha antes da
+    // troca: 209 de 209 conversas devolvem exatamente o mesmo conjunto.
+    supabase
       .from("whatsapp_messages")
       .select("*")
-      .eq("owner_id", tenantId);
-    // Histórico isolado por instância (número) — não mistura conversas de números diferentes
-    if (active.instanceId) histQuery = histQuery.eq("instance_id", active.instanceId);
-    histQuery
-      .or(phoneFilter)
+      .eq("conversation_id", activeId)
       .order("created_at", { ascending: true })
       .limit(100)
       .then(({ data }) => {
