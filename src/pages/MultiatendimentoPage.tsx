@@ -10,6 +10,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/context/ProfileContext";
+import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import { corDoNome } from "@/lib/nomeColorido";
 import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
 import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
@@ -545,13 +546,7 @@ export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
   const { profile } = useProfile();
-  // Nome do atendente nas mensagens. Antes saía o começo do e-mail
-  // ("matheusgtonetto"), que é identificador de login, não nome de pessoa: o
-  // cliente do outro lado nunca vê isso, mas o time inteiro via, em toda
-  // bolha. O nome de verdade está em Configurações → Perfil.
-  const nomeAtendente = (profile?.full_name ?? "").trim()
-    || user?.email?.split("@")[0]
-    || "Você";
+  const nomeAtendente = useNomeAtendente();
   // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
   // (owner da empresa), não do usuário logado — que pode ser membro de várias empresas.
   const tenantId = company?.owner_id ?? null;

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { variantesDeTelefone } from "@/lib/telefone";
 import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
+import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import {
   Check,
   Minus,
@@ -56,6 +57,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
+  const nomeAtendente = useNomeAtendente();
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
@@ -104,10 +106,9 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       .limit(100)
       .then(({ data }) => {
         if (!data?.length) return;
-        const agentName = user.email?.split("@")[0] ?? "Você";
         setMessages(data.map(m => ({
           from:   m.from_me ? "agent" : "lead",
-          author: m.from_me ? (m.sender_name ?? agentName) : (m.chat_name ?? lead.name),
+          author: m.from_me ? (m.sender_name ?? nomeAtendente) : (m.chat_name ?? lead.name),
           time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
           text:   m.body ?? "",
         })));
@@ -181,10 +182,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const handleSend = async () => {
     if (!draft.trim()) return;
     const text = draft.trim();
-    const agentName = user?.email?.split("@")[0] ?? "Você";
-
     // Adiciona à UI imediatamente (otimista)
-    const newMsg: ChatMsg = { from: "agent", author: agentName, time: nowTime(), text };
+    const newMsg: ChatMsg = { from: "agent", author: nomeAtendente, time: nowTime(), text };
     setMessages(prev => [...prev, newMsg]);
     setDraft("");
 
@@ -279,7 +278,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         body:        text,
         type:        "text",
         momment:     Date.now(),
-        sender_name: agentName,
+        sender_name: nomeAtendente,
         conversation_id: conversationId,
       });
     } catch {
