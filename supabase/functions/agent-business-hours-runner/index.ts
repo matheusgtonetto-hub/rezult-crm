@@ -22,7 +22,7 @@
 // liberar) são limpas no início de cada execução (mais de 2 minutos).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { normalizarTelefoneBr, variantesDeTelefone } from "../_shared/telefone.ts";
+import { variantesDeTelefone } from "../_shared/telefone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,9 +71,6 @@ function isWithinBusinessHours(cfg: BehaviorConfig): boolean {
   return nowHHMM >= inicio && nowHHMM <= fim;
 }
 
-// Mesmas variantes de telefone usadas em agent-sds-qualify/index.ts --
-// whatsapp_conversations.phone e whatsapp_messages.phone não têm formato
-// consistente entre si (com/sem 55, com/sem o 9º dígito).
 
 const STALE_MS = 3 * 60 * 1000;
 

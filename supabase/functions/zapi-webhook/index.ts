@@ -1,16 +1,11 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
-import { normalizarTelefoneBr, telefonesIguais } from "../_shared/telefone.ts";
+import { telefonesIguais } from "../_shared/telefone.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Normaliza um telefone brasileiro para DDD + 8 dígitos finais, tolerando:
-//  - código do país 55 (ex.: 5531989904484 → 31989904484)
-//  - o 9º dígito de celular (ex.: 31989904484 → 3189904484), que o WhatsApp/Z-API
-//    às vezes entrega sem o 9. Comparar só os últimos dígitos não basta porque o
-//    9 desloca a contagem; por isso reduzimos ao núcleo DDD + 8 dígitos.
 
 serve(async (req) => {
   // Health check

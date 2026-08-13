@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
-import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
+import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -860,11 +860,6 @@ async function logAgentUsage(
   });
 }
 
-// ─── Resolução de telefone brasileiro (portado de MultiatendimentoPage.tsx) ─
-// Todas as variantes plausíveis de como o telefone pode estar salvo (com/sem
-// 55, com/sem o 9º dígito) — usado pra buscar histórico com IN em vez de
-// igualdade exata, já que whatsapp_messages.phone e leads.whatsapp não têm
-// formato consistente entre si (confirmado com dado real).
 // Divide uma mensagem longa em partes de até `maxWords` palavras, quebrando
 // em fim de parágrafo/frase quando possível pra não cortar no meio de uma
 // ideia. Usado pelo toggle "Dividir mensagens longas" (aba Comportamento).

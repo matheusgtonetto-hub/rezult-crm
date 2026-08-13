@@ -36,3 +36,6 @@ dist-ssr
 .superpowers/
 skills-lock.json
 teste rezult.dc
+
+# Gerado por rodar deno check/lint local; o deploy das functions nao usa.
+deno.lock

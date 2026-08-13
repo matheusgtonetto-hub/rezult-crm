@@ -6,9 +6,8 @@
 // automation-runner (nó criar_lead / criar_negocio) pra garantir que todo
 // negócio criado no servidor também fique ligado a um contacts.id via
 // leads.person_id.
-
-
 import { normalizarTelefoneBr } from "./telefone.ts";
+
 export type UpsertContactInput = {
   companyId: string;
   ownerId: string;

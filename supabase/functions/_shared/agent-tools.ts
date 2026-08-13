@@ -11,8 +11,9 @@
 // fazem hoje. Isso evita o modelo precisar "adivinhar" um UUID na maioria
 // dos casos reais (agente sempre está numa conversa de UM lead específico).
 
-// deno-lint-ignore no-explicit-any
 import { variantesDeTelefone } from "./telefone.ts";
+
+// deno-lint-ignore no-explicit-any
 type Db = any;
 
 export type ToolCtx = {

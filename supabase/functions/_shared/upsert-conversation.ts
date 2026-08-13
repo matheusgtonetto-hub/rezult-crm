@@ -1,3 +1,5 @@
+import { variantesDeTelefone } from "./telefone.ts";
+
 // Garante que toda mensagem de WhatsApp (recebida via webhook ou enviada por
 // automação) tenha uma linha correspondente em whatsapp_conversations,
 // independente de existir algum navegador com o Multiatendimento aberto no
@@ -14,9 +16,9 @@
 // um webhook (ex.: "Nova conversa" a partir de um Lead, cujo telefone vem no
 // formato "+55...") nunca batia com o telefone limpo (só dígitos) que os
 // webhooks sempre usam, e cada mensagem real criava uma segunda conversa.
+// A regra de variantes vive em _shared/telefone.ts.
 
 // deno-lint-ignore no-explicit-any
-import { variantesDeTelefone } from "./telefone.ts";
 export async function upsertConversationForMessage(supabase: any, params: {
   ownerId: string;
   companyId: string | null;
