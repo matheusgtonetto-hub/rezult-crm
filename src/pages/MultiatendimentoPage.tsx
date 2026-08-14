@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -35,6 +35,7 @@ import { normalizarTelefoneBr, somenteDigitos, telefonesIguais, variantesDeTelef
 import { previewLabelFor } from "@/lib/conversas";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
+import { apagarMensagemWhatsapp } from "@/lib/apagarMensagemWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ConvAvatar } from "@/components/ConvAvatar";
@@ -150,6 +151,12 @@ type MsgBase = {
   messageId?: string | null;
   /** O que esta mensagem cita, quando cita alguma. */
   citacao?: { messageId: string; preview: string } | null;
+  /**
+   * Quando foi apagada no WhatsApp. A mensagem continua na conversa, com o
+   * conteúdo trocado por um aviso -- apagar de verdade destruiria o histórico
+   * do atendimento, que é o registro que o CRM existe para guardar.
+   */
+  apagadaEm?: string | null;
 };
 
 type Msg =
@@ -812,6 +819,40 @@ export default function MultiatendimentoPage() {
   // errada é pior que perder a citação.
   useEffect(() => { setCitando(null); setMenuDaMsg(null); }, [activeId]);
 
+  // Apagar depende do provedor: a Meta não permite apagar mensagem já enviada
+  // pela API oficial, em nenhuma circunstância. Não é limitação nossa, então o
+  // item aparece cinza com a explicação em vez de sumir.
+  const podeApagar = instances.find(i => i.instanceId === selectedInstance)?.provider !== "cloud_api";
+
+  async function apagarMensagem(m: Msg) {
+    if (!activeId || !active?.phone) return;
+    const inst = instances.find(i => i.instanceId === selectedInstance);
+    if (!inst?.token || !m.messageId) return;
+    if (!window.confirm("Apagar esta mensagem para todos? Ela some também no WhatsApp do contato.")) return;
+
+    try {
+      await apagarMensagemWhatsapp({ messageId: m.messageId, telefone: active.phone, conexao: inst });
+
+      const agora = new Date().toISOString();
+      // Marca, não remove: o corpo continua no banco e a bolha passa a mostrar o
+      // aviso. Apagar a linha destruiria o histórico do atendimento.
+      const { error } = await supabase
+        .from("whatsapp_messages")
+        .update({ deleted_at: agora, deleted_by: nomeAtendente })
+        .eq("id", m.id);
+      if (error) console.error("[apagar] marcar no banco:", error);
+
+      setConvStates(prev => {
+        const atual = prev[activeId];
+        if (!atual) return prev;
+        return { ...prev, [activeId]: { ...atual, messages: atual.messages.map(mm => mm.id === m.id ? { ...mm, apagadaEm: agora } : mm) } };
+      });
+      toast.success("Mensagem apagada");
+    } catch (e) {
+      toast.error(`Não consegui apagar: ${(e as Error).message}`);
+    }
+  }
+
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [tagSearch, setTagSearch]         = useState("");
@@ -1456,6 +1497,7 @@ export default function MultiatendimentoPage() {
             agent: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : undefined,
             porAgente: !!m.sent_by_agent,
             messageId: (m.message_id as string | null) ?? null,
+            apagadaEm: (m.deleted_at as string | null) ?? null,
             // Retrato gravado na entrada. Preferimos ele ao texto da mensagem
             // original porque nem toda citada existe na nossa base: 707
             // mensagens antigas foram gravadas sem o id do provedor, e uma
@@ -3610,6 +3652,15 @@ export default function MultiatendimentoPage() {
                               }}>
                                 {[
                                   { rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) },
+                                  ...(isAgent && !m.apagadaEm ? [{
+                                    rotulo: "Apagar", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
+                                    desabilitado: !podeApagar,
+                                    // Explicação no lugar do silêncio: sem isto o item
+                                    // ficaria cinza sem dizer por quê, e a pessoa
+                                    // ficaria clicando achando que travou.
+                                    motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
+                                    acao: () => apagarMensagem(m),
+                                  }] : []),
                                   { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
                                       // A área de transferência pode recusar (Safari é
                                       // rígido com o gesto, e a API não existe fora de
@@ -3626,14 +3677,18 @@ export default function MultiatendimentoPage() {
                                 ].map(item => (
                                   <button
                                     key={item.rotulo}
-                                    onClick={() => { item.acao(); setMenuDaMsg(null); }}
+                                    onClick={() => { if (item.desabilitado) return; item.acao(); setMenuDaMsg(null); }}
+                                    disabled={item.desabilitado}
+                                    title={item.motivo}
                                     style={{
                                       display: "flex", alignItems: "center", gap: 8, width: "100%",
-                                      background: "none", border: "none", cursor: "pointer",
-                                      padding: "7px 10px", borderRadius: 6, fontSize: 13, color: "#111",
+                                      background: "none", border: "none",
+                                      cursor: item.desabilitado ? "not-allowed" : "pointer",
+                                      padding: "7px 10px", borderRadius: 6, fontSize: 13,
+                                      color: item.desabilitado ? "#AAA" : (item.rotulo === "Apagar" ? "#B91C1C" : "#111"),
                                       textAlign: "left",
                                     }}
-                                    onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                                    onMouseEnter={e => { if (!item.desabilitado) e.currentTarget.style.background = "#F5F5F5"; }}
                                     onMouseLeave={e => (e.currentTarget.style.background = "none")}
                                   >
                                     {item.icone}{item.rotulo}
@@ -3641,6 +3696,11 @@ export default function MultiatendimentoPage() {
                                 ))}
                               </div>
                             )}
+                            {m.apagadaEm ? (
+                              <span style={{ fontStyle: "italic", opacity: 0.75, display: "flex", alignItems: "center", gap: 6 }}>
+                                <Ban size={13} />Mensagem apagada
+                              </span>
+                            ) : (<>
                             {m.kind === "text"  && <><span style={{
                               flex: 1,
                               minWidth: 0,
@@ -3702,6 +3762,7 @@ export default function MultiatendimentoPage() {
                                 </div>
                               )
                             )}
+                            </>)}
                           </div>
                         </div>
                         {/* Avatar de quem enviou, do lado direito. O lead já tinha
