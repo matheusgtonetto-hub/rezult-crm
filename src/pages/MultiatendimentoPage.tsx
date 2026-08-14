@@ -2681,6 +2681,8 @@ export default function MultiatendimentoPage() {
         toast.error(`Erro ao enviar modelo: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
         return;
       }
+      // Modelo é sempre Cloud API, onde o id vem em messages[0].id.
+      const idNoProvedor = await lerIdDoEnvio(res, "cloud-api");
 
       updateCs(activeId, {
         messages: [...(cs?.messages ?? []), {
@@ -2696,6 +2698,7 @@ export default function MultiatendimentoPage() {
           instance_id: inst.instanceId, phone: cleanPhone, from_me: true,
           body: textoResolvido, type: "text", momment: Date.now(),
           sender_name: nomeAtendente,
+          message_id: idNoProvedor,
         }, activeId);
         if (error) {
           console.error("[Multiatendimento] Falha ao persistir modelo enviado:", error);
