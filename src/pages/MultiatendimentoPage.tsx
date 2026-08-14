@@ -37,6 +37,8 @@ import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { ConvAvatar } from "@/components/ConvAvatar";
+import { corDoTexto, iniciais } from "@/lib/iniciais";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -48,14 +50,6 @@ import {
 import { Input } from "@/components/ui/input";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
-function colorFromString(str: string) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return `hsl(${Math.abs(hash) % 360} 55% 50%)`;
-}
-function initials(name: string) {
-  return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-}
 function nowTime() {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
@@ -486,27 +480,6 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
   );
 }
 
-function ConvAvatar({ name, avatarUrl, size, fontSize, style, onError }: { name: string; avatarUrl?: string; size: number; fontSize: number; style?: React.CSSProperties; onError?: () => void }) {
-  const [err, setErr] = useState(false);
-  useEffect(() => { setErr(false); }, [avatarUrl]);
-  if (avatarUrl && !err) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        // URLs de foto do WhatsApp expiram (param oe=). Ao falhar, avisa o pai para
-        // buscar uma URL nova e mostra as iniciais nesse meio-tempo.
-        onError={() => { setErr(true); onError?.(); }}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0, ...style }}
-      />
-    );
-  }
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize, fontWeight: 700, flexShrink: 0, ...style }}>
-      {initials(name)}
-    </div>
-  );
-}
 
 function DealValueField({ value, onSave }: { value: number; onSave: (v: number) => void }) {
   const [editing, setEditing] = useState(false);
@@ -3996,8 +3969,8 @@ export default function MultiatendimentoPage() {
                         memberAvatars[name] ? (
                           <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }} />
                         ) : (
-                          <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
-                            {initials(name)}
+                          <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
+                            {iniciais(name)}
                           </div>
                         )
                       )}
@@ -4608,7 +4581,7 @@ export default function MultiatendimentoPage() {
                       </div>
                       {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
                         <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid #128A68" : "3px solid transparent", flexShrink: 0 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(m)}</div>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: corDoTexto(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{iniciais(m)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
                             {memberEmails[m] && <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
@@ -4623,7 +4596,7 @@ export default function MultiatendimentoPage() {
                       {selectedAgent ? (
                         <>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #EEEEEE" }}>
-                            <div style={{ width: 38, height: 38, borderRadius: "50%", background: colorFromString(selectedAgent), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{initials(selectedAgent)}</div>
+                            <div style={{ width: 38, height: 38, borderRadius: "50%", background: corDoTexto(selectedAgent), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{iniciais(selectedAgent)}</div>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedAgent}</div>
                               <div style={{ fontSize: 11, color: "#888" }}>{memberEmails[selectedAgent] ?? ""}</div>
@@ -4854,7 +4827,7 @@ export default function MultiatendimentoPage() {
                 ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum atendente cadastrado</div>
                 : teamMembers.map(m => (
                   <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: colorFromString(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{initials(m)}</div>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: corDoTexto(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{iniciais(m)}</div>
                     <span style={{ fontSize: 13, color: "#111" }}>{m}</span>
                   </button>
                 )))}
@@ -5036,7 +5009,7 @@ function TransferDialog({
           {filtered.map(memberName => {
             const isSelected = selected.includes(memberName);
             const avatar = memberAvatars[memberName];
-            const color = memberColors[memberName] ?? colorFromString(memberName);
+            const color = memberColors[memberName] ?? corDoTexto(memberName);
             const email = memberEmails[memberName] ?? "";
             return (
               <button
@@ -5051,7 +5024,7 @@ function TransferDialog({
                   <img src={avatar} alt={memberName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                 ) : (
                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                    {initials(memberName)}
+                    {iniciais(memberName)}
                   </div>
                 )}
 
@@ -5167,8 +5140,8 @@ function NewConvDialog({
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               {/* avatar */}
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: colorFromString(lead.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                {initials(lead.name)}
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: corDoTexto(lead.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                {iniciais(lead.name)}
               </div>
 
               {/* info */}

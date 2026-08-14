@@ -10,6 +10,10 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { variantesDeTelefone } from "@/lib/telefone";
 import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
+import { useProfile } from "@/context/ProfileContext";
+import { ConvAvatar } from "@/components/ConvAvatar";
+import { corDoNome } from "@/lib/nomeColorido";
+import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
@@ -70,11 +74,13 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
   const nomeAtendente = useNomeAtendente();
+  const { profile } = useProfile();
   const lead = leads[leadId];
 
   const [draft, setDraft] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [avatarDoLead, setAvatarDoLead] = useState<string | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -95,6 +101,16 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
     }
   }, [messages.length, leadId]);
+
+  // Foto do contato, mesma origem do Multiatendimento. A guarda de número
+  // curto vive dentro de fetchWhatsappAvatar, então não precisa repetir aqui.
+  useEffect(() => {
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (!inst?.token || !lead?.whatsapp) { setAvatarDoLead(undefined); return; }
+    let cancelado = false;
+    fetchWhatsappAvatar(lead.whatsapp, inst).then(url => { if (!cancelado && url) setAvatarDoLead(url); });
+    return () => { cancelado = true; };
+  }, [lead?.whatsapp, whatsappConnections]);
 
   // Carregar histórico + Realtime ao abrir o chat
   useEffect(() => {
@@ -544,20 +560,32 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               <div className="flex flex-col gap-2">
                 {messages.map((m, i) => {
                   const isLead = m.from === "lead";
+                  const quemFalou = isLead ? lead.name : m.author;
                   return (
                     <div
                       key={i}
-                      className={`flex flex-col ${isLead ? "items-start" : "items-end"}`}
+                      className={`flex ${isLead ? "justify-start" : "justify-end"}`}
                     >
+                      {/* Avatar do lado de quem falou, igual ao Multiatendimento:
+                          a foto do contato à esquerda, a do atendente à direita. */}
+                      {isLead && (
+                        <ConvAvatar name={quemFalou} avatarUrl={avatarDoLead} size={24} fontSize={9} style={{ marginRight: 6, marginTop: 16 }} />
+                      )}
+                      <div className={`flex flex-col ${isLead ? "items-start" : "items-end"}`} style={{ minWidth: 0, maxWidth: "80%" }}>
                       <div
                         className="mb-0.5"
-                        style={{ fontSize: 11, color: "#AAAAAA" }}
+                        style={{ fontSize: 11 }}
                       >
-                        {isLead ? lead.name : m.author} · {m.time}
+                        {/* Nome colorido pelo mesmo hash do Multiatendimento, com
+                            paletas separadas por lado: é o que deixa ver de
+                            relance quem falou sem ler nome por nome. */}
+                        <span style={{ color: corDoNome(quemFalou, isLead ? "cliente" : "atendente"), fontWeight: 600 }}>
+                          {quemFalou}
+                        </span>
+                        <span style={{ color: "#AAAAAA" }}> · {m.time}</span>
                       </div>
                       <div
                         style={{
-                          maxWidth: "80%",
                           padding: "8px 12px",
                           fontSize: 13,
                           lineHeight: 1.4,
@@ -577,6 +605,10 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                       >
                         {m.text}
                       </div>
+                      </div>
+                      {!isLead && (
+                        <ConvAvatar name={quemFalou} avatarUrl={profile?.avatar_url ?? undefined} size={24} fontSize={9} style={{ marginLeft: 6, marginTop: 16 }} />
+                      )}
                     </div>
                   );
                 })}
