@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban, Forward,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -36,6 +36,7 @@ import { previewLabelFor } from "@/lib/conversas";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { apagarMensagemWhatsapp } from "@/lib/apagarMensagemWhatsapp";
+import { sendWa, type ZapiCreds, type WaMsg } from "@/lib/enviarWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ConvAvatar } from "@/components/ConvAvatar";
@@ -824,6 +825,58 @@ export default function MultiatendimentoPage() {
   // item aparece cinza com a explicação em vez de sumir.
   const podeApagar = instances.find(i => i.instanceId === selectedInstance)?.provider !== "cloud_api";
 
+// Encaminha para outra conversa: manda pelo provedor da linha DE DESTINO e
+  // grava lá. A linha importa: cada conversa pertence a um número, e mandar
+  // pelo provedor da conversa de origem entregaria a mensagem de um número que
+  // o destinatário não conhece.
+  async function encaminharPara(destino: Conversation) {
+    const m = encaminhando;
+    if (!m || !destino.phone) return;
+    const inst = instances.find(i => i.instanceId === destino.instanceId) ?? instances.find(i => i.instanceId === selectedInstance);
+    if (!inst?.token) { toast.error("A conexão dessa conversa não está ativa."); return; }
+
+    setEnviandoEncaminho(true);
+    try {
+      const telefone = destino.phone.replace(/\D/g, "");
+      // Mídia vai como mídia, não como o nome do arquivo em texto: encaminhar
+      // uma imagem e o contato receber "foto.jpg" seria pior que não encaminhar.
+      const carga: WaMsg =
+        m.kind === "image" && m.src ? { kind: "image", phone: telefone, url: m.src }
+        : m.kind === "file" && m.url ? { kind: "document", phone: telefone, url: m.url, fileName: m.filename, ext: (m.filename.split(".").pop() ?? "pdf").toLowerCase() }
+        : m.kind === "audio" && m.src ? { kind: "audio", phone: telefone, url: m.src }
+        : { kind: "text", phone: telefone, message: textoDaMensagem(m) };
+
+      const idNoProvedor = await sendWa(inst as ZapiCreds, carga);
+
+      const { error } = await supabase.from("whatsapp_messages").insert({
+        owner_id: tenantId,
+        company_id: company?.id ?? null,
+        instance_id: inst.instanceId,
+        phone: telefone,
+        from_me: true,
+        body: m.kind === "text" || m.kind === "system" ? m.text : m.kind === "file" ? m.filename : m.kind === "image" ? (m.caption ?? "") : m.duration,
+        type: m.kind === "system" ? "text" : m.kind,
+        media_url: m.kind === "image" ? m.src : m.kind === "file" ? m.url : m.kind === "audio" ? m.src : null,
+        momment: Date.now(),
+        sender_name: nomeAtendente,
+        message_id: idNoProvedor,
+        conversation_id: destino.id,
+      });
+      if (error) {
+        console.error("[encaminhar] insert:", error);
+        toast.error("Encaminhada, mas não salva no histórico.");
+      } else {
+        toast.success(`Encaminhada para ${convName(destino)}`);
+      }
+      setEncaminhando(null);
+      setBuscaDestino("");
+    } catch (e) {
+      toast.error(`Não consegui encaminhar: ${(e as Error).message}`);
+    } finally {
+      setEnviandoEncaminho(false);
+    }
+  }
+
   async function apagarMensagem(m: Msg, paraTodos: boolean) {
     if (!activeId) return;
     const inst = instances.find(i => i.instanceId === selectedInstance);
@@ -1017,6 +1070,10 @@ export default function MultiatendimentoPage() {
   // Etapa do menu. "apagar" mostra as duas opções de escopo no mesmo lugar, em
   // vez de abrir outra janela por cima.
   const [menuEtapa, setMenuEtapa]         = useState<"acoes" | "apagar">("acoes");
+  // Mensagem escolhida para encaminhar, aguardando o destino.
+  const [encaminhando, setEncaminhando]   = useState<Msg | null>(null);
+  const [buscaDestino, setBuscaDestino]   = useState("");
+  const [enviandoEncaminho, setEnviandoEncaminho] = useState(false);
   useEffect(() => {
     if (!menuDaMsg) return;
     const fechar = (e: MouseEvent) => {
@@ -3695,6 +3752,8 @@ export default function MultiatendimentoPage() {
                                   // que citar. As mensagens antigas ficam sem este item,
                                   // e com os outros, que não dependem disso.
                                   ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
+                                  { rotulo: "Encaminhar", icone: <Forward size={14} color="#535353" />,
+                                    acao: () => setEncaminhando(m) },
                                   ...(!m.apagadaEm ? [{
                                     rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />,
                                     // Não apaga: abre a segunda etapa. Manter o menu
@@ -4128,6 +4187,61 @@ export default function MultiatendimentoPage() {
           </div>
         )}
       </section>
+
+      {/* Seletor de destino do encaminhar. Lista as conversas com busca, em vez
+          de um campo de telefone: encaminhar é para alguém com quem já se fala,
+          e digitar número na mão convida a errar um dígito e mandar para
+          desconhecido. */}
+      {encaminhando && (
+        <div
+          onClick={() => { setEncaminhando(null); setBuscaDestino(""); }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "70vh", background: "#FFF", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #EEE" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>Encaminhar para</div>
+              <div style={{ fontSize: 12, color: "#888", marginBottom: 10, whiteSpace: "pre-wrap", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {textoDaMensagem(encaminhando)}
+              </div>
+              <input
+                autoFocus
+                value={buscaDestino}
+                onChange={e => setBuscaDestino(e.target.value)}
+                placeholder="Buscar conversa..."
+                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none" }}
+              />
+            </div>
+            <div style={{ overflowY: "auto", padding: 6 }}>
+              {convList
+                .filter(c => c.id !== activeId && !!c.phone)
+                .filter(c => {
+                  const q = buscaDestino.trim().toLowerCase();
+                  return !q || convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q);
+                })
+                .slice(0, 60)
+                .map(c => (
+                  <button
+                    key={c.id}
+                    disabled={enviandoEncaminho}
+                    onClick={() => encaminharPara(c)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none", border: "none", cursor: enviandoEncaminho ? "wait" : "pointer", padding: "8px 10px", borderRadius: 8, textAlign: "left" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                  >
+                    <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={30} fontSize={11} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{convName(c)}</div>
+                      <div style={{ fontSize: 11, color: "#888" }}>{c.phone}</div>
+                    </div>
+                  </button>
+                ))}
+              {convList.filter(c => c.id !== activeId && !!c.phone).length === 0 && (
+                <div style={{ padding: 16, fontSize: 13, color: "#888", textAlign: "center" }}>Nenhuma outra conversa para encaminhar.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── DIALOG: nova conversa ────────────────────────────────────── */}
       <NewConvDialog
