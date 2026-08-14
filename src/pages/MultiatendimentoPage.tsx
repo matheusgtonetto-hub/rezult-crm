@@ -964,9 +964,19 @@ export default function MultiatendimentoPage() {
   const [menuDaMsg, setMenuDaMsg]         = useState<string | null>(null);
   useEffect(() => {
     if (!menuDaMsg) return;
-    const fechar = () => setMenuDaMsg(null);
-    // `capture` para fechar antes de o clique chegar em outro elemento, e assim
-    // um clique fora nunca dispara ação de outro lugar E fecha ao mesmo tempo.
+    const fechar = (e: MouseEvent) => {
+      // Ignora cliques no próprio menu e no chevron que o abriu.
+      //
+      // A primeira versão fechava em QUALQUER clique, em fase de captura. A
+      // captura desce do document até o alvo, então o menu era removido do DOM
+      // antes de o clique chegar no botão -- e "Responder" e "Copiar" não
+      // faziam nada. O fechamento estava engolindo os próprios itens.
+      //
+      // O chevron entra na exceção pelo mesmo motivo ao contrário: sem ele, um
+      // clique para fechar fecharia e o onClick reabriria em seguida.
+      if ((e.target as HTMLElement)?.closest?.("[data-menu-mensagem]")) return;
+      setMenuDaMsg(null);
+    };
     document.addEventListener("click", fechar, { capture: true });
     return () => document.removeEventListener("click", fechar, { capture: true });
   }, [menuDaMsg]);
@@ -3579,6 +3589,7 @@ export default function MultiatendimentoPage() {
                             {(msgSobreMouse === m.id || menuDaMsg === m.id) && m.messageId && (
                               <button
                                 onClick={() => setMenuDaMsg(menuDaMsg === m.id ? null : m.id)}
+                                data-menu-mensagem
                                 title="Opções da mensagem"
                                 style={{
                                   position: "absolute", top: 2, right: 4,
@@ -3592,7 +3603,7 @@ export default function MultiatendimentoPage() {
                               </button>
                             )}
                             {menuDaMsg === m.id && (
-                              <div style={{
+                              <div data-menu-mensagem style={{
                                 position: "absolute", top: 24, right: 4, zIndex: 20,
                                 background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8,
                                 boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: 4, minWidth: 150,
@@ -3600,8 +3611,17 @@ export default function MultiatendimentoPage() {
                                 {[
                                   { rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) },
                                   { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
-                                      await navigator.clipboard.writeText(textoDaMensagem(m));
-                                      toast.success("Mensagem copiada");
+                                      // A área de transferência pode recusar (Safari é
+                                      // rígido com o gesto, e a API não existe fora de
+                                      // HTTPS). Sem o catch a falha seria silenciosa,
+                                      // que é o pior desfecho: a pessoa acha que copiou
+                                      // e cola outra coisa.
+                                      try {
+                                        await navigator.clipboard.writeText(textoDaMensagem(m));
+                                        toast.success("Mensagem copiada");
+                                      } catch {
+                                        toast.error("Não consegui copiar. Selecione o texto e use Cmd+C.");
+                                      }
                                     } },
                                 ].map(item => (
                                   <button
