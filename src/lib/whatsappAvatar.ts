@@ -1,3 +1,5 @@
+import { somenteDigitos, normalizarTelefoneBr } from "@/lib/telefone";
+
 // Busca a foto de perfil do WhatsApp de um número via D-API/Z-API. Extraído
 // de LeadDetailPage.tsx pra ser reaproveitado também no board do Pipeline
 // (mesmo endpoint/lógica que MultiatendimentoPage já usa há mais tempo, mas
@@ -12,8 +14,17 @@ export interface WaAvatarCreds {
 // Cloud API (WhatsApp Business oficial da Meta) não expõe foto de perfil de
 // contato nenhum -- restrição da própria plataforma, nunca tenta.
 export async function fetchWhatsappAvatar(phone: string, inst: WaAvatarCreds, force = false): Promise<string | undefined> {
-  const p = phone.replace(/\D/g, "");
+  const p = somenteDigitos(phone);
   if (!p || inst.provider === "cloud_api") return undefined;
+  // Número curto demais não é telefone de ninguém: é lead de teste, rascunho ou
+  // digitação incompleta. A base tem uma conversa chamada "999", e pedir avatar
+  // dela fazia a D-API devolver 520 -- que, sendo página de erro, vem sem
+  // cabeçalho CORS e o navegador relata como bloqueio de origem. Erro vermelho
+  // no console, causa nenhuma óbvia, e nada a corrigir do outro lado.
+  //
+  // Mesma guarda de 10 dígitos de telefonesIguais(): abaixo disso a gente não
+  // afirma nada sobre o número, então também não pergunta.
+  if (normalizarTelefoneBr(p).length < 10) return undefined;
   try {
     const res = inst.provider === "dapi"
       ? await fetch(
