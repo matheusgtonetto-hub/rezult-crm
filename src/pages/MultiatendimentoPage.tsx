@@ -3484,10 +3484,18 @@ export default function MultiatendimentoPage() {
                                 ) : (
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px" }}>
                                     <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "#128A68"} />
-                                    <span style={{ fontSize: 13 }}>{m.caption || "Imagem"}</span>
+                                    <span style={{ fontSize: 13, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.caption || "Imagem"}</span>
                                   </div>
                                 )}
-                                {m.src && m.caption && <div style={{ padding: "4px 8px 6px", fontSize: 12, color: isAgent ? "rgba(255,255,255,0.8)" : "#666" }}>{m.caption}</div>}
+                                {m.src && m.caption && <div style={{
+                                  padding: "4px 8px 6px", fontSize: 12,
+                                  color: isAgent ? "rgba(255,255,255,0.8)" : "#666",
+                                  // Mesmo tratamento da bolha de texto: legenda
+                                  // de imagem é texto do cliente também. Existe
+                                  // uma de 501 caracteres com quebras na base,
+                                  // que aparecia achatada e esticando a bolha.
+                                  maxWidth: 220, whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+                                }}>{m.caption}</div>}
                               </div>
                             )}
                             {m.kind === "file" && (
