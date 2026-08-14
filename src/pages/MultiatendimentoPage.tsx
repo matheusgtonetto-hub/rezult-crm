@@ -1003,6 +1003,10 @@ export default function MultiatendimentoPage() {
   // Menu aberto de uma mensagem. Só um por vez, e fecha ao clicar em qualquer
   // lugar: menu de mensagem que fica preso na tela atrapalha mais que ajuda.
   const [menuDaMsg, setMenuDaMsg]         = useState<string | null>(null);
+  // Para qual lado o menu abre. A conversa rola e a mensagem mais recente fica
+  // colada no rodapé, então abrir sempre para baixo corta o menu na borda da
+  // lista -- que foi exatamente o que apareceu no uso.
+  const [menuParaCima, setMenuParaCima]   = useState(false);
   useEffect(() => {
     if (!menuDaMsg) return;
     const fechar = (e: MouseEvent) => {
@@ -3547,7 +3551,7 @@ export default function MultiatendimentoPage() {
                   RZ
                 </div>
               </div>
-              <div style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
+              <div data-lista-mensagens style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
                   <img src={chatIllustration} alt="" style={{ width: 350, marginBottom: 4 }} />
@@ -3630,7 +3634,16 @@ export default function MultiatendimentoPage() {
                                 sem ele não há o que citar. */}
                             {(msgSobreMouse === m.id || menuDaMsg === m.id) && m.messageId && (
                               <button
-                                onClick={() => setMenuDaMsg(menuDaMsg === m.id ? null : m.id)}
+                                onClick={e => {
+                                  if (menuDaMsg === m.id) { setMenuDaMsg(null); return; }
+                                  // Mede antes de abrir: se faltar espaço abaixo do
+                                  // botão até o fim da área de mensagens, abre para
+                                  // cima. 130px cobre o menu de três itens com folga.
+                                  const botao = e.currentTarget.getBoundingClientRect();
+                                  const lista = (e.currentTarget.closest("[data-lista-mensagens]") as HTMLElement | null)?.getBoundingClientRect();
+                                  setMenuParaCima(!!lista && lista.bottom - botao.bottom < 130);
+                                  setMenuDaMsg(m.id);
+                                }}
                                 data-menu-mensagem
                                 title="Opções da mensagem"
                                 style={{
@@ -3646,7 +3659,8 @@ export default function MultiatendimentoPage() {
                             )}
                             {menuDaMsg === m.id && (
                               <div data-menu-mensagem style={{
-                                position: "absolute", top: 24, right: 4, zIndex: 20,
+                                position: "absolute", right: 4, zIndex: 20,
+                                ...(menuParaCima ? { bottom: 24 } : { top: 24 }),
                                 background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8,
                                 boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: 4, minWidth: 150,
                               }}>
