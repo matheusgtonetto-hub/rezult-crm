@@ -13,12 +13,24 @@ export interface ZapiCreds {
   provider?: "zapi" | "dapi" | "cloud_api";
 }
 
+/**
+ * Mensagem que esta responde, quando responde.
+ *
+ * `messageId` é o id NO FORMATO DO PROVEDOR (o mesmo que guardamos em
+ * whatsapp_messages.message_id). `participant` só a D-API pede, e só faz
+ * diferença em grupo -- num chat de duas pessoas ela resolve sozinha.
+ */
+export interface CitarMensagem {
+  messageId: string;
+  participant?: string | null;
+}
+
 export type WaMsg =
-  | { kind: "text"; phone: string; message: string }
-  | { kind: "buttons"; phone: string; message: string; buttons: string[] }
-  | { kind: "audio"; phone: string; url: string }
-  | { kind: "image"; phone: string; url: string }
-  | { kind: "document"; phone: string; url: string; fileName: string; ext: string };
+  | { kind: "text"; phone: string; message: string; citar?: CitarMensagem }
+  | { kind: "buttons"; phone: string; message: string; buttons: string[]; citar?: CitarMensagem }
+  | { kind: "audio"; phone: string; url: string; citar?: CitarMensagem }
+  | { kind: "image"; phone: string; url: string; citar?: CitarMensagem }
+  | { kind: "document"; phone: string; url: string; fileName: string; ext: string; citar?: CitarMensagem };
 
 // Mostra "digitando..." pro contato antes da mensagem sair. É BEST-EFFORT:
 // qualquer falha aqui é engolida de propósito, porque indicador de presença
@@ -84,7 +96,11 @@ export async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<string | nul
   if (creds.provider === "cloud_api") { return await sendCloudApi(creds, msg); }
   switch (msg.kind) {
     case "text":
-      return await sendZapi(creds, "send-text", { phone: msg.phone, message: msg.message });
+      // Z-API cita pelo campo messageId no próprio corpo do send-text.
+      return await sendZapi(creds, "send-text", {
+        phone: msg.phone, message: msg.message,
+        ...(msg.citar ? { messageId: msg.citar.messageId } : {}),
+      });
     case "buttons":
       return await sendZapi(creds, "send-button-list", {
         phone: msg.phone, message: msg.message,
@@ -140,6 +156,15 @@ async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
     case "document":
       path = "document"; body = { sessionId, to, document: msg.url, fileName: msg.fileName }; break;
   }
+  // Citação da D-API: contextInfo.stanzaId. Confirmado na documentação deles
+  // (enviar-mensagem-de-texto, campo contextInfo: "Suporta menções, respostas
+  // (quotedMessage), encaminhamento...").
+  if (msg.citar) {
+    body.contextInfo = {
+      stanzaId: msg.citar.messageId,
+      ...(msg.citar.participant ? { participant: msg.citar.participant } : {}),
+    };
+  }
   const resp = await fetch(`https://api.d-api.cloud/api/v1/messages/send/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": creds.token },
@@ -182,6 +207,9 @@ async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<string | null
     default:
       return null;
   }
+
+  // Citação da Meta: context.message_id, com o wamid da mensagem citada.
+  if (msg.citar) body.context = { message_id: msg.citar.messageId };
 
   const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   if (!resp.ok) {
