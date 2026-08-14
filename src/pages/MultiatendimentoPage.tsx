@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -810,7 +810,7 @@ export default function MultiatendimentoPage() {
   useEffect(() => { setPendingStageAdvance(null); setPendingStageBack(null); }, [activeId]);
   // Citação pendente não sobrevive à troca de conversa: mandar na conversa
   // errada é pior que perder a citação.
-  useEffect(() => { setCitando(null); }, [activeId]);
+  useEffect(() => { setCitando(null); setMenuDaMsg(null); }, [activeId]);
 
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -959,6 +959,17 @@ export default function MultiatendimentoPage() {
   // a citação.
   const [citando, setCitando]             = useState<Msg | null>(null);
   const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
+  // Menu aberto de uma mensagem. Só um por vez, e fecha ao clicar em qualquer
+  // lugar: menu de mensagem que fica preso na tela atrapalha mais que ajuda.
+  const [menuDaMsg, setMenuDaMsg]         = useState<string | null>(null);
+  useEffect(() => {
+    if (!menuDaMsg) return;
+    const fechar = () => setMenuDaMsg(null);
+    // `capture` para fechar antes de o clique chegar em outro elemento, e assim
+    // um clique fora nunca dispara ação de outro lugar E fecha ao mesmo tempo.
+    document.addEventListener("click", fechar, { capture: true });
+    return () => document.removeEventListener("click", fechar, { capture: true });
+  }, [menuDaMsg]);
   const [showFiles, setShowFiles]         = useState(false);
   const [recording, setRecording]         = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -2487,6 +2498,12 @@ export default function MultiatendimentoPage() {
       text,
       date: "Hoje",
       read: false,
+      // A citação precisa aparecer na hora. Sem isto a bolha saía como mensagem
+      // comum e só virava resposta depois de recarregar a conversa -- o dado
+      // estava certo no banco, mas quem acabou de responder via o contrário.
+      citacao: citada?.messageId
+        ? { messageId: citada.messageId, preview: textoDaMensagem(citada).slice(0, 300) }
+        : null,
     };
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
     bumpPreview(activeId, text);
@@ -2655,6 +2672,26 @@ export default function MultiatendimentoPage() {
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
           toast.error("Mensagem enviada, mas houve erro ao salvar no histórico.");
+        }
+        // Leva o id do provedor para a mensagem que já está na tela. Sem isso a
+        // mensagem recém-enviada fica sem o botão de responder até recarregar,
+        // porque o botão só aparece em quem tem id.
+        if (idNoProvedor) {
+          // Forma funcional, não updateCs: o estado que interessa é o de AGORA,
+          // não o capturado no início do envio -- entre a bolha otimista e esta
+          // linha passou uma ida ao provedor e outra ao banco, e mensagem nova
+          // pode ter chegado no meio.
+          setConvStates(prev => {
+            const atual = prev[activeId];
+            if (!atual) return prev;
+            return {
+              ...prev,
+              [activeId]: {
+                ...atual,
+                messages: atual.messages.map(mm => mm.id === msgId ? { ...mm, messageId: idNoProvedor } : mm),
+              },
+            };
+          });
         }
       }
     }
@@ -3539,20 +3576,50 @@ export default function MultiatendimentoPage() {
 
                                 Só aparece em mensagem que TEM id do provedor:
                                 sem ele não há o que citar. */}
-                            {msgSobreMouse === m.id && m.messageId && (
+                            {(msgSobreMouse === m.id || menuDaMsg === m.id) && m.messageId && (
                               <button
-                                onClick={() => setCitando(m)}
-                                title="Responder"
+                                onClick={() => setMenuDaMsg(menuDaMsg === m.id ? null : m.id)}
+                                title="Opções da mensagem"
                                 style={{
                                   position: "absolute", top: 2, right: 4,
                                   width: 20, height: 20, borderRadius: 4, border: "none",
                                   background: isAgent ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.06)",
                                   display: "flex", alignItems: "center", justifyContent: "center",
-                                  cursor: "pointer", padding: 0,
+                                  cursor: "pointer", padding: 0, zIndex: 2,
                                 }}
                               >
                                 <ChevronDown size={14} color={isAgent ? "#FFF" : "#535353"} />
                               </button>
+                            )}
+                            {menuDaMsg === m.id && (
+                              <div style={{
+                                position: "absolute", top: 24, right: 4, zIndex: 20,
+                                background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8,
+                                boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: 4, minWidth: 150,
+                              }}>
+                                {[
+                                  { rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) },
+                                  { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
+                                      await navigator.clipboard.writeText(textoDaMensagem(m));
+                                      toast.success("Mensagem copiada");
+                                    } },
+                                ].map(item => (
+                                  <button
+                                    key={item.rotulo}
+                                    onClick={() => { item.acao(); setMenuDaMsg(null); }}
+                                    style={{
+                                      display: "flex", alignItems: "center", gap: 8, width: "100%",
+                                      background: "none", border: "none", cursor: "pointer",
+                                      padding: "7px 10px", borderRadius: 6, fontSize: 13, color: "#111",
+                                      textAlign: "left",
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                                  >
+                                    {item.icone}{item.rotulo}
+                                  </button>
+                                ))}
+                              </div>
                             )}
                             {m.kind === "text"  && <><span style={{
                               flex: 1,
