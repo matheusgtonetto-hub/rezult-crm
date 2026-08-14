@@ -40,6 +40,7 @@ import { sendWa, type ZapiCreds, type WaMsg } from "@/lib/enviarWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ConvAvatar } from "@/components/ConvAvatar";
+import { MenuDaMensagem, menuAbreParaCima } from "@/components/MenuDaMensagem";
 import { corDoTexto, iniciais } from "@/lib/iniciais";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
@@ -1002,7 +1003,8 @@ export default function MultiatendimentoPage() {
       .order("created_at", { ascending: false });
     if (data) setQmList(data as QuickMessage[]);
   };
-  useEffect(() => { loadQuickMessages(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [company?.owner_id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadQuickMessages(); }, [company?.owner_id]);
 
   const openNewQuickMessage = () => { setQmEditing(null); setQmTitle(""); setQmShortcut(""); setQmContent(""); setQmModalOpen(true); };
   const openEditQuickMessage = (q: QuickMessage) => { setQmEditing(q); setQmTitle(q.title); setQmShortcut(q.shortcut ?? ""); setQmContent(q.content); setQmModalOpen(true); };
@@ -1067,32 +1069,10 @@ export default function MultiatendimentoPage() {
   // colada no rodapé, então abrir sempre para baixo corta o menu na borda da
   // lista -- que foi exatamente o que apareceu no uso.
   const [menuParaCima, setMenuParaCima]   = useState(false);
-  // Etapa do menu. "apagar" mostra as duas opções de escopo no mesmo lugar, em
-  // vez de abrir outra janela por cima.
-  const [menuEtapa, setMenuEtapa]         = useState<"acoes" | "apagar">("acoes");
   // Mensagem escolhida para encaminhar, aguardando o destino.
   const [encaminhando, setEncaminhando]   = useState<Msg | null>(null);
   const [buscaDestino, setBuscaDestino]   = useState("");
   const [enviandoEncaminho, setEnviandoEncaminho] = useState(false);
-  useEffect(() => {
-    if (!menuDaMsg) return;
-    const fechar = (e: MouseEvent) => {
-      // Ignora cliques no próprio menu e no chevron que o abriu.
-      //
-      // A primeira versão fechava em QUALQUER clique, em fase de captura. A
-      // captura desce do document até o alvo, então o menu era removido do DOM
-      // antes de o clique chegar no botão -- e "Responder" e "Copiar" não
-      // faziam nada. O fechamento estava engolindo os próprios itens.
-      //
-      // O chevron entra na exceção pelo mesmo motivo ao contrário: sem ele, um
-      // clique para fechar fecharia e o onClick reabriria em seguida.
-      if ((e.target as HTMLElement)?.closest?.("[data-menu-mensagem]")) return;
-      setMenuDaMsg(null);
-      setMenuEtapa("acoes");
-    };
-    document.addEventListener("click", fechar, { capture: true });
-    return () => document.removeEventListener("click", fechar, { capture: true });
-  }, [menuDaMsg]);
   const [showFiles, setShowFiles]         = useState(false);
   const [recording, setRecording]         = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -3703,14 +3683,8 @@ export default function MultiatendimentoPage() {
                             {(msgSobreMouse === m.id || menuDaMsg === m.id) && (
                               <button
                                 onClick={e => {
-                                  if (menuDaMsg === m.id) { setMenuDaMsg(null); setMenuEtapa("acoes"); return; }
-                                  // Mede antes de abrir: se faltar espaço abaixo do
-                                  // botão até o fim da área de mensagens, abre para
-                                  // cima. 130px cobre o menu de três itens com folga.
-                                  const botao = e.currentTarget.getBoundingClientRect();
-                                  const lista = (e.currentTarget.closest("[data-lista-mensagens]") as HTMLElement | null)?.getBoundingClientRect();
-                                  setMenuParaCima(!!lista && lista.bottom - botao.bottom < 130);
-                                  setMenuEtapa("acoes");
+                                  if (menuDaMsg === m.id) { setMenuDaMsg(null); return; }
+                                  setMenuParaCima(menuAbreParaCima(e.currentTarget));
                                   setMenuDaMsg(m.id);
                                 }}
                                 data-menu-mensagem
@@ -3726,78 +3700,44 @@ export default function MultiatendimentoPage() {
                                 <ChevronDown size={14} color={isAgent ? "#FFF" : "#535353"} />
                               </button>
                             )}
-                            {menuDaMsg === m.id && (
-                              <div data-menu-mensagem style={{
-                                position: "absolute", right: 4, zIndex: 20,
-                                ...(menuParaCima ? { bottom: 24 } : { top: 24 }),
-                                background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8,
-                                boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: 4, minWidth: 150,
-                              }}>
-                                {(menuEtapa === "apagar" ? [
-                                  // Segunda etapa, como no WhatsApp: o clique em
-                                  // "Apagar" troca o conteúdo do mesmo menu em vez de
-                                  // abrir outra janela.
-                                  { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="#B91C1C" />,
-                                    acao: () => apagarMensagem(m, false) },
-                                  ...(isAgent && m.messageId ? [{
-                                    rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
-                                    desabilitado: !podeApagar,
-                                    // Cinza COM o motivo: item que some deixa a pessoa
-                                    // procurando, e cinza mudo parece que travou.
-                                    motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
-                                    acao: () => apagarMensagem(m, true),
-                                  }] : []),
-                                ] : [
-                                  // Responder exige o id do provedor: sem ele não há o
-                                  // que citar. As mensagens antigas ficam sem este item,
-                                  // e com os outros, que não dependem disso.
-                                  ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
-                                  { rotulo: "Encaminhar", icone: <Forward size={14} color="#535353" />,
-                                    acao: () => setEncaminhando(m) },
-                                  ...(!m.apagadaEm ? [{
-                                    rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />,
-                                    // Não apaga: abre a segunda etapa. Manter o menu
-                                    // aberto é o ponto, então esta ação sinaliza que não
-                                    // deve fechar.
-                                    manterAberto: true,
-                                    acao: () => setMenuEtapa("apagar"),
-                                  }] : []),
-                                  { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
-                                      // A área de transferência pode recusar (Safari é
-                                      // rígido com o gesto, e a API não existe fora de
-                                      // HTTPS). Sem o catch a falha seria silenciosa,
-                                      // que é o pior desfecho: a pessoa acha que copiou
-                                      // e cola outra coisa.
-                                      try {
-                                        await navigator.clipboard.writeText(textoDaMensagem(m));
-                                        toast.success("Mensagem copiada");
-                                      } catch {
-                                        toast.error("Não consegui copiar. Selecione o texto e use Cmd+C.");
-                                      }
-                                    } },
-                                ] as { rotulo: string; icone: React.ReactNode; acao: () => void; desabilitado?: boolean; motivo?: string; manterAberto?: boolean }[]
-                                ).map(item => (
-                                  <button
-                                    key={item.rotulo}
-                                    onClick={() => { if (item.desabilitado) return; item.acao(); if (!item.manterAberto) setMenuDaMsg(null); }}
-                                    disabled={item.desabilitado}
-                                    title={item.motivo}
-                                    style={{
-                                      display: "flex", alignItems: "center", gap: 8, width: "100%",
-                                      background: "none", border: "none",
-                                      cursor: item.desabilitado ? "not-allowed" : "pointer",
-                                      padding: "7px 10px", borderRadius: 6, fontSize: 13,
-                                      color: item.desabilitado ? "#AAA" : (item.rotulo.startsWith("Apagar") ? "#B91C1C" : "#111"),
-                                      textAlign: "left",
-                                    }}
-                                    onMouseEnter={e => { if (!item.desabilitado) e.currentTarget.style.background = "#F5F5F5"; }}
-                                    onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                                  >
-                                    {item.icone}{item.rotulo}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            <MenuDaMensagem
+                              aberto={menuDaMsg === m.id}
+                              paraCima={menuParaCima}
+                              onFechar={() => setMenuDaMsg(null)}
+                              itens={[
+                                // Responder exige o id do provedor: sem ele não há o
+                                // que citar. Mensagens antigas ficam com as demais.
+                                ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
+                                { rotulo: "Encaminhar", icone: <Forward size={14} color="#535353" />, acao: () => setEncaminhando(m) },
+                                ...(!m.apagadaEm ? [{
+                                  rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                  submenu: [
+                                    // "Para mim" não passa pelo provedor, então funciona
+                                    // em qualquer linha e em mensagem antiga sem id.
+                                    { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                      acao: () => apagarMensagem(m, false) },
+                                    ...(isAgent && m.messageId ? [{
+                                      rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
+                                      destrutivo: true, desabilitado: !podeApagar,
+                                      motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
+                                      acao: () => apagarMensagem(m, true),
+                                    }] : []),
+                                  ],
+                                }] : []),
+                                { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
+                                    // A área de transferência pode recusar (Safari é rígido
+                                    // com o gesto, e a API não existe fora de HTTPS). Sem o
+                                    // catch a falha seria silenciosa: a pessoa acha que
+                                    // copiou e cola outra coisa.
+                                    try {
+                                      await navigator.clipboard.writeText(textoDaMensagem(m));
+                                      toast.success("Mensagem copiada");
+                                    } catch {
+                                      toast.error("Não consegui copiar. Selecione o texto e use Cmd+C.");
+                                    }
+                                  } },
+                              ]}
+                            />
                             {m.apagadaEm ? (
                               <span style={{ fontStyle: "italic", opacity: 0.75, display: "flex", alignItems: "center", gap: 6 }}>
                                 <Ban size={13} />Mensagem apagada
