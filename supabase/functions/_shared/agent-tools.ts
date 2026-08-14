@@ -12,6 +12,7 @@
 // dos casos reais (agente sempre está numa conversa de UM lead específico).
 
 import { variantesDeTelefone } from "./telefone.ts";
+import { idsDeConversasPorTelefone } from "./upsert-conversation.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -486,8 +487,17 @@ async function buscarOuCriarConversaTelefone(ctx: ToolCtx, input: Record<string,
 async function listarMensagensConversa(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const phone = input.phone as string;
   if (!phone) return { ok: false, error: "phone é obrigatório" };
+  // Pelo vínculo, não por casamento de telefone. Esta ferramenta pergunta pelas
+  // mensagens de uma CONVERSA -- o nome dela diz isso -- então o telefone serve
+  // só para descobrir de qual conversa se trata, e a busca de mensagens sai por
+  // id indexado.
+  //
+  // Casar telefone aqui tinha os mesmos três problemas de sempre: não alcança
+  // número gravado com "+", não usa o índice, e cresce em custo com a base.
+  const conversas = await idsDeConversasPorTelefone(ctx.db, { companyId: ctx.companyId, phone });
+  if (!conversas.length) return { ok: true, data: [] };
   const { data, error } = await ctx.db.from("whatsapp_messages").select("from_me, body, type, created_at")
-    .eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(phone))
+    .in("conversation_id", conversas)
     .order("created_at", { ascending: false }).limit(Number(input.limit) || 30);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data };
