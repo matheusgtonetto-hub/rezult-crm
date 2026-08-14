@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -3493,29 +3493,9 @@ export default function MultiatendimentoPage() {
                         {!isAgent && (
                           <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
-                        <div
-                          style={{ maxWidth: "65%", position: "relative" }}
-                          onMouseEnter={() => setMsgSobreMouse(m.id)}
-                          onMouseLeave={() => setMsgSobreMouse(null)}
-                        >
-                          {/* Responder. Só aparece ao passar o mouse, para não
-                              poluir a conversa, e só em mensagem que TEM id do
-                              provedor: sem ele não há o que citar, e um botão
-                              que não funciona é pior que botão nenhum. */}
-                          {msgSobreMouse === m.id && m.messageId && (
-                            <button
-                              onClick={() => setCitando(m)}
-                              title="Responder"
-                              style={{
-                                position: "absolute", top: 18, [isAgent ? "left" : "right"]: -30,
-                                width: 24, height: 24, borderRadius: "50%", border: "1px solid #E5E5E5",
-                                background: "#FFF", display: "flex", alignItems: "center",
-                                justifyContent: "center", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              } as React.CSSProperties}
-                            >
-                              <Reply size={13} color="#535353" />
-                            </button>
-                          )}
+                        <div style={{ maxWidth: "65%" }}
+                             onMouseEnter={() => setMsgSobreMouse(m.id)}
+                             onMouseLeave={() => setMsgSobreMouse(null)}>
                           {/* Nome colorido, hora em cinza. O lado direito é
                               compartilhado entre os atendentes e o agente de
                               IA, todos com a mesma bolha verde: a cor do nome
@@ -3543,7 +3523,37 @@ export default function MultiatendimentoPage() {
                               {m.citacao.preview || "Mensagem"}
                             </div>
                           )}
-                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0 }}>
+                          <div style={{
+                            // Espaço à direita reservado para o botão de ação,
+                            // que fica sobreposto no canto. Reservado SEMPRE, não
+                            // só no hover: aumentar o padding ao passar o mouse
+                            // faria o texto reflowar embaixo do cursor, e balão
+                            // que muda de forma quando você chega perto é pior
+                            // que balão um pouco mais largo.
+                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
+                            {/* Ação da mensagem, dentro do balão. Ficava do lado
+                                de fora e sumia no caminho do mouse: o vão entre
+                                o balão e o botão já é área sem hover, então o
+                                botão desaparecia justamente quando a pessoa ia
+                                clicar nele. Dentro, o hover não se interrompe.
+
+                                Só aparece em mensagem que TEM id do provedor:
+                                sem ele não há o que citar. */}
+                            {msgSobreMouse === m.id && m.messageId && (
+                              <button
+                                onClick={() => setCitando(m)}
+                                title="Responder"
+                                style={{
+                                  position: "absolute", top: 2, right: 4,
+                                  width: 20, height: 20, borderRadius: 4, border: "none",
+                                  background: isAgent ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.06)",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  cursor: "pointer", padding: 0,
+                                }}
+                              >
+                                <ChevronDown size={14} color={isAgent ? "#FFF" : "#535353"} />
+                              </button>
+                            )}
                             {m.kind === "text"  && <><span style={{
                               flex: 1,
                               minWidth: 0,
