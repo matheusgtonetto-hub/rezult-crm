@@ -26,6 +26,10 @@ import {
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
 import { FollowupScheduleDialog } from "@/components/FollowupScheduleDialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
@@ -824,14 +828,13 @@ export default function MultiatendimentoPage() {
   // item aparece cinza com a explicação em vez de sumir.
   const podeApagar = instances.find(i => i.instanceId === selectedInstance)?.provider !== "cloud_api";
 
-  async function apagarMensagem(m: Msg) {
+  async function apagarMensagem(m: Msg, paraTodos: boolean) {
     if (!activeId || !active?.phone) return;
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token || !m.messageId) return;
-    if (!window.confirm("Apagar esta mensagem para todos? Ela some também no WhatsApp do contato.")) return;
 
     try {
-      await apagarMensagemWhatsapp({ messageId: m.messageId, telefone: active.phone, conexao: inst });
+      await apagarMensagemWhatsapp({ messageId: m.messageId, telefone: active.phone, conexao: inst, paraTodos });
 
       const agora = new Date().toISOString();
       // Marca, não remove: o corpo continua no banco e a bolha passa a mostrar o
@@ -847,7 +850,7 @@ export default function MultiatendimentoPage() {
         if (!atual) return prev;
         return { ...prev, [activeId]: { ...atual, messages: atual.messages.map(mm => mm.id === m.id ? { ...mm, apagadaEm: agora } : mm) } };
       });
-      toast.success("Mensagem apagada");
+      toast.success(paraTodos ? "Mensagem apagada para todos" : "Mensagem apagada aqui");
     } catch (e) {
       toast.error(`Não consegui apagar: ${(e as Error).message}`);
     }
@@ -1007,6 +1010,10 @@ export default function MultiatendimentoPage() {
   // colada no rodapé, então abrir sempre para baixo corta o menu na borda da
   // lista -- que foi exatamente o que apareceu no uso.
   const [menuParaCima, setMenuParaCima]   = useState(false);
+  // Mensagem aguardando a escolha do escopo de exclusão. Duas opções, como o
+  // WhatsApp -- e com a diferença explicada, porque num CRM a caixa é
+  // compartilhada e "para mim" não é óbvio para quem lê.
+  const [apagando, setApagando]           = useState<Msg | null>(null);
   useEffect(() => {
     if (!menuDaMsg) return;
     const fechar = (e: MouseEvent) => {
@@ -3673,7 +3680,7 @@ export default function MultiatendimentoPage() {
                                     // ficaria cinza sem dizer por quê, e a pessoa
                                     // ficaria clicando achando que travou.
                                     motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
-                                    acao: () => apagarMensagem(m),
+                                    acao: () => setApagando(m),
                                   }] : []),
                                   { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
                                       // A área de transferência pode recusar (Safari é
@@ -4099,6 +4106,46 @@ export default function MultiatendimentoPage() {
           </div>
         )}
       </section>
+
+      {/* Escolha do escopo ao apagar. Duas opções como no WhatsApp, mas com o
+            efeito de cada uma escrito: numa caixa compartilhada "para mim" não
+            quer dizer "só eu" -- quer dizer "todo o time deixa de ver, e o
+            contato continua vendo". Sem essa frase, alguém apaga achando que
+            sumiu do celular do cliente. */}
+        <AlertDialog open={!!apagando} onOpenChange={aberto => { if (!aberto) setApagando(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Apagar mensagem</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <p style={{ marginBottom: 10 }}>
+                    <strong>Apagar para todos</strong> tira a mensagem também do WhatsApp do
+                    contato. É irreversível e ele pode ver o aviso de mensagem apagada.
+                  </p>
+                  <p>
+                    <strong>Apagar aqui</strong> tira só do CRM, para toda a equipe.
+                    O contato continua com a mensagem no celular dele.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => { const m = apagando; setApagando(null); if (m) apagarMensagem(m, false); }}
+                style={{ background: "#F5F5F5", color: "#111" }}
+              >
+                Apagar aqui
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => { const m = apagando; setApagando(null); if (m) apagarMensagem(m, true); }}
+                style={{ background: "#B91C1C" }}
+              >
+                Apagar para todos
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       {/* ── DIALOG: nova conversa ────────────────────────────────────── */}
       <NewConvDialog

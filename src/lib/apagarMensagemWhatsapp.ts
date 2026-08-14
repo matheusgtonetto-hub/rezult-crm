@@ -21,8 +21,13 @@ export async function apagarMensagemWhatsapp(params: {
   messageId: string;
   telefone: string;
   conexao: ConexaoWhatsapp;
+  /**
+   * true  = some também no WhatsApp do contato (irreversível para ele)
+   * false = some só do nosso lado; o contato continua com a mensagem
+   */
+  paraTodos: boolean;
 }): Promise<void> {
-  const { messageId, telefone, conexao } = params;
+  const { messageId, telefone, conexao, paraTodos } = params;
   const digitos = telefone.replace(/\D/g, "");
 
   if (conexao.provider === "cloud_api") {
@@ -45,7 +50,7 @@ export async function apagarMensagemWhatsapp(params: {
       const r = await fetch(`https://api.d-api.cloud/api/v1/chats/messages/${encodeURIComponent(messageId)}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json", "Authorization": conexao.token },
-        body: JSON.stringify({ sessionId: conexao.instanceId, to, forEveryone: true }),
+        body: JSON.stringify({ sessionId: conexao.instanceId, to, forEveryone: paraTodos }),
       });
       if (r.ok) {
         console.info(`[apagar] d-api aceitou o formato "${to.includes("@") ? "JID" : "telefone puro"}"`);
@@ -62,7 +67,8 @@ export async function apagarMensagemWhatsapp(params: {
   const url = new URL(`https://api.z-api.io/instances/${conexao.instanceId}/token/${conexao.token}/messages`);
   url.searchParams.set("messageId", messageId);
   url.searchParams.set("phone", digitos);
-  url.searchParams.set("owner", "true");
+  // owner=true é o "para todos" da Z-API.
+  url.searchParams.set("owner", String(paraTodos));
   const r = await fetch(url.toString(), {
     method: "DELETE",
     headers: conexao.clientToken ? { "Client-Token": conexao.clientToken } : {},
