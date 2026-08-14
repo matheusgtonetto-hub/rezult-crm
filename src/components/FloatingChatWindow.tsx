@@ -551,6 +551,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           borderRadius: isLead
                             ? "4px 16px 16px 16px"
                             : "16px 4px 16px 16px",
+                          // Mesmo tratamento da bolha do Multiatendimento:
+                          // preserva quebra digitada e quebra o que nao tem
+                          // espaco (codigo PIX, link longo), para a janela nao
+                          // rolar na horizontal.
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
                         }}
                       >
                         {m.text}

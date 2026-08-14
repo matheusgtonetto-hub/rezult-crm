@@ -3462,8 +3462,20 @@ export default function MultiatendimentoPage() {
                             </span>
                             <span style={{ color: "#AAA" }}> • {m.time}</span>
                           </div>
-                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
-                            {m.kind === "text"  && <><span style={{ flex: 1 }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
+                          <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0 }}>
+                            {m.kind === "text"  && <><span style={{
+                              flex: 1,
+                              minWidth: 0,
+                              // pre-wrap preserva as quebras de linha que a
+                              // pessoa digitou: 312 mensagens da base tem \n e
+                              // apareciam achatadas numa linha so.
+                              whiteSpace: "pre-wrap",
+                              // anywhere quebra tambem o que nao tem espaco --
+                              // codigo PIX, link longo, hash. Sem isso a bolha
+                              // estoura os 65% de largura e o chat inteiro passa
+                              // a rolar na horizontal.
+                              overflowWrap: "anywhere",
+                            }}>{m.text}</span>{isAgent && <CheckCheck size={14} color={m.read ? "#FFF" : "rgba(255,255,255,0.5)"} />}</>}
                             {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={isAgent} />}
                             {m.kind === "image" && (
                               <div style={{ overflow: "hidden", borderRadius: 12 }}>
