@@ -18,6 +18,7 @@ import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import {
+  BotMessageSquare,
   Check,
   Minus,
   X,
@@ -31,6 +32,14 @@ interface ChatMsg {
   author: string;
   time: string;
   text: string;
+  /**
+   * Enviada pelo agente de IA, não por uma pessoa. Muda o avatar da bolha.
+   *
+   * Sem isto o chat flutuante mostrava a foto de QUEM ESTÁ OLHANDO a tela em
+   * mensagens que o agente escreveu -- o mesmo defeito que o Multiatendimento
+   * já tinha corrigido com a coluna sent_by_agent.
+   */
+  porAgente?: boolean;
 }
 
 function getInitials(name: string) {
@@ -139,7 +148,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         if (!data?.length) return;
         setMessages(data.map(m => ({
           from:   m.from_me ? "agent" : "lead",
-          author: m.from_me ? (m.sender_name ?? nomeAtendente) : (m.chat_name ?? lead.name),
+          author: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),
+          porAgente: !!m.sent_by_agent,
           time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
           text:   m.body ?? "",
         })));
@@ -155,7 +165,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=in.(${variantes.join(",")})` },
         (payload) => {
-          const m = payload.new as { from_me: boolean; chat_name?: string; body?: string; momment?: number; created_at?: string };
+          const m = payload.new as { from_me: boolean; chat_name?: string; body?: string; momment?: number; created_at?: string; sent_by_agent?: boolean };
           if (m.from_me) return;
           setMessages(prev => [...prev, {
             from:   "lead",
@@ -569,7 +579,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                       {/* Avatar do lado de quem falou, igual ao Multiatendimento:
                           a foto do contato à esquerda, a do atendente à direita. */}
                       {isLead && (
-                        <ConvAvatar name={quemFalou} avatarUrl={avatarDoLead} size={24} fontSize={9} style={{ marginRight: 6, marginTop: 16 }} />
+                        <ConvAvatar name={quemFalou} avatarUrl={avatarDoLead} size={24} fontSize={9} style={{ marginRight: 6 }} />
                       )}
                       <div className={`flex flex-col ${isLead ? "items-start" : "items-end"}`} style={{ minWidth: 0, maxWidth: "80%" }}>
                       <div
@@ -603,11 +613,21 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           overflowWrap: "anywhere",
                         }}
                       >
-                        {m.text}
-                      </div>
+                          {m.text}
+                        </div>
                       </div>
                       {!isLead && (
-                        <ConvAvatar name={quemFalou} avatarUrl={profile?.avatar_url ?? undefined} size={24} fontSize={9} style={{ marginLeft: 6, marginTop: 16 }} />
+                        // Mesma regra do Multiatendimento: ícone de robô quando
+                        // foi o agente, foto do perfil quando foi a própria
+                        // pessoa que está olhando, e iniciais para os demais
+                        // atendentes (a foto de outro atendente não está aqui).
+                        m.porAgente ? (
+                          <div title={quemFalou} style={{ width: 24, height: 24, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 6 }}>
+                            <BotMessageSquare size={13} color="#6D28D9" />
+                          </div>
+                        ) : (
+                          <ConvAvatar name={quemFalou} avatarUrl={quemFalou === nomeAtendente ? (profile?.avatar_url ?? undefined) : undefined} size={24} fontSize={9} style={{ marginLeft: 6 }} />
+                        )
                       )}
                     </div>
                   );
