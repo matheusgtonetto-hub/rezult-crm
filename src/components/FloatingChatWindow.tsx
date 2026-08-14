@@ -12,6 +12,7 @@ import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
+import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import {
   Check,
   Minus,
@@ -36,6 +37,16 @@ function getInitials(name: string) {
     .map(n => n[0])
     .join("")
     .toUpperCase();
+}
+
+// Lê o id que o provedor atribuiu à mensagem enviada, e registra o formato
+// quando não acha. A D-API não documenta a resposta de sucesso, então o log é
+// como descobrimos a estrutura pelo dado real.
+async function lerIdDoEnvio(res: Response, provedor: string): Promise<string | null> {
+  const corpo = await res.clone().json().catch(() => null);
+  const id = extrairIdDaResposta(corpo);
+  if (!id) console.warn(`[chat-flutuante] ${provedor}: id não encontrado na resposta. ${descreverResposta(corpo)}`);
+  return id;
 }
 
 function nowTime() {
@@ -292,13 +303,16 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     const cleanPhone = contactPhone.replace(/\D/g, "");
     try {
       let sendOk = false;
+      // Mesmo motivo do Multiatendimento: guardar o id do provedor e o que
+      // permite citar, apagar e encaminhar esta mensagem depois.
+      let idNoProvedor: string | null = null;
       if (inst.provider === "cloud_api") {
         const res = await fetch(`https://graph.facebook.com/v21.0/${inst.instanceId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
           body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: text, preview_url: false } }),
         });
-        if (res.ok) sendOk = true;
+        if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "cloud-api"); }
         else {
           const err = await res.json().catch(() => ({}));
           toast.error(`Erro ao enviar: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
@@ -309,7 +323,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           headers: { "Content-Type": "application/json", "Authorization": inst.token },
           body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
         });
-        if (res.ok) sendOk = true;
+        if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "d-api"); }
         else toast.error(`Erro ao enviar: ${(await res.text().catch(() => "")).slice(0, 120) || res.status}`);
       } else {
         const res = await fetch(`https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-text`, {
@@ -320,7 +334,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           },
           body: JSON.stringify({ phone: cleanPhone, message: text }),
         });
-        if (res.ok) sendOk = true;
+        if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "z-api"); }
         else {
           const err = await res.json().catch(() => ({}));
           toast.error(`Erro ao enviar: ${(err as { message?: string }).message ?? res.status}`);
@@ -366,6 +380,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         type:        "text",
         momment:     Date.now(),
         sender_name: nomeAtendente,
+        message_id:  idNoProvedor,
         conversation_id: conversationId,
       });
     } catch {

@@ -35,6 +35,7 @@ import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "@/li
 import { previewLabelFor } from "@/lib/conversas";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
+import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -59,6 +60,16 @@ function nowTime() {
 }
 // Compara telefones ignorando código do país (55): "28999110664" ≡ "5528999110664"
 // Normaliza um telefone BR para o núcleo DDD + 8 dígitos finais, tolerando o
+// Lê o id que o provedor atribuiu à mensagem enviada, e registra o formato
+// recebido quando não acha. É esse log que revela a estrutura de um provedor
+// não documentado -- a D-API não especifica a resposta de sucesso.
+async function lerIdDoEnvio(res: Response, provedor: string): Promise<string | null> {
+  const corpo = await res.clone().json().catch(() => null);
+  const id = extrairIdDaResposta(corpo);
+  if (!id) console.warn(`[envio] ${provedor}: id não encontrado na resposta. ${descreverResposta(corpo)}`);
+  return id;
+}
+
 // Insere mensagem já vinculada à conversa, sem nunca perder a mensagem.
 //
 // A tela gera o id da conversa no cliente (ver a reconciliação mais abaixo) e
@@ -2514,6 +2525,9 @@ export default function MultiatendimentoPage() {
       // saber depois que aquele envio específico tinha falhado. sendOk decide
       // se persistimos de verdade; se não, desfaz a bolha otimista.
       let sendOk = false;
+      // Id que o provedor atribui a esta mensagem. Guardar e o que permite
+      // citar, apagar e encaminhar depois; ate agora era descartado.
+      let idNoProvedor: string | null = null;
 
       // ── Cloud API (Meta) ────────────────────────────────────────────
       if (inst.provider === "cloud_api") {
@@ -2536,6 +2550,7 @@ export default function MultiatendimentoPage() {
           );
           if (res.ok) {
             sendOk = true;
+            idNoProvedor = await lerIdDoEnvio(res, "cloud-api");
           } else {
             const err = await res.json().catch(() => ({}));
             toast.error(`Erro ao enviar mensagem: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
@@ -2559,6 +2574,7 @@ export default function MultiatendimentoPage() {
           );
           if (res.ok) {
             sendOk = true;
+            idNoProvedor = await lerIdDoEnvio(res, "d-api");
           } else {
             const err = await res.text().catch(() => "");
             toast.error(`Erro ao enviar mensagem: ${err.slice(0, 120) || res.status}`);
@@ -2582,6 +2598,7 @@ export default function MultiatendimentoPage() {
           );
           if (res.ok) {
             sendOk = true;
+            idNoProvedor = await lerIdDoEnvio(res, "z-api");
           } else {
             const err = await res.json().catch(() => ({}));
             toast.error(`Erro ao enviar mensagem: ${(err as { message?: string }).message ?? res.status}`);
@@ -2611,6 +2628,7 @@ export default function MultiatendimentoPage() {
           type:        "text",
           momment:     Date.now(),
           sender_name: nomeAtendente,
+          message_id:  idNoProvedor,
         }, activeId);
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
