@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -63,6 +63,16 @@ async function lerIdDoEnvio(res: Response, provedor: string): Promise<string | n
   const id = extrairIdDaResposta(corpo);
   if (!id) console.warn(`[envio] ${provedor}: id não encontrado na resposta. ${descreverResposta(corpo)}`);
   return id;
+}
+
+// Texto legível de uma mensagem, para preview de citação e para o bloco de
+// composição. Cada tipo tem a sua forma curta -- imagem sem legenda não vira
+// string vazia, vira "🖼️ Imagem".
+function textoDaMensagem(m: Msg): string {
+  if (m.kind === "text" || m.kind === "system") return m.text;
+  if (m.kind === "image") return m.caption || "🖼️ Imagem";
+  if (m.kind === "file") return `📎 ${m.filename}`;
+  return "🎤 Mensagem de áudio";
 }
 
 // Insere mensagem já vinculada à conversa, sem nunca perder a mensagem.
@@ -117,14 +127,37 @@ type Conversation = {
   contactId?: string;   // contato (pessoa) vinculado — setado ao atribuir atendente
 };
 
-// porAgente: mensagem enviada pelo agente de IA, não por uma pessoa. Muda o
-// avatar exibido na bolha.
+// Campos comuns a toda mensagem da tela. Antes eram repetidos em cada variante
+// da união, o que fazia qualquer campo novo virar cinco edições iguais -- e uma
+// esquecida passa despercebida, porque o TypeScript não reclama de campo
+// opcional ausente.
+type MsgBase = {
+  id: string;
+  // "agent" aqui significa "nosso lado", não o agente de IA. Quem separa pessoa
+  // de robô é o porAgente abaixo.
+  from: "lead" | "agent" | "system";
+  agent?: string;
+  // Enviada pelo agente de IA, não por uma pessoa. Muda o avatar da bolha.
+  porAgente?: boolean;
+  time: string;
+  date: string;
+  read?: boolean;
+  /**
+   * Id da mensagem NO PROVEDOR. É o que se manda para citar, apagar ou
+   * encaminhar; o `id` acima é o nosso uuid e não serve para nada disso.
+   * Nulo nas mensagens antigas, gravadas antes de a gente guardar esse id.
+   */
+  messageId?: string | null;
+  /** O que esta mensagem cita, quando cita alguma. */
+  citacao?: { messageId: string; preview: string } | null;
+};
+
 type Msg =
-  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "text";   text: string;                    date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "audio";  duration: string; src?: string; date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "image";  src: string; caption?: string;  date: string; read?: boolean }
-  | { id: string; from: "lead" | "agent"; agent?: string; porAgente?: boolean; time: string; kind: "file";   filename: string; url?: string;  date: string; read?: boolean }
-  | { id: string; from: "system";                          time: string; kind: "system"; text: string;                   date: string };
+  | (MsgBase & { kind: "text";   text: string })
+  | (MsgBase & { kind: "audio";  duration: string; src?: string })
+  | (MsgBase & { kind: "image";  src: string; caption?: string })
+  | (MsgBase & { kind: "file";   filename: string; url?: string })
+  | (MsgBase & { kind: "system"; text: string });
 
 // 10 linhas de 20px. Acima disso a caixa rola em vez de continuar crescendo:
 // sem teto, uma mensagem longa empurra a conversa inteira para fora da tela.
@@ -775,6 +808,9 @@ export default function MultiatendimentoPage() {
     toId: string; toTitle: string;
   } | null>(null);
   useEffect(() => { setPendingStageAdvance(null); setPendingStageBack(null); }, [activeId]);
+  // Citação pendente não sobrevive à troca de conversa: mandar na conversa
+  // errada é pior que perder a citação.
+  useEffect(() => { setCitando(null); }, [activeId]);
 
   // ── tag picker inline ──────────────────────────────────────────────
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -918,6 +954,11 @@ export default function MultiatendimentoPage() {
 
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
+  // Mensagem que está sendo respondida. Fica por conversa: trocar de conversa
+  // com uma citação pendente e mandar na conversa errada seria pior que perder
+  // a citação.
+  const [citando, setCitando]             = useState<Msg | null>(null);
+  const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
   const [showFiles, setShowFiles]         = useState(false);
   const [recording, setRecording]         = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -1393,6 +1434,14 @@ export default function MultiatendimentoPage() {
             from:  (m.from_me ? "agent" : "lead") as "agent" | "lead",
             agent: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : undefined,
             porAgente: !!m.sent_by_agent,
+            messageId: (m.message_id as string | null) ?? null,
+            // Retrato gravado na entrada. Preferimos ele ao texto da mensagem
+            // original porque nem toda citada existe na nossa base: 707
+            // mensagens antigas foram gravadas sem o id do provedor, e uma
+            // citação a elas não resolve para linha nenhuma.
+            citacao: m.reply_to_message_id
+              ? { messageId: m.reply_to_message_id as string, preview: (m.reply_to_preview as string | null) ?? "" }
+              : null,
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
             date:  dateLabel,
             read:  true as const,
@@ -2420,6 +2469,12 @@ export default function MultiatendimentoPage() {
       }
     }
 
+    // Congela a citação no início do envio. Sem isto, o código depende de o
+    // `citando` do closure sobreviver ao setCitando(null) mais abaixo -- o que é
+    // verdade em React, mas é sutil demais para deixar implícito num fluxo com
+    // três provedores no meio.
+    const citada = citando;
+
     // Mesmo UUID na mensagem otimista e no insert — o listener realtime deduplica
     // por id (sem isso, a própria mensagem voltaria duplicada via realtime).
     const msgId = crypto.randomUUID();
@@ -2436,6 +2491,7 @@ export default function MultiatendimentoPage() {
     updateCs(activeId, { messages: [...(cs?.messages ?? []), msg] });
     bumpPreview(activeId, text);
     setInputValue("");
+    setCitando(null);
 
     // Mensagem já está saindo — não faz sentido continuar mostrando "digitando".
     if (typingRef.current.pauseTimer) { clearTimeout(typingRef.current.pauseTimer); typingRef.current.pauseTimer = null; }
@@ -2498,6 +2554,9 @@ export default function MultiatendimentoPage() {
                 to: cleanPhone,
                 type: "text",
                 text: { body: text, preview_url: false },
+                // Citação da Meta. Só entra quando há o que citar; sem o campo
+                // o corpo fica idêntico ao de antes.
+                ...(citada?.messageId ? { context: { message_id: citando.messageId } } : {}),
               }),
             }
           );
@@ -2522,7 +2581,10 @@ export default function MultiatendimentoPage() {
                 "Content-Type": "application/json",
                 "Authorization": inst.token,
               },
-              body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
+              body: JSON.stringify({
+                sessionId: inst.instanceId, to: cleanPhone, text,
+                ...(citada?.messageId ? { contextInfo: { stanzaId: citando.messageId } } : {}),
+              }),
             }
           );
           if (res.ok) {
@@ -2546,7 +2608,10 @@ export default function MultiatendimentoPage() {
                 "Content-Type": "application/json",
                 ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
               },
-              body: JSON.stringify({ phone: cleanPhone, message: text }),
+              body: JSON.stringify({
+                phone: cleanPhone, message: text,
+                ...(citada?.messageId ? { messageId: citando.messageId } : {}),
+              }),
             }
           );
           if (res.ok) {
@@ -2582,6 +2647,10 @@ export default function MultiatendimentoPage() {
           momment:     Date.now(),
           sender_name: nomeAtendente,
           message_id:  idNoProvedor,
+          // Guarda a citação também do nosso lado, para a bolha renderizar sem
+          // depender de a mensagem citada existir na base.
+          reply_to_message_id: citada?.messageId ?? null,
+          reply_to_preview: citada ? textoDaMensagem(citada).slice(0, 300) : null,
         }, activeId);
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
@@ -3424,7 +3493,29 @@ export default function MultiatendimentoPage() {
                         {!isAgent && (
                           <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
-                        <div style={{ maxWidth: "65%" }}>
+                        <div
+                          style={{ maxWidth: "65%", position: "relative" }}
+                          onMouseEnter={() => setMsgSobreMouse(m.id)}
+                          onMouseLeave={() => setMsgSobreMouse(null)}
+                        >
+                          {/* Responder. Só aparece ao passar o mouse, para não
+                              poluir a conversa, e só em mensagem que TEM id do
+                              provedor: sem ele não há o que citar, e um botão
+                              que não funciona é pior que botão nenhum. */}
+                          {msgSobreMouse === m.id && m.messageId && (
+                            <button
+                              onClick={() => setCitando(m)}
+                              title="Responder"
+                              style={{
+                                position: "absolute", top: 18, [isAgent ? "left" : "right"]: -30,
+                                width: 24, height: 24, borderRadius: "50%", border: "1px solid #E5E5E5",
+                                background: "#FFF", display: "flex", alignItems: "center",
+                                justifyContent: "center", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                              } as React.CSSProperties}
+                            >
+                              <Reply size={13} color="#535353" />
+                            </button>
+                          )}
                           {/* Nome colorido, hora em cinza. O lado direito é
                               compartilhado entre os atendentes e o agente de
                               IA, todos com a mesma bolha verde: a cor do nome
@@ -3437,6 +3528,21 @@ export default function MultiatendimentoPage() {
                             </span>
                             <span style={{ color: "#AAA" }}> • {m.time}</span>
                           </div>
+                          {/* Citação: o que esta mensagem responde. Mostra o
+                              retrato gravado na entrada, e não o texto da
+                              original -- nem toda citada existe na nossa base. */}
+                          {m.citacao && (
+                            <div style={{
+                              borderLeft: `3px solid ${isAgent ? "rgba(255,255,255,0.55)" : "#128A68"}`,
+                              background: isAgent ? "rgba(255,255,255,0.14)" : "#F5F5F5",
+                              borderRadius: 8, padding: "6px 10px", marginBottom: 4,
+                              fontSize: 12, color: isAgent ? "rgba(255,255,255,0.9)" : "#666",
+                              maxWidth: "100%", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+                              display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                            }}>
+                              {m.citacao.preview || "Mensagem"}
+                            </div>
+                          )}
                           <div style={{ padding: m.kind === "image" ? 4 : "10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0 }}>
                             {m.kind === "text"  && <><span style={{
                               flex: 1,
@@ -3532,6 +3638,33 @@ export default function MultiatendimentoPage() {
             {/* rodapé */}
             <div style={{ background: "#FFF", borderTop: "1px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
               {/* painel de emojis */}
+              {/* Bloco de composição: mostra o que está sendo respondido, com
+                  saída visível. Sem ele a pessoa clica em responder e não tem
+                  sinal nenhum de que a próxima mensagem vai sair citando. */}
+              {citando && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: 8,
+                  margin: "0 16px 8px", padding: "8px 10px",
+                  background: "#F5F5F5", borderLeft: "3px solid #128A68", borderRadius: 8,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#128A68", marginBottom: 2 }}>
+                      Respondendo {citando.from === "agent" ? (citando.agent ?? "você") : convName(active)}
+                    </div>
+                    <div style={{
+                      fontSize: 12, color: "#666", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}>
+                      {textoDaMensagem(citando)}
+                    </div>
+                  </div>
+                  <button onClick={() => setCitando(null)} title="Cancelar resposta"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 2, lineHeight: 0 }}>
+                    <X size={14} color="#888" />
+                  </button>
+                </div>
+              )}
+
               {showEmoji && (
                 <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
