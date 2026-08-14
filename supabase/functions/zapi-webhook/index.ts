@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertConversationForMessage, previewLabelFor, extrairCitacao } from "../_shared/upsert-conversation.ts";
 import { telefonesIguais } from "../_shared/telefone.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -101,6 +101,9 @@ serve(async (req) => {
   }
 
   const cleanPhone = String(phone).replace(/\D/g, "");
+  // Citação: a Z-API varia o nome do campo conforme o evento, então o extrator
+  // recebe o payload inteiro e procura nas formas conhecidas.
+  const citacao = extrairCitacao(payload);
 
   // Deduplicação manual por message_id antes de inserir
   if (messageId) {
@@ -145,6 +148,8 @@ serve(async (req) => {
       chat_name:   chatName ?? null,
       sender_name: senderName ?? null,
       conversation_id: conversationId,
+      reply_to_message_id: citacao.replyToMessageId,
+      reply_to_preview:    citacao.replyToPreview,
     });
 
   if (error) {

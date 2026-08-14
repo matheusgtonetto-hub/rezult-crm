@@ -168,3 +168,69 @@ export async function idsDeConversasPorTelefone(supabase: any, params: {
   }
   return ((data ?? []) as { id: string }[]).map((c) => c.id);
 }
+
+/** O que uma mensagem cita, quando cita alguma. */
+export interface CitacaoDeMensagem {
+  /** Id da mensagem citada, no formato do provedor. */
+  replyToMessageId: string | null;
+  /** Retrato do texto citado, para renderizar sem depender da original existir. */
+  replyToPreview: string | null;
+}
+
+/**
+ * Lê o bloco de citação de um payload de webhook, aceitando as três formas.
+ *
+ * Cada provedor batizou a mesma coisa de um jeito, e nenhum deles é obviamente
+ * mais certo que o outro:
+ *
+ *   D-API ....... data.context_info.{quoted_message_id|stanza_id}
+ *                 data.context_info.quoted_message.body
+ *   Cloud API ... message.context.id            (a Meta não manda o texto citado,
+ *                                                só o id -- o preview fica nulo
+ *                                                e a bolha resolve pelo id)
+ *   Z-API ....... referenceMessageId / quotedMsgId, conforme o evento
+ *
+ * Um extrator só, tolerante, em vez de três leituras espalhadas: quando um
+ * provedor mudar de nome de campo, tem um lugar para arrumar. Devolve nulos
+ * quando não encontra nada, que é o caso da esmagadora maioria das mensagens.
+ */
+export function extrairCitacao(bruto: unknown): CitacaoDeMensagem {
+  // `unknown` na fronteira, não `any`: isto lê JSON que vem de fora, e o
+  // compilador não tem como saber o formato. A diferença é que com `unknown`
+  // cada leitura precisa dizer o que espera, então o estreitamento fica
+  // explícito em vez de sumir dentro de um tipo permissivo.
+  const objeto = (v: unknown): Record<string, unknown> =>
+    (typeof v === "object" && v !== null ? v : {}) as Record<string, unknown>;
+
+  const raiz = objeto(bruto);
+  const ctx = objeto(raiz.context_info ?? raiz.contextInfo ?? raiz.context);
+  const citada = objeto(ctx.quoted_message ?? ctx.quotedMessage);
+
+  const texto = (v: unknown): string | null =>
+    typeof v === "string" && v !== "" ? v
+    : typeof v === "number" ? String(v)
+    : null;
+
+  const id =
+    texto(ctx.quoted_message_id) ??
+    texto(ctx.quotedMessageId) ??
+    texto(ctx.stanza_id) ??
+    texto(ctx.stanzaId) ??
+    texto(ctx.id) ??                    // Cloud API: context.id
+    texto(raiz.referenceMessageId) ??   // Z-API
+    texto(raiz.quotedMsgId);
+
+  const preview =
+    texto(ctx.quoted_message ?? null) ??  // alguns eventos mandam o texto direto
+    texto(citada.body) ??
+    texto(citada.text) ??
+    texto(citada.conversation) ??
+    texto(raiz.referenceMessageBody);
+
+  return {
+    replyToMessageId: id,
+    // Corta o retrato: é para caber numa linha de citação, não para virar
+    // segunda cópia do histórico dentro da tabela.
+    replyToPreview: preview ? preview.slice(0, 300) : null,
+  };
+}

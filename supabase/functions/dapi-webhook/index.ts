@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertConversationForMessage, previewLabelFor, extrairCitacao } from "../_shared/upsert-conversation.ts";
 import { telefonesIguais } from "../_shared/telefone.ts";
 
 // Webhook da D-API (https://d-api.cloud). Espelha o zapi-webhook, mas traduz o
@@ -97,6 +97,9 @@ serve(async (req) => {
     }
 
     const messageId = data.id ? String(data.id) : null;
+    // Citação: presente quando o contato respondeu apontando para uma mensagem
+    // específica. Até agora era descartada na entrada.
+    const citacao = extrairCitacao(data);
     const type = String(data.type ?? "text");
     const mediaUrl = data.media_url ? String(data.media_url) : null;
     const mediaData = (data.media_data ?? {}) as Record<string, unknown>;
@@ -185,6 +188,8 @@ serve(async (req) => {
         chat_name:   senderName,
         sender_name: senderName,
         conversation_id: conversationId,
+        reply_to_message_id: citacao.replyToMessageId,
+        reply_to_preview:    citacao.replyToPreview,
       });
 
     if (error) {

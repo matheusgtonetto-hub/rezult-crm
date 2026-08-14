@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertConversationForMessage, previewLabelFor, extrairCitacao } from "../_shared/upsert-conversation.ts";
 import { telefonesIguais } from "../_shared/telefone.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -68,6 +68,8 @@ serve(async (req) => {
         const from     = message.from as string;
         const type     = (message.type as string) ?? "text";
         const timestamp = message.timestamp as string;
+        // Citação: a Meta manda em message.context quando é resposta.
+        const citacao = extrairCitacao(message);
 
         const contact    = contacts.find(c => c.wa_id === from);
         const senderName = contact?.profile?.name ?? null;
@@ -172,6 +174,10 @@ serve(async (req) => {
           chat_name:   senderName,
           sender_name: senderName,
           conversation_id: conversationId,
+          // A Meta manda só o id da citada (message.context.id), sem o texto:
+          // o preview fica nulo e a bolha resolve buscando pelo id.
+          reply_to_message_id: citacao.replyToMessageId,
+          reply_to_preview:    citacao.replyToPreview,
         });
 
         if (error && error.code !== "23505") {
