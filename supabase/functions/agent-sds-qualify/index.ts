@@ -2666,7 +2666,9 @@ async function executeAgentTool(
         // para, igual a uma pessoa escrevendo.
         await aguardarDigitando(creds, telefonePresenca, tempos[i]);
 
-        await sendWa(creds, { kind: "text", phone, message: parts[i] });
+        // O id devolvido aqui e o que permite ao cliente citar esta mensagem
+        // e a citacao resolver para a linha certa. Ate agora era descartado.
+        const idNoProvedor = await sendWa(creds, { kind: "text", phone, message: parts[i] });
         // owner_id é NOT NULL aqui também — mesmo padrão do automation-runner,
         // usa o responsável do lead.
         // Conversa primeiro, mensagem depois, igual aos webhooks e runners.
@@ -2700,6 +2702,7 @@ async function executeAgentTool(
           from_me: true,
           body: parts[i],
           type: "text",
+          message_id: idNoProvedor,
           conversation_id: conversationId,
           // Sem estes dois, o Multiatendimento não tinha como saber quem falou:
           // caía no nome do usuário logado, então a resposta do agente aparecia

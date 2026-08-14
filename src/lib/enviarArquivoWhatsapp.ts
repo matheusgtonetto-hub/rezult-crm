@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 
 // Envio de arquivo por WhatsApp: sobe para o storage e entrega pelo provedor da
 // conexão. Uma implementação só, usada pelo Multiatendimento e pelo chat
@@ -27,6 +28,11 @@ export interface ResultadoEnvioArquivo {
   mediaUrl: string | null;
   ehImagem: boolean;
   /**
+   * Id que o provedor atribuiu à mensagem, quando devolve. É o que permite
+   * citar este arquivo depois, e apagá-lo no WhatsApp.
+   */
+  idNoProvedor: string | null;
+  /**
    * Preenchido quando o arquivo foi entregue ao contato mas NÃO ficou salvo no
    * storage. É importante avisar: o destinatário recebe normalmente, e quem
    * abrir a conversa depois não consegue mais baixar. Sem esse aviso o envio
@@ -39,6 +45,15 @@ export interface ResultadoEnvioArquivo {
  * Sobe o arquivo e envia. Lança em qualquer falha de entrega, para o chamador
  * decidir o que mostrar; não emite toast nem mexe em estado de tela.
  */
+// Lê o id da resposta e, quando não acha, registra o formato recebido. É esse
+// log que revela a estrutura de um provedor não documentado.
+async function lerId(r: Response, provedor: string): Promise<string | null> {
+  const corpo = await r.json().catch(() => null);
+  const id = extrairIdDaResposta(corpo);
+  if (!id) console.warn(`[arquivo] ${provedor}: id não encontrado na resposta. ${descreverResposta(corpo)}`);
+  return id;
+}
+
 export async function enviarArquivoWhatsapp(params: {
   file: File;
   telefone: string;
@@ -48,6 +63,7 @@ export async function enviarArquivoWhatsapp(params: {
 }): Promise<ResultadoEnvioArquivo> {
   const { file, telefone, conexao, userId } = params;
   const ehImagem = file.type.startsWith("image/");
+  let idNoProvedor: string | null = null;
 
   // Storage primeiro. Sem isso a mensagem fica sem media_url e, ao recarregar a
   // conversa, o arquivo não pode mais ser baixado no chat -- ele só existiria
@@ -89,6 +105,7 @@ export async function enviarArquivoWhatsapp(params: {
       const corpo = await r.json().catch(() => ({}));
       throw new Error((corpo as { error?: { message?: string } }).error?.message ?? String(r.status));
     }
+    idNoProvedor = await lerId(r, "cloud-api");
   } else if (conexao.provider === "dapi") {
     const caminho = ehImagem ? "image" : "document";
     const r = await fetch(`https://api.d-api.cloud/api/v1/messages/send/${caminho}`, {
@@ -102,6 +119,7 @@ export async function enviarArquivoWhatsapp(params: {
       const texto = await r.text().catch(() => "");
       throw new Error(texto.slice(0, 120) || String(r.status));
     }
+    idNoProvedor = await lerId(r, "d-api");
   } else {
     // Z-API aceita base64 direto. A URI completa ("data:image/jpeg;base64,...")
     // é exigida por eles: mandar só a parte base64 falha.
@@ -129,7 +147,8 @@ export async function enviarArquivoWhatsapp(params: {
       const erro = await r.json().catch(() => ({}));
       throw new Error((erro as { error?: string }).error ?? String(r.status));
     }
+    idNoProvedor = await lerId(r, "z-api");
   }
 
-  return { mediaUrl, ehImagem, avisoUpload };
+  return { mediaUrl, ehImagem, avisoUpload, idNoProvedor };
 }

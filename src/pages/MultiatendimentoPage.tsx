@@ -1901,7 +1901,7 @@ export default function MultiatendimentoPage() {
     const isImage = file.type.startsWith("image/");
     toast.loading("Enviando arquivo…", { id: "file-send" });
     try {
-      const { mediaUrl, avisoUpload } = await enviarArquivoWhatsapp({
+      const { mediaUrl, avisoUpload, idNoProvedor } = await enviarArquivoWhatsapp({
         file,
         telefone: cleanPhone,
         conexao: inst,
@@ -1927,6 +1927,7 @@ export default function MultiatendimentoPage() {
         media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: nomeAtendente,
+        message_id:  idNoProvedor,
       }, activeId);
       if (insErr) { console.error("[file] insert:", insErr); toast.error(`Arquivo enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Arquivo enviado!", { id: "file-send" });

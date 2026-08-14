@@ -4,6 +4,8 @@
 // copiado, não movido, para não alterar o automation-runner em produção.
 // Suporta os 3 provedores: Z-API, D-API e a API oficial (Cloud API/WABA).
 
+import { extrairIdDaResposta, descreverResposta } from "./resposta-envio.ts";
+
 export interface ZapiCreds {
   instanceId: string; // Z-API: id da instância · D-API: sessionId · Cloud API: Phone Number ID
   token: string;       // Z-API: token da instância · D-API: API Key · Cloud API: access token
@@ -69,32 +71,45 @@ export async function clearTyping(creds: ZapiCreds, phone: string): Promise<void
   await sendPresence(creds, phone, "paused");
 }
 
-export async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<void> {
-  if (creds.provider === "dapi") { await sendDapi(creds, msg); return; }
-  if (creds.provider === "cloud_api") { await sendCloudApi(creds, msg); return; }
+/**
+ * Envia e devolve o id que o provedor atribuiu à mensagem, quando devolve.
+ *
+ * Passou a devolver o id porque ele é pré-requisito de citar, apagar e
+ * encaminhar -- e até aqui era jogado fora. Null não é erro: significa que a
+ * resposta não trouxe id reconhecível, e nesse caso o log em cada provedor diz
+ * qual foi o formato recebido, para a gente descobrir sem adivinhar.
+ */
+export async function sendWa(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
+  if (creds.provider === "dapi") { return await sendDapi(creds, msg); }
+  if (creds.provider === "cloud_api") { return await sendCloudApi(creds, msg); }
   switch (msg.kind) {
     case "text":
-      await sendZapi(creds, "send-text", { phone: msg.phone, message: msg.message });
-      break;
+      return await sendZapi(creds, "send-text", { phone: msg.phone, message: msg.message });
     case "buttons":
-      await sendZapi(creds, "send-button-list", {
+      return await sendZapi(creds, "send-button-list", {
         phone: msg.phone, message: msg.message,
         buttonList: { buttons: msg.buttons.map((label, idx) => ({ id: String(idx + 1), label })) },
       });
-      break;
     case "audio":
-      await sendZapi(creds, "send-audio", { phone: msg.phone, audio: msg.url });
-      break;
+      return await sendZapi(creds, "send-audio", { phone: msg.phone, audio: msg.url });
     case "image":
-      await sendZapi(creds, "send-image", { phone: msg.phone, image: msg.url });
-      break;
+      return await sendZapi(creds, "send-image", { phone: msg.phone, image: msg.url });
     case "document":
-      await sendZapi(creds, `send-document/${msg.ext || "pdf"}`, { phone: msg.phone, document: msg.url, fileName: msg.fileName });
-      break;
+      return await sendZapi(creds, `send-document/${msg.ext || "pdf"}`, { phone: msg.phone, document: msg.url, fileName: msg.fileName });
   }
 }
 
-async function sendZapi(creds: ZapiCreds, endpoint: string, body: Record<string, unknown>): Promise<void> {
+// Lê o id da resposta e, quando não acha, registra o formato recebido. É esse
+// log que revela a estrutura de um provedor não documentado sem precisar
+// adivinhar: a primeira mensagem enviada já mostra.
+async function idDaResposta(resp: Response, provedor: string): Promise<string | null> {
+  const corpo = await resp.json().catch(() => null);
+  const id = extrairIdDaResposta(corpo);
+  if (!id) console.warn(`[whatsapp-send] ${provedor}: id não encontrado na resposta. ${descreverResposta(corpo)}`);
+  return id;
+}
+
+async function sendZapi(creds: ZapiCreds, endpoint: string, body: Record<string, unknown>): Promise<string | null> {
   const url = `https://api.z-api.io/instances/${creds.instanceId}/token/${creds.token}/${endpoint}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (creds.clientToken) headers["Client-Token"] = creds.clientToken;
@@ -103,9 +118,10 @@ async function sendZapi(creds: ZapiCreds, endpoint: string, body: Record<string,
     const detail = await resp.text().catch(() => "");
     throw new Error(`Z-API ${endpoint} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
   }
+  return await idDaResposta(resp, "z-api");
 }
 
-async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
+async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
   const sessionId = creds.instanceId;
   const to = msg.phone;
   let path = "text";
@@ -133,9 +149,10 @@ async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
     const detail = await resp.text().catch(() => "");
     throw new Error(`D-API send/${path} HTTP ${resp.status}: ${detail.slice(0, 200)}`);
   }
+  return await idDaResposta(resp, "d-api");
 }
 
-async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
+async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
   const phoneNumberId = creds.instanceId;
   const accessToken = creds.token;
   const to = msg.phone.replace(/\D/g, "");
@@ -163,7 +180,7 @@ async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
       body = { messaging_product: "whatsapp", to, type: "document", document: { link: msg.url, filename: msg.fileName } };
       break;
     default:
-      return;
+      return null;
   }
 
   const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
@@ -171,4 +188,5 @@ async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<void> {
     const detail = await resp.text().catch(() => "");
     throw new Error(`Cloud API HTTP ${resp.status}: ${detail.slice(0, 200)}`);
   }
+  return await idDaResposta(resp, "cloud-api");
 }

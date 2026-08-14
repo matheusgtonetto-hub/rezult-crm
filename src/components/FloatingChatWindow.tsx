@@ -210,7 +210,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     setEnviandoArquivo(true);
     toast.loading("Enviando arquivo…", { id: "fchat-file" });
     try {
-      const { mediaUrl, ehImagem, avisoUpload } = await enviarArquivoWhatsapp({
+      const { mediaUrl, ehImagem, avisoUpload, idNoProvedor } = await enviarArquivoWhatsapp({
         file,
         telefone: cleanPhone,
         conexao: inst,
@@ -251,6 +251,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: nomeAtendente,
+        message_id:  idNoProvedor,
         conversation_id: conversationId,
       });
       if (error) {

@@ -104,7 +104,7 @@ async function processFollowup(
     provider: (["dapi", "cloud_api"].includes(String(conn.provider)) ? String(conn.provider) : "zapi") as "zapi" | "dapi" | "cloud_api",
   };
 
-  await sendWa(creds, { kind: "text", phone: row.phone, message: row.message });
+  const idNoProvedor = await sendWa(creds, { kind: "text", phone: row.phone, message: row.message });
 
   // Conversa primeiro, mensagem depois: assim ela nasce com o vínculo.
   let conversationId: string | null = null;
@@ -129,6 +129,7 @@ async function processFollowup(
     from_me: true,
     body: row.message,
     type: "text",
+    message_id: idNoProvedor,
     conversation_id: conversationId,
   });
 
