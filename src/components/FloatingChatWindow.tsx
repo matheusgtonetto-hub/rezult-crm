@@ -11,6 +11,7 @@ import { variantesDeTelefone } from "@/lib/telefone";
 import { upsertConversationForMessage, previewLabelFor } from "@/lib/conversas";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import { EMOJIS } from "@/lib/emojis";
+import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import {
   Check,
   Minus,
@@ -62,6 +63,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
 
   const [draft, setDraft] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -179,6 +182,88 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const positionStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y }
     : { right: defaultRight, bottom: defaultBottom };
+
+  // Anexo. Reaproveita enviarArquivoWhatsapp(), a mesma função que o
+  // Multiatendimento usa: a diferença entre Cloud API, D-API e Z-API não pode
+  // existir em dois lugares.
+  //
+  // A conversa é criada aqui também, pelo mesmo motivo do envio de texto: quem
+  // manda arquivo pelo pipeline está iniciando um atendimento, e ele tem que
+  // aparecer no Multiatendimento.
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !lead || !user || !company) return;
+
+    const contactPhone = lead.whatsapp;
+    if (!contactPhone || contactPhone === "—") {
+      toast.error("Este lead não tem WhatsApp cadastrado.");
+      return;
+    }
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (!inst?.token) {
+      toast.error("Nenhuma conexão de WhatsApp ativa. Configure em Configurações → Conexões.");
+      return;
+    }
+
+    const cleanPhone = contactPhone.replace(/\D/g, "");
+    setEnviandoArquivo(true);
+    toast.loading("Enviando arquivo…", { id: "fchat-file" });
+    try {
+      const { mediaUrl, ehImagem, avisoUpload } = await enviarArquivoWhatsapp({
+        file,
+        telefone: cleanPhone,
+        conexao: inst,
+        userId: user.id,
+      });
+      if (avisoUpload) toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${avisoUpload}`);
+
+      setMessages(prev => [...prev, {
+        from: "agent",
+        author: nomeAtendente,
+        time: nowTime(),
+        text: ehImagem ? `🖼️ ${file.name}` : `📎 ${file.name}`,
+      }]);
+
+      let conversationId: string | null = null;
+      try {
+        conversationId = await upsertConversationForMessage(supabase, {
+          ownerId: company.owner_id,
+          companyId: company.id,
+          instanceId: inst.instanceId,
+          phone: cleanPhone,
+          name: lead.name,
+          preview: previewLabelFor(ehImagem ? "image" : "document", file.name),
+          fromMe: true,
+        });
+      } catch (err) {
+        console.error("[chat-flutuante] não consegui criar/achar a conversa:", err);
+      }
+
+      const { error } = await supabase.from("whatsapp_messages").insert({
+        owner_id:    company.owner_id,
+        company_id:  company.id,
+        instance_id: inst.instanceId,
+        phone:       cleanPhone,
+        from_me:     true,
+        body:        file.name,
+        type:        ehImagem ? "image" : "document",
+        media_url:   mediaUrl,
+        momment:     Date.now(),
+        sender_name: nomeAtendente,
+        conversation_id: conversationId,
+      });
+      if (error) {
+        console.error("[chat-flutuante] insert do arquivo:", error);
+        toast.error("Arquivo enviado, mas não salvo no histórico.");
+      }
+      toast.success("Arquivo enviado!", { id: "fchat-file" });
+    } catch (err) {
+      toast.error(`Erro ao enviar arquivo: ${(err as Error).message}`, { id: "fchat-file" });
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!draft.trim()) return;
@@ -488,8 +573,20 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             borderColor: "#E5E5E5",
           }}
         >
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary" aria-label="Anexar">
-            <Paperclip size={16} style={{ color: "#AAAAAA" }} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={enviandoArquivo}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary disabled:opacity-50"
+            aria-label="Anexar"
+          >
+            <Paperclip size={16} style={{ color: enviandoArquivo ? "#128A68" : "#AAAAAA" }} />
           </button>
           <button
             onClick={() => setShowEmoji(v => !v)}

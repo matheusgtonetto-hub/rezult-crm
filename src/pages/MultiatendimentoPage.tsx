@@ -34,6 +34,7 @@ import { upsertContact, type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { previewLabelFor } from "@/lib/conversas";
 import { EMOJIS } from "@/lib/emojis";
+import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
@@ -1900,85 +1901,13 @@ export default function MultiatendimentoPage() {
     const isImage = file.type.startsWith("image/");
     toast.loading("Enviando arquivo…", { id: "file-send" });
     try {
-      // Sobe o arquivo para o storage → URL pública. Sem isso a mensagem ficava
-      // sem media_url e, ao recarregar, o arquivo não podia ser baixado no chat.
-      let mediaUrl: string | null = null;
-      try {
-        const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-        const path = `${user.id}/file-${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage.from("automation-media").upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
-        if (!upErr) {
-          mediaUrl = supabase.storage.from("automation-media").getPublicUrl(path).data.publicUrl;
-        } else {
-          console.error("[file] upload storage:", upErr);
-          toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${upErr.message}`);
-        }
-      } catch (e) { console.error("[file] upload storage:", e); }
-
-      // D-API e Cloud API exigem uma URL pública no corpo da requisição (diferente
-      // da Z-API, que aceita base64 direto) — sem o upload acima ter funcionado,
-      // não tem como enviar por esses provedores.
-      if ((inst.provider === "cloud_api" || inst.provider === "dapi") && !mediaUrl) {
-        throw new Error("Falha ao preparar o arquivo para envio (upload)");
-      }
-
-      if (inst.provider === "cloud_api") {
-        // ── Cloud API (Meta) ────────────────────────────────────────────
-        const r = await fetch(
-          `https://graph.facebook.com/v21.0/${inst.instanceId}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
-            body: JSON.stringify(isImage
-              ? { messaging_product: "whatsapp", to: cleanPhone, type: "image", image: { link: mediaUrl } }
-              : { messaging_product: "whatsapp", to: cleanPhone, type: "document", document: { link: mediaUrl, filename: file.name } }),
-          }
-        );
-        if (!r.ok) {
-          const errBody = await r.json().catch(() => ({}));
-          throw new Error((errBody as { error?: { message?: string } }).error?.message ?? String(r.status));
-        }
-      } else if (inst.provider === "dapi") {
-        // ── D-API ──────────────────────────────────────────────────────
-        const path = isImage ? "image" : "document";
-        const r = await fetch(
-          `https://api.d-api.cloud/api/v1/messages/send/${path}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": inst.token },
-            body: JSON.stringify(isImage
-              ? { sessionId: inst.instanceId, to: cleanPhone, image: mediaUrl }
-              : { sessionId: inst.instanceId, to: cleanPhone, document: mediaUrl, fileName: file.name }),
-          }
-        );
-        if (!r.ok) {
-          const errText = await r.text().catch(() => "");
-          throw new Error(errText.slice(0, 120) || String(r.status));
-        }
-      } else {
-        // ── Z-API (aceita base64 direto) ─────────────────────────────────
-        // BUG FIX: manter URI completa (data:image/jpeg;base64,...) que a Z-API exige
-        const dataUri = await new Promise<string>((res, rej) => {
-          const reader = new FileReader();
-          reader.onload = () => res(reader.result as string);
-          reader.onerror = rej;
-          reader.readAsDataURL(file);
-        });
-        // BUG FIX: send-document exige extensão no path (/send-document/pdf)
-        const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
-        const endpoint = isImage ? "send-image" : `send-document/${ext}`;
-        const body = isImage
-          ? { phone: cleanPhone, image: dataUri, caption: file.name }
-          : { phone: cleanPhone, document: dataUri, fileName: file.name };
-        const r = await fetch(
-          `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/${endpoint}`,
-          { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify(body) }
-        );
-        if (!r.ok) {
-          const errBody = await r.json().catch(() => ({}));
-          throw new Error((errBody as { error?: string }).error ?? String(r.status));
-        }
-      }
+      const { mediaUrl, avisoUpload } = await enviarArquivoWhatsapp({
+        file,
+        telefone: cleanPhone,
+        conexao: inst,
+        userId: user.id,
+      });
+      if (avisoUpload) toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${avisoUpload}`);
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
       const newMsg: Msg = isImage
         ? { id: msgId, from: "agent", agent: nomeAtendente, time: nowTime(), kind: "image", src: mediaUrl ?? URL.createObjectURL(file), caption: file.name, date: "Hoje", read: false }
