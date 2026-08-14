@@ -14,6 +14,9 @@ import { useProfile } from "@/context/ProfileContext";
 import { ConvAvatar } from "@/components/ConvAvatar";
 import { corDoNome } from "@/lib/nomeColorido";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { apagarMensagemWhatsapp } from "@/lib/apagarMensagemWhatsapp";
+import { MenuDaMensagem, menuAbreParaCima } from "@/components/MenuDaMensagem";
+import { Reply, Trash2, Copy, ChevronDown } from "lucide-react";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
@@ -28,10 +31,21 @@ import {
 } from "lucide-react";
 
 interface ChatMsg {
+  /** Nosso uuid da linha, para atualizar a mensagem certa no estado. */
+  id?: string;
   from: "lead" | "agent";
   author: string;
   time: string;
   text: string;
+  /**
+   * Id da mensagem NO PROVEDOR. É o que se manda para citar ou apagar; o `id`
+   * acima é o nosso e não serve para isso. Nulo nas mensagens antigas.
+   */
+  messageId?: string | null;
+  /** O que esta mensagem cita, quando cita alguma. */
+  citacao?: { messageId: string; preview: string } | null;
+  /** Quando foi apagada. A bolha mostra o aviso, o histórico não se perde. */
+  apagadaEm?: string | null;
   /**
    * Enviada pelo agente de IA, não por uma pessoa. Muda o avatar da bolha.
    *
@@ -90,6 +104,13 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [avatarDoLead, setAvatarDoLead] = useState<string | undefined>();
+  const [citando, setCitando] = useState<ChatMsg | null>(null);
+  const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
+  const [menuDaMsg, setMenuDaMsg] = useState<string | null>(null);
+  const [menuParaCima, setMenuParaCima] = useState(false);
+  // A Meta não permite apagar mensagem já enviada pela API oficial. Não é
+  // limitação nossa, então o item aparece cinza com o motivo em vez de sumir.
+  const podeApagar = whatsappConnections.find(c => c.connected && c.active)?.provider !== "cloud_api";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -147,9 +168,15 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       .then(({ data }) => {
         if (!data?.length) return;
         setMessages(data.map(m => ({
+          id:     m.id as string,
           from:   m.from_me ? "agent" : "lead",
           author: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),
           porAgente: !!m.sent_by_agent,
+          messageId: (m.message_id as string | null) ?? null,
+          apagadaEm: (m.deleted_at as string | null) ?? null,
+          citacao: m.reply_to_message_id
+            ? { messageId: m.reply_to_message_id as string, preview: (m.reply_to_preview as string | null) ?? "" }
+            : null,
           time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
           text:   m.body ?? "",
         })));
@@ -303,11 +330,51 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
   };
 
+// Apagar. "Para mim" é marcação nossa e não passa pelo provedor, então
+  // funciona em qualquer linha -- inclusive na oficial, onde a Meta proíbe
+  // apagar de verdade.
+  const apagarMensagem = async (m: ChatMsg, paraTodos: boolean) => {
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (paraTodos && (!inst?.token || !m.messageId || !lead?.whatsapp)) return;
+    try {
+      if (paraTodos) {
+        await apagarMensagemWhatsapp({ messageId: m.messageId!, telefone: lead.whatsapp, conexao: inst!, paraTodos });
+      }
+      const agora = new Date().toISOString();
+      if (m.id) {
+        const { error } = await supabase.from("whatsapp_messages")
+          .update({ deleted_at: agora, deleted_by: nomeAtendente }).eq("id", m.id);
+        if (error) console.error("[chat-flutuante] marcar apagada:", error);
+      }
+      setMessages(prev => prev.map(mm => mm.id === m.id ? { ...mm, apagadaEm: agora } : mm));
+      toast.success(paraTodos ? "Mensagem apagada para todos" : "Mensagem apagada");
+    } catch (e) {
+      toast.error(`Não consegui apagar: ${(e as Error).message}`);
+    }
+  };
+
+  const copiarMensagem = async (m: ChatMsg) => {
+    // A área de transferência pode recusar (Safari é rígido com o gesto). Sem o
+    // catch a falha seria silenciosa: a pessoa acha que copiou e cola outra coisa.
+    try {
+      await navigator.clipboard.writeText(m.text);
+      toast.success("Mensagem copiada");
+    } catch {
+      toast.error("Não consegui copiar. Selecione o texto e use Cmd+C.");
+    }
+  };
+
   const handleSend = async () => {
     if (!draft.trim()) return;
     const text = draft.trim();
     // Adiciona à UI imediatamente (otimista)
-    const newMsg: ChatMsg = { from: "agent", author: nomeAtendente, time: nowTime(), text };
+    const newMsg: ChatMsg = {
+      from: "agent", author: nomeAtendente, time: nowTime(), text,
+      // Na hora, não só depois de recarregar: no Multiatendimento essa mesma
+      // omissão fez a resposta aparecer como mensagem comum para quem acabou de
+      // enviá-la, enquanto no celular chegava certa.
+      citacao: citando?.messageId ? { messageId: citando.messageId, preview: citando.text.slice(0, 300) } : null,
+    };
     setMessages(prev => [...prev, newMsg]);
     setDraft("");
 
@@ -327,6 +394,10 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
 
     const cleanPhone = contactPhone.replace(/\D/g, "");
+    // Congela a citação: o `citando` do closure sobreviveria ao setCitando(null),
+    // mas depender disso é sutil demais num fluxo com três provedores no meio.
+    const citada = citando;
+    setCitando(null);
     try {
       let sendOk = false;
       // Mesmo motivo do Multiatendimento: guardar o id do provedor e o que
@@ -336,7 +407,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         const res = await fetch(`https://graph.facebook.com/v21.0/${inst.instanceId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${inst.token}` },
-          body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: text, preview_url: false } }),
+          body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: text, preview_url: false }, ...(citada?.messageId ? { context: { message_id: citada.messageId } } : {}) }),
         });
         if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "cloud-api"); }
         else {
@@ -347,7 +418,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         const res = await fetch(`https://api.d-api.cloud/api/v1/messages/send/text`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": inst.token },
-          body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text }),
+          body: JSON.stringify({ sessionId: inst.instanceId, to: cleanPhone, text, ...(citada?.messageId ? { contextInfo: { stanzaId: citada.messageId } } : {}) }),
         });
         if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "d-api"); }
         else toast.error(`Erro ao enviar: ${(await res.text().catch(() => "")).slice(0, 120) || res.status}`);
@@ -358,7 +429,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             "Content-Type": "application/json",
             ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}),
           },
-          body: JSON.stringify({ phone: cleanPhone, message: text }),
+          body: JSON.stringify({ phone: cleanPhone, message: text, ...(citada?.messageId ? { messageId: citada.messageId } : {}) }),
         });
         if (res.ok) { sendOk = true; idNoProvedor = await lerIdDoEnvio(res, "z-api"); }
         else {
@@ -408,6 +479,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         sender_name: nomeAtendente,
         message_id:  idNoProvedor,
         conversation_id: conversationId,
+        reply_to_message_id: citada?.messageId ?? null,
+        reply_to_preview: citada ? citada.text.slice(0, 300) : null,
       });
     } catch {
       toast.error("Falha ao enviar mensagem via WhatsApp");
@@ -545,6 +618,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         {/* Messages */}
         <div
           ref={msgsRef}
+          data-lista-mensagens
           className="flex-1 overflow-y-auto"
           style={{ background: "#FAFAFA", padding: 12 }}
         >
@@ -595,8 +669,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         <span style={{ color: "#AAAAAA" }}> · {m.time}</span>
                       </div>
                       <div
+                        onMouseEnter={() => setMsgSobreMouse(m.id ?? null)}
+                        onMouseLeave={() => setMsgSobreMouse(null)}
                         style={{
-                          padding: "8px 12px",
+                          position: "relative",
+                          padding: "8px 30px 8px 12px",
                           fontSize: 13,
                           lineHeight: 1.4,
                           background: isLead ? "#FFFFFF" : "#0F6E56",
@@ -613,7 +690,67 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           overflowWrap: "anywhere",
                         }}
                       >
-                          {m.text}
+                          {/* Ação da mensagem, DENTRO do balão: do lado de fora o
+                              vão sem hover faz o botão sumir no caminho do
+                              cursor. O espaço à direita é reservado sempre, para
+                              o balão não mudar de forma quando o mouse chega. */}
+                          {(msgSobreMouse === m.id || menuDaMsg === m.id) && m.id && (
+                            <button
+                              data-menu-mensagem
+                              onClick={e => {
+                                if (menuDaMsg === m.id) { setMenuDaMsg(null); return; }
+                                setMenuParaCima(menuAbreParaCima(e.currentTarget, 110));
+                                setMenuDaMsg(m.id ?? null);
+                              }}
+                              title="Opções da mensagem"
+                              style={{
+                                position: "absolute", top: 2, right: 4,
+                                width: 18, height: 18, borderRadius: 4, border: "none",
+                                background: isLead ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.18)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                cursor: "pointer", padding: 0, zIndex: 2,
+                              }}
+                            >
+                              <ChevronDown size={12} color={isLead ? "#535353" : "#FFF"} />
+                            </button>
+                          )}
+                          <MenuDaMensagem
+                            aberto={menuDaMsg === m.id}
+                            paraCima={menuParaCima}
+                            onFechar={() => setMenuDaMsg(null)}
+                            itens={[
+                              ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
+                              ...(!m.apagadaEm ? [{
+                                rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                submenu: [
+                                  { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                    acao: () => apagarMensagem(m, false) },
+                                  ...(!isLead && m.messageId ? [{
+                                    rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
+                                    destrutivo: true, desabilitado: !podeApagar,
+                                    motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
+                                    acao: () => apagarMensagem(m, true),
+                                  }] : []),
+                                ],
+                              }] : []),
+                              { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: () => copiarMensagem(m) },
+                            ]}
+                          />
+                          {/* Citação: o que esta mensagem responde. */}
+                          {m.citacao && !m.apagadaEm && (
+                            <div style={{
+                              borderLeft: `3px solid ${isLead ? "#128A68" : "rgba(255,255,255,0.55)"}`,
+                              background: isLead ? "#F5F5F5" : "rgba(255,255,255,0.14)",
+                              borderRadius: 6, padding: "4px 8px", marginBottom: 4, fontSize: 11,
+                              color: isLead ? "#666" : "rgba(255,255,255,0.9)",
+                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                            }}>
+                              {m.citacao.preview || "Mensagem"}
+                            </div>
+                          )}
+                          {m.apagadaEm
+                            ? <span style={{ fontStyle: "italic", opacity: 0.75 }}>Mensagem apagada</span>
+                            : m.text}
                         </div>
                       </div>
                       {!isLead && (
@@ -636,6 +773,30 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             </>
           )}
         </div>
+
+        {/* Mostra o que está sendo respondido, com saída visível. Sem isto a
+            pessoa clica em responder e não tem sinal nenhum de que a próxima
+            mensagem vai sair citando. */}
+        {citando && (
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: 6,
+            margin: "0 10px 6px", padding: "6px 8px",
+            background: "#F5F5F5", borderLeft: "3px solid #128A68", borderRadius: 6,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "#128A68" }}>
+                Respondendo {citando.from === "agent" ? citando.author : lead.name}
+              </div>
+              <div style={{ fontSize: 11, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {citando.text}
+              </div>
+            </div>
+            <button onClick={() => setCitando(null)} title="Cancelar resposta"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 0 }}>
+              <X size={12} color="#888" />
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <div
