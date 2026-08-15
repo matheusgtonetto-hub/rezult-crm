@@ -126,6 +126,16 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * que foi criado.
    */
   const jaEnviadasPorMim = useRef<Set<string>>(new Set());
+  /**
+   * Estado do indicador "digitando..." enviado ao aparelho do lead.
+   *
+   * `lastTypingAt` faz o throttle (um "typing" a cada 3s, não um por tecla) e
+   * `pauseTimer` agenda o "paused" — sem ele o "digitando..." ficaria preso na
+   * tela do cliente depois que o atendente para de escrever.
+   *
+   * Ref e não estado: nada disso deve provocar renderização.
+   */
+  const typingRef = useRef<{ lastTypingAt: number; pauseTimer: ReturnType<typeof setTimeout> | null }>({ lastTypingAt: 0, pauseTimer: null });
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
@@ -423,9 +433,72 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
   };
 
+  // Indicador "digitando..." no aparelho do lead, a mesma mecânica que o
+  // Multiatendimento já usava e que faltava aqui: quem escrevia pela janela
+  // flutuante não aparecia digitando para o cliente.
+  //
+  // Só D-API. A Z-API não expõe envio de presence, e a Cloud API amarra o
+  // indicador ao id de uma mensagem recebida em vez de oferecer um interruptor
+  // livre. Best-effort de ponta a ponta: falhar aqui não pode atrapalhar o
+  // envio nem virar aviso na tela, já que a função é só humanizar a conversa.
+  //
+  // Recebe o telefone em vez de ler `lead` do closure porque quem chama na
+  // limpeza precisa encerrar o indicador do lead ANTERIOR, não do atual.
+  function enviarPresence(telefone: string | undefined, state: "typing" | "paused") {
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (inst?.provider !== "dapi" || !inst.token || !telefone) return;
+    fetch("https://api.d-api.cloud/api/v1/chats/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": inst.token },
+      body: JSON.stringify({ sessionId: inst.instanceId, to: telefone.replace(/\D/g, ""), presence: state }),
+    }).catch(e => console.warn("enviarPresence:", e));
+  }
+
+  // Chamado a cada tecla. Manda "typing" no máximo uma vez a cada 3s e agenda
+  // "paused" para 4s de inatividade.
+  function handleTypingActivity() {
+    const t = typingRef.current;
+    const agora = Date.now();
+    if (agora - t.lastTypingAt > 3000) {
+      t.lastTypingAt = agora;
+      enviarPresence(lead?.whatsapp, "typing");
+    }
+    if (t.pauseTimer) clearTimeout(t.pauseTimer);
+    t.pauseTimer = setTimeout(() => {
+      enviarPresence(lead?.whatsapp, "paused");
+      t.lastTypingAt = 0;
+    }, 4000);
+  }
+
+  // Fechar a janela (ou trocar de lead) no meio da digitação deixaria o
+  // "digitando..." aceso no celular do cliente, porque quem o apagaria é um
+  // timer desta janela. Este encerramento é mais necessário aqui do que no
+  // Multiatendimento: lá a tela permanece montada, aqui a janela some a
+  // qualquer momento. A dependência no telefone faz a limpeza rodar também na
+  // troca de lead, encerrando o indicador de quem estava aberto antes.
+  const telefoneDoLead = lead?.whatsapp;
+  useEffect(() => {
+    return () => {
+      const t = typingRef.current;
+      if (t.pauseTimer) { clearTimeout(t.pauseTimer); t.pauseTimer = null; }
+      if (!t.lastTypingAt) return; // não estava digitando: nada a desfazer
+      t.lastTypingAt = 0;
+      enviarPresence(telefoneDoLead, "paused");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telefoneDoLead]);
+
   const handleSend = async () => {
     if (!draft.trim()) return;
     const text = draft.trim();
+    // A mensagem já está saindo, então não faz sentido seguir anunciando
+    // digitação: o "paused" evita que o indicador fique aceso ao lado de uma
+    // mensagem que o cliente já recebeu.
+    if (typingRef.current.pauseTimer) { clearTimeout(typingRef.current.pauseTimer); typingRef.current.pauseTimer = null; }
+    if (typingRef.current.lastTypingAt) {
+      typingRef.current.lastTypingAt = 0;
+      enviarPresence(lead?.whatsapp, "paused");
+    }
     // Adiciona à UI imediatamente (otimista)
     const newMsg: ChatMsg = {
       from: "agent", author: nomeAtendente, time: nowTime(), text,
@@ -910,7 +983,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           <input
             type="text"
             value={draft}
-            onChange={e => setDraft(e.target.value)}
+            onChange={e => { setDraft(e.target.value); handleTypingActivity(); }}
             onKeyDown={e => {
               if (e.key === "Enter") handleSend();
             }}
