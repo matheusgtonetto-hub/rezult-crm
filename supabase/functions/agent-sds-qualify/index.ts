@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
 import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
-import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -2225,14 +2225,24 @@ Deno.serve(async (req) => {
     // diferentes depois de reconectar o WhatsApp -- reconectar sempre gera um
     // instance_id novo). Com 2+ linhas o maybeSingle devolvia ERRO, o count
     // virava 0 e o limite de interações NUNCA era atingido.
-    const { data: convRows } = await db
-      .from("whatsapp_conversations")
+    // O contador vive no ATENDIMENTO, não na conversa.
+    //
+    // Na conversa ele atravessava episódios: só zerava ao finalizar ou ao
+    // transferir para humano. Um lead que voltasse meses depois chegava com o
+    // contador cheio e o agente podia se calar na PRIMEIRA mensagem dele, sem
+    // nada na tela explicando. No atendimento reinicia sozinho, porque cada
+    // episódio é uma linha nova.
+    const { data: atendRows } = await db
+      .from("atendimentos")
       .select("ai_interaction_count")
       .eq("company_id", companyId)
-      .in("phone", variantesDeTelefone(String(lead.whatsapp ?? "")))
-      .order("last_msg_at", { ascending: false })
+      .neq("status", "finalizado")
+      .in("conversation_id", await idsDeConversasPorTelefone(db, {
+        companyId, phone: String(lead.whatsapp ?? ""),
+      }))
+      .order("aberto_em", { ascending: false })
       .limit(1);
-    const count = (convRows?.[0]?.ai_interaction_count as number | undefined) ?? 0;
+    const count = (atendRows?.[0]?.ai_interaction_count as number | undefined) ?? 0;
 
     if (count >= limiteInteracoes) {
       const canTransfer = !!behaviorConfig.transferir_responsavel;
@@ -2768,10 +2778,30 @@ async function executeAgentTool(
       // Conversa mais recente (mesmo motivo do gate de limite lá em cima:
       // pode haver mais de uma linha pro mesmo telefone, e maybeSingle
       // errava em vez de escolher uma -- o contador nunca subia).
+      // Incrementa no ATENDIMENTO aberto (ver o gate de limite lá em cima para
+      // o porquê de não ser mais na conversa).
+      //
+      // Continua sendo feito AQUI, e não por gatilho de banco em
+      // whatsapp_messages, porque a unidade é a RESPOSTA e não a mensagem: uma
+      // resposta dividida em quatro partes conta 1. Um gatilho por linha
+      // contaria 4 e o limite seria atingido quatro vezes mais rápido.
       {
-        const { data: convRows } = await db.from("whatsapp_conversations").select("id, ai_interaction_count").eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(phone)).order("last_msg_at", { ascending: false }).limit(1);
-        const conv = convRows?.[0];
-        if (conv?.id) await db.from("whatsapp_conversations").update({ ai_interaction_count: ((conv.ai_interaction_count as number | undefined) ?? 0) + 1 }).eq("id", conv.id);
+        const convIds = await idsDeConversasPorTelefone(db, { companyId: ctx.companyId, phone });
+        if (convIds.length) {
+          const { data: atendRows } = await db.from("atendimentos")
+            .select("id, ai_interaction_count")
+            .eq("company_id", ctx.companyId)
+            .neq("status", "finalizado")
+            .in("conversation_id", convIds)
+            .order("aberto_em", { ascending: false })
+            .limit(1);
+          const atend = atendRows?.[0];
+          if (atend?.id) {
+            await db.from("atendimentos")
+              .update({ ai_interaction_count: ((atend.ai_interaction_count as number | undefined) ?? 0) + 1 })
+              .eq("id", atend.id);
+          }
+        }
       }
 
       return { ok: true };
@@ -2781,8 +2811,12 @@ async function executeAgentTool(
       // Atualiza TODAS as linhas do telefone (não só uma): o mesmo contato
       // pode ter conversas duplicadas, e antes o maybeSingle errava nesse
       // caso e a conversa nunca era marcada como finalizada.
+      // Não zera mais o contador aqui: finalizar fecha o ATENDIMENTO (gatilho
+      // trg_atendimento_segue_a_conversa), e o próximo episódio nasce numa
+      // linha nova, já em zero. Zerar à mão era necessário só enquanto o
+      // contador vivia na conversa, que atravessa episódios.
       await db.from("whatsapp_conversations")
-        .update({ finished: true, ai_interaction_count: 0 })
+        .update({ finished: true })
         .eq("company_id", ctx.companyId)
         .in("phone", variantesDeTelefone(String(ctx.lead.whatsapp ?? "")));
       return { ok: true };
@@ -2814,12 +2848,30 @@ async function executeAgentTool(
       }
       await db.from("leads").update(patchLead).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
 
+      // Zera o contador do atendimento ABERTO. Diferente de finalizar, a
+      // transferência não fecha o episódio: o humano assume o mesmo. Se o
+      // agente voltar a atuar nele depois (tag recolocada), tem que voltar com
+      // orçamento cheio, senão continuaria mudo no limite de antes da
+      // transferência. É o mesmo efeito que o reset na conversa tinha.
+      {
+        const convIds = await idsDeConversasPorTelefone(db, {
+          companyId: ctx.companyId, phone: String(ctx.lead.whatsapp ?? ""),
+        });
+        if (convIds.length) {
+          await db.from("atendimentos")
+            .update({ ai_interaction_count: 0 })
+            .eq("company_id", ctx.companyId)
+            .neq("status", "finalizado")
+            .in("conversation_id", convIds);
+        }
+      }
+
       // Todas as linhas do telefone (mesmo motivo de finalizar_conversa) --
       // cada uma tem sua própria lista de tags, então filtra uma a uma.
       const { data: convRows } = await db.from("whatsapp_conversations").select("id, tags").eq("company_id", ctx.companyId).in("phone", variantesDeTelefone(String(ctx.lead.whatsapp ?? "")));
       for (const conv of convRows ?? []) {
         const nextConvTags = ((conv.tags as string[] | null) ?? []).filter((t) => t !== tagDesteAgente);
-        const patchConv: Record<string, unknown> = { tags: nextConvTags, ai_interaction_count: 0 };
+        const patchConv: Record<string, unknown> = { tags: nextConvTags };
         // assigned_to é o que faz a conversa aparecer na caixa daquele
         // atendente no Multiatendimento. Sem isso a transferência existia só
         // no card do negócio, e quem ia atender não era avisado de nada.
