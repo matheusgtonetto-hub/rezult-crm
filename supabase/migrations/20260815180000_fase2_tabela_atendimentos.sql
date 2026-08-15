@@ -96,3 +96,103 @@ create policy company_update_atendimentos on public.atendimentos
 drop policy if exists company_delete_atendimentos on public.atendimentos;
 create policy company_delete_atendimentos on public.atendimentos
   for delete using (public.is_member_of(company_id));
+
+-- ── Numeração automática ────────────────────────────────────────────────────
+-- A tabela nasceu com unique(company_id, numero) e NADA que gerasse o número:
+-- o primeiro insert da Fase 3 morreria com not-null violation. Achado na
+-- revisão, antes de a Fase 3 depender disso.
+--
+-- O advisory lock por empresa existe porque o risco declarado da Fase 3 é
+-- justamente concorrência: cinco webhooks (dapi, zapi, cloud-api, meta e o
+-- automation-runner) podem criar atendimento para o mesmo contato ao mesmo
+-- tempo. Sem serializar, dois inserts leriam o mesmo max(numero) e um estouraria
+-- a unique. O lock é de TRANSAÇÃO, então solta sozinho no commit.
+create or replace function public.atendimentos_atribui_numero()
+returns trigger
+language plpgsql
+as $$
+begin
+  if NEW.numero is not null then
+    return NEW;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('atendimentos:' || NEW.company_id::text));
+
+  select coalesce(max(numero), 1000) + 1
+    into NEW.numero
+    from public.atendimentos
+   where company_id = NEW.company_id;
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_atendimentos_numero on public.atendimentos;
+create trigger trg_atendimentos_numero
+  before insert on public.atendimentos
+  for each row execute function public.atendimentos_atribui_numero();
+
+-- updated_at, seguindo a convenção <tabela>_touch_updated_at que já existe em
+-- 6 tabelas deste banco.
+create or replace function public.atendimentos_touch_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  NEW.updated_at := now();
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_atendimentos_updated_at on public.atendimentos;
+create trigger trg_atendimentos_updated_at
+  before update on public.atendimentos
+  for each row execute function public.atendimentos_touch_updated_at();
+
+-- ── Backfill: uma conversa vira UM atendimento ──────────────────────────────
+-- aberto_em usa o MENOR entre a criação da conversa e a primeira mensagem dela.
+--
+-- Usar só created_at estava errado, e a revisão pegou: aquele campo é quando a
+-- LINHA foi criada, não quando a conversa começou. Doze conversas foram
+-- registradas depois das mensagens já existirem (a pior por 31,7 dias), e isso
+-- produzia tempo de primeira resposta NEGATIVO, envenenando a média.
+--
+-- O status também considera primeira_resposta_em: se existe resposta gravada,
+-- alguém atendeu. O campo `answered` da origem não é confiável, três conversas
+-- tinham resposta com answered=false.
+with primeira_msg as (
+  select conversation_id, min(created_at) as t_qualquer,
+         min(created_at) filter (where not from_me) as t_lead
+  from public.whatsapp_messages where conversation_id is not null group by 1
+),
+primeira_saida as (
+  select m.conversation_id, min(m.created_at) as t_resp
+  from public.whatsapp_messages m
+  join primeira_msg e on e.conversation_id = m.conversation_id
+  where m.from_me and e.t_lead is not null and m.created_at > e.t_lead
+  group by 1
+),
+numerado as (
+  select w.*, p.t_qualquer, s.t_resp,
+         1000 + row_number() over (partition by w.company_id order by w.created_at, w.id) as num
+  from public.whatsapp_conversations w
+  left join primeira_msg   p on p.conversation_id = w.id
+  left join primeira_saida s on s.conversation_id = w.id
+  where w.company_id is not null
+)
+insert into public.atendimentos
+  (company_id, owner_id, numero, conversation_id, contact_id, canal,
+   status, aberto_em, responsavel, department_id, primeira_resposta_em)
+select n.company_id, n.owner_id, n.num, n.id, n.contact_id,
+       coalesce(n.channel, 'whatsapp'),
+       case
+         when n.finished then 'finalizado'
+         when n.t_resp is not null or coalesce(n.assigned_to,'') <> '' or n.answered then 'em_atendimento'
+         else 'aguardando'
+       end,
+       least(n.created_at, coalesce(n.t_qualquer, n.created_at)),
+       nullif(n.assigned_to, ''),
+       n.department_id,
+       n.t_resp
+from numerado n
+on conflict do nothing;
