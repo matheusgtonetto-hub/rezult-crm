@@ -79,6 +79,20 @@ interface TriggerPayload {
     loss_reason_id?: string;
     parent_automation_id?: string;
     changed_fields?: Record<string, unknown>;
+    // Gatilhos de mensagem e atendimento (triggers de banco em
+    // whatsapp_messages e whatsapp_conversations).
+    instance_id?: string;
+    conversation_id?: string;
+    message_body?: string;
+    message_type?: string;
+    phone?: string;
+    old_department_id?: string;
+    new_department_id?: string;
+    // Gatilhos de métrica do lead (avaliador horário em SQL).
+    metric_qtd_ganhos?: number;
+    metric_valor_ganhos?: number;
+    metric_ultimo_ganho?: string;
+    metric_limite?: number;
     // Saídas de datasources (ex: analise_telefone → "phone-1") persistidas entre nós,
     // para que {{phone-1.phone}} fique disponível em nós posteriores ao parse
     datasources?: Record<string, Record<string, string>>;
@@ -299,9 +313,29 @@ Deno.serve(async (req: Request) => {
 
   // ── Trigger mode normal ────────────────────────────────────────────────────
   const payload = body as unknown as TriggerPayload;
-  if (!payload.trigger_type || !payload.company_id || !payload.lead_id) {
+
+  // Gatilhos de mensagem e de conversa podem legitimamente chegar SEM lead:
+  // mensagem de um número que ainda não virou lead é justamente o caso mais
+  // interessante de automatizar ("chegou alguém novo, faça X"). Os demais
+  // nascem de uma linha de leads e sempre trazem o id, então continuam exigidos.
+  //
+  // Sem esta exceção o gatilho de mensagem morre aqui, com 400 e o corpo
+  // "Missing required fields", que fica no log do pg_net e não aparece em lugar
+  // nenhum da tela -- exatamente a falha silenciosa que estes gatilhos vieram
+  // resolver.
+  const gatilhoPodeNaoTerLead = new Set([
+    "msg_recebida", "msg_enviada", "atend_iniciado", "atend_finalizado", "dep_alterado",
+  ]);
+  const leadObrigatorio = !gatilhoPodeNaoTerLead.has(payload.trigger_type);
+
+  if (!payload.trigger_type || !payload.company_id || (leadObrigatorio && !payload.lead_id)) {
     return new Response("Missing required fields", { status: 400 });
   }
+
+  // Normaliza para "" como faz o caminho do webhook, para os nós receberem
+  // sempre o mesmo tipo em vez de ora string, ora null.
+  payload.lead_id = payload.lead_id ?? "";
+
   return await runTrigger(supabase, payload);
 });
 
@@ -447,6 +481,32 @@ async function handleWebhook(
   // Identifica o lead pelo body em CASCATA (lead_id → email → telefone).
   let lead_id: string | null = null;
 
+  // A busca é escopada pela EMPRESA dona da automação, não pelo owner_id de quem
+  // a CRIOU. Quando o Rezult monta a automação para o cliente, os dois são
+  // pessoas diferentes, e a busca ia parar na base de leads errada: nunca achava
+  // ninguém, e todo passo seguinte rodava sem lead. Pior, bastaria um e-mail
+  // coincidir entre as duas bases para a automação de um cliente agir sobre o
+  // lead de outro.
+  //
+  // Um lead por chave também não é garantido: há e-mails e telefones repetidos
+  // dentro da mesma empresa. Isso caía num maybeSingle(), que ERRA com mais de
+  // uma linha, e o erro era descartado -- "duplicado" virava "não existe", em
+  // silêncio. Agora pega o mais recente, que é o que o operador acabou de criar.
+  const acharLead = async (coluna: "email" | "whatsapp", valor: string): Promise<string | null> => {
+    const base = supabase.from("leads").select("id").eq("company_id", companyId);
+    // O ilike no e-mail é por causa de maiúsculas, não para casar padrão. O valor
+    // vem do corpo do webhook, e um "%" solto ali casaria com a base inteira.
+    const filtrado = coluna === "email"
+      ? base.ilike("email", valor.replace(/[\\%_]/g, "\\$&"))
+      : base.eq("whatsapp", valor);
+    const { data, error } = await filtrado.order("created_at", { ascending: false }).limit(1);
+    if (error) {
+      console.error(`[webhook ${automationId}] busca de lead por ${coluna} falhou:`, error.message);
+      return null;
+    }
+    return (data?.[0]?.id as string | undefined) ?? null;
+  };
+
   if (webhookBody.lead_id) {
     lead_id = String(webhookBody.lead_id);
   }
@@ -454,13 +514,7 @@ async function handleWebhook(
   // Candidatos de e-mail: campo raiz ou campo extraído do Cal.com
   const emailCandidate = String(webhookBody.email ?? webhookBody._cal_email ?? "").trim();
   if (!lead_id && emailCandidate) {
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("id")
-      .eq("owner_id", ownerId)
-      .ilike("email", emailCandidate)
-      .maybeSingle();
-    lead_id = lead?.id ?? null;
+    lead_id = await acharLead("email", emailCandidate);
   }
 
   if (!lead_id) {
@@ -473,13 +527,8 @@ async function handleWebhook(
       const parsed = parsePhoneNumber(rawPhone, "BR");
       const candidates = [...new Set([parsed.phone, rawPhone].filter(Boolean))];
       for (const cand of candidates) {
-        const { data: lead } = await supabase
-          .from("leads")
-          .select("id")
-          .eq("owner_id", ownerId)
-          .eq("whatsapp", cand)
-          .maybeSingle();
-        if (lead?.id) { lead_id = lead.id; break; }
+        lead_id = await acharLead("whatsapp", cand);
+        if (lead_id) break;
       }
     }
   }
@@ -761,6 +810,58 @@ async function handleResume(supabase: SupabaseClient): Promise<Response> {
 
 // ─── Trigger filter matching ──────────────────────────────────────────────────
 
+/**
+ * A empresa pode ter mais de uma linha de WhatsApp. Sem instância escolhida, a
+ * automação vale para todas -- que é o comportamento esperado de quem tem uma
+ * linha só e nunca abriu esse campo.
+ */
+function mesmaInstancia(cfg: Record<string, unknown>, payload: TriggerPayload): boolean {
+  const escolhida = (cfg.instance as string | undefined)?.trim();
+  if (!escolhida) return true;
+  return (payload.context.instance_id ?? "") === escolhida;
+}
+
+/**
+ * Filtro de palavra-chave dos gatilhos de mensagem.
+ *
+ * Em branco significa "qualquer mensagem", conforme o próprio texto da tela.
+ * Uma palavra por linha ou separadas por vírgula, e basta UMA casar. A
+ * comparação ignora maiúsculas e acentos, porque quem digita no WhatsApp não
+ * acentua de forma confiável e "orçamento" precisa casar com "orcamento".
+ */
+function casaPalavraChave(cfg: Record<string, unknown>, corpo: string): boolean {
+  const bruto = (cfg.keywords as string | undefined) ?? "";
+  const termos = bruto.split(/[\n,]/).map((t) => t.trim()).filter(Boolean);
+  if (!termos.length) return true;
+
+  const tipo = (cfg.keywordType as string | undefined) ?? "Contém";
+  if (tipo === "Regex") {
+    return termos.some((t) => {
+      try {
+        return new RegExp(t, "i").test(corpo);
+      } catch {
+        // Regex inválida digitada pelo usuário não pode derrubar a automação
+        // inteira nem casar por acidente: registra e trata como "não casou".
+        console.warn(`[automacao] regex inválida no gatilho de mensagem: ${t}`);
+        return false;
+      }
+    });
+  }
+
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const alvo = norm(corpo);
+  return termos.some((t) => {
+    const termo = norm(t);
+    switch (tipo) {
+      case "Igual a":     return alvo === termo;
+      case "Começa com":  return alvo.startsWith(termo);
+      case "Termina com": return alvo.endsWith(termo);
+      default:            return alvo.includes(termo);
+    }
+  });
+}
+
 async function matchesTriggerConfig(
   supabase: SupabaseClient,
   trigger: TriggerConfig,
@@ -842,6 +943,51 @@ async function matchesTriggerConfig(
       const requiredOrigin = cfg.automacao_id as string;
       if (!requiredOrigin) return true;
       return payload.context.parent_automation_id === requiredOrigin;
+    }
+
+    // Mensagens e atendimento. O evento vem dos triggers de banco
+    // trg_mensagens_automation e trg_conversas_automation.
+    case "msg_recebida":
+    case "msg_enviada": {
+      if (!mesmaInstancia(cfg, payload)) return false;
+      return casaPalavraChave(cfg, payload.context.message_body ?? "");
+    }
+
+    case "atend_iniciado":
+    case "atend_finalizado":
+      return mesmaInstancia(cfg, payload);
+
+    case "dep_alterado": {
+      if (!mesmaInstancia(cfg, payload)) return false;
+      const depEscolhido = cfg.department as string;
+      // Sem departamento escolhido, qualquer troca serve.
+      if (!depEscolhido) return true;
+      return payload.context.new_department_id === depEscolhido;
+    }
+
+    // Métricas do lead. O limite já foi avaliado em SQL por
+    // processar_gatilhos_de_metrica, mas confere de novo aqui: se alguém mudar
+    // o limite na tela entre o cálculo e a entrega, ou se a consulta do
+    // avaliador divergir da config, é melhor não disparar do que disparar
+    // errado -- estes gatilhos costumam terminar em mensagem para o cliente.
+    case "lead_qtd_ganhos": {
+      const limite = Number(cfg.quantidade ?? 0);
+      if (!limite) return false;
+      return (payload.context.metric_qtd_ganhos ?? 0) >= limite;
+    }
+
+    case "lead_valor_ganhos": {
+      const limite = Number(cfg.valor ?? 0);
+      if (!limite) return false;
+      return (payload.context.metric_valor_ganhos ?? 0) >= limite;
+    }
+
+    case "lead_sem_compra": {
+      const dias = Number(cfg.dias ?? 0);
+      const ultimo = payload.context.metric_ultimo_ganho;
+      if (!dias || !ultimo) return false;
+      const diasDesde = (Date.now() - new Date(ultimo).getTime()) / 86_400_000;
+      return diasDesde >= dias;
     }
 
     case "mcp_tool":
@@ -2159,6 +2305,35 @@ async function evaluateConditionNode(
   return { allPassed, passedCondIds };
 }
 
+/**
+ * Existe algum negócio deste contato dentro do escopo (pipeline ou etapa)?
+ *
+ * É uma pergunta de EXISTÊNCIA, e por isso não pode passar por maybeSingle():
+ * ele ERRA quando encontra mais de uma linha, que é exatamente o caso que a
+ * pergunta procura. O erro vinha sendo descartado, então "o contato tem dois
+ * negócios aqui" respondia "não tem nenhum", o inverso da verdade, e a condição
+ * da automação seguia pelo ramo errado. Em produção isso alcança 49 combinações
+ * de pipeline+telefone e 46 de pipeline+e-mail.
+ */
+async function existeNegocioNoEscopo(
+  supabase: SupabaseClient,
+  companyId: string,
+  escopo: { coluna: "pipeline_id" | "column_id"; id: string },
+  chave: { coluna: "email" | "whatsapp"; valor: string },
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("leads").select("id")
+    .eq("company_id", companyId)
+    .eq(escopo.coluna, escopo.id)
+    .eq(chave.coluna, chave.valor)
+    .limit(1);
+  if (error) {
+    console.error(`[automacao] busca de negócio por ${chave.coluna} em ${escopo.coluna} falhou:`, error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
 async function checkCondition(
   supabase: SupabaseClient,
   cond: ConditionItem,
@@ -2193,9 +2368,18 @@ async function checkCondition(
         const sku = cfg.sku as string;
         if (prodId) return lead.product_id === prodId;
         if (sku) {
-          const { data: prod } = await supabase
-            .from("products").select("id").eq("sku", sku).eq("company_id", payload.company_id).maybeSingle();
-          return !!(prod && lead.product_id === (prod as Record<string, unknown>).id);
+          // SKU repetido dentro da mesma empresa existe em produção. Com
+          // maybeSingle() isso ERRAVA, e o erro era descartado: a condição caía
+          // para falso em silêncio e o ramo da automação nunca disparava.
+          // Comparar contra todos os produtos daquele SKU também é o que a
+          // condição quer dizer.
+          const { data: prods, error } = await supabase
+            .from("products").select("id").eq("sku", sku).eq("company_id", payload.company_id);
+          if (error) {
+            console.error("[automacao] condição pos_produto: busca por SKU falhou:", error.message);
+            return false;
+          }
+          return (prods ?? []).some((p) => lead.product_id === (p as Record<string, unknown>).id);
         }
         return !!lead.product_id;
       }
@@ -2231,16 +2415,9 @@ async function checkCondition(
         const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
         const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
           ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
-        if (searchEmail) {
-          const { data } = await supabase.from("leads").select("id")
-            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("email", searchEmail).maybeSingle();
-          if (data) return true;
-        }
-        if (searchPhone) {
-          const { data } = await supabase.from("leads").select("id")
-            .eq("company_id", payload.company_id).eq("pipeline_id", pipelineId).eq("whatsapp", searchPhone).maybeSingle();
-          if (data) return true;
-        }
+        const escopoPipeline = { coluna: "pipeline_id" as const, id: pipelineId };
+        if (searchEmail && await existeNegocioNoEscopo(supabase, payload.company_id, escopoPipeline, { coluna: "email", valor: searchEmail })) return true;
+        if (searchPhone && await existeNegocioNoEscopo(supabase, payload.company_id, escopoPipeline, { coluna: "whatsapp", valor: searchPhone })) return true;
         return false;
       }
       case "neg_etapa": {
@@ -2252,16 +2429,9 @@ async function checkCondition(
         const searchEmail = (lead.email as string | null) ?? (bodyFields.email as string | null);
         const searchPhone = (lead.whatsapp as string | null) ?? (lead.phone as string | null)
           ?? (bodyFields.whatsapp as string | null) ?? (bodyFields.telefone as string | null);
-        if (searchEmail) {
-          const { data } = await supabase.from("leads").select("id")
-            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("email", searchEmail).maybeSingle();
-          if (data) return true;
-        }
-        if (searchPhone) {
-          const { data } = await supabase.from("leads").select("id")
-            .eq("company_id", payload.company_id).eq("column_id", etapaId).eq("whatsapp", searchPhone).maybeSingle();
-          if (data) return true;
-        }
+        const escopoEtapa = { coluna: "column_id" as const, id: etapaId };
+        if (searchEmail && await existeNegocioNoEscopo(supabase, payload.company_id, escopoEtapa, { coluna: "email", valor: searchEmail })) return true;
+        if (searchPhone && await existeNegocioNoEscopo(supabase, payload.company_id, escopoEtapa, { coluna: "whatsapp", valor: searchPhone })) return true;
         return false;
       }
       case "com_email": {

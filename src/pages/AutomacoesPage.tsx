@@ -182,6 +182,25 @@ const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: Cus
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
+/**
+ * Gatilhos que existem no catálogo mas NÃO têm despacho no servidor.
+ *
+ * Ficam fora do seletor porque a falha deles é silenciosa: o cliente monta o
+ * fluxo, ativa, e nada acontece nunca. Sem erro na tela, sem log, sem pista.
+ * Some com a opção é melhor que entregar um botão que mente.
+ *
+ * Hoje são só Instagram e Facebook: a API de comentários do Instagram foi
+ * RECUSADA pela Meta, e a do Messenger ainda nem foi solicitada. Não é questão
+ * de tempo de desenvolvimento, é permissão que não temos.
+ *
+ * O catálogo continua completo de propósito: uma automação já criada com um
+ * destes precisa continuar mostrando o nome do gatilho dela, em vez de virar
+ * um card em branco.
+ */
+const GATILHOS_SEM_SERVIDOR = new Set([
+  "ig_comentario", "ig_live", "fb_comentario", "fb_live",
+]);
+
 const TRIGGER_CATEGORIES = [
   {
     id: "negocios", label: "Negócios", icon: Briefcase,
@@ -267,6 +286,13 @@ const TRIGGER_CATEGORIES = [
     ],
   },
 ];
+
+// Catálogo como o usuário vê: sem os gatilhos que o servidor não despacha, e
+// sem as categorias que ficaram vazias por causa disso (Instagram e Facebook
+// somem inteiras).
+const TRIGGER_CATEGORIES_VISIVEIS = TRIGGER_CATEGORIES
+  .map(cat => ({ ...cat, triggers: cat.triggers.filter(t => !GATILHOS_SEM_SERVIDOR.has(t.id)) }))
+  .filter(cat => cat.triggers.length > 0);
 
 const ACTION_TYPES = [
   { id: "mensagem",     label: "Mensagem",             icon: MessageCircle, color: "#0EA5E9" },
@@ -996,7 +1022,7 @@ export default function AutomacoesPage() {
   const [zoom, setZoom]                 = useState(1);
   const [pan, setPan]                   = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES[0].id);
+  const [selectedTriggerCat, setSelectedTriggerCat] = useState(TRIGGER_CATEGORIES_VISIVEIS[0].id);
   const [saving, setSaving]             = useState(false);
   const [addNodeMenu, setAddNodeMenu]   = useState<{ fromNodeId: string; x: number; y: number; isError?: boolean; isTimeout?: boolean } | null>(null);
   const [portDragLine, setPortDragLine] = useState<{ x1: number; y1: number; x2: number; y2: number; isError?: boolean } | null>(null);
@@ -3164,7 +3190,7 @@ export default function AutomacoesPage() {
             {/* Category list */}
             <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar gatilho</div>
-              {TRIGGER_CATEGORIES.map(cat => {
+              {TRIGGER_CATEGORIES_VISIVEIS.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedTriggerCat === cat.id;
                 return (
@@ -3182,7 +3208,7 @@ export default function AutomacoesPage() {
             {/* Trigger list */}
             <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
               {(() => {
-                const cat = TRIGGER_CATEGORIES.find(c => c.id === selectedTriggerCat)!;
+                const cat = TRIGGER_CATEGORIES_VISIVEIS.find(c => c.id === selectedTriggerCat)!;
                 return (
                   <>
                     <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
@@ -3541,18 +3567,53 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
   customFieldGroups: CustomFieldGroup[];
 }) {
   const cfg = trigger.configData ?? {};
+  const { whatsappConnections } = useCompany();
 
+  // Departamentos da empresa, para o gatilho "Departamento alterado". Ficam aqui
+  // e não no contexto porque só estes painéis usam.
+  const [departamentos, setDepartamentos] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!companyId) return;
+    let vivo = true;
+    (async () => {
+      const { data } = await supabase
+        .from("departments").select("id, name")
+        .eq("company_id", companyId)
+        .order("position", { ascending: true });
+      if (vivo && data) setDepartamentos(data as { id: string; name: string }[]);
+    })();
+    return () => { vivo = false; };
+  }, [companyId]);
+
+  // O valor gravado é o instanceId do provedor, não o id da linha em
+  // whatsapp_connections: é ele que chega no evento (whatsapp_messages.
+  // instance_id) e é contra ele que o runner compara. Verificado que bate tanto
+  // na D-API quanto na Cloud API, onde o instanceId é o Phone Number ID.
   const InstanceRow = ({ label }: { label: string }) => (
     <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>{label}</div>
       <div style={{ display: "flex", gap: 6 }}>
         <select value={(cfg.instance as string) ?? ""} onChange={e => updateConfig("instance", e.target.value)} style={{ ...tcpSelectStyle, flex: 1 }}>
-          <option value="">Selecionar</option>
+          <option value="">Todas as conexões</option>
+          {whatsappConnections.map(c => (
+            <option key={c.id} value={c.instanceId}>
+              {c.name}{c.phone ? ` · ${c.phone}` : ""}{c.connected ? "" : " (desconectado)"}
+            </option>
+          ))}
         </select>
-        <button style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <a
+          href="/configuracoes/conexoes" target="_blank" rel="noopener noreferrer"
+          title="Gerenciar conexões em Configurações → Conexão"
+          style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#6B7280" }}
+        >
           <ArrowLeftRight size={13} color="#6B7280" />
-        </button>
+        </a>
       </div>
+      {whatsappConnections.length === 0 && (
+        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+          Nenhuma conexão cadastrada. Adicione em <strong>Configurações → Conexão</strong>.
+        </p>
+      )}
     </div>
   );
 
@@ -3814,7 +3875,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>Qual departamento será monitorado para alterações?</div>
               <select value={(cfg.department as string) ?? ""} onChange={e => updateConfig("department", e.target.value)} style={tcpSelectStyle}>
-                <option value="">Selecionar</option>
+                <option value="">Qualquer departamento</option>
+                {departamentos.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <InstanceRow label="Qual a instância que irá ouvir as mensagens e iniciar a automação?" />
@@ -5786,6 +5848,20 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
   const allItems = ESPERA_CATEGORIES.flatMap(c => c.items);
   const currentItem = espera ? allItems.find(i => i.id === espera.type) : null;
 
+  // "Espera o dia/horário" mostrava os botões Copiar e Inserir variável com
+  // cursor de clique e sem handler nenhum: clicar não fazia nada. O VarPicker já
+  // estava ligado em 9 dos 12 pontos da página; aqui tinha ficado de fora.
+  const [dataVarOpen, setDataVarOpen] = useState(false);
+  const dataRef = useRef<HTMLInputElement>(null);
+  const inserirVarData = (v: string) => {
+    const el = dataRef.current;
+    const atual = espera?.dateField ?? "";
+    if (!el) { updateEspera({ dateField: atual + v }); return; }
+    const ini = el.selectionStart ?? atual.length, fim = el.selectionEnd ?? atual.length;
+    updateEspera({ dateField: atual.substring(0, ini) + v + atual.substring(fim) });
+    setTimeout(() => { el.focus(); el.setSelectionRange(ini + v.length, ini + v.length); }, 0);
+  };
+
   const toggleDay = (day: string) => {
     const days = (espera?.days ?? []).includes(day)
       ? (espera?.days ?? []).filter(d => d !== day)
@@ -5923,12 +5999,17 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Data para seguir a automação</label>
               <div style={{ position: "relative" }}>
-                <input type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
+                <input ref={dataRef} type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
                   style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
-                  <button title="Copiar" style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
-                  <button title="Inserir campo variável" style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}><Braces size={12} /></button>
+                  <button type="button" title="Copiar"
+                    onClick={() => { navigator.clipboard.writeText(espera.dateField ?? "").catch(() => {}); toast.success("Copiado!"); }}
+                    style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
+                  <button type="button" title="Inserir campo variável"
+                    onClick={() => setDataVarOpen(o => !o)}
+                    style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}><Braces size={12} /></button>
                 </div>
+                {dataVarOpen && <VarPicker onInsert={inserirVarData} onClose={() => setDataVarOpen(false)} />}
               </div>
               <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
             </div>

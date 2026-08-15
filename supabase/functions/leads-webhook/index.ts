@@ -142,11 +142,18 @@ async function resolveCustomFieldValues(
 
   if (labelsToCreate.length > 0) {
     // Busca ou cria o grupo "Dados do Lead"
+    // limit(1) em vez de maybeSingle(): com dois grupos de mesmo nome, o
+    // maybeSingle ERRA, o erro é descartado, e este "busca ou cria" entende que
+    // não existe e cria mais um. Ou seja, ele agrava sozinho a condição que o
+    // quebra. Dois webhooks simultâneos bastam para começar. Hoje não há
+    // "Dados do Lead" repetido, mas há outro grupo duplicado na base.
     const { data: existingGroup } = await db
       .from("custom_field_groups")
       .select("id")
       .eq("owner_id", ownerId)
       .eq("name", "Dados do Lead")
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
 
     if (existingGroup) {
