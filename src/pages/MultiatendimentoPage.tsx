@@ -5398,7 +5398,6 @@ export default function MultiatendimentoPage() {
             companyId={company.id}
             connectionId={activeConn?.id}
             createdBy={user?.id}
-            onScheduled={() => ensureConvTag("Follow-up")}
           />
         );
       })()}
