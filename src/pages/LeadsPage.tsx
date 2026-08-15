@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
 import { type Contact } from "@/lib/contacts";
+import { normalizarTelefoneBr } from "@/lib/telefone";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -163,12 +164,29 @@ export default function LeadsPage() {
     setDeleteContactTarget(null);
   };
 
-  // Dados de vendas por contato — chave primária: contactId; fallback: whatsapp digits (legado)
+  // Chave de "mesma pessoa" para agregar vendas.
+  //
+  // É personId (leads.person_id → contacts.id), que hoje cobre 2500 dos 2502
+  // leads. O fallback é o núcleo do telefone, o mesmo do resto do sistema.
+  //
+  // Antes a chave era `contactId`, que é OUTRA coisa: leads.contact_id é
+  // auto-referência para leads.id, do "Novo negócio" legado, e existe em UMA
+  // linha do banco inteiro. Na prática todo mundo caía no fallback, que usava
+  // dígitos CRUS -- então "5548999998888" e "48999998888" viravam duas pessoas
+  // e o ticket médio de quem tivesse dois negócios ganhos partia em dois.
+  // Ninguém tem dois ganhos hoje, então isso nunca apareceu na tela; é uma
+  // bomba com o pino puxado esperando o primeiro cliente recorrente.
+  //
+  // Produtor e consumidor usam ESTA função. Antes usavam expressões diferentes
+  // (aqui `contactId`, na tabela `lead.id`), o que só funcionava por acidente.
+  const chaveDaPessoa = (l: { personId?: string; whatsapp?: string }): string | null =>
+    l.personId ?? (l.whatsapp ? normalizarTelefoneBr(l.whatsapp) || null : null);
+
   const ticketByContact = useMemo(() => {
     const map: Record<string, number[]> = {};
     Object.values(leads).forEach(l => {
       if (l.dealStatus === "won" && l.value > 0) {
-        const key = l.contactId ?? (l.whatsapp ? l.whatsapp.replace(/\D/g, "") : null);
+        const key = chaveDaPessoa(l);
         if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
       }
     });
@@ -462,7 +480,7 @@ export default function LeadsPage() {
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
                         <span className="truncate block">{row.lead.name}</span>
                         {(() => {
-                          const key = row.lead.id in ticketByContact ? row.lead.id : (row.lead.whatsapp?.replace(/\D/g, "") ?? null);
+                          const key = chaveDaPessoa(row.lead);
                           const avg = (key ? ticketByContact[key]?.avg : undefined) ?? 0;
                           return (
                             <span style={{ fontSize: 9, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
@@ -532,7 +550,7 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      const key = row.lead.id in ticketByContact ? row.lead.id : (row.lead.whatsapp?.replace(/\D/g, "") ?? null);
+                      const key = chaveDaPessoa(row.lead);
                       const d = key ? ticketByContact[key] : null;
                       const total = d?.total ?? 0;
                       const count = d?.count ?? 0;

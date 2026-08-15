@@ -113,6 +113,19 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const podeApagar = whatsappConnections.find(c => c.connected && c.active)?.provider !== "cloud_api";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
+
+  /**
+   * Ids no provedor das mensagens que ESTA janela acabou de enviar.
+   *
+   * Preenchido ANTES do insert, porque o realtime costuma chegar antes da
+   * resposta do insert. Sem isso a própria mensagem voltaria pelo canal e
+   * apareceria duas vezes.
+   *
+   * É um ref e não estado de propósito: mudar não deve renderizar nada, e o
+   * handler do realtime precisa ler o valor do momento, não o da closure em
+   * que foi criado.
+   */
+  const jaEnviadasPorMim = useRef<Set<string>>(new Set());
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
@@ -192,14 +205,52 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=in.(${variantes.join(",")})` },
         (payload) => {
-          const m = payload.new as { from_me: boolean; chat_name?: string; body?: string; momment?: number; created_at?: string; sent_by_agent?: boolean };
-          if (m.from_me) return;
-          setMessages(prev => [...prev, {
-            from:   "lead",
-            author: m.chat_name ?? lead.name,
-            time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-            text:   m.body ?? "",
-          }]);
+          const m = payload.new as {
+            id?: string; message_id?: string | null; from_me: boolean;
+            chat_name?: string; sender_name?: string | null; body?: string;
+            momment?: number; created_at?: string; sent_by_agent?: boolean;
+            reply_to_message_id?: string | null; reply_to_preview?: string | null;
+          };
+
+          // Antes daqui saía `if (m.from_me) return`, para não duplicar a bolha
+          // otimista de quem estava digitando. Só que isso engolia TODA mensagem
+          // de saída, e a maioria não é minha: a resposta do agente de IA, a
+          // mensagem que o dono manda pelo celular e a de outro atendente no
+          // Multiatendimento. Nenhuma delas aparecia sem recarregar a tela.
+          //
+          // A pergunta certa não é "veio de nós?", é "eu já mostrei esta?".
+          if (jaEnviadasPorMim.current.has(m.message_id ?? "")) return;
+
+          const nova: ChatMsg = {
+            id:        m.id,
+            from:      m.from_me ? "agent" : "lead",
+            author:    m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),
+            porAgente: !!m.sent_by_agent,
+            messageId: m.message_id ?? null,
+            citacao:   m.reply_to_message_id
+              ? { messageId: m.reply_to_message_id, preview: m.reply_to_preview ?? "" }
+              : null,
+            time:      new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            text:      m.body ?? "",
+          };
+
+          setMessages(prev => {
+            // Já está na lista pelo uuid: nada a fazer.
+            if (nova.id && prev.some(p => p.id === nova.id)) return prev;
+
+            // Corrida: o realtime pode chegar antes da resposta do insert, e aí
+            // a bolha otimista ainda não tem id nenhum para comparar. Nesse caso
+            // adota a bolha pendente de mesmo texto em vez de empilhar outra.
+            if (m.from_me) {
+              const i = prev.findIndex(p => !p.id && p.from === "agent" && p.text === nova.text);
+              if (i >= 0) {
+                const copia = [...prev];
+                copia[i] = { ...copia[i], ...nova };
+                return copia;
+              }
+            }
+            return [...prev, nova];
+          });
         }
       )
       .subscribe();
@@ -288,6 +339,10 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         time: nowTime(),
         text: ehImagem ? `🖼️ ${file.name}` : `📎 ${file.name}`,
       }]);
+
+      // Mesmo motivo do envio de texto: registrar antes do insert, senão o
+      // realtime devolve o arquivo e ele aparece duas vezes para quem enviou.
+      if (idNoProvedor) jaEnviadasPorMim.current.add(idNoProvedor);
 
       let conversationId: string | null = null;
       try {
@@ -439,6 +494,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       }
 
       if (!sendOk) return;
+
+      // Registra ANTES do insert: o realtime costuma entregar o INSERT antes de
+      // a resposta do insert voltar para cá. Registrando depois, a mensagem
+      // apareceria duplicada na janela de quem enviou.
+      if (idNoProvedor) jaEnviadasPorMim.current.add(idNoProvedor);
 
       // Cria a conversa se ainda não existir, e devolve o id para a mensagem
       // nascer vinculada. Mesma função que os webhooks usam, não uma cópia.
