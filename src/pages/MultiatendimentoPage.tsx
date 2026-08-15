@@ -2936,9 +2936,10 @@ export default function MultiatendimentoPage() {
   // produto é impossível de explicar para quem opera.
   async function markAsRead(id: string) {
     updateCs(id, { read: true, answered: true });
-    // Some com o botão na hora, sem esperar a ida ao banco: o cabeçalho lê este
-    // estado, e sem isto o "Iniciar atendimento" ficaria na tela até trocar de
-    // conversa, dando a impressão de que o clique não pegou.
+    // `answered` acima já some com o botão na hora. Este estado é o que o
+    // cabeçalho usa para descrever o atendimento ("#1202 · em aberto"), e sem
+    // atualizá-lo o rótulo continuaria dizendo "aguardando alguém pegar"
+    // depois do clique, até trocar de conversa.
     if (id === activeIdRef.current) {
       setAtendimentoAtivo(prev => (prev ? { ...prev, status: "em_atendimento" } : prev));
     }
@@ -3642,13 +3643,22 @@ export default function MultiatendimentoPage() {
                 </span>
                 {/* "Iniciar atendimento" só aparece enquanto ninguém pegou a
                     conversa. Depois de iniciada, sobra "Finalizar": o par
-                    espelha o ciclo do atendimento (aguardando → em atendimento
-                    → finalizado) em vez de oferecer as duas ações sempre.
+                    espelha o ciclo do atendimento em vez de oferecer as duas
+                    ações sempre.
 
                     Antes o rótulo era "Marcar como lida", que descrevia o
                     efeito colateral e não o ato. Ele já era, na prática, o
-                    único jeito de tirar a conversa de "Não iniciadas". */}
-                {atendimentoAtivo?.status === "aguardando" && !cs.finished && (
+                    único jeito de tirar a conversa de "Não iniciadas".
+
+                    A condição lê `answered`, a MESMA fonte do chip "Não
+                    iniciadas". Ler o status do atendimento aqui criava um
+                    impasse sem saída: o gatilho do banco promove o atendimento
+                    a `em_atendimento` assim que um humano responde, mas
+                    responder não mexe em `answered` (sair de "Não iniciadas" é
+                    ato explícito, por decisão de produto). Quem respondia sem
+                    clicar ficava listado em "Não iniciadas" com o botão que o
+                    tiraria dali escondido -- 4 conversas reais nesse estado. */}
+                {!cs.answered && !cs.finished && (
                   <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" onClick={() => markAsRead(activeId)} />
                 )}
                 <ChatHeaderBtn

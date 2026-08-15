@@ -27,8 +27,11 @@ interface Atendimento {
   status: string;
   aberto_em: string;
   fechado_em: string | null;
+  primeira_entrada_em: string | null;
   primeira_resposta_em: string | null;
   primeira_resposta_humana_em: string | null;
+  responsavel: string | null;
+  reaberturas: number;
 }
 
 /** Mediana, não média: um atendimento esquecido por dias distorce a média e faz
@@ -61,7 +64,7 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
     let vivo = true;
     supabase
       .from("atendimentos")
-      .select("status, aberto_em, fechado_em, primeira_resposta_em, primeira_resposta_humana_em")
+      .select("status, aberto_em, fechado_em, primeira_entrada_em, primeira_resposta_em, primeira_resposta_humana_em, responsavel, reaberturas")
       .eq("company_id", company.id)
       .then(({ data, error }) => {
         if (!vivo) return;
@@ -89,10 +92,18 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
       finalizados:  lista.filter(a => a.status === "finalizado").length,
       comResposta:  lista.filter(a => a.primeira_resposta_em).length,
       soAgente:     lista.filter(a => a.primeira_resposta_em && !a.primeira_resposta_humana_em).length,
+      // Escalou: o robô respondeu primeiro e depois uma pessoa entrou.
+      escalaram:    lista.filter(a => a.primeira_resposta_em && a.primeira_resposta_humana_em
+                      && new Date(a.primeira_resposta_em) < new Date(a.primeira_resposta_humana_em)).length,
+      reabertos:    lista.filter(a => a.reaberturas > 0).length,
+      // A base é a mensagem DO CONTATO, não a abertura. Numa conversa que nós
+      // iniciamos, medir da abertura contaria como demora nossa o tempo que ELE
+      // levou para responder -- num teste real deu 130 min contra 10 reais.
+      // Quando o contato inicia, as duas coincidem e nada muda.
       ate1a:        mediana(lista.filter(a => a.primeira_resposta_em)
-                      .map(a => minutosEntre(a.aberto_em, a.primeira_resposta_em!))),
+                      .map(a => minutosEntre(a.primeira_entrada_em ?? a.aberto_em, a.primeira_resposta_em!))),
       ate1aHumana:  mediana(lista.filter(a => a.primeira_resposta_humana_em)
-                      .map(a => minutosEntre(a.aberto_em, a.primeira_resposta_humana_em!))),
+                      .map(a => minutosEntre(a.primeira_entrada_em ?? a.aberto_em, a.primeira_resposta_humana_em!))),
       ateFechar:    mediana(lista.filter(a => a.fechado_em)
                       .map(a => minutosEntre(a.aberto_em, a.fechado_em!))),
     });
@@ -103,6 +114,22 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
       // Retrato do instante, sem recorte de período.
       aguardandoAgora: linhas.filter(a => a.status === "aguardando").length,
       emAbertoAgora:   linhas.filter(a => a.status === "em_atendimento").length,
+      // Por atendente, só os do período e só quem tem responsável. Atendimento
+      // sem responsável não vira linha "(sem responsável)": isso encheria a
+      // tabela com o resto e esconderia a leitura que interessa, que é comparar
+      // pessoas entre si.
+      porAtendente: Object.entries(
+        noPeriodo.reduce<Record<string, { total: number; finalizados: number; tempos: number[] }>>((acc, a) => {
+          if (!a.responsavel) return acc;
+          const r = acc[a.responsavel] ??= { total: 0, finalizados: 0, tempos: [] };
+          r.total += 1;
+          if (a.status === "finalizado") r.finalizados += 1;
+          if (a.primeira_resposta_humana_em) r.tempos.push(minutosEntre(a.primeira_entrada_em ?? a.aberto_em, a.primeira_resposta_humana_em));
+          return acc;
+        }, {})
+      )
+        .map(([nome, v]) => ({ nome, total: v.total, finalizados: v.finalizados, mediana: mediana(v.tempos) }))
+        .sort((a, b) => b.total - a.total),
     };
   }, [linhas, dateRange, priorFrom, priorTo]);
 
@@ -142,15 +169,23 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
           sub="dos abertos no período"
           deltaPct={deltaPct(atual.finalizados, antes.finalizados)}
         />
+        {/* Os subtítulos dizem "resposta do time" e não "atendente", que era o
+            texto anterior. Estes dois números medem se ALGUÉM DO TIME JÁ
+            RESPONDEU -- é o que o gatilho grava em `status`. Quem "pegou" a
+            conversa é outra coisa: é o clique em "Iniciar atendimento", que o
+            chip do Multiatendimento conta. As duas leituras são legítimas e
+            diferentes (59 sem resposta contra 32 sem clique), então o texto
+            precisa nomear cada uma pelo que ela é; senão o operador vê dois
+            números para a mesma pergunta e conclui que um deles está quebrado. */}
         <KpiCard
           label="Em aberto"
           value={m.emAbertoAgora}
-          sub="agora, com atendente"
+          sub="agora, já respondidos pelo time"
         />
         <KpiCard
           label="Aguardando"
           value={m.aguardandoAgora}
-          sub="agora, ninguém pegou"
+          sub="agora, sem resposta do time"
         />
       </div>
 
@@ -189,6 +224,54 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
           // lado de um traço não quer dizer nada.
           deltaPct={atual.comResposta > 0 ? deltaPct(atual.soAgente, antes.soAgente) : undefined}
         />
+      </div>
+
+      {/* Escalonamento e reabertura --------------------------------------- */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Escalaram para humano"
+          value={atual.escalaram}
+          sub="o agente atendeu e uma pessoa entrou depois"
+          deltaPct={deltaPct(atual.escalaram, antes.escalaram)}
+        />
+        <KpiCard
+          label="Taxa de reabertura"
+          value={atual.finalizados > 0 ? `${Math.round((atual.reabertos / atual.finalizados) * 100)}%` : "—"}
+          // Reabertura alta costuma significar atendente fechando cedo demais,
+          // e é o tipo de coisa que só aparece medindo. Os históricos contam
+          // zero: antes de 15/08 reabrir não deixava rastro.
+          sub={atual.finalizados > 0
+            ? `${atual.reabertos} voltaram depois de finalizados`
+            : "nenhum finalizado no período"}
+          deltaPct={atual.finalizados > 0 ? deltaPct(atual.reabertos, antes.reabertos) : undefined}
+        />
+      </div>
+
+      {/* Por atendente ---------------------------------------------------- */}
+      <div className="bg-card border border-gray-200 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Por atendente</h3>
+        {m.porAtendente.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Nenhum atendimento com responsável no período.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {m.porAtendente.map(a => (
+              <div key={a.nome} className="flex items-center justify-between gap-4">
+                <span className="text-xs text-foreground truncate flex-1">{a.nome}</span>
+                <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                  {a.finalizados} de {a.total} finalizados
+                </span>
+                <span className="text-xs font-semibold text-foreground tabular-nums w-20 text-right">
+                  {duracao(a.mediana)}
+                </span>
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground pt-1">
+              Tempo é a mediana até a resposta humana daquele atendente.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
