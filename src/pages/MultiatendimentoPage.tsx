@@ -2502,10 +2502,10 @@ export default function MultiatendimentoPage() {
   // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
   // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
   // Único ponto por onde passam todos os envios (texto/áudio/imagem/arquivo) —
-  // por isso também é aqui que marcamos read:true (chip "Abertas" = sem mensagem
-  // pendente). Não seta answered: sair de "Não iniciadas" é só via botão
-  // "Marcar como lida" (markAsRead) -- responder sozinho não tira mais a
-  // conversa dali, por design (ver markAsRead).
+  // por isso também é aqui que marcamos read:true (chip "Em aberto" = sem
+  // mensagem pendente). Não seta answered: sair de "Não iniciadas" é só pelo
+  // botão "Iniciar atendimento" (markAsRead) -- responder sozinho não tira a
+  // conversa dali, por design.
   function bumpPreview(convId: string, label: string) {
     const now = nowTime();
     const nowIso = new Date().toISOString();
@@ -2897,11 +2897,25 @@ export default function MultiatendimentoPage() {
     }
   }
 
-  // Único gatilho que tira uma conversa de "Não iniciadas" -- por design,
-  // enviar mensagem (bumpPreview) não faz mais isso sozinho, só esse clique.
-  function markAsRead(id: string) {
+  // Iniciar atendimento. Único gatilho que tira uma conversa de "Não
+  // iniciadas" -- por design, enviar mensagem (bumpPreview) não faz isso
+  // sozinho, só este clique.
+  //
+  // Escreve nas DUAS camadas de propósito. A conversa guarda `answered`, que é
+  // o que os chips leem; o atendimento guarda o status, que é o que o dashboard
+  // vai ler. Sem esta linha os dois chegariam ao mesmo estado por caminhos
+  // diferentes e poderiam discordar -- e discordância entre duas telas do mesmo
+  // produto é impossível de explicar para quem opera.
+  async function markAsRead(id: string) {
     updateCs(id, { read: true, answered: true });
-    toast.success("Conversa marcada como lida");
+    toast.success("Atendimento iniciado");
+
+    const { error } = await supabase
+      .from("atendimentos")
+      .update({ status: "em_atendimento" })
+      .eq("conversation_id", id)
+      .eq("status", "aguardando");
+    if (error) console.error("[multiatendimento] iniciar atendimento:", error);
   }
 
   function finishConv(id: string) {
@@ -3306,10 +3320,17 @@ export default function MultiatendimentoPage() {
     );
   };
 
+  // Os rótulos falam a mesma língua do ciclo do atendimento (aguardando →
+  // em atendimento → finalizado).
+  //
+  // "Aguardando" foi renomeado porque colidia: aqui significava "em
+  // atendimento, com mensagem não lida", enquanto o status `aguardando` do
+  // atendimento significa "ninguém pegou" -- a mesma palavra com sentidos
+  // opostos nas duas pontas do mesmo produto. O que cada chip FILTRA não mudou.
   const filters = [
     { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Aguardando",    count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Abertas",       count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Mensagem nova", count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending",     icon: MessageCircle, label: "Em aberto",     count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: visibleConvList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "agente",      icon: BotMessageSquare, label: "Agente",      count: visibleConvList.filter(c => c.tags.includes("Agente")).length,                                    color: "#6D28D9", colorBg: "#EDE9FE", borderColor: "rgba(109, 40, 217, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
@@ -3567,7 +3588,17 @@ export default function MultiatendimentoPage() {
                 <span style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer" }}>
                   {effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
-                <ChatHeaderBtn icon={Eye} label="Marcar como lida" onClick={() => markAsRead(activeId)} />
+                {/* "Iniciar atendimento" só aparece enquanto ninguém pegou a
+                    conversa. Depois de iniciada, sobra "Finalizar": o par
+                    espelha o ciclo do atendimento (aguardando → em atendimento
+                    → finalizado) em vez de oferecer as duas ações sempre.
+
+                    Antes o rótulo era "Marcar como lida", que descrevia o
+                    efeito colateral e não o ato. Ele já era, na prática, o
+                    único jeito de tirar a conversa de "Não iniciadas". */}
+                {!cs.answered && !cs.finished && (
+                  <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" onClick={() => markAsRead(activeId)} />
+                )}
                 <ChatHeaderBtn
                   icon={Check}
                   label={cs.finished ? "Reabrir" : "Finalizar"}
