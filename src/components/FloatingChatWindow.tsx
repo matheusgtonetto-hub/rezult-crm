@@ -176,11 +176,15 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       // flutuante abria vazio sempre que os dois formatos não coincidiam, que é
       // o caso comum. Mesmo defeito já corrigido em LeadDrawer e LeadDetailPage.
       .in("phone", variantesDeTelefone(lead.whatsapp))
-      .order("created_at", { ascending: true })
-      .limit(100)
+      // Descendente + inverter, pelo mesmo motivo do Multiatendimento: com
+      // `ascending: true` o limite trazia as 100 mensagens mais ANTIGAS, e a
+      // conversa congelava no centésimo recado. O corte tem que cair no começo
+      // do histórico, não no fim.
+      .order("created_at", { ascending: false })
+      .limit(2000)
       .then(({ data }) => {
         if (!data?.length) return;
-        setMessages(data.map(m => ({
+        setMessages([...data].reverse().map(m => ({
           id:     m.id as string,
           from:   m.from_me ? "agent" : "lead",
           author: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),

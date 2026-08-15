@@ -1493,9 +1493,11 @@ export default function MultiatendimentoPage() {
       let q = supabase.from("meta_messages").select("*").eq("owner_id", tenantId);
       if (active.instanceId) q = q.eq("connection_id", active.instanceId);
       if (active.phone) q = q.or(`sender_id.eq.${active.phone},recipient_id.eq.${active.phone}`);
-      q.order("sent_at", { ascending: true }).limit(100).then(({ data }) => {
+      // Descendente + inverter, mesmo motivo do histórico de WhatsApp logo
+      // abaixo: ascendente com limite congela a conversa no centésimo recado.
+      q.order("sent_at", { ascending: false }).limit(2000).then(({ data }) => {
         if (!data?.length) return;
-        const msgs: Msg[] = data.map(m => {
+        const msgs: Msg[] = [...data].reverse().map(m => {
           const d = new Date(m.sent_at);
           const isToday     = d.toDateString() === new Date().toDateString();
           const isYesterday = d.toDateString() === new Date(Date.now() - 86400000).toDateString();
@@ -1530,15 +1532,32 @@ export default function MultiatendimentoPage() {
     //
     // A equivalência entre as duas formas foi conferida linha a linha antes da
     // troca: 209 de 209 conversas devolvem exatamente o mesmo conjunto.
+    // Ordem DESCENDENTE com o limite, e inverte depois.
+    //
+    // Com `ascending: true` + limit(100), o que vinha eram as 100 mensagens mais
+    // ANTIGAS: passando de 100, a conversa congelava para sempre no centésimo
+    // recado e nenhuma mensagem nova aparecia mais, nem ao recarregar. Cinco
+    // conversas reais já estavam nesse estado quando isso foi descoberto, a
+    // maior com 119 mensagens.
+    //
+    // O teto é 2000 e não 100 porque o limite antigo protegia contra nada: a
+    // MAIOR conversa da base tem 119 mensagens e pesa 31 KB (265 bytes por
+    // linha, medido). 2000 é 17x isso, ~530 KB, e a lista não é virtualizada,
+    // então esse é o ponto em que o render começaria a pesar de verdade.
+    //
+    // Ele existe só como rede contra dado patológico (um laço de automação
+    // gerando dezenas de milhares de mensagens), não como economia. Se um dia
+    // for atingido, o corte cai no COMEÇO do histórico, que é o lado certo.
+    // Passar disso pede paginação com "carregar mais", não um limite maior.
     supabase
       .from("whatsapp_messages")
       .select("*")
       .eq("conversation_id", activeId)
-      .order("created_at", { ascending: true })
-      .limit(100)
+      .order("created_at", { ascending: false })
+      .limit(2000)
       .then(({ data }) => {
         if (!data?.length) return;
-        const msgs: Msg[] = data.map(m => {
+        const msgs: Msg[] = [...data].reverse().map(m => {
           const d = new Date(m.momment ?? m.created_at);
           const isToday     = d.toDateString() === new Date().toDateString();
           const isYesterday = d.toDateString() === new Date(Date.now() - 86400000).toDateString();
