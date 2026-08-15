@@ -104,6 +104,24 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [avatarDoLead, setAvatarDoLead] = useState<string | undefined>();
+  /**
+   * O telefone como o WhatsApp o conhece, que NÃO é o do cadastro.
+   *
+   * `lead.whatsapp` é o que alguém digitou no CRM e costuma vir sem o código do
+   * país: neste lead está "55996635570", enquanto o canal usa "555596635570".
+   * Não dá para consertar isso somando "55" na frente, porque 55 também é o DDD
+   * de Santa Maria -- e é justamente o caso deste número, onde o "55" do começo
+   * é o DDD e não o país. `variantesDeTelefone` existe por isso: ela lista as
+   * formas plausíveis, sem escolher uma.
+   *
+   * Para ENVIAR mensagem a diferença passa batida (o provedor resolve o
+   * número), mas o endpoint de presence não resolve: aceita, responde 200 e o
+   * "digitando..." não aparece em lugar nenhum.
+   *
+   * Então a fonte aqui é a conversa, cujo telefone veio do JID que o WhatsApp
+   * mandou -- fato observado no canal, não palpite sobre formato.
+   */
+  const [telefoneDoCanal, setTelefoneDoCanal] = useState<string | null>(null);
   const [citando, setCitando] = useState<ChatMsg | null>(null);
   const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
   const [menuDaMsg, setMenuDaMsg] = useState<string | null>(null);
@@ -176,6 +194,21 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     if (!cleanPhone) return;
 
     setMessages([]);
+    setTelefoneDoCanal(null);
+
+    // Telefone do canal, para o indicador "digitando...". Mais recente primeiro
+    // porque um contato pode ter conversa em mais de uma instância, e a última
+    // movimentada é a que está em uso.
+    supabase
+      .from("whatsapp_conversations")
+      .select("phone")
+      .in("phone", variantesDeTelefone(lead.whatsapp))
+      .order("last_msg_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        if (error) { console.warn("telefone do canal:", error.message); return; }
+        setTelefoneDoCanal((data?.[0]?.phone as string | undefined) ?? null);
+      });
 
     supabase
       .from("whatsapp_messages")
@@ -442,9 +475,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // livre. Best-effort de ponta a ponta: falhar aqui não pode atrapalhar o
   // envio nem virar aviso na tela, já que a função é só humanizar a conversa.
   //
-  // Recebe o telefone em vez de ler `lead` do closure porque quem chama na
-  // limpeza precisa encerrar o indicador do lead ANTERIOR, não do atual.
-  function enviarPresence(telefone: string | undefined, state: "typing" | "paused") {
+  // Recebe o telefone em vez de ler do closure porque quem chama na limpeza
+  // precisa encerrar o indicador do lead ANTERIOR, não do atual. E o telefone
+  // que entra aqui é sempre o do CANAL (ver `telefoneDoCanal`): mandar o do
+  // cadastro devolve 200 e não acende nada.
+  function enviarPresence(telefone: string | null | undefined, state: "typing" | "paused") {
     const inst = whatsappConnections.find(c => c.connected && c.active);
     if (inst?.provider !== "dapi" || !inst.token || !telefone) return;
     fetch("https://api.d-api.cloud/api/v1/chats/presence", {
@@ -461,11 +496,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     const agora = Date.now();
     if (agora - t.lastTypingAt > 3000) {
       t.lastTypingAt = agora;
-      enviarPresence(lead?.whatsapp, "typing");
+      enviarPresence(telefoneDoCanal, "typing");
     }
     if (t.pauseTimer) clearTimeout(t.pauseTimer);
     t.pauseTimer = setTimeout(() => {
-      enviarPresence(lead?.whatsapp, "paused");
+      enviarPresence(telefoneDoCanal, "paused");
       t.lastTypingAt = 0;
     }, 4000);
   }
@@ -476,17 +511,16 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // Multiatendimento: lá a tela permanece montada, aqui a janela some a
   // qualquer momento. A dependência no telefone faz a limpeza rodar também na
   // troca de lead, encerrando o indicador de quem estava aberto antes.
-  const telefoneDoLead = lead?.whatsapp;
   useEffect(() => {
     return () => {
       const t = typingRef.current;
       if (t.pauseTimer) { clearTimeout(t.pauseTimer); t.pauseTimer = null; }
       if (!t.lastTypingAt) return; // não estava digitando: nada a desfazer
       t.lastTypingAt = 0;
-      enviarPresence(telefoneDoLead, "paused");
+      enviarPresence(telefoneDoCanal, "paused");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [telefoneDoLead]);
+  }, [telefoneDoCanal]);
 
   const handleSend = async () => {
     if (!draft.trim()) return;
@@ -497,7 +531,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     if (typingRef.current.pauseTimer) { clearTimeout(typingRef.current.pauseTimer); typingRef.current.pauseTimer = null; }
     if (typingRef.current.lastTypingAt) {
       typingRef.current.lastTypingAt = 0;
-      enviarPresence(lead?.whatsapp, "paused");
+      enviarPresence(telefoneDoCanal, "paused");
     }
     // Adiciona à UI imediatamente (otimista)
     const newMsg: ChatMsg = {
