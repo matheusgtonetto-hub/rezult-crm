@@ -20,6 +20,7 @@ import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel"
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
 import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
+import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
 import { fmt, parseEntryDate, tooltip, deltaPct, usePriorPeriod } from "@/components/dashboard/useDashboardHelpers";
 
 const ACTIVITY_LABELS: Record<string, string> = {
@@ -486,9 +487,10 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <TabsList className="bg-card border border-gray-200 rounded-lg">
             <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
-            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Times</TabsTrigger>
+            <TabsTrigger value="multiatendimento" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Multiatendimento</TabsTrigger>
             <TabsTrigger value="atividades" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Atividades</TabsTrigger>
             <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funil</TabsTrigger>
+            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Times</TabsTrigger>
           </TabsList>
           <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
         </div>
@@ -678,6 +680,11 @@ export default function DashboardPage() {
           </div>
 
           <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />
+        </TabsContent>
+
+        {/* ──────────── MULTIATENDIMENTO ──────────── */}
+        <TabsContent value="multiatendimento" className="space-y-4 mt-0">
+          <MultiatendimentoPanel dateRange={dateRange} />
         </TabsContent>
 
         {/* ──────────── TIMES ──────────── */}

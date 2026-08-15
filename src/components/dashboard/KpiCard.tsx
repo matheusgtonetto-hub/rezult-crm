@@ -21,17 +21,24 @@ export function KpiCard({ label, value, sub, deltaPct }: KpiCardProps) {
           </span>
         )}
       </div>
-      {deltaPct !== undefined && (
+      {/* O `sub` aparece mesmo sem `deltaPct`. Antes ele estava dentro da
+          condição da variação, então um cartão sem comparação perdia o
+          subtítulo em silêncio -- e é justamente nesses (métricas de retrato,
+          que não se comparam com período anterior) que o subtítulo explica ao
+          leitor o que ele está vendo. */}
+      {(sub || deltaPct !== undefined) && (
         <div className="flex items-center justify-between mt-2">
           {sub
             ? <p className="text-[12px] text-muted-foreground">{sub}</p>
             : <span />
           }
-          {deltaPct === null
-            ? <Minus size={20} className="text-muted-foreground" />
-            : deltaPct >= 0
-              ? <TrendingUp size={20} className="text-success" />
-              : <TrendingDown size={20} className="text-destructive" />
+          {deltaPct === undefined
+            ? null
+            : deltaPct === null
+              ? <Minus size={20} className="text-muted-foreground" />
+              : deltaPct >= 0
+                ? <TrendingUp size={20} className="text-success" />
+                : <TrendingDown size={20} className="text-destructive" />
           }
         </div>
       )}
