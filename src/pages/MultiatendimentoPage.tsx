@@ -15,7 +15,7 @@ import { corDoNome } from "@/lib/nomeColorido";
 import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
 import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
-  Search, Settings, Clock, Folder, Zap, CheckCircle2, AlertTriangle,
+  Search, Settings, Clock, Folder, Zap, CheckCircle2,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban, Forward,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
@@ -589,8 +589,16 @@ export default function MultiatendimentoPage() {
   const [activeId, setActiveId] = useState<string>(() => {
     try { return localStorage.getItem(activeIdKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
   });
+  // Filtros que existem hoje. Serve para descartar valor salvo de chip removido:
+  // quem estava com o antigo "Follow-up" selecionado tem "alert" no
+  // localStorage, e sem esta guarda abriria numa aba que não existe mais, com
+  // título "Todas as conversas" e contagem que não bate com nenhum chip aceso.
+  const FILTROS_VALIDOS = ["", "not_started", "waiting", "pending", "agente", "done"];
   const [activeFilter, setActiveFilter] = useState<string>(() => {
-    try { return localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
+    try {
+      const salvo = localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? "";
+      return FILTROS_VALIDOS.includes(salvo) ? salvo : "";
+    } catch { return ""; }
   });
   const [searchQuery, setSearchQuery] = useState("");
   // Rascunho por conversa — cada conversa é uma janela própria (igual WhatsApp
@@ -607,6 +615,9 @@ export default function MultiatendimentoPage() {
     });
   };
   const [convStates, setConvStates] = useState<Record<string, ConvState>>({});
+
+  /** Atendimento aberto da conversa selecionada, para o número no cabeçalho. */
+  const [atendimentoAtivo, setAtendimentoAtivo] = useState<{ numero: number; status: string } | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   // ── anotação rich-text (mesmo editor contentEditable + toolbar de
   // LeadDetailPage.tsx, sem o @mention -- fora do escopo aqui).
@@ -633,7 +644,9 @@ export default function MultiatendimentoPage() {
     activeNavTenantRef.current = tenantId;
     try {
       setActiveId(localStorage.getItem(activeIdKey(user?.id, tenantId)) ?? "");
-      setActiveFilter(localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? "");
+      // Mesma guarda da leitura inicial: descarta chip que não existe mais.
+      const filtroSalvo = localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? "";
+      setActiveFilter(FILTROS_VALIDOS.includes(filtroSalvo) ? filtroSalvo : "");
     } catch { setActiveId(""); setActiveFilter(""); }
   }, [tenantId, user?.id]);
 
@@ -1549,6 +1562,21 @@ export default function MultiatendimentoPage() {
     // gerando dezenas de milhares de mensagens), não como economia. Se um dia
     // for atingido, o corte cai no COMEÇO do histórico, que é o lado certo.
     // Passar disso pede paginação com "carregar mais", não um limite maior.
+    // Atendimento da conversa aberta. É o número dele que vai no cabeçalho,
+    // não o do negócio: são coisas diferentes e o cabeçalho mostrava a errada.
+    // Um contato pode ter dez atendimentos ao longo do tempo e um só negócio,
+    // ou negócio nenhum.
+    // O mais recente, seja qual for o estado. Filtrar por "não finalizado"
+    // faria o número sumir do cabeçalho assim que o atendente finalizasse, e é
+    // justamente aí que ele quer conferir qual acabou de fechar.
+    supabase
+      .from("atendimentos")
+      .select("numero, status")
+      .eq("conversation_id", activeId)
+      .order("aberto_em", { ascending: false })
+      .limit(1)
+      .then(({ data }) => setAtendimentoAtivo(data?.[0] ?? null));
+
     supabase
       .from("whatsapp_messages")
       .select("*")
@@ -2908,6 +2936,12 @@ export default function MultiatendimentoPage() {
   // produto é impossível de explicar para quem opera.
   async function markAsRead(id: string) {
     updateCs(id, { read: true, answered: true });
+    // Some com o botão na hora, sem esperar a ida ao banco: o cabeçalho lê este
+    // estado, e sem isto o "Iniciar atendimento" ficaria na tela até trocar de
+    // conversa, dando a impressão de que o clique não pegou.
+    if (id === activeIdRef.current) {
+      setAtendimentoAtivo(prev => (prev ? { ...prev, status: "em_atendimento" } : prev));
+    }
     toast.success("Atendimento iniciado");
 
     const { error } = await supabase
@@ -3154,7 +3188,6 @@ export default function MultiatendimentoPage() {
       case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
       case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
-      case "alert":        list = list.filter(c => c.tags.includes("Follow-up")); break;
       case "agente":       list = list.filter(c => c.tags.includes("Agente")); break;
     }
 
@@ -3331,7 +3364,6 @@ export default function MultiatendimentoPage() {
     { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
     { id: "waiting",     icon: Clock,         label: "Mensagem nova", count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
     { id: "pending",     icon: MessageCircle, label: "Em aberto",     count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "alert",       icon: AlertTriangle, label: "Follow-up",     count: visibleConvList.filter(c => c.tags.includes("Follow-up")).length,                                color: "#7C3AED", colorBg: "#F5F3FF", borderColor: "rgba(118, 49, 214, 0.52)" },
     { id: "agente",      icon: BotMessageSquare, label: "Agente",      count: visibleConvList.filter(c => c.tags.includes("Agente")).length,                                    color: "#6D28D9", colorBg: "#EDE9FE", borderColor: "rgba(109, 40, 217, 0.52)" },
     { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
@@ -3585,8 +3617,28 @@ export default function MultiatendimentoPage() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600, cursor: "pointer" }}>
-                  {effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : `#${active.id.slice(0, 4).toUpperCase()}`}
+                {/* Número do ATENDIMENTO, não o do negócio.
+                    O cabeçalho mostrava #1388, que é o negócio: são coisas
+                    diferentes. Um contato pode ter dez atendimentos ao longo do
+                    tempo e um só negócio, ou negócio nenhum. O relatório da
+                    Fase 4 fala em atendimento, então é esse número que o
+                    atendente precisa enxergar aqui.
+
+                    Só ele: o número do negócio saiu do cabeçalho. Os dois
+                    começam em 1001 por empresa, então apareciam como "#1001" e
+                    "#1001" lado a lado, e o negócio já tem onde ser visto no
+                    painel da direita. */}
+                <span
+                  title={atendimentoAtivo
+                    ? `Atendimento #${atendimentoAtivo.numero} · ${
+                        { aguardando: "aguardando alguém pegar",
+                          em_atendimento: "em aberto",
+                          finalizado: "finalizado" }[atendimentoAtivo.status] ?? atendimentoAtivo.status
+                      }`
+                    : "Atendimento ainda não aberto"}
+                  style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
+                >
+                  {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
                 {/* "Iniciar atendimento" só aparece enquanto ninguém pegou a
                     conversa. Depois de iniciada, sobra "Finalizar": o par
@@ -3596,7 +3648,7 @@ export default function MultiatendimentoPage() {
                     Antes o rótulo era "Marcar como lida", que descrevia o
                     efeito colateral e não o ato. Ele já era, na prática, o
                     único jeito de tirar a conversa de "Não iniciadas". */}
-                {!cs.answered && !cs.finished && (
+                {atendimentoAtivo?.status === "aguardando" && !cs.finished && (
                   <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" onClick={() => markAsRead(activeId)} />
                 )}
                 <ChatHeaderBtn
