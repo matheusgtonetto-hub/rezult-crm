@@ -2084,6 +2084,31 @@ Deno.serve(async (req) => {
     } else {
       return json({ skipped: "delayed", respond_at_in_seconds: delaySegundos }, 200);
     }
+  } else if (bypassDelay) {
+    // Quem entra por bypass (retomada de expediente, resposta agendada,
+    // lembrete de reunião, follow-up) vai responder AGORA. Se havia uma
+    // resposta agendada para este telefone, ela precisa morrer aqui, senão
+    // dispara depois e o contato recebe a mesma coisa duas vezes.
+    //
+    // Aconteceu com cliente real: o cron de retomada achou mensagens paradas
+    // do começo do expediente e respondeu na hora, enquanto uma mensagem
+    // recém-chegada seguia o caminho normal com delay. Duas respostas
+    // completas, com 60 segundos de diferença, dizendo a mesma coisa.
+    //
+    // A trava atômica que já existia (o delete-para-reivindicar acima) só
+    // protegia o caminho ATRASADO contra ele mesmo; o bypass passava ao largo
+    // dela sem tocar na linha. Apagando aqui, o caminho atrasado acorda, não
+    // acha nada para reivindicar e sai calado -- exatamente o que já acontece
+    // quando o lead manda outra mensagem durante a espera.
+    const { data: cancelada } = await db
+      .from("agent_pending_response")
+      .delete()
+      .eq("company_id", companyId)
+      .eq("phone", phone)
+      .select("id");
+    if (cancelada?.length) {
+      console.info(`[agent] bypass cancelou resposta agendada de ${phone}`);
+    }
   }
 
   const model = (agent.model as string) || "claude-sonnet-5";
