@@ -15,7 +15,10 @@
 create table if not exists public.atendimentos (
   id            uuid primary key default gen_random_uuid(),
   company_id    uuid not null references public.companies(id) on delete cascade,
-  owner_id      uuid not null,
+  -- Mesma convenção das irmãs (leads, contacts, whatsapp_conversations,
+  -- whatsapp_messages): sem a FK, um usuário apagado deixaria atendimentos
+  -- apontando para dono inexistente.
+  owner_id      uuid not null references auth.users(id) on delete cascade,
 
   -- Número próprio, por empresa, começando em 1001 -- mesma convenção de
   -- leads.deal_number. É ele que deve aparecer no cabeçalho do Multiatendimento,
@@ -173,8 +176,16 @@ primeira_saida as (
   group by 1
 ),
 numerado as (
+  -- Numera por ABERTURA, não pela criação da linha da conversa. Numerar por
+  -- created_at deixava 32 dos 220 fora de ordem cronológica (atendimento #1004
+  -- aberto antes do #1002), justamente porque aberto_em passou a ser o menor
+  -- entre a criação e a primeira mensagem. O número aparece no cabeçalho e no
+  -- relatório, então ordem que não bate com o tempo confunde quem lê.
   select w.*, p.t_qualquer, s.t_resp,
-         1000 + row_number() over (partition by w.company_id order by w.created_at, w.id) as num
+         1000 + row_number() over (
+           partition by w.company_id
+           order by least(w.created_at, coalesce(p.t_qualquer, w.created_at)), w.id
+         ) as num
   from public.whatsapp_conversations w
   left join primeira_msg   p on p.conversation_id = w.id
   left join primeira_saida s on s.conversation_id = w.id
