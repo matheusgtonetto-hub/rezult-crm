@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
@@ -22,7 +23,6 @@ import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import {
   BotMessageSquare,
-  Check,
   Minus,
   X,
   Paperclip,
@@ -92,7 +92,8 @@ const RAIL_WIDTH = 32;
 const RAIL_GAP = 8;
 
 export function FloatingChatWindow({ leadId, index }: Props) {
-  const { leads, setSelectedLeadId } = useCRM();
+  const { leads } = useCRM();
+  const navigate = useNavigate();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const { user } = useAuth();
   const { company, whatsappConnections } = useCompany();
@@ -120,15 +121,27 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    *
    * Então a fonte aqui é a conversa, cujo telefone veio do JID que o WhatsApp
    * mandou -- fato observado no canal, não palpite sobre formato.
+   *
+   * O `id` vem junto porque é o que o Multiatendimento espera para abrir esta
+   * mesma conversa (`location.state.openConvId`).
    */
-  const [telefoneDoCanal, setTelefoneDoCanal] = useState<string | null>(null);
+  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string } | null>(null);
   const [citando, setCitando] = useState<ChatMsg | null>(null);
   const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
   const [menuDaMsg, setMenuDaMsg] = useState<string | null>(null);
   const [menuParaCima, setMenuParaCima] = useState(false);
+  /**
+   * A conexão por onde esta janela envia: a MESMA escolha que o envio faz
+   * (primeira ativa e conectada), para o cabeçalho não anunciar uma linha e a
+   * mensagem sair por outra.
+   */
+  const conexaoAtiva = whatsappConnections.find(c => c.connected && c.active);
+  // Nome dado à conexão nas Configurações; sem nome, o próprio número, que é
+  // como o atendente reconhece a linha.
+  const nomeDaConexao = conexaoAtiva?.name?.trim() || conexaoAtiva?.phone || "Conexão sem nome";
   // A Meta não permite apagar mensagem já enviada pela API oficial. Não é
   // limitação nossa, então o item aparece cinza com o motivo em vez de sumir.
-  const podeApagar = whatsappConnections.find(c => c.connected && c.active)?.provider !== "cloud_api";
+  const podeApagar = conexaoAtiva?.provider !== "cloud_api";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
 
@@ -194,20 +207,22 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     if (!cleanPhone) return;
 
     setMessages([]);
-    setTelefoneDoCanal(null);
+    setConversaDoCanal(null);
 
-    // Telefone do canal, para o indicador "digitando...". Mais recente primeiro
-    // porque um contato pode ter conversa em mais de uma instância, e a última
-    // movimentada é a que está em uso.
+    // Conversa do canal: telefone para o indicador "digitando...", id para o
+    // atalho do Multiatendimento. Mais recente primeiro porque um contato pode
+    // ter conversa em mais de uma instância, e a última movimentada é a que
+    // está em uso.
     supabase
       .from("whatsapp_conversations")
-      .select("phone")
+      .select("id, phone")
       .in("phone", variantesDeTelefone(lead.whatsapp))
       .order("last_msg_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .then(({ data, error }) => {
-        if (error) { console.warn("telefone do canal:", error.message); return; }
-        setTelefoneDoCanal((data?.[0]?.phone as string | undefined) ?? null);
+        if (error) { console.warn("conversa do canal:", error.message); return; }
+        const c = data?.[0] as { id: string; phone: string } | undefined;
+        setConversaDoCanal(c ? { id: c.id, phone: c.phone } : null);
       });
 
     supabase
@@ -338,6 +353,30 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
+
+  // Fechar a janela (ou trocar de lead) no meio da digitação deixaria o
+  // "digitando..." aceso no celular do cliente, porque quem o apagaria é um
+  // timer desta janela. Este encerramento é mais necessário aqui do que no
+  // Multiatendimento: lá a tela permanece montada, aqui a janela some a
+  // qualquer momento. A dependência no telefone faz a limpeza rodar também na
+  // troca de lead, encerrando o indicador de quem estava aberto antes.
+  //
+  // Fica ACIMA do `if (!lead)` abaixo: hook depois de saída antecipada muda a
+  // ordem dos hooks entre renderizações e quebra o componente justamente
+  // quando o lead some -- que é um dos momentos em que este cleanup precisa
+  // rodar. O `typingRef` é copiado aqui dentro porque o objeto é estável (só
+  // os campos dele mudam), então a cópia é a mesma referência que o cleanup
+  // usaria depois.
+  const typingAtual = typingRef.current;
+  useEffect(() => {
+    return () => {
+      if (typingAtual.pauseTimer) { clearTimeout(typingAtual.pauseTimer); typingAtual.pauseTimer = null; }
+      if (!typingAtual.lastTypingAt) return; // não estava digitando: nada a desfazer
+      typingAtual.lastTypingAt = 0;
+      enviarPresence(conversaDoCanal?.phone, "paused");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversaDoCanal?.phone]);
 
   if (!lead) return null;
 
@@ -477,7 +516,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   //
   // Recebe o telefone em vez de ler do closure porque quem chama na limpeza
   // precisa encerrar o indicador do lead ANTERIOR, não do atual. E o telefone
-  // que entra aqui é sempre o do CANAL (ver `telefoneDoCanal`): mandar o do
+  // que entra aqui é sempre o do CANAL (ver `conversaDoCanal`): mandar o do
   // cadastro devolve 200 e não acende nada.
   function enviarPresence(telefone: string | null | undefined, state: "typing" | "paused") {
     const inst = whatsappConnections.find(c => c.connected && c.active);
@@ -496,31 +535,14 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     const agora = Date.now();
     if (agora - t.lastTypingAt > 3000) {
       t.lastTypingAt = agora;
-      enviarPresence(telefoneDoCanal, "typing");
+      enviarPresence(conversaDoCanal?.phone, "typing");
     }
     if (t.pauseTimer) clearTimeout(t.pauseTimer);
     t.pauseTimer = setTimeout(() => {
-      enviarPresence(telefoneDoCanal, "paused");
+      enviarPresence(conversaDoCanal?.phone, "paused");
       t.lastTypingAt = 0;
     }, 4000);
   }
-
-  // Fechar a janela (ou trocar de lead) no meio da digitação deixaria o
-  // "digitando..." aceso no celular do cliente, porque quem o apagaria é um
-  // timer desta janela. Este encerramento é mais necessário aqui do que no
-  // Multiatendimento: lá a tela permanece montada, aqui a janela some a
-  // qualquer momento. A dependência no telefone faz a limpeza rodar também na
-  // troca de lead, encerrando o indicador de quem estava aberto antes.
-  useEffect(() => {
-    return () => {
-      const t = typingRef.current;
-      if (t.pauseTimer) { clearTimeout(t.pauseTimer); t.pauseTimer = null; }
-      if (!t.lastTypingAt) return; // não estava digitando: nada a desfazer
-      t.lastTypingAt = 0;
-      enviarPresence(telefoneDoCanal, "paused");
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [telefoneDoCanal]);
 
   const handleSend = async () => {
     if (!draft.trim()) return;
@@ -531,7 +553,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     if (typingRef.current.pauseTimer) { clearTimeout(typingRef.current.pauseTimer); typingRef.current.pauseTimer = null; }
     if (typingRef.current.lastTypingAt) {
       typingRef.current.lastTypingAt = 0;
-      enviarPresence(telefoneDoCanal, "paused");
+      enviarPresence(conversaDoCanal?.phone, "paused");
     }
     // Adiciona à UI imediatamente (otimista)
     const newMsg: ChatMsg = {
@@ -742,33 +764,41 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             >
               {lead.name}
             </div>
+            {/* Qual número está falando com o contato. Com mais de uma linha
+                conectada, quem escreve daqui não tinha como saber por qual
+                delas a mensagem sairia -- e a escolha é feita em código (a 1ª
+                conexão ativa), não pelo atendente. */}
             <div
               className="flex items-center gap-2 truncate"
               style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
             >
-              <span>WhatsApp</span>
+              {/* "via" na frente porque, sozinho, o número da linha seria lido
+                  como o número do CONTATO -- que é o outro número da tela. */}
+              <span className="truncate" title={conexaoAtiva ? `Enviando pela linha ${nomeDaConexao}` : "Nenhuma conexão de WhatsApp ativa"}>
+                {conexaoAtiva ? `via ${nomeDaConexao}` : "Sem conexão"}
+              </span>
+              {/* Abre esta mesma conversa no Multiatendimento, onde estão o
+                  histórico completo e as ações do atendimento. Antes o rótulo
+                  era "Ver no pipeline →" e o clique abria o drawer do lead:
+                  nem ia para o pipeline, nem para a conversa. */}
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  setSelectedLeadId(leadId);
+                  navigate("/multiatendimento", conversaDoCanal ? { state: { openConvId: conversaDoCanal.id } } : undefined);
                 }}
-                className="hover:underline"
+                className="hover:underline shrink-0"
                 style={{ color: "#128A68", fontWeight: 500 }}
+                title={conversaDoCanal ? "Abrir esta conversa no Multiatendimento" : "Abrir o Multiatendimento"}
               >
-                Ver no pipeline →
+                Multiatendimento →
               </button>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-[11px] rounded-md"
-              onClick={e => e.stopPropagation()}
-            >
-              <Check size={12} className="mr-1" />
-              Lida
-            </Button>
+            {/* O botão "Lida" saiu daqui. Ele tinha onClick={e => e.stopPropagation()}
+                e mais nada: não marcava coisa nenhuma, em nenhuma das duas
+                camadas. Um controle que não faz o que promete é pior que a
+                ausência dele, porque quem clica acredita ter marcado. */}
             <button
               onClick={() => minimizeChat(leadId)}
               className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary"
