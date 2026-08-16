@@ -712,19 +712,18 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               {getInitials(l.name)}
             </button>
           ))}
-          {/* Active indicator */}
+          {/* Active indicator -- também com a foto, para a bolinha da barra
+              casar com o rosto do cabeçalho da janela que ela representa. */}
           <div
-            className="rounded-full flex items-center justify-center text-[11px] font-semibold text-white"
+            className="rounded-full overflow-hidden"
             style={{
               width: 32,
               height: 32,
-              background: "#128A68",
               border: "2px solid #128A68",
-              boxShadow: "0 0 0 2px #FFFFFF inset",
             }}
             title={lead.name}
           >
-            {getInitials(lead.name)}
+            <ConvAvatar name={lead.name} avatarUrl={avatarDoLead} size={28} fontSize={11} />
           </div>
         </div>
       )}
@@ -750,12 +749,22 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             borderColor: "#E5E5E5",
           }}
         >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
-            style={{ background: "#128A68" }}
-          >
-            {getInitials(lead.name)}
-          </div>
+          {/* A foto do contato, não só as iniciais. A busca por ela já existia
+              (avatarDoLead) e só alimentava as bolhas das mensagens, então o
+              cabeçalho desenhava iniciais mesmo com a foto carregada na mesma
+              tela -- e o Multiatendimento, ao lado, mostrava o rosto.
+
+              ConvAvatar cuida das duas coisas que um <img> aqui não cuidaria:
+              cai para as iniciais quando não há foto e, quando a URL do
+              WhatsApp expira (elas expiram, param oe=), avisa para buscar
+              outra em vez de deixar um quadrado quebrado. */}
+          <ConvAvatar
+            name={lead.name}
+            avatarUrl={avatarDoLead}
+            size={32}
+            fontSize={11}
+            style={{ marginRight: 0 }}
+          />
           <div className="min-w-0 flex-1">
             <div
               className="truncate"
