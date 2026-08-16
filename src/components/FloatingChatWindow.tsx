@@ -88,6 +88,8 @@ interface Props {
 
 const WIDTH = 360;
 const HEIGHT = 520;
+/** Até onde o campo de mensagem cresce antes de passar a rolar. */
+const ALTURA_MAX_MENSAGEM = 110;
 const RAIL_WIDTH = 32;
 const RAIL_GAP = 8;
 
@@ -167,6 +169,15 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * Ref e não estado: nada disso deve provocar renderização.
    */
   const typingRef = useRef<{ lastTypingAt: number; pauseTimer: ReturnType<typeof setTimeout> | null }>({ lastTypingAt: 0, pauseTimer: null });
+  // Cresce a caixa conforme o texto. Zera a altura antes de medir, senão o
+  // scrollHeight nunca diminui e a caixa fica grande depois de apagar texto.
+  const campoMensagemRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = campoMensagemRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, ALTURA_MAX_MENSAGEM) + "px";
+  }, [draft]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
@@ -1008,11 +1019,17 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer
+            `minHeight` no lugar de `height`: com altura fixa, o campo que
+            cresce vazava para fora da janela em vez de empurrar a barra -- a
+            última linha do que estava sendo escrito ficava atrás da borda.
+
+            `items-end` alinha anexo, emoji e enviar pela base, para os botões
+            acompanharem a última linha em vez de flutuarem no meio do campo. */}
         <div
-          className="flex items-center gap-2 border-t shrink-0 relative"
+          className="flex items-end gap-2 border-t shrink-0 relative"
           style={{
-            height: 52,
+            minHeight: 52,
             padding: "8px 12px",
             background: "#FFFFFF",
             borderColor: "#E5E5E5",
@@ -1053,16 +1070,30 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               </div>
             </div>
           )}
-          <input
-            type="text"
+          {/* Textarea que cresce, não input de uma linha. Com <input> o texto
+              rolava para fora pela esquerda: quem escrevia um parágrafo perdia
+              de vista o começo do que tinha escrito, sem jeito de reler antes
+              de enviar. Mesmo defeito e mesma correção do Multiatendimento.
+
+              Shift+Enter quebra linha, Enter envia -- o padrão de quem escreve
+              em chat, e o que a outra tela já faz. */}
+          <textarea
+            ref={campoMensagemRef}
+            rows={1}
             value={draft}
             onChange={e => { setDraft(e.target.value); handleTypingActivity(); }}
             onKeyDown={e => {
-              if (e.key === "Enter") handleSend();
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
             }}
             placeholder="Mensagem..."
             className="flex-1 bg-transparent outline-none border-none min-w-0"
-            style={{ fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111" }}
+            style={{
+              fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111",
+              lineHeight: "18px", padding: 0, resize: "none", overflowY: "auto",
+              // Teto menor que o do Multiatendimento (200px): a janela toda tem
+              // 520px de altura, então 200 comeriam quase metade da conversa.
+              maxHeight: ALTURA_MAX_MENSAGEM,
+            }}
           />
           <button
             onClick={handleSend}
