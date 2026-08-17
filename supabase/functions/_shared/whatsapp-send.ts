@@ -137,6 +137,47 @@ async function sendZapi(creds: ZapiCreds, endpoint: string, body: Record<string,
   return await idDaResposta(resp, "z-api");
 }
 
+/** Botões viram texto numerado. Último recurso, quando o provedor não os
+ *  suporta ou a tentativa interativa falhou: é melhor a mensagem chegar sem
+ *  botões do que não chegar. */
+function botoesComoTexto(message: string, buttons: string[]): string {
+  return [message, ...buttons.map((b, i) => `${i + 1}. ${b}`)].filter(Boolean).join("\n");
+}
+
+/**
+ * Botões de resposta rápida na D-API, via NativeFlow.
+ *
+ * Antes os botões da automação chegavam ao cliente como "1. Opção / 2. Opção"
+ * dentro do texto: o cliente tinha que digitar a resposta, e a automação
+ * dependia dele acertar a palavra. A configuração no construtor sempre esteve
+ * certa; o que faltava era o envio.
+ *
+ * Endpoint e formato conferidos na documentação da D-API (mensagens
+ * interativas → NativeFlow): POST /api/v1/interactive/send/nativeflow, com
+ * `buttons[] = { type: "quick_reply", title, id }`, de 1 a 4 botões.
+ *
+ * Devolve null quando não deu para enviar assim -- quem chama cai no texto.
+ */
+async function sendDapiBotoes(creds: ZapiCreds, msg: { phone: string; message: string; buttons: string[] }): Promise<string | null> {
+  if (msg.buttons.length === 0 || msg.buttons.length > 4) return null; // limite do NativeFlow
+  const resp = await fetch("https://api.d-api.cloud/api/v1/interactive/send/nativeflow", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": creds.token },
+    body: JSON.stringify({
+      sessionId: creds.instanceId,
+      to: msg.phone,
+      body: msg.message,
+      buttons: msg.buttons.map((title, i) => ({ type: "quick_reply", title, id: `btn_${i + 1}` })),
+    }),
+  });
+  if (!resp.ok) {
+    const detalhe = await resp.text().catch(() => "");
+    console.warn(`[whatsapp-send] nativeflow HTTP ${resp.status}: ${detalhe.slice(0, 200)} -- caindo para texto`);
+    return null;
+  }
+  return await idDaResposta(resp, "d-api");
+}
+
 async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
   const sessionId = creds.instanceId;
   const to = msg.phone;
@@ -145,10 +186,18 @@ async function sendDapi(creds: ZapiCreds, msg: WaMsg): Promise<string | null> {
   switch (msg.kind) {
     case "text":
       path = "text"; body = { sessionId, to, text: msg.message }; break;
-    case "buttons":
+    case "buttons": {
+      // Tenta botão de verdade; só cai para o texto numerado se não der.
+      // Citação e botões não convivem no NativeFlow, então mensagem que cita
+      // outra segue pelo caminho de texto.
+      if (!msg.citar) {
+        const id = await sendDapiBotoes(creds, { phone: to, message: msg.message, buttons: msg.buttons });
+        if (id !== null) return id;
+      }
       path = "text";
-      body = { sessionId, to, text: [msg.message, ...msg.buttons.map((b, i) => `${i + 1}. ${b}`)].filter(Boolean).join("\n") };
+      body = { sessionId, to, text: botoesComoTexto(msg.message, msg.buttons) };
       break;
+    }
     case "audio":
       path = "audio"; body = { sessionId, to, audio: msg.url }; break;
     case "image":
@@ -189,12 +238,37 @@ async function sendCloudApi(creds: ZapiCreds, msg: WaMsg): Promise<string | null
     case "text":
       body = { messaging_product: "whatsapp", to, type: "text", text: { body: msg.message, preview_url: false } };
       break;
-    case "buttons":
-      body = {
-        messaging_product: "whatsapp", to, type: "text",
-        text: { body: [msg.message, ...msg.buttons.map((b, i) => `${i + 1}. ${b}`)].join("\n"), preview_url: false },
-      };
+    case "buttons": {
+      // A Meta aceita botão de resposta rápida, com dois limites RÍGIDOS: no
+      // máximo 3 botões e no máximo 20 caracteres no rótulo. Passar de
+      // qualquer um dos dois faz a API recusar a mensagem inteira -- então
+      // quando não cabe, manda como texto numerado em vez de perder o envio.
+      const cabe = msg.buttons.length > 0 && msg.buttons.length <= 3
+        && msg.buttons.every(b => b.trim().length > 0 && b.length <= 20);
+      if (cabe) {
+        body = {
+          messaging_product: "whatsapp", to, type: "interactive",
+          interactive: {
+            type: "button",
+            body: { text: msg.message },
+            action: {
+              buttons: msg.buttons.map((title, i) => ({
+                type: "reply", reply: { id: `btn_${i + 1}`, title },
+              })),
+            },
+          },
+        };
+      } else {
+        if (msg.buttons.length > 0) {
+          console.warn(`[whatsapp-send] cloud-api: ${msg.buttons.length} botao(oes), rotulo mais longo com ${Math.max(...msg.buttons.map(b => b.length))} caracteres -- fora do limite da Meta (3 botoes, 20 caracteres). Enviando como texto.`);
+        }
+        body = {
+          messaging_product: "whatsapp", to, type: "text",
+          text: { body: botoesComoTexto(msg.message, msg.buttons), preview_url: false },
+        };
+      }
       break;
+    }
     case "audio":
       body = { messaging_product: "whatsapp", to, type: "audio", audio: { link: msg.url } };
       break;

@@ -3320,21 +3320,32 @@ export default function MultiatendimentoPage() {
     const cid = company?.id;
     if (!cid || convIds.length === 0) return;
     setRunningAutomation(true);
-    let ok = 0, skipped = 0;
+    // Duas contagens separadas, e não uma só. Antes, conversa sem negócio e
+    // falha na chamada somavam no MESMO contador, e o aviso final culpava
+    // "sem negócio vinculado" nos dois casos. Foi o que escondeu por completo
+    // um erro de CORS: a automação não rodava, e a tela dizia que o problema
+    // era o cadastro do cliente.
+    let ok = 0, semNegocio = 0, falhou = 0;
+    let ultimoErro = "";
     for (const convId of convIds) {
       const c = convList.find(x => x.id === convId);
       const leadId = c ? convLead(c)?.id : undefined;
-      if (!leadId) { skipped++; continue; }
+      if (!leadId) { semNegocio++; continue; }
       const { error } = await supabase.functions.invoke("automation-runner/manual", {
         body: { company_id: cid, lead_id: leadId, automation_id: automationId },
       });
-      if (error) { skipped++; } else { ok++; }
+      if (error) {
+        falhou++;
+        ultimoErro = error.message ?? String(error);
+        console.error("[multiatendimento] automação manual:", error);
+      } else { ok++; }
     }
     setRunningAutomation(false);
     setAutoModalConvs(null);
     if (selectionMode) setSelectedConvs([]);
     if (ok > 0) toast.success(`Automação executada em ${ok} conversa(s).`);
-    if (skipped > 0) toast.error(`${skipped} conversa(s) sem negócio vinculado foram ignoradas.`);
+    if (semNegocio > 0) toast.error(`${semNegocio} conversa(s) sem negócio vinculado foram ignoradas.`);
+    if (falhou > 0) toast.error(`Falha ao executar em ${falhou} conversa(s). ${ultimoErro}`);
   };
 
   // Seção de checklist (multi-seleção) do painel de filtros

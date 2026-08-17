@@ -257,11 +257,35 @@ interface AutomationRecord {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
+/**
+ * CORS do roteador, para as rotas chamadas PELO NAVEGADOR.
+ *
+ * Só `/manual` é chamada do browser (as demais vêm de servidor, que não faz
+ * preflight). `authorization` precisa estar liberado porque essa rota se
+ * autentica pelo JWT do usuário, e `apikey`/`x-client-info` porque o
+ * supabase-js os envia sozinho em `functions.invoke`.
+ */
+const CORS_ROTEADOR = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+};
+
 Deno.serve(async (req: Request) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Preflight ANTES do roteamento.
+  //
+  // Sem isto, o OPTIONS de `/manual` caía no handler da rota, que exige o
+  // cabeçalho Authorization -- e o navegador não manda Authorization no
+  // preflight. A resposta era 401 sem cabeçalho de CORS, o navegador bloqueava,
+  // e a automação manual nunca chegava a ser executada a partir da tela.
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_ROTEADOR });
+  }
 
   // ── Webhook mode: POST /automation-runner/webhook/<automationId> ──────────
   const url = new URL(req.url);
@@ -382,20 +406,27 @@ async function runTrigger(supabase: SupabaseClient, payload: TriggerPayload): Pr
 // Execução manual disparada pela UI (gatilho lead_manual). Autentica pelo JWT do
 // usuário e autoriza apenas dono ou membro da empresa antes de executar.
 async function handleManual(supabase: SupabaseClient, req: Request): Promise<Response> {
+  // Toda resposta daqui sai com CORS: esta é a única rota chamada pelo
+  // navegador, e uma resposta sem os cabeçalhos é bloqueada antes de o
+  // JavaScript conseguir lê-la -- inclusive as de erro, que é o que
+  // transformava "não autorizado" em "falha de rede" na tela.
+  const cors = CORS_ROTEADOR;
+  const erro = (texto: string, status: number) => new Response(texto, { status, headers: cors });
+
   const authHeader = req.headers.get("Authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
-  if (!jwt) return new Response("Unauthorized", { status: 401 });
+  if (!jwt) return erro("Unauthorized", 401);
 
   const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
   const user = userData?.user;
-  if (userErr || !user) return new Response("Unauthorized", { status: 401 });
+  if (userErr || !user) return erro("Unauthorized", 401);
 
   let body: { company_id?: string; lead_id?: string; automation_id?: string };
-  try { body = await req.json(); } catch { return new Response("Bad request", { status: 400 }); }
+  try { body = await req.json(); } catch { return erro("Bad request", 400); }
 
   const { company_id, lead_id, automation_id } = body;
   if (!company_id || !lead_id || !automation_id) {
-    return new Response("Missing required fields", { status: 400 });
+    return erro("Missing required fields", 400);
   }
 
   // Autorização: dono da empresa ou membro
@@ -405,10 +436,15 @@ async function handleManual(supabase: SupabaseClient, req: Request): Promise<Res
     const { data: mem } = await supabase.from("company_members").select("id").eq("company_id", company_id).eq("user_id", user.id).maybeSingle();
     allowed = !!mem;
   }
-  if (!allowed) return new Response("Forbidden", { status: 403 });
+  if (!allowed) return erro("Forbidden", 403);
 
   const payload: TriggerPayload = { trigger_type: "lead_manual", company_id, lead_id, automation_id, context: {} };
-  return await runTrigger(supabase, payload);
+  const resposta = await runTrigger(supabase, payload);
+  // runTrigger é compartilhado com as rotas de servidor e não conhece CORS.
+  // Recria a resposta com os cabeçalhos, preservando corpo e status.
+  const headers = new Headers(resposta.headers);
+  for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+  return new Response(resposta.body, { status: resposta.status, headers });
 }
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
@@ -2095,6 +2131,7 @@ async function buildVarContext(
       ctx[`campo.${k}`] = String(v ?? "");
       ctx[`lead.${k}`] = String(v ?? "");
     }
+    aplicaPrimeiroNome(ctx, lead);
     // Produto vinculado ao lead
     const productId = lead.product_id as string | null;
     if (productId) {
@@ -2156,6 +2193,29 @@ async function buildVarContext(
   return ctx;
 }
 
+/**
+ * {{lead.name}} entrega só o PRIMEIRO nome.
+ *
+ * Mensagem de abertura com nome completo soa como mala direta e não como
+ * conversa: "Oii, Matheus Tonetto!" denuncia o disparo automático que
+ * "Oii, Matheus!" não denuncia. O nome inteiro continua acessível em
+ * {{lead.nome_completo}}, para quem precisar dele em proposta ou contrato.
+ *
+ * Sem invenção: nome vazio continua vazio, e nome de uma palavra só fica igual
+ * ao que já era. `campo.name` NÃO muda de propósito -- ele alimenta comparação
+ * de condição, onde o valor tem de ser o do cadastro.
+ *
+ * Vive numa função só porque o contexto é montado em dois lugares (o assíncrono
+ * e o síncrono), e uma regra de apresentação duplicada é uma regra que vai
+ * divergir.
+ */
+function aplicaPrimeiroNome(ctx: Record<string, string>, lead: Record<string, unknown>) {
+  const nomeCompleto = String(lead.name ?? "").trim();
+  if (!nomeCompleto) return;
+  ctx["lead.nome_completo"] = nomeCompleto;
+  ctx["lead.name"] = nomeCompleto.split(/\s+/)[0];
+}
+
 // Mantido por compatibilidade com chamadas síncronas internas
 function buildApiVarContext(lead: Record<string, unknown> | null, payload: TriggerPayload): Record<string, string> {
   const ctx: Record<string, string> = {};
@@ -2164,6 +2224,7 @@ function buildApiVarContext(lead: Record<string, unknown> | null, payload: Trigg
       ctx[`campo.${k}`] = String(v ?? "");
       ctx[`lead.${k}`] = String(v ?? "");
     }
+    aplicaPrimeiroNome(ctx, lead);
   }
   ctx["gatilho.tipo"]       = payload.trigger_type;
   ctx["gatilho.lead_id"]    = payload.lead_id;
