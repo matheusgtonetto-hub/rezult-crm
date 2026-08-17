@@ -310,3 +310,28 @@ export async function fetchLeadManualAutomations(companyId: string): Promise<Aut
     })
     .map(a => ({ id: a.id as string, name: a.name as string, active: !!a.active }));
 }
+
+/**
+ * Executa UMA automação manual em UM lead, agora.
+ *
+ * Mora aqui junto de `fetchLeadManualAutomations` porque é a outra metade da
+ * mesma operação, e porque agora tem dois chamadores: o Multiatendimento
+ * (partindo da conversa) e a lista de leads (partindo do lead). Duas cópias
+ * desta chamada divergiriam no dia em que a rota ou o corpo mudassem.
+ *
+ * Devolve a mensagem de erro quando falha, e null quando deu certo. Não engole
+ * nem lança: quem chama está sempre num laço sobre vários alvos e precisa
+ * contar sucesso e falha separadamente -- foi misturar essas duas contagens que
+ * escondeu um erro de CORS por semanas, com a tela culpando o cadastro do
+ * cliente por uma automação que nunca era executada.
+ */
+export async function executarAutomacaoNoLead(
+  companyId: string, leadId: string, automationId: string,
+): Promise<string | null> {
+  const { error } = await supabase.functions.invoke("automation-runner/manual", {
+    body: { company_id: companyId, lead_id: leadId, automation_id: automationId },
+  });
+  if (!error) return null;
+  console.error("[automacao-manual] falha ao executar:", error);
+  return error.message ?? String(error);
+}

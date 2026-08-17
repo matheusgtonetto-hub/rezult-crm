@@ -15,7 +15,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download } from "lucide-react";
+import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network } from "lucide-react";
+import { useCompany } from "@/context/CompanyContext";
+import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
+import { executarAutomacaoNoLead } from "@/data/disparos";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
@@ -25,6 +28,7 @@ import { toast } from "sonner";
 
 export default function LeadsPage() {
   const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags } = useCRM();
+  const { company } = useCompany();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -44,6 +48,13 @@ export default function LeadsPage() {
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
+
+  // Executar automação: mesmo wizard do Multiatendimento, com o lead da linha
+  // já resolvido no passo 2. Guardamos o lead inteiro (e não só o id) porque a
+  // tela de confirmação mostra nome e telefone -- é o que permite perceber que
+  // se clicou na linha errada antes de a mensagem sair.
+  const [automacaoLead, setAutomacaoLead] = useState<Lead | null>(null);
+  const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
 
   // Drawer de detalhes do lead
   const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
@@ -592,6 +603,12 @@ export default function LeadsPage() {
                         <DropdownMenuItem onClick={() => openWhatsApp(row.lead.phoneDdi, row.lead.whatsapp)}>
                           <MessageSquare size={14} className="mr-2" /> Abrir Chat
                         </DropdownMenuItem>
+                        {/* Mesmo ícone que a sidebar usa em /automacoes: quem
+                            já associou aquele desenho a "automação" reconhece
+                            a ação sem ler o rótulo. */}
+                        <DropdownMenuItem onClick={() => setAutomacaoLead(row.lead)}>
+                          <Network size={14} className="mr-2" /> Executar automação
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => setDeleteTarget(row.lead)}
@@ -685,6 +702,35 @@ export default function LeadsPage() {
       </Dialog>
 
       <ImportLeadsModal open={importOpen} onClose={() => setImportOpen(false)} />
+
+      {/* Executar automação a partir da lista de leads. É o MESMO wizard do
+          Multiatendimento: a tarefa é a mesma, muda só o ponto de partida --
+          lá o alvo é a conversa, aqui é o lead. O `termo` existe para os
+          textos falarem "lead" em vez de "conversa". */}
+      <ExecutarAutomacaoWizard
+        open={automacaoLead !== null}
+        onOpenChange={aberto => { if (!aberto) setAutomacaoLead(null); }}
+        executando={executandoAutomacao}
+        termo={{ singular: "lead", plural: "leads" }}
+        conversas={automacaoLead ? [{
+          id: automacaoLead.id,
+          nome: automacaoLead.name,
+          telefone: automacaoLead.whatsapp || undefined,
+          // Na lista de leads a linha JÁ é um negócio, então sempre há em que
+          // executar. O aviso de "sem negócio" do wizard fica para o
+          // Multiatendimento, onde a conversa pode não ter negócio nenhum.
+          temNegocio: true,
+        }] : []}
+        onExecutar={async automationId => {
+          if (!automacaoLead || !company) return;
+          setExecutandoAutomacao(true);
+          const erro = await executarAutomacaoNoLead(company.id, automacaoLead.id, automationId);
+          setExecutandoAutomacao(false);
+          setAutomacaoLead(null);
+          if (erro) toast.error(`Falha ao executar a automação. ${erro}`);
+          else toast.success("Automação executada.");
+        }}
+      />
 
       {/* Lead Detail Drawer */}
       <LeadDrawer

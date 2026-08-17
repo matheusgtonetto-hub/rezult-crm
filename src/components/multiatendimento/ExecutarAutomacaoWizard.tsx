@@ -32,6 +32,16 @@ export interface ConversaAlvo {
   temNegocio: boolean;
 }
 
+/**
+ * Como chamar o alvo na tela.
+ *
+ * O mesmo wizard atende dois pontos de partida: o Multiatendimento age sobre
+ * conversas, a lista de leads age sobre leads. Chamar tudo de "destinatário"
+ * para servir aos dois deixaria os dois textos igualmente estranhos.
+ */
+export interface TermoDoAlvo { singular: string; plural: string }
+const TERMO_PADRAO: TermoDoAlvo = { singular: "conversa", plural: "conversas" };
+
 type Passo = 1 | 2;
 const PASSOS: { n: Passo; label: string }[] = [
   { n: 1, label: "Selecionar automação" },
@@ -39,13 +49,15 @@ const PASSOS: { n: Passo; label: string }[] = [
 ];
 
 export function ExecutarAutomacaoWizard({
-  open, onOpenChange, conversas, executando, onExecutar,
+  open, onOpenChange, conversas, executando, onExecutar, termo = TERMO_PADRAO,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   conversas: ConversaAlvo[];
   executando: boolean;
   onExecutar: (automationId: string) => void;
+  /** Como nomear o alvo. Padrão "conversa", que é a origem mais frequente. */
+  termo?: TermoDoAlvo;
 }) {
   const { company } = useCompany();
   const [passo, setPasso] = useState<Passo>(1);
@@ -93,7 +105,7 @@ export function ExecutarAutomacaoWizard({
           <div className="w-60 shrink-0 border-r border-border p-6 bg-secondary/30">
             <h2 className="text-lg font-bold">Executar automação</h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Execute uma automação nas conversas selecionadas. A mensagem sai na hora, pela linha conectada.
+              Execute uma automação {termo.singular === "lead" ? "nos leads selecionados" : "nas conversas selecionadas"}. A mensagem sai na hora, pela linha conectada.
             </p>
             <div className="mt-6 space-y-4">
               {PASSOS.map(p => {
@@ -162,7 +174,7 @@ export function ExecutarAutomacaoWizard({
                   <h3 className="text-base font-semibold">Confirmar destinatários</h3>
                   <p className="text-sm text-muted-foreground mb-3">
                     A automação <strong className="text-foreground">{escolhida?.name}</strong> será executada
-                    {comNegocio.length === 1 ? " nesta conversa" : ` nestas ${comNegocio.length} conversas`}.
+                    {comNegocio.length === 1 ? ` neste ${termo.singular}` : ` nestes ${comNegocio.length} ${termo.plural}`}.
                   </p>
 
                   {/* Quem fica de fora aparece ANTES da lista, e com o motivo.
@@ -173,7 +185,7 @@ export function ExecutarAutomacaoWizard({
                     <div className="flex gap-2.5 rounded-lg border p-3 mb-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
                       <AlertTriangle size={16} className="shrink-0 mt-0.5" color="#B45309" />
                       <div className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
-                        <strong>{semNegocio.length} conversa(s) ficam de fora</strong> por não terem negócio vinculado:
+                        <strong>{semNegocio.length} {semNegocio.length === 1 ? termo.singular : termo.plural} {semNegocio.length === 1 ? "fica" : "ficam"} de fora</strong> por não terem negócio vinculado:
                         a automação age sobre o negócio do contato.
                         <div className="mt-1 opacity-80">{semNegocio.map(c => c.nome).join(", ")}</div>
                       </div>
@@ -194,7 +206,7 @@ export function ExecutarAutomacaoWizard({
                     ))}
                     {comNegocio.length === 0 && (
                       <p className="text-sm text-muted-foreground py-6 text-center px-4">
-                        Nenhuma das conversas selecionadas tem negócio vinculado.
+                        Nenhum dos selecionados tem negócio vinculado.
                       </p>
                     )}
                   </div>
@@ -218,7 +230,7 @@ export function ExecutarAutomacaoWizard({
                 >
                   {executando
                     ? "Executando…"
-                    : <><Play size={15} /> Executar em {comNegocio.length} conversa(s)</>}
+                    : <><Play size={15} /> Executar em {comNegocio.length} {comNegocio.length === 1 ? termo.singular : termo.plural}</>}
                 </Button>
               )}
             </div>
