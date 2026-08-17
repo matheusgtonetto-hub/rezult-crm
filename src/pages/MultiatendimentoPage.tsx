@@ -30,6 +30,7 @@ import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
+import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
 import { upsertContact, type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr, somenteDigitos, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { previewLabelFor } from "@/lib/conversas";
@@ -671,7 +672,6 @@ export default function MultiatendimentoPage() {
   const [bulkAction, setBulkAction]        = useState<"agent" | "dept" | null>(null);
   // Execução manual de automação: lista de conversas-alvo (null = modal fechado)
   const [autoModalConvs, setAutoModalConvs] = useState<string[] | null>(null);
-  const [manualAutomations, setManualAutomations] = useState<{ id: string; name: string }[]>([]);
   const [runningAutomation, setRunningAutomation] = useState(false);
 
   // nova conversa
@@ -3301,18 +3301,11 @@ export default function MultiatendimentoPage() {
     setBulkAction(null);
   };
 
-  // Automações com gatilho de "Execução manual" (lead_manual), ativas
-  useEffect(() => {
-    const cid = company?.id;
-    if (!cid) { setManualAutomations([]); return; }
-    (async () => {
-      const { data } = await supabase.from("automations").select("id, name, flow").eq("company_id", cid).eq("active", true);
-      const list = (data ?? [])
-        .filter((a: { flow?: { trigger?: { triggerId?: string } } }) => a.flow?.trigger?.triggerId === "lead_manual")
-        .map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }));
-      setManualAutomations(list);
-    })();
-  }, [company?.id]);
+  // A busca das automações manuais saiu daqui: quem lista agora é o
+  // ExecutarAutomacaoWizard, pela mesma função que a tela de disparos usa
+  // (fetchLeadManualAutomations). Mantê-la aqui significava carregar a lista a
+  // cada abertura da tela, mesmo sem ninguém clicar em Automação, e ter duas
+  // definições de "automação manual" para manter iguais.
 
   // Executa uma automação manual (lead_manual) nos leads das conversas-alvo
   const runAutomationOnConvs = async (automationId: string) => {
@@ -5374,34 +5367,26 @@ export default function MultiatendimentoPage() {
       )}
 
       {/* ── MODAL: executar automação (manual) ───────────────────────── */}
-      {autoModalConvs !== null && (
-        <div onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 400, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Executar automação</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{autoModalConvs.length} conversa(s) · gatilho de execução manual</div>
-              </div>
-              <button onClick={() => !runningAutomation && setAutoModalConvs(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
-              {manualAutomations.length === 0 ? (
-                <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                  <Zap size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 13, color: "#AAA", margin: "0 0 4px" }}>Nenhuma automação manual ativa</p>
-                  <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Crie uma automação com o gatilho "Execução manual da automação por lead ou contato".</p>
-                </div>
-              ) : manualAutomations.map(a => (
-                <button key={a.id} disabled={runningAutomation} onClick={() => runAutomationOnConvs(a.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 12px", background: "none", border: "none", borderRadius: 8, cursor: runningAutomation ? "default" : "pointer", textAlign: "left", opacity: runningAutomation ? 0.6 : 1 }} onMouseEnter={e => { if (!runningAutomation) e.currentTarget.style.background = "#F5F5F5"; }} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Zap size={15} color="#128A68" /></div>
-                  <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{a.name}</span>
-                </button>
-              ))}
-            </div>
-            {runningAutomation && <div style={{ padding: "10px", textAlign: "center", fontSize: 12, color: "#128A68", borderTop: "1px solid #EEEEEE" }}>Executando…</div>}
-          </div>
-        </div>
-      )}
+      {/* Executar automação: mesmo formato do Criar disparo, porque é a mesma
+          tarefa (escolher a automação, escolher em quem roda). O popup antigo
+          disparava no primeiro clique, sem mostrar em quem ia executar -- com
+          a conversa errada selecionada, a mensagem saía para o cliente errado
+          e não havia como voltar atrás. */}
+      <ExecutarAutomacaoWizard
+        open={autoModalConvs !== null}
+        onOpenChange={aberto => { if (!aberto) setAutoModalConvs(null); }}
+        executando={runningAutomation}
+        conversas={(autoModalConvs ?? []).map(id => {
+          const c = convList.find(x => x.id === id);
+          return {
+            id,
+            nome: c ? convName(c) : "Conversa",
+            telefone: c?.phone ?? undefined,
+            temNegocio: !!(c && convLead(c)?.id),
+          };
+        })}
+        onExecutar={runAutomationOnConvs}
+      />
 
       {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
       {showScheduleDialog && (() => {
