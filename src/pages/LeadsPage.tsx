@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
 import { type Contact } from "@/lib/contacts";
@@ -15,9 +15,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network } from "lucide-react";
+import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network, Rocket } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
 import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
+import { CreateDisparoWizard } from "@/components/disparos/CreateDisparoWizard";
 import { executarAutomacaoNoLead } from "@/data/disparos";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
@@ -29,6 +30,7 @@ import { toast } from "sonner";
 export default function LeadsPage() {
   const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags } = useCRM();
   const { company } = useCompany();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [filterResp, setFilterResp] = useState("all");
@@ -55,6 +57,10 @@ export default function LeadsPage() {
   // se clicou na linha errada antes de a mensagem sair.
   const [automacaoLead, setAutomacaoLead] = useState<Lead | null>(null);
   const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
+  // Automação em lote, a partir dos leads marcados na lista.
+  const [automacaoEmLote, setAutomacaoEmLote] = useState<Lead[] | null>(null);
+  // Criar disparo direto daqui, levando a seleção quando houver.
+  const [disparoAberto, setDisparoAberto] = useState(false);
 
   // Drawer de detalhes do lead
   const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null);
@@ -328,32 +334,53 @@ export default function LeadsPage() {
           </SelectContent>
         </Select>
 
-        {someSelected && (
-          <div className="flex items-center gap-2 ml-auto">
+        {/* Este menu some quando nada está marcado? Não mais. Ele guarda ações
+            que existem independente de seleção (criar disparo parte de filtro),
+            e um botão que aparece e desaparece obriga a descobrir de novo onde
+            as ações moram. O que depende de seleção fica desabilitado, com o
+            porquê no título -- some a dúvida, fica a explicação. */}
+        <div className="flex items-center gap-2 ml-auto">
+          {someSelected && (
             <span className="text-sm text-muted-foreground">
               {selectedLeads.length} selecionado{selectedLeads.length > 1 ? "s" : ""}
             </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="p-1.5 rounded-md border border-card-border bg-card hover:bg-muted text-foreground transition-colors">
-                  <Menu size={16} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onClick={exportSelected}>
-                  <Download size={14} className="mr-2" /> Exportar selecionados
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setBulkDeleteConfirm(true)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 size={14} className="mr-2" /> Excluir selecionados
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1.5 rounded-md border border-card-border bg-card hover:bg-muted text-foreground transition-colors">
+                <Menu size={16} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuItem onClick={() => setDisparoAberto(true)}>
+                <Rocket size={14} className="mr-2" /> Criar disparo
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!someSelected}
+                onClick={() => someSelected && setAutomacaoEmLote(selectedLeads)}
+                title={someSelected ? undefined : "Marque ao menos um lead"}
+              >
+                <Network size={14} className="mr-2" /> Executar automação
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!someSelected}
+                onClick={() => someSelected && exportSelected()}
+                title={someSelected ? undefined : "Marque ao menos um lead"}
+              >
+                <Download size={14} className="mr-2" /> Exportar selecionados
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!someSelected}
+                onClick={() => someSelected && setBulkDeleteConfirm(true)}
+                className="text-destructive focus:text-destructive"
+                title={someSelected ? undefined : "Marque ao menos um lead"}
+              >
+                <Trash2 size={14} className="mr-2" /> Excluir selecionados
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -729,6 +756,47 @@ export default function LeadsPage() {
           setAutomacaoLead(null);
           if (erro) toast.error(`Falha ao executar a automação. ${erro}`);
           else toast.success("Automação executada.");
+        }}
+      />
+
+      {/* Mesma automação, agora sobre os leads marcados na lista. */}
+      <ExecutarAutomacaoWizard
+        open={automacaoEmLote !== null}
+        onOpenChange={aberto => { if (!aberto) setAutomacaoEmLote(null); }}
+        executando={executandoAutomacao}
+        termo={{ singular: "lead", plural: "leads" }}
+        conversas={(automacaoEmLote ?? []).map(l => ({
+          id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
+        }))}
+        onExecutar={async automationId => {
+          if (!automacaoEmLote || !company) return;
+          setExecutandoAutomacao(true);
+          // Sucesso e falha contados separadamente: num lote, dizer só
+          // "executada" esconderia os que não rodaram, e dizer só "falhou"
+          // esconderia os que rodaram.
+          let ok = 0; let ultimoErro = "";
+          for (const lead of automacaoEmLote) {
+            const erro = await executarAutomacaoNoLead(company.id, lead.id, automationId);
+            if (erro) ultimoErro = erro; else ok++;
+          }
+          const falhas = automacaoEmLote.length - ok;
+          setExecutandoAutomacao(false);
+          setAutomacaoEmLote(null);
+          if (ok > 0) toast.success(`Automação executada em ${ok} lead(s).`);
+          if (falhas > 0) toast.error(`Falha em ${falhas} lead(s). ${ultimoErro}`);
+        }}
+      />
+
+      {/* Criar disparo sem sair de /leads. Leva os leads marcados para o passo
+          "Selecionar leads" já restrito; sem seleção, abre como em /disparos. */}
+      <CreateDisparoWizard
+        open={disparoAberto}
+        onOpenChange={setDisparoAberto}
+        leadsPreSelecionados={someSelected ? selectedLeads.map(l => l.id) : undefined}
+        onCreated={id => {
+          setDisparoAberto(false);
+          toast.success("Disparo criado.");
+          navigate(`/disparos/${id}`);
         }}
       />
 

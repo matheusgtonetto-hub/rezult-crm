@@ -9,6 +9,19 @@ export type DisparoItemStatus = "nao_iniciado" | "pendente" | "em_execucao" | "c
 
 // Filtro de leads (usado na etapa "Selecionar leads")
 export interface LeadFilter {
+  /**
+   * Leads escolhidos um a um, em vez de por criterio.
+   *
+   * Existe porque a lista de /leads permite marcar linhas e criar um disparo
+   * so com elas. Entra no filtro (e nao como parametro solto do wizard) para o
+   * disparo continuar REPRODUZIVEL: `filters` e o que fica gravado, e um
+   * disparo criado a partir de uma selecao manual precisa poder ser relido
+   * depois sem virar "leads misteriosos".
+   *
+   * Quando presente, restringe: o lead tem de estar na lista E passar nos
+   * demais criterios.
+   */
+  ids?: string[];
   search?: string;
   tags?: { mode: "any" | "all" | "none"; ids: string[] };
   origins?: string[];
@@ -108,6 +121,8 @@ function inRange(dateStr: string | undefined, from?: string, to?: string): boole
 }
 
 export function leadMatchesFilter(lead: Lead, f: LeadFilter, ctx: { lists: CrmList[] }): boolean {
+  // Selecao explicita primeiro: e a mais barata e a mais restritiva.
+  if (f.ids && f.ids.length > 0 && !f.ids.includes(lead.id)) return false;
   if (f.search) {
     const q = f.search.toLowerCase();
     const hay = `${lead.name} ${lead.email ?? ""} ${lead.whatsapp ?? ""} ${lead.company ?? ""}`.toLowerCase();
@@ -166,7 +181,8 @@ export function isFilterEmpty(f: LeadFilter): boolean {
     typeof f.valueMin === "number" || typeof f.valueMax === "number" ||
     f.city || f.state || f.country || f.createdFrom || f.createdTo ||
     f.movedFrom || f.movedTo || (f.lossReasons && f.lossReasons.length) ||
-    (f.customFields && f.customFields.some(c => c.value)) || f.search
+    (f.customFields && f.customFields.some(c => c.value)) || f.search ||
+    (f.ids && f.ids.length)
   );
 }
 

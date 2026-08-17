@@ -25,11 +25,20 @@ const STEPS: { n: Step; label: string }[] = [
 ];
 
 export function CreateDisparoWizard({
-  open, onOpenChange, onCreated,
+  open, onOpenChange, onCreated, leadsPreSelecionados,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: (id: string) => void;
+  /**
+   * Ids marcados antes de abrir (vem da lista de /leads).
+   *
+   * Chegam como `filter.ids`, e não como uma lista à parte, para o passo 3
+   * continuar sendo um só caminho: os leads aparecem já restritos e os
+   * filtros seguem funcionando por cima da seleção. Vazio ou ausente = o
+   * comportamento de sempre, escolher por critério.
+   */
+  leadsPreSelecionados?: string[];
 }) {
   const { leads, crmLists } = useCRM();
   const { company } = useCompany();
@@ -53,10 +62,14 @@ export function CreateDisparoWizard({
   useEffect(() => {
     if (!open) return;
     // reset
-    setStep(1); setType(null); setAutomationId(null); setFilter({}); setLeadSearch("");
+    setStep(1); setType(null); setAutomationId(null); setLeadSearch("");
+    // A seleção que veio da lista entra como filtro inicial. Sem ela, {} = o
+    // wizard começa sem restrição, como sempre começou.
+    setFilter(leadsPreSelecionados?.length ? { ids: leadsPreSelecionados } : {});
     setTitle(""); setDescription(""); setRhythm("normal"); setScheduleOn(false); setScheduledAt(""); setConfirmFilters(false);
     if (company) fetchLeadManualAutomations(company.id).then(setAutomations).catch(() => setAutomations([]));
-  }, [open, company?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, company?.id, leadsPreSelecionados]);
 
   const allLeads = useMemo(() => Object.values(leads), [leads]);
   const effFilter = useMemo<LeadFilter>(() => ({ ...filter, search: leadSearch || filter.search }), [filter, leadSearch]);
@@ -195,13 +208,24 @@ export function CreateDisparoWizard({
               {step === 3 && (
                 <>
                   <h3 className="text-base font-semibold">Selecionar leads</h3>
-                  <p className="text-sm text-muted-foreground mb-3">Filtre pelos leads que serão adicionados no disparo. Apenas os filtros serão considerados.</p>
+                  {filter.ids?.length ? (
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Partindo dos <strong className="text-foreground">{filter.ids.length} leads que você marcou</strong> na lista.
+                      Os filtros abaixo restringem ainda mais essa seleção.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mb-3">Filtre pelos leads que serão adicionados no disparo. Apenas os filtros serão considerados.</p>
+                  )}
                   <div className="flex items-center gap-2 mb-2">
                     <div className="relative flex-1">
                       <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input placeholder="Procurar na lista" className="pl-9 h-9" value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
                     </div>
-                    <LeadFilterPanel value={filter} onApply={setFilter} />
+                    {/* `ids` é preservado ao aplicar filtros: o painel devolve o
+                        filtro inteiro e não conhece a seleção manual, então sem
+                        isto mexer em qualquer filtro apagaria em silêncio os
+                        leads que a pessoa tinha marcado na lista. */}
+                    <LeadFilterPanel value={filter} onApply={f => setFilter({ ...f, ids: filter.ids })} />
                   </div>
                   <p className="text-sm font-semibold text-primary mb-2">{matched.length.toLocaleString("pt-BR")} leads correspondentes</p>
                   <div className="space-y-1.5">
