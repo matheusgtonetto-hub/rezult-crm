@@ -355,11 +355,9 @@ export default function LeadsPage() {
               <DropdownMenuItem onClick={() => setDisparoAberto(true)}>
                 <Rocket size={14} className="mr-2" /> Criar disparo
               </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!someSelected}
-                onClick={() => someSelected && setAutomacaoEmLote(selectedLeads)}
-                title={someSelected ? undefined : "Marque ao menos um lead"}
-              >
+              {/* Ativo mesmo sem seleção: quando nada está marcado, os leads
+                  são escolhidos dentro do wizard, no passo 2. */}
+              <DropdownMenuItem onClick={() => setAutomacaoEmLote(selectedLeads)}>
                 <Network size={14} className="mr-2" /> Executar automação
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -759,7 +757,11 @@ export default function LeadsPage() {
         }}
       />
 
-      {/* Mesma automação, agora sobre os leads marcados na lista. */}
+      {/* Automação a partir do menu do topo. Diferente do menu da linha, aqui
+          o passo 2 é de ESCOLHA: quem veio marcado começa marcado, e quem abriu
+          sem marcar nada escolhe ali mesmo. O universo é a lista como ela está
+          agora (`filtered`), e não todos os leads da base -- se a pessoa
+          filtrou a tela, o filtro é parte do que ela quis. */}
       <ExecutarAutomacaoWizard
         open={automacaoEmLote !== null}
         onOpenChange={aberto => { if (!aberto) setAutomacaoEmLote(null); }}
@@ -768,18 +770,21 @@ export default function LeadsPage() {
         conversas={(automacaoEmLote ?? []).map(l => ({
           id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
         }))}
-        onExecutar={async automationId => {
-          if (!automacaoEmLote || !company) return;
+        opcoes={filtered.map(l => ({
+          id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
+        }))}
+        onExecutar={async (automationId, ids) => {
+          if (!company || ids.length === 0) return;
           setExecutandoAutomacao(true);
           // Sucesso e falha contados separadamente: num lote, dizer só
           // "executada" esconderia os que não rodaram, e dizer só "falhou"
           // esconderia os que rodaram.
           let ok = 0; let ultimoErro = "";
-          for (const lead of automacaoEmLote) {
-            const erro = await executarAutomacaoNoLead(company.id, lead.id, automationId);
+          for (const id of ids) {
+            const erro = await executarAutomacaoNoLead(company.id, id, automationId);
             if (erro) ultimoErro = erro; else ok++;
           }
-          const falhas = automacaoEmLote.length - ok;
+          const falhas = ids.length - ok;
           setExecutandoAutomacao(false);
           setAutomacaoEmLote(null);
           if (ok > 0) toast.success(`Automação executada em ${ok} lead(s).`);

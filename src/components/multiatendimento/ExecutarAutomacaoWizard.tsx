@@ -43,32 +43,54 @@ export interface TermoDoAlvo { singular: string; plural: string }
 const TERMO_PADRAO: TermoDoAlvo = { singular: "conversa", plural: "conversas" };
 
 type Passo = 1 | 2;
-const PASSOS: { n: Passo; label: string }[] = [
-  { n: 1, label: "Selecionar automação" },
-  { n: 2, label: "Confirmar destinatários" },
-];
+/** Quantos alvos a lista desenha de uma vez. Acima disso, a busca é o caminho:
+ *  ninguém encontra alguém rolando 2 mil linhas. */
+const LIMITE_VISIVEL = 60;
 
 export function ExecutarAutomacaoWizard({
-  open, onOpenChange, conversas, executando, onExecutar, termo = TERMO_PADRAO,
+  open, onOpenChange, conversas, executando, onExecutar, termo = TERMO_PADRAO, opcoes,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  /** Alvos já escolhidos fora do wizard. Entram marcados no passo 2. */
   conversas: ConversaAlvo[];
   executando: boolean;
-  onExecutar: (automationId: string) => void;
+  onExecutar: (automationId: string, ids: string[]) => void;
   /** Como nomear o alvo. Padrão "conversa", que é a origem mais frequente. */
   termo?: TermoDoAlvo;
+  /**
+   * Universo selecionável no passo 2.
+   *
+   * Quando presente, o passo 2 deixa de ser conferência e vira escolha -- é o
+   * que permite abrir "Executar automação" sem ter marcado nada antes. Ausente
+   * (o caso do Multiatendimento), o passo 2 segue só confirmando o que veio.
+   */
+  opcoes?: ConversaAlvo[];
 }) {
   const { company } = useCompany();
   const [passo, setPasso] = useState<Passo>(1);
   const [automacoes, setAutomacoes] = useState<AutomationOption[]>([]);
   const [busca, setBusca] = useState("");
+  const [buscaAlvo, setBuscaAlvo] = useState("");
   const [automacaoId, setAutomacaoId] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  /** Ids marcados no passo 2. Só usado quando há `opcoes`. */
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+
+  const podeEscolher = !!opcoes;
+  const PASSOS: { n: Passo; label: string }[] = [
+    { n: 1, label: "Selecionar automação" },
+    // O passo 2 muda de nome com o que ele faz: onde dá para escolher, é
+    // seleção; onde os alvos já vieram decididos, é conferência. Um rótulo só
+    // para os dois mentiria em um dos casos.
+    { n: 2, label: podeEscolher ? `Selecionar ${termo.plural}` : "Confirmar destinatários" },
+  ];
 
   useEffect(() => {
     if (!open) return;
-    setPasso(1); setAutomacaoId(null); setBusca("");
+    setPasso(1); setAutomacaoId(null); setBusca(""); setBuscaAlvo("");
+    // Quem já veio marcado da tela começa marcado aqui.
+    setMarcados(new Set(conversas.filter(c => c.temNegocio).map(c => c.id)));
     if (!company) return;
     setCarregando(true);
     fetchLeadManualAutomations(company.id)
@@ -91,6 +113,29 @@ export function ExecutarAutomacaoWizard({
   const escolhida = automacoes.find(a => a.id === automacaoId);
   const comNegocio = conversas.filter(c => c.temNegocio);
   const semNegocio = conversas.filter(c => !c.temNegocio);
+
+  // Universo do passo 2, filtrado pela busca. Sem `opcoes`, é o que veio pronto.
+  const universo = opcoes ?? comNegocio;
+  const filtrados = useMemo(() => {
+    const q = buscaAlvo.trim().toLowerCase();
+    if (!q) return universo;
+    // Os dígitos da busca só entram na comparação se existirem. Sem esta
+    // guarda, procurar por um nome ("Thairo") deixa `digitos` vazio, e
+    // `includes("")` é verdadeiro para TODO telefone -- a busca parecia
+    // ignorada porque toda linha passava pelo segundo critério.
+    const digitos = q.replace(/\D/g, "");
+    return universo.filter(c =>
+      c.nome.toLowerCase().includes(q)
+      || (digitos !== "" && (c.telefone ?? "").replace(/\D/g, "").includes(digitos)));
+  }, [universo, buscaAlvo]);
+
+  const alternar = (id: string) => setMarcados(prev => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  // Sem escolha possível, valem os que vieram; com escolha, valem os marcados.
+  const idsFinais = podeEscolher ? [...marcados] : comNegocio.map(c => c.id);
 
   return (
     <Dialog open={open} onOpenChange={o => { if (!executando) onOpenChange(o); }}>
@@ -171,11 +216,31 @@ export function ExecutarAutomacaoWizard({
 
               {passo === 2 && (
                 <>
-                  <h3 className="text-base font-semibold">Confirmar destinatários</h3>
+                  <h3 className="text-base font-semibold">
+                    {podeEscolher ? `Selecionar ${termo.plural}` : "Confirmar destinatários"}
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    A automação <strong className="text-foreground">{escolhida?.name}</strong> será executada
-                    {comNegocio.length === 1 ? ` neste ${termo.singular}` : ` nestes ${comNegocio.length} ${termo.plural}`}.
+                    {podeEscolher ? (
+                      <>Escolha em quem a automação <strong className="text-foreground">{escolhida?.name}</strong> vai rodar.</>
+                    ) : (
+                      <>
+                        A automação <strong className="text-foreground">{escolhida?.name}</strong> será executada
+                        {comNegocio.length === 1 ? ` neste ${termo.singular}` : ` nestes ${comNegocio.length} ${termo.plural}`}.
+                      </>
+                    )}
                   </p>
+
+                  {podeEscolher && (
+                    <div className="relative mb-3">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder={`Procurar ${termo.plural} por nome ou telefone`}
+                        className="pl-9 h-9"
+                        value={buscaAlvo}
+                        onChange={e => setBuscaAlvo(e.target.value)}
+                      />
+                    </div>
+                  )}
 
                   {/* Quem fica de fora aparece ANTES da lista, e com o motivo.
                       Este era o ponto cego do popup antigo: as conversas sem
@@ -192,21 +257,51 @@ export function ExecutarAutomacaoWizard({
                     </div>
                   )}
 
+                  {podeEscolher && (
+                    <p className="text-sm font-semibold text-primary mb-2">
+                      {marcados.size} de {universo.length} {termo.plural} {marcados.size === 1 ? "marcado" : "marcados"}
+                    </p>
+                  )}
+
                   <div className="rounded-xl border border-border divide-y">
-                    {comNegocio.map(c => (
-                      <div key={c.id} className="flex items-center gap-3 px-3.5 py-2.5">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#128A68" }}>
-                          {c.nome.trim().charAt(0).toUpperCase() || "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{c.nome}</div>
-                          {c.telefone && <div className="text-xs text-muted-foreground truncate">{c.telefone}</div>}
-                        </div>
-                      </div>
-                    ))}
-                    {comNegocio.length === 0 && (
+                    {filtrados.slice(0, LIMITE_VISIVEL).map(c => {
+                      const marcado = podeEscolher ? marcados.has(c.id) : true;
+                      // Sem escolha possível, a linha é registro e não controle:
+                      // vira <div>. Com escolha, é botão de verdade -- inclusive
+                      // para o teclado, que num <div> clicável não alcança.
+                      const Elemento = podeEscolher ? "button" : "div";
+                      return (
+                        <Elemento
+                          key={c.id}
+                          {...(podeEscolher ? { type: "button" as const, onClick: () => alternar(c.id) } : {})}
+                          className={`flex items-center gap-3 px-3.5 py-2.5 w-full text-left ${podeEscolher ? "hover:bg-secondary/40 transition-colors" : ""}`}
+                        >
+                          {podeEscolher && (
+                            <div className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
+                                 style={{ borderColor: marcado ? "hsl(var(--primary))" : "#CBD5E1", background: marcado ? "hsl(var(--primary))" : "transparent" }}>
+                              {marcado && <Check size={11} color="#fff" />}
+                            </div>
+                          )}
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#128A68" }}>
+                            {c.nome.trim().charAt(0).toUpperCase() || "?"}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{c.nome}</div>
+                            {c.telefone && <div className="text-xs text-muted-foreground truncate">{c.telefone}</div>}
+                          </div>
+                        </Elemento>
+                      );
+                    })}
+                    {filtrados.length > LIMITE_VISIVEL && (
+                      <p className="text-xs text-muted-foreground text-center py-2 px-4">
+                        + {filtrados.length - LIMITE_VISIVEL} {termo.plural}. Use a busca para chegar em alguém específico.
+                      </p>
+                    )}
+                    {filtrados.length === 0 && (
                       <p className="text-sm text-muted-foreground py-6 text-center px-4">
-                        Nenhum dos selecionados tem negócio vinculado.
+                        {podeEscolher
+                          ? `Nenhum ${termo.singular} encontrado.`
+                          : "Nenhum dos selecionados tem negócio vinculado."}
                       </p>
                     )}
                   </div>
@@ -225,12 +320,12 @@ export function ExecutarAutomacaoWizard({
               {passo === 2 && (
                 <Button
                   className="gap-2"
-                  disabled={executando || comNegocio.length === 0 || !automacaoId}
-                  onClick={() => automacaoId && onExecutar(automacaoId)}
+                  disabled={executando || idsFinais.length === 0 || !automacaoId}
+                  onClick={() => automacaoId && onExecutar(automacaoId, idsFinais)}
                 >
                   {executando
                     ? "Executando…"
-                    : <><Play size={15} /> Executar em {comNegocio.length} {comNegocio.length === 1 ? termo.singular : termo.plural}</>}
+                    : <><Play size={15} /> Executar em {idsFinais.length} {idsFinais.length === 1 ? termo.singular : termo.plural}</>}
                 </Button>
               )}
             </div>
