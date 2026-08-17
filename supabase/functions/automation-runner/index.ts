@@ -1650,6 +1650,11 @@ async function executeFlow(
                 phone: rawPhone, from_me: true, body: parts[i], type: "text",
                 message_id: idNoProvedor,
                 conversation_id: conversationId,
+                // Os botões ficam gravados com a mensagem que os levou. Sem
+                // isso o Multiatendimento mostrava só o texto, e a resposta do
+                // contato chegava sem o atendente saber quais opções tinham
+                // sido oferecidas.
+                buttons: (isLast && buttons.length > 0) ? buttons : null,
               });
               // Pequeno intervalo entre partes para preservar a ordem de entrega
               if (!isLast) await new Promise<void>((r) => setTimeout(r, 600));

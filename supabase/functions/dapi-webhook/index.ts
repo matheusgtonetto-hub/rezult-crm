@@ -20,6 +20,63 @@ function jidToPhone(jid: unknown): string {
   return s.split("@")[0].replace(/\D/g, "");
 }
 
+/**
+ * Tipos que significam "o contato clicou num botão / escolheu um item".
+ *
+ * `buttons_response` NÃO está na documentação da D-API, que lista
+ * template_button_reply, list_response e nativeflow. Foi o tipo que chegou de
+ * verdade quando um contato clicou num botão enviado por NativeFlow, e está
+ * aqui porque o que a API manda vale mais que o que a doc descreve. Os outros
+ * ficam junto para não termos que descobrir cada um por um cliente perdido.
+ */
+const TIPOS_DE_RESPOSTA_INTERATIVA = new Set([
+  "buttons_response",
+  "template_button_reply",
+  "list_response",
+  "nativeflow",
+  "interactive",
+]);
+
+/**
+ * O rótulo do botão que o contato clicou.
+ *
+ * Cada tipo guarda o texto num campo diferente, e a ordem abaixo vai do mais
+ * específico ao mais genérico. `message` fica por último de propósito: em
+ * alguns formatos ele traz o corpo da mensagem ORIGINAL, não a escolha, e
+ * pegá-lo antes gravaria a pergunta no lugar da resposta.
+ *
+ * Devolve string vazia quando não reconhece nada -- quem chama registra o
+ * payload em vez de gravar uma mensagem vazia na conversa do cliente.
+ */
+function textoDeRespostaInterativa(data: Record<string, unknown>): string {
+  const candidatos = [
+    data.selected_display_text, // template_button_reply
+    data.selected_title,        // list_response
+    data.selected_button_text,
+    data.title,
+    data.text,
+    data.message,
+  ];
+  for (const c of candidatos) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+  // nativeflow: o rótulo vem dentro de params_json, que é JSON DENTRO de uma
+  // string -- por isso o parse aninhado.
+  const buttons = data.buttons;
+  if (Array.isArray(buttons)) {
+    for (const b of buttons) {
+      const params = (b as Record<string, unknown>)?.params_json;
+      if (typeof params !== "string") continue;
+      try {
+        const p = JSON.parse(params) as Record<string, unknown>;
+        const t = p.display_text ?? p.title;
+        if (typeof t === "string" && t.trim()) return t.trim();
+      } catch { /* params_json malformado: segue para o aviso de quem chamou */ }
+    }
+  }
+  return "";
+}
+
 serve(async (req) => {
   // Health check
   if (req.method === "GET") {
@@ -118,6 +175,25 @@ serve(async (req) => {
       msgType = "image"; media = mediaUrl; body = String(data.message ?? mediaData.caption ?? "");
     } else if (type === "document") {
       msgType = "document"; media = mediaUrl; body = String(mediaData.fileName ?? mediaData.filename ?? "arquivo");
+    } else if (TIPOS_DE_RESPOSTA_INTERATIVA.has(type)) {
+      // O contato clicou num botão ou escolheu um item de lista.
+      //
+      // Isto vinha sendo DESCARTADO: o tipo caía no "não mapeado" e a função
+      // devolvia ok sem gravar nada. Quem clicava em "Agendar consulta
+      // inicial" recebia silêncio, e no Multiatendimento a conversa parecia
+      // não ter resposta -- a pior forma de perder mensagem de cliente,
+      // porque nada indica que se perdeu.
+      //
+      // Vira mensagem de texto com o rótulo do botão, que é o que o contato
+      // entende ter dito e o que a automação precisa para casar a resposta.
+      msgType = "text";
+      body = textoDeRespostaInterativa(data);
+      if (!body) {
+        // Formato desconhecido: registra o payload para ser reconhecido na
+        // próxima, em vez de descartar sem deixar rastro.
+        console.warn(`dapi-webhook: resposta interativa '${type}' sem texto reconhecido:`, JSON.stringify(data).slice(0, 800));
+        return new Response("ok", { status: 200 });
+      }
     } else {
       // Tipos não suportados (vídeo, sticker, localização, etc.) — ignora por ora.
       console.warn("dapi-webhook: tipo de mensagem não mapeado:", type);

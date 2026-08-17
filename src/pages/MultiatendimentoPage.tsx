@@ -17,7 +17,7 @@ import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
   Search, Settings, Clock, Folder, Zap, CheckCircle2,
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
-  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban, Forward,
+  Smile, Mic, Sparkles, ExternalLink, ChevronDown, Play, Pause, CheckCheck, FileText, Reply, Copy, Ban, Forward, CornerUpLeft,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
   StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
@@ -160,6 +160,14 @@ type MsgBase = {
    * do atendimento, que é o registro que o CRM existe para guardar.
    */
   apagadaEm?: string | null;
+  /**
+   * Rótulos dos botões que foram enviados junto desta mensagem.
+   *
+   * Existem para o ATENDENTE ver o que foi oferecido ao contato -- no
+   * WhatsApp o botão é clicável, aqui é registro. Sem isso, a resposta
+   * "Agendar consulta inicial" chegava sem contexto nenhum na tela.
+   */
+  botoes?: string[] | null;
 };
 
 type Msg =
@@ -254,12 +262,16 @@ function parseAudioDuration(raw?: string | null): string {
 // from_me (enviadas por automação, outro membro ou outro dispositivo) entram como
 // "agent" com o nome de quem enviou.
 function buildIncomingMsg(
-  m: { id?: string; body?: string; type?: string; media_url?: string; from_me?: boolean; sender_name?: string; sent_by_agent?: boolean },
+  m: { id?: string; body?: string; type?: string; media_url?: string; from_me?: boolean; sender_name?: string; sent_by_agent?: boolean; buttons?: unknown },
   timeStr: string,
 ): Msg {
+  // Os botões acompanham a mensagem também aqui, e não só no carregamento do
+  // histórico: sem isto, a mensagem da automação chegava ao vivo sem as opções
+  // e elas só apareciam depois de recarregar a tela.
+  const botoes = Array.isArray(m.buttons) ? (m.buttons as string[]) : null;
   const base = m.from_me
-    ? { id: m.id as string, from: "agent" as const, agent: m.sender_name ?? (m.sent_by_agent ? "Agente" : "Automação"), porAgente: !!m.sent_by_agent, time: timeStr, date: "Hoje", read: true }
-    : { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false };
+    ? { id: m.id as string, from: "agent" as const, agent: m.sender_name ?? (m.sent_by_agent ? "Agente" : "Automação"), porAgente: !!m.sent_by_agent, time: timeStr, date: "Hoje", read: true, botoes }
+    : { id: m.id as string, from: "lead" as const, time: timeStr, date: "Hoje", read: false, botoes };
   if (m.type === "audio")    return { ...base, kind: "audio" as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
   if (m.type === "image")    return { ...base, kind: "image" as const, src: m.media_url ?? "", caption: m.body ?? "" };
   if (m.type === "document") return { ...base, kind: "file"  as const, filename: m.body ?? "arquivo", url: m.media_url ?? undefined };
@@ -1607,6 +1619,7 @@ export default function MultiatendimentoPage() {
             time:  d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
             date:  dateLabel,
             read:  true as const,
+            botoes: Array.isArray(m.buttons) ? (m.buttons as string[]) : null,
           };
           if (m.type === "system")   return { id: m.id, from: "system" as const, time: base.time, kind: "system" as const, text: m.body ?? "", date: base.date };
           if (m.type === "audio")    return { ...base, kind: "audio"  as const, duration: parseAudioDuration(m.body), src: m.media_url ?? undefined };
@@ -3940,6 +3953,27 @@ export default function MultiatendimentoPage() {
                             )}
                             </>)}
                           </div>
+                          {/* Botões oferecidos com esta mensagem.
+                              Aqui eles são REGISTRO, não controle: quem clica é
+                              o contato, no WhatsApp dele. Ficam fora da bolha e
+                              sem aparência de clicável de propósito -- um botão
+                              que o atendente pudesse apertar sugeriria que ele
+                              responde no lugar do cliente. */}
+                          {!m.apagadaEm && m.botoes && m.botoes.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4, width: "100%" }}>
+                              {m.botoes.map((rotulo, bi) => (
+                                <div key={bi} style={{
+                                  fontSize: 12, color: "#128A68", background: "#FFF",
+                                  border: "1px solid #D6E9E2", borderRadius: 8,
+                                  padding: "6px 10px", textAlign: "center",
+                                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                }}>
+                                  <CornerUpLeft size={12} />
+                                  <span style={{ overflowWrap: "anywhere" }}>{rotulo}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {/* Avatar de quem enviou, do lado direito. O lead já tinha
                             o dele à esquerda; do lado do atendente não havia
