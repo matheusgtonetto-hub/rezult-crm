@@ -67,6 +67,8 @@ export function CreateDisparoWizard({
     // wizard começa sem restrição, como sempre começou.
     setFilter(leadsPreSelecionados?.length ? { ids: leadsPreSelecionados } : {});
     setTitle(""); setDescription(""); setRhythm("normal"); setScheduleOn(false); setScheduledAt(""); setConfirmFilters(false);
+    // Sem exceções ao abrir: o padrão é levar todos que casarem com o filtro.
+    setDesmarcados(new Set());
     if (company) fetchLeadManualAutomations(company.id).then(setAutomations).catch(() => setAutomations([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, company?.id, leadsPreSelecionados]);
@@ -76,8 +78,25 @@ export function CreateDisparoWizard({
   const matched = useMemo(() => filterLeads(allLeads, effFilter, { lists: crmLists }), [allLeads, effFilter, crmLists]);
   const selectedAutomation = automations.find(a => a.id === automationId);
 
+  /**
+   * Leads tirados da mão, dentro do que o filtro trouxe.
+   *
+   * Guardo as EXCEÇÕES e não os escolhidos porque o padrão é "todos que casam
+   * com o filtro" -- era assim que o disparo funcionava antes de existir
+   * checkbox, e continua sendo o caso comum. Guardar os escolhidos obrigaria a
+   * remarcar tudo a cada mudança de filtro; guardando as exceções, mexer no
+   * filtro preserva o que a pessoa já tinha decidido tirar.
+   */
+  const [desmarcados, setDesmarcados] = useState<Set<string>>(new Set());
+  const selecionados = useMemo(() => matched.filter(l => !desmarcados.has(l.id)), [matched, desmarcados]);
+  const alternarLead = (id: string) => setDesmarcados(prev => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+
   const canNext =
-    (step === 1 && type) || (step === 2 && automationId) || (step === 3 && matched.length > 0) || step === 4;
+    (step === 1 && type) || (step === 2 && automationId) || (step === 3 && selecionados.length > 0) || step === 4;
 
   const save = async () => {
     if (!company || !automationId) return;
@@ -93,10 +112,14 @@ export function CreateDisparoWizard({
         automationId,
         automationName: selectedAutomation?.name,
         rhythm,
-        filters: filter,
+        // Havendo lead desmarcado, o filtro gravado passa a ser a lista exata.
+        // `filters` é o registro de COMO o disparo foi montado: guardar só os
+        // critérios, depois de alguém tirar gente na mão, deixaria o registro
+        // dizendo uma coisa e a execução fazendo outra.
+        filters: desmarcados.size > 0 ? { ...filter, ids: selecionados.map(l => l.id) } : filter,
         scheduledAt: scheduleOn && scheduledAt ? new Date(scheduledAt).toISOString() : null,
         confirmFilters,
-        leads: matched.map(l => ({ id: l.id, name: l.name, phone: l.whatsapp ?? "" })),
+        leads: selecionados.map(l => ({ id: l.id, name: l.name, phone: l.whatsapp ?? "" })),
       });
       toast.success("Disparo criado com sucesso");
       onCreated(disparo.id);
@@ -227,23 +250,58 @@ export function CreateDisparoWizard({
                         leads que a pessoa tinha marcado na lista. */}
                     <LeadFilterPanel value={filter} onApply={f => setFilter({ ...f, ids: filter.ids })} />
                   </div>
-                  <p className="text-sm font-semibold text-primary mb-2">{matched.length.toLocaleString("pt-BR")} leads correspondentes</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-semibold text-primary">
+                      {selecionados.length.toLocaleString("pt-BR")} de {matched.length.toLocaleString("pt-BR")} leads selecionados
+                    </p>
+                    {matched.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                        onClick={() => setDesmarcados(
+                          // Alterna entre "todos" e "nenhum" DENTRO do filtro
+                          // atual: quem está fora do filtro não é assunto deste
+                          // botão, e desmarcar quem nem está na lista
+                          // confundiria a contagem.
+                          selecionados.length === matched.length ? new Set(matched.map(l => l.id)) : new Set(),
+                        )}
+                      >
+                        {selecionados.length === matched.length ? "Desmarcar todos" : "Marcar todos"}
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1.5">
-                    {matched.slice(0, 60).map(l => (
-                      <div key={l.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border">
-                        <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
-                          {l.name.slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{l.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{l.whatsapp || l.email || "—"}</p>
-                        </div>
-                        {(l.tags ?? []).slice(0, 2).map(t => (
-                          <span key={t} className="text-[10px] bg-secondary rounded px-1.5 py-0.5 text-muted-foreground">{t}</span>
-                        ))}
-                      </div>
-                    ))}
-                    {matched.length > 60 && <p className="text-xs text-muted-foreground text-center py-2">+ {(matched.length - 60).toLocaleString("pt-BR")} leads</p>}
+                    {matched.slice(0, 60).map(l => {
+                      const marcado = !desmarcados.has(l.id);
+                      return (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => alternarLead(l.id)}
+                          className="flex items-center gap-3 p-2.5 rounded-lg border border-border w-full text-left hover:bg-secondary/40 transition-colors"
+                        >
+                          <div className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
+                               style={{ borderColor: marcado ? "hsl(var(--primary))" : "#CBD5E1", background: marcado ? "hsl(var(--primary))" : "transparent" }}>
+                            {marcado && <Check size={11} color="#fff" />}
+                          </div>
+                          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+                            {l.name.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{l.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{l.whatsapp || l.email || "—"}</p>
+                          </div>
+                          {(l.tags ?? []).slice(0, 2).map(t => (
+                            <span key={t} className="text-[10px] bg-secondary rounded px-1.5 py-0.5 text-muted-foreground">{t}</span>
+                          ))}
+                        </button>
+                      );
+                    })}
+                    {matched.length > 60 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        + {(matched.length - 60).toLocaleString("pt-BR")} leads. Use a busca ou os filtros para chegar em alguém específico.
+                      </p>
+                    )}
                     {matched.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Nenhum lead corresponde aos filtros.</p>}
                   </div>
                 </>
@@ -298,7 +356,7 @@ export function CreateDisparoWizard({
               {step > 1 && <Button variant="outline" onClick={() => setStep((step - 1) as Step)}>Voltar</Button>}
               {step < 4 && (
                 <Button disabled={!canNext} onClick={() => setStep((step + 1) as Step)}>
-                  {step === 3 ? `Selecionar ${matched.length.toLocaleString("pt-BR")} leads` : "Próximo"}
+                  {step === 3 ? `Selecionar ${selecionados.length.toLocaleString("pt-BR")} leads` : "Próximo"}
                 </Button>
               )}
               {step === 4 && (
