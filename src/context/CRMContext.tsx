@@ -1,6 +1,6 @@
 import {
   createContext, useContext, useState, ReactNode,
-  useCallback, useMemo, useEffect,
+  useCallback, useMemo, useEffect, useRef,
 } from "react";
 import {
   Lead, Task, Tag, CrmList, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
@@ -273,9 +273,13 @@ function dbToTask(row: Record<string, unknown>): Task {
 // Multiatendimento já usa ao transferir: todas as conversas do contato, sem
 // distinção por negócio). Consulta fresca em vez de depender de closure —
 // evita o bug de closure obsoleta já visto em addWhatsAppConnection.
-async function syncResponsibleToConversations(personId: string | undefined, responsible: string | undefined) {
+async function syncResponsibleToConversations(personId: string | undefined, responsible: string | undefined, responsibleUserId?: string | null) {
   if (!personId || !responsible) return;
-  const { error } = await supabase.from("whatsapp_conversations").update({ assigned_to: responsible }).eq("contact_id", personId);
+  // Nome e id juntos, pelo mesmo motivo do negócio: o nome é o que a tela
+  // mostra, o id é o que sobrevive a uma troca de nome no perfil.
+  const { error } = await supabase.from("whatsapp_conversations")
+    .update({ assigned_to: responsible, assigned_to_user_id: responsibleUserId ?? null })
+    .eq("contact_id", personId);
   if (error) console.error("syncResponsibleToConversations:", error.message);
 }
 
@@ -321,6 +325,36 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [memberEmails, setMemberEmails] = useState<Record<string, string>>({});
   const [memberAvatars, setMemberAvatars] = useState<Record<string, string>>({});
   const [memberUserIds, setMemberUserIds] = useState<Record<string, string>>({});
+  /**
+   * O mesmo mapa nome→id, num ref.
+   *
+   * Quem grava responsável precisa do id atual, mas os callbacks que gravam são
+   * `useCallback` usados em dezenas de telas: pôr `memberUserIds` nas
+   * dependências os recriaria a cada carga de membros, e o custo disso é maior
+   * que o benefício. O ref entrega sempre o valor do momento.
+   */
+  const memberUserIdsRef = useRef<Record<string, string>>({});
+  useEffect(() => { memberUserIdsRef.current = memberUserIds; }, [memberUserIds]);
+
+  /**
+   * Traduz o nome exibido para o id do membro, que é o vínculo que sobrevive a
+   * uma troca de nome no perfil.
+   *
+   * Comparação normalizada de propósito: a base tem nome gravado com espaço
+   * sobrando ("Beatriz ") e com caixa diferente, e igualdade exata deixaria
+   * esses de fora sem motivo.
+   *
+   * Devolve null quando o nome não é de nenhum membro. Isso é esperado e
+   * permitido: 341 negócios têm responsável vindo de importação, que nunca foi
+   * usuário do sistema. Eles seguem só com o texto.
+   */
+  const idDoResponsavel = useCallback((nome: string | null | undefined): string | null => {
+    const alvo = (nome ?? "").trim().toLowerCase();
+    if (!alvo) return null;
+    const mapa = memberUserIdsRef.current;
+    const achado = Object.keys(mapa).find(n => n.trim().toLowerCase() === alvo);
+    return achado ? mapa[achado] : null;
+  }, []);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
 
@@ -910,6 +944,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         value: lead.value,
         responsible: lead.responsible,
         responsibles: lead.responsibles ?? (lead.responsible ? [lead.responsible] : []),
+        responsible_user_id: idDoResponsavel(lead.responsible),
         priority: lead.priority,
         origin: lead.origin,
         product_id: lead.productId || null,
@@ -975,7 +1010,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         : p
     ));
     return true;
-  }, [user, company, pipelines, leads]);
+  }, [user, company, pipelines, leads, idDoResponsavel]);
 
   const updateLead = useCallback(async (id: string, data: Partial<Lead>) => {
     setLeads(prev => ({ ...prev, [id]: { ...prev[id], ...data } }));
@@ -997,6 +1032,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       dbData.responsibles = data.responsibles ?? [];
       // keep responsible in sync with first element
       if (!("responsible" in data)) dbData.responsible = data.responsibles?.[0] ?? "";
+    }
+    // O id vai junto do nome. É ele que segura o vínculo quando a pessoa troca
+    // o nome em Meu perfil -- antes disso, renomear desligava o usuário de
+    // todos os negócios dele (639 negócios ficaram órfãos assim).
+    if ("responsible" in data || "responsibles" in data) {
+      dbData.responsible_user_id = idDoResponsavel(dbData.responsible as string | undefined);
     }
     if ("priority" in data) dbData.priority = data.priority;
     if ("origin" in data) dbData.origin = data.origin;
@@ -1034,7 +1075,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     if ("responsible" in data && data.responsible) {
       const { data: row } = await supabase.from("leads").select("person_id").eq("id", id).maybeSingle();
-      await syncResponsibleToConversations((row as { person_id?: string } | null)?.person_id, data.responsible);
+      await syncResponsibleToConversations(
+        (row as { person_id?: string } | null)?.person_id,
+        data.responsible,
+        idDoResponsavel(data.responsible),
+      );
     }
 
     // Edição explícita de identidade (nome/telefone/e-mail) num negócio
@@ -1058,7 +1103,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, []);
+  }, [idDoResponsavel]);
 
   const deleteLead = useCallback((id: string) => {
     setLeads(prev => { const n = { ...prev }; delete n[id]; return n; });
@@ -1509,6 +1554,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         lead_name: task.leadName,
         title: task.title,
         responsible: task.responsible,
+        responsible_user_id: idDoResponsavel(task.responsible),
         due_date: task.dueDate,
         status: task.status,
       })
@@ -1518,14 +1564,17 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (error || !data) { toast.error("Erro ao criar tarefa."); return; }
 
     setTasks(prev => [...prev, dbToTask(data as Record<string, unknown>)]);
-  }, [user, company]);
+  }, [user, company, idDoResponsavel]);
 
   const updateTask = useCallback((id: string, data: Partial<Task>) => {
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...data } : t)));
 
     const dbData: Record<string, unknown> = {};
     if ("title" in data) dbData.title = data.title;
-    if ("responsible" in data) dbData.responsible = data.responsible;
+    if ("responsible" in data) {
+      dbData.responsible = data.responsible;
+      dbData.responsible_user_id = idDoResponsavel(data.responsible);
+    }
     if ("dueDate" in data) dbData.due_date = data.dueDate;
     if ("status" in data) dbData.status = data.status;
     if ("leadName" in data) dbData.lead_name = data.leadName;
@@ -1535,7 +1584,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         if (error) console.error("updateTask error:", error.message);
       });
     }
-  }, []);
+  }, [idDoResponsavel]);
 
   const deleteTask = useCallback((id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));

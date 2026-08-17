@@ -3018,6 +3018,15 @@ export default function MultiatendimentoPage() {
   // continua existindo (é o que os chips leem), mas passa a ser só um
   // espelho do responsável do negócio, atualizado em TODAS as conversas
   // desse negócio de uma vez -- antes só a conversa ativa era atualizada.
+  /** Nome exibido → id do membro. Comparação normalizada: há nome gravado com
+   *  espaço sobrando e com caixa diferente. Null quando não é membro. */
+  function idDoMembro(nome: string | null | undefined): string | null {
+    const alvo = (nome ?? "").trim().toLowerCase();
+    if (!alvo) return null;
+    const achado = Object.keys(memberUserIds).find(n => n.trim().toLowerCase() === alvo);
+    return achado ? memberUserIds[achado] : null;
+  }
+
   async function handleTransfer(memberNames: string[]) {
     if (!activeId || !user) return;
     const linkedLead = resolveLeadForConv(active);
@@ -3059,8 +3068,11 @@ export default function MultiatendimentoPage() {
         momment:     Date.now(),
         sender_name: null,
       }, conv.id).then(({ error }) => { if (error) console.error("Erro ao salvar evento de transferência:", error); });
+      // Grava o id junto do nome: é o id que segura o vínculo quando a pessoa
+      // troca o nome em Meu perfil. Sem ele, renomear desligava o atendente de
+      // todas as conversas dele.
       supabase.from("whatsapp_conversations")
-        .update({ assigned_to: primary || null })
+        .update({ assigned_to: primary || null, assigned_to_user_id: idDoMembro(primary) })
         .eq("id", conv.id)
         .then(({ error }) => { if (error) console.error("handleTransfer assignedTo:", error); });
     }
@@ -3273,7 +3285,13 @@ export default function MultiatendimentoPage() {
   const bulkFinish = () => bulkApply({ finished: true, read: true }, { finished: true, read: true }, `${selectedConvs.length} conversa(s) finalizada(s).`);
 
   const bulkAssignAgent = (agent: string) => {
-    bulkApply({ assignedTo: agent }, { assigned_to: agent }, `Atendente atribuído a ${selectedConvs.length} conversa(s).`);
+    // O id acompanha aqui também, senão a atribuição em massa criaria conversas
+    // que voltam a perder o atendente quando ele troca o nome no perfil.
+    bulkApply(
+      { assignedTo: agent },
+      { assigned_to: agent, assigned_to_user_id: idDoMembro(agent) },
+      `Atendente atribuído a ${selectedConvs.length} conversa(s).`,
+    );
     setBulkAction(null);
   };
 
