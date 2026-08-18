@@ -4487,7 +4487,6 @@ export default function MultiatendimentoPage() {
 
             {/* ETAPA NO PIPELINE */}
             <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>Pipeline &amp; Etapa</div>
               <div style={{ marginBottom: 14 }}>
                 <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}>{linkedPipeline?.name || active.pipeline || "—"}</span>
                 <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}> - </span>
