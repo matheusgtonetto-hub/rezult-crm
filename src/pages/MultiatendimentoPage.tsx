@@ -4455,9 +4455,9 @@ export default function MultiatendimentoPage() {
                         ela troca. */}
                     <button
                       onClick={() => setShowTransferDialog(true)}
-                      style={{ flexShrink: 0, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, color: "#128A68", cursor: "pointer", whiteSpace: "nowrap" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
+                      style={{ flexShrink: 0, background: "#E1F5EE", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, color: "#128A68", cursor: "pointer", whiteSpace: "nowrap" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
                     >Transferir</button>
                   </>
                 )}
