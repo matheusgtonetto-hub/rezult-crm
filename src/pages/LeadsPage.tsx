@@ -28,14 +28,11 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 
 export default function LeadsPage() {
-  const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags } = useCRM();
+  const { leads, contacts, columns, pipelines, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags } = useCRM();
   const { company } = useCompany();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [filterResp, setFilterResp] = useState("all");
-  const [filterPipeline, setFilterPipeline] = useState("all");
-  const [filterStage, setFilterStage] = useState("all");
 
   // Lead modal (create / edit lead / edit contato sem negócio)
   const [modalOpen, setModalOpen] = useState(false);
@@ -94,33 +91,24 @@ export default function LeadsPage() {
   });
   const filtered = allLeadsSorted.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.company || "").toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterResp !== "all") {
-      const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
-      if (!resps.includes(filterResp)) return false;
-    }
-    if (filterPipeline !== "all" && l.pipelineId !== filterPipeline) return false;
-    if (filterStage !== "all" && l.stage !== filterStage) return false;
     return true;
   });
 
   // Contatos ainda sem nenhum negócio vinculado (nenhuma linha em `leads` com
   // person_id apontando pra eles) -- aparecem misturados na mesma lista, com
-  // badge "Sem negócio" no lugar do Responsável. Só entram quando nenhum filtro
-  // exclusivo de negócio (Responsável/Pipeline/Etapa) está ativo, já que um
-  // contato solto não tem nenhum desses atributos pra filtrar.
+  // badge "Sem negócio" no lugar do Responsável. Entram sempre: os filtros de
+  // Responsável, Pipeline e Etapa, que os excluíam por serem atributos de
+  // negócio, saíram do topo da tela.
   const linkedPersonIds = useMemo(() => {
     const s = new Set<string>();
     Object.values(leads).forEach(l => { if (l.personId) s.add(l.personId); });
     return s;
   }, [leads]);
-  const noExtraFilters = filterResp === "all" && filterPipeline === "all" && filterStage === "all";
-  const filteredContacts = noExtraFilters
-    ? Object.values(contacts)
-        .filter(c => !linkedPersonIds.has(c.id))
-        .filter(c => !search
-          || c.name.toLowerCase().includes(search.toLowerCase())
-          || (c.company || "").toLowerCase().includes(search.toLowerCase()))
-    : [];
+  const filteredContacts = Object.values(contacts)
+    .filter(c => !linkedPersonIds.has(c.id))
+    .filter(c => !search
+      || c.name.toLowerCase().includes(search.toLowerCase())
+      || (c.company || "").toLowerCase().includes(search.toLowerCase()));
 
   type Row = { kind: "lead"; lead: Lead } | { kind: "contact"; contact: Contact };
   const rows: Row[] = useMemo(() => {
@@ -131,7 +119,6 @@ export default function LeadsPage() {
       kind: "contact", contact: c, ts: c.createdAt ? new Date(c.createdAt).getTime() : 0,
     }));
     return [...leadRows, ...contactRows].sort((a, b) => b.ts - a.ts);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, filteredContacts]);
 
   const colName = (id: string) => {
@@ -303,37 +290,6 @@ export default function LeadsPage() {
           onChange={e => setSearch(e.target.value)}
           className="bg-card border-card-border rounded-lg max-w-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
         />
-        <Select value={filterResp} onValueChange={setFilterResp}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-40 focus:ring-0 focus:ring-offset-0 focus:border-primary">
-            <SelectValue placeholder="Responsável" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-card-border">
-            <SelectItem value="all">Todos</SelectItem>
-            {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterPipeline} onValueChange={v => { setFilterPipeline(v); setFilterStage("all"); }}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
-            <SelectValue placeholder="Pipeline" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-card-border">
-            <SelectItem value="all">Todos</SelectItem>
-            {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterStage} onValueChange={setFilterStage}>
-          <SelectTrigger className="bg-card border-card-border rounded-lg w-44 focus:ring-0 focus:ring-offset-0 focus:border-primary">
-            <SelectValue placeholder="Etapa" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-card-border">
-            <SelectItem value="all">Todas</SelectItem>
-            {(filterPipeline !== "all"
-              ? pipelines.find(p => p.id === filterPipeline)?.columns ?? []
-              : columns
-            ).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
         {/* Este menu some quando nada está marcado? Não mais. Ele guarda ações
             que existem independente de seleção (criar disparo parte de filtro),
             e um botão que aparece e desaparece obriga a descobrir de novo onde
