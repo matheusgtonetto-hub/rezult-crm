@@ -132,8 +132,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * Três estados, não dois: `undefined` = ainda buscando, `null` = não existe
    * conversa. A diferença importa para a janela de 24h abaixo, onde "não sei
    * ainda" e "o contato nunca escreveu" levam a decisões opostas.
+   *
+   * O `instanceId` diz por qual linha esta conversa aconteceu, e é o que define
+   * a conexão que esta janela usa (ver `conexaoAtiva`).
    */
-  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string } | null | undefined>(undefined);
+  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string; instanceId: string | null } | null | undefined>(undefined);
   /**
    * Janela de 24h da Cloud API, a MESMA regra que o Multiatendimento aplica.
    *
@@ -156,11 +159,28 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const [menuDaMsg, setMenuDaMsg] = useState<string | null>(null);
   const [menuParaCima, setMenuParaCima] = useState(false);
   /**
-   * A conexão por onde esta janela envia: a MESMA escolha que o envio faz
-   * (primeira ativa e conectada), para o cabeçalho não anunciar uma linha e a
-   * mensagem sair por outra.
+   * A conexão por onde esta janela envia. Uma só, usada por TUDO aqui dentro
+   * (envio, anexo, janela de 24h, "digitando...", foto, apagar e o rótulo do
+   * cabeçalho), para nenhum desses pedaços falar de uma linha e a mensagem sair
+   * por outra.
+   *
+   * A linha vem da CONVERSA, não da lista de conexões. Antes era sempre a
+   * primeira ativa da empresa, o que só coincide com a realidade em quem tem uma
+   * conexão só: com duas, esta janela podia calcular a janela de 24h por uma
+   * linha e enviar por outra, e discordar do Multiatendimento sobre a mesma
+   * conversa. Lá a linha da conversa já é adotada ao abri-la
+   * (MultiatendimentoPage.tsx, switchActiveInstance e o efeito que o antecede).
+   *
+   * Fallback para a primeira ativa em dois casos, o mesmo critério da outra
+   * tela: enquanto a conversa ainda está sendo buscada, e quando a linha dela
+   * não existe mais para este usuário (removida, ou de outra empresa) -- aí
+   * insistir nela deixaria a janela sem conexão nenhuma em vez de utilizável.
    */
-  const conexaoAtiva = whatsappConnections.find(c => c.connected && c.active);
+  const primeiraAtiva = whatsappConnections.find(c => c.connected && c.active);
+  const conexaoDaConversa = conversaDoCanal?.instanceId
+    ? whatsappConnections.find(c => c.instanceId === conversaDoCanal.instanceId && c.connected && c.active)
+    : undefined;
+  const conexaoAtiva = conexaoDaConversa ?? primeiraAtiva;
   // Nome dado à conexão nas Configurações; sem nome, o próprio número, que é
   // como o atendente reconhece a linha.
   const nomeDaConexao = conexaoAtiva?.name?.trim() || conexaoAtiva?.phone || "Conexão sem nome";
@@ -223,12 +243,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // Foto do contato, mesma origem do Multiatendimento. A guarda de número
   // curto vive dentro de fetchWhatsappAvatar, então não precisa repetir aqui.
   useEffect(() => {
-    const inst = whatsappConnections.find(c => c.connected && c.active);
-    if (!inst?.token || !lead?.whatsapp) { setAvatarDoLead(undefined); return; }
+    if (!conexaoAtiva?.token || !lead?.whatsapp) { setAvatarDoLead(undefined); return; }
     let cancelado = false;
-    fetchWhatsappAvatar(lead.whatsapp, inst).then(url => { if (!cancelado && url) setAvatarDoLead(url); });
+    fetchWhatsappAvatar(lead.whatsapp, conexaoAtiva).then(url => { if (!cancelado && url) setAvatarDoLead(url); });
     return () => { cancelado = true; };
-  }, [lead?.whatsapp, whatsappConnections]);
+  }, [lead?.whatsapp, conexaoAtiva]);
 
   // Carregar histórico + Realtime ao abrir o chat
   useEffect(() => {
@@ -251,7 +270,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // está em uso.
     supabase
       .from("whatsapp_conversations")
-      .select("id, phone")
+      .select("id, phone, instance_id")
       .in("phone", variantesDeTelefone(lead.whatsapp))
       .order("last_msg_at", { ascending: false, nullsFirst: false })
       .limit(1)
@@ -261,8 +280,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         // gastar um modelo à toa é mais barato que escrever uma mensagem
         // inteira e receber a recusa da Meta depois de mandar.
         if (error) { console.warn("conversa do canal:", error.message); setConversaDoCanal(null); return; }
-        const c = data?.[0] as { id: string; phone: string } | undefined;
-        setConversaDoCanal(c ? { id: c.id, phone: c.phone } : null);
+        const c = data?.[0] as { id: string; phone: string; instance_id: string | null } | undefined;
+        setConversaDoCanal(c ? { id: c.id, phone: c.phone, instanceId: c.instance_id } : null);
       });
 
     supabase
@@ -497,7 +516,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       toast.error("Este lead não tem WhatsApp cadastrado.");
       return;
     }
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoAtiva;
     if (!inst?.token) {
       toast.error("Nenhuma conexão de WhatsApp ativa. Configure em Configurações → Conexões.");
       return;
@@ -571,7 +590,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // funciona em qualquer linha -- inclusive na oficial, onde a Meta proíbe
   // apagar de verdade.
   const apagarMensagem = async (m: ChatMsg, paraTodos: boolean) => {
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoAtiva;
     if (paraTodos && (!inst?.token || !m.messageId || !lead?.whatsapp)) return;
     try {
       if (paraTodos) {
@@ -615,7 +634,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // que entra aqui é sempre o do CANAL (ver `conversaDoCanal`): mandar o do
   // cadastro devolve 200 e não acende nada.
   function enviarPresence(telefone: string | null | undefined, state: "typing" | "paused") {
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoAtiva;
     if (inst?.provider !== "dapi" || !inst.token || !telefone) return;
     fetch("https://api.d-api.cloud/api/v1/chats/presence", {
       method: "POST",
@@ -683,8 +702,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       setDraft(d => (d.trim() ? d : text));
     };
 
-    // Envia pela 1ª conexão de WhatsApp ativa da empresa -- mesma escolha
-    // usada pro avatar (lead não guarda qual conversa/instância o originou).
+    // Envia pela linha da conversa (ver `conexaoAtiva`), a mesma que o
+    // cabeçalho anuncia e que a janela de 24h usa para decidir.
     // Suporta os 3 provedores (D-API/Z-API/Cloud API), igual ao
     // Multiatendimento -- antes só existia o caminho Z-API, em cima de
     // campos (company.zapi_*) que não são mais escritos desde a migração
@@ -696,7 +715,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       return;
     }
 
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoAtiva;
     if (!inst) {
       desfazerEnvio();
       toast.error("Nenhuma conexão de WhatsApp ativa. Configure em Configurações → Conexões.");
@@ -810,7 +829,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // banco o texto RESOLVIDO, não o modelo cru -- quem abrir a conversa depois
   // precisa ler a mensagem que o cliente recebeu, não "{{1}} às {{2}}".
   const enviarModelo = async (modelo: Modelo, valores: Record<string, string>, textoResolvido: string) => {
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoAtiva;
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
     // Preferir o telefone do canal: ele veio do JID que o WhatsApp mandou, e o
     // do cadastro costuma estar sem o código do país. Para modelo isso pesa
