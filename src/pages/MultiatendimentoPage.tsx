@@ -4505,7 +4505,7 @@ export default function MultiatendimentoPage() {
                         if (pipelineCols.length > 0 && effectiveLead) handleStageClick(pipelineCols[i].id);
                         else updateCs(activeId, { stageIdx: i });
                       }}
-                      style={{ flex: 1, height: 16, background: bg, border: "none", padding: 0, cursor: "pointer", clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)" }}
+                      style={{ flex: 1, height: 10, background: bg, border: "none", padding: 0, cursor: "pointer", clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)" }}
                     />
                   );
                 })}
