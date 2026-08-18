@@ -21,6 +21,7 @@ import { Reply, Trash2, Copy, ChevronDown } from "lucide-react";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
+import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
 import {
   BotMessageSquare,
   Minus,
@@ -28,6 +29,7 @@ import {
   Paperclip,
   Smile,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 
 interface ChatMsg {
@@ -126,8 +128,29 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    *
    * O `id` vem junto porque é o que o Multiatendimento espera para abrir esta
    * mesma conversa (`location.state.openConvId`).
+   *
+   * Três estados, não dois: `undefined` = ainda buscando, `null` = não existe
+   * conversa. A diferença importa para a janela de 24h abaixo, onde "não sei
+   * ainda" e "o contato nunca escreveu" levam a decisões opostas.
    */
-  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string } | null>(null);
+  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string } | null | undefined>(undefined);
+  /**
+   * Janela de 24h da Cloud API, a MESMA regra que o Multiatendimento aplica.
+   *
+   * Faltava aqui: o Multiatendimento avisava que a janela tinha fechado e esta
+   * janela seguia com a caixa de texto liberada para a mesma conversa. Quem
+   * escrevesse por aqui recebia a recusa da Meta depois de mandar -- e ainda
+   * via a própria mensagem na tela, porque a bolha otimista nunca era retirada.
+   *
+   * Regra da Meta: passadas 24h da última mensagem DO CLIENTE, o WhatsApp
+   * oficial só aceita modelo aprovado. Vale só para cloud_api; D-API e Z-API
+   * não têm essa restrição.
+   */
+  const [janela, setJanela] = useState<"carregando" | "aberta" | "fechada">("aberta");
+  /** Conversa cuja janela já foi checada uma vez, para não repetir o estado de espera. */
+  const conversaVerificadaRef = useRef<string | null>(null);
+  const [modelosAbertos, setModelosAbertos] = useState(false);
+  const [enviandoModelo, setEnviandoModelo] = useState(false);
   const [citando, setCitando] = useState<ChatMsg | null>(null);
   const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
   const [menuDaMsg, setMenuDaMsg] = useState<string | null>(null);
@@ -215,10 +238,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
     if (!lead || !user) return;
     const cleanPhone = (lead.whatsapp ?? "").replace(/\D/g, "");
-    if (!cleanPhone) return;
+    // Sem telefone não há conversa a procurar. Marcar como `null` (e não deixar
+    // em `undefined`) evita que a janela de 24h fique presa em "verificando".
+    if (!cleanPhone) { setConversaDoCanal(null); return; }
 
     setMessages([]);
-    setConversaDoCanal(null);
+    setConversaDoCanal(undefined);
 
     // Conversa do canal: telefone para o indicador "digitando...", id para o
     // atalho do Multiatendimento. Mais recente primeiro porque um contato pode
@@ -231,7 +256,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       .order("last_msg_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .then(({ data, error }) => {
-        if (error) { console.warn("conversa do canal:", error.message); return; }
+        // Erro cai no mesmo `null` de "não existe conversa" de propósito. Na
+        // Cloud API isso leva a janela para "fechada", ou seja, exige modelo:
+        // gastar um modelo à toa é mais barato que escrever uma mensagem
+        // inteira e receber a recusa da Meta depois de mandar.
+        if (error) { console.warn("conversa do canal:", error.message); setConversaDoCanal(null); return; }
         const c = data?.[0] as { id: string; phone: string } | undefined;
         setConversaDoCanal(c ? { id: c.id, phone: c.phone } : null);
       });
@@ -389,7 +418,57 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaDoCanal?.phone]);
 
+  // Janela de 24h. O corte sai do banco, e não das mensagens já carregadas,
+  // pelo mesmo motivo do Multiatendimento: o que está no estado guarda a hora
+  // formatada para exibição ("14:07"), que não dá para comparar com precisão de
+  // 24 horas. A consulta é por `conversation_id`, não por telefone: o mesmo
+  // contato pode ter falado numa OUTRA linha, e uma mensagem que chegou lá não
+  // abre a janela desta.
+  useEffect(() => {
+    if (conexaoAtiva?.provider !== "cloud_api") { setJanela("aberta"); return; }
+    if (conversaDoCanal === undefined) { setJanela("carregando"); return; }
+    // Sem conversa, o contato nunca escreveu por aqui: não existe janela para
+    // estar aberta, e a Meta recusa texto livre do mesmo jeito.
+    if (conversaDoCanal === null) { setJanela("fechada"); return; }
+
+    let cancelado = false;
+    // "carregando" só na PRIMEIRA checagem desta conversa. Nas revalidações
+    // (toda mensagem nova dispara uma) o veredito anterior continua valendo até
+    // o novo chegar -- senão o campo piscaria desabilitado a cada mensagem
+    // enviada, bem no meio de quem está escrevendo em sequência.
+    if (conversaVerificadaRef.current !== conversaDoCanal.id) {
+      conversaVerificadaRef.current = conversaDoCanal.id;
+      setJanela("carregando");
+    }
+    (async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_messages")
+        .select("created_at")
+        .eq("conversation_id", conversaDoCanal.id)
+        .eq("from_me", false)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (cancelado) return;
+      // Falha de leitura libera o campo em vez de travá-lo: aqui já sabemos que
+      // a conversa existe, então bloquear por causa de um erro nosso tiraria do
+      // atendente uma mensagem que provavelmente passaria.
+      if (error) { console.warn("janela de 24h:", error.message); setJanela("aberta"); return; }
+      const ultima = data?.[0]?.created_at as string | undefined;
+      const fechaEm = ultima ? new Date(ultima).getTime() + 24 * 60 * 60_000 : 0;
+      setJanela(fechaEm > Date.now() ? "aberta" : "fechada");
+    })();
+    return () => { cancelado = true; };
+    // `messages.length` entra de propósito: mensagem nova do cliente chegando
+    // pelo realtime reabre a janela, e o campo precisa destravar na hora.
+  }, [conexaoAtiva?.provider, conversaDoCanal, messages.length]);
+
   if (!lead) return null;
+
+  const janelaFechada = janela === "fechada";
+  // Enquanto a verificação corre, o campo fica travado: liberar por otimismo
+  // deixaria a pessoa escrever num intervalo em que ainda não sabemos se a
+  // mensagem pode sair.
+  const naoPodeEscrever = janela !== "aberta";
 
   const positionStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y }
@@ -406,6 +485,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !lead || !user || !company) return;
+    // Anexo pela Cloud API cai na mesma regra do texto: fora da janela de 24h a
+    // Meta recusa mídia também.
+    if (naoPodeEscrever) {
+      if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
+      return;
+    }
 
     const contactPhone = lead.whatsapp;
     if (!contactPhone || contactPhone === "—") {
@@ -557,6 +642,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
 
   const handleSend = async () => {
     if (!draft.trim()) return;
+    // Trava também aqui, e não só no campo: o texto sai por Enter, por clique e
+    // pelo emoji, e é a Meta que recusa no fim da linha.
+    if (naoPodeEscrever) {
+      if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
+      return;
+    }
     const text = draft.trim();
     // A mensagem já está saindo, então não faz sentido seguir anunciando
     // digitação: o "paused" evita que o indicador fique aceso ao lado de uma
@@ -577,6 +668,21 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     setMessages(prev => [...prev, newMsg]);
     setDraft("");
 
+    // Tira da tela a bolha que acabou de entrar e devolve o texto ao campo.
+    //
+    // Faltava: quando o envio era recusado (janela de 24h fechada, conexão fora
+    // do ar, lead sem telefone), a mensagem continuava lá como se tivesse ido, e
+    // o texto se perdia junto. O pior dos dois mundos -- ninguém recebeu, e quem
+    // escreveu não tem como saber nem como recuperar o que escreveu.
+    //
+    // A comparação é por identidade do objeto: ele só é substituído no caminho
+    // de sucesso, quando o realtime adota a bolha pendente. O campo só é
+    // reescrito se estiver vazio, para não apagar o que já foi digitado depois.
+    const desfazerEnvio = () => {
+      setMessages(prev => prev.filter(m => m !== newMsg));
+      setDraft(d => (d.trim() ? d : text));
+    };
+
     // Envia pela 1ª conexão de WhatsApp ativa da empresa -- mesma escolha
     // usada pro avatar (lead não guarda qual conversa/instância o originou).
     // Suporta os 3 provedores (D-API/Z-API/Cloud API), igual ao
@@ -584,10 +690,15 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // campos (company.zapi_*) que não são mais escritos desde a migração
     // pro modelo de múltiplas conexões, então o envio nunca funcionava.
     const contactPhone = lead.whatsapp;
-    if (!user || !company || !contactPhone || contactPhone === "—") return;
+    if (!user || !company || !contactPhone || contactPhone === "—") {
+      desfazerEnvio();
+      if (!contactPhone || contactPhone === "—") toast.error("Este lead não tem WhatsApp cadastrado.");
+      return;
+    }
 
     const inst = whatsappConnections.find(c => c.connected && c.active);
     if (!inst) {
+      desfazerEnvio();
       toast.error("Nenhuma conexão de WhatsApp ativa. Configure em Configurações → Conexões.");
       return;
     }
@@ -637,7 +748,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         }
       }
 
-      if (!sendOk) return;
+      if (!sendOk) { desfazerEnvio(); return; }
 
       // Registra ANTES do insert: o realtime costuma entregar o INSERT antes de
       // a resposta do insert voltar para cá. Registrando depois, a mensagem
@@ -687,7 +798,94 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         reply_to_preview: citada ? citada.text.slice(0, 300) : null,
       });
     } catch {
+      desfazerEnvio();
       toast.error("Falha ao enviar mensagem via WhatsApp");
+    }
+  };
+
+  // Envio de MODELO aprovado, o único caminho com a janela de 24h fechada.
+  //
+  // Espelha o `enviarModelo` do Multiatendimento: mesmo payload (type
+  // "template", com nome, idioma e componentes) e mesma regra de gravar no
+  // banco o texto RESOLVIDO, não o modelo cru -- quem abrir a conversa depois
+  // precisa ler a mensagem que o cliente recebeu, não "{{1}} às {{2}}".
+  const enviarModelo = async (modelo: Modelo, valores: Record<string, string>, textoResolvido: string) => {
+    const inst = whatsappConnections.find(c => c.connected && c.active);
+    if (!inst?.token) { toast.error("Conexão sem token."); return; }
+    // Preferir o telefone do canal: ele veio do JID que o WhatsApp mandou, e o
+    // do cadastro costuma estar sem o código do país. Para modelo isso pesa
+    // mais que no texto comum -- é a primeira mensagem depois de um silêncio,
+    // sem conversa aberta para o provedor se apoiar.
+    const cleanPhone = (conversaDoCanal?.phone ?? lead.whatsapp ?? "").replace(/\D/g, "");
+    if (!cleanPhone || !user || !company) { toast.error("Este lead não tem WhatsApp cadastrado."); return; }
+
+    setEnviandoModelo(true);
+    try {
+      const numeradas = Object.keys(valores).sort((a, b) => Number(a) - Number(b));
+      const res = await fetch(`https://graph.facebook.com/v21.0/${inst.instanceId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${inst.token}` },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: cleanPhone,
+          type: "template",
+          template: {
+            name: modelo.name,
+            language: { code: modelo.language },
+            ...(numeradas.length
+              ? { components: [{ type: "body", parameters: numeradas.map(n => ({ type: "text", text: valores[n] })) }] }
+              : {}),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(`Erro ao enviar modelo: ${(err as { error?: { message?: string } }).error?.message ?? res.status}`);
+        return;
+      }
+      const idNoProvedor = await lerIdDoEnvio(res, "cloud-api");
+      if (idNoProvedor) jaEnviadasPorMim.current.add(idNoProvedor);
+
+      setMessages(prev => [...prev, { from: "agent", author: nomeAtendente, time: nowTime(), text: textoResolvido }]);
+
+      let conversationId: string | null = conversaDoCanal?.id ?? null;
+      try {
+        conversationId = await upsertConversationForMessage(supabase, {
+          ownerId: company.owner_id,
+          companyId: company.id,
+          instanceId: inst.instanceId,
+          phone: cleanPhone,
+          name: lead.name,
+          preview: previewLabelFor("text", textoResolvido),
+          fromMe: true,
+        });
+      } catch (e) {
+        console.error("[chat-flutuante] não consegui criar/achar a conversa do modelo:", e);
+      }
+
+      const { error } = await supabase.from("whatsapp_messages").insert({
+        owner_id:    company.owner_id,
+        company_id:  company.id,
+        instance_id: inst.instanceId,
+        phone:       cleanPhone,
+        from_me:     true,
+        body:        textoResolvido,
+        type:        "text",
+        momment:     Date.now(),
+        sender_name: nomeAtendente,
+        message_id:  idNoProvedor,
+        conversation_id: conversationId,
+      });
+      if (error) toast.error("Modelo enviado, mas houve erro ao salvar no histórico.");
+
+      // O modelo enviado NÃO reabre a janela: quem reabre é a resposta do
+      // cliente. Por isso o campo de texto continua travado depois daqui.
+      else toast.success("Modelo enviado");
+      setModelosAbertos(false);
+    } catch {
+      toast.error("Falha ao enviar o modelo.");
+    } finally {
+      setEnviandoModelo(false);
     }
   };
 
@@ -1044,7 +1242,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={enviandoArquivo}
+            disabled={enviandoArquivo || naoPodeEscrever}
+            title={janelaFechada ? "Passaram 24h sem mensagem do contato — só um modelo aprovado retoma a conversa" : "Anexar"}
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary disabled:opacity-50"
             aria-label="Anexar"
           >
@@ -1052,11 +1251,50 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           </button>
           <button
             onClick={() => setShowEmoji(v => !v)}
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary"
+            disabled={naoPodeEscrever}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary disabled:opacity-50"
             aria-label="Emoji"
           >
             <Smile size={16} style={{ color: showEmoji ? "#128A68" : "#AAAAAA" }} />
           </button>
+          {/* Modelos aprovados da Meta. Só na conexão oficial, porque é a única
+              com a regra de janela de 24h. Fica sempre disponível, e não só com
+              a janela fechada: às vezes o atendente quer usar um texto pronto
+              mesmo podendo escrever livre. Mesmo critério do Multiatendimento. */}
+          {conexaoAtiva?.provider === "cloud_api" && (
+            <button
+              onClick={() => { setModelosAbertos(v => !v); setShowEmoji(false); }}
+              title="Modelos aprovados pela Meta"
+              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary"
+              aria-label="Modelos aprovados"
+            >
+              <FileText size={16} style={{ color: modelosAbertos || janelaFechada ? "#128A68" : "#AAAAAA" }} />
+            </button>
+          )}
+          {modelosAbertos && (
+            <>
+              <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 99 }} />
+              <div style={{ position: "absolute", bottom: "100%", left: 8, right: 8, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden" }}>
+                <div style={{ padding: "12px 14px 10px" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Modelos aprovados</span>
+                  <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                    {janelaFechada
+                      ? "Passaram 24h sem mensagem deste contato. Pelo WhatsApp oficial, só um modelo aprovado pela Meta retoma a conversa."
+                      : "Textos aprovados pela Meta. Vão direto ao contato, sem edição."}
+                  </p>
+                </div>
+                <div style={{ height: 1, background: "#EEEEEE" }} />
+                <div style={{ padding: 12 }}>
+                  <WhatsappTemplatePicker
+                    wabaId={conexaoAtiva?.wabaId ?? null}
+                    token={conexaoAtiva?.token ?? ""}
+                    enviando={enviandoModelo}
+                    onEnviar={(m, v, texto) => { void enviarModelo(m, v, texto); }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
           {showEmoji && (
             <div style={{ position: "absolute", bottom: "100%", left: 8, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -1085,7 +1323,16 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
             }}
-            placeholder="Mensagem..."
+            /* Janela fechada: o campo sai de operação e o texto explica o
+               porquê e o caminho. Deixar a caixa liberada seria convidar a
+               pessoa a escrever uma mensagem inteira para receber a recusa da
+               Meta depois de mandar -- que era exatamente o que acontecia. */
+            placeholder={
+              janela === "carregando" ? "Verificando se a conversa aceita mensagem…"
+              : janelaFechada ? "Passaram 24h sem mensagem do contato — use Modelos para retomar"
+              : "Mensagem..."
+            }
+            disabled={naoPodeEscrever}
             className="flex-1 bg-transparent outline-none border-none min-w-0"
             style={{
               fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111",
@@ -1093,18 +1340,19 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               // Teto menor que o do Multiatendimento (200px): a janela toda tem
               // 520px de altura, então 200 comeriam quase metade da conversa.
               maxHeight: ALTURA_MAX_MENSAGEM,
+              opacity: naoPodeEscrever ? 0.5 : 1,
             }}
           />
           <button
             onClick={handleSend}
-            disabled={!draft.trim()}
+            disabled={!draft.trim() || naoPodeEscrever}
             className="flex items-center justify-center transition-colors shrink-0"
             style={{
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: draft.trim() ? "#0F6E56" : "#E5E5E5",
-              color: draft.trim() ? "#FFFFFF" : "#AAAAAA",
+              background: draft.trim() && !naoPodeEscrever ? "#0F6E56" : "#E5E5E5",
+              color: draft.trim() && !naoPodeEscrever ? "#FFFFFF" : "#AAAAAA",
             }}
             aria-label="Enviar"
           >
