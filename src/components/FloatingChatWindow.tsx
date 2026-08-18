@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useCRM } from "@/context/CRMContext";
@@ -22,6 +22,9 @@ import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
 import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTemplatePicker";
+// Mesmo player de áudio do Multiatendimento, não uma segunda versão dele.
+import { AudioBubble } from "@/components/AudioBubble";
+import { parseAudioDuration } from "@/lib/audio";
 import {
   BotMessageSquare,
   Minus,
@@ -30,6 +33,10 @@ import {
   Smile,
   ArrowRight,
   FileText,
+  Download,
+  FolderOpen,
+  CornerUpLeft,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface ChatMsg {
@@ -38,7 +45,37 @@ interface ChatMsg {
   from: "lead" | "agent";
   author: string;
   time: string;
+  /**
+   * O que a bolha desenha. Antes só existia texto aqui, e a janela renderizava
+   * `body` cru para tudo: áudio virava bolha vazia (o `body` de áudio é ""),
+   * imagem aparecia só como legenda e documento como o nome do arquivo, sem
+   * link. 161 mensagens da base caíam nesse caso. O Multiatendimento já
+   * distinguia; esta tela não.
+   */
+  kind: "text" | "image" | "audio" | "file" | "system";
+  /** Texto, legenda da imagem, nome do arquivo ou aviso de sistema. */
   text: string;
+  /** Onde a mídia está guardada. Nulo em mensagem antiga, e a bolha avisa. */
+  mediaUrl?: string | null;
+  /** Só áudio: "MM:SS" quando o provedor informa. */
+  duracao?: string;
+  /**
+   * Botões que ACOMPANHARAM esta mensagem (automação com resposta rápida).
+   * Aqui são registro do que foi oferecido, não controle: quem clica é o
+   * contato, no WhatsApp dele.
+   */
+  botoes?: string[] | null;
+  /**
+   * Por qual linha esta mensagem passou.
+   *
+   * Esta janela junta, num fio só, tudo que o contato falou com a empresa,
+   * mesmo que tenha sido por números diferentes (é o que acontece com quem
+   * trocou de linha: 7 contatos da base estão nesse caso). Juntar dá o contexto
+   * completo, mas sem dizer de onde veio cada trecho a tela sugere uma conversa
+   * contínua que nunca existiu -- e alguém responde contando com algo que a
+   * pessoa recebeu em OUTRO número. Guardar a origem é o que permite avisar.
+   */
+  instanceId?: string | null;
   /**
    * Id da mensagem NO PROVEDOR. É o que se manda para citar ou apagar; o `id`
    * acima é o nosso e não serve para isso. Nulo nas mensagens antigas.
@@ -56,6 +93,94 @@ interface ChatMsg {
    * já tinha corrigido com a coluna sent_by_agent.
    */
   porAgente?: boolean;
+}
+
+/** Linha de whatsapp_messages, nos campos que a bolha usa. */
+type LinhaDeMensagem = {
+  id?: string;
+  message_id?: string | null;
+  from_me?: boolean;
+  chat_name?: string | null;
+  sender_name?: string | null;
+  sent_by_agent?: boolean;
+  body?: string | null;
+  type?: string | null;
+  media_url?: string | null;
+  instance_id?: string | null;
+  buttons?: unknown;
+  deleted_at?: string | null;
+  reply_to_message_id?: string | null;
+  reply_to_preview?: string | null;
+  momment?: number | null;
+  created_at?: string;
+};
+
+/**
+ * Linha do banco → bolha da conversa.
+ *
+ * Uma função só para o histórico e para o realtime. Antes eram dois trechos
+ * quase iguais, e "quase" é o problema: quando um ganhava um campo novo, o
+ * outro não, e a mesma mensagem aparecia diferente conforme tivesse chegado ao
+ * vivo ou depois de recarregar. Espelha o `buildIncomingMsg` do
+ * Multiatendimento, que resolve o mesmo problema lá.
+ */
+function montarMsg(m: LinhaDeMensagem, nomeDoLead: string, nomeAtendente: string): ChatMsg {
+  const deMim = !!m.from_me;
+  const base = {
+    id: m.id,
+    from: (deMim ? "agent" : "lead") as "agent" | "lead",
+    author: deMim
+      ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente))
+      : (m.chat_name ?? nomeDoLead),
+    porAgente: !!m.sent_by_agent,
+    messageId: m.message_id ?? null,
+    apagadaEm: m.deleted_at ?? null,
+    citacao: m.reply_to_message_id
+      ? { messageId: m.reply_to_message_id, preview: m.reply_to_preview ?? "" }
+      : null,
+    time: new Date(m.momment ?? m.created_at ?? Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    botoes: Array.isArray(m.buttons) ? (m.buttons as string[]) : null,
+    mediaUrl: m.media_url ?? null,
+    instanceId: m.instance_id ?? null,
+  };
+
+  if (m.type === "audio")    return { ...base, kind: "audio", text: "", duracao: parseAudioDuration(m.body) };
+  if (m.type === "image")    return { ...base, kind: "image", text: m.body ?? "" };
+  if (m.type === "document") return { ...base, kind: "file",  text: m.body ?? "arquivo" };
+  // Aviso do próprio CRM ("Atendimento transferido para..."), não fala de
+  // ninguém. Sem este caso ele entrava como mensagem RECEBIDA, com o nome do
+  // cliente por cima: o contato parecia estar anunciando a própria transferência.
+  if (m.type === "system")   return { ...base, kind: "system", from: "lead", text: m.body ?? "" };
+  return { ...base, kind: "text", text: m.body ?? "" };
+}
+
+/**
+ * Onde entra a etiqueta "via {linha}" na lista, uma posição por mensagem.
+ *
+ * Aparece só quando o histórico tem MAIS DE UMA origem. Com uma linha só (o
+ * caso da maioria) nenhuma etiqueta é desenhada, senão a tela repetiria o óbvio
+ * a cada bloco.
+ *
+ * Mensagem de sistema não conta como troca de origem: ela é aviso do CRM, não
+ * passou por número nenhum, e sem esta ressalva um aviso no meio da conversa
+ * cortaria o mesmo fio em dois blocos falsos, cada um com sua etiqueta.
+ */
+// Sem `export`: um arquivo de componente que exporta função solta quebra o hot
+// reload do Vite. Fica interna, e o teste a alcança extraindo o trecho.
+function etiquetasDeOrigem(
+  msgs: Pick<ChatMsg, "kind" | "instanceId">[],
+  nomeDaLinha: (instanceId: string) => string,
+): (string | null)[] {
+  const origens = new Set(
+    msgs.filter(m => m.kind !== "system" && m.instanceId).map(m => m.instanceId as string),
+  );
+  if (origens.size < 2) return msgs.map(() => null);
+  let atual: string | null = null;
+  return msgs.map(m => {
+    if (m.kind === "system" || !m.instanceId || m.instanceId === atual) return null;
+    atual = m.instanceId;
+    return nomeDaLinha(m.instanceId);
+  });
 }
 
 function getInitials(name: string) {
@@ -301,19 +426,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       .limit(2000)
       .then(({ data }) => {
         if (!data?.length) return;
-        setMessages([...data].reverse().map(m => ({
-          id:     m.id as string,
-          from:   m.from_me ? "agent" : "lead",
-          author: m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),
-          porAgente: !!m.sent_by_agent,
-          messageId: (m.message_id as string | null) ?? null,
-          apagadaEm: (m.deleted_at as string | null) ?? null,
-          citacao: m.reply_to_message_id
-            ? { messageId: m.reply_to_message_id as string, preview: (m.reply_to_preview as string | null) ?? "" }
-            : null,
-          time:   new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          text:   m.body ?? "",
-        })));
+        setMessages([...data].reverse().map(m => montarMsg(m as LinhaDeMensagem, lead.name, nomeAtendente)));
       });
 
     // Mesmas variantes do histórico acima. Com `phone=eq.` o chat carregava o
@@ -326,12 +439,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=in.(${variantes.join(",")})` },
         (payload) => {
-          const m = payload.new as {
-            id?: string; message_id?: string | null; from_me: boolean;
-            chat_name?: string; sender_name?: string | null; body?: string;
-            momment?: number; created_at?: string; sent_by_agent?: boolean;
-            reply_to_message_id?: string | null; reply_to_preview?: string | null;
-          };
+          const m = payload.new as LinhaDeMensagem;
 
           // Antes daqui saía `if (m.from_me) return`, para não duplicar a bolha
           // otimista de quem estava digitando. Só que isso engolia TODA mensagem
@@ -342,18 +450,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           // A pergunta certa não é "veio de nós?", é "eu já mostrei esta?".
           if (jaEnviadasPorMim.current.has(m.message_id ?? "")) return;
 
-          const nova: ChatMsg = {
-            id:        m.id,
-            from:      m.from_me ? "agent" : "lead",
-            author:    m.from_me ? (m.sender_name ?? (m.sent_by_agent ? "Agente" : nomeAtendente)) : (m.chat_name ?? lead.name),
-            porAgente: !!m.sent_by_agent,
-            messageId: m.message_id ?? null,
-            citacao:   m.reply_to_message_id
-              ? { messageId: m.reply_to_message_id, preview: m.reply_to_preview ?? "" }
-              : null,
-            time:      new Date(m.momment ?? m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-            text:      m.body ?? "",
-          };
+          const nova = montarMsg(m, lead.name, nomeAtendente);
 
           setMessages(prev => {
             // Já está na lista pelo uuid: nada a fazer.
@@ -489,6 +586,17 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // mensagem pode sair.
   const naoPodeEscrever = janela !== "aberta";
 
+  // Como chamar a linha por onde a mensagem passou. Linha desligada ou apagada
+  // some de `whatsappConnections`, e aí só sobra o identificador interno, que
+  // não diz nada a quem lê -- melhor dizer o que aconteceu com ela.
+  const nomeDaLinha = (instanceId: string) => {
+    const c = whatsappConnections.find(k => k.instanceId === instanceId);
+    if (!c) return "um número removido";
+    return c.name?.trim() || c.phone || "linha sem nome";
+  };
+
+  const etiquetaDeOrigem = etiquetasDeOrigem(messages, nomeDaLinha);
+
   const positionStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y }
     : { right: defaultRight, bottom: defaultBottom };
@@ -534,11 +642,17 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       });
       if (avisoUpload) toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${avisoUpload}`);
 
+      // A mesma bolha que vai aparecer depois de recarregar (imagem com
+      // miniatura, arquivo com link), e não um texto "📎 nome.pdf" que só
+      // existia enquanto a janela ficasse aberta.
       setMessages(prev => [...prev, {
         from: "agent",
         author: nomeAtendente,
         time: nowTime(),
-        text: ehImagem ? `🖼️ ${file.name}` : `📎 ${file.name}`,
+        kind: ehImagem ? "image" : "file",
+        text: file.name,
+        mediaUrl,
+        instanceId: inst.instanceId,
       }]);
 
       // Mesmo motivo do envio de texto: registrar antes do insert, senão o
@@ -609,11 +723,21 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
   };
 
+  // O que "Copiar" põe na área de transferência. Mesmos rótulos do
+  // Multiatendimento: em áudio o `text` é vazio, e copiar o vazio faria o botão
+  // dizer "Mensagem copiada" sem copiar nada.
+  const textoDaMensagem = (m: ChatMsg) => {
+    if (m.kind === "image") return m.text || "🖼️ Imagem";
+    if (m.kind === "file")  return `📎 ${m.text}`;
+    if (m.kind === "audio") return "🎤 Mensagem de áudio";
+    return m.text;
+  };
+
   const copiarMensagem = async (m: ChatMsg) => {
     // A área de transferência pode recusar (Safari é rígido com o gesto). Sem o
     // catch a falha seria silenciosa: a pessoa acha que copiou e cola outra coisa.
     try {
-      await navigator.clipboard.writeText(m.text);
+      await navigator.clipboard.writeText(textoDaMensagem(m));
       toast.success("Mensagem copiada");
     } catch {
       toast.error("Não consegui copiar. Selecione o texto e use Cmd+C.");
@@ -678,11 +802,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
     // Adiciona à UI imediatamente (otimista)
     const newMsg: ChatMsg = {
-      from: "agent", author: nomeAtendente, time: nowTime(), text,
+      from: "agent", author: nomeAtendente, time: nowTime(), kind: "text", text,
+      instanceId: conexaoAtiva?.instanceId ?? null,
       // Na hora, não só depois de recarregar: no Multiatendimento essa mesma
       // omissão fez a resposta aparecer como mensagem comum para quem acabou de
       // enviá-la, enquanto no celular chegava certa.
-      citacao: citando?.messageId ? { messageId: citando.messageId, preview: citando.text.slice(0, 300) } : null,
+      citacao: citando?.messageId ? { messageId: citando.messageId, preview: textoDaMensagem(citando).slice(0, 300) } : null,
     };
     setMessages(prev => [...prev, newMsg]);
     setDraft("");
@@ -865,7 +990,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       const idNoProvedor = await lerIdDoEnvio(res, "cloud-api");
       if (idNoProvedor) jaEnviadasPorMim.current.add(idNoProvedor);
 
-      setMessages(prev => [...prev, { from: "agent", author: nomeAtendente, time: nowTime(), text: textoResolvido }]);
+      setMessages(prev => [...prev, { from: "agent", author: nomeAtendente, time: nowTime(), kind: "text", text: textoResolvido, instanceId: inst.instanceId }]);
 
       let conversationId: string | null = conversaDoCanal?.id ?? null;
       try {
@@ -1083,9 +1208,47 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                 {messages.map((m, i) => {
                   const isLead = m.from === "lead";
                   const quemFalou = isLead ? lead.name : m.author;
+                  const origem = etiquetaDeOrigem[i];
+
+                  // Aviso do CRM, não fala de ninguém: faixa no meio, sem
+                  // bolha, sem avatar e sem menu. Mesmo tratamento da outra
+                  // tela, onde ele já não se disfarçava de mensagem do cliente.
+                  if (m.kind === "system") {
+                    return (
+                      <div key={i} className="flex justify-center">
+                        <span style={{
+                          fontSize: 11, color: "#767676", background: "#EFEFEF",
+                          borderRadius: 10, padding: "4px 10px", textAlign: "center",
+                          maxWidth: "90%", overflowWrap: "anywhere",
+                        }}>
+                          {m.text}
+                        </span>
+                      </div>
+                    );
+                  }
+
                   return (
+                    <Fragment key={i}>
+                    {/* De onde vem o trecho a seguir. Sem isto, a conversa do
+                        número antigo e a do atual apareciam coladas, como se
+                        fossem um papo só -- e quem responde acha que a pessoa
+                        recebeu, no número de agora, algo que ela recebeu no
+                        anterior. */}
+                    {origem && (
+                      <div className="flex justify-center" style={{ margin: "4px 0" }}>
+                        <span
+                          title="As mensagens abaixo passaram por esta linha"
+                          style={{
+                            fontSize: 10, color: "#767676", background: "#EFEFEF",
+                            borderRadius: 10, padding: "3px 10px", maxWidth: "90%",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}
+                        >
+                          via {origem}
+                        </span>
+                      </div>
+                    )}
                     <div
-                      key={i}
                       className={`flex ${isLead ? "justify-start" : "justify-end"}`}
                     >
                       {/* Avatar do lado de quem falou, igual ao Multiatendimento:
@@ -1186,10 +1349,81 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                               {m.citacao.preview || "Mensagem"}
                             </div>
                           )}
-                          {m.apagadaEm
-                            ? <span style={{ fontStyle: "italic", opacity: 0.75 }}>Mensagem apagada</span>
-                            : m.text}
+                          {m.apagadaEm ? (
+                            <span style={{ fontStyle: "italic", opacity: 0.75 }}>Mensagem apagada</span>
+                          ) : m.kind === "audio" ? (
+                            <AudioBubble duration={m.duracao ?? ""} src={m.mediaUrl ?? undefined} light={!isLead} />
+                          ) : m.kind === "image" ? (
+                            <div style={{ overflow: "hidden", borderRadius: 10 }}>
+                              {m.mediaUrl ? (
+                                // Abre em tamanho real numa aba: dentro de uma
+                                // janela de 360px, a miniatura não serve para ler
+                                // um comprovante nem um print de conversa.
+                                <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" title="Abrir imagem">
+                                  <img src={m.mediaUrl} alt={m.text || "imagem"} style={{ maxWidth: 180, maxHeight: 150, display: "block", objectFit: "cover", cursor: "zoom-in" }} />
+                                </a>
+                              ) : (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <ImageIcon size={16} color={isLead ? "#128A68" : "rgba(255,255,255,0.85)"} />
+                                  <span>{m.text || "Imagem"}</span>
+                                </div>
+                              )}
+                              {m.mediaUrl && m.text && (
+                                <div style={{ paddingTop: 4, fontSize: 12, color: isLead ? "#666" : "rgba(255,255,255,0.85)", maxWidth: 180 }}>
+                                  {m.text}
+                                </div>
+                              )}
+                            </div>
+                          ) : m.kind === "file" ? (
+                            m.mediaUrl ? (
+                              <a
+                                href={m.mediaUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={m.text}
+                                title={`Baixar ${m.text}`}
+                                style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none" }}
+                              >
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "#F0F0F0" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Download size={15} color={isLead ? "#128A68" : "#FFF"} />
+                                </div>
+                                <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.text}</span>
+                              </a>
+                            ) : (
+                              // Mensagem antiga, gravada antes de guardarmos o
+                              // arquivo: mostra o nome e diz por que não baixa,
+                              // em vez de oferecer um link que não leva a nada.
+                              <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "#F0F0F0" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <FolderOpen size={15} color={isLead ? "#128A68" : "#FFF"} />
+                                </div>
+                                <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.text}</span>
+                              </div>
+                            )
+                          ) : (
+                            m.text
+                          )}
                         </div>
+                        {/* Botões que a automação ofereceu com esta mensagem.
+                            Registro, não controle: quem clica é o contato, no
+                            WhatsApp dele. Sem aparência de clicável de
+                            propósito, senão o atendente responderia no lugar
+                            do cliente. Mesma decisão do Multiatendimento. */}
+                        {!m.apagadaEm && m.botoes && m.botoes.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 3, width: "100%" }}>
+                            {m.botoes.map((rotulo, bi) => (
+                              <div key={bi} style={{
+                                fontSize: 11, color: "#128A68", background: "#FFF",
+                                border: "1px solid #D6E9E2", borderRadius: 8,
+                                padding: "5px 8px", textAlign: "center",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                              }}>
+                                <CornerUpLeft size={11} />
+                                <span style={{ overflowWrap: "anywhere" }}>{rotulo}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       {!isLead && (
                         // Mesma regra do Multiatendimento: ícone de robô quando
@@ -1205,6 +1439,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         )
                       )}
                     </div>
+                    </Fragment>
                   );
                 })}
               </div>
@@ -1226,7 +1461,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                 Respondendo {citando.from === "agent" ? citando.author : lead.name}
               </div>
               <div style={{ fontSize: 11, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {citando.text}
+                {textoDaMensagem(citando)}
               </div>
             </div>
             <button onClick={() => setCitando(null)} title="Cancelar resposta"
