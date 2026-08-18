@@ -2144,7 +2144,7 @@ export default function AutomacoesPage() {
                                 ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                                 : "w-full border-transparent"
                             }`}
-                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
+                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
                           >
                             <Network size={14} className={sel ? "text-primary" : ""} />
                             <span className="truncate text-left flex-1">{item.name}</span>
