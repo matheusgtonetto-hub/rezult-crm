@@ -123,7 +123,7 @@ export function PipelineSidebar() {
           <div key={group.groupId}>
             <button
               onClick={() => toggleGroup(group.cat)}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[#09090b] transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-bold text-[#09090b] transition-colors"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
               {group.cat.charAt(0).toUpperCase() + group.cat.slice(1)}
@@ -148,7 +148,7 @@ export function PipelineSidebar() {
                           ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                           : "w-full border-transparent"
                       }`}
-                      style={{ fontFamily: "Inter, sans-serif", fontSize: "14px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
+                      style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 300, letterSpacing: 0, color: "#09090b" }}
                     >
                       <Filter size={14} className={active ? "text-primary" : ""} />
                       <span className="truncate text-left flex-1">{p.name}</span>
@@ -177,7 +177,7 @@ export function PipelineSidebar() {
                         ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
                         : "w-full"
                     }`}
-                    style={{ fontFamily: "Inter, sans-serif", fontSize: "14px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
+                    style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 300, letterSpacing: 0, color: "#09090b" }}
                   >
                     <Filter size={14} className={active ? "text-primary" : ""} />
                     <span className="truncate text-left flex-1">{p.name}</span>
