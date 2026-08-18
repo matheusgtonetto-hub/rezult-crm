@@ -246,21 +246,25 @@ export function AppSidebar() {
           paddingBottom: 12,
         }}
       >
-        {/* Logo RZ */}
-        <div
-          className="flex items-center justify-center text-[13px] font-bold tracking-tight glow-rz"
+        {/* Marca do Rezult.
+            Usa o MESMO arquivo do favicon (/favicon.png), servido de public/,
+            em vez de uma cópia importada: são a mesma marca, e duas cópias
+            significam trocar a arte em dois lugares e esquecer um.
+            A borda saiu porque a imagem já traz a própria moldura arredondada;
+            o glow fica, que é o que dava presença ao ícone no fundo escuro. */}
+        <img
+          src="/favicon.png?v=3"
+          alt="Rezult"
+          className="glow-rz"
           style={{
-            width: 32,
-            height: 32,
+            width: 35,
+            height: 35,
             borderRadius: 8,
-            border: "1.5px solid rgba(18,138,104,0.6)",
-            color: "#FFFFFF",
             marginBottom: 8,
+            objectFit: "cover",
+            display: "block",
           }}
-          aria-label="Rezult"
-        >
-          RZ
-        </div>
+        />
 
         {/* Company icon */}
         <DropdownMenu>
