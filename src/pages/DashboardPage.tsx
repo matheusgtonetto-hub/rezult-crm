@@ -21,7 +21,7 @@ import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel"
 import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
-import { fmt, parseEntryDate, tooltip, deltaPct, usePriorPeriod } from "@/components/dashboard/useDashboardHelpers";
+import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo } from "@/components/dashboard/useDashboardHelpers";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   stage_change: "Mudança de etapa",
@@ -82,6 +82,22 @@ export default function DashboardPage() {
 
   const { priorFrom, priorTo } = usePriorPeriod(dateRange);
   const inPriorPeriod = (d: Date) => d >= priorFrom && d <= priorTo;
+
+  /**
+   * Existe período anterior com o que comparar?
+   *
+   * Não existe quando a janela anterior termina antes do primeiro registro do
+   * sistema -- é o que acontece com "Todo histórico", cuja janela anterior cai
+   * inteira antes de o CRM ter qualquer dado.
+   *
+   * Nesse caso a tendência não some: passa a ser medida DENTRO do período,
+   * comparando a segunda metade com a primeira. Responde à mesma pergunta
+   * ("está subindo ou caindo?") usando só dado que existe, em vez de comparar
+   * com um vazio.
+   */
+  const temPeriodoAnterior = !!dataFrom && priorTo >= dataFrom;
+  const meioPeriodo = meioDoPeriodo(periodCutoff, periodTo);
+  const naPrimeiraMetade = (d: Date) => d >= periodCutoff && d < meioPeriodo;
 
   // periodLeads e priorPeriodLeads classificados numa única passada sobre allLeads
   // (evita duas iterações .filter() completas quando o objetivo é só comparar os dois períodos).
@@ -503,30 +519,69 @@ export default function DashboardPage() {
             {(() => {
               const openInPeriod = periodLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
               const openPrior = priorPeriodLeads.filter(l => !l.dealStatus || l.dealStatus === "open");
+
+              /**
+               * Escolhe contra o que comparar.
+               *
+               * Com período anterior, compara com ele. Sem período anterior,
+               * compara a segunda metade da janela com a primeira -- e diz
+               * isso, para "+30%" não ser lido como comparação com um período
+               * que não existe.
+               *
+               * `dataDe` muda por métrica: negócios entram pela data de
+               * entrada, ganhos e perdidos pela data em que foram fechados.
+               * Usar a mesma data para todos contaria a venda no mês em que o
+               * negócio nasceu, não no mês em que fechou.
+               */
+              const compara = (
+                atual: typeof periodLeads,
+                anterior: typeof periodLeads,
+                dataDe: (l: typeof periodLeads[number]) => Date | null,
+              ) => {
+                if (temPeriodoAnterior) return variacao(atual.length, anterior.length, "periodo-anterior");
+                let primeira = 0;
+                for (const l of atual) {
+                  const d = dataDe(l);
+                  if (d && naPrimeiraMetade(d)) primeira++;
+                }
+                return variacao(atual.length - primeira, primeira, "dentro-do-periodo");
+              };
+
+              const porEntrada = (l: typeof periodLeads[number]) => parseEntryDate(l.entryDate);
+              /** Data em que o negócio foi fechado como ganho/perdido, dentro do período. */
+              const porFechamento = (tipo: "won" | "lost") => (l: typeof periodLeads[number]) => {
+                for (const act of l.activities) {
+                  if (act.type !== tipo) continue;
+                  const d = new Date(act.date);
+                  if (inPeriod(d)) return d;
+                }
+                return null;
+              };
+
               return [
                 {
                   label: "Total de negócios",
                   value: periodLeads.length,
                   sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
-                  delta: deltaPct(periodLeads.length, priorPeriodLeads.length),
+                  delta: compara(periodLeads, priorPeriodLeads, porEntrada),
                 },
                 {
                   label: "Total em vendas",
                   value: wonInPeriod.length,
                   sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
-                  delta: deltaPct(wonInPeriod.length, wonPrior.length),
+                  delta: compara(wonInPeriod, wonPrior, porFechamento("won")),
                 },
                 {
                   label: "Total perdidos",
                   value: lostInPeriod.length,
                   sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
-                  delta: deltaPct(lostInPeriod.length, lostPrior.length),
+                  delta: compara(lostInPeriod, lostPrior, porFechamento("lost")),
                 },
                 {
                   label: "Total em aberto",
                   value: openInPeriod.length,
                   sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
-                  delta: deltaPct(openInPeriod.length, openPrior.length),
+                  delta: compara(openInPeriod, openPrior, porEntrada),
                 },
               ];
             })().map(c => (
@@ -535,7 +590,15 @@ export default function DashboardPage() {
                 label={c.label}
                 value={c.value}
                 sub={c.sub}
-                deltaPct={c.delta}
+                variacao={c.delta}
+                // Nos cartões de negócio o dinheiro é a resposta e a contagem é
+                // o detalhe, então o valor sobe para o destaque e o número desce.
+                destaqueNoSub
+                // Com o dinheiro em destaque, o número embaixo precisa dizer de
+                // que ele é contagem. Os quatro cartões contam negócios: os
+                // ganhos, os perdidos e os abertos são todos negócios, em
+                // situações diferentes.
+                sufixo={c.value === 1 ? "negócio" : "negócios"}
               />
             ))}
           </div>

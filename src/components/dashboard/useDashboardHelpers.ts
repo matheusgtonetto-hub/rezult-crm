@@ -19,8 +19,51 @@ export const tooltip = {
   fontSize: 12,
 };
 
-// Variação percentual formatada para exibir ao lado de um KPI.
-// null quando não há base de comparação (período anterior zerado) — o chamador decide o rótulo ("novo" etc.)
+/**
+ * Como um KPI se compara com o período anterior.
+ *
+ * São quatro respostas diferentes, e tratá-las como um número só era o bug:
+ * `deltaPct` devolvia `null` tanto para "cresceu do zero" quanto para "não há
+ * o que comparar", e o cartão desenhava um traço nos dois casos. Com "Todo
+ * histórico" selecionado o traço aparecia em TODOS os cartões, porque a janela
+ * anterior cai antes do primeiro registro que existe no sistema.
+ */
+/** Contra o que a comparação foi feita. Muda a explicação, não o desenho. */
+export type BaseDaVariacao = "periodo-anterior" | "dentro-do-periodo";
+
+export type Variacao =
+  | { tipo: "pct"; valor: number; base: BaseDaVariacao }  // dá para comparar: -12,5%, +30%…
+  | { tipo: "novo"; base: BaseDaVariacao }                // antes zero, agora tem: alta sem percentual possível
+  | { tipo: "estavel"; base: BaseDaVariacao };            // zero dos dois lados: nada a apontar
+
+/**
+ * Compara dois números e diz o que aconteceu.
+ *
+ * Sempre devolve algo desenhável. Um cartão sem indicador nenhum é pior que um
+ * indicador modesto: quem olha não sabe se está tudo estável ou se a tela
+ * quebrou.
+ */
+export function variacao(current: number, prior: number, base: BaseDaVariacao = "periodo-anterior"): Variacao {
+  if (prior === 0) return current > 0 ? { tipo: "novo", base } : { tipo: "estavel", base };
+  return { tipo: "pct", valor: ((current - prior) / prior) * 100, base };
+}
+
+/**
+ * Divide um período no meio. Usado para medir tendência DENTRO da janela
+ * quando não existe período anterior com o que comparar -- o caso de "Todo
+ * histórico", cuja janela anterior cai antes do primeiro dado do sistema.
+ *
+ * Comparar a segunda metade com a primeira responde à mesma pergunta ("está
+ * subindo ou caindo?") usando só dado que existe, em vez de comparar com um
+ * vazio e concluir qualquer coisa dele.
+ */
+export function meioDoPeriodo(de: Date, ate: Date): Date {
+  return new Date((de.getTime() + ate.getTime()) / 2);
+}
+
+// Variação percentual crua, para quem só precisa do número.
+// Em cartão, preferir `variacao()`: ela distingue "cresceu do zero" de "não há
+// base", distinção que este número não consegue expressar.
 export function deltaPct(current: number, prior: number): number | null {
   if (prior === 0) return current > 0 ? null : 0;
   return ((current - prior) / prior) * 100;
