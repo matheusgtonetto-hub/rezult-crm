@@ -95,6 +95,32 @@ interface ChatMsg {
   porAgente?: boolean;
 }
 
+/** Uma conversa do contato, do jeito que esta janela precisa dela. */
+type ConversaDoContato = { id: string; phone: string; instanceId: string | null };
+
+/**
+ * Para qual número enviar.
+ *
+ * Prefere o telefone da CONVERSA: ele veio do JID que o WhatsApp mandou, então
+ * é fato observado no canal, não palpite sobre formato. Sem conversa (contato
+ * novo, primeiro modelo), sobra o cadastro, que costuma estar sem o código do
+ * país -- e a Cloud API espera o número em formato internacional.
+ *
+ * A complementação usa a MESMA heurística de `normalizarTelefoneBr`: 11 dígitos
+ * só contam como brasileiros quando o terceiro é 9 (celular), e 10 dígitos são
+ * DDD + 8. Sem essa checagem, um número americano com país ("1" + 10 dígitos =
+ * 11) ganharia um 55 na frente e a mensagem sairia para outra pessoa. Fora
+ * desses dois formatos, o número passa como está: falhar o envio é melhor que
+ * inventar destinatário.
+ */
+function telefoneParaEnvio(doCadastro: string | null | undefined, daConversa?: string | null): string {
+  const conversa = (daConversa ?? "").replace(/\D/g, "");
+  if (conversa) return conversa;
+  const cadastro = (doCadastro ?? "").replace(/\D/g, "");
+  const pareceNacional = cadastro.length === 10 || (cadastro.length === 11 && cadastro[2] === "9");
+  return pareceNacional ? `55${cadastro}` : cadastro;
+}
+
 /** Linha de whatsapp_messages, nos campos que a bolha usa. */
 type LinhaDeMensagem = {
   id?: string;
@@ -169,17 +195,24 @@ function montarMsg(m: LinhaDeMensagem, nomeDoLead: string, nomeAtendente: string
 // reload do Vite. Fica interna, e o teste a alcança extraindo o trecho.
 function etiquetasDeOrigem(
   msgs: Pick<ChatMsg, "kind" | "instanceId">[],
-  nomeDaLinha: (instanceId: string) => string,
+  nomeDaLinha: (instanceId: string, repetindoORotulo: boolean) => string,
 ): (string | null)[] {
   const origens = new Set(
     msgs.filter(m => m.kind !== "system" && m.instanceId).map(m => m.instanceId as string),
   );
   if (origens.size < 2) return msgs.map(() => null);
   let atual: string | null = null;
+  let ultimoRotulo: string | null = null;
   return msgs.map(m => {
     if (m.kind === "system" || !m.instanceId || m.instanceId === atual) return null;
     atual = m.instanceId;
-    return nomeDaLinha(m.instanceId);
+    // Duas linhas DIFERENTES podem gerar o mesmo rótulo -- é o que acontece
+    // com quem trocou de número duas vezes, onde as duas antigas viram "um
+    // número removido". Repetir a mesma frase em blocos seguidos parece
+    // repetição sem sentido, quando na verdade houve troca. Quem nomeia recebe
+    // o aviso e escolhe outra palavra.
+    ultimoRotulo = nomeDaLinha(m.instanceId, ultimoRotulo === nomeDaLinha(m.instanceId, false));
+    return ultimoRotulo;
   });
 }
 
@@ -254,14 +287,18 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * O `id` vem junto porque é o que o Multiatendimento espera para abrir esta
    * mesma conversa (`location.state.openConvId`).
    *
-   * Três estados, não dois: `undefined` = ainda buscando, `null` = não existe
-   * conversa. A diferença importa para a janela de 24h abaixo, onde "não sei
-   * ainda" e "o contato nunca escreveu" levam a decisões opostas.
+   * São TODAS as conversas do contato, não a mais recente, e da mais recente
+   * para a mais antiga. Guardar só a mais recente escondia um erro: se ela
+   * pertencesse a uma linha desligada, a janela de 24h era calculada em cima
+   * dela enquanto o envio saía por outra linha. Uma mensagem do cliente de duas
+   * horas atrás no número antigo liberava a caixa de texto, e a Meta recusava,
+   * porque no número atual aquela conversa nunca existiu.
    *
-   * O `instanceId` diz por qual linha esta conversa aconteceu, e é o que define
-   * a conexão que esta janela usa (ver `conexaoAtiva`).
+   * `undefined` = ainda buscando, `[]` = o contato não tem conversa nenhuma. A
+   * diferença importa para a janela de 24h, onde "não sei ainda" e "nunca
+   * falamos" levam a decisões opostas.
    */
-  const [conversaDoCanal, setConversaDoCanal] = useState<{ id: string; phone: string; instanceId: string | null } | null | undefined>(undefined);
+  const [conversas, setConversas] = useState<ConversaDoContato[] | undefined>(undefined);
   /**
    * Janela de 24h da Cloud API, a MESMA regra que o Multiatendimento aplica.
    *
@@ -302,10 +339,31 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * insistir nela deixaria a janela sem conexão nenhuma em vez de utilizável.
    */
   const primeiraAtiva = whatsappConnections.find(c => c.connected && c.active);
-  const conexaoDaConversa = conversaDoCanal?.instanceId
-    ? whatsappConnections.find(c => c.instanceId === conversaDoCanal.instanceId && c.connected && c.active)
-    : undefined;
+  // A linha da conversa mais recente que AINDA está ativa. Percorrer a lista em
+  // vez de olhar só a primeira conversa é o que evita adotar uma linha desligada
+  // e depois enviar por outra.
+  const conexaoDaConversa = conversas
+    ?.map(c => whatsappConnections.find(k => k.instanceId === c.instanceId && k.connected && k.active))
+    .find(Boolean);
   const conexaoAtiva = conexaoDaConversa ?? primeiraAtiva;
+
+  /**
+   * A conversa que corresponde à linha de envio. É ela que responde "o contato
+   * escreveu para ESTE número nas últimas 24h?".
+   *
+   * `null` quando o contato nunca falou pela linha de envio, mesmo tendo
+   * histórico por outra. Na Cloud API isso fecha a janela, que é o certo: para
+   * aquele número, esta seria a primeira mensagem, e a Meta exige modelo.
+   */
+  const conversaDoCanal: ConversaDoContato | null | undefined =
+    conversas === undefined
+      ? undefined
+      : (conversas.find(c => c.instanceId === conexaoAtiva?.instanceId) ?? null);
+
+  // Para o atalho do Multiatendimento: se não há conversa na linha de envio,
+  // abre a mais recente que existir, em vez de mandar a pessoa para uma tela
+  // sem conversa selecionada.
+  const conversaParaAbrir = conversaDoCanal ?? conversas?.[0] ?? null;
   // Nome dado à conexão nas Configurações; sem nome, o próprio número, que é
   // como o atendente reconhece a linha.
   const nomeDaConexao = conexaoAtiva?.name?.trim() || conexaoAtiva?.phone || "Conexão sem nome";
@@ -382,31 +440,31 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     }
     if (!lead || !user) return;
     const cleanPhone = (lead.whatsapp ?? "").replace(/\D/g, "");
-    // Sem telefone não há conversa a procurar. Marcar como `null` (e não deixar
-    // em `undefined`) evita que a janela de 24h fique presa em "verificando".
-    if (!cleanPhone) { setConversaDoCanal(null); return; }
+    // Sem telefone não há conversa a procurar. Marcar como lista vazia (e não
+    // deixar em `undefined`) evita que a janela de 24h fique presa em
+    // "verificando".
+    if (!cleanPhone) { setConversas([]); return; }
 
     setMessages([]);
-    setConversaDoCanal(undefined);
+    setConversas(undefined);
 
-    // Conversa do canal: telefone para o indicador "digitando...", id para o
-    // atalho do Multiatendimento. Mais recente primeiro porque um contato pode
-    // ter conversa em mais de uma instância, e a última movimentada é a que
-    // está em uso.
+    // Todas as conversas do contato, da mais recente para a mais antiga: o
+    // mesmo contato pode ter falado por mais de uma linha, e quem decide qual
+    // delas manda é a lista de conexões ativas, não a data.
     supabase
       .from("whatsapp_conversations")
       .select("id, phone, instance_id")
       .in("phone", variantesDeTelefone(lead.whatsapp))
       .order("last_msg_at", { ascending: false, nullsFirst: false })
-      .limit(1)
+      .limit(20)
       .then(({ data, error }) => {
-        // Erro cai no mesmo `null` de "não existe conversa" de propósito. Na
+        // Erro cai na mesma lista vazia de "não tem conversa" de propósito. Na
         // Cloud API isso leva a janela para "fechada", ou seja, exige modelo:
         // gastar um modelo à toa é mais barato que escrever uma mensagem
         // inteira e receber a recusa da Meta depois de mandar.
-        if (error) { console.warn("conversa do canal:", error.message); setConversaDoCanal(null); return; }
-        const c = data?.[0] as { id: string; phone: string; instance_id: string | null } | undefined;
-        setConversaDoCanal(c ? { id: c.id, phone: c.phone, instanceId: c.instance_id } : null);
+        if (error) { console.warn("conversas do contato:", error.message); setConversas([]); return; }
+        const linhas = (data ?? []) as { id: string; phone: string; instance_id: string | null }[];
+        setConversas(linhas.map(c => ({ id: c.id, phone: c.phone, instanceId: c.instance_id })));
       });
 
     supabase
@@ -541,33 +599,41 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // contato pode ter falado numa OUTRA linha, e uma mensagem que chegou lá não
   // abre a janela desta.
   useEffect(() => {
-    if (conexaoAtiva?.provider !== "cloud_api") { setJanela("aberta"); return; }
-    if (conversaDoCanal === undefined) { setJanela("carregando"); return; }
-    // Sem conversa, o contato nunca escreveu por aqui: não existe janela para
-    // estar aberta, e a Meta recusa texto livre do mesmo jeito.
-    if (conversaDoCanal === null) { setJanela("fechada"); return; }
+    const instancia = conexaoAtiva?.instanceId;
+    if (conexaoAtiva?.provider !== "cloud_api" || !instancia) { setJanela("aberta"); return; }
+    if (conversas === undefined) { setJanela("carregando"); return; }
 
     let cancelado = false;
     // "carregando" só na PRIMEIRA checagem desta conversa. Nas revalidações
     // (toda mensagem nova dispara uma) o veredito anterior continua valendo até
     // o novo chegar -- senão o campo piscaria desabilitado a cada mensagem
     // enviada, bem no meio de quem está escrevendo em sequência.
-    if (conversaVerificadaRef.current !== conversaDoCanal.id) {
-      conversaVerificadaRef.current = conversaDoCanal.id;
+    const chave = conversaDoCanal?.id ?? `linha:${instancia}`;
+    if (conversaVerificadaRef.current !== chave) {
+      conversaVerificadaRef.current = chave;
       setJanela("carregando");
     }
     (async () => {
-      const { data, error } = await supabase
+      const base = supabase
         .from("whatsapp_messages")
         .select("created_at")
-        .eq("conversation_id", conversaDoCanal.id)
         .eq("from_me", false)
         .order("created_at", { ascending: false })
         .limit(1);
+      // Com conversa, pergunta por ela, que é preciso. Sem conversa, pergunta
+      // por telefone + linha, que responde a MESMA pergunta ("o contato
+      // escreveu para este número nas últimas 24h?") sem depender de a conversa
+      // já existir. Este segundo caminho não é teórico: quem manda o primeiro
+      // modelo para um contato novo ainda não tem conversa, e quando a resposta
+      // chega ela precisa destravar o campo na hora. Sem ele o atendente ficava
+      // olhando a resposta do cliente na tela sem conseguir responder.
+      const { data, error } = await (conversaDoCanal
+        ? base.eq("conversation_id", conversaDoCanal.id)
+        : base.eq("instance_id", instancia).in("phone", variantesDeTelefone(lead?.whatsapp)));
       if (cancelado) return;
-      // Falha de leitura libera o campo em vez de travá-lo: aqui já sabemos que
-      // a conversa existe, então bloquear por causa de um erro nosso tiraria do
-      // atendente uma mensagem que provavelmente passaria.
+      // Falha de leitura libera o campo em vez de travá-lo: bloquear por causa
+      // de um erro nosso tiraria do atendente uma mensagem que provavelmente
+      // passaria, e a Meta recusa de todo jeito se estiver mesmo fechada.
       if (error) { console.warn("janela de 24h:", error.message); setJanela("aberta"); return; }
       const ultima = data?.[0]?.created_at as string | undefined;
       const fechaEm = ultima ? new Date(ultima).getTime() + 24 * 60 * 60_000 : 0;
@@ -576,7 +642,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     return () => { cancelado = true; };
     // `messages.length` entra de propósito: mensagem nova do cliente chegando
     // pelo realtime reabre a janela, e o campo precisa destravar na hora.
-  }, [conexaoAtiva?.provider, conversaDoCanal, messages.length]);
+  }, [conexaoAtiva?.provider, conexaoAtiva?.instanceId, conversaDoCanal, conversas, lead?.whatsapp, messages.length]);
 
   if (!lead) return null;
 
@@ -589,9 +655,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // Como chamar a linha por onde a mensagem passou. Linha desligada ou apagada
   // some de `whatsappConnections`, e aí só sobra o identificador interno, que
   // não diz nada a quem lê -- melhor dizer o que aconteceu com ela.
-  const nomeDaLinha = (instanceId: string) => {
+  const nomeDaLinha = (instanceId: string, repetindoORotulo = false) => {
     const c = whatsappConnections.find(k => k.instanceId === instanceId);
-    if (!c) return "um número removido";
+    // "outro" quando o bloco anterior já dizia a mesma coisa: sem isso, quem
+    // trocou de número duas vezes via "via um número removido" duas vezes
+    // seguidas e ficava sem entender o que mudou entre um bloco e o outro.
+    if (!c) return repetindoORotulo ? "outro número removido" : "um número removido";
     return c.name?.trim() || c.phone || "linha sem nome";
   };
 
@@ -630,7 +699,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       return;
     }
 
-    const cleanPhone = contactPhone.replace(/\D/g, "");
+    const cleanPhone = telefoneParaEnvio(contactPhone, conversaDoCanal?.phone);
     setEnviandoArquivo(true);
     toast.loading("Enviando arquivo…", { id: "fchat-file" });
     try {
@@ -847,7 +916,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
       return;
     }
 
-    const cleanPhone = contactPhone.replace(/\D/g, "");
+    const cleanPhone = telefoneParaEnvio(contactPhone, conversaDoCanal?.phone);
     // Congela a citação: o `citando` do closure sobreviveria ao setCitando(null),
     // mas depender disso é sutil demais num fluxo com três provedores no meio.
     const citada = citando;
@@ -956,11 +1025,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const enviarModelo = async (modelo: Modelo, valores: Record<string, string>, textoResolvido: string) => {
     const inst = conexaoAtiva;
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
-    // Preferir o telefone do canal: ele veio do JID que o WhatsApp mandou, e o
-    // do cadastro costuma estar sem o código do país. Para modelo isso pesa
-    // mais que no texto comum -- é a primeira mensagem depois de um silêncio,
-    // sem conversa aberta para o provedor se apoiar.
-    const cleanPhone = (conversaDoCanal?.phone ?? lead.whatsapp ?? "").replace(/\D/g, "");
+    const cleanPhone = telefoneParaEnvio(lead.whatsapp, conversaDoCanal?.phone);
     if (!cleanPhone || !user || !company) { toast.error("Este lead não tem WhatsApp cadastrado."); return; }
 
     setEnviandoModelo(true);
@@ -1146,11 +1211,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  navigate("/multiatendimento", conversaDoCanal ? { state: { openConvId: conversaDoCanal.id } } : undefined);
+                  navigate("/multiatendimento", conversaParaAbrir ? { state: { openConvId: conversaParaAbrir.id } } : undefined);
                 }}
                 className="hover:underline shrink-0"
                 style={{ color: "#128A68", fontWeight: 500 }}
-                title={conversaDoCanal ? "Abrir esta conversa no Multiatendimento" : "Abrir o Multiatendimento"}
+                title={conversaParaAbrir ? "Abrir esta conversa no Multiatendimento" : "Abrir o Multiatendimento"}
               >
                 Multiatendimento →
               </button>
