@@ -4410,15 +4410,15 @@ export default function MultiatendimentoPage() {
                 ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
-                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
                 ><Zap size={12} /> Automação</button>
                 <button
                   onClick={() => setShowFollowupDialog(true)}
-                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F5F5")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
                 ><CalendarDays size={12} /> Follow up</button>
               </div>
 
@@ -4427,36 +4427,41 @@ export default function MultiatendimentoPage() {
                   segue funcionando normalmente nos chips mesmo assim). */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", borderRadius: 8 }}>
                 <UserCheck size={13} color="#128A68" />
-                <span style={{ fontSize: 12, color: "#666" }}>Responsável:</span>
+                <span style={{ fontSize: 10, color: "#666" }}>Responsável:</span>
                 {!hasNegocio ? (
                   <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
-                ) : (effectiveLead?.responsibles?.length ?? 0) > 0 ? (
-                  <>
-                    <div style={{ display: "flex", flexShrink: 0 }}>
-                      {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) =>
-                        memberAvatars[name] ? (
-                          <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }} />
-                        ) : (
-                          <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
-                            {iniciais(name)}
-                          </div>
-                        )
-                      )}
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
-                  </>
                 ) : (
-                  <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
+                  <>
+                    {(effectiveLead?.responsibles?.length ?? 0) > 0 ? (
+                      <>
+                        <div style={{ display: "flex", flexShrink: 0 }}>
+                          {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) =>
+                            memberAvatars[name] ? (
+                              <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }} />
+                            ) : (
+                              <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
+                                {iniciais(name)}
+                              </div>
+                            )
+                          )}
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
+                    )}
+                    {/* Ao lado de quem está atribuído, não mais numa linha
+                        própria abaixo -- a ação de trocar fica junto de quem
+                        ela troca. */}
+                    <button
+                      onClick={() => setShowTransferDialog(true)}
+                      style={{ flexShrink: 0, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, color: "#128A68", cursor: "pointer", whiteSpace: "nowrap" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
+                    >Transferir</button>
+                  </>
                 )}
               </div>
-              {hasNegocio && (
-                <button
-                  onClick={() => setShowTransferDialog(true)}
-                  style={{ marginTop: 6, width: "100%", background: "#E1F5EE", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, color: "#128A68", cursor: "pointer" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
-                >Transferir responsável</button>
-              )}
 
               {/* Outras conversas deste contato (ex: número antigo x novo) */}
               {active.contactId && otherContactConvs.length > 0 && (
@@ -4524,7 +4529,7 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === 0}
-                  style={{ flex: 1, height: 25, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "0 8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, height: 25, background: "#FFF", border: "1px solid #999", borderRadius: 8, padding: "0 8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 ><ArrowLeft size={12} /> Voltar</button>
                 <button
                   onClick={() => {
@@ -4539,9 +4544,9 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
-                  style={{ flex: 1, height: 25, background: "#E1F5EE", border: "none", borderRadius: 8, padding: "0 8px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "#c8efe3"; }}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
+                  style={{ flex: 1, height: 25, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "0 8px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "#E1F5EE"; }}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
             </div>
