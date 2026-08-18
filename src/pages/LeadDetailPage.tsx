@@ -1311,31 +1311,12 @@ export default function LeadDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Responsáveis</label>
-                        <div className="border rounded-md p-1.5 space-y-0.5 max-h-[110px] overflow-y-auto" style={{ borderColor: "hsl(var(--border))" }}>
-                          {teamMembers.map(m => {
-                            const sel = leadResps.includes(m);
-                            return (
-                              <button
-                                key={m}
-                                type="button"
-                                disabled={pipelinePerms.blockChangeAttendant}
-                                onClick={() => {
-                                  const next = sel ? leadResps.filter(r => r !== m) : [...leadResps, m];
-                                  updateField("responsibles", next);
-                                }}
-                                className="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                              >
-                                <div className="flex items-center justify-center rounded shrink-0" style={{ width: 13, height: 13, border: sel ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: sel ? (memberColors[m] || "#128A68") : "transparent" }}>
-                                  {sel && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                                </div>
-                                <span className="text-xs truncate" style={{ fontWeight: sel ? 600 : 400 }}>{m}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      {/* Os responsáveis saíram daqui. O seletor do cabeçalho,
+                          ao lado de Ganho e Perdido, escreve o mesmo campo
+                          (`responsibles`), respeita a mesma permissão e ainda
+                          oferece "Limpar responsáveis". Dois controles para o
+                          mesmo dado na mesma tela só rendem dúvida sobre qual
+                          deles vale. */}
                       <div>
                         <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Data de entrada</label>
                         <p style={{ fontSize: 13, color: "#111111" }}>
