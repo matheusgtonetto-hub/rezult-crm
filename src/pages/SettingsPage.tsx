@@ -4222,7 +4222,9 @@ function ConexoesSection() {
 
             {/* Right content */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", borderBottom: "1px solid #F0F0F0" }}>
+              {/* Cabeçalho em branco: fecha a faixa branca que vem da coluna da
+                  esquerda, e o cinza fica só na área onde os cartões aparecem. */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", background: "#FFFFFF", borderBottom: "1px solid #F0F0F0" }}>
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>{selectedCat.label}</p>
                   <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{selectedCat.description}</p>
