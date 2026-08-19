@@ -685,9 +685,20 @@ export default function LeadDetailPage() {
   async function handleDeleteFile(f: UploadedFile) {
     setDeletingFileId(f.id);
     await supabase.storage.from("lead-files").remove([f.storagePath]);
-    await supabase.from("lead_files").delete().eq("id", f.id);
-    setUploadedFiles(prev => prev.filter(x => x.id !== f.id));
+    // O anexo pertence ao negócio e todo mundo que enxerga o negócio o vê, mas
+    // apagar é só de quem enviou ou de um admin. Uma exclusão barrada pelo RLS
+    // não devolve erro, devolve zero linha: sem o .select() para contar, a tela
+    // anunciava "excluído" e o arquivo continuava lá depois de recarregar.
+    const { data: apagados, error } = await supabase
+      .from("lead_files").delete().eq("id", f.id).select("id");
     setDeletingFileId(null);
+
+    if (error || (apagados?.length ?? 0) === 0) {
+      toast.error("Não foi possível excluir. Só quem enviou o arquivo ou um administrador pode removê-lo.");
+      return;
+    }
+
+    setUploadedFiles(prev => prev.filter(x => x.id !== f.id));
     toast.success("Arquivo excluído.");
   }
 
