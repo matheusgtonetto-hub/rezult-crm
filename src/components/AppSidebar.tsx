@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ComponentType } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Cog,
   LogOut,
-  MessageSquare,
   Network,
   Rocket,
   Filter,
@@ -23,6 +22,7 @@ import {
   GraduationCap,
   ExternalLink,
 } from "lucide-react";
+import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -38,7 +38,9 @@ import {
 type NavItem = {
   to: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  // Aceita tanto ícones do lucide-react quanto o CrmWhatsAppIcon (mesmo
+  // contrato de props: size, strokeWidth, className).
+  icon: ComponentType<{ size?: string | number; strokeWidth?: string | number; className?: string }>;
   locked?: boolean;
   badge?: "IA" | "Em breve";
 };
@@ -141,7 +143,7 @@ export function AppSidebar() {
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: MessageSquare }] : []),
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
     { to: "/agentes", label: "Agentes", icon: BotMessageSquare },
   ];
 
