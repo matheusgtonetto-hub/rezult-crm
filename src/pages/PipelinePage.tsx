@@ -864,58 +864,61 @@ export default function PipelinePage() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Ordenação</span>
-            <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
-              <SelectTrigger className="h-[30px] w-[135px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-card-border">
-                <SelectItem value="recent">Mais recentes</SelectItem>
-                <SelectItem value="oldest">Mais antigos</SelectItem>
-                <SelectItem value="value">Valor</SelectItem>
-                <SelectItem value="name">Nome</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Ordenação, Status, Data e Filtros — encostados na borda direita
+              da tela, longe da busca. */}
+          <div className="flex flex-nowrap items-center gap-2 ml-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Ordenação</span>
+              <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
+                <SelectTrigger className="h-[30px] w-[135px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-card-border">
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                  <SelectItem value="oldest">Mais antigos</SelectItem>
+                  <SelectItem value="value">Valor</SelectItem>
+                  <SelectItem value="name">Nome</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Status</span>
+              <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
+                <SelectTrigger className="h-[30px] w-[115px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-card-border">
+                  <SelectItem value="open">Em aberto</SelectItem>
+                  <SelectItem value="won">Ganho</SelectItem>
+                  <SelectItem value="lost">Perdido</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Data</span>
+              <DateRangePicker
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                onChangeRange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+              />
+            </div>
+
+            <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
+
+            {(!isFilterEmpty(advFilter) || status !== "open" || !!dateFrom || !!dateTo) && (
+              <button
+                onClick={() => { setAdvFilter({}); setStatus("open"); setDateFrom(""); setDateTo(""); }}
+                title="Limpar filtros"
+                className="h-[30px] px-2.5 inline-flex items-center gap-1 bg-card border border-card-border rounded-lg text-xs text-muted-foreground hover:text-destructive hover:border-destructive transition-colors whitespace-nowrap"
+              >
+                <X size={13} />
+                Limpar
+              </button>
+            )}
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Status</span>
-            <Select value={status} onValueChange={v => setStatus(v as StatusFilter)}>
-              <SelectTrigger className="h-[30px] w-[115px] bg-card border-card-border rounded-lg text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-card-border">
-                <SelectItem value="open">Em aberto</SelectItem>
-                <SelectItem value="won">Ganho</SelectItem>
-                <SelectItem value="lost">Perdido</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Data</span>
-            <DateRangePicker
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              onChangeRange={(from, to) => { setDateFrom(from); setDateTo(to); }}
-            />
-          </div>
-
-          <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
-
-          {(!isFilterEmpty(advFilter) || status !== "open" || !!dateFrom || !!dateTo) && (
-            <button
-              onClick={() => { setAdvFilter({}); setStatus("open"); setDateFrom(""); setDateTo(""); }}
-              title="Limpar filtros"
-              className="h-[30px] px-2.5 inline-flex items-center gap-1 bg-card border border-card-border rounded-lg text-xs text-muted-foreground hover:text-destructive hover:border-destructive transition-colors whitespace-nowrap"
-            >
-              <X size={13} />
-              Limpar
-            </button>
-          )}
-
         </div>
 
         {/* Kanban */}
