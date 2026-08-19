@@ -11,7 +11,7 @@ import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
-import { leadMatchesFilter, isFilterEmpty, type LeadFilter } from "@/data/disparos";
+import { leadMatchesFilter, isFilterEmpty, executarAutomacaoNoLead, type LeadFilter } from "@/data/disparos";
 import type { AttendantPermissions } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck, BotMessageSquare } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck, BotMessageSquare, Network } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -58,6 +58,10 @@ import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { normalizarTelefoneBr } from "@/lib/telefone";
+import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
+import { LeadModal } from "@/components/LeadModal";
+import { CreateDealDialog } from "@/components/CreateDealDialog";
+import type { Contact } from "@/lib/contacts";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -474,6 +478,19 @@ export default function PipelinePage() {
       });
   }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter, myPerms.viewOwnDealsOnly]);
 
+  // Universo para "Executar automação" a partir do topo da pipeline: os
+  // negócios do board como ele está agora (mesmos filtros aplicados), igual
+  // ao menu do topo em /leads usar `filtered` em vez da base inteira.
+  const leadsVisiveisNaPipeline = useMemo(
+    () => filteredColumns.flatMap(col => col.filteredIds.map(id => leads[id]).filter(Boolean)),
+    [filteredColumns, leads],
+  );
+
+  const [automacaoAberta, setAutomacaoAberta] = useState(false);
+  const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
+  const [novoLeadOpen, setNovoLeadOpen] = useState(false);
+  const [dealContactTarget, setDealContactTarget] = useState<Contact | null>(null);
+
   // ── Avatar dos cards (foto real do WhatsApp, mesmo padrão de
   // LeadDetailPage/Multiatendimento) ────────────────────────────────────
   const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
@@ -678,8 +695,8 @@ export default function PipelinePage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Page header */}
-        <div className="px-6 pb-3 flex items-center gap-4" style={{ paddingTop: 15 }}>
-          <div className="min-w-0 flex-1">
+        <div className="px-6 pb-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4" style={{ paddingTop: 15 }}>
+          <div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground truncate">
               {activePipeline.name}
             </h1>
@@ -689,6 +706,25 @@ export default function PipelinePage() {
             </p>
           </div>
 
+          {/* Automação e Novo Lead — mesmos popups de /leads, centralizados
+              entre o nome da pipeline e o seletor "Visualizando como". */}
+          <div className="flex items-center gap-2 justify-self-center shrink-0">
+            <Button
+              variant="outline"
+              className="rounded-lg font-semibold bg-white h-[30px] px-3 text-xs"
+              onClick={() => setAutomacaoAberta(true)}
+            >
+              <Network size={14} className="mr-1.5" /> Automação
+            </Button>
+            <Button
+              className="rounded-lg font-semibold h-[30px] px-3 text-xs"
+              onClick={() => setNovoLeadOpen(true)}
+            >
+              <Plus size={14} className="mr-1.5" /> Novo Lead
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4 justify-self-end min-w-0">
           {/* Seletor "Visualizando como:" — apenas admins */}
           {isAdmin && teamMembers.length > 0 && (
             <div ref={viewPickerRef} className="relative flex items-center gap-2 shrink-0">
@@ -812,6 +848,7 @@ export default function PipelinePage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
 
         {/* Filters bar */}
@@ -1389,6 +1426,42 @@ export default function PipelinePage() {
           onClose={() => setSelectedLeadId(null)}
         />
 
+        {/* Novo Lead — mesmo popup de /leads: cria só o contato, e o
+            onCreated abre "Criar negócio" em seguida. */}
+        <LeadModal
+          open={novoLeadOpen}
+          onClose={() => setNovoLeadOpen(false)}
+          onCreated={contact => setDealContactTarget(contact)}
+        />
+        <CreateDealDialog contact={dealContactTarget} onClose={() => setDealContactTarget(null)} />
+
+        {/* Executar automação a partir do topo da pipeline — mesmo wizard do
+            menu do topo em /leads: nada vem marcado, o passo 2 escolhe entre
+            os negócios visíveis neste board (com os filtros já aplicados). */}
+        <ExecutarAutomacaoWizard
+          open={automacaoAberta}
+          onOpenChange={setAutomacaoAberta}
+          executando={executandoAutomacao}
+          termo={{ singular: "lead", plural: "leads" }}
+          conversas={[]}
+          opcoes={leadsVisiveisNaPipeline.map(l => ({
+            id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
+          }))}
+          onExecutar={async (automationId, ids) => {
+            if (!company || ids.length === 0) return;
+            setExecutandoAutomacao(true);
+            let ok = 0; let ultimoErro = "";
+            for (const id of ids) {
+              const erro = await executarAutomacaoNoLead(company.id, id, automationId);
+              if (erro) ultimoErro = erro; else ok++;
+            }
+            const falhas = ids.length - ok;
+            setExecutandoAutomacao(false);
+            setAutomacaoAberta(false);
+            if (ok > 0) toast.success(`Automação executada em ${ok} lead(s).`);
+            if (falhas > 0) toast.error(`Falha em ${falhas} lead(s). ${ultimoErro}`);
+          }}
+        />
 
         {/* Confirmação de avanço de etapa */}
         {pendingAdvance && (() => {
