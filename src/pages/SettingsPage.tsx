@@ -3160,13 +3160,11 @@ const CONN_CATEGORIES = [
     description: "Crie conexões com a plataforma Instagram",
     // available: false deixa o Instagram no mesmo estado do Messenger --
     // selo "Em breve", cartão esmaecido e clique que não inicia o OAuth.
-    // Os handlers continuam no arquivo de propósito: religar é trocar estes
-    // dois false por true, sem reescrever o fluxo de conexão.
+    // O handler continua no arquivo de propósito: religar é trocar este
+    // false por true, sem reescrever o fluxo de conexão.
     providers: [
       { id: "instagram_direct", name: "Login com Instagram", desc: "Entre diretamente com sua conta Instagram Business ou Criador", available: false,
         iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: InstagramIcon },
-      { id: "instagram_api", name: "Instagram via Facebook", desc: "Conecte via Página do Facebook (conta Business vinculada)", available: false,
-        iconBg: "linear-gradient(135deg,#1877F2,#833AB4)", Icon: InstagramIcon },
     ],
   },
   {
@@ -3227,29 +3225,6 @@ function ConexoesSection() {
     if (!company) return;
     const { initGoogleOAuth } = await import("@/lib/googleOAuth");
     initGoogleOAuth(company.id);
-  }
-
-  function handleConnectInstagram() {
-    const META_APP_ID = "2970416166632315";
-    const redirectUri = `${window.location.origin}/auth/meta-callback`;
-    const scopes = [
-      "pages_show_list",
-      "pages_messaging",
-      "pages_manage_metadata",
-      "instagram_basic",
-      "instagram_manage_messages",
-      "business_management",
-    ].join(",");
-    sessionStorage.setItem("meta_oauth_provider", "instagram");
-    const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
-      new URLSearchParams({
-        client_id: META_APP_ID,
-        redirect_uri: redirectUri,
-        scope: scopes,
-        response_type: "code",
-        auth_type: "rerequest",
-      });
-    window.location.href = oauthUrl;
   }
 
   function handleConnectInstagramDirect() {
@@ -4270,7 +4245,6 @@ function ConexoesSection() {
                         if (prov.id === "dapi") { setWizardProvider("dapi"); setDapiApiKey(""); dapiSessionRef.current = ""; setConnName(""); setOpen(false); setTimeout(() => { setStep("creds"); setOpen(true); }, 120); }
                         if (prov.id === "zapi") { setWizardProvider("zapi"); setOpen(false); setTimeout(() => { setStep(localStorage.getItem("zapi_skip_tutorial") === "1" ? "creds" : "tutorial"); setOpen(true); }, 120); }
                         if (prov.id === "gcal") { closeDialog(); handleConnectGoogle(); }
-                        if (prov.id === "instagram_api") { closeDialog(); handleConnectInstagram(); }
                         if (prov.id === "instagram_direct") { closeDialog(); handleConnectInstagramDirect(); }
                       }}
                       style={{
