@@ -4,6 +4,8 @@ import { TriangleAlert, X } from "lucide-react";
 
 interface Props {
   onClose: () => void;
+  /** Por que a conta está em somente leitura. Muda só o texto, não o efeito. */
+  motivo?: "cobranca" | "teste" | null;
 }
 
 /**
@@ -15,8 +17,19 @@ interface Props {
  * pagamento e diz o que continua funcionando, para não parecer que os dados
  * sumiram.
  */
-export function BillingBlockedModal({ onClose }: Props) {
+export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
   const navigate = useNavigate();
+
+  // Quem chega aqui pelo fim do teste nunca teve uma cobrança, então falar em
+  // pagamento recusado com essa pessoa seria simplesmente falso.
+  const doTeste = motivo === "teste";
+  const titulo    = doTeste ? "Teste grátis encerrado" : "Pagamento em aberto";
+  const subtitulo = "Sua conta está em modo somente leitura";
+  const chamada   = doTeste ? "Escolha um plano para continuar" : "Regularize para voltar a usar";
+  const corpo     = doTeste
+    ? "Seus 7 dias de teste terminaram. Tudo o que você cadastrou continua aqui e pode ser consultado, mas cadastros, edições e envios ficam pausados até a assinatura de um plano."
+    : "A cobrança da sua mensalidade não foi aprovada. Seus dados continuam aqui e você pode consultar tudo normalmente, mas cadastros, edições e envios ficam pausados até o pagamento ser confirmado.";
+  const botao     = doTeste ? "Ver planos" : "Regularizar pagamento";
 
   return createPortal(
     <div
@@ -75,10 +88,10 @@ export function BillingBlockedModal({ onClose }: Props) {
             </div>
             <div>
               <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
-                Pagamento em aberto
+                {titulo}
               </div>
               <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 }}>
-                Sua conta está em modo somente leitura
+                {subtitulo}
               </div>
             </div>
           </div>
@@ -86,12 +99,10 @@ export function BillingBlockedModal({ onClose }: Props) {
 
         <div style={{ padding: "24px", textAlign: "center" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>
-            Regularize para voltar a usar
+            {chamada}
           </div>
           <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
-            A cobrança da sua mensalidade não foi aprovada. Seus dados continuam aqui e você
-            pode consultar tudo normalmente, mas cadastros, edições e envios ficam pausados
-            até o pagamento ser confirmado.
+            {corpo}
           </p>
 
           <button
@@ -109,7 +120,7 @@ export function BillingBlockedModal({ onClose }: Props) {
               cursor: "pointer",
             }}
           >
-            Regularizar pagamento
+            {botao}
           </button>
 
           <button

@@ -103,6 +103,7 @@ interface CompanyContextType {
   planExpired: boolean;
   planDaysLeft: number | null;
   billingBlocked: boolean;
+  motivoDoBloqueio: "cobranca" | "teste" | null;
   isTrialing: boolean;
   planoEfetivo: string;
   refetchCompany: () => void;
@@ -287,13 +288,30 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   // Espelha public.empresa_bloqueada() do banco. A trava que vale é o RLS: se
   // este cálculo divergir, o servidor ainda recusa a escrita. O papel dele aqui
   // é a tela explicar o motivo em vez de devolver "erro ao salvar".
-  const billingBlocked = useMemo(() => {
-    if (!company) return false;
-    if (company.billing_status === "bloqueado") return true;
-    return company.billing_status === "pendente"
-      && !!company.billing_grace_until
-      && new Date(company.billing_grace_until) < new Date();
+  //
+  // São duas portas para o mesmo estado de somente leitura, e o texto que a
+  // pessoa lê depende de qual delas fechou: quem teve o teste encerrado nunca
+  // teve cobrança nenhuma, e falar em "pagamento recusado" com ela seria mentira.
+  //
+  // A checagem do teste não consulta assinaturas, ao contrário da função no
+  // banco: o webhook zera trial_ends_at assim que uma assinatura fica em dia, e
+  // a tela de sucesso do checkout recarrega a empresa logo depois.
+  const motivoDoBloqueio = useMemo<"cobranca" | "teste" | null>(() => {
+    if (!company) return null;
+
+    const porCobranca =
+      company.billing_status === "bloqueado"
+      || (company.billing_status === "pendente"
+          && !!company.billing_grace_until
+          && new Date(company.billing_grace_until) < new Date());
+    if (porCobranca) return "cobranca";
+
+    const testeEncerrado =
+      !!company.trial_ends_at && new Date(company.trial_ends_at) < new Date();
+    return testeEncerrado ? "teste" : null;
   }, [company]);
+
+  const billingBlocked = motivoDoBloqueio !== null;
 
   // Empresa em teste grátis: ganhou plano pago no cadastro, sem cartão, e ainda
   // está dentro do prazo. Some sozinho quando a data passa, e o webhook zera o
@@ -371,6 +389,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         planExpired,
         planDaysLeft,
         billingBlocked,
+        motivoDoBloqueio,
         isTrialing,
         planoEfetivo,
         refetchCompany: load,

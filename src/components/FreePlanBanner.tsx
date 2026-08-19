@@ -18,7 +18,7 @@ type BillingTab = "mensal" | "semestral" | "anual";
 export const BANNER_HEIGHT = 50;
 
 export function FreePlanBanner() {
-  const { isFreePlan, planDaysLeft, billingBlocked, isTrialing } = useCompany();
+  const { isFreePlan, planDaysLeft, billingBlocked, motivoDoBloqueio, isTrialing } = useCompany();
   const navigate = useNavigate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
@@ -32,17 +32,21 @@ export function FreePlanBanner() {
   const diasRestantes = planDaysLeft ?? 0;
   const acabando = isTrialing && diasRestantes <= 1;
 
-  const aviso = billingBlocked
+  const aviso = motivoDoBloqueio === "cobranca"
     ? "Pagamento não aprovado. Sua conta está em modo somente leitura até a regularização"
-    : isTrialing
-      ? (diasRestantes <= 1
-          ? "Seu teste grátis termina hoje. Assine para não perder o acesso ao plano"
-          : `Teste grátis do plano Silver: faltam ${diasRestantes} dias`)
-      : "Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades";
+    : motivoDoBloqueio === "teste"
+      ? "Seu teste grátis terminou. Assine um plano para voltar a usar o CRM"
+      : isTrialing
+        ? (diasRestantes <= 1
+            ? "Seu teste grátis termina hoje. Assine para não perder o acesso ao plano"
+            : `Teste grátis do plano Silver: faltam ${diasRestantes} dias`)
+        : "Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades";
 
-  const rotuloBotao = billingBlocked
+  const rotuloBotao = motivoDoBloqueio === "cobranca"
     ? "Regularizar agora!"
-    : isTrialing ? "Assinar agora" : "Fazer upgrade agora!";
+    : motivoDoBloqueio === "teste" ? "Escolher um plano"
+    : isTrialing ? "Assinar agora"
+    : "Fazer upgrade agora!";
 
   // Vermelho é para problema. Um teste correndo não é problema, então ele só
   // fica vermelho quando está de fato acabando.

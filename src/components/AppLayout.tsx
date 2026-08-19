@@ -12,7 +12,7 @@ const ONBOARDING_PATHS = ["/company-register", "/setup"];
 
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
-  const { company, companyLoading, isFreePlan, billingBlocked, isTrialing } = useCompany();
+  const { company, companyLoading, isFreePlan, billingBlocked, motivoDoBloqueio, isTrialing } = useCompany();
   const navigate                                                          = useNavigate();
   const { pathname }                                                      = useLocation();
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export default function AppLayout() {
         <PlanLimitModal resource={planLimitResource} onClose={() => setPlanLimitResource(null)} />
       )}
       {billingBlockedOpen && (
-        <BillingBlockedModal onClose={() => setBillingBlockedOpen(false)} />
+        <BillingBlockedModal motivo={motivoDoBloqueio} onClose={() => setBillingBlockedOpen(false)} />
       )}
     </div>
   );
