@@ -4249,8 +4249,11 @@ function ConexoesSection() {
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
-                        borderRadius: 12, border: `1.5px solid ${prov.available ? "#EEEEEE" : "#EEEEEE"}`,
-                        textAlign: "left", background: "transparent", cursor: prov.available ? "pointer" : "not-allowed",
+                        borderRadius: 12, border: "1.5px solid #EEEEEE",
+                        // Branco, não transparente: o DialogContent é bg-background
+                        // (#F5F5F5) e a borda é #EEEEEE, então o cartão transparente
+                        // se confundia com o painel atrás dele.
+                        textAlign: "left", background: "#FFFFFF", cursor: prov.available ? "pointer" : "not-allowed",
                         opacity: prov.available ? 1 : 0.5,
                       }}
                     >
