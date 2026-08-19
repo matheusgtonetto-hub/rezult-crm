@@ -2473,7 +2473,12 @@ export default function AutomacoesPage() {
           )}
 
           {/* Canvas area — flex: 1, encolhe quando painel está aberto */}
-          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, rgba(210,210,210,0.7) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+          {/* Cor das bolinhas em hex puro, sem alpha: com rgba o valor escrito
+              aqui não era o que aparecia na tela (o fundo #F5F5F5 entrava na
+              conta), então ajustar o tom virava tentativa e erro. #E8E8E8 fica
+              13 tons abaixo do fundo -- a grade se percebe sem competir com os
+              blocos do fluxo. */}
+          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, #E8E8E8 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
 
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
