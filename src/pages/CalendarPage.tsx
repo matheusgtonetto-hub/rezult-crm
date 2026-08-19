@@ -439,7 +439,7 @@ export default function CalendarPage() {
   const { leads, addActivity, patchActivity, deleteActivity, teamMembers, memberEmails, memberAvatars, memberColors, crmLoading } = useCRM();
   const { profile } = useProfile();
   const { company } = useCompany();
-  const [view, setView] = useState<CalView>("semana");
+  const [view, setView] = useState<CalView>("mes");
   const today = useMemo(() => new Date(), []);
   const [cur, setCur] = useState(() => new Date());
   const [showModal, setShowModal] = useState(false);
