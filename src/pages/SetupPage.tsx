@@ -227,15 +227,18 @@ export default function SetupPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const initStep  = (location.state as { step?: number } | null)?.step ?? 1;
-  const { company, companyLoading, isFreePlan } = useCompany();
+  const { company, companyLoading, isFreePlan, isTrialing } = useCompany();
   const { user } = useAuth();
 
   useEffect(() => {
     if (companyLoading) return;
-    if (company && !isFreePlan) {
+    // Quem está em teste grátis tem plano pago e cairia neste desvio, indo direto
+    // para o dashboard sem passar pelo onboarding, que é justamente onde a
+    // assinatura é oferecida. O desvio existe para quem JÁ assinou.
+    if (company && !isFreePlan && !isTrialing) {
       navigate("/dashboard", { replace: true });
     }
-  }, [companyLoading, company, isFreePlan, navigate]);
+  }, [companyLoading, company, isFreePlan, isTrialing, navigate]);
 
   const [step, setStep] = useState<Step>(Math.min(initStep, 2) as Step);
 

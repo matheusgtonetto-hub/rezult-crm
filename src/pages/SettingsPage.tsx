@@ -1060,7 +1060,7 @@ function PermissionsEditor({
 
 function EquipeSection() {
   const { user } = useAuth();
-  const { company, userPermissions, billingBlocked } = useCompany();
+  const { company, userPermissions, billingBlocked, planoEfetivo } = useCompany();
   const [members, setMembers] = useState<Member[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1111,8 +1111,7 @@ function EquipeSection() {
   const handleAddMember = async () => {
     if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
 
-    const plan = company?.plan ?? "free";
-    const limit = PLAN_LIMITS[plan]?.members ?? null;
+    const limit = PLAN_LIMITS[planoEfetivo]?.members ?? null;
     if (limit !== null && members.length >= limit) {
       emitPlanLimit("membros");
       return;
@@ -1573,12 +1572,15 @@ const UPGRADE_PERIOD_DISCOUNT: Record<UpgradePeriod, string | null> = {
 // ── PlanosSection ─────────────────────────────────────────────────────────────
 
 function PlanosSection() {
-  const { company, whatsappConnections } = useCompany();
+  const { company, whatsappConnections, planoEfetivo, isTrialing, planDaysLeft } = useCompany();
   const { user }    = useAuth();
   const { leads, pipelines, teamMembers } = useCRM();
   const { subscription, refetch: refetchSubscription } = useSubscription();
 
-  const planKey = company?.plan ?? "free";
+  // planoEfetivo, não company.plan: a tela de uso precisa mostrar o limite que
+  // vale hoje. Com a coluna crua, uma conta vencida exibia a barra de consumo
+  // contra os 5000 leads do Silver que ela não tem mais.
+  const planKey = planoEfetivo;
   const planDef = PLANS.find(p => p.key === planKey);
   const limits  = PLAN_LIMITS[planKey] ?? PLAN_LIMITS.free;
 
@@ -5246,7 +5248,7 @@ function McpSection() {
 
 /* ---------------- ARMAZENAMENTO ---------------- */
 function ArmazenamentoSection() {
-  const { company } = useCompany();
+  const { company, planoEfetivo } = useCompany();
   const navigate = useNavigate();
 
   const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
@@ -5256,7 +5258,7 @@ function ArmazenamentoSection() {
     emerald:  { bytes: 20  * 1024 * 1024 * 1024,   label: "20 GB"  },
   };
 
-  const plan = company?.plan ?? "free";
+  const plan = planoEfetivo;
   const planLimit = PLAN_STORAGE[plan] ?? PLAN_STORAGE.free;
   const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
 

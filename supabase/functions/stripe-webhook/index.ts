@@ -273,6 +273,10 @@ async function sincronizarAssinatura(
     atualizacaoEmpresa.billing_status      = "ok";
     atualizacaoEmpresa.billing_grace_until = null;
     if (planName) atualizacaoEmpresa.plan = planName;
+    // Encerra o teste grátis do cadastro: a partir daqui quem manda na validade
+    // é a assinatura. Sem isto a tarja continuaria contando dias de um teste que
+    // já virou contrato, e o /setup seguiria interceptando quem já pagou.
+    atualizacaoEmpresa.trial_ends_at       = null;
   } else if (dados.status === "past_due" || dados.status === "unpaid") {
     if (await temAssinaturaEmDia(db, companyId, subId)) {
       console.log(`[${origem}] ${subId} está ${dados.status}, mas a empresa tem outra assinatura em dia — cobrança inalterada`);

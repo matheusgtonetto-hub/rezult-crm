@@ -12,7 +12,7 @@ const ONBOARDING_PATHS = ["/company-register", "/setup"];
 
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
-  const { company, companyLoading, planExpired, isFreePlan, planDaysLeft, billingBlocked } = useCompany();
+  const { company, companyLoading, isFreePlan, billingBlocked, isTrialing } = useCompany();
   const navigate                                                          = useNavigate();
   const { pathname }                                                      = useLocation();
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
@@ -56,8 +56,9 @@ export default function AppLayout() {
   }
 
   // Bloqueio por cobrança não implica plano expirado (uma anual pode falhar com
-  // validade ainda no futuro), então a tarja tem os dois gatilhos.
-  const showBanner = isFreePlan || billingBlocked;
+  // validade ainda no futuro), e o teste grátis é plano pago válido. Os três
+  // casos reservam o mesmo espaço no rodapé.
+  const showBanner = isFreePlan || billingBlocked || isTrialing;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>

@@ -168,8 +168,21 @@ export default function CompanyRegisterPage() {
 
     setSubmitting(true);
 
+    // Teste grátis: 7 dias com plano pago, sem pedir cartão.
+    //
+    // Antes eram 2 dias com plano "free", o que não era teste nenhum: como
+    // `isFreePlan` já era verdadeiro no primeiro minuto, a pessoa entrava com os
+    // limites do gratuito, via a tarja vermelha de upgrade antes de conhecer o
+    // produto, e no fim dos 2 dias nada mudava. Nenhuma das empresas que passaram
+    // por esse fluxo chegou a cadastrar um único lead.
+    //
+    // Agora entra como Silver de verdade e, ao vencer sem assinatura, cai para os
+    // limites do free por `planoEmVigor`. `trial_ends_at` marca que é teste, para
+    // a tela falar em prazo em vez de vender upgrade, e o webhook zera esse campo
+    // quando uma assinatura entra.
+    const DIAS_DE_TESTE = 7;
     const planExpiresAt = new Date();
-    planExpiresAt.setDate(planExpiresAt.getDate() + 2);
+    planExpiresAt.setDate(planExpiresAt.getDate() + DIAS_DE_TESTE);
 
     const { data: newCompany, error } = await supabase.from("companies").insert({
       owner_id:        user.id,
@@ -185,8 +198,9 @@ export default function CompanyRegisterPage() {
       neighborhood,
       city,
       state:           uf,
-      plan:            "free",
+      plan:            "silver",
       plan_expires_at: planExpiresAt.toISOString(),
+      trial_ends_at:   planExpiresAt.toISOString(),
     }).select("id").single();
 
     if (error) {

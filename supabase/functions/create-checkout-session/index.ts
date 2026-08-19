@@ -88,6 +88,11 @@ serve(async (req) => {
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
+        // A tela de planos sempre prometeu "o valor só é cobrado após os 7 dias",
+        // mas nenhum trial era configurado aqui: a Stripe cobrava no instante em
+        // que o cartão entrava. O texto estava publicado e a cobrança contradizia
+        // ele, o que é problema de confiança, não de produto.
+        trial_period_days: 7,
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },

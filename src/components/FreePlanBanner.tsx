@@ -18,19 +18,35 @@ type BillingTab = "mensal" | "semestral" | "anual";
 export const BANNER_HEIGHT = 50;
 
 export function FreePlanBanner() {
-  const { isFreePlan, planExpired, planDaysLeft, billingBlocked } = useCompany();
+  const { isFreePlan, planDaysLeft, billingBlocked, isTrialing } = useCompany();
   const navigate = useNavigate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
 
-  if (!isFreePlan && !billingBlocked) return null;
+  if (!isFreePlan && !billingBlocked && !isTrialing) return null;
 
-  // Quem teve a cobrança recusada não precisa de convite para crescer de plano,
-  // precisa saber que a mensalidade não passou. Mesma tarja, recado diferente.
+  // Três situações, três recados. Quem teve a cobrança recusada precisa saber
+  // que a mensalidade não passou, não receber convite para crescer de plano. E
+  // quem está em teste está conhecendo o produto: falar de prazo é honesto,
+  // gritar "faça upgrade" em vermelho no primeiro minuto de uso não é.
+  const diasRestantes = planDaysLeft ?? 0;
+  const acabando = isTrialing && diasRestantes <= 1;
+
   const aviso = billingBlocked
     ? "Pagamento não aprovado. Sua conta está em modo somente leitura até a regularização"
-    : "Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades";
-  const rotuloBotao = billingBlocked ? "Regularizar agora!" : "Fazer upgrade agora!";
+    : isTrialing
+      ? (diasRestantes <= 1
+          ? "Seu teste grátis termina hoje. Assine para não perder o acesso ao plano"
+          : `Teste grátis do plano Silver: faltam ${diasRestantes} dias`)
+      : "Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades";
+
+  const rotuloBotao = billingBlocked
+    ? "Regularizar agora!"
+    : isTrialing ? "Assinar agora" : "Fazer upgrade agora!";
+
+  // Vermelho é para problema. Um teste correndo não é problema, então ele só
+  // fica vermelho quando está de fato acabando.
+  const corDaTarja = (billingBlocked || !isTrialing || acabando) ? "#EF4444" : "#128A68";
 
   const getPrice = (plan: typeof PLANS[0]) => {
     if (billingTab === "semestral") return plan.pricing.semestral;
@@ -49,7 +65,7 @@ export function FreePlanBanner() {
       {/* ── Fixed bottom banner ─────────────────────────────────────────── */}
       <div
         className="fixed bottom-0 left-[67px] right-[15px] z-50 rounded-t-[7px] overflow-hidden flex items-center justify-center gap-6 px-6"
-        style={{ height: BANNER_HEIGHT, background: "#EF4444" }}
+        style={{ height: BANNER_HEIGHT, background: corDaTarja }}
       >
         <p className="text-sm font-[500] text-white flex items-center gap-2">
           <TriangleAlert size={16} className="shrink-0" />

@@ -4,7 +4,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { PLAN_LIMITS } from "@/data/plans";
+import { PLAN_LIMITS, PAID_PLANS, planoEmVigor } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 
 export interface Company {
@@ -23,6 +23,10 @@ export interface Company {
   // renovar o acesso por mais um mês.
   billing_status?: "ok" | "pendente" | "bloqueado";
   billing_grace_until?: string | null;
+  // Fim do teste grátis do cadastro, sem cartão. Nulo para quem nunca testou ou
+  // já assinou. Não confundir com subscriptions.trial_ends_at, que é o trial da
+  // Stripe, com cartão já informado.
+  trial_ends_at?: string | null;
   // Address
   zip_code?: string;
   address?: string;
@@ -99,6 +103,8 @@ interface CompanyContextType {
   planExpired: boolean;
   planDaysLeft: number | null;
   billingBlocked: boolean;
+  isTrialing: boolean;
+  planoEfetivo: string;
   refetchCompany: () => void;
   updateCompany: (data: CompanyUpdateData) => Promise<void>;
   uploadLogo: (file: File) => Promise<void>;
@@ -156,8 +162,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const addWhatsAppConnection = useCallback(async (data: Omit<WhatsAppConnection, "id" | "createdAt">): Promise<WhatsAppConnection> => {
     if (!user) throw new Error("Não autenticado");
 
-    const plan = selectedCompany?.plan ?? "free";
-    const limit = PLAN_LIMITS[plan]?.connections ?? null;
+    // planoEmVigor, e não selectedCompany.plan: com o teste grátis dando plano
+    // pago por 7 dias, ler a coluna direto manteria o limite do Silver depois
+    // de o teste vencer.
+    const limit = PLAN_LIMITS[planoEmVigor(selectedCompany)]?.connections ?? null;
     if (limit !== null && whatsappConnections.length >= limit) {
       emitPlanLimit("conexões");
       throw new Error("plan-limit");
@@ -268,8 +276,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       });
   }, [company?.id, user?.id]);
 
-  const PAID_PLANS = ["silver", "platinum", "emerald"];
-
   const planExpired = useMemo(() => {
     if (!company) return false;
     return new Date(company.plan_expires_at) < new Date();
@@ -289,8 +295,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       && new Date(company.billing_grace_until) < new Date();
   }, [company]);
 
+  // Empresa em teste grátis: ganhou plano pago no cadastro, sem cartão, e ainda
+  // está dentro do prazo. Some sozinho quando a data passa, e o webhook zera o
+  // campo assim que uma assinatura entra.
+  const isTrialing = useMemo(() => {
+    if (!company?.trial_ends_at) return false;
+    return new Date(company.trial_ends_at) > new Date();
+  }, [company]);
+
+  // O plano que vale agora. Toda consulta a PLAN_LIMITS deve passar por aqui:
+  // a coluna `plan` continua dizendo "silver" depois de vencer, e ler ela direto
+  // era o que mantinha o limite do plano pago numa conta expirada.
+  const planoEfetivo = useMemo(() => planoEmVigor(company), [company]);
+
+  // Antes só contava para plano "free", que nunca foi o caso de ninguém em
+  // teste, e o resultado não era exibido em lugar nenhum. Agora vale para
+  // qualquer plano com data futura e alimenta a tarja do teste grátis.
   const planDaysLeft = useMemo(() => {
-    if (!company || company.plan !== "free" || planExpired) return null;
+    if (!company || planExpired) return null;
     const diff = new Date(company.plan_expires_at).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }, [company, planExpired]);
@@ -349,6 +371,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         planExpired,
         planDaysLeft,
         billingBlocked,
+        isTrialing,
+        planoEfetivo,
         refetchCompany: load,
         updateCompany,
         uploadLogo,

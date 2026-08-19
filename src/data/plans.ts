@@ -24,6 +24,26 @@ export interface PlanLimits {
   storage: number | null; // GB
 }
 
+export const PAID_PLANS = ["silver", "platinum", "emerald"];
+
+/**
+ * O plano que vale AGORA, já considerando a validade.
+ *
+ * A coluna `plan` guarda o que foi contratado e não muda sozinha quando a data
+ * passa. Quem lia `PLAN_LIMITS[company.plan]` direto continuava concedendo o
+ * limite do plano pago a uma empresa vencida: em agosto/2026 uma conta expirada
+ * seguia com os 5000 leads do Silver. Passe sempre por aqui antes de consultar
+ * limite, senão o vencimento não significa nada na prática.
+ */
+export function planoEmVigor(
+  company: { plan?: string | null; plan_expires_at?: string | null } | null | undefined,
+): string {
+  if (!company) return "free";
+  if (!PAID_PLANS.includes(company.plan ?? "")) return "free";
+  if (!company.plan_expires_at) return "free";
+  return new Date(company.plan_expires_at) < new Date() ? "free" : (company.plan as string);
+}
+
 export const PLAN_LIMITS: Record<string, PlanLimits> = {
   free:      { leads: 50,     members: 2,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 1,    storage: 1    },
   silver:    { leads: 5000,   members: 4,    connections: 3,    automations: 8,    pipelines: 5,    webhooks: 3,    storage: 10   },

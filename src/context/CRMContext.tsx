@@ -335,7 +335,7 @@ function somenteLeituraSeBloqueado(valor: CRMContextType, bloqueado: boolean): C
 
 export function CRMProvider({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
-  const { company, billingBlocked } = useCompany();
+  const { company, billingBlocked, planoEfetivo } = useCompany();
 
   const [crmLoading, setCrmLoading] = useState(true);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -816,7 +816,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   ) => {
     if (!user || !company) return undefined;
 
-    const limit = PLAN_LIMITS[company.plan]?.pipelines ?? null;
+    const limit = PLAN_LIMITS[planoEfetivo]?.pipelines ?? null;
     if (limit !== null && pipelines.length >= limit) {
       emitPlanLimit("pipelines");
       return;
