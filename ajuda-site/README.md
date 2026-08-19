@@ -20,7 +20,7 @@ ajuda-site/
 │       └── leads-webhook.html
 ├── assets/
 │   └── styles.css          # CSS compartilhado entre todas as páginas
-├── favicon.svg             # Ícone "R" da marca
+├── favicon.png             # Ícone "R" da marca (mesmo arquivo do app)
 └── vercel.json             # cleanUrls, redirects e cache
 ```
 
@@ -28,7 +28,7 @@ ajuda-site/
 > `/<tema>` via `index.html`; cada card vira um artigo em `/<tema>/<slug>`.
 >
 > ⚠️ Como as páginas ficam abaixo da raiz, **sempre** referencie assets e links
-> internos por caminho **absoluto** (`/assets/styles.css`, `/favicon.svg`,
+> internos por caminho **absoluto** (`/assets/styles.css`, `/favicon.png`,
 > `/automacoes/gatilhos`). O CSS é único em `assets/styles.css`.
 
 ## Rodar localmente
