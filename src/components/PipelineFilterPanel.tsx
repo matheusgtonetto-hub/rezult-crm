@@ -8,12 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SlidersHorizontal, Plus, Minus, ChevronRight, ChevronDown, Check, X } from "lucide-react";
 import type { LeadFilter } from "@/data/disparos";
-import type { LeadOrigin } from "@/data/mockData";
+import { LEAD_ORIGINS } from "@/data/mockData";
 
-const LEAD_ORIGINS: LeadOrigin[] = [
-  "Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads",
-  "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro",
-];
 
 type Opt = { id: string; label: string };
 

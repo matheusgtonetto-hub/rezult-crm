@@ -6,7 +6,6 @@ import { type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr } from "@/lib/telefone";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -15,8 +14,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network, Rocket, SlidersHorizontal, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network, Rocket } from "lucide-react";
+import { LeadsFilterMenu } from "@/components/leads/LeadsFilterMenu";
 import { useCompany } from "@/context/CompanyContext";
 import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
 import { CreateDisparoWizard } from "@/components/disparos/CreateDisparoWizard";
@@ -47,7 +46,6 @@ export default function LeadsPage() {
    * manda para o disparo ou para a automação do menu ao lado.
    */
   const [filtros, setFiltros] = useState<LeadFilter>({});
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // Lead modal (create / edit lead / edit contato sem negócio)
   const [modalOpen, setModalOpen] = useState(false);
@@ -143,22 +141,6 @@ export default function LeadsPage() {
     }));
     return [...leadRows, ...contactRows].sort((a, b) => b.ts - a.ts);
   }, [filtered, filteredContacts]);
-
-  // Quantos critérios estão ativos, para o número no botão. Tags contam como
-  // um só: a pessoa escolheu "por tag", não uma coisa por etiqueta marcada.
-  const qtdFiltrosAtivos =
-    (filtros.responsibles?.length ? 1 : 0) +
-    (filtros.pipelines?.length ? 1 : 0) +
-    (filtros.stages?.length ? 1 : 0) +
-    (filtros.tags?.ids.length ? 1 : 0);
-
-  // Etapas oferecidas: as do pipeline escolhido, ou todas quando nenhum foi
-  // escolhido. Sem o recorte, a lista misturava colunas de pipelines
-  // diferentes, muitas com o mesmo nome ("Contato", "Proposta"), e não dava
-  // para saber qual delas se estava escolhendo.
-  const etapasDisponiveis = filtros.pipelines?.[0]
-    ? (pipelines.find(p => p.id === filtros.pipelines?.[0])?.columns ?? [])
-    : columns;
 
   const colName = (id: string) => {
     for (const p of pipelines) {
@@ -344,144 +326,13 @@ export default function LeadsPage() {
           {/* Filtros. Ficam à esquerda do menu de ações de propósito: a ordem
               na tela é a ordem do trabalho -- primeiro reduz a lista a quem
               deve receber, depois marca todos, depois dispara. */}
-          <Popover open={filtrosAbertos} onOpenChange={setFiltrosAbertos}>
-            <PopoverTrigger asChild>
-              <button
-                title="Filtrar leads"
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border transition-colors text-sm ${
-                  semFiltro
-                    ? "border-card-border bg-card hover:bg-muted text-foreground"
-                    : "border-primary bg-primary/10 text-primary font-semibold"
-                }`}
-              >
-                <SlidersHorizontal size={15} />
-                Filtros
-                {/* O número diz quantos critérios estão ativos. Sem ele, um
-                    filtro esquecido explica sozinho por que "sumiram leads". */}
-                {!semFiltro && (
-                  <span className="ml-0.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold px-1.5 leading-5">
-                    {qtdFiltrosAtivos}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-0">
-              <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                <span className="text-sm font-semibold text-foreground">Filtrar leads</span>
-                {!semFiltro && (
-                  <button
-                    onClick={() => setFiltros({})}
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                  >
-                    <X size={12} /> Limpar
-                  </button>
-                )}
-              </div>
-              <div className="border-t px-4 py-3 space-y-3">
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-muted-foreground">Responsável</label>
-                  <Select
-                    value={filtros.responsibles?.[0] ?? "all"}
-                    onValueChange={v => setFiltros(f => ({ ...f, responsibles: v === "all" ? undefined : [v] }))}
-                  >
-                    <SelectTrigger className="h-9 rounded-lg focus:ring-0 focus:ring-offset-0"><SelectValue placeholder="Todos" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      {teamMembers.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-muted-foreground">Pipeline</label>
-                  <Select
-                    value={filtros.pipelines?.[0] ?? "all"}
-                    // Troca de pipeline zera a etapa: a etapa escolhida pertence
-                    // ao pipeline anterior e, mantida, filtraria por uma coluna
-                    // que não existe no novo -- lista vazia sem explicação.
-                    onValueChange={v => setFiltros(f => ({ ...f, pipelines: v === "all" ? undefined : [v], stages: undefined }))}
-                  >
-                    <SelectTrigger className="h-9 rounded-lg focus:ring-0 focus:ring-offset-0"><SelectValue placeholder="Todos" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      {pipelines.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-muted-foreground">Etapa</label>
-                  <Select
-                    value={filtros.stages?.[0] ?? "all"}
-                    onValueChange={v => setFiltros(f => ({ ...f, stages: v === "all" ? undefined : [v] }))}
-                  >
-                    <SelectTrigger className="h-9 rounded-lg focus:ring-0 focus:ring-offset-0"><SelectValue placeholder="Todas" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      {etapasDisponiveis.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block mb-1 text-xs font-medium text-muted-foreground">
-                    Tags {(filtros.tags?.ids.length ?? 0) > 0 && `(${filtros.tags?.ids.length})`}
-                  </label>
-                  {crmTags.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>
-                  ) : (
-                    // Marca mais de uma: quem segmenta por tag costuma querer
-                    // "clientes OU interessados", não uma tag só. O modo é
-                    // "any" pelo mesmo motivo.
-                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                      {crmTags.map(t => {
-                        const marcada = filtros.tags?.ids.includes(t.id) ?? false;
-                        return (
-                          <button
-                            key={t.id}
-                            onClick={() => setFiltros(f => {
-                              const atuais = f.tags?.ids ?? [];
-                              const proximas = marcada ? atuais.filter(id => id !== t.id) : [...atuais, t.id];
-                              return { ...f, tags: proximas.length ? { mode: "any", ids: proximas } : undefined };
-                            })}
-                            className="text-xs rounded-full px-2 py-0.5 border transition-colors"
-                            style={{
-                              background: marcada ? (t.color ?? "#128A68") : "transparent",
-                              borderColor: t.color ?? "#128A68",
-                              color: marcada ? "#FFF" : (t.color ?? "#128A68"),
-                            }}
-                          >
-                            {t.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* O filtro sozinho só esconde linhas. É este botão que fecha o
-                  ciclo do pedido: reduzir a lista serve para marcar todo mundo
-                  de uma vez e mandar para o disparo ou a automação ao lado. */}
-              <div className="border-t px-4 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {filtered.length} lead{filtered.length === 1 ? "" : "s"}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={filtered.length === 0}
-                  onClick={() => {
-                    setSelectedIds(new Set(filtered.map(l => l.id)));
-                    setFiltrosAbertos(false);
-                  }}
-                  className="h-8 text-xs"
-                >
-                  Selecionar {filtered.length === 1 ? "o lead" : `os ${filtered.length}`}
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <LeadsFilterMenu
+            valor={filtros}
+            onAplicar={setFiltros}
+            // Prévia do rascunho: o menu precisa dizer quantos leads o critério
+            // pegaria ANTES de aplicar, e quem sabe filtrar é esta tela.
+            contarResultados={f => (isFilterEmpty(f) ? porBusca.length : filterLeads(porBusca, f, { lists: crmLists }).length)}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

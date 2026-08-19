@@ -2,6 +2,19 @@
 
 export type Priority = "Alta" | "Média" | "Baixa";
 export type LeadOrigin = "Instagram" | "Facebook Ads" | "Google Ads" | "Meta Ads" | "TikTok Ads" | "LinkedIn Ads" | "YouTube Ads" | "Email Marketing" | "Orgânico" | "WhatsApp" | "Evento" | "Indicação" | "Site" | "Outro";
+
+/**
+ * As origens, na ordem em que aparecem nos seletores.
+ *
+ * Mora junto do tipo porque a lista PRECISA acompanhá-lo: uma origem nova no
+ * tipo e esquecida aqui some dos filtros sem ninguém notar. Estava copiada em
+ * três telas (filtro do pipeline, filtro do disparo e Multiatendimento), com a
+ * ordem já divergindo entre elas.
+ */
+export const LEAD_ORIGINS: LeadOrigin[] = [
+  "Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads",
+  "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro",
+];
 export type TaskStatus = "Pendente" | "Concluída";
 export type ActivityType = "stage_change" | "note" | "whatsapp" | "won" | "lost" | "created" | "meeting" | "call" | "follow_up" | "task" | "email" | "transfer";
 export type PipelineCategory = string;

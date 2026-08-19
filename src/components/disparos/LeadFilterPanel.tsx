@@ -5,12 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Filter, ChevronDown, ChevronRight } from "lucide-react";
 import type { LeadFilter } from "@/data/disparos";
-import type { LeadOrigin } from "@/data/mockData";
+import { LEAD_ORIGINS } from "@/data/mockData";
 
-const LEAD_ORIGINS: LeadOrigin[] = [
-  "Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads",
-  "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro",
-];
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
