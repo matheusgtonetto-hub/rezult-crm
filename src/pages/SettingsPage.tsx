@@ -3158,10 +3158,14 @@ const CONN_CATEGORIES = [
     id: "instagram",
     label: "Instagram",
     description: "Crie conexões com a plataforma Instagram",
+    // available: false deixa o Instagram no mesmo estado do Messenger --
+    // selo "Em breve", cartão esmaecido e clique que não inicia o OAuth.
+    // Os handlers continuam no arquivo de propósito: religar é trocar estes
+    // dois false por true, sem reescrever o fluxo de conexão.
     providers: [
-      { id: "instagram_direct", name: "Login com Instagram", desc: "Entre diretamente com sua conta Instagram Business ou Criador", available: true,
+      { id: "instagram_direct", name: "Login com Instagram", desc: "Entre diretamente com sua conta Instagram Business ou Criador", available: false,
         iconBg: "linear-gradient(135deg,#833AB4,#FD1D1D,#F56040)", Icon: InstagramIcon },
-      { id: "instagram_api", name: "Instagram via Facebook", desc: "Conecte via Página do Facebook (conta Business vinculada)", available: true,
+      { id: "instagram_api", name: "Instagram via Facebook", desc: "Conecte via Página do Facebook (conta Business vinculada)", available: false,
         iconBg: "linear-gradient(135deg,#1877F2,#833AB4)", Icon: InstagramIcon },
     ],
   },
