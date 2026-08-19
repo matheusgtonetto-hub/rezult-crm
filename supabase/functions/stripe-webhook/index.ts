@@ -146,6 +146,30 @@ function extrairPeriodo(sub: Stripe.Subscription): { inicio: string | null; fim:
   };
 }
 
+// Existe OUTRA assinatura da mesma empresa em dia?
+//
+// Quem tem o cartão recusado costuma desistir da fatura antiga e assinar de novo
+// pelo /planos, o que cria uma segunda assinatura na Stripe. A antiga continua
+// emitindo falha de cobrança por dias. Sem esta checagem, esses eventos velhos
+// colocariam em carência (e depois bloqueariam) um cliente que voltou a pagar:
+// o pior defeito possível desta funcionalidade.
+async function temAssinaturaEmDia(db: DB, companyId: string, exceto: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("subscriptions")
+    .select("stripe_subscription_id")
+    .eq("company_id", companyId)
+    .in("status", ["active", "trialing"])
+    .neq("stripe_subscription_id", exceto)
+    .limit(1);
+
+  if (error) {
+    // Na dúvida, não bloqueia: liberar a mais é menos grave do que cortar quem paga.
+    console.error("[webhook] falha ao checar outras assinaturas:", error.message);
+    return true;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
 // Fonte única de verdade para renovação, upgrade e cancelamento agendado.
 //
 // Busca a assinatura na Stripe em vez de ler o corpo do evento: o retrieve sai
@@ -249,13 +273,17 @@ async function sincronizarAssinatura(
     atualizacaoEmpresa.billing_status      = "ok";
     atualizacaoEmpresa.billing_grace_until = null;
     if (planName) atualizacaoEmpresa.plan = planName;
-  } else if (dados.status === "past_due") {
-    atualizacaoEmpresa.billing_status      = "pendente";
-    atualizacaoEmpresa.billing_grace_until = fimDaCarencia(periodo.inicio);
-  } else if (dados.status === "unpaid") {
-    // A Stripe desistiu de cobrar. Somente leitura na hora, sem esperar carência.
-    atualizacaoEmpresa.billing_status      = "bloqueado";
-    atualizacaoEmpresa.billing_grace_until = null;
+  } else if (dados.status === "past_due" || dados.status === "unpaid") {
+    if (await temAssinaturaEmDia(db, companyId, subId)) {
+      console.log(`[${origem}] ${subId} está ${dados.status}, mas a empresa tem outra assinatura em dia — cobrança inalterada`);
+    } else if (dados.status === "past_due") {
+      atualizacaoEmpresa.billing_status      = "pendente";
+      atualizacaoEmpresa.billing_grace_until = fimDaCarencia(periodo.inicio);
+    } else {
+      // A Stripe desistiu de cobrar. Somente leitura na hora, sem esperar carência.
+      atualizacaoEmpresa.billing_status      = "bloqueado";
+      atualizacaoEmpresa.billing_grace_until = null;
+    }
   }
 
   // Status sem regra definida (canceled chega pelo subscription.deleted) não
@@ -451,7 +479,9 @@ serve(async (req) => {
           // tela consultava para liberar acesso: o sistema sabia da recusa e
           // não fazia nada com ela. Agora a empresa entra em carência.
           const companyId = linha?.company_id as string | undefined;
-          if (companyId) {
+          if (companyId && await temAssinaturaEmDia(db, companyId, subId)) {
+            console.log(`[invoice.payment_failed] ${subId} falhou, mas a empresa tem outra assinatura em dia — cobrança inalterada`);
+          } else if (companyId) {
             await db
               .from("companies")
               .update({

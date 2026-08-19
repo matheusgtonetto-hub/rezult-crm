@@ -94,7 +94,10 @@ export function PipelineSidebar() {
     const newId = await addPipeline(newName.trim(), newCategory, DEFAULT_COLUMNS, newDesc.trim());
     setCreating(false);
     closeNewDialog();
-    if (newId) navigate(`/pipeline/${newId}`);
+    // Sem id não houve criação (limite do plano, conta bloqueada por cobrança ou
+    // erro no banco). O toast estava fora do if e anunciava sucesso mesmo assim.
+    if (!newId) return;
+    navigate(`/pipeline/${newId}`);
     toast.success("Pipeline criada!");
   };
 
