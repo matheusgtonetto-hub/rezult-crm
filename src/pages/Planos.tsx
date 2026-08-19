@@ -98,7 +98,16 @@ const PERIOD_DISCOUNT: Record<BillingPeriod, string | null> = {
 export default function PlanosPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { company, companyLoading } = useCompany();
+  const { company, companyLoading, isTrialing, planDaysLeft } = useCompany();
+
+  // O teste é um só: os 7 dias do cadastro. Quem assina antes de eles acabarem
+  // continua sem cobrança até a data original; quem deixou vencer já usou o
+  // período e paga no ato. O texto tem que dizer isso, senão volta a prometer
+  // uma coisa e cobrar outra, que era o problema anterior desta tela.
+  const diasRestantes = isTrialing ? (planDaysLeft ?? 0) : 0;
+  const fimDoTeste = company?.trial_ends_at
+    ? new Date(company.trial_ends_at).toLocaleDateString("pt-BR")
+    : null;
   const { isActive, plan: activePlan, loading: subLoading } = useSubscription();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -173,7 +182,9 @@ export default function PlanosPage() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-foreground">Escolha seu plano</h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Todos os planos incluem 7 dias grátis. Cancele quando quiser.
+          {isTrialing
+            ? `Você está no teste grátis: ${diasRestantes} ${diasRestantes === 1 ? "dia restante" : "dias restantes"}. Assine agora e só pague no fim dele.`
+            : "Cancele quando quiser."}
         </p>
       </div>
 
@@ -312,7 +323,7 @@ export default function PlanosPage() {
                       Aguarde...
                     </span>
                   ) : (
-                    "Começar 7 dias grátis"
+                    isTrialing ? "Assinar plano" : "Contratar agora"
                   )}
                 </Button>
               )}
@@ -322,8 +333,10 @@ export default function PlanosPage() {
       </div>
 
       <p className="text-xs text-muted-foreground mt-8 text-center max-w-sm">
-        Ao assinar você concorda com os nossos termos de uso. O período de trial gratuito começa
-        ao inserir os dados de pagamento e o valor só é cobrado após os 7 dias.
+        Ao assinar você concorda com os nossos termos de uso.{" "}
+        {isTrialing && fimDoTeste
+          ? `Seu teste grátis vai até ${fimDoTeste} e a primeira cobrança acontece nessa data, não agora.`
+          : "A cobrança é feita no ato da contratação."}
       </p>
     </div>
   );

@@ -22,6 +22,34 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
+// Quando a assinatura deve começar a cobrar.
+//
+// Os dois períodos não podem somar. Quem assina no último passo do cadastro tem
+// 7 dias sem cobrança e paga no fim deles; quem deixou o teste vencer e só depois
+// contratou paga na hora, porque já usou os 7 dias.
+//
+// Por isso data absoluta em vez de `trial_period_days`: o dia da cobrança é o
+// mesmo quer a assinatura saia no primeiro ou no quinto dia do teste. Com
+// trial_period_days, assinar no quinto dia daria 12 dias grátis.
+//
+// A Stripe recusa `trial_end` a menos de 48h de distância. Sobrando menos que
+// isso, devolve null e a cobrança é imediata: melhor adiantar no máximo dois
+// dias do que conceder um período novo por cima do que já foi usado.
+export function fimDoTrialDaStripe(
+  trialEndsAt: string | null | undefined,
+  agoraEmMs: number = Date.now(),
+): number | null {
+  if (!trialEndsAt) return null;
+
+  const fimEmMs = new Date(trialEndsAt).getTime();
+  if (!Number.isFinite(fimEmMs)) return null;
+
+  const MINIMO_DA_STRIPE_EM_MS = 48 * 60 * 60 * 1000;
+  if (fimEmMs - agoraEmMs < MINIMO_DA_STRIPE_EM_MS) return null;
+
+  return Math.floor(fimEmMs / 1000);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -52,7 +80,7 @@ serve(async (req) => {
 
     const { data: co } = await db
       .from("companies")
-      .select("name, email, phone, address, number, complement, neighborhood, city, state, zip_code, country")
+      .select("name, email, phone, address, number, complement, neighborhood, city, state, zip_code, country, trial_ends_at")
       .eq("id", companyId)
       .single();
 
@@ -83,16 +111,21 @@ serve(async (req) => {
       stripeCustomerId = customer.id;
     }
 
+    const trialEnd = fimDoTrialDaStripe(co?.trial_ends_at as string | null);
+
+    console.log(
+      `[create-checkout-session] empresa=${companyId} fim_do_teste=${co?.trial_ends_at ?? "nenhum"}`,
+      trialEnd
+        ? `→ trial ate ${new Date(trialEnd * 1000).toISOString()}`
+        : "→ sem trial, cobranca imediata",
+    );
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        // A tela de planos sempre prometeu "o valor só é cobrado após os 7 dias",
-        // mas nenhum trial era configurado aqui: a Stripe cobrava no instante em
-        // que o cartão entrava. O texto estava publicado e a cobrança contradizia
-        // ele, o que é problema de confiança, não de produto.
-        trial_period_days: 7,
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },
