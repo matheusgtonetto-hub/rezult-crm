@@ -695,8 +695,8 @@ export default function PipelinePage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Page header */}
-        <div className="px-6 pb-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4" style={{ paddingTop: 15 }}>
-          <div className="min-w-0">
+        <div className="px-6 pb-3 flex items-center gap-4" style={{ paddingTop: 15 }}>
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold text-foreground truncate">
               {activePipeline.name}
             </h1>
@@ -706,25 +706,6 @@ export default function PipelinePage() {
             </p>
           </div>
 
-          {/* Automação e Novo Lead — mesmos popups de /leads, centralizados
-              entre o nome da pipeline e o seletor "Visualizando como". */}
-          <div className="flex items-center gap-2 justify-self-center shrink-0">
-            <Button
-              variant="outline"
-              className="rounded-lg font-semibold bg-white h-[30px] px-3 text-xs"
-              onClick={() => setAutomacaoAberta(true)}
-            >
-              <Network size={14} className="mr-1.5" /> Automação
-            </Button>
-            <Button
-              className="rounded-lg font-semibold h-[30px] px-3 text-xs"
-              onClick={() => setNovoLeadOpen(true)}
-            >
-              <Plus size={14} className="mr-1.5" /> Novo Lead
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-4 justify-self-end min-w-0">
           {/* Seletor "Visualizando como:" — apenas admins */}
           {isAdmin && teamMembers.length > 0 && (
             <div ref={viewPickerRef} className="relative flex items-center gap-2 shrink-0">
@@ -809,6 +790,24 @@ export default function PipelinePage() {
             </div>
           )}
 
+          {/* Automação e Novo Lead — mesmos popups de /leads, entre o
+              seletor "Visualizando como" e o menu "..." de opções. */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              className="rounded-lg font-semibold bg-white h-[30px] px-3 text-xs"
+              onClick={() => setAutomacaoAberta(true)}
+            >
+              <Network size={14} className="mr-1.5" /> Automação
+            </Button>
+            <Button
+              className="rounded-lg font-semibold h-[30px] px-3 text-xs"
+              onClick={() => setNovoLeadOpen(true)}
+            >
+              <Plus size={14} className="mr-1.5" /> Novo Lead
+            </Button>
+          </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -848,7 +847,6 @@ export default function PipelinePage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          </div>
         </div>
 
         {/* Filters bar */}
