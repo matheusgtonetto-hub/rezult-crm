@@ -4200,7 +4200,10 @@ function ConexoesSection() {
           <DialogTitle className="sr-only">Criar conexão</DialogTitle>
           <div style={{ display: "flex", height: 440 }}>
             {/* Left sidebar */}
-            <div style={{ width: 160, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
+            {/* Branco pelo mesmo motivo dos cartões de provedor: o #F7F7F7 daqui
+                ficava a dois tons do #F5F5F5 do DialogContent, e a coluna não se
+                distinguia do resto do diálogo. */}
+            <div style={{ width: 160, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
               {CONN_CATEGORIES.map(c => (
                 <button
                   key={c.id}
