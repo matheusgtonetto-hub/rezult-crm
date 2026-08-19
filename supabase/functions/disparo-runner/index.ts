@@ -12,6 +12,7 @@
 // e só então o próximo lote.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -91,6 +92,13 @@ Deno.serve(async (req: Request) => {
 async function processDisparo(
   supabase: SupabaseClient, d: DisparoRow, baseUrl: string, secret: string,
 ): Promise<Record<string, unknown>> {
+  // Campanha em massa é o gasto mais caro do sistema. O runner usa service_role,
+  // que ignora RLS: sem esta linha uma empresa bloqueada por falta de pagamento
+  // continuaria disparando para a base inteira.
+  if (await empresaBloqueada(supabase, d.company_id)) {
+    return { id: d.id, skipped: "cobranca_bloqueada" };
+  }
+
   // Agendado que venceu → inicia.
   if (d.status === "agendado") {
     if (d.scheduled_at && new Date(d.scheduled_at).getTime() <= Date.now()) {

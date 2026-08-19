@@ -1,3 +1,4 @@
+import { LEAD_ORIGINS } from "@/data/mockData";
 import { useState, useEffect, useMemo, useRef } from "react";
 import DOMPurify from "dompurify";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/context/ProfileContext";
@@ -288,7 +290,6 @@ function mapConvState(r: DbConvStateRow): Omit<ConvState, "messages"> {
   };
 }
 
-const LEAD_ORIGINS: LeadOrigin[] = ["Instagram", "Facebook Ads", "Meta Ads", "Google Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
 
 // Campos da aba Perfil do painel de detalhes (Multiatendimento) -- mesmos 7
 // campos e mesma ordem do Perfil em LeadDrawer.tsx (aberto a partir de /leads).
@@ -492,7 +493,7 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
-  const { company, whatsappConnections } = useCompany();
+  const { company, whatsappConnections, billingBlocked } = useCompany();
   const { profile } = useProfile();
   const nomeAtendente = useNomeAtendente();
   // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
@@ -1992,6 +1993,7 @@ export default function MultiatendimentoPage() {
     const file = e.target.files?.[0];
     if (!file || !activeId || !active || !user) return;
     e.target.value = "";
+    if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token || !active.phone || active.phone === "—") {
       toast.error("Nenhuma instância WhatsApp conectada");
@@ -2089,6 +2091,7 @@ export default function MultiatendimentoPage() {
 
   async function sendAudioBlob(blob: Blob, durationSecs: number) {
     if (!activeId || !active || !user) return;
+    if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token || !active.phone || active.phone === "—") {
       toast.error("Nenhuma instância WhatsApp conectada");
@@ -2533,6 +2536,10 @@ export default function MultiatendimentoPage() {
 
   async function sendMessage() {
     if (!inputValue.trim() || !activeId) return;
+    // Envio sai por fora do CRMContext (fala direto com D-API/Z-API/Meta), então
+    // a trava de somente leitura precisa estar aqui também. Receber continua
+    // funcionando: quem escreve a mensagem que chega é o webhook.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     const text = inputValue.trim();
 
     // Pré-checagem pro WhatsApp (Instagram usa outro mecanismo de envio, mais
@@ -2781,6 +2788,7 @@ export default function MultiatendimentoPage() {
   // amanhã precisa ler "sua consulta é terça às 15h", não "{{1}} às {{2}}".
   async function enviarModelo(modelo: Modelo, valores: Record<string, string>, textoResolvido: string) {
     if (!activeId || !active?.phone) return;
+    if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
 

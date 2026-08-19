@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -50,6 +51,13 @@ serve(async (req) => {
     .maybeSingle();
 
   if (connErr || !connection) return json({ error: "conexão não encontrada" }, 404);
+
+  // A tela já barra o envio, mas esta função é a porta do servidor: sem a
+  // checagem aqui, bastaria chamar o endpoint direto para seguir mandando
+  // mensagem com a mensalidade em aberto.
+  if (await empresaBloqueada(db, connection.company_id)) {
+    return json({ error: "conta em somente leitura: pagamento em aberto" }, 402);
+  }
 
   const provider = connection.provider as "instagram" | "messenger";
   const pageId = connection.page_id as string;

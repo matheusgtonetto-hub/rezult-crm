@@ -57,6 +57,17 @@ serve(async (req) => {
     const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const db = createClient(supabaseUrl, serviceKey);
 
+    // O período vem do topo da Subscription na versão de API fixada acima, mas
+    // a Stripe moveu esse campo para os itens em versões novas. Ler os dois e
+    // tolerar a ausência evita o "Invalid time value" que já derrubou o webhook.
+    // deno-lint-ignore no-explicit-any
+    const bruto = updatedSub as any;
+    const fimEpoch: unknown = bruto?.current_period_end ?? bruto?.items?.data?.[0]?.current_period_end;
+    const fimDoPeriodo = typeof fimEpoch === "number" && Number.isFinite(fimEpoch)
+      ? new Date(fimEpoch * 1000).toISOString()
+      : null;
+
+    // A assinatura registra a troca sempre: é o espelho do que existe na Stripe.
     await db
       .from("subscriptions")
       .update({
@@ -64,16 +75,33 @@ serve(async (req) => {
         plan_name:            planName,
         billing_period:       billingPeriod,
         status:               updatedSub.status,
-        current_period_end:   new Date(updatedSub.current_period_end * 1000).toISOString(),
+        ...(fimDoPeriodo ? { current_period_end: fimDoPeriodo } : {}),
         updated_at:           new Date().toISOString(),
       })
       .eq("stripe_subscription_id", subscriptionId);
 
+    // A empresa, não. Antes o plano novo e a validade eram gravados aqui logo
+    // depois da chamada à Stripe, sem olhar se a cobrança da diferença passou:
+    // um upgrade com cartão recusado era aplicado do mesmo jeito. Agora só vale
+    // com a assinatura em dia, e quem paga depois é liberado pelo stripe-webhook
+    // quando o invoice.payment_succeeded chegar.
+    const emDia = updatedSub.status === "active" || updatedSub.status === "trialing";
+
+    if (!emDia) {
+      console.warn(
+        `[update-subscription] ${subscriptionId} ficou em "${updatedSub.status}" após a troca para ${planName}.`,
+        "Plano NÃO aplicado na empresa; aguardando confirmação de pagamento.",
+      );
+      return json({ success: false, pendingPayment: true, status: updatedSub.status });
+    }
+
     await db
       .from("companies")
       .update({
-        plan:            planName,
-        plan_expires_at: new Date(updatedSub.current_period_end * 1000).toISOString(),
+        plan: planName,
+        ...(fimDoPeriodo ? { plan_expires_at: fimDoPeriodo } : {}),
+        billing_status:      "ok",
+        billing_grace_until: null,
       })
       .eq("id", companyId);
 

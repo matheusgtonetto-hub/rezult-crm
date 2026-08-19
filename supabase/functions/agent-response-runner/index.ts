@@ -6,6 +6,7 @@
 // montar prompt, loop de tools, tudo). Acionado por pg_cron a cada minuto.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,14 @@ Deno.serve(async (req: Request) => {
   const summary: Record<string, unknown>[] = [];
   for (const row of (due ?? []) as PendingRow[]) {
     try {
+      // Agente de empresa bloqueada não responde: a resposta pendente é
+      // descartada junto, senão ela ficaria acumulando para disparar em lote no
+      // dia da regularização, respondendo mensagens de semanas atrás.
+      if (await empresaBloqueada(supabase, row.company_id)) {
+        await supabase.from("agent_pending_response").delete().eq("id", row.id);
+        summary.push({ id: row.id, skipped: "cobranca_bloqueada" });
+        continue;
+      }
       // Deleta antes de chamar -- se uma nova mensagem chegar durante o
       // processamento, ela recria a linha (nova rodada de debounce) em vez
       // de colidir com esta execução.

@@ -6,6 +6,7 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 import { sendWa, type ZapiCreds, type WaMsg } from "../_shared/whatsapp-send.ts";
 import { upsertContact } from "../_shared/contacts.ts";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -368,6 +369,13 @@ Deno.serve(async (req: Request) => {
 async function runTrigger(supabase: SupabaseClient, payload: TriggerPayload): Promise<Response> {
   if (!payload.context) payload.context = {};
   const { trigger_type, company_id, lead_id, automation_id } = payload;
+
+  // Porta única de todas as automações: seja gatilho de webhook, de mudança de
+  // etapa ou execução manual, tudo passa por aqui. Empresa bloqueada por falta
+  // de pagamento não executa nenhuma delas.
+  if (await empresaBloqueada(supabase, company_id)) {
+    return Response.json({ skipped: "cobranca_bloqueada" }, { status: 200 });
+  }
 
   const { data: automations, error } = await supabase
     .from("automations")

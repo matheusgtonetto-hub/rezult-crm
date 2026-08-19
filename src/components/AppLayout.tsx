@@ -5,16 +5,18 @@ import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { FreePlanBanner, BANNER_HEIGHT } from "@/components/FreePlanBanner";
 import { PlanLimitModal } from "@/components/PlanLimitModal";
+import { BillingBlockedModal } from "@/components/BillingBlockedModal";
 
 // Routes where the user is actively completing onboarding — no redirect needed
 const ONBOARDING_PATHS = ["/company-register", "/setup"];
 
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
-  const { company, companyLoading, planExpired, isFreePlan, planDaysLeft } = useCompany();
+  const { company, companyLoading, planExpired, isFreePlan, planDaysLeft, billingBlocked } = useCompany();
   const navigate                                                          = useNavigate();
   const { pathname }                                                      = useLocation();
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
+  const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -23,6 +25,12 @@ export default function AppLayout() {
     };
     window.addEventListener("plan-limit-reached", handler);
     return () => window.removeEventListener("plan-limit-reached", handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setBillingBlockedOpen(true);
+    window.addEventListener("billing-blocked", handler);
+    return () => window.removeEventListener("billing-blocked", handler);
   }, []);
 
   // Only redirect to company-register if:
@@ -47,7 +55,9 @@ export default function AppLayout() {
     );
   }
 
-  const showBanner = isFreePlan;
+  // Bloqueio por cobrança não implica plano expirado (uma anual pode falhar com
+  // validade ainda no futuro), então a tarja tem os dois gatilhos.
+  const showBanner = isFreePlan || billingBlocked;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
@@ -71,6 +81,9 @@ export default function AppLayout() {
       <FreePlanBanner />
       {planLimitResource && (
         <PlanLimitModal resource={planLimitResource} onClose={() => setPlanLimitResource(null)} />
+      )}
+      {billingBlockedOpen && (
+        <BillingBlockedModal onClose={() => setBillingBlockedOpen(false)} />
       )}
     </div>
   );

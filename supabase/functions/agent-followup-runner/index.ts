@@ -11,6 +11,7 @@
 // agent-response-runner.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +70,12 @@ Deno.serve(async (req: Request) => {
   const summary: Record<string, unknown>[] = [];
   for (const row of (due ?? []) as FollowupStateRow[]) {
     try {
+      // Mesma regra do scheduled-followup: empresa bloqueada não dispara, e o
+      // estado fica ativo para retomar quando o pagamento entrar.
+      if (await empresaBloqueada(supabase, row.company_id)) {
+        summary.push({ id: row.id, skipped: "cobranca_bloqueada" });
+        continue;
+      }
       summary.push(await processOne(supabase, row, secret, supabaseUrl));
     } catch (e) {
       console.error(`[agent-followup-runner] ${row.id} falhou:`, e);

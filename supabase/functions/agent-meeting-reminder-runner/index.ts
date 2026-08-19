@@ -13,6 +13,7 @@
 // Mesmo padrão do agent-response-runner e do agent-followup-runner.
 
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +88,10 @@ Deno.serve(async (req: Request) => {
   for (const agent of ((agents ?? []) as AgentRow[])) {
     const cfg = agent.behavior_config ?? {};
     if (!cfg.lembrete_reuniao_ativo) continue;
+    if (await empresaBloqueada(supabase, agent.company_id)) {
+      summary.push({ agent: agent.id, skipped: "cobranca_bloqueada" });
+      continue;
+    }
 
     const janelas = [
       { indice: 1, ms: antecedenciaMs(cfg.lembrete_1_valor, cfg.lembrete_1_unidade) },

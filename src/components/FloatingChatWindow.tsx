@@ -5,6 +5,7 @@ import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -258,7 +259,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   const navigate = useNavigate();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
   const { user } = useAuth();
-  const { company, whatsappConnections } = useCompany();
+  const { company, whatsappConnections, billingBlocked } = useCompany();
   const nomeAtendente = useNomeAtendente();
   const { profile } = useProfile();
   const lead = leads[leadId];
@@ -650,7 +651,10 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // Enquanto a verificação corre, o campo fica travado: liberar por otimismo
   // deixaria a pessoa escrever num intervalo em que ainda não sabemos se a
   // mensagem pode sair.
-  const naoPodeEscrever = janela !== "aberta";
+  // Cobrança em aberto entra pela mesma porta da janela de 24h: as duas dizem
+  // "dá pra ler, não dá pra responder", e o campo já sabe se desenhar assim.
+  // O aviso de cada uma é diferente, e isso fica nos pontos de envio.
+  const naoPodeEscrever = janela !== "aberta" || billingBlocked;
 
   // Como chamar a linha por onde a mensagem passou. Linha desligada ou apagada
   // some de `whatsappConnections`, e aí só sobra o identificador interno, que
@@ -684,7 +688,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // Anexo pela Cloud API cai na mesma regra do texto: fora da janela de 24h a
     // Meta recusa mídia também.
     if (naoPodeEscrever) {
-      if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
+      if (billingBlocked) emitBillingBlocked();
+      else if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
       return;
     }
 
@@ -857,7 +862,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     // Trava também aqui, e não só no campo: o texto sai por Enter, por clique e
     // pelo emoji, e é a Meta que recusa no fim da linha.
     if (naoPodeEscrever) {
-      if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
+      if (billingBlocked) emitBillingBlocked();
+      else if (janelaFechada) toast.error("Passaram 24h sem mensagem deste contato. Use Modelos para retomar a conversa.");
       return;
     }
     const text = draft.trim();
@@ -1023,6 +1029,9 @@ export function FloatingChatWindow({ leadId, index }: Props) {
   // banco o texto RESOLVIDO, não o modelo cru -- quem abrir a conversa depois
   // precisa ler a mensagem que o cliente recebeu, não "{{1}} às {{2}}".
   const enviarModelo = async (modelo: Modelo, valores: Record<string, string>, textoResolvido: string) => {
+    // Modelo é a saída de emergência da janela de 24h, mas não da cobrança:
+    // sem esta linha ele viraria a brecha para continuar enviando bloqueado.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = conexaoAtiva;
     if (!inst?.token) { toast.error("Conexão sem token."); return; }
     const cleanPhone = telefoneParaEnvio(lead.whatsapp, conversaDoCanal?.phone);

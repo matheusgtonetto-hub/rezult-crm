@@ -3,6 +3,7 @@ import { sendWa, sendTyping, clearTyping, type ZapiCreds } from "../_shared/what
 import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from "../_shared/agent-tools.ts";
 import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -1966,6 +1967,13 @@ Deno.serve(async (req) => {
   // ⚠️ Service role BYPASSA o RLS (is_member_of) — diferente de chamadas do
   // browser. Por isso TODA query abaixo filtra company_id manualmente no
   // código, já que o banco não vai fazer esse isolamento sozinho aqui.
+
+  // Empresa em somente leitura não gasta token de IA nem manda mensagem. Fica
+  // antes do resolveLead de propósito: o corte tem que vir antes de qualquer
+  // trabalho, e não depois de já ter montado o contexto do lead.
+  if (await empresaBloqueada(db, companyId)) {
+    return json({ skipped: "cobranca_bloqueada" }, 200);
+  }
 
   const lead = await resolveLead(db, companyId, phone);
   if (!lead) return json({ skipped: "lead_not_resolved" }, 200);

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import type { Contact } from "@/lib/contacts";
 import { PLAN_LIMITS } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { telefonesIguais } from "@/lib/telefone";
 
 interface CRMContextType {
@@ -305,9 +306,36 @@ function findOpenNegocioConflict(
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
+// Prefixos das funções de escrita do contexto. Tudo que não casa aqui (leitura,
+// seletores, logout) continua funcionando com a conta bloqueada.
+const ESCRITA = /^(add|update|delete|remove|move|transfer|mark|unmark|complete|uncomplete|pin|patch|reorder)/;
+
+/**
+ * Empresa em somente leitura por pagamento em aberto: toda função de escrita do
+ * contexto vira um aviso na tela.
+ *
+ * A trava que vale é o RLS (políticas `bloqueio_cobranca_*`, migration
+ * 20260818210000) — mesmo que esta camada falhe, o banco recusa a escrita. O
+ * papel dela é explicar o motivo, senão o cliente inadimplente só veria "erro ao
+ * salvar" e abriria chamado.
+ *
+ * Aplicado sobre o objeto inteiro, e não função por função, porque são mais de
+ * quarenta: guardadas uma a uma, a de número quarenta e um nasceria sem trava.
+ */
+function somenteLeituraSeBloqueado(valor: CRMContextType, bloqueado: boolean): CRMContextType {
+  if (!bloqueado) return valor;
+  const copia: Record<string, unknown> = { ...valor };
+  for (const chave of Object.keys(copia)) {
+    if (typeof copia[chave] === "function" && ESCRITA.test(chave)) {
+      copia[chave] = async () => { emitBillingBlocked(); return undefined; };
+    }
+  }
+  return copia as unknown as CRMContextType;
+}
+
 export function CRMProvider({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
-  const { company } = useCompany();
+  const { company, billingBlocked } = useCompany();
 
   const [crmLoading, setCrmLoading] = useState(true);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -1770,7 +1798,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   return (
     <CRMContext.Provider
-      value={{
+      value={somenteLeituraSeBloqueado({
         crmLoading,
         pipelines, activePipelineId, setActivePipelineId, activePipeline,
         addPipeline, updatePipeline, deletePipeline,
@@ -1790,7 +1818,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         addCustomFieldItem, updateCustomFieldItem, deleteCustomFieldItem, reorderCustomFieldItems, updateLeadCustomFieldValues,
         logout: signOut,
         selectedLeadId, setSelectedLeadId,
-      }}
+      }, billingBlocked)}
     >
       {children}
     </CRMContext.Provider>

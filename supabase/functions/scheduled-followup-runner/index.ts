@@ -8,6 +8,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { sendWa, ZapiCreds } from "../_shared/whatsapp-send.ts";
 import { upsertConversationForMessage, previewLabelFor } from "../_shared/upsert-conversation.ts";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +54,12 @@ Deno.serve(async (req: Request) => {
   const summary: Record<string, unknown>[] = [];
   for (const row of (due ?? []) as FollowupRow[]) {
     try {
+      // Follow-up agendado de empresa bloqueada fica onde está: não envia, e
+      // também não vira erro, para voltar a sair sozinho quando ela regularizar.
+      if (await empresaBloqueada(supabase, row.company_id)) {
+        summary.push({ id: row.id, skipped: "cobranca_bloqueada" });
+        continue;
+      }
       summary.push(await processFollowup(supabase, row));
     } catch (e) {
       console.error(`scheduled_followup ${row.id} falhou:`, e);

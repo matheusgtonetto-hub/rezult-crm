@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 // Sugestão de resposta com IA para o Multiatendimento.
 // Lê o histórico recente da conversa + contexto do lead e gera a próxima
@@ -35,6 +36,12 @@ Deno.serve(async (req) => {
 
   let body: { messages?: InMsg[]; leadName?: string; stage?: string; pipeline?: string; companyId?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+
+  // Conta em somente leitura não queima token de IA. Checado antes de resolver
+  // a chave para a chamada nem chegar a ser montada.
+  if (await empresaBloqueada(db, body.companyId)) {
+    return json({ error: "billing_blocked" }, 402);
+  }
 
   // Chave da EMPRESA (BYOK), o mesmo padrão do agente. Antes esta função
   // exigia um ANTHROPIC_API_KEY global do projeto, que nenhum cliente tem: o

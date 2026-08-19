@@ -17,6 +17,12 @@ export interface Company {
   country: string;
   plan: string;
   plan_expires_at: string;
+  // Estado da cobrança, escrito pelo stripe-webhook. Separado do plano de
+  // propósito: "que plano ele contratou" e "ele está pagando" são perguntas
+  // diferentes, e tratá-las como uma só foi o que deixou uma cobrança recusada
+  // renovar o acesso por mais um mês.
+  billing_status?: "ok" | "pendente" | "bloqueado";
+  billing_grace_until?: string | null;
   // Address
   zip_code?: string;
   address?: string;
@@ -92,6 +98,7 @@ interface CompanyContextType {
   isFreePlan: boolean;
   planExpired: boolean;
   planDaysLeft: number | null;
+  billingBlocked: boolean;
   refetchCompany: () => void;
   updateCompany: (data: CompanyUpdateData) => Promise<void>;
   uploadLogo: (file: File) => Promise<void>;
@@ -271,6 +278,17 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   // isFreePlan = true quando não há empresa, plano não é pago, ou plano pago expirou
   const isFreePlan = !company || !PAID_PLANS.includes(company.plan ?? "") || planExpired;
 
+  // Espelha public.empresa_bloqueada() do banco. A trava que vale é o RLS: se
+  // este cálculo divergir, o servidor ainda recusa a escrita. O papel dele aqui
+  // é a tela explicar o motivo em vez de devolver "erro ao salvar".
+  const billingBlocked = useMemo(() => {
+    if (!company) return false;
+    if (company.billing_status === "bloqueado") return true;
+    return company.billing_status === "pendente"
+      && !!company.billing_grace_until
+      && new Date(company.billing_grace_until) < new Date();
+  }, [company]);
+
   const planDaysLeft = useMemo(() => {
     if (!company || company.plan !== "free" || planExpired) return null;
     const diff = new Date(company.plan_expires_at).getTime() - Date.now();
@@ -330,6 +348,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         isFreePlan,
         planExpired,
         planDaysLeft,
+        billingBlocked,
         refetchCompany: load,
         updateCompany,
         uploadLogo,

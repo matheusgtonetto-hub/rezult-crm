@@ -18,12 +18,19 @@ type BillingTab = "mensal" | "semestral" | "anual";
 export const BANNER_HEIGHT = 50;
 
 export function FreePlanBanner() {
-  const { isFreePlan, planExpired, planDaysLeft } = useCompany();
+  const { isFreePlan, planExpired, planDaysLeft, billingBlocked } = useCompany();
   const navigate = useNavigate();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
 
-  if (!isFreePlan) return null;
+  if (!isFreePlan && !billingBlocked) return null;
+
+  // Quem teve a cobrança recusada não precisa de convite para crescer de plano,
+  // precisa saber que a mensalidade não passou. Mesma tarja, recado diferente.
+  const aviso = billingBlocked
+    ? "Pagamento não aprovado. Sua conta está em modo somente leitura até a regularização"
+    : "Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades";
+  const rotuloBotao = billingBlocked ? "Regularizar agora!" : "Fazer upgrade agora!";
 
   const getPrice = (plan: typeof PLANS[0]) => {
     if (billingTab === "semestral") return plan.pricing.semestral;
@@ -46,7 +53,7 @@ export function FreePlanBanner() {
       >
         <p className="text-sm font-[500] text-white flex items-center gap-2">
           <TriangleAlert size={16} className="shrink-0" />
-          Você precisa fazer um upgrade do plano para utilizar todas as funcionalidades
+          {aviso}
         </p>
         <Button
           size="sm"
@@ -54,7 +61,7 @@ export function FreePlanBanner() {
           style={{ background: "#ffffff", animation: "banner-btn-attention 1.2s ease-in-out infinite" }}
           onClick={() => navigate("/configuracoes/planos")}
         >
-          Fazer upgrade agora!
+          {rotuloBotao}
         </Button>
       </div>
 

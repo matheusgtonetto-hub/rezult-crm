@@ -119,6 +119,18 @@ function unixParaIso(segundos: unknown): string | null {
   return Number.isNaN(data.getTime()) ? null : data.toISOString();
 }
 
+// Quanto tempo o cliente continua escrevendo depois de uma cobrança recusada.
+// A Stripe faz novas tentativas ao longo de dias e a primeira recusa costuma ser
+// limite ou bloqueio do banco, não inadimplência: cortar na hora derruba cliente
+// bom que voltaria a pagar sozinho. Ancorado no início do ciclo cobrado, e não em
+// "agora", para que cada nova tentativa não empurre a carência para frente.
+const DIAS_DE_CARENCIA = 15;
+
+function fimDaCarencia(inicioDoCiclo: string | null): string {
+  const base = inicioDoCiclo ? new Date(inicioDoCiclo) : new Date();
+  return new Date(base.getTime() + DIAS_DE_CARENCIA * 24 * 60 * 60 * 1000).toISOString();
+}
+
 // A Stripe moveu current_period_start/end do objeto Subscription para os ITENS
 // da assinatura na versão de API 2025-03-31.basil. O apiVersion fixado no
 // construtor governa só as chamadas que NÓS fazemos; o payload que a Stripe
@@ -220,21 +232,49 @@ async function sincronizarAssinatura(
     throw new Error(`Upsert subscriptions falhou: ${erroSub.message}`);
   }
 
-  const atualizacaoEmpresa: Record<string, string> = { plan_expires_at: periodo.fim };
-  if (planName) atualizacaoEmpresa.plan = planName;
+  // O ponto onde uma cobrança recusada virava um mês grátis.
+  //
+  // A Stripe avança o período da assinatura quando EMITE a fatura da renovação,
+  // antes de receber o dinheiro. Gravar periodo.fim aqui sem olhar o status
+  // fazia a própria falha de pagamento estender o acesso por mais um ciclo.
+  // Agora a data só anda quando a assinatura está paga; nos outros casos a
+  // empresa mantém a validade do último ciclo quitado e o estado de cobrança
+  // passa a contar a história.
+  const emDia = dados.status === "active" || dados.status === "trialing";
 
-  const { error: erroEmpresa } = await db
-    .from("companies")
-    .update(atualizacaoEmpresa)
-    .eq("id", companyId);
+  const atualizacaoEmpresa: Record<string, string | null> = {};
 
-  if (erroEmpresa) {
-    console.error(`[${origem}] erro ao atualizar companies:`, erroEmpresa);
-    throw new Error(`Update companies falhou: ${erroEmpresa.message}`);
+  if (emDia) {
+    atualizacaoEmpresa.plan_expires_at     = periodo.fim;
+    atualizacaoEmpresa.billing_status      = "ok";
+    atualizacaoEmpresa.billing_grace_until = null;
+    if (planName) atualizacaoEmpresa.plan = planName;
+  } else if (dados.status === "past_due") {
+    atualizacaoEmpresa.billing_status      = "pendente";
+    atualizacaoEmpresa.billing_grace_until = fimDaCarencia(periodo.inicio);
+  } else if (dados.status === "unpaid") {
+    // A Stripe desistiu de cobrar. Somente leitura na hora, sem esperar carência.
+    atualizacaoEmpresa.billing_status      = "bloqueado";
+    atualizacaoEmpresa.billing_grace_until = null;
+  }
+
+  // Status sem regra definida (canceled chega pelo subscription.deleted) não
+  // muda nada na empresa. Um update vazio seria rejeitado pelo PostgREST.
+  if (Object.keys(atualizacaoEmpresa).length > 0) {
+    const { error: erroEmpresa } = await db
+      .from("companies")
+      .update(atualizacaoEmpresa)
+      .eq("id", companyId);
+
+    if (erroEmpresa) {
+      console.error(`[${origem}] erro ao atualizar companies:`, erroEmpresa);
+      throw new Error(`Update companies falhou: ${erroEmpresa.message}`);
+    }
   }
 
   console.log(
-    `[${origem}] sincronizado ${subId}: plano=${planName} status=${dados.status} vence=${periodo.fim}`,
+    `[${origem}] sincronizado ${subId}: plano=${planName} status=${dados.status}` +
+    ` periodo_ate=${periodo.fim} acesso=${emDia ? `liberado ate ${periodo.fim}` : `congelado (${atualizacaoEmpresa.billing_status ?? "sem mudanca"})`}`,
   );
 }
 
@@ -364,7 +404,20 @@ serve(async (req) => {
         // Metadata pode faltar no evento; a linha do banco é o fallback.
         const companyId = sub.metadata?.companyId ?? (linha?.company_id as string | undefined);
         if (companyId) {
-          await db.from("companies").update({ plan: "free" }).eq("id", companyId);
+          // Cancelar por vontade própria e ser cancelado por calote terminam no
+          // mesmo status na Stripe, mas não podem terminar no mesmo lugar aqui:
+          // quem cancelou o plano tem direito de continuar no free, quem não
+          // pagou fica em somente leitura até regularizar.
+          // deno-lint-ignore no-explicit-any
+          const motivo = (sub as any)?.cancellation_details?.reason ?? null;
+          const porFaltaDePagamento = motivo === "payment_failed";
+          console.log("[customer.subscription.deleted] motivo=", motivo);
+
+          await db.from("companies").update({
+            plan:                "free",
+            billing_status:      porFaltaDePagamento ? "bloqueado" : "ok",
+            billing_grace_until: null,
+          }).eq("id", companyId);
         } else {
           console.error("[customer.subscription.deleted] companyId não resolvido para", sub.id);
         }
@@ -382,10 +435,36 @@ serve(async (req) => {
           ?? null;
         console.log("[invoice.payment_failed] subId=", subId);
         if (subId) {
+          const { data: linha } = await db
+            .from("subscriptions")
+            .select("company_id")
+            .eq("stripe_subscription_id", subId)
+            .limit(1)
+            .maybeSingle();
+
           await db
             .from("subscriptions")
             .update({ status: "past_due", updated_at: new Date().toISOString() })
             .eq("stripe_subscription_id", subId);
+
+          // Antes esse handler só marcava a tabela subscriptions, que nenhuma
+          // tela consultava para liberar acesso: o sistema sabia da recusa e
+          // não fazia nada com ela. Agora a empresa entra em carência.
+          const companyId = linha?.company_id as string | undefined;
+          if (companyId) {
+            await db
+              .from("companies")
+              .update({
+                billing_status:      "pendente",
+                billing_grace_until: fimDaCarencia(unixParaIso(invoice?.period_start)),
+              })
+              .eq("id", companyId)
+              // Não rebaixa quem já está bloqueado: uma nova tentativa recusada
+              // não pode devolver carência a quem a Stripe já desistiu de cobrar.
+              .neq("billing_status", "bloqueado");
+          } else {
+            console.error("[invoice.payment_failed] companyId não resolvido para", subId);
+          }
         }
         break;
       }
