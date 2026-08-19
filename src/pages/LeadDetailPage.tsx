@@ -8,6 +8,7 @@ import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -489,7 +490,7 @@ export default function LeadDetailPage() {
   const { openChat } = useFloatingChat();
   const { profile } = useProfile();
   const { getPerms } = usePipelinePermissions();
-  const { whatsappConnections } = useCompany();
+  const { whatsappConnections, billingBlocked } = useCompany();
   const hasActiveWaConnection = whatsappConnections.some(c => c.connected);
 
   const lead = id ? leads[id] : undefined;
@@ -632,6 +633,10 @@ export default function LeadDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !lead || !user) return;
     e.target.value = "";
+    // Anexo é gravado direto daqui, sem passar pelo CRMContext, então a trava de
+    // somente leitura precisa da própria linha. Vem antes do upload para não
+    // deixar o arquivo no storage sem ter onde se prender.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() ?? "bin";

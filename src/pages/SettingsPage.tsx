@@ -40,6 +40,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS, PLAN_LIMITS } from "@/data/plans";
 import type { CustomFieldType } from "@/data/mockData";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
@@ -1059,7 +1060,7 @@ function PermissionsEditor({
 
 function EquipeSection() {
   const { user } = useAuth();
-  const { company, userPermissions } = useCompany();
+  const { company, userPermissions, billingBlocked } = useCompany();
   const [members, setMembers] = useState<Member[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1116,6 +1117,10 @@ function EquipeSection() {
       emitPlanLimit("membros");
       return;
     }
+
+    // A função no banco também recusa, mas de lá o retorno vira um toast de erro
+    // genérico. Aqui o cliente vê o motivo e o caminho para regularizar.
+    if (billingBlocked) { emitBillingBlocked(); return; }
 
     setInviting(true);
     const permsToSend = isAdminInvite ? ["admin"] : invitePerms;
@@ -1182,6 +1187,7 @@ function EquipeSection() {
 
   const handleSavePermissions = async () => {
     if (!editMember) return;
+    if (billingBlocked) { emitBillingBlocked(); return; }
     setSavingEdit(true);
     const { data, error } = await supabase.rpc("update_member_permissions", {
       p_member_id: editMember.id,
