@@ -798,7 +798,7 @@ export default function PipelinePage() {
               className="rounded-lg font-semibold bg-white h-[30px] px-3 text-xs border border-primary"
               onClick={() => setAutomacaoAberta(true)}
             >
-              <Network size={14} className="mr-1.5" /> Automação
+              <Network size={14} className="mr-1.5 text-primary" /> Automação
             </Button>
             <Button
               className="rounded-lg font-semibold h-[30px] px-3 text-xs"
