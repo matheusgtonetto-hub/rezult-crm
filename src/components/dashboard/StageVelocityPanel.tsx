@@ -118,7 +118,7 @@ export function StageVelocityPanel({
   if (!funnelPipeline) return null;
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl p-4">
+    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
       <h3 className="text-sm font-semibold text-foreground mb-1">Tempo médio por etapa</h3>
       <p className="text-xs text-muted-foreground mb-4">
         Média de dias que os negócios ficaram em cada etapa, calculada a partir da data de criação e das transições registradas.

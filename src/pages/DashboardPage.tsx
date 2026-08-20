@@ -50,10 +50,19 @@ const ACTIVITY_LABELS: Record<string, string> = {
  * tokens: primária, sucesso e destrutiva.
  */
 const AREAS_NEGOCIOS = [
-  { chave: "novos",    nome: "Novos",    cor: "#128A68", id: "area-novos" },
-  { chave: "ganhos",   nome: "Ganhos",   cor: "#10B981", id: "area-ganhos" },
-  { chave: "perdidos", nome: "Perdidos", cor: "#EF4444", id: "area-perdidos" },
+  // `chave` é a contagem; `chaveValor` é o dinheiro do mesmo recorte. O botão
+  // Quantidade/Receita só troca qual das duas o gráfico lê.
+  { chave: "novos",    chaveValor: "novosValor",    nome: "Novos",    cor: "#128A68", id: "area-novos" },
+  { chave: "ganhos",   chaveValor: "ganhosValor",   nome: "Ganhos",   cor: "#10B981", id: "area-ganhos" },
+  { chave: "perdidos", chaveValor: "perdidosValor", nome: "Perdidos", cor: "#EF4444", id: "area-perdidos" },
 ] as const;
+
+/** Eixo Y em dinheiro precisa ser curto, senão "R$ 1.610,00" come a largura do
+ *  gráfico em cada marca. Mil vira "k", milhão vira "M". */
+const fmtCurto = (v: number) =>
+  v >= 1_000_000 ? `R$ ${(v / 1_000_000).toFixed(1)}M`
+  : v >= 1_000   ? `R$ ${Math.round(v / 1_000)}k`
+  : `R$ ${v}`;
 
 export default function DashboardPage() {
   const {
@@ -160,7 +169,14 @@ export default function DashboardPage() {
   }, [allLeads, wonLeads, lostLeads, dateRange]);
 
   const monthlyData = useMemo(() => {
-    type Bucket = { key: string; mes: string; novos: number; ganhos: number; perdidos: number };
+    // Cada balde guarda a contagem E o dinheiro. Somar os dois no mesmo passo
+    // garante que o botão Quantidade/Receita nunca mostre recortes diferentes:
+    // é o mesmo lead, no mesmo balde, contado de duas formas.
+    type Bucket = {
+      key: string; mes: string;
+      novos: number; ganhos: number; perdidos: number;
+      novosValor: number; ganhosValor: number; perdidosValor: number;
+    };
     const map = new Map<string, Bucket>();
     // Compara só a parte de data (sem horário) para não ser afetado pela normalização
     // de periodCutoff (00:00) e periodTo (23:59).
@@ -176,8 +192,8 @@ export default function DashboardPage() {
         if (e && e >= periodCutoff && e <= periodTo) {
           const h = e.getHours();
           const key = String(h).padStart(2, "0");
-          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
-          cur.novos++;
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 };
+          cur.novos++; cur.novosValor += lead.value;
           map.set(key, cur);
         }
         lead.activities.forEach(act => {
@@ -185,9 +201,9 @@ export default function DashboardPage() {
           if (d < periodCutoff || d > periodTo) return;
           const h = d.getHours();
           const key = String(h).padStart(2, "0");
-          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
-          if (act.type === "won") cur.ganhos++;
-          if (act.type === "lost") cur.perdidos++;
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 };
+          if (act.type === "won") { cur.ganhos++; cur.ganhosValor += lead.value; }
+          if (act.type === "lost") { cur.perdidos++; cur.perdidosValor += lead.value; }
           map.set(key, cur);
         });
       });
@@ -205,7 +221,7 @@ export default function DashboardPage() {
       cursor.setHours(0, 0, 0, 0);
       while (cursor <= displayEnd) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-        map.set(key, { key, mes: `${cursor.getDate()}/${cursor.getMonth() + 1}`, novos: 0, ganhos: 0, perdidos: 0 });
+        map.set(key, { key, mes: `${cursor.getDate()}/${cursor.getMonth() + 1}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 });
         cursor.setDate(cursor.getDate() + 1);
       }
 
@@ -214,7 +230,7 @@ export default function DashboardPage() {
         if (e && e >= periodCutoff && e <= periodTo) {
           const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}-${String(e.getDate()).padStart(2, "0")}`;
           const bucket = map.get(key);
-          if (bucket) bucket.novos++;
+          if (bucket) { bucket.novos++; bucket.novosValor += lead.value; }
         }
         lead.activities.forEach(act => {
           const d = new Date(act.date);
@@ -222,8 +238,8 @@ export default function DashboardPage() {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           const bucket = map.get(key);
           if (!bucket) return;
-          if (act.type === "won") bucket.ganhos++;
-          if (act.type === "lost") bucket.perdidos++;
+          if (act.type === "won") { bucket.ganhos++; bucket.ganhosValor += lead.value; }
+          if (act.type === "lost") { bucket.perdidos++; bucket.perdidosValor += lead.value; }
         });
       });
 
@@ -234,7 +250,7 @@ export default function DashboardPage() {
       cursor.setDate(1);
       for (let i = 0; i < 12; i++) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-        map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0 });
+        map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 });
         cursor.setMonth(cursor.getMonth() + 1);
       }
 
@@ -243,7 +259,7 @@ export default function DashboardPage() {
         if (e && e >= periodCutoff && e <= periodTo) {
           const key = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}`;
           const bucket = map.get(key);
-          if (bucket) bucket.novos++;
+          if (bucket) { bucket.novos++; bucket.novosValor += lead.value; }
         }
         lead.activities.forEach(act => {
           const d = new Date(act.date);
@@ -251,8 +267,8 @@ export default function DashboardPage() {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           const bucket = map.get(key);
           if (!bucket) return;
-          if (act.type === "won") bucket.ganhos++;
-          if (act.type === "lost") bucket.perdidos++;
+          if (act.type === "won") { bucket.ganhos++; bucket.ganhosValor += lead.value; }
+          if (act.type === "lost") { bucket.perdidos++; bucket.perdidosValor += lead.value; }
         });
       });
     }
@@ -511,13 +527,48 @@ export default function DashboardPage() {
   const periodLabel = `${dateRange.from.toLocaleDateString("pt-BR")} – ${dateRange.to.toLocaleDateString("pt-BR")}`;
 
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  /** O que o gráfico "Resultado no período" mede: quantos negócios ou quanto dinheiro. */
+  const [metricaPeriodo, setMetricaPeriodo] = useState<"quantidade" | "receita">("quantidade");
+
+  // Em receita sobra só a linha de Ganhos, porque é a única das três que é
+  // dinheiro que entrou. "Novos" em reais seria valor de pipeline, ainda não
+  // realizado, e "Perdidos" seria dinheiro que nunca existiu. Desenhar as três
+  // sob o rótulo "Receita" faria o gráfico afirmar algo que não aconteceu.
+  const areasDoPeriodo = metricaPeriodo === "receita"
+    ? AREAS_NEGOCIOS.filter(a => a.chave === "ganhos")
+    : AREAS_NEGOCIOS;
+
+  /** Séries ligadas no gráfico por horário. Começa com as três. */
+  const [seriesHorario, setSeriesHorario] = useState<string[]>(() => AREAS_NEGOCIOS.map(a => a.chave));
+  const alternarSerieHorario = (chave: string) =>
+    setSeriesHorario(atual =>
+      atual.includes(chave)
+        // A última ligada não desliga: gráfico sem nenhuma série é uma grade
+        // vazia, um beco sem saída visual. Sempre sobra pelo menos uma curva.
+        ? (atual.length === 1 ? atual : atual.filter(c => c !== chave))
+        : [...atual, chave]
+    );
+  const areasHorario = AREAS_NEGOCIOS.filter(a => seriesHorario.includes(a.chave));
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    // p-[30px]: 30px não existe na escala do Tailwind (p-6 é 24, p-8 é 32),
+    // então vai como valor arbitrário mesmo.
+    <div className="p-[30px] max-w-[1400px] mx-auto">
       <Tabs defaultValue="negocios" className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+      {/* items-start, e não items-center: com o subtítulo, o bloco de título
+          ficou mais alto que as abas, e centralizar deixaria as abas flutuando
+          na altura do meio em vez de alinhadas ao "Dashboard". */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          {/* 23px é valor arbitrário: a escala do Tailwind pula de 20 (text-xl)
+              para 24 (text-2xl). */}
+          <h1 className="text-[23px] font-semibold text-foreground">Dashboard</h1>
+          {/* 14px, e não os 12px dos subtítulos de painel: este acompanha o
+              título da página inteira, que é maior, e no corpo menor ficaria
+              desproporcional embaixo dos 23px do "Dashboard". */}
+          <p className="text-sm text-muted-foreground mt-0.5">Desempenho geral do seu negócio</p>
+        </div>
         <div className="flex items-center gap-3">
           <TabsList className="bg-card border border-gray-200 rounded-lg">
             <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
@@ -648,18 +699,37 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly line */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
               <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
-              {/* Legenda derivada de AREAS_NEGOCIOS: cor e nome vêm da mesma
-                  fonte que pinta a curva, então não há como divergirem. */}
-              <div className="flex items-center gap-4">
-                {AREAS_NEGOCIOS.map(a => (
-                  <span key={a.chave} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: a.cor }} />
-                    {a.nome}
-                  </span>
-                ))}
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Sem legenda aqui. As três séries continuam identificadas no
+                    tooltip, que aparece ao passar o mouse e traz nome, cor e
+                    valor de cada uma no ponto olhado -- mais informativo que a
+                    legenda fixa, que dava só nome e cor. */}
+                {/* Quantidade x Receita. Um par de botões e não um dropdown: são
+                    só duas opções, e o dropdown esconderia metade da escolha
+                    atrás de um clique. Assim as duas ficam visíveis e o estado
+                    atual se lê sem abrir nada. */}
+                <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+                  {([
+                    { id: "quantidade", rotulo: "Quantidade" },
+                    { id: "receita",    rotulo: "Receita" },
+                  ] as const).map(op => (
+                    <button
+                      key={op.id}
+                      onClick={() => setMetricaPeriodo(op.id)}
+                      aria-pressed={metricaPeriodo === op.id}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                        metricaPeriodo === op.id
+                          ? "bg-card text-foreground shadow-elev-1"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {op.rotulo}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {monthlyData.length === 0 ? (
@@ -675,7 +745,7 @@ export default function DashboardPage() {
                     custa um passe de rasterização por série. */}
                 <AreaChart data={monthlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <defs>
-                    {AREAS_NEGOCIOS.map(a => (
+                    {areasDoPeriodo.map(a => (
                       <linearGradient key={a.id} id={a.id} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
                         <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
@@ -686,13 +756,28 @@ export default function DashboardPage() {
                       temporal não ajuda a ler valor, só polui. */}
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
-                  <Tooltip contentStyle={tooltip} />
-                  {AREAS_NEGOCIOS.map(a => (
+                  {/* Em receita o eixo vai abreviado (R$ 12k) e mais largo; em
+                      quantidade segue inteiro e sem decimal, que é o certo para
+                      contagem de negócios. */}
+                  <YAxis
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                    width={metricaPeriodo === "receita" ? 62 : 44}
+                    tickFormatter={metricaPeriodo === "receita" ? fmtCurto : undefined}
+                  />
+                  {/* No tooltip o valor vai por extenso: ali há espaço, e é onde
+                      o número exato importa. */}
+                  <Tooltip
+                    contentStyle={tooltip}
+                    formatter={metricaPeriodo === "receita" ? ((v: number) => fmt(v)) : undefined}
+                  />
+                  {areasDoPeriodo.map(a => (
                     <Area
                       key={a.chave}
                       type="monotone"
-                      dataKey={a.chave}
+                      dataKey={metricaPeriodo === "receita" ? a.chaveValor : a.chave}
                       name={a.nome}
                       stroke={a.cor}
                       strokeWidth={2}
@@ -709,18 +794,53 @@ export default function DashboardPage() {
           </div>
 
           {/* Hourly results */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
-              {/* Legenda derivada de AREAS_NEGOCIOS: cor e nome vêm da mesma
-                  fonte que pinta a curva, então não há como divergirem. */}
-              <div className="flex items-center gap-4">
-                {AREAS_NEGOCIOS.map(a => (
-                  <span key={a.chave} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: a.cor }} />
-                    {a.nome}
-                  </span>
-                ))}
+              {/* Legenda que também filtra: clicar liga e desliga a série no
+                  gráfico. Desligada, a bolinha fica oca e o texto esmaece, então
+                  dá para ver de relance o que está fora sem abrir nada. */}
+              <div className="flex items-center gap-1">
+                {AREAS_NEGOCIOS.map(a => {
+                  const ativa = seriesHorario.includes(a.chave);
+                  const ultima = ativa && seriesHorario.length === 1;
+                  return (
+                    <button
+                      key={a.chave}
+                      onClick={() => alternarSerieHorario(a.chave)}
+                      aria-pressed={ativa}
+                      title={ultima ? "Pelo menos uma série precisa ficar visível" : ativa ? `Ocultar ${a.nome}` : `Mostrar ${a.nome}`}
+                      className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-colors ${
+                        ativa ? "text-foreground" : "text-muted-foreground/50"
+                      } ${ultima ? "cursor-default" : "cursor-pointer hover:bg-muted/60"}`}
+                    >
+                      {/* Mesma caixa de seleção do "Visualizando como" da
+                          pipeline: quadrado com marca de confirmação, pintado na
+                          cor da série. Reaproveitar o padrão que já existe no
+                          app evita duas gramáticas de seleção convivendo.
+
+                          A cor fica na caixa, e não numa bolinha separada, então
+                          um único elemento diz as duas coisas: qual série é e se
+                          ela está no gráfico. */}
+                      <span
+                        className="flex items-center justify-center rounded shrink-0"
+                        style={{
+                          width: 14,
+                          height: 14,
+                          border: ativa ? `2px solid ${a.cor}` : "1.5px solid #CCCCCC",
+                          background: ativa ? a.cor : "transparent",
+                        }}
+                      >
+                        {ativa && (
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                      {a.nome}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             {hourlyData.length === 0 ? (
@@ -732,7 +852,7 @@ export default function DashboardPage() {
                     página fazem o segundo herdar o primeiro. */}
                 <AreaChart data={hourlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <defs>
-                    {AREAS_NEGOCIOS.map(a => (
+                    {areasHorario.map(a => (
                       <linearGradient key={a.id} id={`${a.id}-h`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
                         <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
@@ -743,7 +863,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                   <Tooltip contentStyle={tooltip} />
-                  {AREAS_NEGOCIOS.map(a => (
+                  {areasHorario.map(a => (
                     <Area
                       key={a.chave}
                       type="monotone"
@@ -763,32 +883,32 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Origem logo abaixo do gráfico por horário e em largura cheia. As
+              duas rosquinhas dele ficam lado a lado internamente, senão a
+              legenda de cada uma esticaria por mais de mil pixels de vazio. */}
+          <OriginPanel periodLeads={periodLeads} />
+
           <UtmAttributionPanel periodLeads={periodLeads} />
 
-          {/* Origins + Loss reasons */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <OriginPanel periodLeads={periodLeads} />
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Motivos de perda</h3>
+            {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
+                zero no centro, que é a resposta. Escondê-lo fazia o painel sumir
+                e a página inteira pular de altura ao trocar o filtro de data.
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Motivos de perda</h3>
-              {lossReasonData.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum negócio perdido registrado.</p>
-              ) : (
-                // `total` explícito: lossReasonData é cortado no top 6, então
-                // somar as fatias daria menos que o total de perdidos e o número
-                // do centro mentiria sempre que houvesse um 7º motivo.
-                <DonutDistribuicao
-                  dados={lossReasonData.map(r => ({ nome: r.name, valor: r.value }))}
-                  rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
-                  total={lostInPeriod.length}
-                />
-              )}
-            </div>
+                `total` explícito: lossReasonData é cortado no top 6, então somar
+                as fatias daria menos que o total de perdidos e o número do centro
+                mentiria sempre que houvesse um 7º motivo. */}
+            <DonutDistribuicao
+              dados={lossReasonData.map(r => ({ nome: r.name, valor: r.value }))}
+              rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
+              total={lostInPeriod.length}
+            />
           </div>
 
 
           {/* Top products */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4">Produtos mais vendidos</h3>
             {topProducts.length === 0 ? (
               <p className="text-xs text-muted-foreground">Nenhum produto cadastrado.</p>
@@ -854,7 +974,7 @@ export default function DashboardPage() {
           {/* Top SDR + Top Closer */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Top SDR */}
-            <div className="bg-card border border-gray-200 rounded-xl p-5">
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Top SDR</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Agendamentos e conversão por usuário</p>
@@ -900,7 +1020,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Top Closer */}
-            <div className="bg-card border border-gray-200 rounded-xl p-5">
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Top Closer</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Reuniões realizadas e conversão em vendas</p>
@@ -997,7 +1117,7 @@ export default function DashboardPage() {
               .sort((a, b) => b.scheduled - a.scheduled);
 
             return (
-              <div className="bg-card border border-gray-200 rounded-xl p-5">
+              <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-5">
                   <div>
@@ -1084,7 +1204,7 @@ export default function DashboardPage() {
 
           {/* Tabela de desempenho */}
           <div>
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
               <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
               {agentPerformance.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
@@ -1148,7 +1268,7 @@ export default function DashboardPage() {
           </div>
 
           {/* By type */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4">Por tipo de atividade</h3>
             {activityStats.byType.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
@@ -1169,7 +1289,7 @@ export default function DashboardPage() {
 
           {/* Upcoming meetings + Overdue tasks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
               <h3 className="text-sm font-semibold text-foreground mb-4">Próximas reuniões</h3>
               {activityStats.upcoming.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma reunião agendada.</p>
@@ -1195,7 +1315,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="bg-card border border-gray-200 rounded-xl p-4">
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
               <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 Tarefas atrasadas
                 {overdueTasks.length > 0 && (
@@ -1230,7 +1350,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent activities */}
-          <div className="bg-card border border-gray-200 rounded-xl p-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4">Atividades recentes</h3>
             {activityStats.recent.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
@@ -1288,9 +1408,9 @@ export default function DashboardPage() {
           </div>
 
           {!funnelPipeline ? (
-            <div className="bg-card border border-gray-200 rounded-xl p-8 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
           ) : funnelData.length === 0 ? (
-            <div className="bg-card border border-gray-200 rounded-xl p-8 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
@@ -1334,7 +1454,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div className="bg-card border border-gray-200 rounded-xl p-6">
+                <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
                   {(() => {
@@ -1463,7 +1583,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Conversion table */}
-                <div className="bg-card border border-gray-200 rounded-xl p-4">
+                <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Tabela de conversão</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">

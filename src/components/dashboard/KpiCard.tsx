@@ -72,8 +72,15 @@ interface KpiCardProps {
 function Sparkline({ serie, cor, id }: { serie: number[]; cor: string; id: string }) {
   const dados = serie.map((v, i) => ({ i, v }));
   return (
-    <div className="h-11 -mx-4 -mb-4 mt-3">
+    // O cartão tem p-5 (20px). Na horizontal o -mx-5 anula o padding inteiro e
+    // o gráfico sangra de ponta a ponta. Embaixo o recuo é de 15px, e não 20,
+    // justamente para sobrar 5px entre a curva e a borda inferior do cartão.
+    // Se o padding do cartão mudar, os dois números mudam junto.
+    <div className="h-11 -mx-5 -mb-[15px] mt-3">
       <ResponsiveContainer width="100%" height="100%">
+        {/* bottom: 0 aqui de propósito. O respiro de 5px até a borda vem do
+            recuo do contêiner acima; somar os dois daria 8px e o número
+            deixaria de bater com o que foi pedido. */}
         <AreaChart data={dados} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
@@ -101,12 +108,10 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
   // Id único por cartão: dois `linearGradient` com o mesmo id na página fazem o
   // segundo herdar o primeiro, e os sparklines sairiam todos da mesma cor.
   const gradId = `spark-${tom}-${label.replace(/\W+/g, "-").toLowerCase()}`;
-  // Série sem variação (tudo zero, ou tudo no mesmo valor) desenharia uma reta
-  // colada na borda do cartão, que lê como sublinhado colorido e não como
-  // gráfico. Nesse caso o espaço é reservado mas nada é desenhado, para os
-  // quatro cartões manterem a mesma altura na grade.
-  const temVariacao = Array.isArray(serie) && serie.length >= 2 && new Set(serie).size > 1;
-  const reservaEspaco = Array.isArray(serie) && serie.length >= 2;
+  // Série toda zerada também desenha, como reta na base. Período sem movimento
+  // é informação, e o cartão que some deixa a fileira desalinhada e obriga a
+  // comparar cartões de alturas diferentes.
+  const temSparkline = Array.isArray(serie) && serie.length >= 2;
 
   const chipDoIcone = Icone && (
     <div
@@ -133,15 +138,18 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       ? "Comparado com a primeira metade do período (não há período anterior)"
       : "Comparado com o período anterior";
 
+  // Sem pastilha de fundo: só o texto colorido. A cor já diz alta ou queda, e o
+  // fundo somava uma segunda camada de sinal para a mesma informação, num cartão
+  // que já tem seta, ícone tingido e sparkline.
   const badge = v && (
     v.tipo === "pct" ? (
-      <span title={explicacao} className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${v.valor >= 0 ? "text-success bg-success/10" : "text-destructive bg-destructive/10"}`}>
+      <span title={explicacao} className={`text-[11px] font-semibold ${v.valor >= 0 ? "text-success" : "text-destructive"}`}>
         {v.valor >= 0 ? "+" : ""}{v.valor.toFixed(1)}%
       </span>
     ) : v.tipo === "novo" ? (
       // Sair de zero é alta, mas não tem percentual: dividir por zero não dá
       // número. "novo" diz o que aconteceu sem inventar uma conta.
-      <span title={explicacao} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full text-success bg-success/10">novo</span>
+      <span title={explicacao} className="text-[11px] font-semibold text-success">novo</span>
     ) : null
   );
 
@@ -159,7 +167,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
 
   if (destaqueNoSub) {
     return (
-      <div className="bg-card rounded-xl p-4 border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
         {/* Rótulo e ícone dividem a primeira linha. O ícone à direita dá âncora
             visual ao cartão sem competir com o número, que continua sendo a
             informação principal. */}
@@ -188,15 +196,13 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
             {sufixo ? ` ${sufixo}` : ""}
           </span>
         </div>
-        {temVariacao
-          ? <Sparkline serie={serie} cor={cor} id={gradId} />
-          : reservaEspaco ? <div className="h-11 mt-3" /> : null}
+        {temSparkline && <Sparkline serie={serie} cor={cor} id={gradId} />}
       </div>
     );
   }
 
   return (
-    <div className="bg-card rounded-xl p-4 border border-gray-200 overflow-hidden">
+    <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
       <div className="flex items-start justify-between gap-2 mb-3">
         <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
         {chipDoIcone}

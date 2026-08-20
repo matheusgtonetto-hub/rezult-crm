@@ -87,7 +87,7 @@
     --radius: 0.5rem;
 
     /* Shadows */
-    --shadow-elevated-1: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-elevated-1: 0 1px 4px rgba(0,0,0,0.06);
     --shadow-elevated-2: 0 2px 8px rgba(0,0,0,0.10);
     --shadow-elevated-3: 0 8px 32px rgba(0,0,0,0.12);
     --shadow-rail: 1px 0 4px rgba(0,0,0,0.04);

@@ -32,7 +32,7 @@ export function TagPerformancePanel({ periodLeads, crmTags }: TagPerformancePane
   }, [periodLeads, crmTags]);
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl p-4">
+    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
       <h3 className="text-sm font-semibold text-foreground mb-4">Performance por tag</h3>
       {rows.length === 0 ? (
         <p className="text-xs text-muted-foreground">Nenhum negócio com tag no período.</p>

@@ -46,6 +46,38 @@ const UTM_FIELDS = [
 
 const TOP_N = 10;
 
+/**
+ * Medalhas do pódio para as três primeiras posições da tabela, que é ordenada
+ * por receita.
+ *
+ * São degradês, e não cores chapadas, por necessidade e não por enfeite: ouro e
+ * prata clássicos (#D4AF37, #C0C0C0) dão 2.1:1 e 1.8:1 contra texto branco, ou
+ * seja, ilegíveis. O degradê diagonal desce até um tom escuro do mesmo metal, e
+ * é essa metade que sustenta o número. A sombra fina no texto fecha a conta na
+ * parte clara.
+ *
+ * Da quarta posição em diante entra o verde da marca, mais claro que o primário
+ * para não competir com o pódio.
+ */
+const MEDALHAS = [
+  "linear-gradient(135deg, #F2CE63 0%, #B8860B 100%)",  // ouro
+  "linear-gradient(135deg, #CBD0D7 0%, #78828F 100%)",  // prata
+  "linear-gradient(135deg, #D48F55 0%, #8C4A21 100%)",  // bronze
+] as const;
+
+/**
+ * Fundo das posições fora do pódio: verde da marca com transparência.
+ *
+ * rgba de verdade, e não um verde claro chapado: assim a pastilha deixa passar o
+ * realce da linha ao passar o mouse, em vez de ficar como um adesivo opaco por
+ * cima dela.
+ *
+ * A 55% o número branco fica em 2.1:1 sobre fundo claro. É baixo; quem segura a
+ * leitura é a sombra no texto. Foi a troca aceita para o verde ficar claro o
+ * bastante a ponto de não competir com as três medalhas.
+ */
+const VERDE_DEMAIS = "rgba(18, 138, 104, 0.55)";
+
 export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
   const navigate = useNavigate();
   const [noUtmOpen, setNoUtmOpen] = useState(false);
@@ -102,18 +134,27 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
   const coverageColor = coverage >= 70 ? "bg-emerald-500" : coverage >= 40 ? "bg-amber-400" : "bg-red-400";
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl p-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <h3 className="text-sm font-semibold text-foreground">Resultados por UTM</h3>
+    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+      {/* Header
+          A cobertura ganhou peso. Ela é o dado que qualifica todo o resto do
+          painel: com 20% de cobertura, a campanha "vencedora" da tabela pode ser
+          só a que por acaso foi rastreada. Antes era uma barra de 20px com o
+          percentual em cinza, do mesmo tamanho de qualquer legenda. */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">Resultados por UTM</h3>
+          {periodLeads.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+              {withUtm.length} de {periodLeads.length} {periodLeads.length === 1 ? "lead" : "leads"} com rastreio
+            </p>
+          )}
+        </div>
         {periodLeads.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
               <div className={`h-full rounded-full ${coverageColor}`} style={{ width: `${coverage}%` }} />
             </div>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {coverage}% com UTM
-            </span>
+            <span className="text-sm font-semibold text-foreground tabular-nums">{coverage}%</span>
           </div>
         )}
       </div>
@@ -124,25 +165,46 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[560px]">
             <thead>
-              <tr className="border-b border-card-border text-xs text-muted-foreground">
+              {/* Cabeçalhos todos em cinza. Antes "Perdidos", "Vendas" e
+                  "Receita" vinham coloridos, repetindo uma informação que os
+                  próprios números já carregam e deixando a faixa do topo
+                  arlequinada. Os títulos dizem o que é a coluna; a cor fica para
+                  o dado. */}
+              <tr className="border-b border-card-border text-xs">
                 <th className="pb-2 pr-3 w-6" />
                 {activeFields.map(f => (
                   <th key={f.key} className="text-left pb-2 pr-4 whitespace-nowrap w-[120px] max-w-[120px]">
                     <span className="font-medium text-foreground">{f.label}</span>
-                    <span className="block font-normal text-muted-foreground/50 text-[10px] leading-tight">{f.param}</span>
+                    <span className="block font-normal text-muted-foreground/60 text-[10px] leading-tight font-mono">{f.param}</span>
                   </th>
                 ))}
-                <th className="text-center pb-2 font-medium text-foreground w-[10%]">Leads</th>
-                <th className="text-center pb-2 font-medium pl-3 text-destructive/70 w-[10%]">Perdidos</th>
-                <th className="text-center pb-2 font-medium pl-3 text-success/70 w-[10%]">Vendas</th>
-                <th className="text-center pb-2 font-medium pl-3 text-success/70 w-[10%]">Receita</th>
+                {/* Numéricas à direita: em coluna, número alinhado pela direita
+                    deixa as ordens de grandeza empilhadas e a comparação vira
+                    leitura de altura. Centralizado, cada valor flutua. */}
+                <th className="text-right pb-2 font-medium text-muted-foreground w-[10%]">Leads</th>
+                <th className="text-right pb-2 font-medium pl-3 text-muted-foreground w-[10%]">Perdidos</th>
+                <th className="text-right pb-2 font-medium pl-3 text-muted-foreground w-[10%]">Vendas</th>
+                <th className="text-right pb-2 font-medium pl-3 text-muted-foreground w-[12%]">Receita</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-card-border">
               {visible.map((r, i) => (
-                <tr key={i} className="hover:bg-muted/30 transition-colors group">
-                  <td className="py-2.5 pr-3 text-[10px] text-muted-foreground/40 tabular-nums text-right select-none">
-                    {i + 1}
+                <tr key={i} className="hover:bg-muted/40 transition-colors group">
+                  {/* Pódio: ouro, prata e bronze nas três primeiras, verde nas
+                      demais. A tabela é ordenada por receita, então a medalha
+                      diz o mesmo que a posição, só que sem precisar contar. */}
+                  <td className="py-2.5 pr-3 select-none">
+                    <span
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold tabular-nums text-white"
+                      style={{
+                        background: MEDALHAS[i] ?? VERDE_DEMAIS,
+                        // Sombra fina no número: é o que mantém o branco legível
+                        // sobre a ponta clara do ouro e da prata.
+                        textShadow: "0 1px 2px rgba(0,0,0,0.45)",
+                      }}
+                    >
+                      {i + 1}
+                    </span>
                   </td>
                   {activeFields.map(f => (
                     <td key={f.key} className="py-2.5 pr-4 w-[120px] max-w-[120px]">
@@ -153,10 +215,26 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                       )}
                     </td>
                   ))}
-                  <td className="text-center py-2.5 text-muted-foreground tabular-nums text-xs">{r.leads}</td>
-                  <td className="text-center py-2.5 pl-3 text-destructive font-medium tabular-nums text-xs">{r.lost}</td>
-                  <td className="text-center py-2.5 pl-3 text-success font-medium tabular-nums text-xs">{r.won}</td>
-                  <td className="text-center py-2.5 pl-3 font-semibold text-success whitespace-nowrap tabular-nums text-xs">{fmt(r.revenue)}</td>
+                  {/* Barra de proporção sob o número de leads.
+                      O maxLeads já era calculado e não era usado por ninguém --
+                      resquício de uma visualização que saiu em algum momento.
+                      Aqui ele volta a servir: a barra transforma a coluna numa
+                      leitura de volume relativo, sem o leitor comparar dígitos. */}
+                  <td className="text-right py-2.5 align-middle">
+                    <div className="text-xs text-foreground tabular-nums">{r.leads}</div>
+                    <div className="h-1 mt-1 rounded-full bg-muted overflow-hidden ml-auto w-full max-w-[56px]">
+                      <div
+                        className="h-full rounded-full bg-primary/60"
+                        style={{ width: `${Math.max(4, (r.leads / maxLeads) * 100)}%` }}
+                      />
+                    </div>
+                  </td>
+                  {/* Zero em cinza, não em vermelho/verde: "0 perdidos" é ausência
+                      de perda, e pintá-lo de vermelho faz o olho parar num alarme
+                      que não existe. */}
+                  <td className={`text-right py-2.5 pl-3 font-medium tabular-nums text-xs ${r.lost > 0 ? "text-destructive" : "text-muted-foreground/40"}`}>{r.lost}</td>
+                  <td className={`text-right py-2.5 pl-3 font-medium tabular-nums text-xs ${r.won > 0 ? "text-success" : "text-muted-foreground/40"}`}>{r.won}</td>
+                  <td className={`text-right py-2.5 pl-3 font-semibold whitespace-nowrap tabular-nums text-xs ${r.revenue > 0 ? "text-success" : "text-muted-foreground/40"}`}>{fmt(r.revenue)}</td>
                 </tr>
               ))}
               {restCount > 0 && (
@@ -175,10 +253,10 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                     {f.key === activeFields[0].key ? "Total" : ""}
                   </td>
                 ))}
-                <td className="text-center py-2.5 text-foreground tabular-nums">{totalLeads}</td>
-                <td className="text-center py-2.5 pl-3 text-destructive tabular-nums">{totalLost}</td>
-                <td className="text-center py-2.5 pl-3 text-success tabular-nums">{totalWon}</td>
-                <td className="text-center py-2.5 pl-3 text-success whitespace-nowrap tabular-nums">{fmt(totalRevenue)}</td>
+                <td className="text-right py-2.5 text-foreground tabular-nums">{totalLeads}</td>
+                <td className="text-right py-2.5 pl-3 text-destructive tabular-nums">{totalLost}</td>
+                <td className="text-right py-2.5 pl-3 text-success tabular-nums">{totalWon}</td>
+                <td className="text-right py-2.5 pl-3 text-success whitespace-nowrap tabular-nums">{fmt(totalRevenue)}</td>
               </tr>
             </tfoot>
           </table>

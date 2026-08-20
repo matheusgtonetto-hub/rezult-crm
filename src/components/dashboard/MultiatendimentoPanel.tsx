@@ -137,7 +137,7 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-card rounded-xl p-4 border border-gray-200 h-[104px] animate-pulse" />
+          <div key={i} className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 h-[104px] animate-pulse" />
         ))}
       </div>
     );
@@ -248,7 +248,7 @@ export function MultiatendimentoPanel({ dateRange }: { dateRange: DateRangeValue
       </div>
 
       {/* Por atendente ---------------------------------------------------- */}
-      <div className="bg-card border border-gray-200 rounded-xl p-4">
+      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4">Por atendente</h3>
         {m.porAtendente.length === 0 ? (
           <p className="text-xs text-muted-foreground">
