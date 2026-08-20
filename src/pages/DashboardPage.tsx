@@ -2,13 +2,13 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList, ReferenceLine,
 } from "recharts";
 import {
   TrendingUp, Users, CheckCircle, DollarSign, Clock, Trophy,
   MessageSquare, ArrowDown, Calendar, Phone, Mail, AlertTriangle,
-  Activity as ActivityIcon, ChevronDown, ChevronRight,
+  Activity as ActivityIcon, ChevronDown, ChevronRight, Briefcase, XCircle,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +36,23 @@ const ACTIVITY_LABELS: Record<string, string> = {
   task: "Tarefa",
   email: "E-mail",
 };
+
+/**
+ * As três séries da aba Negócios, numa fonte só.
+ *
+ * Elas apareciam repetidas em seis lugares: as duas legendas e os dois gráficos,
+ * cada um com nome, cor e chave escritos à mão. Bastava alguém trocar uma cor
+ * num deles para a legenda passar a mentir sobre a curva.
+ *
+ * `cor` é hexadecimal, e não token do tema, porque quem pinta é o SVG do
+ * Recharts, que não resolve `hsl(var(--primary))`. Os valores são os mesmos dos
+ * tokens: primária, sucesso e destrutiva.
+ */
+const AREAS_NEGOCIOS = [
+  { chave: "novos",    nome: "Novos",    cor: "#128A68", id: "area-novos" },
+  { chave: "ganhos",   nome: "Ganhos",   cor: "#10B981", id: "area-ganhos" },
+  { chave: "perdidos", nome: "Perdidos", cor: "#EF4444", id: "area-perdidos" },
+] as const;
 
 export default function DashboardPage() {
   const {
@@ -558,30 +575,53 @@ export default function DashboardPage() {
                 return null;
               };
 
+              // Séries dos sparklines. Saem do monthlyData, que é o mesmo dado do
+              // gráfico grande logo abaixo -- assim o mini gráfico do cartão e a
+              // curva do painel nunca contam histórias diferentes.
+              //
+              // "Em aberto" não tem série própria: é o que entrou menos o que
+              // fechou, e por isso é calculado aqui em vez de inventar um campo.
+              const serieNovos    = monthlyData.map(m => m.novos);
+              const serieGanhos   = monthlyData.map(m => m.ganhos);
+              const seriePerdidos = monthlyData.map(m => m.perdidos);
+              const serieAbertos  = monthlyData.map(m => Math.max(0, m.novos - m.ganhos - m.perdidos));
+
               return [
                 {
                   label: "Total de negócios",
                   value: periodLeads.length,
                   sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
                   delta: compara(periodLeads, priorPeriodLeads, porEntrada),
+                  icone: Briefcase,
+                  tom: "primary" as const,
+                  serie: serieNovos,
                 },
                 {
                   label: "Total em vendas",
                   value: wonInPeriod.length,
                   sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(wonInPeriod, wonPrior, porFechamento("won")),
+                  icone: Trophy,
+                  tom: "success" as const,
+                  serie: serieGanhos,
                 },
                 {
                   label: "Total perdidos",
                   value: lostInPeriod.length,
                   sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(lostInPeriod, lostPrior, porFechamento("lost")),
+                  icone: XCircle,
+                  tom: "danger" as const,
+                  serie: seriePerdidos,
                 },
                 {
                   label: "Total em aberto",
                   value: openInPeriod.length,
                   sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(openInPeriod, openPrior, porEntrada),
+                  icone: Clock,
+                  tom: "amber" as const,
+                  serie: serieAbertos,
                 },
               ];
             })().map(c => (
@@ -591,6 +631,9 @@ export default function DashboardPage() {
                 value={c.value}
                 sub={c.sub}
                 variacao={c.delta}
+                icone={c.icone}
+                tom={c.tom}
+                serie={c.serie}
                 // Nos cartões de negócio o dinheiro é a resposta e a contagem é
                 // o detalhe, então o valor sobe para o destaque e o número desce.
                 destaqueNoSub
@@ -607,36 +650,59 @@ export default function DashboardPage() {
           <div className="bg-card border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
+              {/* Legenda derivada de AREAS_NEGOCIOS: cor e nome vêm da mesma
+                  fonte que pinta a curva, então não há como divergirem. */}
               <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
+                {AREAS_NEGOCIOS.map(a => (
+                  <span key={a.chave} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: a.cor }} />
+                    {a.nome}
+                  </span>
+                ))}
               </div>
             </div>
             {monthlyData.length === 0 ? (
               <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={230}>
-                <LineChart data={monthlyData}>
+              <ResponsiveContainer width="100%" height={260}>
+                {/* Área no lugar de linha: o preenchimento dá volume ao período e
+                    é o que separa visualmente "novos" das outras duas séries, que
+                    são recortes dentro dele.
+
+                    As sombras (feDropShadow) que existiam aqui saíram: com o
+                    degradê embaixo da curva elas viravam borrão, e cada filtro
+                    custa um passe de rasterização por série. */}
+                <AreaChart data={monthlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <defs>
-                    <filter id="m-shadow-novos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#128A68" floodOpacity="0.20" />
-                    </filter>
-                    <filter id="m-shadow-ganhos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#10B981" floodOpacity="0.20" />
-                    </filter>
-                    <filter id="m-shadow-perdidos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#EF4444" floodOpacity="0.20" />
-                    </filter>
+                    {AREAS_NEGOCIOS.map(a => (
+                      <linearGradient key={a.id} id={a.id} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
+                        <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="0" stroke="hsl(var(--card-border))" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  {/* Grade pontilhada e só horizontal: linha vertical em série
+                      temporal não ajuda a ler valor, só polui. */}
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-novos)" }} animationEasing="ease-out" animationDuration={800} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-ganhos)" }} animationEasing="ease-out" animationDuration={800} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#m-shadow-perdidos)" }} animationEasing="ease-out" animationDuration={800} />
-                </LineChart>
+                  {AREAS_NEGOCIOS.map(a => (
+                    <Area
+                      key={a.chave}
+                      type="monotone"
+                      dataKey={a.chave}
+                      name={a.nome}
+                      stroke={a.cor}
+                      strokeWidth={2}
+                      fill={`url(#${a.id})`}
+                      dot={false}
+                      activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                      animationEasing="ease-out"
+                      animationDuration={800}
+                    />
+                  ))}
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -645,36 +711,53 @@ export default function DashboardPage() {
           <div className="bg-card border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
+              {/* Legenda derivada de AREAS_NEGOCIOS: cor e nome vêm da mesma
+                  fonte que pinta a curva, então não há como divergirem. */}
               <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#128A68" }} />Novos</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#10B981" }} />Ganhos</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: "#EF4444" }} />Perdidos</span>
+                {AREAS_NEGOCIOS.map(a => (
+                  <span key={a.chave} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: a.cor }} />
+                    {a.nome}
+                  </span>
+                ))}
               </div>
             </div>
             {hourlyData.length === 0 ? (
               <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={230}>
-                <LineChart data={hourlyData}>
+              <ResponsiveContainer width="100%" height={260}>
+                {/* Mesmo tratamento do gráfico mensal. Os gradientes têm ids
+                    próprios (sufixo -h): dois <linearGradient> com o mesmo id na
+                    página fazem o segundo herdar o primeiro. */}
+                <AreaChart data={hourlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <defs>
-                    <filter id="h-shadow-novos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#128A68" floodOpacity="0.20" />
-                    </filter>
-                    <filter id="h-shadow-ganhos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#10B981" floodOpacity="0.20" />
-                    </filter>
-                    <filter id="h-shadow-perdidos" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#EF4444" floodOpacity="0.20" />
-                    </filter>
+                    {AREAS_NEGOCIOS.map(a => (
+                      <linearGradient key={a.id} id={`${a.id}-h`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
+                        <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="0" stroke="hsl(var(--card-border))" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                   <Tooltip contentStyle={tooltip} />
-                  <Line type="monotone" dataKey="novos" name="Novos" stroke="#128A68" strokeWidth={1.5} dot={{ r: 1.5, fill: "#128A68" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-novos)" }} animationEasing="ease-out" animationDuration={800} />
-                  <Line type="monotone" dataKey="ganhos" name="Ganhos" stroke="#10B981" strokeWidth={1.5} dot={{ r: 1.5, fill: "#10B981" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-ganhos)" }} animationEasing="ease-out" animationDuration={800} />
-                  <Line type="monotone" dataKey="perdidos" name="Perdidos" stroke="#EF4444" strokeWidth={1.5} dot={{ r: 1.5, fill: "#EF4444" }} activeDot={{ r: 5 }} style={{ filter: "url(#h-shadow-perdidos)" }} animationEasing="ease-out" animationDuration={800} />
-                </LineChart>
+                  {AREAS_NEGOCIOS.map(a => (
+                    <Area
+                      key={a.chave}
+                      type="monotone"
+                      dataKey={a.chave}
+                      name={a.nome}
+                      stroke={a.cor}
+                      strokeWidth={2}
+                      fill={`url(#${a.id}-h)`}
+                      dot={false}
+                      activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                      animationEasing="ease-out"
+                      animationDuration={800}
+                    />
+                  ))}
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
