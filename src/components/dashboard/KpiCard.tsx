@@ -73,14 +73,14 @@ function Sparkline({ serie, cor, id }: { serie: number[]; cor: string; id: strin
   const dados = serie.map((v, i) => ({ i, v }));
   return (
     // O cartão tem p-5 (20px). Na horizontal o -mx-5 anula o padding inteiro e
-    // o gráfico sangra de ponta a ponta. Embaixo o recuo é de 15px, e não 20,
-    // justamente para sobrar 5px entre a curva e a borda inferior do cartão.
+    // o gráfico sangra de ponta a ponta. Embaixo o recuo é de 5px, e não 20,
+    // justamente para sobrar 15px entre a curva e a borda inferior do cartão.
     // Se o padding do cartão mudar, os dois números mudam junto.
-    <div className="h-11 -mx-5 -mb-[15px] mt-3">
+    <div className="h-11 -mx-5 -mb-[5px] mt-3">
       <ResponsiveContainer width="100%" height="100%">
-        {/* bottom: 0 aqui de propósito. O respiro de 5px até a borda vem do
-            recuo do contêiner acima; somar os dois daria 8px e o número
-            deixaria de bater com o que foi pedido. */}
+        {/* bottom: 0 aqui de propósito. O respiro de 15px até a borda vem do
+            recuo do contêiner acima; somar os dois deixaria o número maior do
+            que o pedido, e sem nenhum lugar óbvio para conferir de onde veio. */}
         <AreaChart data={dados} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
