@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList, ReferenceLine,
+  ResponsiveContainer, Cell,
 } from "recharts";
 import {
   TrendingUp, Users, CheckCircle, Clock, Trophy,
@@ -1139,19 +1139,18 @@ export default function DashboardPage() {
         <TabsContent value="atividades" className="space-y-4 mt-0">
           {/* Mini KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Terceiro conjunto de cartões que estava escrito à mão (Funil e
+                Times eram os outros). Aqui o ícone ficava à esquerda do rótulo,
+                não no quadrado tingido, e "Ligações" usava text-foreground, uma
+                cor que nenhum outro cartão do dashboard usa. Passa a sair do
+                mesmo componente. */}
             {[
-              { label: "Total no período", value: activityStats.total, icon: MessageSquare, color: "text-primary" },
-              { label: "Reuniões realizadas", value: activityStats.completedMeetings, icon: CheckCircle, color: "text-success" },
-              { label: "Ligações", value: activityStats.calls, icon: Phone, color: "text-foreground" },
-              { label: "E-mails", value: activityStats.emails, icon: Mail, color: "text-primary" },
+              { label: "Total no período",    value: activityStats.total,             icone: MessageSquare, tom: "primary" as const },
+              { label: "Reuniões realizadas", value: activityStats.completedMeetings, icone: CheckCircle,   tom: "success" as const },
+              { label: "Ligações",            value: activityStats.calls,             icone: Phone,         tom: "amber" as const },
+              { label: "E-mails",             value: activityStats.emails,            icone: Mail,          tom: "primary" as const },
             ].map(c => (
-              <div key={c.label} className="bg-card border border-gray-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <c.icon size={15} className={c.color} />
-                  <span className="text-xs text-muted-foreground">{c.label}</span>
-                </div>
-                <p className="text-2xl font-bold text-foreground">{c.value}</p>
-              </div>
+              <KpiCard key={c.label} label={c.label} value={c.value} icone={c.icone} tom={c.tom} />
             ))}
           </div>
 
