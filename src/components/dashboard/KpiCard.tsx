@@ -179,8 +179,12 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
         </div>
         {/* O dinheiro no lugar de destaque. `tabular-nums` porque são valores
             lidos em coluna: sem ele os dígitos dançam de largura entre um
-            cartão e outro e a linha perde o alinhamento. */}
-        <p className="text-[26px] leading-none font-bold tabular-nums text-foreground">
+            cartão e outro e a linha perde o alinhamento.
+
+            Mesmo text-2xl da variante padrão logo abaixo: os dois modos do
+            cartão mostram um número de destaque, e tamanhos diferentes ali não
+            significavam nada. */}
+        <p className="text-2xl leading-none font-bold tabular-nums text-foreground">
           {sub ?? "—"}
         </p>
         {/* Variação e contagem na mesma linha, com a seta colada no percentual
