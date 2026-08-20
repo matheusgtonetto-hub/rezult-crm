@@ -138,18 +138,33 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       ? "Comparado com a primeira metade do período (não há período anterior)"
       : "Comparado com o período anterior";
 
+  /**
+   * Escala da linha de apoio (seta, variação e texto secundário).
+   *
+   * Muda com o modo porque a vizinhança muda. No modo padrão o badge fica
+   * colado no número grande e cresceria disputando com ele; no `destaqueNoSub`
+   * ele desce para uma linha própria, onde pode acompanhar a contagem.
+   *
+   * Os três num objeto só, e não em constantes soltas, porque são lidos juntos
+   * na mesma linha: é a relação entre eles que decide se a linha fica
+   * equilibrada, e separá-los deixaria isso invisível na hora de editar.
+   */
+  const ESCALA = destaqueNoSub
+    ? { badge: "text-[12px]", apoio: "text-[14px]", seta: 16 }
+    : { badge: "text-[11px]", apoio: "text-[12px]", seta: 15 };
+
   // Sem pastilha de fundo: só o texto colorido. A cor já diz alta ou queda, e o
   // fundo somava uma segunda camada de sinal para a mesma informação, num cartão
   // que já tem seta, ícone tingido e sparkline.
   const badge = v && (
     v.tipo === "pct" ? (
-      <span title={explicacao} className={`text-[11px] font-semibold ${v.valor >= 0 ? "text-success" : "text-destructive"}`}>
+      <span title={explicacao} className={`${ESCALA.badge} font-semibold ${v.valor >= 0 ? "text-success" : "text-destructive"}`}>
         {v.valor >= 0 ? "+" : ""}{v.valor.toFixed(1)}%
       </span>
     ) : v.tipo === "novo" ? (
       // Sair de zero é alta, mas não tem percentual: dividir por zero não dá
       // número. "novo" diz o que aconteceu sem inventar uma conta.
-      <span title={explicacao} className="text-[11px] font-semibold text-success">novo</span>
+      <span title={explicacao} className={`${ESCALA.badge} font-semibold text-success`}>novo</span>
     ) : null
   );
 
@@ -158,10 +173,10 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
   const tendencia = !v ? null : (
     <span title={explicacao} className="flex items-center">
       {v.tipo === "estavel"
-        ? <Minus size={15} className="text-muted-foreground" />
+        ? <Minus size={ESCALA.seta} className="text-muted-foreground" />
         : v.tipo === "novo" || v.valor >= 0
-          ? <TrendingUp size={15} className="text-success" />
-          : <TrendingDown size={15} className="text-destructive" />}
+          ? <TrendingUp size={ESCALA.seta} className="text-success" />
+          : <TrendingDown size={ESCALA.seta} className="text-destructive" />}
     </span>
   );
 
@@ -170,11 +185,18 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
         {/* Rótulo e ícone dividem a primeira linha. O ícone à direita dá âncora
             visual ao cartão sem competir com o número, que continua sendo a
-            informação principal. */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          {/* Rótulo em cinza, não em preto: quem manda no cartão é o número
-              logo abaixo, e dois pesos fortes na sequência anulam a hierarquia. */}
-          <span className="text-[13px] text-muted-foreground font-medium">{label}</span>
+            informação principal.
+
+            `items-center`, e não `items-start` como no modo padrão: o quadrado
+            do ícone tem 36px e a caixa de linha do rótulo tem 21px, então
+            alinhar pelo topo deixava o texto uns 7px acima do centro do ícone.
+            Os quatro rótulos daqui são curtos e nunca quebram em duas linhas,
+            que é o caso em que alinhar pelo topo seria o certo. */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          {/* Rótulo em preto. A hierarquia contra o número logo abaixo fica por
+              conta do corpo (14 contra 24) e do peso (500 contra 700), sem
+              precisar rebaixar a cor também. */}
+          <span className="text-[14px] text-foreground font-medium">{label}</span>
           {chipDoIcone}
         </div>
         {/* O dinheiro no lugar de destaque. `tabular-nums` porque são valores
@@ -193,7 +215,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {tendencia}
           {badge}
-          <span className="text-[12px] text-muted-foreground">
+          <span className={`${ESCALA.apoio} text-muted-foreground`}>
             {/* O `tabular-nums` fica só no número: aplicá-lo à palavra abriria
                 as letras sem motivo. */}
             <span className="tabular-nums">{value}</span>
@@ -223,7 +245,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       {(sub || deltaPct !== undefined) && (
         <div className="flex items-center justify-between mt-2">
           {sub
-            ? <p className="text-[12px] text-muted-foreground">{sub}</p>
+            ? <p className={`${ESCALA.apoio} text-muted-foreground`}>{sub}</p>
             : <span />
           }
           {tendencia}
