@@ -1,9 +1,7 @@
 import { useMemo } from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
 import type { Lead } from "@/data/mockData";
-import { fmt, tooltip } from "./useDashboardHelpers";
+import { fmt } from "./useDashboardHelpers";
+import { DonutDistribuicao } from "./DonutDistribuicao";
 
 const ORIGIN_COLORS: Record<string, string> = {
   "Instagram": "#E1306C",
@@ -46,20 +44,22 @@ export function OriginPanel({ periodLeads }: OriginPanelProps) {
         <p className="text-xs text-muted-foreground">Sem dados no período.</p>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={180}>
-            {/* Barras deitadas, então a grade útil é a vertical: ela marca a
-                escala que as barras percorrem. É o espelho do que os outros
-                gráficos fazem com a grade horizontal. */}
-            <BarChart data={originData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" horizontal={false} />
-              <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-              <Tooltip contentStyle={tooltip} cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }} />
-              <Bar dataKey="count" name="Leads" radius={[0, 6, 6, 0]} maxBarSize={28}>
-                {originData.map((e, i) => <Cell key={i} fill={ORIGIN_COLORS[e.name] ?? "#128A68"} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {/* Rosquinha no lugar das barras deitadas: origem é repartição de um
+              todo ("de onde vieram os leads"), e a rosquinha mostra a proporção
+              de cada fatia sem o leitor ter que comparar comprimentos de barra.
+              O total no centro responde antes de tudo de quantos se fala.
+
+              As cores vêm de ORIGIN_COLORS, que é a cor da própria marca de cada
+              canal (rosa do Instagram, azul do Facebook). A paleta de reserva do
+              componente só entra para origens fora dessa lista. */}
+          <DonutDistribuicao
+            dados={originData.map(o => ({
+              nome: o.name,
+              valor: o.count,
+              cor: ORIGIN_COLORS[o.name],
+            }))}
+            rotuloCentro={periodLeads.length === 1 ? "lead" : "leads"}
+          />
 
           <div className="space-y-3 mt-4 pt-4 border-t border-card-border">
             <p className="text-xs font-medium text-muted-foreground">Conversão e receita por origem</p>

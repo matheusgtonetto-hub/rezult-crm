@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { DonutDistribuicao } from "@/components/dashboard/DonutDistribuicao";
 import { OriginPanel } from "@/components/dashboard/OriginPanel";
 import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel";
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
@@ -773,22 +774,14 @@ export default function DashboardPage() {
               {lossReasonData.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhum negócio perdido registrado.</p>
               ) : (
-                <div className="space-y-3 mt-1">
-                  {lossReasonData.map(r => {
-                    const p = lostInPeriod.length > 0 ? (r.value / lostInPeriod.length * 100).toFixed(0) : 0;
-                    return (
-                      <div key={r.name}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-foreground truncate max-w-[180px]">{r.name}</span>
-                          <span className="text-muted-foreground">{r.value} ({p}%)</span>
-                        </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-destructive rounded-full" style={{ width: `${p}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                // `total` explícito: lossReasonData é cortado no top 6, então
+                // somar as fatias daria menos que o total de perdidos e o número
+                // do centro mentiria sempre que houvesse um 7º motivo.
+                <DonutDistribuicao
+                  dados={lossReasonData.map(r => ({ nome: r.name, valor: r.value }))}
+                  rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
+                  total={lostInPeriod.length}
+                />
               )}
             </div>
           </div>
