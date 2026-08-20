@@ -1296,7 +1296,9 @@ export default function DashboardPage() {
                       },
                     ];
 
-                    const renderTick = (props: { x: number; y: number; payload?: { value: unknown }; index: number }) => {
+                    // x e y sao `number | string` desde o Recharts 3. Vao direto
+                    // para o translate() do SVG, que aceita os dois.
+                    const renderTick = (props: { x: number | string; y: number | string; payload?: { value?: unknown }; index: number }) => {
                       const { x, y, payload, index } = props;
                       const entry = chartData[index];
                       const countLabel = entry?.isGanhos ? pWon.length : (funnelData[index]?.count ?? 0);
@@ -1337,7 +1339,12 @@ export default function DashboardPage() {
                           data={chartData}
                           margin={{ bottom: 20 }}
                           onClick={e => {
-                            const id = e?.activePayload?.[0]?.payload?.stageId;
+                            // O Recharts 3 tirou activePayload do tipo do evento e
+                            // expoe activeIndex. Sai melhor: em vez de cavar
+                            // payload[0].payload, le direto a barra clicada em
+                            // chartData, que e a mesma fonte que alimenta o grafico.
+                            const i = Number(e?.activeIndex);
+                            const id = Number.isInteger(i) ? chartData[i]?.stageId : undefined;
                             if (id) setExpandedStage(prev => prev === id ? null : id);
                           }}
                           style={{ cursor: "pointer" }}
