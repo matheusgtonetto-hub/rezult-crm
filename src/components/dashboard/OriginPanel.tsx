@@ -47,13 +47,16 @@ export function OriginPanel({ periodLeads }: OriginPanelProps) {
       ) : (
         <>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={originData} layout="vertical">
+            {/* Barras deitadas, então a grade útil é a vertical: ela marca a
+                escala que as barras percorrem. É o espelho do que os outros
+                gráficos fazem com a grade horizontal. */}
+            <BarChart data={originData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" horizontal={false} />
-              <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} width={90} />
-              <Tooltip contentStyle={tooltip} />
-              <Bar dataKey="count" name="Leads" radius={[0, 4, 4, 0]}>
-                {originData.map((e, i) => <Cell key={i} fill={ORIGIN_COLORS[e.name] ?? "hsl(var(--primary))"} />)}
+              <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+              <Tooltip contentStyle={tooltip} cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }} />
+              <Bar dataKey="count" name="Leads" radius={[0, 6, 6, 0]} maxBarSize={28}>
+                {originData.map((e, i) => <Cell key={i} fill={ORIGIN_COLORS[e.name] ?? "#128A68"} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

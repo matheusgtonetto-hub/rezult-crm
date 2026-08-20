@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList, ReferenceLine,
 } from "recharts";
 import {
-  TrendingUp, Users, CheckCircle, DollarSign, Clock, Trophy,
+  TrendingUp, Users, CheckCircle, Clock, Trophy,
   MessageSquare, ArrowDown, Calendar, Phone, Mail, AlertTriangle,
   Activity as ActivityIcon, ChevronDown, ChevronRight, Briefcase, XCircle,
 } from "lucide-react";
@@ -843,13 +843,17 @@ export default function DashboardPage() {
               const totalLost = agentPerformance.reduce((s, a) => s + a.lost, 0);
               const totalRev = agentPerformance.reduce((s, a) => s + a.totalValue, 0);
               const closed = totalWon + totalLost;
+              // Sem sparkline aqui de propósito: são métricas de retrato, tiradas
+              // do período inteiro de uma vez. Não existe série mês a mês de
+              // "atendentes ativos" ou de "conversão do time" para desenhar, e
+              // inventar uma seria decorar o cartão com um dado que não existe.
               return [
-                { label: "Atendentes ativos", value: String(totalAgents) },
-                { label: "Vendas no período", value: String(totalWon) },
-                { label: "Perdidos no período", value: String(totalLost) },
-                { label: "Conversão do time", value: closed > 0 ? `${(totalWon / closed * 100).toFixed(1)}%` : "—" },
+                { label: "Atendentes ativos",   value: String(totalAgents), icone: Users,      tom: "primary" as const },
+                { label: "Vendas no período",   value: String(totalWon),    icone: Trophy,     tom: "success" as const },
+                { label: "Perdidos no período", value: String(totalLost),   icone: XCircle,    tom: "danger" as const },
+                { label: "Conversão do time",   value: closed > 0 ? `${(totalWon / closed * 100).toFixed(1)}%` : "—", icone: TrendingUp, tom: "amber" as const },
               ].map(k => (
-                <KpiCard key={k.label} label={k.label} value={k.value} />
+                <KpiCard key={k.label} label={k.label} value={k.value} icone={k.icone} tom={k.tom} />
               ));
             })()}
           </div>
@@ -1157,13 +1161,15 @@ export default function DashboardPage() {
             {activityStats.byType.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={activityStats.byType}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
-                  <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltip} />
-                  <Bar dataKey="count" name="Atividades" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={activityStats.byType} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  {/* Grade só horizontal, como nos gráficos de área: em barra a
+                      linha vertical duplica a própria barra. */}
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
+                  <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} dy={4} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
+                  <Tooltip contentStyle={tooltip} cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }} />
+                  <Bar dataKey="count" name="Atividades" fill="#128A68" radius={[6, 6, 0, 0]} maxBarSize={44} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -1314,48 +1320,26 @@ export default function DashboardPage() {
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-muted-foreground font-medium">Total de negócios</span>
-                      <DollarSign size={15} className="text-primary" />
-                    </div>
-                    <p className="text-2xl leading-none font-bold text-foreground">{pLeads.length}</p>
-                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLeads.reduce((s, l) => s + l.value, 0))}</p>
-                  </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-muted-foreground font-medium">Total em vendas</span>
-                      <Trophy size={15} className="text-success" />
-                    </div>
-                    <p className="text-2xl leading-none font-bold text-foreground">{pWon.length}</p>
-                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pWon.reduce((s, l) => s + l.value, 0))}</p>
-                  </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-muted-foreground font-medium">Total perdidos</span>
-                      <TrendingUp size={15} className="text-destructive" />
-                    </div>
-                    <p className="text-2xl leading-none font-bold text-foreground">{pLost.length}</p>
-                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pLost.reduce((s, l) => s + l.value, 0))}</p>
-                  </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-muted-foreground font-medium">Total em aberto</span>
-                      <Clock size={15} className="text-primary" />
-                    </div>
-                    <p className="text-2xl leading-none font-bold text-foreground">{pOpen.length}</p>
-                    <p className="text-[12px] text-muted-foreground mt-2">{fmt(pOpen.reduce((s, l) => s + l.value, 0))}</p>
-                  </div>
-                  <div className="bg-card rounded-xl p-4" style={{ border: "1px solid hsl(var(--card-border))" }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] text-muted-foreground font-medium">Conversão do funil</span>
-                      <TrendingUp size={15} className="text-success" />
-                    </div>
-                    <p className="text-2xl leading-none font-bold text-foreground">
-                      {firstCount > 0 ? `${((pWon.length / firstCount) * 100).toFixed(1)}%` : "—"}
-                    </p>
-                    <p className="text-[12px] text-muted-foreground mt-2">{pWon.length} ganhos de {firstCount} MQL</p>
-                  </div>
+                  {/* Mesmos cartões da aba Negócios, agora pelo componente e não
+                      escritos à mão: eram cinco blocos duplicados que já tinham
+                      divergido no visual (ícone solto contra ícone em quadrado
+                      tingido) e na escolha de cor.
+
+                      A hierarquia de cada aba fica como estava: aqui a contagem é
+                      o número grande e o dinheiro é o detalhe, o inverso de
+                      Negócios. Isso é decisão de conteúdo, não de estilo, então
+                      não mexo nela junto com o acerto visual. */}
+                  <KpiCard label="Total de negócios" value={pLeads.length} sub={fmt(pLeads.reduce((s, l) => s + l.value, 0))} icone={Briefcase} tom="primary" />
+                  <KpiCard label="Total em vendas"   value={pWon.length}   sub={fmt(pWon.reduce((s, l) => s + l.value, 0))}   icone={Trophy}    tom="success" />
+                  <KpiCard label="Total perdidos"    value={pLost.length}  sub={fmt(pLost.reduce((s, l) => s + l.value, 0))}  icone={XCircle}   tom="danger" />
+                  <KpiCard label="Total em aberto"   value={pOpen.length}  sub={fmt(pOpen.reduce((s, l) => s + l.value, 0))}  icone={Clock}     tom="amber" />
+                  <KpiCard
+                    label="Conversão do funil"
+                    value={firstCount > 0 ? `${((pWon.length / firstCount) * 100).toFixed(1)}%` : "—"}
+                    sub={`${pWon.length} ganhos de ${firstCount} MQL`}
+                    icone={TrendingUp}
+                    tom="success"
+                  />
                 </div>
 
                 <div className="bg-card border border-gray-200 rounded-xl p-6">
@@ -1432,14 +1416,15 @@ export default function DashboardPage() {
                           }}
                           style={{ cursor: "pointer" }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
                           <XAxis dataKey="name" tick={renderTick} axisLine={false} tickLine={false} height={48} />
-                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                           <Tooltip
                             contentStyle={tooltip}
+                            cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
                             formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Leads"]}
                           />
-                          <Bar dataKey="leads" radius={[4, 4, 0, 0]}>
+                          <Bar dataKey="leads" radius={[6, 6, 0, 0]} maxBarSize={56}>
                             {chartData.map((entry, i) => (
                               <Cell
                                 key={i}
