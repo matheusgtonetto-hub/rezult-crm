@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCRM } from "@/context/CRMContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ListaOpcoes } from "@/components/filtros/ListaOpcoes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronRight, SlidersHorizontal, Tag, GitBranch, CalendarDays, Radio, UserCheck } from "lucide-react";
@@ -80,13 +81,14 @@ export function LeadsFilterMenu({
   const [aberto, setAberto] = useState(false);
   const [criterioAberto, setCriterioAberto] = useState<Criterio["chave"] | null>(null);
   const [rascunho, setRascunho] = useState<LeadFilter>(valor);
-  const [buscaTag, setBuscaTag] = useState("");
 
   // Reabrir com o que está valendo, e não com o rascunho abandonado da vez
   // passada: quem fecha sem aplicar está desistindo, e o menu tem que refletir
   // a lista que a pessoa está vendo.
   useEffect(() => {
-    if (aberto) { setRascunho(valor); setCriterioAberto(null); setBuscaTag(""); }
+    // A busca de tags não é zerada aqui porque agora ela mora dentro da
+    // ListaOpcoes, que remonta a cada abertura do critério e já nasce vazia.
+    if (aberto) { setRascunho(valor); setCriterioAberto(null); }
   }, [aberto, valor]);
 
   const totalAplicado = useMemo(
@@ -102,7 +104,6 @@ export function LeadsFilterMenu({
   const pipelineUnico = rascunho.pipelines?.length === 1 ? rascunho.pipelines[0] : null;
   const etapas = pipelineUnico ? (pipelines.find(p => p.id === pipelineUnico)?.columns ?? []) : [];
 
-  const tagsVisiveis = crmTags.filter(t => t.name.toLowerCase().includes(buscaTag.trim().toLowerCase()));
 
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
@@ -207,42 +208,27 @@ export function LeadsFilterMenu({
                     <option value="none">não contém</option>
                   </select>
                 </div>
-                <Input
-                  placeholder="Pesquisar..."
-                  value={buscaTag}
-                  onChange={e => setBuscaTag(e.target.value)}
-                  className="h-8 text-xs"
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  {tagsVisiveis.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-1">Nenhuma tag encontrada.</p>
-                  ) : tagsVisiveis.map(t => {
-                    // NOME, não id: `leads.tags` guarda o rótulo em texto
-                    // ("Meta ads"), e é isso que `leadMatchesFilter` compara.
-                    // Marcando o id, nenhum lead casava e o filtro devolvia
-                    // lista vazia -- foi o que aconteceu aqui. O painel do
-                    // disparo já fazia certo; esta tela é que divergiu.
-                    const marcada = rascunho.tags?.ids.includes(t.name) ?? false;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setRascunho(f => {
-                          const ids = alternar(f.tags?.ids, t.name) ?? [];
-                          return { ...f, tags: ids.length ? { mode: f.tags?.mode ?? "any", ids } : undefined };
-                        })}
-                        className="text-xs rounded-full px-2 py-0.5 border transition-colors"
-                        style={{
-                          background: marcada ? (t.color ?? "#128A68") : "transparent",
-                          borderColor: t.color ?? "#128A68",
-                          color: marcada ? "#FFF" : (t.color ?? "#128A68"),
-                        }}
-                      >
-                        {t.name}
-                      </button>
-                    );
+                {/* Lista, e não nuvem de chips. Com rótulos de larguras
+                    diferentes, cada linha quebrava num ponto distinto e nomes
+                    longos ("Agente: Consultório Samantha Oliveira") tomavam uma
+                    faixa inteira; achar uma tag virava varredura em zigue-zague.
+                    Em coluna, o marcador alinha tudo no mesmo x e conferir o que
+                    está marcado é correr o olho por uma coluna só.
+
+                    Valor = NOME, e não id: `leads.tags` guarda o rótulo em texto
+                    ("Meta ads"), e é isso que `leadMatchesFilter` compara. */}
+                <ListaOpcoes
+                  opcoes={crmTags.map(t => ({ valor: t.name, rotulo: t.name, cor: t.color }))}
+                  selecionados={rascunho.tags?.ids}
+                  onAlternar={nome => setRascunho(f => {
+                    const ids = alternar(f.tags?.ids, nome) ?? [];
+                    // Sem tag marcada, o critério inteiro sai do filtro: um
+                    // `tags` com lista vazia continuaria contando como filtro
+                    // ativo e a lista nunca voltaria ao normal.
+                    return { ...f, tags: ids.length ? { mode: f.tags?.mode ?? "any", ids } : undefined };
                   })}
-                </div>
+                  vazio="Nenhuma tag."
+                />
               </div>
             )}
 

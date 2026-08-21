@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LeadFilterPanel } from "./LeadFilterPanel";
+import { useSelecaoPorFiltro } from "./useSelecaoPorFiltro";
 import {
-  fetchLeadManualAutomations, createDisparo, filterLeads, RHYTHMS,
+  fetchLeadManualAutomations, createDisparo, filterLeads, isFilterEmpty, RHYTHMS,
   type AutomationOption, type LeadFilter, type DisparoRhythm,
 } from "@/data/disparos";
 import { Workflow, Search, Check, CheckCircle2 } from "lucide-react";
@@ -67,8 +68,6 @@ export function CreateDisparoWizard({
     // wizard começa sem restrição, como sempre começou.
     setFilter(leadsPreSelecionados?.length ? { ids: leadsPreSelecionados } : {});
     setTitle(""); setDescription(""); setRhythm("normal"); setScheduleOn(false); setScheduledAt(""); setConfirmFilters(false);
-    // Sem exceções ao abrir: o padrão é levar todos que casarem com o filtro.
-    setDesmarcados(new Set());
     if (company) fetchLeadManualAutomations(company.id).then(setAutomations).catch(() => setAutomations([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, company?.id, leadsPreSelecionados]);
@@ -79,21 +78,16 @@ export function CreateDisparoWizard({
   const selectedAutomation = automations.find(a => a.id === automationId);
 
   /**
-   * Leads tirados da mão, dentro do que o filtro trouxe.
+   * Quem vai receber. Sem filtro nada vem marcado; com filtro vem tudo dele.
    *
-   * Guardo as EXCEÇÕES e não os escolhidos porque o padrão é "todos que casam
-   * com o filtro" -- era assim que o disparo funcionava antes de existir
-   * checkbox, e continua sendo o caso comum. Guardar os escolhidos obrigaria a
-   * remarcar tudo a cada mudança de filtro; guardando as exceções, mexer no
-   * filtro preserva o que a pessoa já tinha decidido tirar.
+   * `matched` sai de `allLeads`, que é a base inteira e não a lista da tela de
+   * leads: o filtro daquela tela responde "o que estou olhando", e este responde
+   * "para quem vai sair mensagem". Herdar um no outro faria o disparo mudar de
+   * alcance conforme a tela em que a pessoa estava.
    */
-  const [desmarcados, setDesmarcados] = useState<Set<string>>(new Set());
-  const selecionados = useMemo(() => matched.filter(l => !desmarcados.has(l.id)), [matched, desmarcados]);
-  const alternarLead = (id: string) => setDesmarcados(prev => {
-    const n = new Set(prev);
-    if (n.has(id)) n.delete(id); else n.add(id);
-    return n;
-  });
+  const filtroVazio = isFilterEmpty(effFilter);
+  const { selecionados, marcado, alternar: alternarLead, todosMarcados, alternarTodos } =
+    useSelecaoPorFiltro(matched, filtroVazio, open);
 
   const canNext =
     (step === 1 && type) || (step === 2 && automationId) || (step === 3 && selecionados.length > 0) || step === 4;
@@ -116,7 +110,12 @@ export function CreateDisparoWizard({
         // `filters` é o registro de COMO o disparo foi montado: guardar só os
         // critérios, depois de alguém tirar gente na mão, deixaria o registro
         // dizendo uma coisa e a execução fazendo outra.
-        filters: desmarcados.size > 0 ? { ...filter, ids: selecionados.map(l => l.id) } : filter,
+        // Grava os ids sempre que a seleção não for exatamente o que o filtro
+        // trouxe -- e isso inclui o caso SEM filtro, onde a escolha é toda
+        // manual e o critério sozinho não descreve ninguém.
+        filters: selecionados.length !== matched.length || filtroVazio
+          ? { ...filter, ids: selecionados.map(l => l.id) }
+          : filter,
         scheduledAt: scheduleOn && scheduledAt ? new Date(scheduledAt).toISOString() : null,
         confirmFilters,
         leads: selecionados.map(l => ({ id: l.id, name: l.name, phone: l.whatsapp ?? "" })),
@@ -258,21 +257,15 @@ export function CreateDisparoWizard({
                       <button
                         type="button"
                         className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                        onClick={() => setDesmarcados(
-                          // Alterna entre "todos" e "nenhum" DENTRO do filtro
-                          // atual: quem está fora do filtro não é assunto deste
-                          // botão, e desmarcar quem nem está na lista
-                          // confundiria a contagem.
-                          selecionados.length === matched.length ? new Set(matched.map(l => l.id)) : new Set(),
-                        )}
+                        onClick={alternarTodos}
                       >
-                        {selecionados.length === matched.length ? "Desmarcar todos" : "Marcar todos"}
+                        {todosMarcados ? "Desmarcar todos" : "Marcar todos"}
                       </button>
                     )}
                   </div>
                   <div className="space-y-1.5">
                     {matched.slice(0, 60).map(l => {
-                      const marcado = !desmarcados.has(l.id);
+                      const marcadoAqui = marcado(l.id);
                       return (
                         <button
                           key={l.id}
@@ -281,8 +274,8 @@ export function CreateDisparoWizard({
                           className="flex items-center gap-3 p-2.5 rounded-lg border border-border w-full text-left hover:bg-secondary/40 transition-colors"
                         >
                           <div className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
-                               style={{ borderColor: marcado ? "hsl(var(--primary))" : "#CBD5E1", background: marcado ? "hsl(var(--primary))" : "transparent" }}>
-                            {marcado && <Check size={11} color="#fff" />}
+                               style={{ borderColor: marcadoAqui ? "hsl(var(--primary))" : "#CBD5E1", background: marcadoAqui ? "hsl(var(--primary))" : "transparent" }}>
+                            {marcadoAqui && <Check size={11} color="#fff" />}
                           </div>
                           <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
                             {l.name.slice(0, 1).toUpperCase()}
