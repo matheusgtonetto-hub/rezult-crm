@@ -130,6 +130,9 @@ export function AppSidebar() {
   }
   const notifCount = notifications.length + dbNotifs.length;
 
+  // A ordem daqui é a ordem na tela. Cada entrada carrega a própria permissão,
+  // então mover uma linha muda só a posição do ícone: quem não tem acesso
+  // continua sem ver, e os itens ausentes fecham o vão sozinhos.
   const navItems: NavItem[] = [
     ...(canAny("dashboard:admin", "dashboard:member")
       ? [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
@@ -137,15 +140,28 @@ export function AppSidebar() {
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/leads", label: "Leads", icon: UserRound }] : []),
-    { to: "/calendario",       label: "Calendário",       icon: CalendarDays },
-    ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
-    ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
+    ...(canAny("automacoes:admin", "automacoes:member")
+      ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
+    ...(canAny("automacoes:admin", "automacoes:member")
+      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
     { to: "/agentes", label: "Agentes", icon: BotMessageSquare },
   ];
+
+  /**
+   * Calendário: mora no rodapé, logo acima das notificações.
+   *
+   * Fora do `navItems` porque a barra separa dois grupos com um traço: em cima,
+   * as telas onde se trabalha o funil; embaixo, o que acompanha o dia. Agenda e
+   * notificações respondem à mesma pergunta ("o que me espera agora"), e é ali
+   * que o olho vai procurar as duas.
+   *
+   * Continua passando pelo `renderNav`, e não escrito à mão: assim herda o
+   * realce de rota ativa, o tooltip e os estados de hover sem uma segunda cópia
+   * das mesmas regras para divergir depois.
+   */
+  const itemCalendario: NavItem = { to: "/calendario", label: "Calendário", icon: CalendarDays };
 
   const itemBase =
     "flex items-center justify-center rounded-[15px] transition-colors duration-200 relative shrink-0";
@@ -241,7 +257,20 @@ export function AppSidebar() {
           top: 0,
           left: 0,
           bottom: 0,
-          zIndex: 100,
+          /**
+           * 30, e não 100.
+           *
+           * A barra nunca precisou cobrir a página: o <main> já começa depois
+           * dos 52px dela (`marginLeft: 52`), então não há sobreposição. O 100
+           * só tinha efeito contra a única coisa que passa por cima dela, a
+           * cortina dos diálogos, que é z-50 -- e o resultado era a barra ficar
+           * acesa enquanto o resto da tela escurecia.
+           *
+           * Abaixo de 50 ela volta a escurecer junto. Os menus dela (empresa,
+           * notificações, ajuda, usuário) são portais do Radix, então continuam
+           * por cima mesmo com a barra mais baixa.
+           */
+          zIndex: 30,
           overflow: "hidden",
           background: SIDEBAR_BG,
           paddingTop: 12,
@@ -361,26 +390,39 @@ export function AppSidebar() {
           }}
         />
         <div className="flex flex-col items-center" style={{ gap: 4 }}>
+          {renderNav(itemCalendario)}
           <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className={`${itemBase} relative`}
-                style={{ ...itemSize, color: notifOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: notifOpen ? HOVER_BG : "transparent" }}
-                onMouseEnter={(e) => { if (!notifOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
-                onMouseLeave={(e) => { if (!notifOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
-                aria-label="Notificações"
-              >
-                <Bell size={18} strokeWidth={1.75} />
-                {notifCount > 0 && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full font-bold leading-none"
-                    style={{ width: 14, height: 14, fontSize: 8, background: "#EF4444", color: "#fff" }}
+            {/* Tooltip por fora do PopoverTrigger, os dois com `asChild`: cada um
+                mescla os próprios handlers no mesmo <button>, então o ícone
+                continua abrindo o painel e passa a anunciar o nome como os
+                itens de navegação. Numa barra só de ícones, o nome é a única
+                coisa que diz o que aquele desenho faz. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button
+                    className={`${itemBase} relative`}
+                    style={{ ...itemSize, color: notifOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: notifOpen ? HOVER_BG : "transparent" }}
+                    onMouseEnter={(e) => { if (!notifOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
+                    onMouseLeave={(e) => { if (!notifOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
+                    aria-label="Notificações"
                   >
-                    {notifCount}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
+                    <Bell size={18} strokeWidth={1.75} />
+                    {notifCount > 0 && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full font-bold leading-none"
+                        style={{ width: 14, height: 14, fontSize: 8, background: "#EF4444", color: "#fff" }}
+                      >
+                        {notifCount}
+                      </span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
+                Notificações
+              </TooltipContent>
+            </Tooltip>
             <PopoverContent
               side="right"
               align="end"
@@ -434,17 +476,24 @@ export function AppSidebar() {
           </Popover>
 
           <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className={itemBase}
-                style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
-                onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
-                onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
-                aria-label="Ajuda"
-              >
-                <Info size={18} strokeWidth={1.75} />
-              </button>
-            </PopoverTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button
+                    className={itemBase}
+                    style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
+                    onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
+                    onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
+                    aria-label="Ajuda"
+                  >
+                    <Info size={18} strokeWidth={1.75} />
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
+                Ajuda
+              </TooltipContent>
+            </Tooltip>
             <PopoverContent
               side="right"
               align="end"
