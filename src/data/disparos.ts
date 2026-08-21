@@ -45,6 +45,18 @@ export interface LeadFilter {
   movedTo?: string;
   // Motivo de perda (lossReasonId)
   lossReasons?: string[];
+  /**
+   * Data em que o negócio foi ganho ou perdido.
+   *
+   * Não existe como coluna: o desfecho fica registrado como uma ATIVIDADE do
+   * tipo "won"/"lost", e a data dela é a data do fechamento. É a mesma fonte
+   * que o dashboard usa para as séries de ganhos e perdidas, então os dois
+   * contam a mesma história.
+   *
+   * Implica o desfecho: um negócio em aberto não tem essa data e nunca casa.
+   */
+  closedFrom?: string;
+  closedTo?: string;
 }
 
 export interface Disparo {
@@ -154,6 +166,15 @@ export function leadMatchesFilter(lead: Lead, f: LeadFilter, ctx: { lists: CrmLi
   if (f.country && (lead.country ?? "").toLowerCase() !== f.country.toLowerCase()) return false;
   if (!inRange(lead.created_at ?? lead.entryDate, f.createdFrom, f.createdTo)) return false;
   if (!inRange(lead.stageEnteredAt ?? lead.entryDate, f.movedFrom, f.movedTo)) return false;
+  if (f.closedFrom || f.closedTo) {
+    // A ÚLTIMA atividade de desfecho, e não a primeira: um negócio reaberto e
+    // fechado de novo tem duas, e vale a que descreve a situação de hoje.
+    const fechamento = [...lead.activities]
+      .filter(a => a.type === "won" || a.type === "lost")
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    if (!fechamento) return false;
+    if (!inRange(fechamento.date, f.closedFrom, f.closedTo)) return false;
+  }
   if (f.lossReasons && f.lossReasons.length > 0 && !(lead.lossReasonId && f.lossReasons.includes(lead.lossReasonId))) return false;
   if (f.customFields && f.customFields.length > 0) {
     for (const cf of f.customFields) {
@@ -180,7 +201,8 @@ export function isFilterEmpty(f: LeadFilter): boolean {
     (f.lists && f.lists.length) || (f.products && f.products.length) ||
     typeof f.valueMin === "number" || typeof f.valueMax === "number" ||
     f.city || f.state || f.country || f.createdFrom || f.createdTo ||
-    f.movedFrom || f.movedTo || (f.lossReasons && f.lossReasons.length) ||
+    f.movedFrom || f.movedTo || f.closedFrom || f.closedTo ||
+    (f.lossReasons && f.lossReasons.length) ||
     (f.customFields && f.customFields.some(c => c.value)) || f.search ||
     (f.ids && f.ids.length)
   );

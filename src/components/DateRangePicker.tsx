@@ -23,8 +23,25 @@ const PRESETS = [
   { label: "Último ano", fn: () => { const t = new Date(); return [subMonths(t, 12), t] as [Date, Date]; } },
 ];
 
-export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
-  const [open, setOpen] = useState(false);
+/**
+ * Presets + calendário + rodapé: o miolo do seletor, sem o botão que o abre.
+ *
+ * Separado porque o mesmo seletor aparece em duas molduras: solto na barra da
+ * pipeline, com botão próprio, e dentro do painel lateral do filtro, onde quem
+ * abre é a linha do menu. Duplicar faria "Últimos 15 dias" significar coisas
+ * diferentes nos dois lugares no dia em que alguém corrigisse só um.
+ *
+ * Trabalha com as datas em texto ("2026-08-21"), e não em Date, porque é assim
+ * que o LeadFilter as guarda e é assim que a URL da pipeline as carrega.
+ * Converter nas pontas evitaria o problema de fuso uma vez; convertendo aqui,
+ * ele fica resolvido para os dois consumidores.
+ */
+export function SeletorDePeriodo({
+  dateFrom, dateTo, onChangeRange, aoConcluir,
+}: Props & {
+  /** Quando presente, mostra "Aplicar". Serve a quem precisa fechar a moldura. */
+  aoConcluir?: () => void;
+}) {
   const [leftMonth, setLeftMonth] = useState(() => new Date());
   const [picking, setPicking] = useState<Date | null>(null);
   const [hover, setHover] = useState<Date | null>(null);
@@ -48,7 +65,7 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
     } else {
       applyRange(picking, day);
       setPicking(null);
-      setOpen(false);
+      aoConcluir?.();
     }
   }
 
@@ -87,8 +104,15 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
         </div>
         <div className="grid grid-cols-7">
           {days.map((day, i) => {
-            const { isStart, isEnd, inRange } = dayStatus(day);
             const isOther = day.getMonth() !== month.getMonth();
+            // Dias de outro mês não recebem realce nenhum. Com dois meses lado
+            // a lado, o mesmo dia aparece nas duas grades, e pintar os dois
+            // fazia "31" surgir marcado em julho E em agosto -- parecia haver
+            // duas datas escolhidas. Continuam clicáveis: quem clica ali vê o
+            // resultado na grade vizinha, que é onde aquele dia é de casa.
+            const { isStart, isEnd, inRange } = isOther
+              ? { isStart: false, isEnd: false, inRange: false }
+              : dayStatus(day);
             const isSelected = isStart || isEnd;
             const showRangeBg = inRange && !isSelected;
             const showLeftHalf = isEnd && inRange && !isStart;
@@ -102,13 +126,20 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
                 onMouseLeave={() => picking && setHover(null)}
                 onClick={() => handleClick(day)}
               >
-                {showRangeBg && <div className="absolute inset-y-[4px] inset-x-0 bg-blue-50" />}
-                {showLeftHalf && <div className="absolute inset-y-[4px] left-0 right-[50%] bg-blue-50" />}
-                {showRightHalf && <div className="absolute inset-y-[4px] left-[50%] right-0 bg-blue-50" />}
+                {/* Faixa do intervalo no verde da marca a 10%, não no azul que
+                    estava aqui: era a única coisa azul do CRM, e sobre o card
+                    verde lia como componente de outro produto.
+
+                    As pontas ganham canto arredondado no lado de fora, então o
+                    intervalo começa e termina em curva em vez de cortar reto no
+                    meio da célula. */}
+                {showRangeBg && <div className="absolute inset-y-[5px] inset-x-0 bg-primary/10" />}
+                {showLeftHalf && <div className="absolute inset-y-[5px] left-0 right-[50%] bg-primary/10 rounded-r-full" />}
+                {showRightHalf && <div className="absolute inset-y-[5px] left-[50%] right-0 bg-primary/10 rounded-l-full" />}
                 <span className={[
-                  "relative z-10 w-8 h-8 flex items-center justify-center rounded-full text-xs",
-                  isSelected ? "bg-blue-500 text-white font-semibold" : "",
-                  !isSelected && !isOther ? "hover:bg-gray-100" : "",
+                  "relative z-10 w-8 h-8 flex items-center justify-center rounded-full text-xs transition-colors",
+                  isSelected ? "bg-primary text-primary-foreground font-semibold" : "",
+                  !isSelected && !isOther ? "hover:bg-muted" : "",
                   isOther ? "text-muted-foreground/40" : "text-foreground",
                 ].join(" ")}>
                   {format(day, "d")}
@@ -124,20 +155,8 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
   const capMonth = (d: Date) =>
     format(d, "MMMM", { locale: ptBR }).replace(/^\w/, c => c.toUpperCase());
 
-  const triggerText = dateFrom && dateTo
-    ? `${format(parseStr(dateFrom)!, "dd/MM/yy")} — ${format(parseStr(dateTo)!, "dd/MM/yy")}`
-    : dateFrom
-    ? format(parseStr(dateFrom)!, "dd/MM/yy")
-    : "Selecionar período";
-
   return (
-    <Popover open={open} onOpenChange={v => { setOpen(v); if (!v) setPicking(null); }}>
-      <PopoverTrigger asChild>
-        <button className="h-[30px] px-3 bg-card border border-input rounded-lg text-xs text-foreground flex items-center gap-1.5 hover:border-primary transition-colors whitespace-nowrap">
-          {triggerText}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 shadow-lg" align="start">
+    <>
         <div className="flex">
           {/* Presets */}
           <div className="w-40 border-r border-border p-3 flex flex-col shrink-0">
@@ -150,7 +169,7 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
                   const [f, t2] = p.fn();
                   applyRange(f, t2);
                   setPicking(null);
-                  setOpen(false);
+                  aoConcluir?.();
                 }}
               >
                 {p.label}
@@ -194,17 +213,57 @@ export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
         <div className="border-t border-border p-3 flex justify-between items-center">
           <button
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => { onChangeRange("", ""); setPicking(null); setOpen(false); }}
+            onClick={() => { onChangeRange("", ""); setPicking(null); aoConcluir?.(); }}
           >
             Limpar filtro
           </button>
-          <button
-            className="text-xs px-3 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-            onClick={() => setOpen(false)}
-          >
-            Aplicar
-          </button>
+          {/* "Aplicar" só existe quando há moldura para fechar. Dentro do painel
+              de filtros ele seria um segundo botão de aplicar competindo com o
+              do rodapé do menu, e os dois fariam coisas diferentes. */}
+          {aoConcluir && (
+            <button
+              className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              onClick={aoConcluir}
+            >
+              Aplicar
+            </button>
+          )}
         </div>
+    </>
+  );
+}
+
+/**
+ * Seletor de período com botão próprio, para a barra da pipeline.
+ *
+ * Só a moldura: quem escolhe é o SeletorDePeriodo acima. O botão mostra o
+ * intervalo em vigor, e não um rótulo fixo, porque na barra ele fica sempre
+ * visível e precisa dizer o recorte sem ser aberto.
+ */
+export function DateRangePicker({ dateFrom, dateTo, onChangeRange }: Props) {
+  const [open, setOpen] = useState(false);
+  const parseStr = (s: string): Date | null => (s ? new Date(s + "T12:00:00") : null);
+
+  const triggerText = dateFrom && dateTo
+    ? `${format(parseStr(dateFrom)!, "dd/MM/yy")} — ${format(parseStr(dateTo)!, "dd/MM/yy")}`
+    : dateFrom
+    ? format(parseStr(dateFrom)!, "dd/MM/yy")
+    : "Selecionar período";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="h-[30px] px-3 bg-card border border-input rounded-lg text-xs text-foreground flex items-center gap-1.5 hover:border-primary transition-colors whitespace-nowrap">
+          {triggerText}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 shadow-lg" align="start">
+        <SeletorDePeriodo
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onChangeRange={onChangeRange}
+          aoConcluir={() => setOpen(false)}
+        />
       </PopoverContent>
     </Popover>
   );
