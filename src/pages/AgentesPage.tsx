@@ -1587,7 +1587,7 @@ export default function AgentesPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto h-full flex flex-col">
+    <div className="p-6 max-w-7xl mx-auto h-full flex flex-col">
       {view === "grid" ? (
         <>
           <div className="flex items-start justify-between mb-6 gap-4 shrink-0">

@@ -40,12 +40,14 @@ export default function DisparosPage() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto">
+    // Espaçamento igual ao de /dashboard: 40px no topo, 30px nos outros lados.
+    // Saiu o degrau responsivo (24px que virava 32px no md): com as páginas
+    // padronizadas em valores fixos, um degrau só aqui faria o conteúdo saltar
+    // de lugar ao navegar entre elas na mesma janela.
+    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Rocket size={22} className="text-primary" /> Disparos
-          </h1>
+          <h1 className="text-2xl font-bold">Disparos</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Gerencie seus disparos de automação, acompanhe o progresso dos leads em tempo real e controle execuções.{" "}
             <a href="https://help.rezultcrm.com" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">

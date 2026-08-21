@@ -286,7 +286,14 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="p-6">
+    // max-w-7xl (1280px) e mx-auto para acompanhar as demais páginas. Antes
+    // esta ocupava toda a largura da janela, então em monitor grande a tabela
+    // de leads era a única coisa do CRM esticada até a borda.
+    //
+    // Espaçamento igual ao de /dashboard: 40px no topo, 30px nos outros lados.
+    // O respiro maior em cima separa a página da barra do navegador; nas
+    // laterais o limite já é a sidebar.
+    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Leads</h1>

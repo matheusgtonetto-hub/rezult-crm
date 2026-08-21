@@ -864,9 +864,12 @@ export default function PipelinePage() {
             />
           </div>
 
-          {/* Ordenação, Status, Data e Filtros — encostados na borda direita
-              da tela, longe da busca. */}
-          <div className="flex flex-nowrap items-center gap-2 ml-auto">
+          {/* Ordenação, Status, Data e Filtros logo à direita da busca.
+              Sem `ml-auto`: os controles são todos da mesma natureza (recortar
+              o que a pipeline mostra), e jogá-los para a outra ponta da tela
+              obrigava o olho a atravessar um vão vazio para completar um único
+              gesto de filtragem. */}
+          <div className="flex flex-nowrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground whitespace-nowrap">Ordenação</span>
               <Select value={sortKey} onValueChange={v => setSortKey(v as SortKey)}>
@@ -906,8 +909,6 @@ export default function PipelinePage() {
               />
             </div>
 
-            <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
-
             {(!isFilterEmpty(advFilter) || status !== "open" || !!dateFrom || !!dateTo) && (
               <button
                 onClick={() => { setAdvFilter({}); setStatus("open"); setDateFrom(""); setDateTo(""); }}
@@ -918,6 +919,18 @@ export default function PipelinePage() {
                 Limpar
               </button>
             )}
+          </div>
+
+          {/* "Filtros" sozinho na outra ponta. Ele não é do mesmo tipo dos
+              vizinhos: Ordenação, Status e Data recortam com um clique e o
+              resultado é imediato, enquanto este abre um painel de critérios
+              compostos. Separá-lo tira do caminho o controle que interrompe a
+              leitura e deixa juntos os três que respondem na hora.
+
+              `ml-auto` no invólucro, e não no componente, porque o
+              PipelineFilterPanel não recebe className. */}
+          <div className="ml-auto">
+            <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
           </div>
         </div>
 

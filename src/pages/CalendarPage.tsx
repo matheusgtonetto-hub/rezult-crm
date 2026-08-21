@@ -648,10 +648,15 @@ export default function CalendarPage() {
   };
 
   return (
+    // maxWidth 1280 + margin auto para acompanhar as demais páginas. Diferente
+    // delas, aqui o teto pega também a barra branca do topo, que antes ia de
+    // ponta a ponta: ela passa a terminar junto com o calendário.
     <div
       style={{
         background: "hsl(var(--background))",
         minHeight: "100vh",
+        maxWidth: 1280,
+        margin: "0 auto",
         display: "flex",
         flexDirection: "column",
       }}
