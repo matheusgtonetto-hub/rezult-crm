@@ -9,10 +9,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
-import { DateRangePicker } from "@/components/DateRangePicker";
-import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
+import { PipelineFilterPanel, type StatusFilter } from "@/components/PipelineFilterPanel";
 import { leadMatchesFilter, isFilterEmpty, executarAutomacaoNoLead, type LeadFilter } from "@/data/disparos";
-import type { AttendantPermissions } from "@/data/mockData";
+import type { AttendantPermissions, Lead } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -77,7 +76,8 @@ const COLUMN_COLORS = [
 ];
 
 type SortKey = "recent" | "oldest" | "value" | "name";
-type StatusFilter = "open" | "won" | "lost" | "all";
+// StatusFilter mora no PipelineFilterPanel: os dois controles que escrevem
+// esse valor (o seletor da barra e o painel) precisam das mesmas opções.
 
 export default function PipelinePage() {
   const {
@@ -320,8 +320,6 @@ export default function PipelinePage() {
   };
   const [sortKey, setSortKey] = useState<SortKey>(() => (sessionStorage.getItem("pipeline_filter_sort") as SortKey) ?? "recent");
   const [status, setStatus] = useState<StatusFilter>(() => (sessionStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
-  const [dateFrom, setDateFrom] = useState(() => sessionStorage.getItem("pipeline_filter_dateFrom") ?? "");
-  const [dateTo, setDateTo] = useState(() => sessionStorage.getItem("pipeline_filter_dateTo") ?? "");
   // Filtro avançado ("Filtros"): persiste POR PIPELINE em localStorage, então
   // sobrevive a trocar de página, recarregar e até fechar o navegador — cada
   // pipeline lembra do seu próprio filtro.
@@ -333,8 +331,6 @@ export default function PipelinePage() {
 
   useEffect(() => { sessionStorage.setItem("pipeline_filter_sort", sortKey); }, [sortKey]);
   useEffect(() => { sessionStorage.setItem("pipeline_filter_status", status); }, [status]);
-  useEffect(() => { sessionStorage.setItem("pipeline_filter_dateFrom", dateFrom); }, [dateFrom]);
-  useEffect(() => { sessionStorage.setItem("pipeline_filter_dateTo", dateTo); }, [dateTo]);
   // Grava o filtro no pipeline atual (ignora a passada em que o pipeline acabou
   // de trocar, para não sobrescrever a chave nova com o filtro antigo).
   useEffect(() => {
@@ -412,59 +408,59 @@ export default function PipelinePage() {
     setPendingAdvance(null);
   };
 
+  // Há recorte em vigor? Vale para o botão "Limpar" da barra: ele existe para
+  // desfazer TUDO, então olha os quatro controles, e não só o painel.
+  const temAlgoParaLimpar = !isFilterEmpty(advFilter) || status !== "open";
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+  /**
+   * Um negócio passa pelo que a barra e o painel estão pedindo?
+   *
+   * Extraído porque agora tem dois leitores: o kanban, que decide quais cards
+   * desenhar, e a prévia do botão "Aplicar filtros", que precisa dizer quantos
+   * o RASCUNHO pegaria. Duas cópias da mesma regra divergiriam no primeiro
+   * critério novo, e a prévia passaria a prometer um número que a tela não
+   * entrega.
+   *
+   * Status e filtro entram como parâmetro, e não lidos do estado, justamente
+   * para a prévia poder passar o rascunho no lugar do que está aplicado.
+   */
+  const passaCriterios = useCallback((l: Lead, st: StatusFilter, f: LeadFilter) => {
+    if (st === "open" && !(!l.dealStatus || l.dealStatus === "open")) return false;
+    if (st === "won" && l.dealStatus !== "won") return false;
+    if (st === "lost" && l.dealStatus !== "lost") return false;
+
+    if (search) {
+      const q = search.toLowerCase();
+      const qDigits = q.replace(/\D/g, "");
+      const casa =
+        l.name.toLowerCase().includes(q) ||
+        (l.company || "").toLowerCase().includes(q) ||
+        String(l.dealNumber || "").includes(q) ||
+        (qDigits.length >= 3 && (l.whatsapp || "").replace(/\D/g, "").includes(qDigits));
+      if (!casa) return false;
+    }
+
+    if (!isFilterEmpty(f) && !leadMatchesFilter(l, f, { lists: [] })) return false;
+
+    // Visibilidade por responsável: corta antes de qualquer contagem, senão a
+    // prévia prometeria negócios que a pessoa nem tem permissão de ver.
+    const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+    if (myPerms.viewOwnDealsOnly) return resps.includes(myName);
+    if (isAdmin && viewAsUser.length > 0) {
+      return viewAsUser.some(v => (v === "__no_responsible__" ? resps.length === 0 : resps.includes(v)));
+    }
+    return true;
+  }, [search, myPerms.viewOwnDealsOnly, myName, isAdmin, viewAsUser]);
 
   const filteredColumns = useMemo(() => {
     if (!activePipeline) return [];
     return [...activePipeline.columns]
       .sort((a, b) => a.position - b.position)
       .map(col => {
-        let ids = col.leadIds.filter(id => {
-          const l = leads[id];
-          if (!l) return false;
-          if (status === "open") return !l.dealStatus || l.dealStatus === "open";
-          if (status === "won") return l.dealStatus === "won";
-          if (status === "lost") return l.dealStatus === "lost";
-          return true;
-        });
-        if (search) {
-          const q = search.toLowerCase();
-          const qDigits = q.replace(/\D/g, "");
-          ids = ids.filter(id => {
-            const l = leads[id];
-            return (
-              l.name.toLowerCase().includes(q) ||
-              (l.company || "").toLowerCase().includes(q) ||
-              String(l.dealNumber || "").includes(q) ||
-              (qDigits.length >= 3 && (l.whatsapp || "").replace(/\D/g, "").includes(qDigits))
-            );
-          });
-        }
-        if (dateFrom) ids = ids.filter(id => leads[id].entryDate >= dateFrom);
-        if (dateTo) ids = ids.filter(id => leads[id].entryDate <= dateTo);
-
-        // Filtros avançados (painel "Filtros")
-        if (!isFilterEmpty(advFilter)) {
-          ids = ids.filter(id => leadMatchesFilter(leads[id], advFilter, { lists: [] }));
-        }
-
-        // Visibilidade por responsável
-        const getResps = (l: typeof leads[string]) =>
-          l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
-        if (myPerms.viewOwnDealsOnly) {
-          ids = ids.filter(id => {
-            const resps = getResps(leads[id]);
-            return resps.includes(myName);
-          });
-        } else if (isAdmin && viewAsUser.length > 0) {
-          ids = ids.filter(id => {
-            const resps = getResps(leads[id]);
-            return viewAsUser.some(v =>
-              v === "__no_responsible__" ? resps.length === 0 : resps.includes(v)
-            );
-          });
-        }
+        const ids = col.leadIds.filter(id => leads[id] && passaCriterios(leads[id], status, advFilter));
 
         ids.sort((a, b) => {
           const la = leads[a];
@@ -476,7 +472,7 @@ export default function PipelinePage() {
         });
         return { ...col, filteredIds: ids };
       });
-  }, [activePipeline?.columns, leads, search, status, dateFrom, dateTo, sortKey, isAdmin, myName, viewAsUser, advFilter, myPerms.viewOwnDealsOnly]);
+  }, [activePipeline?.columns, leads, status, sortKey, advFilter, passaCriterios]);
 
   // Universo para "Executar automação" a partir do topo da pipeline: os
   // negócios do board como ele está agora (mesmos filtros aplicados), igual
@@ -900,25 +896,6 @@ export default function PipelinePage() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Data</span>
-              <DateRangePicker
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                onChangeRange={(from, to) => { setDateFrom(from); setDateTo(to); }}
-              />
-            </div>
-
-            {(!isFilterEmpty(advFilter) || status !== "open" || !!dateFrom || !!dateTo) && (
-              <button
-                onClick={() => { setAdvFilter({}); setStatus("open"); setDateFrom(""); setDateTo(""); }}
-                title="Limpar filtros"
-                className="h-[30px] px-2.5 inline-flex items-center gap-1 bg-card border border-card-border rounded-lg text-xs text-muted-foreground hover:text-destructive hover:border-destructive transition-colors whitespace-nowrap"
-              >
-                <X size={13} />
-                Limpar
-              </button>
-            )}
           </div>
 
           {/* "Filtros" sozinho na outra ponta. Ele não é do mesmo tipo dos
@@ -929,8 +906,51 @@ export default function PipelinePage() {
 
               `ml-auto` no invólucro, e não no componente, porque o
               PipelineFilterPanel não recebe className. */}
-          <div className="ml-auto">
-            <PipelineFilterPanel value={advFilter} onApply={setAdvFilter} />
+          <div className="ml-auto flex items-center gap-2">
+            {/* Sempre na tela, e não só quando há o que limpar.
+                Aparecendo e sumindo, ele empurrava o "Filtros" de lugar toda vez
+                que um critério entrava ou saía, e o alvo do clique mudava de
+                posição no meio do uso. Fixo, o vermelho é que diz se há algo a
+                desfazer.
+
+                `disabled` de verdade, e não só o cinza: um botão que parece
+                inerte e ainda assim responde ao clique é pior que um que some. */}
+            <button
+              onClick={() => { setAdvFilter({}); setStatus("open"); }}
+              disabled={!temAlgoParaLimpar}
+              title={temAlgoParaLimpar ? "Limpar filtros" : "Nenhum filtro aplicado"}
+              className={`h-[30px] px-2.5 inline-flex items-center gap-1 bg-card border rounded-lg text-xs transition-colors whitespace-nowrap ${
+                temAlgoParaLimpar
+                  ? "border-destructive text-destructive hover:bg-destructive/10"
+                  : "border-card-border text-muted-foreground/40 cursor-not-allowed"
+              }`}
+            >
+              <X size={13} />
+              Limpar
+            </button>
+            <PipelineFilterPanel
+              value={advFilter}
+              onApply={setAdvFilter}
+              status={status}
+              onChangeStatus={setStatus}
+              /* "Negócios" entra também: recortar por etapa aqui responde
+                 "mostre só quem está em Proposta e Negociação", e o board
+                 esvazia as outras colunas. Fica de fora só o "Status" pelo
+                 dealStatus, porque aqui a situação vem do seletor da barra e
+                 dois controles para o mesmo dado se somariam em silêncio. */
+              mostrar={["tags", "produtos", "atendente", "status", "negocios", "criacao", "fechamento", "origem", "perda"]}
+              /* Prévia do rascunho, igual à de /leads. Conta pelo MESMO
+                 predicado que desenha o kanban, então o número prometido é o
+                 número que aparece. Só os negócios deste funil: o painel não
+                 filtra por funil, e contar a base inteira responderia outra
+                 pergunta. */
+              contarResultados={(f, st) =>
+                (activePipeline?.columns ?? []).reduce(
+                  (soma, col) => soma + col.leadIds.filter(id => leads[id] && passaCriterios(leads[id], st, f)).length,
+                  0,
+                )
+              }
+            />
           </div>
         </div>
 

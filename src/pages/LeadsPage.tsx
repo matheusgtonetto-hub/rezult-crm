@@ -15,10 +15,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network, Rocket } from "lucide-react";
-import { LeadsFilterMenu } from "@/components/leads/LeadsFilterMenu";
 import { useCompany } from "@/context/CompanyContext";
 import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
 import { CreateDisparoWizard } from "@/components/disparos/CreateDisparoWizard";
+import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
 import { executarAutomacaoNoLead, filterLeads, isFilterEmpty, type LeadFilter } from "@/data/disparos";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LeadModal } from "@/components/LeadModal";
@@ -69,6 +69,39 @@ export default function LeadsPage() {
   const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
   // Automação em lote, a partir dos leads marcados na lista.
   const [automacaoEmLote, setAutomacaoEmLote] = useState<Lead[] | null>(null);
+
+  /**
+   * Lead para o formato que o wizard de automação desenha.
+   *
+   * Numa função só porque os dois pontos que abrem o wizard (o menu da linha e
+   * o do topo) precisam do MESMO conjunto de campos. Montado em cada lugar,
+   * bastaria um esquecer as tags para a mesma lista aparecer diferente conforme
+   * por onde a pessoa entrou.
+   */
+  const paraAlvo = (l: Lead) => ({
+    id: l.id,
+    nome: l.name,
+    telefone: l.whatsapp || undefined,
+    email: l.email || undefined,
+    ticketMedio: (() => {
+      const key = chaveDaPessoa(l);
+      return (key ? ticketByContact[key]?.avg : undefined) ?? 0;
+    })(),
+    tags: (l.tags ?? []).map(nome => ({ nome, cor: crmTags.find(t => t.name === nome)?.color })),
+    // Na lista de leads a linha JÁ é um negócio, então sempre há em que executar.
+    temNegocio: true,
+  });
+
+  /**
+   * Filtro do passo "Selecionar leads" da automação em lote.
+   *
+   * Estado próprio, separado do `filtros` da página: são duas perguntas
+   * diferentes. O da página decide o que a lista mostra; este decide em quem a
+   * automação roda. Compartilhados, abrir o popup e mexer num filtro mudaria a
+   * tela por baixo, e fechar sem executar deixaria a lista alterada sem que
+   * ninguém tivesse pedido.
+   */
+  const [filtroAutomacao, setFiltroAutomacao] = useState<LeadFilter>({});
   // Criar disparo direto daqui, levando a seleção quando houver.
   const [disparoAberto, setDisparoAberto] = useState(false);
 
@@ -333,12 +366,24 @@ export default function LeadsPage() {
           {/* Filtros. Ficam à esquerda do menu de ações de propósito: a ordem
               na tela é a ordem do trabalho -- primeiro reduz a lista a quem
               deve receber, depois marca todos, depois dispara. */}
-          <LeadsFilterMenu
-            valor={filtros}
-            onAplicar={setFiltros}
-            // Prévia do rascunho: o menu precisa dizer quantos leads o critério
-            // pegaria ANTES de aplicar, e quem sabe filtrar é esta tela.
-            contarResultados={f => (isFilterEmpty(f) ? porBusca.length : filterLeads(porBusca, f, { lists: crmLists }).length)}
+          {/* Mesmo painel do /pipeline e do "Selecionar leads" da automação.
+              Como não há seletor de status separado nesta tela, ele é traduzido
+              de e para o `dealStatus` do próprio filtro. */}
+          <PipelineFilterPanel
+            value={filtros}
+            onApply={setFiltros}
+            /* Sem "Status" e com "Negócios" no lugar dele. Aqui a lista mistura
+               funis, então "em qual funil e etapa" é a pergunta que separa os
+               leads; a situação do negócio já está coberta por Data de
+               ganho/perdido e Motivo de perda. */
+            mostrar={["tags", "produtos", "atendente", "situacao", "negocios", "criacao", "fechamento", "origem", "perda"]}
+            // Prévia do rascunho: o painel precisa dizer quantos leads o
+            // critério pegaria ANTES de aplicar, e quem sabe filtrar é esta
+            // tela. O status fica de fora da conta porque ele não é oferecido
+            // aqui -- contar por ele daria um número que a tela não deixa mudar.
+            contarResultados={f => (isFilterEmpty(f)
+              ? porBusca.length
+              : filterLeads(porBusca, f, { lists: crmLists }).length)}
           />
 
           <DropdownMenu>
@@ -733,15 +778,7 @@ export default function LeadsPage() {
         onOpenChange={aberto => { if (!aberto) setAutomacaoLead(null); }}
         executando={executandoAutomacao}
         termo={{ singular: "lead", plural: "leads" }}
-        conversas={automacaoLead ? [{
-          id: automacaoLead.id,
-          nome: automacaoLead.name,
-          telefone: automacaoLead.whatsapp || undefined,
-          // Na lista de leads a linha JÁ é um negócio, então sempre há em que
-          // executar. O aviso de "sem negócio" do wizard fica para o
-          // Multiatendimento, onde a conversa pode não ter negócio nenhum.
-          temNegocio: true,
-        }] : []}
+        conversas={automacaoLead ? [paraAlvo(automacaoLead)] : []}
         onExecutar={async automationId => {
           if (!automacaoLead || !company) return;
           setExecutandoAutomacao(true);
@@ -760,15 +797,52 @@ export default function LeadsPage() {
           filtrou a tela, o filtro é parte do que ela quis. */}
       <ExecutarAutomacaoWizard
         open={automacaoEmLote !== null}
-        onOpenChange={aberto => { if (!aberto) setAutomacaoEmLote(null); }}
+        onOpenChange={aberto => {
+          if (!aberto) {
+            setAutomacaoEmLote(null);
+            // Zera junto com o fechamento: o filtro é da sessão do popup, e
+            // reencontrá-lo aplicado na próxima abertura, sem lembrança de o
+            // ter escolhido, explicaria mal uma lista que veio menor.
+            setFiltroAutomacao({});
+          }
+        }}
         executando={executandoAutomacao}
         termo={{ singular: "lead", plural: "leads" }}
-        conversas={(automacaoEmLote ?? []).map(l => ({
-          id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
-        }))}
-        opcoes={filtered.map(l => ({
-          id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
-        }))}
+        conversas={(automacaoEmLote ?? []).map(paraAlvo)}
+        /* A base é a lista INTEIRA (`allLeadsSorted`), não a filtrada da tela.
+           São duas perguntas separadas: o filtro da tela responde "o que estou
+           olhando agora", o do popup responde "em quem a automação vai rodar".
+           Herdando um no outro, a automação mudaria de alcance conforme a busca
+           que por acaso estivesse digitada atrás do popup.
+
+           Quem marcou linhas na lista parte daquelas: a marcação é uma escolha
+           explícita, e é ela que vira o critério inicial.
+
+           O filtro usa a mesma `filterLeads` do disparo, para os dois popups
+           responderem igual ao mesmo critério. O wizard recebe só id, nome e
+           telefone e não teria como avaliar tag, origem ou valor. */
+        opcoes={(() => {
+          const base = automacaoEmLote?.length ? automacaoEmLote : allLeadsSorted;
+          return (isFilterEmpty(filtroAutomacao)
+            ? base
+            : filterLeads(base, filtroAutomacao, { lists: crmLists })
+          ).map(paraAlvo);
+        })()}
+        /* Mesmo painel do /pipeline. Ele pede `status` de fora porque lá o
+           seletor vive na barra; aqui não existe barra, então o status é
+           traduzido de e para o próprio filtro (`dealStatus`). Assim continua
+           havendo UMA fonte -- o LeadFilter -- e não um estado paralelo para
+           sair de sincronia com ele. */
+        acaoFiltro={
+          <PipelineFilterPanel
+            value={filtroAutomacao}
+            onApply={setFiltroAutomacao}
+            mostrar={["tags", "produtos", "atendente", "situacao", "negocios", "criacao", "fechamento", "origem", "perda"]}
+          />
+        }
+        /* Linhas marcadas na lista contam como critério: foram uma escolha, e
+           por isso já entram selecionadas, do mesmo jeito que um filtro. */
+        filtroVazio={isFilterEmpty(filtroAutomacao) && !automacaoEmLote?.length}
         onExecutar={async (automationId, ids) => {
           if (!company || ids.length === 0) return;
           setExecutandoAutomacao(true);
