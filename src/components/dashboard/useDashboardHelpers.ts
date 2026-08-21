@@ -4,6 +4,39 @@ import type { DateRangeValue } from "@/components/ui/date-range-picker";
 export const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+/**
+ * Cor de cada canal de origem, a cor da própria marca dele.
+ *
+ * Mora aqui, e não dentro de um painel, porque três rosquinhas da mesma linha
+ * repartem por origem (leads, receita e perdas). Com o mapa duplicado, o mesmo
+ * canal podia sair rosa num painel e azul no vizinho, e a comparação entre eles
+ * (o canal que traz volume mas não traz dinheiro) deixaria de ser visual.
+ *
+ * Origem fora desta lista cai na paleta de reserva do DonutDistribuicao.
+ */
+export const ORIGIN_COLORS: Record<string, string> = {
+  "Instagram": "#E1306C",
+  "Facebook Ads": "#1877F2",
+  "Indicação": "#10B981",
+  "Site": "#6366F1",
+  "Outro": "#94A3B8",
+};
+
+/**
+ * Paleta de reserva das rosquinhas, para conjuntos sem cor própria (motivos de
+ * perda, por exemplo, que o usuário cadastra e não têm cor definida).
+ *
+ * Ordenada para fatias vizinhas não ficarem parecidas. O vermelho fica por
+ * último de propósito: ele carrega significado de erro no resto do CRM, e numa
+ * distribuição neutra a terceira fatia não deve parecer um alerta.
+ *
+ * Mora aqui, e não no componente, porque quem monta os dados também precisa
+ * dela: a cor de reserva é atribuída por POSIÇÃO na lista, então um conjunto
+ * que aparece em duas ordens diferentes (motivos no geral e motivos de uma
+ * origem) precisa fixar a cor por nome antes de entregar.
+ */
+export const PALETA = ["#128A68", "#3B82F6", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#64748B", "#EF4444"];
+
 export const pct = (n: number, d: number) =>
   d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "—";
 

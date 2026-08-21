@@ -22,7 +22,7 @@ import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel"
 import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
-import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo } from "@/components/dashboard/useDashboardHelpers";
+import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA } from "@/components/dashboard/useDashboardHelpers";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   stage_change: "Mudança de etapa",
@@ -302,13 +302,80 @@ export default function DashboardPage() {
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [allLeads, dateRange]);
 
-  const lossReasonData = useMemo(() => {
-    const map = new Map<string, number>();
+  /**
+   * Perdas repartidas por origem, com os motivos de cada origem por dentro.
+   *
+   * Dois níveis de propósito. "Perdemos 40 negócios por preço" é um dado morto:
+   * não diz onde agir. "Perdemos 40 por preço, e 32 deles vieram do Facebook
+   * Ads" aponta para a campanha. Por isso a origem é quem reparte o anel e o
+   * motivo desce para sub-linha, em vez do contrário.
+   *
+   * Motivos cortados no top 3 por origem, com o resto somado em "Outros
+   * motivos". Sem corte, uma conta com 5 origens e 8 motivos cada renderia 45
+   * linhas numa coluna de 1/3 da tela. O resto vira uma linha em vez de sumir,
+   * senão a soma das sub-linhas não fecharia com o número da origem.
+   */
+  const lossByOriginData = useMemo(() => {
+    const map = new Map<string, { nome: string; total: number; motivos: Map<string, number> }>();
+    lostInPeriod.forEach(l => {
+      const o = l.origin || "Outro";
+      const cur = map.get(o) || { nome: o, total: 0, motivos: new Map<string, number>() };
+      cur.total++;
+      const r = lossReasons.find(x => x.id === l.lossReasonId)?.name || "Sem motivo";
+      cur.motivos.set(r, (cur.motivos.get(r) || 0) + 1);
+      map.set(o, cur);
+    });
+    // Percentual sempre sobre o TOTAL de perdas, nos dois níveis. Se a
+    // sub-linha usasse o total da própria origem, a coluna misturaria duas
+    // bases e "50%" numa linha e "50%" na de baixo significariam coisas
+    // diferentes. Sobre a mesma base, as sub-linhas somam o percentual da mãe.
+    const totalPerdas = lostInPeriod.length;
+    const fatia = (n: number) => (totalPerdas > 0 ? `${Math.round((n / totalPerdas) * 100)}%` : "—");
+
+    /**
+     * Motivos agregados da empresa toda, e a cor fixa de cada um.
+     *
+     * A cor é atribuída aqui, uma vez, pela ordem global. É o que mantém "Preço
+     * alto" da mesma cor no anel agregado e no recorte de uma origem: a paleta
+     * de reserva do componente pinta por POSIÇÃO na lista, e a posição de um
+     * motivo muda de uma origem para outra.
+     */
+    const globais = new Map<string, number>();
     lostInPeriod.forEach(l => {
       const r = lossReasons.find(x => x.id === l.lossReasonId)?.name || "Sem motivo";
-      map.set(r, (map.get(r) || 0) + 1);
+      globais.set(r, (globais.get(r) || 0) + 1);
     });
-    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+    const motivosGlobais = [...globais.entries()]
+      .map(([nome, valor]) => ({ nome, valor }))
+      .sort((a, b) => b.valor - a.valor);
+    const corDoMotivo = new Map(motivosGlobais.map((m, i) => [m.nome, PALETA[i % PALETA.length]]));
+
+    const porOrigem = [...map.values()]
+      .sort((a, b) => b.total - a.total)
+      .map(o => {
+        const motivos = [...o.motivos.entries()]
+          .map(([nome, valor]) => ({ nome, valor, extra: fatia(valor), cor: corDoMotivo.get(nome) }))
+          .sort((a, b) => b.valor - a.valor);
+        const topo = motivos.slice(0, 3);
+        const resto = motivos.slice(3).reduce((s, m) => s + m.valor, 0);
+        return {
+          nome: o.nome,
+          valor: o.total,
+          extra: fatia(o.total),
+          cor: ORIGIN_COLORS[o.nome],
+          // "Outros motivos" em cinza, e não numa cor da paleta: ele não é um
+          // motivo, é a sobra de vários. Uma cor própria o faria parecer o
+          // quarto motivo mais comum.
+          detalhes: resto > 0
+            ? [...topo, { nome: "Outros motivos", valor: resto, extra: fatia(resto), cor: "#94A3B8" }]
+            : topo,
+        };
+      });
+
+    return {
+      porOrigem,
+      porMotivo: motivosGlobais.map(m => ({ ...m, cor: corDoMotivo.get(m.nome) })),
+    };
   }, [lostInPeriod, lossReasons]);
 
   // Considera responsibles[] (múltiplos responsáveis) quando presente, com fallback para
@@ -551,9 +618,25 @@ export default function DashboardPage() {
   const areasHorario = AREAS_NEGOCIOS.filter(a => seriesHorario.includes(a.chave));
 
   return (
-    // p-[30px]: 30px não existe na escala do Tailwind (p-6 é 24, p-8 é 32),
-    // então vai como valor arbitrário mesmo.
-    <div className="p-[30px] max-w-[1400px] mx-auto">
+    // Valores arbitrários porque nenhum dos dois existe na escala do Tailwind,
+    // que pula de 24 (p-6) para 32 (p-8) e de 36 (p-9) para 40... o 40 até
+    // existe (p-10), mas fica escrito assim para os dois lados da assimetria
+    // serem lidos na mesma unidade.
+    //
+    // O topo tem 40px e os outros três lados, 30px. A assimetria é de propósito:
+    // acima do "Dashboard" não há nada, e o respiro maior separa a página da
+    // barra do navegador. Nas laterais e embaixo, 30px já bastam porque ali o
+    // limite é a sidebar ou o fim do conteúdo.
+    //
+    // Escrito lado a lado, e não como `p-[30px] pt-[50px]`: naquela forma quem
+    // vence depende da ordem em que o Tailwind emite as regras, que é detalhe
+    // interno dele e não algo para o layout depender.
+    //
+    // max-w-7xl é 1280px, o teto padrão do Tailwind. Deixa 1220px de área útil
+    // depois do padding, e é dela que saem as larguras dos painéis: os quatro
+    // cartões do topo ficam com ~296px cada e as duas rosquinhas de Origem com
+    // ~594px por coluna.
+    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
       <Tabs defaultValue="negocios" className="space-y-6">
       {/* Header */}
       {/* items-start, e não items-center: com o subtítulo, o bloco de título
@@ -883,28 +966,68 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Origem logo abaixo do gráfico por horário e em largura cheia. As
-              duas rosquinhas dele ficam lado a lado internamente, senão a
-              legenda de cada uma esticaria por mais de mil pixels de vazio. */}
-          <OriginPanel periodLeads={periodLeads} />
+          {/* Três leituras de repartição na mesma linha: de onde vêm os leads,
+              de onde vem a receita, e por que os negócios se perdem. Juntas
+              porque respondem à mesma pergunta em momentos diferentes do funil,
+              e comparar as três de relance é o que dá sentido a cada uma.
+
+              Os dois de origem ocupam 3/5 da linha e o de perdas, 2/5. Perdas
+              precisa de mais largura porque a tabela dele tem dois níveis: além
+              da origem, os motivos recuados por baixo de cada uma.
+
+              A grade tem 10 colunas, e não 5, para os 3/5 do par dividirem ao
+              meio: 3 + 3 + 4. Em 5 colunas, um dos gêmeos ficaria com o dobro do
+              outro, sugerindo uma importância que eles não têm um sobre o outro.
+
+              OriginPanel devolve os dois cards num Fragment, então os três aqui
+              são itens diretos da mesma grade e esticam juntos até a altura da
+              linha. */}
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+            <OriginPanel periodLeads={periodLeads} className="lg:col-span-3" />
+
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+              <h3 className="text-sm font-semibold text-foreground">Motivo de perda por origem</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-4">Onde você perde, e por quê</p>
+              {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
+                  zero no centro, que é a resposta. Escondê-lo fazia o painel sumir
+                  e a página inteira pular de altura ao trocar o filtro de data.
+
+                  `total` explícito mesmo com as fatias somando o total: os
+                  motivos são cortados no top 3 por origem, e deixar o centro
+                  somar sozinho o deixaria à mercê de qualquer corte futuro.
+
+                  Mesmas cores por origem das duas rosquinhas ao lado, via
+                  ORIGIN_COLORS. É o que permite seguir um canal com o olho pelos
+                  três painéis da linha.
+
+                  Anel menor que os 190px padrão: aqui a tabela tem dois níveis e
+                  fica bem mais alta que as vizinhas. Com o anel no tamanho cheio,
+                  o painel passava do dobro da altura dos outros dois da linha.
+
+                  `empilhado` como nos dois vizinhos: anel em cima, tabela
+                  embaixo. Lado a lado, o anel deixava uns 100px para a coluna de
+                  nome, e os motivos, ainda recuados sob a origem, ficavam com
+                  uns 84px -- "Cliente sem orçamento" virava reticências.
+                  Embaixo, a tabela recebe a largura inteira do painel.
+
+                  Dois anéis: as MESMAS perdas repartidas por origem e por
+                  motivo. Somam o mesmo total de propósito, e é a divergência
+                  entre os dois recortes que interessa. Clicar numa origem faz o
+                  segundo mostrar os motivos daquela origem. */}
+              <DonutDistribuicao
+                dados={lossByOriginData.porOrigem}
+                rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
+                total={lostInPeriod.length}
+                altura={150}
+                colunas={{ valor: "Perdas", extra: "% do total" }}
+                rodape="Por origem"
+                anelSecundario={{ dados: lossByOriginData.porMotivo, rodape: "Por motivo" }}
+                empilhado
+              />
+            </div>
+          </div>
 
           <UtmAttributionPanel periodLeads={periodLeads} />
-
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Motivos de perda</h3>
-            {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
-                zero no centro, que é a resposta. Escondê-lo fazia o painel sumir
-                e a página inteira pular de altura ao trocar o filtro de data.
-
-                `total` explícito: lossReasonData é cortado no top 6, então somar
-                as fatias daria menos que o total de perdidos e o número do centro
-                mentiria sempre que houvesse um 7º motivo. */}
-            <DonutDistribuicao
-              dados={lossReasonData.map(r => ({ nome: r.name, valor: r.value }))}
-              rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
-              total={lostInPeriod.length}
-            />
-          </div>
 
 
           {/* Top products */}

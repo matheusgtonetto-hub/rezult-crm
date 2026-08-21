@@ -194,19 +194,20 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
             que é o caso em que alinhar pelo topo seria o certo. */}
         <div className="flex items-center justify-between gap-2 mb-3">
           {/* Rótulo em preto. A hierarquia contra o número logo abaixo fica por
-              conta do corpo (14 contra 24) e do peso (500 contra 700), sem
+              conta do corpo (14 contra 22) e do peso (400 contra 700), sem
               precisar rebaixar a cor também. */}
-          <span className="text-[14px] text-foreground font-medium">{label}</span>
+          <span className="text-[14px] text-foreground font-normal">{label}</span>
           {chipDoIcone}
         </div>
         {/* O dinheiro no lugar de destaque. `tabular-nums` porque são valores
             lidos em coluna: sem ele os dígitos dançam de largura entre um
             cartão e outro e a linha perde o alinhamento.
 
-            Mesmo text-2xl da variante padrão logo abaixo: os dois modos do
-            cartão mostram um número de destaque, e tamanhos diferentes ali não
-            significavam nada. */}
-        <p className="text-2xl leading-none font-bold tabular-nums text-foreground">
+            22px, contra os 24 (text-2xl) da variante padrão logo abaixo. Aqui o
+            valor divide a atenção com o título de 14px e a linha de apoio, e o
+            corpo menor deixa o cartão mais respirado sem perder a hierarquia,
+            que continua garantida pelo peso 700 e pela cor. */}
+        <p className="text-[22px] leading-none font-bold tabular-nums text-foreground">
           {sub ?? "—"}
         </p>
         {/* Variação e contagem na mesma linha, com a seta colada no percentual
