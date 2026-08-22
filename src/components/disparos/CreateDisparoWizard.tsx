@@ -8,13 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LeadFilterPanel } from "./LeadFilterPanel";
+import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
 import { useSelecaoPorFiltro } from "./useSelecaoPorFiltro";
 import {
   fetchLeadManualAutomations, createDisparo, filterLeads, isFilterEmpty, RHYTHMS,
   type AutomationOption, type LeadFilter, type DisparoRhythm,
 } from "@/data/disparos";
-import { Workflow, Search, Check, CheckCircle2 } from "lucide-react";
+import { Workflow, Search, Check, CheckCircle2, Phone } from "lucide-react";
+import { chaveDaPessoa, ticketPorPessoa } from "@/lib/ticketMedio";
+
+/** Mesmo formato da lista de /leads, para o ticket ler igual nos dois lugares. */
+const fmtBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3 | 4;
@@ -41,7 +46,10 @@ export function CreateDisparoWizard({
    */
   leadsPreSelecionados?: string[];
 }) {
-  const { leads, crmLists } = useCRM();
+  const { leads, crmLists, crmTags } = useCRM();
+  // Mesmo cálculo da lista de /leads, do módulo compartilhado: a mesma pessoa
+  // não pode aparecer com tickets diferentes em duas telas do produto.
+  const ticketPorPessoaDaBase = useMemo(() => ticketPorPessoa(leads), [leads]);
   const { company } = useCompany();
   const { user } = useAuth();
 
@@ -134,8 +142,16 @@ export function CreateDisparoWizard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden" style={{ width: "min(920px, 94vw)" }}>
-        <div className="flex" style={{ minHeight: 480 }}>
+      {/* Mesmas medidas do "Executar automação": os dois fazem a mesma tarefa
+          (escolher automação, escolher em quem roda) e dois tamanhos fariam a
+          tela pular ao trocar de um para o outro.
+          `max-w-4xl` vencia o `width` inline, como lá -- por isso o limite vai
+          em pixel agora, e não em degrau da escala. */}
+      <DialogContent className="max-w-[1040px] p-0 gap-0 overflow-hidden" style={{ width: "min(1040px, 94vw)" }}>
+        {/* Altura no contêiner, não no miolo rolável: lá dentro o `flex-grow`
+            manda no eixo vertical e ignora `height`, e a lista empurraria o
+            diálogo para fora da tela. */}
+        <div className="flex" style={{ height: "min(700px, 84vh)" }}>
           {/* Left rail */}
           <div className="w-64 shrink-0 border-r border-border p-6 bg-secondary/30">
             <h2 className="text-lg font-bold">Criar disparo</h2>
@@ -169,7 +185,10 @@ export function CreateDisparoWizard({
 
           {/* Right content */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex-1 p-6 overflow-y-auto" style={{ maxHeight: "72vh" }}>
+            {/* `min-w-0` e `min-h-0`: item flex nasce recusando encolher abaixo
+                do conteúdo, e sem os dois a lista de colunas fixas empurra o
+                diálogo na horizontal e cresce sem rolar na vertical. */}
+            <div className="flex-1 min-w-0 min-h-0 p-6 overflow-y-auto">
               {step === 1 && (
                 <>
                   <h3 className="text-base font-semibold">Selecione o tipo de disparo</h3>
@@ -243,14 +262,32 @@ export function CreateDisparoWizard({
                       <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input placeholder="Procurar na lista" className="pl-9 h-9" value={leadSearch} onChange={e => setLeadSearch(e.target.value)} />
                     </div>
-                    {/* `ids` é preservado ao aplicar filtros: o painel devolve o
-                        filtro inteiro e não conhece a seleção manual, então sem
-                        isto mexer em qualquer filtro apagaria em silêncio os
-                        leads que a pessoa tinha marcado na lista. */}
-                    <LeadFilterPanel value={filter} onApply={f => setFilter({ ...f, ids: filter.ids })} />
+                    {/* Mesmo painel do /pipeline, do /leads e do "Executar
+                        automação". Sem `status`/`onChangeStatus`: aqui não há
+                        seletor de situação na barra, então quem responde por
+                        isso é o critério "situacao", que grava no `dealStatus`
+                        do próprio filtro.
+
+                        `ids` é preservado ao aplicar: o painel devolve o filtro
+                        inteiro e não conhece a seleção manual, então sem isto
+                        mexer em qualquer critério apagaria em silêncio os leads
+                        que a pessoa tinha marcado na lista. Vale também para o
+                        "Limpar filtros", que passa `{}` por este mesmo caminho. */}
+                    <PipelineFilterPanel
+                      value={filter}
+                      onApply={f => setFilter({ ...f, ids: filter.ids })}
+                      mostrar={["tags", "produtos", "atendente", "situacao", "negocios", "criacao", "fechamento", "origem", "perda"]}
+                      /* A busca entra na conta porque ela também recorta a
+                         lista aqui -- é o mesmo `effFilter` que monta `matched`.
+                         Sem ela, o número prometido no botão seria maior que o
+                         que aparece assim que houvesse algo digitado. */
+                      contarResultados={f =>
+                        filterLeads(allLeads, { ...f, search: leadSearch || f.search }, { lists: crmLists }).length
+                      }
+                    />
                   </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold text-primary">
+                  <div className="flex items-center gap-3 mb-2">
+                    <p className="text-[13px] font-semibold text-primary">
                       {selecionados.length.toLocaleString("pt-BR")} de {matched.length.toLocaleString("pt-BR")} leads selecionados
                     </p>
                     {matched.length > 0 && (
@@ -263,30 +300,77 @@ export function CreateDisparoWizard({
                       </button>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+                  {/* Cabeçalho e três colunas de largura igual, como no
+                      "Executar automação". `flex-1` nas três dá `flex-basis: 0`:
+                      o espaço é repartido igualmente e ignora o conteúdo, então
+                      as colunas caem no mesmo x em toda linha e acompanham o
+                      diálogo quando ele encolhe. */}
+                  <div className="flex items-center gap-3 px-3.5 pb-2 mb-1 border-b border-border text-xs text-muted-foreground">
+                    <span className="w-4 shrink-0" />
+                    <span className="w-7 shrink-0" />
+                    <span className="flex-1 min-w-0">Nome</span>
+                    <span className="flex-1 min-w-0 hidden sm:block">Contato</span>
+                    <span className="flex-1 min-w-0 hidden md:block">Tags</span>
+                  </div>
+
+                  {/* Sem moldura por linha: a régua sob o cabeçalho já separa o
+                      rótulo do dado, e um contorno em cada registro fazia a
+                      lista brigar com a tabela atrás do diálogo. */}
+                  <div>
                     {matched.slice(0, 60).map(l => {
                       const marcadoAqui = marcado(l.id);
+                      const chave = chaveDaPessoa(l);
+                      const ticket = (chave ? ticketPorPessoaDaBase[chave]?.avg : undefined) ?? 0;
                       return (
                         <button
                           key={l.id}
                           type="button"
                           onClick={() => alternarLead(l.id)}
-                          className="flex items-center gap-3 p-2.5 rounded-lg border border-border w-full text-left hover:bg-secondary/40 transition-colors"
+                          className="flex items-center gap-3 px-3.5 py-2.5 w-full text-left hover:bg-secondary/40 transition-colors"
                         >
                           <div className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
                                style={{ borderColor: marcadoAqui ? "hsl(var(--primary))" : "#CBD5E1", background: marcadoAqui ? "hsl(var(--primary))" : "transparent" }}>
                             {marcadoAqui && <Check size={11} color="#fff" />}
                           </div>
-                          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
-                            {l.name.slice(0, 1).toUpperCase()}
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#128A68" }}>
+                            {l.name.trim().charAt(0).toUpperCase() || "?"}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{l.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{l.whatsapp || l.email || "—"}</p>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold truncate leading-none">{l.name}</div>
+                            <span style={{ fontSize: 8, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
+                              Ticket médio <span className="text-green-600 ml-1">{fmtBRL(ticket)}</span>
+                            </span>
                           </div>
-                          {(l.tags ?? []).slice(0, 2).map(t => (
-                            <span key={t} className="text-[10px] bg-secondary rounded px-1.5 py-0.5 text-muted-foreground">{t}</span>
-                          ))}
+
+                          <div className="flex-1 min-w-0 hidden sm:block">
+                            <div className="flex items-center gap-1.5 text-xs text-foreground">
+                              <Phone size={12} className="shrink-0 text-muted-foreground" />
+                              <span className="truncate">{l.whatsapp || "—"}</span>
+                            </div>
+                            {l.email && <div className="text-[11px] text-muted-foreground truncate pl-[18px]">{l.email}</div>}
+                          </div>
+
+                          {/* Duas tags e o resto vira "+N": a linha tem ~40px e
+                              um lead com seis faria a lista inteira crescer para
+                              acomodar um caso raro. */}
+                          <div className="flex-1 min-w-0 hidden md:flex flex-wrap gap-1 content-center">
+                            {(l.tags ?? []).length === 0
+                              ? <span className="text-xs text-muted-foreground">—</span>
+                              : (
+                                <>
+                                  {(l.tags ?? []).slice(0, 2).map(nome => (
+                                    <span key={nome} className="text-[10px] px-2 rounded-full text-white font-medium truncate max-w-[150px]"
+                                          style={{ paddingTop: 2, paddingBottom: 2, background: crmTags.find(t => t.name === nome)?.color || "#888" }}>
+                                      {nome}
+                                    </span>
+                                  ))}
+                                  {(l.tags ?? []).length > 2 && (
+                                    <span className="text-[11px] text-muted-foreground">+{(l.tags ?? []).length - 2}</span>
+                                  )}
+                                </>
+                              )}
+                          </div>
                         </button>
                       );
                     })}

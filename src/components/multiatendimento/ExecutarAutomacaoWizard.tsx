@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { chaveDaPessoa } from "@/lib/ticketMedio";
+import type { Lead } from "@/data/mockData";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +49,37 @@ export interface ConversaAlvo {
   ticketMedio?: number;
   email?: string;
   tags?: { nome: string; cor?: string }[];
+}
+
+/**
+ * Lead para o formato que este wizard desenha.
+ *
+ * Mora aqui, junto do tipo que ela produz, porque três lugares abrem o wizard
+ * com leads: o menu da linha de /leads, o menu do topo de /leads e o botão
+ * "Automação" da pipeline. Montado em cada um, bastaria um esquecer as tags
+ * para a mesma lista aparecer diferente conforme por onde a pessoa entrou.
+ *
+ * Recebe o mapa de tickets e as tags de fora porque quem os tem é a página: o
+ * wizard não conhece o contexto do CRM, e buscá-los aqui o amarraria a ele.
+ */
+export function leadParaAlvo(
+  l: Lead,
+  tickets: Record<string, { avg: number }>,
+  tags: { name: string; color: string }[],
+): ConversaAlvo {
+  const chave = chaveDaPessoa(l);
+  return {
+    id: l.id,
+    nome: l.name,
+    telefone: l.whatsapp || undefined,
+    email: l.email || undefined,
+    ticketMedio: (chave ? tickets[chave]?.avg : undefined) ?? 0,
+    tags: (l.tags ?? []).map(nome => ({ nome, cor: tags.find(t => t.name === nome)?.color })),
+    // Vindo de lead, a linha JÁ é um negócio, então sempre há em que executar.
+    // O aviso de "sem negócio" fica para o Multiatendimento, onde a conversa
+    // pode não ter negócio nenhum.
+    temNegocio: true,
+  };
 }
 
 /**

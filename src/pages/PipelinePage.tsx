@@ -10,7 +10,8 @@ import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { PipelineFilterPanel, type StatusFilter } from "@/components/PipelineFilterPanel";
-import { leadMatchesFilter, isFilterEmpty, executarAutomacaoNoLead, type LeadFilter } from "@/data/disparos";
+import { leadMatchesFilter, filterLeads, isFilterEmpty, executarAutomacaoNoLead, type LeadFilter } from "@/data/disparos";
+import { ticketPorPessoa } from "@/lib/ticketMedio";
 import type { AttendantPermissions, Lead } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { normalizarTelefoneBr } from "@/lib/telefone";
-import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
+import { ExecutarAutomacaoWizard, leadParaAlvo } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import type { Contact } from "@/lib/contacts";
@@ -416,6 +417,23 @@ export default function PipelinePage() {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   /**
+   * A pessoa tem permissão de ver este negócio?
+   *
+   * Separado dos critérios de tela porque é de outra natureza: filtro é escolha,
+   * permissão não é. Quem só enxerga os próprios negócios continua sem enxergar
+   * os alheios em qualquer lugar -- inclusive no wizard de automação, que ignora
+   * de propósito o filtro da barra mas não pode ignorar isto.
+   */
+  const podeVer = useCallback((l: Lead) => {
+    const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
+    if (myPerms.viewOwnDealsOnly) return resps.includes(myName);
+    if (isAdmin && viewAsUser.length > 0) {
+      return viewAsUser.some(v => (v === "__no_responsible__" ? resps.length === 0 : resps.includes(v)));
+    }
+    return true;
+  }, [myPerms.viewOwnDealsOnly, myName, isAdmin, viewAsUser]);
+
+  /**
    * Um negócio passa pelo que a barra e o painel estão pedindo?
    *
    * Extraído porque agora tem dois leitores: o kanban, que decide quais cards
@@ -445,15 +463,8 @@ export default function PipelinePage() {
 
     if (!isFilterEmpty(f) && !leadMatchesFilter(l, f, { lists: [] })) return false;
 
-    // Visibilidade por responsável: corta antes de qualquer contagem, senão a
-    // prévia prometeria negócios que a pessoa nem tem permissão de ver.
-    const resps = l.responsibles?.length ? l.responsibles : (l.responsible ? [l.responsible] : []);
-    if (myPerms.viewOwnDealsOnly) return resps.includes(myName);
-    if (isAdmin && viewAsUser.length > 0) {
-      return viewAsUser.some(v => (v === "__no_responsible__" ? resps.length === 0 : resps.includes(v)));
-    }
-    return true;
-  }, [search, myPerms.viewOwnDealsOnly, myName, isAdmin, viewAsUser]);
+    return podeVer(l);
+  }, [search, podeVer]);
 
   const filteredColumns = useMemo(() => {
     if (!activePipeline) return [];
@@ -483,6 +494,37 @@ export default function PipelinePage() {
   );
 
   const [automacaoAberta, setAutomacaoAberta] = useState(false);
+
+  /**
+   * Filtro do passo "Selecionar leads" da automação.
+   *
+   * Estado próprio, separado do `advFilter` da barra: um decide o que o board
+   * mostra, o outro em quem a automação roda. Compartilhados, mexer num critério
+   * dentro do popup reorganizaria a pipeline por baixo, e fechar sem executar
+   * deixaria o board alterado sem ninguém ter pedido.
+   */
+  const [filtroAutomacao, setFiltroAutomacao] = useState<LeadFilter>({});
+
+  // Ticket médio do módulo compartilhado, o mesmo que /leads e o disparo usam.
+  const ticketPorPessoaDaBase = useMemo(() => ticketPorPessoa(leads), [leads]);
+
+  /**
+   * Universo do popup: os negócios DESTE funil, sem o recorte da barra.
+   *
+   * Não usa `leadsVisiveisNaPipeline` de propósito -- aquele já vem cortado por
+   * status, busca e filtro avançado, e herdar isso faria a automação mudar de
+   * alcance conforme o que estava digitado atrás do popup. Mesma decisão do
+   * /leads.
+   *
+   * A permissão continua valendo: `podeVer` não é filtro, é quem a pessoa tem
+   * direito de enxergar.
+   */
+  const leadsDoFunil = useMemo(
+    () => (activePipeline?.columns ?? [])
+      .flatMap(col => col.leadIds.map(id => leads[id]))
+      .filter(l => l && podeVer(l)),
+    [activePipeline?.columns, leads, podeVer],
+  );
   const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
   const [novoLeadOpen, setNovoLeadOpen] = useState(false);
   const [dealContactTarget, setDealContactTarget] = useState<Contact | null>(null);
@@ -1474,13 +1516,32 @@ export default function PipelinePage() {
             os negócios visíveis neste board (com os filtros já aplicados). */}
         <ExecutarAutomacaoWizard
           open={automacaoAberta}
-          onOpenChange={setAutomacaoAberta}
+          onOpenChange={aberto => {
+            setAutomacaoAberta(aberto);
+            // Zera ao fechar: o filtro é da sessão do popup, e reencontrá-lo
+            // aplicado na próxima abertura explicaria mal uma lista menor.
+            if (!aberto) setFiltroAutomacao({});
+          }}
           executando={executandoAutomacao}
           termo={{ singular: "lead", plural: "leads" }}
           conversas={[]}
-          opcoes={leadsVisiveisNaPipeline.map(l => ({
-            id: l.id, nome: l.name, telefone: l.whatsapp || undefined, temNegocio: true,
-          }))}
+          opcoes={(isFilterEmpty(filtroAutomacao)
+            ? leadsDoFunil
+            : filterLeads(leadsDoFunil, filtroAutomacao, { lists: [] })
+          ).map(l => leadParaAlvo(l, ticketPorPessoaDaBase, crmTags))}
+          acaoFiltro={
+            <PipelineFilterPanel
+              value={filtroAutomacao}
+              onApply={setFiltroAutomacao}
+              mostrar={["tags", "produtos", "atendente", "situacao", "negocios", "criacao", "fechamento", "origem", "perda"]}
+              /* Só o funil aberto na coluna de navegação: o universo do popup é
+                 dele, e oferecer os outros deixaria escolher etapas que não
+                 casam com negócio nenhum -- a lista esvaziaria sem explicação.
+                 As ETAPAS seguem livres, que é o recorte útil aqui. */
+              funis={activePipelineId ? [activePipelineId] : []}
+            />
+          }
+          filtroVazio={isFilterEmpty(filtroAutomacao)}
           onExecutar={async (automationId, ids) => {
             if (!company || ids.length === 0) return;
             setExecutandoAutomacao(true);

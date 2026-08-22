@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
 import { type Contact } from "@/lib/contacts";
-import { normalizarTelefoneBr } from "@/lib/telefone";
+import { chaveDaPessoa, ticketPorPessoa } from "@/lib/ticketMedio";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Menu, MoreHorizontal, Pencil, Briefcase, MessageSquare, Trash2, Users, Upload, Download, Network, Rocket } from "lucide-react";
 import { useCompany } from "@/context/CompanyContext";
-import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
+import { ExecutarAutomacaoWizard, leadParaAlvo } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
 import { CreateDisparoWizard } from "@/components/disparos/CreateDisparoWizard";
 import { PipelineFilterPanel } from "@/components/PipelineFilterPanel";
 import { executarAutomacaoNoLead, filterLeads, isFilterEmpty, type LeadFilter } from "@/data/disparos";
@@ -70,27 +70,9 @@ export default function LeadsPage() {
   // Automação em lote, a partir dos leads marcados na lista.
   const [automacaoEmLote, setAutomacaoEmLote] = useState<Lead[] | null>(null);
 
-  /**
-   * Lead para o formato que o wizard de automação desenha.
-   *
-   * Numa função só porque os dois pontos que abrem o wizard (o menu da linha e
-   * o do topo) precisam do MESMO conjunto de campos. Montado em cada lugar,
-   * bastaria um esquecer as tags para a mesma lista aparecer diferente conforme
-   * por onde a pessoa entrou.
-   */
-  const paraAlvo = (l: Lead) => ({
-    id: l.id,
-    nome: l.name,
-    telefone: l.whatsapp || undefined,
-    email: l.email || undefined,
-    ticketMedio: (() => {
-      const key = chaveDaPessoa(l);
-      return (key ? ticketByContact[key]?.avg : undefined) ?? 0;
-    })(),
-    tags: (l.tags ?? []).map(nome => ({ nome, cor: crmTags.find(t => t.name === nome)?.color })),
-    // Na lista de leads a linha JÁ é um negócio, então sempre há em que executar.
-    temNegocio: true,
-  });
+  // Mapeia o lead para o wizard pela função do próprio wizard: a pipeline abre
+  // o mesmo popup e precisa das mesmas colunas.
+  const paraAlvo = (l: Lead) => leadParaAlvo(l, ticketByContact, crmTags);
 
   /**
    * Filtro do passo "Selecionar leads" da automação em lote.
@@ -221,40 +203,8 @@ export default function LeadsPage() {
     toast.success("Lead removido.");
     setDeleteContactTarget(null);
   };
-
-  // Chave de "mesma pessoa" para agregar vendas.
-  //
-  // É personId (leads.person_id → contacts.id), que hoje cobre 2500 dos 2502
-  // leads. O fallback é o núcleo do telefone, o mesmo do resto do sistema.
-  //
-  // Antes a chave era `contactId`, que é OUTRA coisa: leads.contact_id é
-  // auto-referência para leads.id, do "Novo negócio" legado, e existe em UMA
-  // linha do banco inteiro. Na prática todo mundo caía no fallback, que usava
-  // dígitos CRUS -- então "5548999998888" e "48999998888" viravam duas pessoas
-  // e o ticket médio de quem tivesse dois negócios ganhos partia em dois.
-  // Ninguém tem dois ganhos hoje, então isso nunca apareceu na tela; é uma
-  // bomba com o pino puxado esperando o primeiro cliente recorrente.
-  //
-  // Produtor e consumidor usam ESTA função. Antes usavam expressões diferentes
-  // (aqui `contactId`, na tabela `lead.id`), o que só funcionava por acidente.
-  const chaveDaPessoa = (l: { personId?: string; whatsapp?: string }): string | null =>
-    l.personId ?? (l.whatsapp ? normalizarTelefoneBr(l.whatsapp) || null : null);
-
-  const ticketByContact = useMemo(() => {
-    const map: Record<string, number[]> = {};
-    Object.values(leads).forEach(l => {
-      if (l.dealStatus === "won" && l.value > 0) {
-        const key = chaveDaPessoa(l);
-        if (key) { if (!map[key]) map[key] = []; map[key].push(l.value); }
-      }
-    });
-    const result: Record<string, { avg: number; total: number; count: number }> = {};
-    Object.entries(map).forEach(([k, vals]) => {
-      const total = vals.reduce((a, b) => a + b, 0);
-      result[k] = { avg: total / vals.length, total, count: vals.length };
-    });
-    return result;
-  }, [leads]);
+  // Ticket médio por pessoa, do mesmo cálculo que o wizard de disparo usa.
+  const ticketByContact = useMemo(() => ticketPorPessoa(leads), [leads]);
 
   const fmtBRL = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);

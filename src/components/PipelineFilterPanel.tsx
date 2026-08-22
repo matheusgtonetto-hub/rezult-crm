@@ -115,6 +115,7 @@ export function PipelineFilterPanel({
   statusNeutro = "open",
   contarResultados,
   mostrar,
+  funis,
 }: {
   value: LeadFilter;
   onApply: (f: LeadFilter) => void;
@@ -159,6 +160,14 @@ export function PipelineFilterPanel({
    * efeito colateral de quem não sabia que ele existia.
    */
   mostrar: Criterio[];
+  /**
+   * Ids dos funis que a coluna de navegação de "Negócios" oferece.
+   *
+   * Existe para o popup de automação da pipeline: lá o universo é só do funil
+   * aberto, e listar os outros ofereceria etapas que não casam com negócio
+   * nenhum -- o board esvaziaria sem explicação. Omitida, oferece todos.
+   */
+  funis?: string[];
 }) {
   const { crmTags, teamMembers, products, lossReasons, pipelines } = useCRM();
   const [open, setOpen] = useState(false);
@@ -190,7 +199,8 @@ export function PipelineFilterPanel({
    * formas de dizer o mesmo, com resultados que divergem em casos de borda.
    */
   const [funilFocado, setFunilFocado] = useState<string | null>(null);
-  const focado = pipelines.find(p => p.id === funilFocado) ?? pipelines[0] ?? null;
+  const funisOferecidos = funis ? pipelines.filter(p => funis.includes(p.id)) : pipelines;
+  const focado = funisOferecidos.find(p => p.id === funilFocado) ?? funisOferecidos[0] ?? null;
   const idsDoFoco = new Set(focado?.columns.map(c => c.id) ?? []);
   const etapasForaDoFoco = (draft.stages ?? []).filter(id => !idsDoFoco.has(id)).length;
 
@@ -524,7 +534,7 @@ export function PipelineFilterPanel({
                   <ListaOpcoes
                     navegacao
                     semBusca
-                    opcoes={pipelines.map(p => ({ valor: p.id, rotulo: p.name }))}
+                    opcoes={funisOferecidos.map(p => ({ valor: p.id, rotulo: p.name }))}
                     selecionados={focado ? [focado.id] : []}
                     onAlternar={setFunilFocado}
                     vazio="Nenhum pipeline."
