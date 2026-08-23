@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactElement } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { tooltip, PALETA } from "./useDashboardHelpers";
 
@@ -39,6 +39,22 @@ interface AnelProps {
    * vez de flutuar entre os dois desenhos.
    */
   rodape?: string;
+  /**
+   * Tooltip próprio, no lugar do padrão do Recharts (nome e valor).
+   *
+   * Para anéis onde a fatia carrega mais de um número: o de responsável mostra
+   * negócios, ganhos, perdidos e receita da mesma pessoa. Recharts injeta os
+   * props no elemento, então basta passá-lo montado: `<MeuTooltip />`.
+   */
+  conteudoTooltip?: ReactElement;
+  /**
+   * Fatia sob o mouse, ou null ao sair.
+   *
+   * Existe para o anel sem legenda: ali o hover é o ÚNICO jeito de descobrir de
+   * quem é a fatia, e quem escuta este aviso costuma usá-lo para trocar o
+   * número do furo pelo da fatia apontada.
+   */
+  onPassarMouse?: (nome: string | null) => void;
 }
 
 /**
@@ -48,10 +64,17 @@ interface AnelProps {
  * a lado (a mesma grandeza repartida por dois critérios). Inline, o segundo
  * exigiria copiar quarenta linhas de Recharts, e as duas cópias divergiriam na
  * primeira vez que alguém mexesse num raio.
+ *
+ * Exportado porque painéis fora deste arquivo desenham o mesmo anel sem a
+ * tabela ao lado. É a espessura que obriga: os anéis do dashboard ficam na
+ * mesma linha, e uma faixa mais grossa que a vizinha lê como erro de
+ * renderização, não como distinção. Uma cópia solta divergiria no primeiro
+ * ajuste de raio.
  */
-function Anel({
+export function Anel({
   fatias, vazio, altura, textoCentro, rotuloCentro,
   tituloDoRotulo, selecionada, onSelecionar, rodape,
+  conteudoTooltip, onPassarMouse,
 }: AnelProps) {
   const dados = vazio ? ANEL_VAZIO : fatias;
   const clicavel = !vazio && !!onSelecionar;
@@ -92,6 +115,9 @@ function Anel({
               isAnimationActive={false}
               // Anel vazio não seleciona nada: não há fatia por trás dele.
               onClick={clicavel ? (_, i) => onSelecionar(fatias[i].nome) : undefined}
+              // Anel vazio não avisa hover: a única fatia ali é o cinza falso.
+              onMouseEnter={!vazio && onPassarMouse ? (_, i) => onPassarMouse(fatias[i].nome) : undefined}
+              onMouseLeave={!vazio && onPassarMouse ? () => onPassarMouse(null) : undefined}
               className={clicavel ? "cursor-pointer" : undefined}
             >
               {dados.map(f => (
@@ -106,7 +132,13 @@ function Anel({
             </Pie>
             {/* Sem tooltip no anel vazio: ele mostraria "— 1", que é o valor
                 falso usado só para desenhar o círculo inteiro. */}
-            {!vazio && <Tooltip contentStyle={tooltip} />}
+            {/* zIndex no wrapper porque o número do furo é desenhado DEPOIS do
+                gráfico (é a div de centro logo abaixo) e, empatados em camada,
+                quem vem depois no DOM ganha. O tooltip passava por baixo do
+                total e do rótulo, e as duas camadas de texto se embaralhavam.
+                10 é o suficiente para vencer o centro e continuar bem abaixo da
+                sidebar (30) e do overlay de diálogo (50). */}
+            {!vazio && <Tooltip contentStyle={tooltip} content={conteudoTooltip} wrapperStyle={{ zIndex: 10 }} />}
           </PieChart>
         </ResponsiveContainer>
 
@@ -154,13 +186,18 @@ export interface FatiaDonut {
   /** Opcional: sem cor, entra a da paleta na posição do item. */
   cor?: string;
   /**
-   * Segunda coluna da legenda, já formatada (ex.: "12%" de conversão).
+   * Colunas extras da legenda, já formatadas (ex.: "12%" de conversão), na
+   * mesma ordem dos títulos em `colunas.extras`.
    *
-   * Chega pronta como texto, e não como número, porque é grandeza de outra
-   * natureza: o `valor` é o que a rosquinha reparte, e este não. Deixar o
-   * componente formatá-la abriria a porta para ele somar as duas coisas.
+   * Chegam prontas como texto, e não como número, porque são grandezas de outra
+   * natureza: o `valor` é o que a rosquinha reparte, e estas não. Deixar o
+   * componente formatá-las abriria a porta para ele somar as duas coisas.
+   *
+   * Lista, e não um campo só, porque um painel pode precisar de mais de um
+   * número por linha -- resultado por responsável mostra ganhos no anel e ainda
+   * perdidos e negócios ao lado.
    */
-  extra?: string;
+  extras?: string[];
   /**
    * Quebra da fatia, mostrada como sub-linhas recuadas sob ela na legenda.
    *
@@ -172,7 +209,7 @@ export interface FatiaDonut {
   detalhes?: {
     nome: string;
     valor: number;
-    extra?: string;
+    extras?: string[];
     /**
      * Obrigatória na prática quando há `anelSecundario`.
      *
@@ -231,11 +268,11 @@ interface Props {
    * e a coluna de valor exibe a fatia do total ("51%"), que é o padrão de uma
    * legenda de rosquinha.
    *
-   * Com `extra` nomeado, aquela porcentagem cede lugar ao dado de cada fatia:
+   * Com `extras` nomeadas, aquela porcentagem cede lugar ao dado de cada fatia:
    * a proporção continua legível no próprio anel, então repeti-la em texto
    * gastaria a coluna à toa.
    */
-  colunas?: { valor: string; extra?: string };
+  colunas?: { valor: string; extras?: string[] };
   /**
    * Segundo anel ao lado do primeiro, sem legenda própria.
    *
@@ -397,8 +434,13 @@ export function DonutDistribuicao({
           resto do painel. */}
       <div className={empilhado ? "w-full min-w-0" : "flex-1 min-w-0"}>
         {/* Sem dado, a tabela dá lugar a uma frase. O cabeçalho de colunas
-            pendurado sobre nenhuma linha pareceria carregamento travado. */}
-        {vazio ? (
+            pendurado sobre nenhuma linha pareceria carregamento travado.
+
+            O corte é "nenhuma fatia", e não `vazio`: uma lista com todos os
+            valores em zero tem o que dizer nas colunas extras. Um responsável
+            sem nenhuma venda no período pode ter dez perdas, e trocar a tabela
+            por "sem dados" esconderia justamente o número que explica o zero. */}
+        {fatias.length === 0 ? (
           <p className="text-xs text-muted-foreground">Sem dados no período.</p>
         ) : (
         <table className="w-full text-xs">
@@ -407,7 +449,9 @@ export function DonutDistribuicao({
               <tr className="border-b border-card-border text-[10px] uppercase tracking-wide text-foreground">
                 <th className="font-semibold pb-1.5 text-left" />
                 <th className={`font-semibold pb-1.5 ${COL_VALOR}`}>{colunas.valor}</th>
-                {colunas.extra && <th className={`font-semibold pb-1.5 ${COL_EXTRA}`}>{colunas.extra}</th>}
+                {colunas.extras?.map(t => (
+                  <th key={t} className={`font-semibold pb-1.5 ${COL_EXTRA}`}>{t}</th>
+                ))}
               </tr>
             </thead>
           )}
@@ -446,11 +490,11 @@ export function DonutDistribuicao({
                       </span>
                     )}
                   </td>
-                  {colunas?.extra && (
-                    <td className={`py-1.5 text-muted-foreground tabular-nums ${COL_EXTRA}`}>
-                      {f.extra ?? "—"}
+                  {colunas?.extras?.map((t, i) => (
+                    <td key={t} className={`py-1.5 text-muted-foreground tabular-nums ${COL_EXTRA}`}>
+                      {f.extras?.[i] ?? "—"}
                     </td>
-                  )}
+                  ))}
                 </tr>
 
                 {/* Quebra da fatia, só com a fatia selecionada. Todas abertas de
@@ -500,11 +544,11 @@ export function DonutDistribuicao({
                     <td className={`py-1 text-[11px] text-muted-foreground tabular-nums ${COL_VALOR}`}>
                       {formatarValor ? formatarValor(d.valor) : d.valor}
                     </td>
-                    {colunas?.extra && (
-                      <td className={`py-1 text-[11px] text-muted-foreground tabular-nums ${COL_EXTRA}`}>
-                        {d.extra ?? ""}
+                    {colunas?.extras?.map((t, i) => (
+                      <td key={t} className={`py-1 text-[11px] text-muted-foreground tabular-nums ${COL_EXTRA}`}>
+                        {d.extras?.[i] ?? ""}
                       </td>
-                    )}
+                    ))}
                   </tr>
                   );
                 })}
