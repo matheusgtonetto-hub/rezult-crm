@@ -1,6 +1,7 @@
 import { Fragment, useState, type ReactElement } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { tooltip, PALETA } from "./useDashboardHelpers";
+import { CaixaTooltip, type LinhaTooltip } from "./CaixaTooltip";
 
 /**
  * Rosquinha de distribuição, com total no centro e legenda com valores.
@@ -55,6 +56,58 @@ interface AnelProps {
    * número do furo pelo da fatia apontada.
    */
   onPassarMouse?: (nome: string | null) => void;
+}
+
+/**
+ * O popup da fatia, no mesmo formato dos outros gráficos do dashboard.
+ *
+ * Mostra o que a linha da legenda mostra: o valor e as colunas extras, com os
+ * mesmos títulos. É de propósito -- apontar uma fatia e ler a linha dela na
+ * tabela têm que responder a mesma coisa, senão o painel fala com duas vozes.
+ *
+ * Existe porque o padrão do Recharts escrevia "Facebook Ads : 42" numa linha
+ * corrida, e estes anéis eram os últimos gráficos daqui ainda naquele formato.
+ */
+function TooltipDaFatia({
+  active,
+  payload,
+  rotuloValor,
+  rotulosExtras,
+  formatarValor,
+  soma,
+}: {
+  active?: boolean;
+  payload?: { payload: FatiaDonut }[];
+  rotuloValor?: string;
+  rotulosExtras?: string[];
+  formatarValor?: (v: number) => string;
+  soma?: number;
+}) {
+  const f = payload?.[0]?.payload;
+  if (!active || !f) return null;
+
+  const linhas: LinhaTooltip[] = [
+    {
+      // Sem colunas nomeadas o painel não deu nome à grandeza, e "Total" é o
+      // rótulo honesto para "o que este anel reparte".
+      rotulo: rotuloValor ?? "Total",
+      valor: formatarValor ? formatarValor(f.valor) : String(f.valor),
+      destaque: true,
+    },
+    ...(rotulosExtras ?? []).map((r, i) => ({ rotulo: r, valor: f.extras?.[i] ?? "—" })),
+  ];
+
+  // A fatia do total só entra quando não há colunas extras. Com elas, o painel
+  // já escolheu que números quer ao lado do valor, e um deles costuma ser
+  // justamente a porcentagem -- repetir daria duas linhas iguais.
+  if (!rotulosExtras?.length) {
+    linhas.push({
+      rotulo: "% do total",
+      valor: soma && soma > 0 ? `${Math.round((f.valor / soma) * 100)}%` : "—",
+    });
+  }
+
+  return <CaixaTooltip titulo={f.nome} cor={f.cor} linhas={linhas} />;
 }
 
 /**
@@ -402,6 +455,14 @@ export function DonutDistribuicao({
           selecionada={selecionada}
           onSelecionar={alternar}
           rodape={anelSecundario ? rodape : undefined}
+          conteudoTooltip={
+            <TooltipDaFatia
+              rotuloValor={colunas?.valor}
+              rotulosExtras={colunas?.extras}
+              formatarValor={formatarValor}
+              soma={soma}
+            />
+          }
         />
 
         {anelSecundario && (
@@ -416,7 +477,18 @@ export function DonutDistribuicao({
             altura={altura}
             textoCentro={textoCentroSecundario}
             rotuloCentro={rotuloCentro}
-              rodape={anelSecundario.rodape}
+            rodape={anelSecundario.rodape}
+            // `somaSecundaria`, e não `soma`: este anel reparte outro conjunto
+            // (os motivos, ou os motivos de UMA origem), e usar o total do
+            // primeiro faria as porcentagens daqui não fecharem em 100%.
+            conteudoTooltip={
+              <TooltipDaFatia
+                rotuloValor={colunas?.valor}
+                rotulosExtras={colunas?.extras}
+                formatarValor={formatarValor}
+                soma={somaSecundaria}
+              />
+            }
           />
         )}
       </div>
