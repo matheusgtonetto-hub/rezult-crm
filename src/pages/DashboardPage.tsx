@@ -6,8 +6,7 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  TrendingUp, Users, CheckCircle, Clock, Trophy,
-  MessageSquare, ArrowDown, Calendar, Phone, Mail, AlertTriangle,
+  TrendingUp, Users, Clock, Trophy, ArrowDown, AlertTriangle,
   Activity as ActivityIcon, ChevronDown, ChevronRight, Briefcase, XCircle,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -19,24 +18,10 @@ import { DonutDistribuicao } from "@/components/dashboard/DonutDistribuicao";
 import { OriginPanel } from "@/components/dashboard/OriginPanel";
 import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel";
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
-import { NoNextActionPanel } from "@/components/dashboard/NoNextActionPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
 import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA } from "@/components/dashboard/useDashboardHelpers";
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  stage_change: "Mudança de etapa",
-  note: "Nota",
-  whatsapp: "WhatsApp",
-  won: "Ganho",
-  lost: "Perdido",
-  created: "Criado",
-  meeting: "Reunião",
-  call: "Ligação",
-  follow_up: "Follow-up",
-  task: "Tarefa",
-  email: "E-mail",
-};
 
 /**
  * As três séries da aba Negócios, numa fonte só.
@@ -430,17 +415,7 @@ export default function DashboardPage() {
   const activityStats = useMemo(() => {
     const allActs = allLeads.flatMap(l => l.activities.map(a => ({ ...a, leadName: l.name, leadResponsible: l.responsible ?? "" })));
     const inPeriod = allActs.filter(a => { const d = new Date(a.date); return d >= periodCutoff && d <= periodTo; });
-    const byType = new Map<string, number>();
-    inPeriod.forEach(a => byType.set(a.type, (byType.get(a.type) || 0) + 1));
     const meetings = inPeriod.filter(a => a.type === "meeting");
-    const now = new Date();
-    const upcoming = allActs
-      .filter(a => a.type === "meeting" && a.scheduledAt && !a.completedAt && !a.noShowAt && new Date(a.scheduledAt) > now)
-      .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
-      .slice(0, 5);
-    const recent = [...inPeriod]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 8);
 
     type DrillItem = { leadId: string; leadName: string; subtitle: string };
 
@@ -520,30 +495,13 @@ export default function DashboardPage() {
       .sort((a, b) => b.won - a.won);
 
     return {
-      total: inPeriod.length,
       meetings: meetings.length,
       completedMeetings: meetings.filter(a => a.completedAt).length,
       noShows: meetings.filter(a => a.noShowAt).length,
-      calls: inPeriod.filter(a => a.type === "call").length,
-      emails: inPeriod.filter(a => a.type === "email").length,
-      notes: inPeriod.filter(a => a.type === "note").length,
-      byType: [...byType.entries()]
-        .map(([type, count]) => ({ type: ACTIVITY_LABELS[type] ?? type, count }))
-        .sort((a, b) => b.count - a.count),
-      upcoming,
-      recent,
       topSchedulers,
       topCompleters,
     };
   }, [allLeads, dateRange]);
-
-  const overdueTasks = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-    return tasks
-      .filter(t => t.status !== "Concluída" && t.dueDate && t.dueDate < today)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-      .slice(0, 5);
-  }, [tasks]);
 
   const funnelPipeline = useMemo(
     () => pipelines.find(p => p.id === funnelPipelineId) || pipelines[0] || null,
@@ -656,9 +614,8 @@ export default function DashboardPage() {
           <TabsList className="bg-card border border-gray-200 rounded-lg">
             <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
             <TabsTrigger value="multiatendimento" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Multiatendimento</TabsTrigger>
-            <TabsTrigger value="atividades" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Atividades</TabsTrigger>
-            <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funil</TabsTrigger>
-            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Times</TabsTrigger>
+            <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funis</TabsTrigger>
+            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Time</TabsTrigger>
           </TabsList>
           <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
         </div>
@@ -1369,137 +1326,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-        </TabsContent>
-
-        {/* ──────────── ATIVIDADES ──────────── */}
-        <TabsContent value="atividades" className="space-y-4 mt-0">
-          {/* Mini KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Terceiro conjunto de cartões que estava escrito à mão (Funil e
-                Times eram os outros). Aqui o ícone ficava à esquerda do rótulo,
-                não no quadrado tingido, e "Ligações" usava text-foreground, uma
-                cor que nenhum outro cartão do dashboard usa. Passa a sair do
-                mesmo componente. */}
-            {[
-              { label: "Total no período",    value: activityStats.total,             icone: MessageSquare, tom: "primary" as const },
-              { label: "Reuniões realizadas", value: activityStats.completedMeetings, icone: CheckCircle,   tom: "success" as const },
-              { label: "Ligações",            value: activityStats.calls,             icone: Phone,         tom: "amber" as const },
-              { label: "E-mails",             value: activityStats.emails,            icone: Mail,          tom: "primary" as const },
-            ].map(c => (
-              <KpiCard key={c.label} label={c.label} value={c.value} icone={c.icone} tom={c.tom} />
-            ))}
-          </div>
-
-          {/* By type */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Por tipo de atividade</h3>
-            {activityStats.byType.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={activityStats.byType} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                  {/* Grade só horizontal, como nos gráficos de área: em barra a
-                      linha vertical duplica a própria barra. */}
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
-                  <XAxis dataKey="type" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} dy={4} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
-                  <Tooltip contentStyle={tooltip} cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }} />
-                  <Bar dataKey="count" name="Atividades" fill="#128A68" radius={[6, 6, 0, 0]} maxBarSize={44} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Upcoming meetings + Overdue tasks */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Próximas reuniões</h3>
-              {activityStats.upcoming.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma reunião agendada.</p>
-              ) : (
-                <div className="space-y-3">
-                  {activityStats.upcoming.map(a => (
-                    <div key={a.id} className="flex items-start gap-3 pb-3 border-b border-card-border last:border-0 last:pb-0">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Calendar size={14} className="text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{a.title || a.description}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{a.leadName}</p>
-                        {a.scheduledAt && (
-                          <p className="text-xs text-primary mt-0.5">
-                            {new Date(a.scheduledAt).toLocaleDateString("pt-BR")} às {new Date(a.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                Tarefas atrasadas
-                {overdueTasks.length > 0 && (
-                  <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-semibold">{overdueTasks.length}</span>
-                )}
-              </h3>
-              {overdueTasks.length === 0 ? (
-                <div className="flex items-center gap-2 text-xs text-success">
-                  <CheckCircle size={14} />
-                  <span>Nenhuma tarefa atrasada.</span>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {overdueTasks.map(t => {
-                    const daysLate = Math.max(0, Math.floor((new Date().getTime() - new Date(t.dueDate + "T00:00:00").getTime()) / 86400000));
-                    return (
-                      <div key={t.id} className="flex items-start gap-3 pb-3 border-b border-card-border last:border-0 last:pb-0">
-                        <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
-                          <Clock size={14} className="text-destructive" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">{t.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{t.leadName}</p>
-                          <p className="text-xs text-destructive mt-0.5">{daysLate === 0 ? "Venceu hoje" : `${daysLate} dia${daysLate > 1 ? "s" : ""} atrasada`} · responsável: {t.responsible || "—"}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Recent activities */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Atividades recentes</h3>
-            {activityStats.recent.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem atividades no período.</p>
-            ) : (
-              <div className="space-y-3">
-                {activityStats.recent.map(a => (
-                  <div key={a.id} className="flex items-start gap-3 pb-3 border-b border-card-border last:border-0 last:pb-0">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <MessageSquare size={13} className="text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">{a.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {a.leadName} · {new Date(a.date).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                      {ACTIVITY_LABELS[a.type] ?? a.type}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <NoNextActionPanel allLeads={allLeads} />
         </TabsContent>
 
         {/* ──────────── FUNIL ──────────── */}
