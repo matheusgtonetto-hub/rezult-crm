@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  TrendingUp, Users, Clock, Trophy, ArrowDown, AlertTriangle,
+  TrendingUp, Users, Clock, Trophy, ArrowDown, AlertTriangle, ShoppingCart,
   Activity as ActivityIcon, ChevronDown, ChevronRight, Briefcase, XCircle,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -18,6 +18,10 @@ import { DonutDistribuicao } from "@/components/dashboard/DonutDistribuicao";
 import { OriginPanel } from "@/components/dashboard/OriginPanel";
 import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel";
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
+import { ResultadoResponsavelPanel } from "@/components/dashboard/ResultadoResponsavelPanel";
+import { HorariosPanel } from "@/components/dashboard/HorariosPanel";
+import { TooltipSeries } from "@/components/dashboard/CaixaTooltip";
+import { RankingPanel } from "@/components/dashboard/RankingPanel";
 import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
 import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA } from "@/components/dashboard/useDashboardHelpers";
@@ -37,10 +41,17 @@ import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, 
 const AREAS_NEGOCIOS = [
   // `chave` é a contagem; `chaveValor` é o dinheiro do mesmo recorte. O botão
   // Quantidade/Receita só troca qual das duas o gráfico lê.
-  { chave: "novos",    chaveValor: "novosValor",    nome: "Novos",    cor: "#128A68", id: "area-novos" },
+  // "Negócios", e não "Novos": os três nomes aparecem juntos na legenda e no
+  // tooltip, e "Novos" sozinho não dizia novos O QUÊ. Os outros dois já são
+  // situações do negócio, então nomear a entrada pelo objeto fecha a frase.
+  { chave: "novos",    chaveValor: "novosValor",    nome: "Negócios", cor: "#128A68", id: "area-novos" },
   { chave: "ganhos",   chaveValor: "ganhosValor",   nome: "Ganhos",   cor: "#10B981", id: "area-ganhos" },
   { chave: "perdidos", chaveValor: "perdidosValor", nome: "Perdidos", cor: "#EF4444", id: "area-perdidos" },
 ] as const;
+
+/** Cor de cada série pelo NOME, que é a chave com que o Recharts devolve o
+ *  ponto olhado. Montado uma vez, fora do componente: é constante. */
+const COR_DA_SERIE = Object.fromEntries(AREAS_NEGOCIOS.map(a => [a.nome, a.cor]));
 
 /** Eixo Y em dinheiro precisa ser curto, senão "R$ 1.610,00" come a largura do
  *  gráfico em cada marca. Mil vira "k", milhão vira "M". */
@@ -51,7 +62,7 @@ const fmtCurto = (v: number) =>
 
 export default function DashboardPage() {
   const {
-    leads, pipelines, products, teamMembers, memberColors, memberAvatars, tasks, lossReasons, crmTags,
+    leads, pipelines, products, teamMembers, memberColors, memberAvatars, memberEmails, tasks, lossReasons, crmTags,
   } = useCRM();
 
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
@@ -288,6 +299,32 @@ export default function DashboardPage() {
   }, [allLeads, dateRange]);
 
   /**
+   * As horas do período com o que aconteceu em cada uma, para o ranking em
+   * barras ao lado da curva.
+   *
+   * Sai do MESMO `hourlyData` que desenha a curva. A curva responde "como o dia
+   * se comporta" e o ranking responde "em que horas o negócio entra, ou fecha"
+   * -- perguntas diferentes sobre o mesmo dado. Recalcular por fora abriria
+   * espaço para as duas discordarem sobre a mesma hora, lado a lado na mesma
+   * linha.
+   *
+   * Vai inteiro, sem ordenar nem cortar: quem faz isso é o painel, que tem o
+   * botão Negócios/Ganhos. As dez horas em que mais entra negócio não são as
+   * mesmas em que mais se ganha, então cortar aqui decidiria o ranking antes de
+   * saber qual pergunta está sendo feita.
+   */
+  const horariosDoDia = useMemo(
+    () =>
+      hourlyData.map(h => ({
+        hora: h.mes,
+        negocios: h.novos,
+        ganhos: h.ganhos,
+        perdidos: h.perdidos,
+      })),
+    [hourlyData],
+  );
+
+  /**
    * Perdas repartidas por origem, com os motivos de cada origem por dentro.
    *
    * Dois níveis de propósito. "Perdemos 40 negócios por preço" é um dado morto:
@@ -339,20 +376,20 @@ export default function DashboardPage() {
       .sort((a, b) => b.total - a.total)
       .map(o => {
         const motivos = [...o.motivos.entries()]
-          .map(([nome, valor]) => ({ nome, valor, extra: fatia(valor), cor: corDoMotivo.get(nome) }))
+          .map(([nome, valor]) => ({ nome, valor, extras: [fatia(valor)], cor: corDoMotivo.get(nome) }))
           .sort((a, b) => b.valor - a.valor);
         const topo = motivos.slice(0, 3);
         const resto = motivos.slice(3).reduce((s, m) => s + m.valor, 0);
         return {
           nome: o.nome,
           valor: o.total,
-          extra: fatia(o.total),
+          extras: [fatia(o.total)],
           cor: ORIGIN_COLORS[o.nome],
           // "Outros motivos" em cinza, e não numa cor da paleta: ele não é um
           // motivo, é a sobra de vários. Uma cor própria o faria parecer o
           // quarto motivo mais comum.
           detalhes: resto > 0
-            ? [...topo, { nome: "Outros motivos", valor: resto, extra: fatia(resto), cor: "#94A3B8" }]
+            ? [...topo, { nome: "Outros motivos", valor: resto, extras: [fatia(resto)], cor: "#94A3B8" }]
             : topo,
         };
       });
@@ -393,6 +430,37 @@ export default function DashboardPage() {
     }).sort((a, b) => b.totalValue - a.totalValue);
   }, [periodLeads, wonInPeriod, lostInPeriod, teamMembers, memberColors]);
 
+  /**
+   * Fatias do painel "Resultado por responsável".
+   *
+   * Sai de `agentPerformance`, o mesmo cálculo que alimenta a aba Time. Recontar
+   * aqui por conta própria faria o dashboard afirmar duas coisas diferentes
+   * sobre o mesmo vendedor em duas abas, e a primeira divergência de critério
+   * (fechamento por atividade x campo do negócio) mataria a confiança nas duas.
+   *
+   * Sai daqui com as quatro grandezas cruas, sem escolher qual reparte o anel:
+   * essa é decisão do painel, que tem o botão Quantidade/Receita. Formatar ou
+   * pré-selecionar aqui obrigaria a página a saber do estado de um botão que
+   * vive lá dentro.
+   *
+   * Quem não apareceu no período de forma nenhuma fica de fora. Uma fileira de
+   * zeros para cada membro inativo empurraria para baixo justamente quem vendeu.
+   */
+  const resultadoPorResponsavel = useMemo(
+    () =>
+      agentPerformance
+        .filter(a => a.won > 0 || a.lost > 0 || a.total > 0)
+        .map(a => ({
+          nome: a.name,
+          cor: a.color,
+          negocios: a.total,
+          ganhos: a.won,
+          perdidos: a.lost,
+          receita: a.totalValue,
+        })),
+    [agentPerformance],
+  );
+
   const donutData = useMemo(() => {
     return teamMembers.map(m => {
       const ml = leadsForMember(periodLeads, m);
@@ -402,8 +470,8 @@ export default function DashboardPage() {
   }, [periodLeads, teamMembers, memberColors, donutMode]);
 
   const topProducts = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; value: number }>();
-    products.forEach(p => map.set(p.id, { name: p.name, count: 0, value: 0 }));
+    const map = new Map<string, { name: string; sku: string; count: number; value: number }>();
+    products.forEach(p => map.set(p.id, { name: p.name, sku: p.sku, count: 0, value: 0 }));
     wonInPeriod.forEach(l => {
       if (!l.productId || !map.has(l.productId)) return;
       const cur = map.get(l.productId)!;
@@ -738,10 +806,32 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Monthly line */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
+          {/* A curva do período e a repartição dela por responsável na mesma
+              linha: uma diz QUANDO o resultado aconteceu, a outra diz DE QUEM
+              ele foi. Separadas em linhas diferentes, cruzar as duas exigia
+              rolar a página; lado a lado, um pico na curva e a fatia que o
+              produziu ficam no mesmo olhar.
+
+              4/6 para a curva e 2/6 para o anel. A curva é série temporal e é
+              onde a largura vira leitura: mais espaço no eixo de datas separa
+              os rótulos e alonga a tendência. O anel é quadrado e não ganha
+              nada em crescer, mas a tabela embaixo dele precisa de largura
+              para o nome do responsável caber, e é isso que o terço garante.
+
+              Grade de 6, e não de 3 (que daria a mesma proporção): 6 divide em
+              meios e terços, então dá para reequilibrar a linha em passos de
+              1/6 sem trocar a grade de novo. */}
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+            <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+              {/* items-start, e não items-center: com o subtítulo o bloco de
+                  texto ficou mais alto que o par de botões, e centralizar
+                  deixaria os botões flutuando na altura do meio em vez de
+                  alinhados ao título. */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Resultado no período</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">A evolução dos seus negócios no período</p>
+              </div>
               <div className="flex items-center gap-4 flex-wrap">
                 {/* Sem legenda aqui. As três séries continuam identificadas no
                     tooltip, que aparece ao passar o mouse e traz nome, cor e
@@ -810,8 +900,12 @@ export default function DashboardPage() {
                   {/* No tooltip o valor vai por extenso: ali há espaço, e é onde
                       o número exato importa. */}
                   <Tooltip
-                    contentStyle={tooltip}
-                    formatter={metricaPeriodo === "receita" ? ((v: number) => fmt(v)) : undefined}
+                    content={
+                      <TooltipSeries
+                        cores={COR_DA_SERIE}
+                        formatarValor={metricaPeriodo === "receita" ? fmt : undefined}
+                      />
+                    }
                   />
                   {areasDoPeriodo.map(a => (
                     <Area
@@ -833,10 +927,31 @@ export default function DashboardPage() {
             )}
           </div>
 
+          <ResultadoResponsavelPanel dados={resultadoPorResponsavel} className="lg:col-span-2" />
+          </div>
+
+          {/* A curva do dia e o ranking das horas que fecham negócio. Lado a
+              lado porque a curva mostra o formato do dia e o ranking diz onde
+              agir nele; separados, cruzar os dois exigiria rolar a página.
+
+              O ranking à esquerda, ao contrário do anel da linha de cima, que
+              fica à direita. O zigue-zague é de propósito: dois blocos com o
+              mesmo arranjo um sobre o outro leem como repetição, e alternar o
+              lado faz o olho reparar que a pergunta mudou (de QUEM para
+              QUANDO).
+
+              4/6 para a curva e 2/6 para o ranking, as mesmas proporções da
+              linha de cima, para as duas se lerem como um par. */}
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+          <HorariosPanel dados={horariosDoDia} className="lg:col-span-2" />
+
           {/* Hourly results */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Como os negócios se distribuem ao longo do dia</p>
+              </div>
               {/* Legenda que também filtra: clicar liga e desliga a série no
                   gráfico. Desligada, a bolinha fica oca e o texto esmaece, então
                   dá para ver de relance o que está fora sem abrir nada. */}
@@ -902,7 +1017,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
-                  <Tooltip contentStyle={tooltip} />
+                  <Tooltip content={<TooltipSeries cores={COR_DA_SERIE} />} />
                   {areasHorario.map(a => (
                     <Area
                       key={a.chave}
@@ -921,6 +1036,7 @@ export default function DashboardPage() {
                 </AreaChart>
               </ResponsiveContainer>
             )}
+          </div>
           </div>
 
           {/* Três leituras de repartição na mesma linha: de onde vêm os leads,
@@ -976,7 +1092,7 @@ export default function DashboardPage() {
                 rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
                 total={lostInPeriod.length}
                 altura={150}
-                colunas={{ valor: "Perdas", extra: "% do total" }}
+                colunas={{ valor: "Perdas", extras: ["% do total"] }}
                 rodape="Por origem"
                 anelSecundario={{ dados: lossByOriginData.porMotivo, rodape: "Por motivo" }}
                 empilhado
@@ -987,35 +1103,86 @@ export default function DashboardPage() {
           <UtmAttributionPanel periodLeads={periodLeads} />
 
 
-          {/* Top products */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Produtos mais vendidos</h3>
-            {topProducts.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Nenhum produto cadastrado.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-card-border text-xs text-muted-foreground">
-                      <th className="text-left pb-2 font-medium">Produto</th>
-                      <th className="text-center pb-2 font-medium">Número de vendas</th>
-                      <th className="text-center pb-2 font-medium">Receita gerada</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-card-border">
-                    {topProducts.map(p => (
-                      <tr key={p.name} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2.5 font-medium text-foreground">{p.name}</td>
-                        <td className="py-2.5 text-center text-muted-foreground">{p.count}</td>
-                        <td className="py-2.5 text-center font-semibold text-primary">
-                          {p.value > 0 ? fmt(p.value) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          {/* Os dois rankings de venda na mesma linha: o que se vendeu e quem
+              vendeu. São as duas metades da mesma pergunta, e lado a lado dá
+              para ver se a receita vem de um produto forte ou de uma pessoa
+              forte. Meio a meio porque nenhum dos dois manda no outro. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <RankingPanel
+              titulo="Produtos mais vendidos"
+              subtitulo="Os produtos mais vendidos na sua empresa"
+              colunaNome="Produto"
+              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
+              vazio="Nenhum produto cadastrado."
+              linhas={topProducts.map(p => ({
+                chave: p.name,
+                /* Mesmo quadrado do cadastro em Configurações > Produtos: 32px,
+                   canto arredondado, fundo no verde a 10% e o carrinho no verde
+                   cheio. Repetir o desenho faz a linha daqui ser reconhecida
+                   como o mesmo produto que se cadastrou lá.
+
+                   Ícone, e não foto: produto não tem imagem no cadastro, então
+                   este é o retrato que existe. */
+                marca: (
+                  <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <ShoppingCart size={14} className="text-primary" />
+                  </span>
+                ),
+                nome: p.name,
+                sub: p.sku ? `SKU: ${p.sku}` : undefined,
+                valores: [
+                  String(p.count),
+                  /* Ticket médio POR VENDA deste produto: a receita dele
+                     dividida pelas vendas dele. Não é o ticket médio por pessoa
+                     que a lista de leads mostra -- lá a média é do cliente, que
+                     pode ter comprado três produtos, e aqui é do produto, que
+                     foi vendido para três clientes. */
+                  p.count > 0 ? fmt(p.value / p.count) : "—",
+                  p.value > 0 ? fmt(p.value) : "—",
+                ],
+              }))}
+            />
+
+            <RankingPanel
+              titulo="Responsáveis com mais vendas"
+              subtitulo="Quem mais vendeu na sua empresa"
+              colunaNome="Responsável"
+              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
+              vazio="Nenhuma venda no período."
+              linhas={agentPerformance
+                .filter(a => a.won > 0)
+                .map(a => ({
+                  chave: a.name,
+                  /* Foto quando existe, senão a inicial no círculo da cor do
+                     membro -- o mesmo par que a lista de leads e o calendário
+                     usam. A cor não é decoração: é a mesma que identifica a
+                     pessoa nos outros painéis do dashboard. */
+                  marca: memberAvatars[a.name] ? (
+                    <img
+                      src={memberAvatars[a.name]}
+                      alt={a.name}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
+                      style={{ background: a.color }}
+                    >
+                      {a.name[0]?.toUpperCase() ?? "?"}
+                    </span>
+                  ),
+                  nome: a.name,
+                  sub: memberEmails[a.name] || undefined,
+                  valores: [
+                    String(a.won),
+                    /* `avgTicket` já vem do `agentPerformance`: é receita
+                       dividida por ganhos, e o memo é a mesma fonte que a aba
+                       Time lê. */
+                    a.avgTicket > 0 ? fmt(a.avgTicket) : "—",
+                    a.totalValue > 0 ? fmt(a.totalValue) : "—",
+                  ],
+                }))}
+            />
           </div>
 
           <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />

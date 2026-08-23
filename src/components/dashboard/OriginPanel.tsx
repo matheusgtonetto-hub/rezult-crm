@@ -84,10 +84,10 @@ export function OriginPanel({ periodLeads, className = "" }: OriginPanelProps) {
             nome: o.name,
             valor: o.count,
             cor: ORIGIN_COLORS[o.name],
-            extra: conversao(o.winRate),
+            extras: [conversao(o.winRate)],
           }))}
           rotuloCentro={periodLeads.length === 1 ? "negócio" : "negócios"}
-          colunas={{ valor: "Quantidade", extra: "Conversão" }}
+          colunas={{ valor: "Quantidade", extras: ["Conversão"] }}
           empilhado
         />
       </div>
@@ -111,11 +111,11 @@ export function OriginPanel({ periodLeads, className = "" }: OriginPanelProps) {
               nome: o.name,
               valor: o.revenue,
               cor: ORIGIN_COLORS[o.name],
-              extra: conversao(o.winRate),
+              extras: [conversao(o.winRate)],
             }))}
           rotuloCentro="em vendas"
           formatarValor={fmt}
-          colunas={{ valor: "Receita", extra: "Conversão" }}
+          colunas={{ valor: "Receita", extras: ["Conversão"] }}
           empilhado
         />
       </div>
