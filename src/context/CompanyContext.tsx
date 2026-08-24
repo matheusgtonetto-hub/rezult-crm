@@ -148,15 +148,29 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     return availableCompanies.find(c => c.plan !== "free") ?? availableCompanies[0];
   }, [availableCompanies, selectedCompanyId]);
 
+  /**
+   * Linhas de WhatsApp da empresa SELECIONADA.
+   *
+   * Filtrava por `owner_id = user.id`, o que quebrava quem participa de mais de
+   * uma empresa: ao entrar na empresa de outra pessoa, a lista continuava
+   * trazendo as linhas do próprio usuário e nunca as daquela empresa. E como o
+   * Multiatendimento decide por esta lista quem pode enviar mensagem, toda
+   * conversa de lá aparecia como "linha desconectada".
+   *
+   * Linha pertence à empresa, não a uma pessoa: é ela que paga o número e é o
+   * `company_id` que o RLS já usa para decidir quem enxerga o quê
+   * (`is_member_of(company_id)`). O `owner_id` continua na tabela como registro
+   * de quem cadastrou, e não serve para filtrar.
+   */
   const loadConnections = useCallback(async () => {
-    if (!user) { setWhatsappConnections([]); return; }
+    if (!user || !selectedCompany) { setWhatsappConnections([]); return; }
     const { data, error } = await supabase
       .from("whatsapp_connections")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("company_id", selectedCompany.id)
       .order("created_at", { ascending: true });
     if (!error && data) setWhatsappConnections((data as Record<string, unknown>[]).map(mapConn));
-  }, [user?.id]);
+  }, [user?.id, selectedCompany?.id]);
 
   useEffect(() => { loadConnections(); }, [loadConnections]);
 

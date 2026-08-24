@@ -490,7 +490,9 @@ export default function LeadDetailPage() {
   const { openChat } = useFloatingChat();
   const { profile } = useProfile();
   const { getPerms } = usePipelinePermissions();
-  const { whatsappConnections, billingBlocked } = useCompany();
+  const { company, whatsappConnections, billingBlocked } = useCompany();
+  /** Dono da empresa aberta. Ver a nota em LeadDrawer: não é `user.id`. */
+  const tenantId = company?.owner_id ?? null;
   const hasActiveWaConnection = whatsappConnections.some(c => c.connected);
 
   const lead = id ? leads[id] : undefined;
@@ -602,8 +604,12 @@ export default function LeadDetailPage() {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
+  // `tenantId` na lista de dependências: a empresa vem do contexto e ainda é
+  // null no primeiro render. Sem ele, a busca dispararia com dono nulo, voltaria
+  // vazia e nunca mais tentaria -- a aba de arquivos ficaria sem os anexos do
+  // WhatsApp até a página ser recarregada.
   useEffect(() => {
-    if (!lead?.id || !user) return;
+    if (!lead?.id || !user || !tenantId) return;
     // Arquivos uploadados manualmente
     supabase.from("lead_files").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false })
       .then(({ data }) => setUploadedFiles((data ?? []).map((r: { id: string; name: string; size: number; mime_type: string; storage_path: string; uploaded_by: string; created_at: string }) => ({
@@ -614,7 +620,7 @@ export default function LeadDetailPage() {
     if (lead.whatsapp) {
       supabase.from("whatsapp_messages")
         .select("id, body, type, from_me, sender_name, created_at, momment")
-        .eq("owner_id", user.id)
+        .eq("owner_id", tenantId)
         .in("type", ["image", "document"])
         .in("phone", variantesDeTelefone(lead.whatsapp))
         .order("created_at", { ascending: false })
@@ -627,7 +633,7 @@ export default function LeadDetailPage() {
           createdAt: r.created_at ?? new Date(r.momment).toISOString(),
         }))));
     }
-  }, [lead?.id, lead?.whatsapp, user?.id]);
+  }, [lead?.id, lead?.whatsapp, user?.id, tenantId]);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

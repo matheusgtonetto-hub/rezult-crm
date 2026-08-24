@@ -146,6 +146,15 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   } = useCRM();
   const { user } = useAuth();
   const { company } = useCompany();
+  /**
+   * De quem são os dados desta tela: o dono da empresa ABERTA.
+   *
+   * Não é `user.id`. Quem participa de mais de uma empresa carrega o próprio id
+   * para dentro da empresa dos outros, e aí o painel do lead da Samantha
+   * mostraria as conversas e automações da empresa de quem está olhando. Mesmo
+   * nome e mesmo papel do `tenantId` do Multiatendimento.
+   */
+  const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const { getPerms, isAdmin } = usePipelinePermissions();
 
@@ -197,14 +206,20 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const leadPhone = lead?.whatsapp ?? "";
 
   // Carrega arquivos ao abrir aba — hook ANTES do early return
+  // `tenantId` entra nas dependências pelo mesmo motivo dos outros: a empresa
+  // chega do contexto depois do primeiro render, e sem ele a busca sairia com
+  // dono nulo e nunca mais tentaria.
   const loadFiles = useCallback(async () => {
-    if (!user || !leadId || !lead) return;
+    if (!user || !leadId || !lead || !tenantId) return;
     setFilesLoading(true);
     const [{ data: fData }, { data: wData }] = await Promise.all([
       supabase.from("lead_files").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
       (() => {
+        // owner_id da EMPRESA aberta, não de quem está logado: um membro
+        // convidado precisa ver os arquivos trocados pela empresa dela, e não
+        // os da empresa dele. É o mesmo escopo que o Multiatendimento usa.
         return supabase.from("whatsapp_messages").select("id,body,type,from_me,sender_name,created_at,momment")
-          .eq("owner_id", user.id).in("type", ["image","document"])
+          .eq("owner_id", tenantId).in("type", ["image","document"])
           .in("phone", variantesDeTelefone(leadPhone))
           .order("momment", { ascending: false }).limit(50);
       })(),
@@ -219,18 +234,18 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
       body: r.body ?? "",
     })));
     setFilesLoading(false);
-  }, [user, leadId, leadPhone, lead]);
+  }, [user, leadId, leadPhone, lead, tenantId]);
 
   // Carrega conversas ao abrir aba — hook ANTES do early return
   const loadConvs = useCallback(async () => {
-    if (!user || !lead) return;
+    if (!user || !lead || !tenantId) return;
     setConvsLoading(true);
     const { data } = await supabase.from("whatsapp_conversations").select("id,name,phone,preview,last_msg_at,finished,read")
-      .eq("owner_id", user.id).in("phone", variantesDeTelefone(leadPhone))
+      .eq("owner_id", tenantId).in("phone", variantesDeTelefone(leadPhone))
       .order("last_msg_at", { ascending: false });
     setConvs((data ?? []) as WaConv[]);
     setConvsLoading(false);
-  }, [user, leadPhone, lead]);
+  }, [user, leadPhone, lead, tenantId]);
 
   useEffect(() => {
     if (historyTab === "arquivos") loadFiles();
@@ -304,7 +319,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     const { data } = await supabase
       .from("automations")
       .select("id, name, flow")
-      .eq("owner_id", user!.id)
+      .eq("owner_id", tenantId)
       .eq("active", true);
     type AutoRow = { id: string; name: string; flow: { trigger?: { triggerId?: string } | null } | null };
     const manualOnes = (data ?? [] as AutoRow[]).filter((a: AutoRow) => a.flow?.trigger?.triggerId === "lead_manual");
