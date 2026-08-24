@@ -383,11 +383,18 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
-          <Table className="table-fixed w-full overflow-hidden">
+          {/* `text-xs` na tabela, e não em cada célula: nome, responsável, contato
+              e os cabeçalhos herdam daqui, e a próxima coluna nasce no mesmo
+              corpo sem ninguém precisar lembrar. Quem tem tamanho próprio
+              (pastilha de tag, número da receita) continua com o dele. */}
+          <Table className="table-fixed w-full overflow-hidden text-xs">
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground" style={{ width: "20%" }}>
-                  <div className="flex items-center gap-2">
+                  {/* `justify-center` no flex, e não `text-center` na célula: o
+                      rótulo divide a linha com a caixa de seleção, e centralizar
+                      o texto sozinho deixaria os dois em pontos diferentes. */}
+                  <div className="flex items-center justify-center gap-2">
                     {someSelected && (
                       <Checkbox
                         checked={allSelected ? true : "indeterminate"}
@@ -398,12 +405,12 @@ export default function LeadsPage() {
                     Nome
                   </div>
                 </TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Receita</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Criado em</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
+                <TableHead className="text-muted-foreground text-center" style={{ width: "16%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground text-center" style={{ width: "18%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground text-center" style={{ width: "16%" }}>Receita</TableHead>
+                <TableHead className="text-muted-foreground text-center" style={{ width: "14%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground text-center" style={{ width: "10%" }}>Criado em</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "6%" }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -421,13 +428,8 @@ export default function LeadsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
-                      Sem negócio
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-foreground truncate">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-xs text-foreground truncate">
                         {row.contact.phoneDdi && row.contact.phoneDdi !== "+55" ? `${row.contact.phoneDdi} ` : ""}
                         {row.contact.phone || "—"}
                       </span>
@@ -436,14 +438,22 @@ export default function LeadsPage() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
+                      Sem negócio
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-xs text-muted-foreground">—</span>
+                  </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap justify-center gap-1">
                       {(row.contact.tags ?? []).length === 0
-                        ? <span className="text-sm text-muted-foreground">—</span>
+                        ? <span className="text-xs text-muted-foreground">—</span>
                         : (row.contact.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
+                              <span key={tagName} className="text-[10px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "#888" }}>
                                 {tagName}
                               </span>
                             );
@@ -451,10 +461,7 @@ export default function LeadsPage() {
                       }
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">—</span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
+                  <TableCell className="text-muted-foreground text-center" style={{ fontSize: 12 }}>
                     {(() => {
                       const d = row.contact.createdAt ? new Date(row.contact.createdAt) : null;
                       if (!d || isNaN(d.getTime())) return "—";
@@ -511,11 +518,24 @@ export default function LeadsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="flex flex-col items-center gap-0.5">
+                      {/* Formatado na hora de mostrar, e não gravado formatado:
+                          o banco guarda o número como cada canal entregou, e é
+                          esse texto cru que as buscas e comparações usam. */}
+                      <span className="text-xs text-foreground truncate">
+                        {row.lead.whatsapp ? formatarTelefone(row.lead.whatsapp, row.lead.phoneDdi) : "—"}
+                      </span>
+                      {row.lead.email && (
+                        <span className="text-xs text-muted-foreground truncate">{row.lead.email}</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
                     {(() => {
                       const resps = row.lead.responsibles?.length ? row.lead.responsibles : (row.lead.responsible ? [row.lead.responsible] : []);
-                      if (resps.length === 0) return <span className="text-sm text-muted-foreground">—</span>;
+                      if (resps.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
                       return (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <div className="flex items-center" style={{ gap: 0 }}>
                             {resps.slice(0, 3).map((name, idx) => {
                               const av = memberAvatars[name];
@@ -534,40 +554,12 @@ export default function LeadsPage() {
                               </div>
                             )}
                           </div>
-                          <span className="text-sm text-foreground">
+                          <span className="text-xs text-foreground">
                             {resps.length === 1 ? resps[0] : `${resps.length} responsáveis`}
                           </span>
                         </div>
                       );
                     })()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      {/* Formatado na hora de mostrar, e não gravado formatado:
-                          o banco guarda o número como cada canal entregou, e é
-                          esse texto cru que as buscas e comparações usam. */}
-                      <span className="text-sm text-foreground truncate">
-                        {row.lead.whatsapp ? formatarTelefone(row.lead.whatsapp, row.lead.phoneDdi) : "—"}
-                      </span>
-                      {row.lead.email && (
-                        <span className="text-xs text-muted-foreground truncate">{row.lead.email}</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {(row.lead.tags ?? []).length === 0
-                        ? <span className="text-sm text-muted-foreground">—</span>
-                        : (row.lead.tags ?? []).map(tagName => {
-                            const t = crmTags.find(x => x.name === tagName);
-                            return (
-                              <span key={tagName} className="text-[11px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 2, paddingBottom: 2, background: t?.color || "#888" }}>
-                                {tagName}
-                              </span>
-                            );
-                          })
-                      }
-                    </div>
                   </TableCell>
                   <TableCell>
                     {(() => {
@@ -576,7 +568,7 @@ export default function LeadsPage() {
                       const total = d?.total ?? 0;
                       const count = d?.count ?? 0;
                       return (
-                        <div className="flex items-start" style={{ gap: 25 }}>
+                        <div className="flex items-start justify-center" style={{ gap: 25 }}>
                           <div style={{ lineHeight: 1.4 }}>
                             <div style={{ fontSize: 10 }} className="text-muted-foreground">Receita:</div>
                             <div style={{ fontSize: 14 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
@@ -589,7 +581,22 @@ export default function LeadsPage() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
+                  <TableCell>
+                    <div className="flex flex-wrap justify-center gap-1">
+                      {(row.lead.tags ?? []).length === 0
+                        ? <span className="text-xs text-muted-foreground">—</span>
+                        : (row.lead.tags ?? []).map(tagName => {
+                            const t = crmTags.find(x => x.name === tagName);
+                            return (
+                              <span key={tagName} className="text-[10px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "#888" }}>
+                                {tagName}
+                              </span>
+                            );
+                          })
+                      }
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-center" style={{ fontSize: 12 }}>
                     {(() => {
                       const d = row.lead.created_at ? new Date(row.lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
