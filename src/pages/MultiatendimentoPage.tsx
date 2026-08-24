@@ -49,7 +49,6 @@ import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ConvAvatar } from "@/components/ConvAvatar";
 import { MenuDaMensagem, menuAbreParaCima } from "@/components/MenuDaMensagem";
 import { corDoTexto, iniciais } from "@/lib/iniciais";
-import chatIllustration from "@/assets/chat-ilustration.svg";
 import {
   Select,
   SelectContent,
@@ -3669,7 +3668,6 @@ export default function MultiatendimentoPage() {
               <div data-lista-mensagens style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                  <img src={chatIllustration} alt="" style={{ width: 350, marginBottom: 4 }} />
                   <p style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Conversas</p>
                   <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Acompanhe as conversas com seus negócios</p>
                 </div>
@@ -4209,7 +4207,6 @@ export default function MultiatendimentoPage() {
           </>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
-            <img src={chatIllustration} alt="" style={{ width: 260, marginBottom: 4 }} />
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Selecione uma conversa</div>
             <div style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
           </div>
