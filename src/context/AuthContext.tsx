@@ -28,6 +28,25 @@ export function useAuth() {
   return ctx;
 }
 
+/**
+ * Este e-mail já tem conta confirmada?
+ *
+ * `false` também quando a consulta falha: na dúvida, seguir pelo caminho que
+ * envia o código é menos danoso do que dizer "você já tem conta" para quem não
+ * tem e travar o cadastro.
+ */
+async function emailJaConfirmado(email: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.functions.invoke("verificar-email", {
+      body: { email },
+    });
+    if (error) return false;
+    return !!(data as { existe?: boolean; confirmado?: boolean })?.confirmado;
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession]                           = useState<Session | null>(null);
   const [loading, setLoading]                           = useState(true);
@@ -140,8 +159,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) return { error: error.message, needsConfirmation: false };
 
-    // Supabase returns identities:[] for duplicate emails without erroring.
+    /**
+     * E-mail já cadastrado.
+     *
+     * O Supabase não devolve erro nesse caso, de propósito: responder "já
+     * existe" permitiria descobrir quem tem conta testando e-mails um a um. O
+     * sinal é indireto -- vem com `identities: []`.
+     *
+     * Escondidos aí estão dois casos que a tela precisa tratar diferente:
+     * conta que nunca foi confirmada (o reenvio funciona e o código chega) e
+     * conta já confirmada (nada é enviado). Medido em 24/08/2026: `signup` e
+     * `resend` respondem 200 sem erro nos dois, e o usuário obfuscado não traz
+     * `email_confirmed_at` -- não há como separá-los daqui.
+     *
+     * Quem separa é a edge function `verificar-email`, que roda com service
+     * role e lê `auth.users`. Se ela não responder, o fluxo segue como antes:
+     * reenvia e manda para a tela de código. Preferimos repetir o
+     * comportamento antigo a barrar um cadastro legítimo por causa de uma
+     * função fora do ar.
+     */
     if ((data.user?.identities?.length ?? 1) === 0) {
+      if (await emailJaConfirmado(email)) {
+        // Sentinela, e não a mensagem do Supabase: ela vem em inglês, e a tela
+        // mostra o texto no idioma escolhido.
+        return { error: "EMAIL_JA_CADASTRADO", needsConfirmation: false };
+      }
       await supabase.auth.resend({
         type: "signup",
         email,
