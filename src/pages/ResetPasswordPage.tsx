@@ -44,6 +44,24 @@ export default function ResetPasswordPage() {
     setLoading(false);
 
     if (error) {
+      /**
+       * Nem todo erro daqui é link vencido.
+       *
+       * O mais comum é a senha nova ser igual à atual, que o Supabase recusa
+       * com 422 `same_password`. Mandar essa pessoa para a tela de "Link
+       * expirado" fazia ela pedir link novo, receber, clicar, digitar a mesma
+       * senha de novo e cair no mesmo lugar -- um laço em que a tela nunca diz
+       * o que está errado.
+       */
+      const mesmaSenha =
+        (error as { code?: string }).code === "same_password"
+        || /different from the old/i.test(error.message);
+
+      if (mesmaSenha) {
+        toast.error("A nova senha precisa ser diferente da atual.");
+        return;
+      }
+
       toast.error("Não foi possível redefinir a senha. O link pode ter expirado — solicite um novo.");
       setMode("expired");
       return;
