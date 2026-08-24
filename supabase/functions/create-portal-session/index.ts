@@ -40,6 +40,35 @@ serve(async (req) => {
     return json({ url: session.url });
   } catch (err) {
     console.error("Stripe portal error:", err);
-    return json({ error: "failed to create portal session" }, 500);
+
+    /**
+     * A mensagem que volta para a tela precisa dizer o que fazer.
+     *
+     * Antes voltava sempre "failed to create portal session", em inglês e sem
+     * pista nenhuma: os dois motivos possíveis (cliente de outra conta Stripe e
+     * portal não configurado) exigem ações completamente diferentes, e a tela
+     * mostrava a mesma frase para os dois. O texto do Stripe fica no log; para
+     * o usuário vai a tradução do caso.
+     */
+    const e = err as { code?: string; message?: string };
+
+    // O id gravado no banco não existe NESTA conta Stripe. Acontece quando a
+    // assinatura nasceu em outra conta (ou no modo de teste) e a chave atual é
+    // de outra: o cliente existe, só não onde a chave enxerga.
+    if (e?.code === "resource_missing") {
+      return json({
+        error: "Esta assinatura foi criada em outra conta de cobrança e não pode ser gerenciada por aqui. Fale com o suporte para revincular.",
+      }, 409);
+    }
+
+    // Portal nunca salvo no painel do Stripe. Some assim que alguém salvar as
+    // configurações em Settings > Billing > Customer portal.
+    if (e?.message?.includes("configuration")) {
+      return json({
+        error: "O portal de pagamento ainda não foi configurado no Stripe.",
+      }, 500);
+    }
+
+    return json({ error: e?.message ?? "Não foi possível abrir o portal de pagamento." }, 500);
   }
 });
