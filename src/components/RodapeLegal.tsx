@@ -17,7 +17,11 @@ export function RodapeLegal() {
 
   return (
     <p className="shrink-0 pt-6 pb-5 text-center text-[13px] text-muted-foreground">
-      {/* O ano sai do relógio, e não escrito à mão: um "©2026" fixo vira
+      {/* `pb-5` são 20px até a borda da tela. A distância mora no componente,
+          e não nas páginas, para as três telas de acesso continuarem iguais
+          sozinhas.
+
+          O ano sai do relógio, e não escrito à mão: um "©2026" fixo vira
           desatualizado em 1º de janeiro, e ninguém lembra de rodapé. */}
       © {new Date().getFullYear()} Rezult. {t("rodape.direitos")}{" "}
       {/* Peso 500 nos dois documentos: na mesma linha do aviso, é o peso que
