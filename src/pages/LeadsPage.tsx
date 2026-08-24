@@ -423,7 +423,7 @@ export default function LeadsPage() {
                   <TableCell className="font-medium text-foreground">
                     <div className="flex items-center gap-[10px] min-w-0">
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
-                        <span className="truncate block">{row.contact.name}</span>
+                        <span className="truncate block text-[13px]">{row.contact.name}</span>
                       </div>
                     </div>
                   </TableCell>
@@ -513,7 +513,7 @@ export default function LeadsPage() {
                         />
                       </div>
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
-                        <span className="truncate block">{row.lead.name}</span>
+                        <span className="truncate block text-[13px]">{row.lead.name}</span>
                       </div>
                     </div>
                   </TableCell>
