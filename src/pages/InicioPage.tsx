@@ -59,6 +59,19 @@ const MENSAGEM_SUPORTE = "Olá! Preciso de ajuda com o Rezult CRM.";
  */
 const VERDE_WHATSAPP = "#29A71A";
 
+/**
+ * Azul da Central de ajuda.
+ *
+ * É o #3B82F6 que o app já usa em mais de cem lugares (tags, marcações, avisos
+ * de informação), e não um azul novo: dois azuis parecidos na mesma tela leem
+ * como erro de cor, não como distinção.
+ *
+ * A cor separa os dois cartões pelo destino: verde do WhatsApp leva à conversa,
+ * azul leva à leitura. Nenhum dos dois usa o verde da marca, que aqui
+ * significaria "ação do Rezult".
+ */
+const AZUL_CENTRAL = "#3B82F6";
+
 /** Central de artigos. O mesmo destino do botão Tutoriais da barra lateral. */
 const CENTRAL_DE_AJUDA = "https://help.rezultcrm.com";
 
@@ -482,8 +495,13 @@ export default function InicioPage() {
           </div>
 
           <div className="rounded-lg border border-card-border p-5 flex flex-col">
-            <span className="w-[50px] h-[50px] rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mb-3">
-              <BookOpen size={22} className="text-primary" />
+            {/* Fundo no mesmo azul a 12%, para o quadrado acompanhar o botão
+                sem competir com ele. */}
+            <span
+              className="w-[50px] h-[50px] rounded-lg flex items-center justify-center shrink-0 mb-3"
+              style={{ background: `${AZUL_CENTRAL}1F` }}
+            >
+              <BookOpen size={22} style={{ color: AZUL_CENTRAL }} />
             </span>
             <h3 className="text-base font-semibold text-foreground">Central de ajuda</h3>
             <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
@@ -495,8 +513,10 @@ export default function InicioPage() {
                 href={CENTRAL_DE_AJUDA}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2 transition-colors"
-                style={{ borderRadius: 5 }}
+                // Mesmo tratamento do botão de suporte: cor no estilo e hover
+                // por `brightness`, sem um segundo hex escurecido para manter.
+                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
+                style={{ background: AZUL_CENTRAL, borderRadius: 5 }}
               >
                 <BookOpen size={14} /> Abrir central
               </a>
