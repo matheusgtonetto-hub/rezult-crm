@@ -70,7 +70,7 @@ export default function LoginPage() {
         <div
           className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300"
                   >
-          <div className="flex justify-center mb-6"><img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" /></div>
+          <div className="flex justify-center mb-6"><img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" /></div>
 
           <div className="flex justify-center mb-4">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -155,7 +155,7 @@ export default function LoginPage() {
         className="relative w-full bg-card rounded-[7px] p-[30px]"
               >
         <div className="flex justify-center items-center mb-[15px]">
-          <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
+          <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
         </div>
 
         {emailConfirmed && (

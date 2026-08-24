@@ -117,7 +117,7 @@ export default function Verify2FAPage() {
         />
         <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[24px] text-center">
           <div className="flex justify-center items-center mb-[15px]">
-            <img src="/logo-rezult.png" alt="Rezult CRM" className="h-10 w-auto" />
+            <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
 
           <h1 className="text-[22px] font-semibold text-foreground">Verifique seu e-mail</h1>
