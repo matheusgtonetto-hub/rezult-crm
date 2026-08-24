@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import {
-  Search, Plus, X, Copy, Check, RefreshCw, Loader2,
+  Plus, X, Copy, Check, RefreshCw, Loader2,
   ShoppingBag, ChevronLeft, ToggleLeft, ToggleRight, Trash2, AlertTriangle,
   ChevronDown, ChevronRight as ChevronRightIcon, Settings2,
 } from "lucide-react";
@@ -207,8 +207,6 @@ export default function IntegracoesPage() {
 
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState("");
-  const [catFilter, setCatFilter]       = useState("Negócios");
 
   // Modals
   const [showCreate, setShowCreate]   = useState(false);
@@ -414,9 +412,6 @@ export default function IntegracoesPage() {
 
   const editPipeline = pipelines.find(p => p.id === editAutomation.pipelineId);
 
-  const filtered = integrations.filter(i =>
-    !search || i.name.toLowerCase().includes(search.toLowerCase())
-  );
 
   const catLabel = (type: string) =>
     INTEGRATION_TYPES.flatMap(c => c.types).find(t => t.id === type)?.name ?? type;
@@ -438,37 +433,13 @@ export default function IntegracoesPage() {
         </button>
       </div>
 
-      {/* Filter + Search */}
-      <div className="flex gap-3 mb-6">
-        <div style={{ position: "relative", maxWidth: 260 }}>
-          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#AAA" }} />
-          <input
-            placeholder="Pesquisar..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px 8px 32px", fontSize: 13, outline: "none", background: "#FFF" }}
-          />
-        </div>
-        <span style={{ fontSize: 13, color: "#888", alignSelf: "center" }}>{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
-      </div>
-
-      {/* Main layout */}
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-        {/* Left: category sidebar */}
-        <div style={{ width: 180, flexShrink: 0 }}>
-          {INTEGRATION_TYPES.map(cat => (
-            <button
-              key={cat.category}
-              onClick={() => setCatFilter(cat.category)}
-              style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: catFilter === cat.category ? VERDE_CLARO : "transparent", color: catFilter === cat.category ? VERDE : "#555" }}
-            >
-              {cat.category}
-            </button>
-          ))}
-        </div>
-
-        {/* Right: integration list */}
-        <div style={{ flex: 1 }}>
+      {/* Lista, direto sob o cabeçalho, como em Conexões.
+      
+          A busca e a coluna de categorias saíram: as duas gastavam meia tela
+          para organizar uma lista que cabe inteira num olhar, e a coluna ainda
+          prometia um filtro que não filtrava -- clicar em outra categoria
+          acendia o botão e devolvia a mesma lista. */}
+      <div>
           {loading ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", gap: 8, color: "#AAA" }}>
               <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
@@ -488,7 +459,7 @@ export default function IntegracoesPage() {
                 Tentar novamente
               </button>
             </div>
-          ) : filtered.length === 0 ? (
+          ) : integrations.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
               <ShoppingBag size={36} style={{ margin: "0 auto 12px", opacity: 0.2 }} />
               <p style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>Nenhuma integração encontrada</p>
@@ -501,7 +472,7 @@ export default function IntegracoesPage() {
               </button>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {/* Mesmo cartão das Conexões: estado no topo, ícone com título e
                   subtítulo, e um rodapé separado por linha com "Gerenciar" à
                   esquerda e o interruptor à direita. As duas telas vivem dentro
@@ -513,7 +484,7 @@ export default function IntegracoesPage() {
                   embutido do resto deste arquivo: é a cópia do cartão de lá, e
                   traduzi-lo para outra notação faria as duas versões divergirem
                   no primeiro ajuste. */}
-              {filtered.map(itg => (
+              {integrations.map(itg => (
                 <div
                   key={itg.id}
                   className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow"
@@ -559,7 +530,6 @@ export default function IntegracoesPage() {
               ))}
             </div>
           )}
-        </div>
       </div>
 
       {/* ═══════════ CREATE MODAL ═══════════ */}
