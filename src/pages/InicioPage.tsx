@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Building2, MessageCircle, Package, Users, Tag, Trophy, Filter, Check, ArrowRight, Sparkles, Coins, Play,
+  BookOpen,
 } from "lucide-react";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
 import { TUTORIAIS, type Tutorial } from "@/data/tutoriais";
+import iconeWhatsApp from "@/assets/whatsapp.png";
+import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 
 /**
  * Início: boas-vindas e a trilha de aprendizado da ferramenta.
@@ -33,6 +36,31 @@ interface Missao {
   feita: boolean;
   Icone: typeof Building2;
 }
+
+/**
+ * WhatsApp do suporte, só dígitos, no formato que o wa.me espera.
+ *
+ * Em constante, e não escrito no meio do JSX: é um dado de negócio que muda
+ * (número novo, atendimento por outro time) e quem for trocar precisa achá-lo
+ * sem ler a tela inteira.
+ */
+const WHATSAPP_SUPORTE = "554891160449";
+
+/** Mensagem que já vai digitada, para o atendente saber de onde veio o contato. */
+const MENSAGEM_SUPORTE = "Olá! Preciso de ajuda com o Rezult CRM.";
+
+/**
+ * Verde do ícone do WhatsApp, tirado do próprio arquivo (a cor de 13.736 dos
+ * pixels da arte).
+ *
+ * Fora do token `--primary` de propósito: aqui a cor não é a da marca do
+ * Rezult, é a do aplicativo para onde o botão leva, e é ela que faz o botão e o
+ * ícone acima dele lerem como a mesma coisa.
+ */
+const VERDE_WHATSAPP = "#29A71A";
+
+/** Central de artigos. O mesmo destino do botão Tutoriais da barra lateral. */
+const CENTRAL_DE_AJUDA = "https://help.rezultcrm.com";
 
 /** Faixas de progresso. O rótulo muda conforme a trilha avança. */
 const NIVEIS: { ate: number; nome: string }[] = [
@@ -272,7 +300,13 @@ export default function InicioPage() {
 
       {/* ── Trilha ───────────────────────────────────────────────────── */}
       <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+        {/* Grade de três colunas com as laterais em `1fr`: é isso que deixa as
+            abas no centro do PAINEL, e não no meio do espaço que sobra entre o
+            título e a pontuação, que têm larguras diferentes. A coluna da
+            direita continua ocupando lugar mesmo com a pontuação escondida na
+            aba de tutoriais, senão as abas escorregariam ao trocar de aba. */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Tutoriais</h2>
           {/* Abas como botões, no mesmo par que o dashboard usa: são duas
               opções, e um dropdown esconderia metade da escolha atrás de um
               clique. O contador de cada aba vai no rótulo, então dá para ver o
@@ -299,7 +333,7 @@ export default function InicioPage() {
 
           {/* Pontuação só na trilha: em Tutoriais ela seria um número sem
               relação nenhuma com o que está na tela. */}
-          <div className="text-right" hidden={aba !== "passos"}>
+          <div className="text-right justify-self-end" hidden={aba !== "passos"}>
             {/* O ícone amarra o número do topo aos "+10" espalhados pelas
                 missões, que sem ele seriam só números soltos ao lado de um
                 título. */}
@@ -392,6 +426,83 @@ export default function InicioPage() {
             {TUTORIAIS.map(t => <CardTutorial key={t.id} t={t} />)}
           </div>
         )}
+      </div>
+
+      {/* ── Ajuda ────────────────────────────────────────────────────── */}
+      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Precisa de ajuda?</h2>
+
+        {/* Meio a meio: os dois caminhos valem o mesmo, e dar destaque a um
+            deles empurraria todo mundo para lá. Empilha no celular. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-card-border p-5 flex flex-col">
+            {/* A marca do WhatsApp, e não um ícone genérico de mensagem: o
+                cartão promete atendimento NAQUELE aplicativo, e é o símbolo
+                dele que a pessoa reconhece antes de ler o título.
+
+                Sem o quadrado verde-claro por trás, ao contrário do cartão
+                vizinho: a arte já vem com fundo próprio, e um fundo sobre o
+                outro deixaria uma moldura clara em volta. */}
+            <img
+              src={iconeWhatsApp}
+              alt=""
+              className="w-[50px] h-[50px] rounded-lg shrink-0 mb-3"
+            />
+            <h3 className="text-base font-semibold text-foreground">Suporte Oficial no WhatsApp</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+              Fale com nosso time de especialistas, receba ajuda e dicas para usar melhor os
+              recursos do Rezult CRM.
+            </p>
+            {/* `mt-auto` para os botões dos dois cartões ficarem na mesma altura
+                mesmo com descrições de tamanhos diferentes. */}
+            {/* O `mt-auto` fica num invólucro, e não no próprio botão: aplicado
+                nele, a margem empurraria também o fundo verde, e o botão
+                cresceria até o pé do cartão em vez de ficar do tamanho do
+                texto. */}
+            <div className="mt-auto pt-4">
+              <a
+                href={`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(MENSAGEM_SUPORTE)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                // Cor no estilo, e não em classe: `bg-[#29A71A]` funcionaria,
+                // mas o hover exigiria uma segunda classe arbitrária com a cor
+                // escurecida escrita à mão. Com `filter`, o estado de hover sai
+                // da mesma cor, sem um segundo hex para manter em dia.
+                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
+                style={{ background: VERDE_WHATSAPP, borderRadius: 5 }}
+              >
+                {/* Mesmo ícone do Multiatendimento na barra lateral, à
+                    esquerda do texto: ali ele já significa "conversa de
+                    WhatsApp", e repetir o símbolo faz o botão dizer para onde
+                    leva antes de a frase ser lida. Herda o branco do texto pelo
+                    `currentColor` do próprio componente. */}
+                <CrmWhatsAppIcon size={14} /> Falar com suporte
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-card-border p-5 flex flex-col">
+            <span className="w-[50px] h-[50px] rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mb-3">
+              <BookOpen size={22} className="text-primary" />
+            </span>
+            <h3 className="text-base font-semibold text-foreground">Central de ajuda</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+              Artigos e passo a passo de cada recurso, para consultar na hora da dúvida sem
+              precisar esperar atendimento.
+            </p>
+            <div className="mt-auto pt-4">
+              <a
+                href={CENTRAL_DE_AJUDA}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2 transition-colors"
+                style={{ borderRadius: 5 }}
+              >
+                <BookOpen size={14} /> Abrir central
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
