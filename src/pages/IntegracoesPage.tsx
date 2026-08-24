@@ -8,8 +8,29 @@ import { emitPlanLimit } from "@/lib/planLimitEvent";
 import {
   Search, Plus, X, Copy, Check, RefreshCw, Loader2,
   ShoppingBag, ChevronLeft, ToggleLeft, ToggleRight, Trash2, AlertTriangle,
-  ChevronDown, ChevronRight as ChevronRightIcon,
+  ChevronDown, ChevronRight as ChevronRightIcon, Settings2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+
+// ── Identidade ───────────────────────────────────────────────────────────────
+
+/**
+ * Verde da marca, e o tom claro dele para fundos de estado ativo.
+ *
+ * A tela nasceu com azul (#2563EB) em botão, aba, filtro selecionado e ícone --
+ * um azul que não existe em nenhum outro canto do produto. Dentro de
+ * Configurações ela fica ao lado de telas verdes, e a diferença lia como "isto
+ * é de outro sistema".
+ *
+ * Vem do token `--primary`, e não de um hex: é a mesma fonte do resto do app,
+ * então a tela acompanha o tema (o modo escuro define um verde mais claro) sem
+ * precisar de uma segunda lista de cores.
+ */
+const VERDE = "hsl(var(--primary))";
+/** Fundo de item selecionado. Substitui o antigo #EBF3FC (azul bem claro). */
+const VERDE_CLARO = "hsl(var(--primary) / 0.10)";
+/** Borda de destaque no hover. Substitui o #2563EB30. */
+const VERDE_BORDA = "hsl(var(--primary) / 0.30)";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -319,6 +340,24 @@ export default function IntegracoesPage() {
     setEditing(null);
   };
 
+  /**
+   * Liga e desliga a integração pelo próprio cartão.
+   *
+   * Antes isso só existia dentro do diálogo de edição, e por trás de um botão
+   * Salvar: para pausar um webhook era preciso abrir, alternar e salvar. No
+   * cartão de conexão o interruptor age sozinho, e aqui passa a agir igual --
+   * grava na hora e devolve o estado se o banco recusar, para o interruptor
+   * nunca mostrar um "ligado" que o servidor não aceitou.
+   */
+  const alternarAtiva = async (id: string, ativa: boolean) => {
+    setIntegrations(prev => prev.map(i => (i.id === id ? { ...i, active: ativa } : i)));
+    const { error } = await supabase.from("webhook_integrations").update({ active: ativa }).eq("id", id);
+    if (error) {
+      setIntegrations(prev => prev.map(i => (i.id === id ? { ...i, active: !ativa } : i)));
+      toast.error("Erro ao alterar a integração");
+    }
+  };
+
   // ── Delete ──────────────────────────────────────────────────────────────────
   const remove = async () => {
     if (!editing) return;
@@ -393,7 +432,7 @@ export default function IntegracoesPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          style={{ background: "#2563EB", color: "#FFF", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          style={{ background: VERDE, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
         >
           <Plus size={15} /> Criar
         </button>
@@ -421,7 +460,7 @@ export default function IntegracoesPage() {
             <button
               key={cat.category}
               onClick={() => setCatFilter(cat.category)}
-              style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: catFilter === cat.category ? "#EBF3FC" : "transparent", color: catFilter === cat.category ? "#2563EB" : "#555" }}
+              style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: catFilter === cat.category ? VERDE_CLARO : "transparent", color: catFilter === cat.category ? VERDE : "#555" }}
             >
               {cat.category}
             </button>
@@ -444,7 +483,7 @@ export default function IntegracoesPage() {
               </p>
               <button
                 onClick={load}
-                style={{ fontSize: 13, fontWeight: 600, color: "#2563EB", background: "#EBF3FC", border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer" }}
+                style={{ fontSize: 13, fontWeight: 600, color: VERDE, background: VERDE_CLARO, border: "none", borderRadius: 8, padding: "8px 20px", cursor: "pointer" }}
               >
                 Tentar novamente
               </button>
@@ -456,30 +495,65 @@ export default function IntegracoesPage() {
               <p style={{ fontSize: 13, marginTop: 4, marginBottom: 16 }}>Configure um webhook para receber leads automaticamente</p>
               <button
                 onClick={() => setShowCreate(true)}
-                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: "#2563EB", border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: VERDE, border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <Plus size={15} /> Criar primeiro webhook
               </button>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+              {/* Mesmo cartão das Conexões: estado no topo, ícone com título e
+                  subtítulo, e um rodapé separado por linha com "Gerenciar" à
+                  esquerda e o interruptor à direita. As duas telas vivem dentro
+                  de Configurações e listam a mesma coisa do ponto de vista de
+                  quem usa -- um canal que entrega dados no CRM --, então formas
+                  diferentes só fariam procurar o interruptor duas vezes.
+
+                  Escrito em Tailwind, como o de Conexões, e não no estilo
+                  embutido do resto deste arquivo: é a cópia do cartão de lá, e
+                  traduzi-lo para outra notação faria as duas versões divergirem
+                  no primeiro ajuste. */}
               {filtered.map(itg => (
                 <div
                   key={itg.id}
-                  onClick={() => openEdit(itg)}
-                  style={{ border: "1px solid #E5E5E5", borderRadius: 12, padding: "16px", background: "#FFF", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                  onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)")}
-                  onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
+                  className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow"
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <ShoppingBag size={20} color="#2563EB" />
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${itg.active ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                      <span className={`text-xs font-medium ${itg.active ? "text-green-700" : "text-muted-foreground"}`}>
+                        {itg.active ? "Ativa" : "Pausada"}
+                      </span>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{itg.name}</p>
-                      <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{catLabel(itg.type)}</p>
+                    <span className="text-xs text-muted-foreground truncate">{catLabel(itg.type)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: VERDE_CLARO }}>
+                      <ShoppingBag size={18} color={VERDE} />
                     </div>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: itg.active ? "#22C55E" : "#DDD", marginTop: 6, flexShrink: 0 }} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">Webhook</p>
+                      <p className="text-xs text-muted-foreground truncate">Integrações</p>
+                    </div>
+                  </div>
+
+                  {/* O nome que a pessoa deu, no lugar onde o cartão de conexão
+                      mostra a conta. É o que distingue uma integração da outra
+                      numa lista em que o serviço é sempre o mesmo. */}
+                  <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{itg.name}</p>
+                  <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>
+                    Recebe dados de sistemas externos por webhook e cria registros automaticamente no CRM.
+                  </p>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
+                    <button
+                      onClick={() => openEdit(itg)}
+                      className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Settings2 size={14} /> Gerenciar
+                    </button>
+                    <Switch checked={itg.active} onCheckedChange={checked => alternarAtiva(itg.id, checked)} />
                   </div>
                 </div>
               ))}
@@ -505,7 +579,7 @@ export default function IntegracoesPage() {
                   <button
                     key={cat.category}
                     onClick={() => setCreateCat(cat.category)}
-                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: createCat === cat.category ? "#EBF3FC" : "transparent", color: createCat === cat.category ? "#2563EB" : "#555" }}
+                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: createCat === cat.category ? VERDE_CLARO : "transparent", color: createCat === cat.category ? VERDE : "#555" }}
                   >
                     {cat.category}
                   </button>
@@ -519,11 +593,11 @@ export default function IntegracoesPage() {
                     key={t.id}
                     onClick={() => !creating && createIntegration(t.id)}
                     style={{ display: "flex", gap: 14, padding: "14px", border: "1px solid #E5E5E5", borderRadius: 12, cursor: creating ? "default" : "pointer", marginBottom: 10, background: "#FAFAFA", opacity: creating ? 0.6 : 1 }}
-                    onMouseEnter={e => { if (!creating) { e.currentTarget.style.background = "#EBF3FC"; e.currentTarget.style.borderColor = "#2563EB30"; } }}
+                    onMouseEnter={e => { if (!creating) { e.currentTarget.style.background = VERDE_CLARO; e.currentTarget.style.borderColor = VERDE_BORDA; } }}
                     onMouseLeave={e => { e.currentTarget.style.background = "#FAFAFA"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {creating ? <Loader2 size={20} color="#2563EB" style={{ animation: "spin 1s linear infinite" }} /> : <t.icon size={20} color="#2563EB" />}
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: VERDE_CLARO, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {creating ? <Loader2 size={20} color={VERDE} style={{ animation: "spin 1s linear infinite" }} /> : <t.icon size={20} color={VERDE} />}
                     </div>
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{t.name}</p>
@@ -558,7 +632,7 @@ export default function IntegracoesPage() {
                     style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
                   >
                     {editActive
-                      ? <div style={{ width: 44, height: 24, borderRadius: 12, background: "#2563EB", position: "relative" }}><div style={{ position: "absolute", right: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} /></div>
+                      ? <div style={{ width: 44, height: 24, borderRadius: 12, background: VERDE, position: "relative" }}><div style={{ position: "absolute", right: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} /></div>
                       : <div style={{ width: 44, height: 24, borderRadius: 12, background: "#E0E0E0", position: "relative" }}><div style={{ position: "absolute", left: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} /></div>
                     }
                   </button>
@@ -610,7 +684,7 @@ export default function IntegracoesPage() {
                   {/* Config Tabs */}
                   <div style={{ borderBottom: "1px solid #F0F0F0", display: "flex", gap: 0, marginBottom: 16 }}>
                     {(["perfil","negocios","automacao","campos"] as ConfigTab[]).map(t => (
-                      <button key={t} onClick={() => setConfigTab(t)} style={{ fontSize: 13, fontWeight: 600, padding: "8px 14px", background: "none", border: "none", cursor: "pointer", color: configTab === t ? "#2563EB" : "#888", borderBottom: configTab === t ? "2px solid #2563EB" : "2px solid transparent" }}>
+                      <button key={t} onClick={() => setConfigTab(t)} style={{ fontSize: 13, fontWeight: 600, padding: "8px 14px", background: "none", border: "none", cursor: "pointer", color: configTab === t ? VERDE : "#888", borderBottom: configTab === t ? `2px solid ${VERDE}` : "2px solid transparent" }}>
                         {{ perfil: "Perfil", negocios: "Negócios", automacao: "Automação", campos: "Campos adicionais" }[t]}
                       </button>
                     ))}
@@ -620,8 +694,8 @@ export default function IntegracoesPage() {
                   {configTab === "perfil" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "#EBF3FC", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <ShoppingBag size={14} color="#2563EB" />
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: VERDE_CLARO, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <ShoppingBag size={14} color={VERDE} />
                         </div>
                         <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Identificação</p>
                       </div>
@@ -802,7 +876,7 @@ export default function IntegracoesPage() {
               <button
                 onClick={save}
                 disabled={saving}
-                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: saving ? "#AAA" : "#2563EB", border: "none", borderRadius: 8, padding: "8px 24px", cursor: saving ? "default" : "pointer" }}
+                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: saving ? "#AAA" : VERDE, border: "none", borderRadius: 8, padding: "8px 24px", cursor: saving ? "default" : "pointer" }}
               >
                 {saving ? "Salvando…" : "Confirmar"}
               </button>
