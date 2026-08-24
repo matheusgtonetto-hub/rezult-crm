@@ -5,15 +5,15 @@ import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  UserRound,
-  LayoutDashboard,
+  ContactRound,
+  ChartColumnDecreasing,
+  House,
   Cog,
   LogOut,
-  Network,
-  Rocket,
+  Workflow,
+  Zap,
   Filter,
   Bell,
-  Info,
   Plus,
   UserCircle,
   BotMessageSquare,
@@ -134,18 +134,22 @@ export function AppSidebar() {
   // então mover uma linha muda só a posição do ícone: quem não tem acesso
   // continua sem ver, e os itens ausentes fecham o vão sozinhos.
   const navItems: NavItem[] = [
+    // Sem permissão própria: o Início é a porta de entrada e a trilha de
+    // primeiros passos, e esconder isso de alguém seria esconder justamente de
+    // quem acabou de chegar.
+    { to: "/inicio", label: "Início", icon: House },
     ...(canAny("dashboard:admin", "dashboard:member")
-      ? [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
+      ? [{ to: "/dashboard", label: "Dashboard", icon: ChartColumnDecreasing }] : []),
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
-      ? [{ to: "/leads", label: "Leads", icon: UserRound }] : []),
+      ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
     ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/disparos", label: "Disparos", icon: Rocket }] : []),
+      ? [{ to: "/disparos", label: "Disparos", icon: Zap }] : []),
     ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
+      ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
     { to: "/agentes", label: "Agentes", icon: BotMessageSquare },
   ];
 
@@ -161,7 +165,7 @@ export function AppSidebar() {
    * realce de rota ativa, o tooltip e os estados de hover sem uma segunda cópia
    * das mesmas regras para divergir depois.
    */
-  const itemCalendario: NavItem = { to: "/calendario", label: "Calendário", icon: CalendarDays };
+  const itemCalendario: NavItem = { to: "/calendario", label: "Agenda", icon: CalendarDays };
 
   const itemBase =
     "flex items-center justify-center rounded-[15px] transition-colors duration-200 relative shrink-0";
@@ -391,6 +395,56 @@ export function AppSidebar() {
         />
         <div className="flex flex-col items-center" style={{ gap: 4 }}>
           {renderNav(itemCalendario)}
+          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button
+                    className={itemBase}
+                    style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
+                    onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
+                    onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
+                    aria-label="Tutoriais"
+                  >
+                    <GraduationCap size={18} strokeWidth={1.75} />
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
+                Tutoriais
+              </TooltipContent>
+            </Tooltip>
+            <PopoverContent
+              side="right"
+              align="end"
+              sideOffset={8}
+              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-card-border">
+                <p className="text-sm font-semibold text-foreground">Tutoriais</p>
+              </div>
+              <a
+                href="https://help.rezultcrm.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setHelpOpen(false)}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
+              >
+                <div className="mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <GraduationCap size={16} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground leading-snug flex items-center gap-1">
+                    Tutoriais <ExternalLink size={11} className="text-muted-foreground" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Acesse tutoriais e aprenda a usar a plataforma
+                  </p>
+                </div>
+              </a>
+            </PopoverContent>
+          </Popover>
+
           <Popover open={notifOpen} onOpenChange={setNotifOpen}>
             {/* Tooltip por fora do PopoverTrigger, os dois com `asChild`: cada um
                 mescla os próprios handlers no mesmo <button>, então o ícone
@@ -472,56 +526,6 @@ export function AppSidebar() {
                   </button>
                 </div>
               ))}
-            </PopoverContent>
-          </Popover>
-
-          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button
-                    className={itemBase}
-                    style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
-                    onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
-                    onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
-                    aria-label="Ajuda"
-                  >
-                    <Info size={18} strokeWidth={1.75} />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
-                Ajuda
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent
-              side="right"
-              align="end"
-              sideOffset={8}
-              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-card-border">
-                <p className="text-sm font-semibold text-foreground">Ajuda</p>
-              </div>
-              <a
-                href="https://help.rezultcrm.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setHelpOpen(false)}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
-              >
-                <div className="mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <GraduationCap size={16} className="text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground leading-snug flex items-center gap-1">
-                    Tutoriais <ExternalLink size={11} className="text-muted-foreground" />
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Acesse tutoriais e aprenda a usar a plataforma
-                  </p>
-                </div>
-              </a>
             </PopoverContent>
           </Popover>
 

@@ -17,6 +17,7 @@ import AppLayout from "./components/AppLayout";
 import PipelinePage from "./pages/PipelinePage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import LeadsPage from "./pages/LeadsPage";
+import InicioPage from "./pages/InicioPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -102,6 +103,7 @@ function AppRoutes() {
             <Route path="/pipeline/:pipelineId" element={<PipelinePage />} />
             <Route path="/leads" element={<LeadsPage />} />
             <Route path="/contatos" element={<Navigate to="/leads" replace />} />
+            <Route path="/inicio" element={<InicioPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agentes" element={<AgentesPage />} />
             <Route path="/agentes/:id" element={<AgentesPage />} />
