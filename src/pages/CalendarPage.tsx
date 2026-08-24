@@ -99,6 +99,9 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
   const days: Date[] = [];
   for (let d = new Date(cs); d <= ce; d = addDays(d, 1)) days.push(new Date(d));
 
+  /** 5 ou 6, conforme o mês. É quem divide a altura entre as semanas. */
+  const semanas = days.length / 7;
+
   return (
     <div
       style={{
@@ -106,6 +109,9 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
         borderRadius: 12,
         border: "1px solid #E5E5E5",
         overflow: "hidden",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* Cabeçalho dos dias */}
@@ -129,7 +135,20 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
       </div>
 
       {/* Grade de dias */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "110px" }}>
+      {/* Linhas em fração da altura, e não nos 110px fixos de antes: fevereiro
+          tem 5 semanas e agosto tem 6, e com altura fixa a segunda não cabia na
+          tela. O `minmax(72px, 1fr)` é o piso para o dia continuar mostrando o
+          número e ao menos um compromisso em telas baixas -- passando disso, o
+          corpo rola em vez de espremer. */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gridTemplateRows: `repeat(${semanas}, minmax(72px, 1fr))`,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
         {days.map(day => {
           const isToday = sameDay(day, today);
           const inMonth = sameMonth(day, cur);
@@ -139,7 +158,8 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
             <div
               key={day.toISOString()}
               style={{
-                height: 110,
+                height: "100%",
+                minHeight: 0,
                 overflow: "hidden",
                 padding: "6px 8px",
                 borderRight: "1px solid #F0F0F0",
@@ -235,7 +255,9 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
         borderRadius: 12,
         border: "1px solid #E5E5E5",
         overflow: "hidden",
-        height: "calc(100vh - 148px)",
+        // 100% do que o corpo oferece. Antes era `calc(100vh - 148px)`, um
+        // desconto chutado que ficava errado a cada mudança no topo da página.
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         position: "relative",
@@ -654,19 +676,31 @@ export default function CalendarPage() {
     <div
       style={{
         background: "hsl(var(--background))",
-        minHeight: "100vh",
+        // `height` da janela, e não `minHeight`: com o mínimo, o conteúdo
+        // empurrava a página para além da tela e o mês só aparecia inteiro
+        // depois de rolar. Fixando a altura, quem se ajusta é a grade dos dias.
+        height: "100%",
+        boxSizing: "border-box",
         maxWidth: 1280,
         margin: "0 auto",
+        padding: 16,
         display: "flex",
         flexDirection: "column",
       }}
     >
       {/* Header */}
+      {/* Cartão, e não faixa colada nas bordas: como faixa ela ia 16px além do
+          calendário de cada lado, encostava no alto da janela e ficava com a
+          aparência de recortada. Com a mesma borda e o mesmo raio do corpo, os
+          dois passam a ser dois cartões da mesma tela. */}
       <div
         style={{
           background: "#FFFFFF",
-          borderBottom: "1px solid #E5E5E5",
-          padding: "14px 24px",
+          border: "1px solid #E5E5E5",
+          borderRadius: 12,
+          padding: "12px 16px",
+          marginBottom: 16,
+          flexShrink: 0,
         }}
       >
         <div className="flex items-center gap-3">
@@ -908,8 +942,10 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Corpo do calendário */}
-      <div className="flex-1 p-4 overflow-hidden">
+      {/* Corpo do calendário. `min-h-0` porque item de flex não encolhe abaixo
+          do conteúdo por padrão, e sem isso a grade estouraria a altura em vez
+          de se ajustar a ela. */}
+      <div className="flex-1 min-h-0 overflow-auto">
         {crmLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
