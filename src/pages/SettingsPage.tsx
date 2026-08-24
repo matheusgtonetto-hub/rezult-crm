@@ -29,11 +29,10 @@ import {
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
-  UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown,
+  UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown, ChevronRight, ChevronsRight,
   Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
   Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
   Sparkles, LayoutDashboard, Megaphone,
-  type LucideIcon,
 } from "lucide-react";
 import { useCompany, type WhatsAppConnection } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -48,26 +47,30 @@ import DepartmentsManager from "@/components/DepartmentsManager";
 import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
-  | "perfil" | "empresa" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
+  | "perfil" | "empresa" | "equipe" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
   | "departamentos" | "horarios" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
-const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
-  { id: "perfil",  label: "Meu perfil",          icon: User },
-  { id: "planos",  label: "Planos e pagamentos", icon: CreditCard },
-  { id: "empresa", label: "Empresa",             icon: Building2 },
-  { id: "tags",    label: "Tags",                icon: Tag },
-  { id: "produtos", label: "Produtos", icon: ShoppingCart },
-  { id: "motivos", label: "Motivos de perda", icon: SquareX },
-  { id: "listas", label: "Listas", icon: List },
-  { id: "campos", label: "Campos adicionais", icon: FormInput },
-  { id: "departamentos", label: "Departamentos", icon: KanbanSquare },
-  { id: "horarios", label: "Horários de trabalho", icon: Clock },
-  { id: "integracoes", label: "Integrações", icon: Plug },
-  { id: "conexoes", label: "Conexões", icon: Link2 },
-  { id: "api", label: "Chaves de API", icon: KeyRound },
-  { id: "mcp", label: "Servidor MCP", icon: Server },
-  { id: "armazenamento", label: "Armazenamento", icon: HardDrive },
+/* Sem ícone por seção: a marca à esquerda é sempre uma seta, e quem escolhe
+   qual delas é o estado da linha (ver a nav), não a seção. Guardar um ícone
+   aqui que o render ignora seria dado mentindo. */
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "perfil",  label: "Meu perfil" },
+  { id: "planos",  label: "Planos e pagamentos" },
+  { id: "empresa", label: "Empresa" },
+  { id: "equipe",  label: "Equipe" },
+  { id: "tags",    label: "Tags" },
+  { id: "produtos", label: "Produtos" },
+  { id: "motivos", label: "Motivos de perda" },
+  { id: "listas", label: "Listas" },
+  { id: "campos", label: "Campos adicionais" },
+  { id: "departamentos", label: "Departamentos" },
+  { id: "horarios", label: "Horários de trabalho" },
+  { id: "integracoes", label: "Integrações" },
+  { id: "conexoes", label: "Conexões" },
+  { id: "api", label: "Chaves de API" },
+  { id: "mcp", label: "Servidor MCP" },
+  { id: "armazenamento", label: "Armazenamento" },
 ];
 
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
@@ -84,7 +87,7 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
 // Seções exclusivas do DONO da empresa
 const OWNER_ONLY_SECTIONS: SectionId[] = [];
 // Seções visíveis ao dono E a membros "Administrador (acesso total)"
-const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "planos"];
+const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "equipe", "planos"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -136,14 +139,19 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`flex items-center gap-2.5 px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
+                className={`flex items-center gap-[5px] px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
                   isActive
                     ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                     : "w-full border-transparent"
                 }`}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
               >
-                <s.icon size={14} className={isActive ? "text-primary" : ""} />
+                {/* Seta dupla na seção aberta, simples nas outras: o realce
+                    verde já diz qual é a ativa, e a segunda ponta reforça o
+                    "você está aqui" sem depender só da cor. */}
+                {isActive
+                  ? <ChevronsRight size={14} className="text-primary" />
+                  : <ChevronRight size={14} />}
                 {s.label}
               </button>
             );
@@ -156,6 +164,7 @@ export default function SettingsPage() {
         <div className="max-w-5xl mx-auto p-8">
           {active === "perfil"  && <PerfilSection setPwOpen={setPwOpen} />}
           {active === "empresa" && <EmpresaSection />}
+          {active === "equipe"  && <EquipeSection />}
           {active === "planos"  && <PlanosSection />}
           {active === "tags" && <TagsSection />}
           {active === "produtos" && <ProdutosSection />}
@@ -496,7 +505,6 @@ function EmpresaSection() {
   const { company, updateCompany, uploadLogo, isOwner, userPermissions } = useCompany();
   const isFullAdmin = isOwner || userPermissions.includes("admin");
   const fileRef = useRef<HTMLInputElement>(null);
-  const [empresaTab, setEmpresaTab] = useState<"informacoes" | "equipe">("informacoes");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -655,31 +663,16 @@ function EmpresaSection() {
                   </span>
                 )}
               </div>
-              {isFullAdmin && (
-                <div className="flex gap-1 shrink-0">
-                  {(["informacoes", "equipe"] as const).map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setEmpresaTab(tab)}
-                      className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
-                        empresaTab === tab
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {tab === "informacoes" ? "Informações" : "Equipe"}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
       </Card>
 
-      {isFullAdmin && empresaTab === "equipe" && <EquipeSection />}
-
-      {isFullAdmin && empresaTab === "informacoes" && <>
+      {/* A Equipe saiu daqui para uma seção própria no menu lateral: era uma aba
+          dentro de uma aba, escondida atrás de um par de botões que só aparecia
+          para administradores, e o menu à esquerda é onde as pessoas procuram
+          uma tela. Restou a informação da empresa, sem abas. */}
+      {isFullAdmin && <>
 
       {/* Card único com todas as informações */}
       <Card>
@@ -3831,11 +3824,22 @@ function ConexoesSection() {
 
   const selectedCat = CONN_CATEGORIES.find(c => c.id === selectedCategory) ?? CONN_CATEGORIES[0];
 
-  // Metadados de apresentação por provedor (rótulo + site exibidos no card)
+  /**
+   * Descrição dos provedores que ligam o WhatsApp por QR Code.
+   *
+   * D-API e Z-API fazem a mesma coisa por baixo -- espelham a sessão do celular
+   * --, e a diferença entre eles é de fornecedor, não de funcionamento. Uma
+   * constante em vez de duas frases soltas: escritas separadamente, a primeira
+   * correção de texto valeria só em metade dos cartões.
+   */
+  const DESC_QR = "Conexão do seu WhatsApp por leitura de QR Code, para trocar mensagens e arquivos diretamente pelo CRM.";
+
+  // Metadados de apresentação por provedor (rótulo, site e descrição do card)
   const provMeta = (p?: string) =>
-    p === "dapi"        ? { label: "D-API", site: "d-api.cloud", url: "https://d-api.cloud" }
-    : p === "cloud_api" ? { label: "WhatsApp Cloud (Oficial)", site: "whatsapp.com", url: "https://business.whatsapp.com" }
-    :                     { label: "Z-API", site: "z-api.io", url: "https://z-api.io" };
+    p === "dapi"        ? { label: "D-API", site: "d-api.cloud", url: "https://d-api.cloud", desc: DESC_QR }
+    : p === "cloud_api" ? { label: "WhatsApp Cloud (Oficial)", site: "whatsapp.com", url: "https://business.whatsapp.com",
+                            desc: "Plataforma oficial do WhatsApp Business para troca de mensagens e arquivos diretamente pelo CRM." }
+    :                     { label: "Z-API", site: "z-api.io", url: "https://z-api.io", desc: DESC_QR };
 
   const COMING_SOON = [
     { id: "messenger", platform: "Messenger", category: "Messenger", domain: "messenger.com", name: "Messenger", description: "Receba e responda mensagens do Messenger diretamente no CRM.", iconBg: "#0084FF", Icon: MessengerIcon },
@@ -3874,14 +3878,29 @@ function ConexoesSection() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : conn.provider === "cloud_api" ? "#25D366" : "hsl(var(--foreground))" }}>
                   {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : conn.provider === "cloud_api" ? <WhatsAppIcon size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
+                {/* Arranjo do cartão do Google Calendar: no topo o SERVIÇO, e o
+                    nome da conexão logo acima da descrição. Os cartões ficam
+                    lado a lado na mesma grade, e ali o topo é o que o olho usa
+                    para dizer "isto é WhatsApp, aquilo é Agenda". Com o apelido
+                    no topo, era preciso ler a segunda linha para descobrir de
+                    que serviço o cartão é.
+
+                    Vale para os três provedores sem condição nenhuma: esta
+                    lista é `whatsappConnections`, e tudo que entra nela é uma
+                    linha de WhatsApp. */}
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
+                  <p className="text-sm font-bold text-foreground truncate">{provMeta(conn.provider).label}</p>
+                  <p className="text-xs text-muted-foreground truncate">WhatsApp</p>
                 </div>
               </div>
-              {conn.provider === "cloud_api" && (
-                <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Plataforma oficial do WhatsApp Business para troca de mensagens e arquivos diretamente pelo CRM.</p>
+              {/* Mesmo corpo e peso do nome da conta no cartão do Google
+                  Calendar: são a mesma informação (de quem é esta conexão) no
+                  mesmo lugar, e um tamanho diferente faria os dois cartões
+                  parecerem de famílias diferentes. */}
+              {conn.name && (
+                <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
@@ -3924,14 +3943,29 @@ function ConexoesSection() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: conn.provider === "dapi" ? "#0EA5E9" : conn.provider === "cloud_api" ? "#25D366" : "hsl(var(--foreground))" }}>
                   {conn.provider === "dapi" ? <Zap size={18} color="#FFF" /> : conn.provider === "cloud_api" ? <WhatsAppIcon size={18} color="#FFF" /> : <Webhook size={18} color="hsl(var(--background))" />}
                 </div>
+                {/* Arranjo do cartão do Google Calendar: no topo o SERVIÇO, e o
+                    nome da conexão logo acima da descrição. Os cartões ficam
+                    lado a lado na mesma grade, e ali o topo é o que o olho usa
+                    para dizer "isto é WhatsApp, aquilo é Agenda". Com o apelido
+                    no topo, era preciso ler a segunda linha para descobrir de
+                    que serviço o cartão é.
+
+                    Vale para os três provedores sem condição nenhuma: esta
+                    lista é `whatsappConnections`, e tudo que entra nela é uma
+                    linha de WhatsApp. */}
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{conn.phone || provMeta(conn.provider).label}</p>
+                  <p className="text-sm font-bold text-foreground truncate">{provMeta(conn.provider).label}</p>
+                  <p className="text-xs text-muted-foreground truncate">WhatsApp</p>
                 </div>
               </div>
-              {conn.provider === "cloud_api" && (
-                <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Plataforma oficial do WhatsApp Business para troca de mensagens e arquivos diretamente pelo CRM.</p>
+              {/* Mesmo corpo e peso do nome da conta no cartão do Google
+                  Calendar: são a mesma informação (de quem é esta conexão) no
+                  mesmo lugar, e um tamanho diferente faria os dois cartões
+                  parecerem de famílias diferentes. */}
+              {conn.name && (
+                <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
