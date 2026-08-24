@@ -91,3 +91,45 @@ export function variantesDeTelefone(bruto: TelefoneBruto): string[] {
   const comNove = `${ddd}9${oito}`;
   return [...new Set([nucleo, comNove, `55${nucleo}`, `55${comNove}`])];
 }
+
+/**
+ * O número como a pessoa lê: `+55 (48) 99115-2442`.
+ *
+ * É a única função daqui que produz texto para tela. Mora junto das outras de
+ * propósito: separar "como se compara" de "como se mostra" em dois arquivos foi
+ * o que, antes, deixou catorze cópias da mesma regra espalhadas pelo código.
+ *
+ * O país só é reconhecido acima de 11 dígitos, e só quando é o 55 -- o mesmo
+ * cuidado de `normalizarTelefoneBr`, porque 55 também é o DDD de Santa Maria e
+ * um "5599998888" é número gaúcho inteiro, não um número com país na frente.
+ *
+ * Quando o número vem sem país, entra o `ddiPadrao` do cadastro se houver. Sem
+ * ele, o número sai sem `+`: inventar um código de país seria afirmar de onde a
+ * pessoa é com base em nada.
+ *
+ * Formato que não reconhece (curto demais, ou longo e estrangeiro) sai com o
+ * traço antes dos quatro últimos dígitos e nada mais, que é o pedido mínimo e
+ * não distorce o resto.
+ */
+export function formatarTelefone(bruto: TelefoneBruto, ddiPadrao?: string | null): string {
+  const d = somenteDigitos(bruto);
+  if (!d) return "";
+
+  const temPais = d.length >= 12 && d.startsWith("55");
+  const pais = temPais ? "55" : somenteDigitos(ddiPadrao);
+  const local = temPais ? d.slice(2) : d;
+
+  const prefixo = pais ? `+${pais} ` : "";
+  const ddd = local.slice(0, 2);
+  const resto = local.slice(2);
+
+  // 11 dígitos = celular com o nono; 10 = fixo ou celular antigo. Nos dois o
+  // traço fica antes dos quatro últimos, que é o corte que o olho usa para ler
+  // número de telefone no Brasil.
+  if (local.length === 11 || local.length === 10) {
+    return `${prefixo}(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
+  }
+
+  if (local.length > 4) return `${prefixo}${local.slice(0, local.length - 4)}-${local.slice(-4)}`;
+  return `${prefixo}${local}`;
+}

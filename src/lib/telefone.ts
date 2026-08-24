@@ -13,4 +13,5 @@ export {
   normalizarTelefoneBr,
   telefonesIguais,
   variantesDeTelefone,
+  formatarTelefone,
 } from "../../supabase/functions/_shared/telefone.ts";

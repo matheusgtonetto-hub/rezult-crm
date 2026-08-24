@@ -4,6 +4,7 @@ import { useCRM } from "@/context/CRMContext";
 import { Lead } from "@/data/mockData";
 import { type Contact } from "@/lib/contacts";
 import { chaveDaPessoa, ticketPorPessoa } from "@/lib/ticketMedio";
+import { formatarTelefone } from "@/lib/telefone";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -400,8 +401,8 @@ export default function LeadsPage() {
                 <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Responsável</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Dados</TableHead>
-                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Data de Criação</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Receita</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "12%" }}>Criado em</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -506,15 +507,6 @@ export default function LeadsPage() {
                       </div>
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
                         <span className="truncate block">{row.lead.name}</span>
-                        {(() => {
-                          const key = chaveDaPessoa(row.lead);
-                          const avg = (key ? ticketByContact[key]?.avg : undefined) ?? 0;
-                          return (
-                            <span style={{ fontSize: 9, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
-                              Ticket médio <span className="text-green-600 ml-1">{fmtBRL(avg)}</span>
-                            </span>
-                          );
-                        })()}
                       </div>
                     </div>
                   </TableCell>
@@ -551,9 +543,11 @@ export default function LeadsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
+                      {/* Formatado na hora de mostrar, e não gravado formatado:
+                          o banco guarda o número como cada canal entregou, e é
+                          esse texto cru que as buscas e comparações usam. */}
                       <span className="text-sm text-foreground truncate">
-                        {row.lead.phoneDdi && row.lead.phoneDdi !== "+55" ? `${row.lead.phoneDdi} ` : ""}
-                        {row.lead.whatsapp || "—"}
+                        {row.lead.whatsapp ? formatarTelefone(row.lead.whatsapp, row.lead.phoneDdi) : "—"}
                       </span>
                       {row.lead.email && (
                         <span className="text-xs text-muted-foreground truncate">{row.lead.email}</span>
@@ -584,11 +578,11 @@ export default function LeadsPage() {
                       return (
                         <div className="flex items-start" style={{ gap: 25 }}>
                           <div style={{ lineHeight: 1.4 }}>
-                            <div style={{ fontSize: 10 }} className="text-muted-foreground">Total:</div>
+                            <div style={{ fontSize: 10 }} className="text-muted-foreground">Receita:</div>
                             <div style={{ fontSize: 14 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
                           </div>
                           <div className="flex flex-col items-center" style={{ lineHeight: 1.4 }}>
-                            <div className="flex items-center justify-center rounded-full font-semibold text-foreground" style={{ width: 26, height: 26, fontSize: 14, border: "1.5px solid #16a34a", background: "transparent" }}>{count}</div>
+                            <div className="flex items-center justify-center font-semibold text-foreground" style={{ width: 26, height: 26, fontSize: 14, borderRadius: 5, border: "1.5px solid #16a34a", background: "transparent" }}>{count}</div>
                             <div style={{ fontSize: 8 }} className="text-muted-foreground">Compras</div>
                           </div>
                         </div>
