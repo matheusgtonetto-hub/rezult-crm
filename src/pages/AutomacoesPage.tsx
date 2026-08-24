@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, cre
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Plus, ChevronDown, ChevronRight, ChevronLeft,
-  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight, Network,
+  Play, Zap, Power, Minus, Maximize2, ArrowLeft, ArrowRight, Workflow,
   Save, Pencil, Copy, Download, Upload, Trash2,
   Briefcase, User, MessageCircle, Instagram, Globe, Settings,
   Calendar, Filter, LayoutGrid, X, CheckCircle2,
@@ -2271,7 +2271,7 @@ export default function AutomacoesPage() {
                             }`}
                             style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
                           >
-                            <Network size={14} className={sel ? "text-primary" : ""} />
+                            <Workflow size={14} className={sel ? "text-primary" : ""} />
                             <span className="truncate text-left flex-1">{item.name}</span>
                             <Switch
                               checked={item.active}
