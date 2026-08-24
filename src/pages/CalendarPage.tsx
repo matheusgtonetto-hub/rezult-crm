@@ -493,7 +493,7 @@ export default function CalendarPage() {
 
       const deletedIds: string[] = data.deleted_event_ids ?? [];
       if (deletedIds.length === 0) {
-        if (showToast) toast.success("Calendário sincronizado. Nenhuma alteração encontrada.");
+        if (showToast) toast.success("Agenda sincronizada. Nenhuma alteração encontrada.");
         return;
       }
 
@@ -673,7 +673,7 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2">
             <CalendarDays size={18} style={{ color: "hsl(var(--primary))" }} />
             <h1 className="text-base font-semibold" style={{ color: "#111111" }}>
-              Calendário
+              Agenda
             </h1>
           </div>
 
