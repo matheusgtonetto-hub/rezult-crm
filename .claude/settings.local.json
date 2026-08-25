@@ -30,7 +30,9 @@
       "Bash(node -e ' *)",
       "Bash(pkill -f vite)",
       "Bash(curl -s http://localhost:8080)",
-      "Bash(lsof -ti:8080)"
+      "Bash(lsof -ti:8080)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/lucide-react/package.json'\\).version\\)\")",
+      "Bash(npm show *)"
     ],
     "additionalDirectories": [
       "/tmp"
