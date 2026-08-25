@@ -8,21 +8,9 @@ import { Eye, EyeOff, MailCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useIdioma } from "@/context/IdiomaContext";
 import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
+import { RodapeLegal } from "@/components/RodapeLegal";
 
 type Screen = "login" | "forgot";
-
-/**
- * Para onde vai o "Agendar demonstração".
- *
- * Em constante porque é decisão de negócio, não de tela: hoje leva à conversa
- * com o time no WhatsApp, e no dia em que existir uma agenda pública (Calendly,
- * Cal.com) troca-se a linha, sem procurar o link no meio do JSX.
- *
- * A mensagem já vai escrita para o atendente saber de onde veio o contato, e
- * porque quem clica em "agendar" não deveria precisar redigir nada.
- */
-const LINK_DEMONSTRACAO =
-  `https://wa.me/554891160449?text=${encodeURIComponent("Olá! Gostaria de agendar uma demonstração do Rezult CRM.")}`;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -82,13 +70,14 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="relative h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#F2F7F5" }}>
+      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "#F2F7F5" }}>
         {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
             inteira, e dentro do cartão ela viraria mais um campo do
             formulário. `absolute` sobre o `relative` do fundo. */}
         <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
+        <div className="flex-1 flex items-center justify-center py-6">
         <div
-          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300"
+          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300 shadow-elev-3"
                   >
           <div className="flex justify-center mb-6"><img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" /></div>
 
@@ -149,17 +138,21 @@ export default function LoginPage() {
             </>
           )}
         </div>
+        </div>
+        <RodapeLegal />
       </div>
     );
   }
 
-  // `flex-col`: o cartão e a chamada de demonstração são dois blocos
-  // empilhados. Em linha, que era como estava, o segundo ia parar ao LADO do
-  // cartão. O seletor continua absoluto no canto, fora dessa coluna.
+  // Coluna de três partes: seletor solto no canto, cartão no meio e rodapé
+  // colado no fim da tela. O `flex-1` do bloco do meio é o que empurra o rodapé
+  // para baixo -- centralizar tudo junto deixaria o rodapé grudado no cartão,
+  // no meio da tela.
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col items-center justify-center px-4" style={{ background: "#F2F7F5" }}>
+    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "#F2F7F5" }}>
       <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
-      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
+      <div className="flex-1 flex items-center justify-center py-6">
+      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
@@ -259,34 +252,9 @@ export default function LoginPage() {
         </form>
         </div>
       </div>
-
-      {/* Fora do cartão, com o mesmo teto de largura dele: dentro, viraria mais
-          uma opção do formulário, competindo com "Entrar" e "Criar uma conta".
-          Aqui embaixo é convite, não caminho de acesso. */}
-      {/* O botão vive DENTRO do parágrafo, e não numa coluna ao lado: assim ele
-          entra no fluxo do texto, logo depois do ponto final, e desce para a
-          linha seguinte junto com a frase quando não couber. */}
-      <div className="w-full max-w-[380px] mt-5 text-center">
-        <p className="text-[13px] font-medium text-foreground leading-relaxed">
-          {t("demo.texto")}{" "}
-        {/* Contorno verde com fundo transparente: o botão sólido do
-            formulário é a ação principal da tela, e um segundo botão cheio aqui
-            embaixo disputaria a mesma atenção. No hover o fundo ganha só um véu
-            do próprio verde, então a cor do texto e da borda não muda. */}
-        <a
-          href={LINK_DEMONSTRACAO}
-          target="_blank"
-          rel="noopener noreferrer"
-          // `align-middle` porque um inline-flex no meio do texto assenta na
-          // linha de base por padrão, e o botão ficaria com a borda inferior
-          // afundada em relação à frase.
-          className="inline-flex align-middle items-center justify-center border border-primary bg-transparent text-[11px] font-semibold text-primary transition-colors hover:bg-primary/5"
-          style={{ borderRadius: 30, padding: "1px 10px" }}
-        >
-          {t("demo.botao")}
-        </a>
-        </p>
       </div>
+
+      <RodapeLegal />
     </div>
   );
 }
