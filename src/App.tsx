@@ -14,6 +14,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import Verify2FAPage from "./pages/Verify2FAPage";
 import AppLayout from "./components/AppLayout";
+import { IdiomaProvider } from "./context/IdiomaContext";
 import PipelinePage from "./pages/PipelinePage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import LeadsPage from "./pages/LeadsPage";
@@ -129,14 +130,18 @@ function AppRoutes() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    {/* IdiomaProvider por fora do AuthProvider: a escolha de idioma precisa
+        valer na tela de login, onde ainda não há usuário. */}
+    <IdiomaProvider>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </IdiomaProvider>
   </QueryClientProvider>
 );
 
