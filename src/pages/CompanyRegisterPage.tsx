@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FundoDoCrm } from "@/components/FundoDoCrm";
@@ -47,34 +48,28 @@ const DDI_OPTIONS = [
 const CARGOS = ["Proprietário", "Gerente", "Funcionário", "Estudante, freelancer ou estagiário"];
 
 /**
- * Respostas para "Você já usou um CRM antes?".
+ * A resposta de "Você já usa um CRM?" que abre o campo "Qual?".
  *
- * "Uso planilhas" fica no meio de propósito: não é um não (a pessoa já organiza
- * o processo dela) nem um sim (nunca viu um funil, nem automação). É o grupo
- * mais comum entre quem chega, e o que mais muda o tipo de introdução que
- * deveria receber.
+ * Declarada ANTES da lista e usada dentro dela, em vez de apontada por índice
+ * (`EXPERIENCIAS_COM_CRM[2]`, como já esteve): reordenar as opções passou a ser
+ * seguro. Com o índice, mudar a ordem fazia o campo condicional deixar de
+ * aparecer sem erro nenhum surgir -- só alguém abrindo a tela perceberia.
  */
-const EXPERIENCIAS_COM_CRM = ["Não, nunca usei CRM", "Uso planilhas", "Sim, já usei um CRM"];
+const CRM_JA_USADO = "Sim, já uso um CRM";
 
 /**
- * Portes oferecidos na etapa "Sobre a sua empresa".
+ * Respostas para "Você já usa um CRM?".
  *
- * Vai para `companies.company_size`: quantas pessoas a empresa TEM. Não
- * confundir com FAIXAS_DE_USUARIOS logo abaixo, que é quantas vão USAR o
- * Rezult. Uma agência de 40 pessoas com 6 no comercial responde "De 21 a 50
- * funcionários" aqui e "6-15" lá, e as duas respostas estão certas.
+ * "Uso planilhas e outros" não é um sim nem um não: a pessoa já organiza o
+ * processo dela, mas nunca viu funil nem automação. É o grupo mais comum entre
+ * quem chega, e o que mais muda o tipo de introdução que deveria receber.
  *
- * Sete opções com frase inteira ("De 11 a 20 funcionários"), então lista
- * suspensa: em caixas lado a lado cada rótulo quebraria em três linhas.
+ * Vão para `profiles.crm_experience` exatamente como estão escritas aqui.
  */
-const PORTES_DE_EMPRESA = [
-  "Somente eu",
-  "De 2 a 5 funcionários",
-  "De 6 a 10 funcionários",
-  "De 11 a 20 funcionários",
-  "De 21 a 50 funcionários",
-  "De 51 a 100 funcionários",
-  "+101 funcionários",
+const EXPERIENCIAS_COM_CRM = [
+  CRM_JA_USADO,
+  "Não, nunca usei um CRM",
+  "Uso planilhas e outros",
 ];
 
 /**
@@ -100,16 +95,90 @@ const FAIXAS_DE_USUARIOS = ["1", "2-5", "6-15", "16-50", "Mais de 51"];
  * operação, e obrigar a marcar uma só devolveria uma resposta mais pobre que a
  * realidade.
  *
+ * Cada opção aponta para uma ÁREA diferente do produto, e é isso que faz a
+ * pergunta valer. A versão anterior tinha três opções que diziam a mesma coisa
+ * ("gestão de processos", "implementar processos", "organizar a operação") e
+ * uma que todo mundo marcaria ("aumentar minhas vendas"): quem responde marca
+ * quase tudo, e uma resposta que quase todos dão para de separar as pessoas,
+ * que é a única razão de perguntar.
+ *
+ * O mapa hoje: 1 e 5 são Multiatendimento e Agentes, 2 é Pipeline, 3 e 4 são
+ * Dashboard. Quem marca a 4 tem time; quem marca a 5 tem volume.
+ *
  * Vão para `profiles.goals` (text[]) exatamente como estão escritas aqui.
  * Mudar um rótulo depois cria um valor novo convivendo com o antigo nas linhas
  * já gravadas, então a troca teria que vir com um UPDATE junto.
  */
 const OBJETIVOS = [
-  "Aumentar minhas vendas",
-  "Ter mais gestão de processos comerciais",
-  "Implementar processos comerciais na empresa",
-  "Relatórios avançados pra tomada de decisão",
-  "Busco ajuda para organizar minha operação",
+  "Parar de perder lead sem resposta",
+  "Organizar meu funil e saber em que pé está cada negócio",
+  "Ter previsibilidade de quanto vou vender no mês",
+  "Acompanhar o desempenho do meu time",
+  "Automatizar o atendimento no WhatsApp",
+];
+
+/**
+ * Opções de "Qual seu principal ponto de contato com os leads?".
+ *
+ * Múltipla escolha, apesar do "principal" no singular. A pergunta pede a
+ * hierarquia (é isso que separa uma operação de outra), mas nada se ganha
+ * impedindo quem usa três canais de dizer que usa três. O texto de apoio na
+ * tela é que resolve a tensão: "Marque o principal e outros que também usar".
+ *
+ * "Ligação telefônica" e "Reunião online" são separadas de propósito. A versão
+ * que motivou esta lista tinha "ligação" e "call de vendas", que se sobrepõem
+ * -- uma call de vendas É uma ligação, e quem atende por telefone escolheria no
+ * chute entre as duas. O que de fato distingue é ligação rápida contra reunião
+ * agendada, e é assim que os rótulos estão escritos agora.
+ *
+ * Instagram e Presencial estão aqui porque o ICP pede: a lista de nichos tem
+ * Consultório/Clínica, E-commerce e Prestação de Serviço, e a aquisição roda em
+ * Meta. Sem esses dois, parte de quem chega marcaria qualquer coisa.
+ *
+ * Vai para `companies.channels`. É fato da empresa, não da pessoa: os cinco
+ * vendedores dela atendem pelos mesmos canais. Difere de `profiles.goals`, que
+ * é o que aquela pessoa específica quer alcançar.
+ *
+ * WhatsApp em primeiro não é ordem alfabética nem acaso: é o canal que o
+ * produto conecta, e quem o marca tem um primeiro passo de onboarding diferente
+ * de quem não marca.
+ */
+const CANAIS_DE_ATENDIMENTO = [
+  "WhatsApp",
+  "Instagram",
+  "Ligação telefônica",
+  "Reunião online (Meet, Zoom)",
+  "E-mail",
+  "Presencial",
+];
+
+/**
+ * Faixas de leads novos por mês, na etapa "Sobre a sua empresa".
+ *
+ * Vai para `companies.monthly_leads`. É a pergunta que mede o tamanho da DOR,
+ * enquanto porte e usuários previstos medem o tamanho da EMPRESA: uma clínica
+ * de 4 pessoas com 300 leads no WhatsApp tem urgência que uma indústria de 60
+ * que vende por licitação não tem.
+ *
+ * A escada é CONTÍNUA de propósito: cada faixa começa onde a anterior terminou
+ * mais um. Sobreposição ("251 a 500" com "500 a 1.000") deixa quem tem
+ * exatamente 500 escolhendo entre duas certas, e buraco (de 3.000 a 5.000)
+ * deixa quem tem 4.000 escolhendo qualquer uma. Nos dois casos entra no banco
+ * uma resposta aleatória com cara de resposta, e é justamente esta coluna que
+ * decide a quem ligar durante o teste.
+ *
+ * Esta lista é a fonte da verdade das faixas: o comentário da coluna no banco
+ * aponta para cá em vez de repeti-las, porque elas ainda estão sendo calibradas
+ * e um comentário desatualizado engana mais do que ajuda.
+ */
+const FAIXAS_DE_LEADS = [
+  "0 a 250 leads",
+  "251 a 500 leads",
+  "501 a 1.000 leads",
+  "1.001 a 3.000 leads",
+  "3.001 a 10.000 leads",
+  "10.001 a 50.000 leads",
+  "+50.000 leads",
 ];
 
 const NICHES = [
@@ -123,22 +192,6 @@ const NICHES = [
   { label: "Outros",                   icon: MoreHorizontal },
 ];
 
-const COUNTRIES = [
-  { value: "BR", label: "Brasil",          flag: "🇧🇷" },
-  { value: "US", label: "Estados Unidos",  flag: "🇺🇸" },
-  { value: "PT", label: "Portugal",        flag: "🇵🇹" },
-  { value: "AR", label: "Argentina",       flag: "🇦🇷" },
-  { value: "MX", label: "México",          flag: "🇲🇽" },
-  { value: "CO", label: "Colômbia",        flag: "🇨🇴" },
-  { value: "CL", label: "Chile",           flag: "🇨🇱" },
-  { value: "UY", label: "Uruguai",         flag: "🇺🇾" },
-  { value: "PE", label: "Peru",            flag: "🇵🇪" },
-  { value: "GB", label: "Reino Unido",     flag: "🇬🇧" },
-  { value: "DE", label: "Alemanha",        flag: "🇩🇪" },
-  { value: "FR", label: "França",          flag: "🇫🇷" },
-  { value: "ES", label: "Espanha",         flag: "🇪🇸" },
-  { value: "IT", label: "Itália",          flag: "🇮🇹" },
-];
 
 const STEP_META = [
   // `{email}` é trocado pelo e-mail da conta na hora de renderizar. Fica como
@@ -146,8 +199,8 @@ const STEP_META = [
   // continuar morando num lugar só.
   { title: "Sobre você",                          subtitle: "Você está se inscrevendo como {email}", sideLabel: "Sobre você" },
   { title: "Sobre a sua empresa",                 subtitle: "Conte-nos um pouco sobre a sua empresa.", sideLabel: "Sua empresa" },
+  { title: "Sua atuação",                         subtitle: "Como sua operação funciona hoje.", sideLabel: "Sua atuação" },
   { title: "Seus objetivos",                      subtitle: "Marque tudo que se aplica ao seu momento.", sideLabel: "Seus objetivos" },
-  { title: "Onde sua empresa está localizada?",   subtitle: "Informe o endereço completo para personalizar sua experiência.", sideLabel: "Endereço" },
 ];
 
 /**
@@ -159,6 +212,9 @@ const STEP_META = [
  * etapa a menos agora é uma linha na lista acima, e o resto acompanha.
  */
 const TOTAL_DE_ETAPAS = STEP_META.length;
+
+/** Distância vertical entre uma etapa e outra na lista da lateral, em pixels. */
+const ESPACO_ENTRE_ETAPAS = 20;
 
 const formatPhone = (value: string) => {
   const d = value.replace(/\D/g, "").slice(0, 11);
@@ -204,11 +260,12 @@ export default function CompanyRegisterPage() {
   const [fullName, setFullName]           = useState("");
   const [jobTitle, setJobTitle]           = useState("");
   const [crmExperience, setCrmExperience] = useState("");
+  const [previousCrm, setPreviousCrm]     = useState("");
   const [ddiPessoal, setDdiPessoal]       = useState("+55");
   const [personalPhone, setPersonalPhone] = useState("");
 
   const [companyName, setCompanyName] = useState("");
-  const [companySize, setCompanySize] = useState("");
+  const [monthlyLeads, setMonthlyLeads] = useState("");
   const [expectedUsers, setExpectedUsers] = useState("");
 
   // Não é mais perguntado na tela: a etapa de contato virou "Seus objetivos".
@@ -217,17 +274,9 @@ export default function CompanyRegisterPage() {
   const [companyEmail, setCompanyEmail] = useState("");
 
   const [niche, setNiche] = useState("");
+  const [channels, setChannels] = useState<string[]>([]);
   const [goals, setGoals] = useState<string[]>([]);
 
-  const [country, setCountry]           = useState("BR");
-  const [zipCode, setZipCode]           = useState("");
-  const [address, setAddress]           = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [city, setCity]                 = useState("");
-  const [uf, setUf]                     = useState("");
-  const [number, setNumber]             = useState("");
-  const [complement, setComplement]     = useState("");
-  const [loadingCep, setLoadingCep]     = useState(false);
 
   useEffect(() => {
     if (user?.email) setCompanyEmail(user.email);
@@ -272,25 +321,6 @@ export default function CompanyRegisterPage() {
     return "";
   };
 
-  const handleCepChange = async (raw: string) => {
-    const clean = raw.replace(/\D/g, "").slice(0, 8);
-    const formatted = clean.length > 5 ? `${clean.slice(0, 5)}-${clean.slice(5)}` : clean;
-    setZipCode(formatted);
-    if (clean.length === 8 && country === "BR") {
-      setLoadingCep(true);
-      try {
-        const res  = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-        const data = await res.json();
-        if (!data.erro) {
-          setAddress(data.logradouro  ?? "");
-          setNeighborhood(data.bairro ?? "");
-          setCity(data.localidade     ?? "");
-          setUf(data.uf               ?? "");
-        }
-      } catch { /* manual fill */ }
-      setLoadingCep(false);
-    }
-  };
 
   const handleNext = () => {
     // Ligado antes das checagens: se alguma barrar, os campos vazios da etapa
@@ -300,17 +330,17 @@ export default function CompanyRegisterPage() {
     if (step === 1) {
       if (!fullName.trim())    { toast.error("Informe seu nome."); return; }
       if (!jobTitle)           { toast.error("Selecione seu cargo."); return; }
-      if (!crmExperience)      { toast.error("Informe se você já usou um CRM."); return; }
+      if (!crmExperience)      { toast.error("Informe se você já usa um CRM."); return; }
       if (!personalPhone.trim()) { toast.error("Informe seu telefone."); return; }
       avancar(2);
     } else if (step === 2) {
       if (!companyName.trim()) { toast.error("Informe o nome da empresa."); return; }
       if (!niche)              { toast.error("Selecione o segmento da empresa."); return; }
-      if (!companySize)        { toast.error("Selecione o porte da empresa."); return; }
       if (!expectedUsers)      { toast.error("Informe quantas pessoas usarão o Rezult."); return; }
       avancar(3);
     } else if (step === 3) {
-      if (goals.length === 0) { toast.error("Marque ao menos um objetivo."); return; }
+      if (channels.length === 0) { toast.error("Marque ao menos um canal de atendimento."); return; }
+      if (!monthlyLeads)         { toast.error("Informe quantos leads sua empresa gera por mês."); return; }
       avancar(4);
     }
   };
@@ -330,12 +360,7 @@ export default function CompanyRegisterPage() {
     if (!user) return;
 
     setTentouAvancar(true);
-    if (!zipCode.trim())        { toast.error("Informe o CEP.");        return; }
-    if (!address.trim())        { toast.error("Informe o endereço.");   return; }
-    if (!number.trim())         { toast.error("Informe o número.");     return; }
-    if (!neighborhood.trim())   { toast.error("Informe o bairro.");     return; }
-    if (!city.trim())           { toast.error("Informe a cidade.");     return; }
-    if (!uf.trim())             { toast.error("Informe o estado (UF)."); return; }
+    if (goals.length === 0) { toast.error("Marque ao menos um objetivo."); return; }
 
     setSubmitting(true);
 
@@ -358,7 +383,6 @@ export default function CompanyRegisterPage() {
     const { data: newCompany, error } = await supabase.from("companies").insert({
       owner_id:        user.id,
       name:            companyName.trim(),
-      company_size:    companySize,
       expected_users:  expectedUsers,
       // O cadastro deixou de PERGUNTAR e-mail e telefone da empresa quando a
       // etapa de contato virou "Seus objetivos", mas a empresa continua
@@ -373,14 +397,12 @@ export default function CompanyRegisterPage() {
       email:           companyEmail.trim(),
       phone:           `${ddiPessoal} ${personalPhone}`.trim(),
       niche,
-      country,
-      zip_code:        zipCode.replace(/\D/g, ""),
-      address,
-      number,
-      complement,
-      neighborhood,
-      city,
-      state:           uf,
+      monthly_leads:   monthlyLeads,
+      channels,
+      // Endereço saiu do cadastro: eram sete campos entre a pessoa e o produto
+      // que ela veio testar, e a Stripe já os coleta no checkout
+      // (`billing_address_collection: "required"`), que é o único momento em
+      // que eles importam. Continuam editáveis em Configurações > Empresa.
       plan:            "silver",
       plan_expires_at: planExpiresAt.toISOString(),
       trial_ends_at:   planExpiresAt.toISOString(),
@@ -407,6 +429,10 @@ export default function CompanyRegisterPage() {
       full_name:      fullName.trim(),
       job_title:      jobTitle,
       crm_experience: crmExperience,
+      // Só faz sentido guardar o CRM anterior de quem disse ter usado um. Sem
+      // esta guarda, trocar a resposta de "Sim, já usei" para "Uso planilhas"
+      // deixaria no banco um CRM anterior que contradiz a própria experiência.
+      previous_crm:   crmExperience === CRM_JA_USADO ? (previousCrm.trim() || null) : null,
       goals,
       phone:          `${ddiPessoal} ${personalPhone}`.trim(),
     }).eq("id", user.id);
@@ -508,21 +534,65 @@ export default function CompanyRegisterPage() {
             </p>
 
             {/* Step list */}
-            <div className="space-y-[14px]">
+            <div className="flex flex-col" style={{ gap: ESPACO_ENTRE_ETAPAS }}>
               {STEP_META.map((meta, i) => {
                 const num = i + 1;
                 const isActive = step === num;
                 const isDone   = step > num;
+                const ehUltima = num === TOTAL_DE_ETAPAS;
                 return (
-                  <div key={num} className="flex items-center gap-2.5">
+                  <div key={num} className="relative flex items-center gap-2.5">
+                    {/* Concluída troca o número pelo visto: depois de feita, o
+                        que importa daquela etapa é o estado, não a posição dela
+                        na fila. O fundo vira branco para o visto não competir
+                        com o círculo cheio da etapa em curso, que é o único que
+                        deve puxar o olho. */}
                     <div className={cn(
                       "w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border-2",
                       isActive ? "border-primary bg-primary text-white" :
-                      isDone   ? "border-primary bg-primary/10 text-primary" :
+                      isDone   ? "border-primary bg-card text-primary" :
                                  "border-muted-foreground/30 text-muted-foreground"
                     )}>
-                      {num}
+                      {isDone ? <Check size={12} strokeWidth={3} /> : num}
                     </div>
+
+                    {/* Trilho que liga esta bolinha à de baixo.
+                        Verde de cima para baixo conforme as etapas avançam:
+                        pintado é o caminho já percorrido, cinza é o que falta.
+                        Quem manda é `isDone`, que vale para a etapa DESTE
+                        trecho -- o segmento entre 2 e 3 fica verde quando a
+                        etapa 2 terminou, ou seja, no instante em que a pessoa
+                        chega na 3.
+
+                        Fica DENTRO da linha da etapa, posicionado a partir do
+                        centro do círculo, e não como elemento próprio entre as
+                        etapas: assim vai do fim de um círculo ao começo do
+                        próximo, acompanhando ESPACO_ENTRE_ETAPAS. A última não
+                        tem trilho, porque não há o que ligar depois dela. */}
+                    {!ehUltima && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          // 2px nos dois estados, e não só no verde: espessura
+                          // que muda no meio do caminho deixa um degrau visível
+                          // onde o cinza encontra o verde. Também é a mesma
+                          // espessura da borda das bolinhas.
+                          "absolute w-0.5 transition-colors",
+                          isDone ? "bg-primary" : "bg-muted-foreground/20"
+                        )}
+                        style={{
+                          // 22px de círculo, então o centro está em 11; menos
+                          // metade da espessura da linha (1px de 2) para ela
+                          // nascer centrada, e não deslocada à direita.
+                          left: 10,
+                          top: 22,
+                          // Exatamente o vão entre uma etapa e outra: é o que
+                          // o trilho tem que vencer para encostar na próxima.
+                          height: ESPACO_ENTRE_ETAPAS,
+                        }}
+                      />
+                    )}
+
                     <span className={cn(
                       "text-[12px] leading-tight",
                       isActive ? "text-foreground font-medium" : "text-muted-foreground"
@@ -588,80 +658,34 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label htmlFor="job-title" className="text-[13px] font-normal text-black">
-                    Qual cargo descreve melhor sua função?
-                  </Label>
-                  <div className={cn("relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors", bordaDePreenchido(jobTitle))}>
-                    <select
-                      id="job-title"
-                      value={jobTitle}
-                      onChange={(e) => setJobTitle(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
-                    >
-                      <option value="" disabled>Selecione</option>
-                      {CARGOS.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-2 px-3 py-[9px] pointer-events-none w-full">
-                      <span className={cn("text-[13px] truncate", jobTitle ? "text-foreground" : "text-muted-foreground")}>
-                        {jobTitle || "Selecione seu cargo"}
-                      </span>
-                      <ChevronDown size={12} className="text-muted-foreground ml-auto shrink-0" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-[3px]">
-                  <Label htmlFor="crm-experience" className="text-[13px] font-normal text-black">
-                    Você já usou um CRM antes?
-                  </Label>
-                  {/* Lista suspensa e não caixas lado a lado: as três respostas
-                      são frases inteiras ("Não, nunca usei CRM"), e em três
-                      colunas cada uma quebraria em duas ou três linhas. */}
-                  <div className={cn("relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors", bordaDePreenchido(crmExperience))}>
-                    <select
-                      id="crm-experience"
-                      value={crmExperience}
-                      onChange={(e) => setCrmExperience(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
-                    >
-                      <option value="" disabled>Selecione</option>
-                      {EXPERIENCIAS_COM_CRM.map((e) => (
-                        <option key={e} value={e}>{e}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-2 px-3 py-[9px] pointer-events-none w-full">
-                      <span className={cn("text-[13px] truncate", crmExperience ? "text-foreground" : "text-muted-foreground")}>
-                        {crmExperience || "Selecione uma opção"}
-                      </span>
-                      <ChevronDown size={12} className="text-muted-foreground ml-auto shrink-0" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-[3px]">
                   <Label className="text-[13px] font-normal text-black">Telefone</Label>
                   {/* Único telefone do cadastro desde que a etapa de contato
                       virou "Seus objetivos". Vai para `profiles.phone` e também
                       preenche `companies.phone`, que é o que a Stripe usa como
                       dado de cobrança. */}
                   <div className={cn("flex items-center border border-input rounded-[5px] focus-within:border-primary transition-colors bg-white", bordaDePreenchido(personalPhone))}>
-                    <div className="relative shrink-0">
-                      <select
-                        value={ddiPessoal}
-                        onChange={(e) => setDdiPessoal(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
+                    {/* O gatilho perde borda, fundo e altura próprios para
+                        continuar sendo apenas a parte esquerda do campo de
+                        telefone, e não uma caixa dentro de outra. A borda que
+                        sobra é a `border-r`, que separa a bandeira do número.
+
+                        `[&>svg]:hidden` esconde o chevron que o SelectTrigger
+                        traz de fábrica: o desenho aqui já tem o seu, menor e
+                        colado na bandeira. */}
+                    <Select value={ddiPessoal} onValueChange={setDdiPessoal}>
+                      <SelectTrigger
+                        aria-label="Código do país"
+                        className="h-auto w-auto shrink-0 border-0 border-r border-input rounded-none bg-transparent px-3 py-[9px] gap-1 focus:ring-0 focus:ring-offset-0 [&>svg]:hidden"
                       >
-                        {DDI_OPTIONS.map((o) => (
-                          <option key={o.code} value={o.code}>{o.flag} {o.short} {o.code}</option>
-                        ))}
-                      </select>
-                      <div className="px-3 py-[9px] flex items-center gap-1 border-r border-input pointer-events-none">
                         <span className="text-[15px] leading-none">{DDI_OPTIONS.find(o => o.code === ddiPessoal)?.flag}</span>
                         <ChevronDown size={11} className="text-muted-foreground" />
-                      </div>
-                    </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DDI_OPTIONS.map((o) => (
+                          <SelectItem key={o.code} value={o.code}>{o.flag} {o.short} {o.code}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="flex items-center flex-1 px-3 gap-1">
                       <span className="text-[13px] text-muted-foreground shrink-0">{ddiPessoal}</span>
                       <input
@@ -674,6 +698,80 @@ export default function CompanyRegisterPage() {
                     </div>
                   </div>
                 </div>
+
+                <div className="space-y-[3px]">
+                  <Label htmlFor="job-title" className="text-[13px] font-normal text-black">
+                    Qual cargo descreve melhor sua função?
+                  </Label>
+                  <Select value={jobTitle} onValueChange={setJobTitle}>
+                    <SelectTrigger id="job-title" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(jobTitle))}>
+                      <SelectValue placeholder="Selecione seu cargo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CARGOS.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-[3px]">
+                  <Label htmlFor="crm-experience" className="text-[13px] font-normal text-black">
+                    Você já usa um CRM?
+                  </Label>
+                  {/* Lista suspensa e não caixas lado a lado: as três respostas
+                      são frases inteiras ("Não, nunca usei CRM"), e em três
+                      colunas cada uma quebraria em duas ou três linhas. */}
+                  <Select value={crmExperience} onValueChange={setCrmExperience}>
+                    <SelectTrigger id="crm-experience" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(crmExperience))}>
+                      <SelectValue placeholder="Selecione uma opção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPERIENCIAS_COM_CRM.map((e) => (
+                        <SelectItem key={e} value={e}>{e}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Só aparece para quem disse ter usado um CRM.
+                    Quem responde isso está dizendo duas coisas: tem processo
+                    montado, e está insatisfeito com alguém. A primeira muda o
+                    onboarding, a segunda diz de quem estamos tirando cliente.
+
+                    OPCIONAL, e é o único campo do cadastro que é. Obrigar aqui
+                    só produziria resposta inventada, e o nome do concorrente
+                    não vale o atrito de travar quem não quer dizer. Por isso
+                    também não entra em `bordaDePreenchido` com cobrança: em
+                    branco ele fica cinza, nunca vermelho.
+
+                    Sem rótulo próprio e recuado: o campo é continuação da
+                    pergunta de cima, não uma pergunta nova. O recuo é o que diz
+                    isso antes de qualquer texto -- alinhado com os demais, ele
+                    leria como o quinto campo da etapa.
+
+                    A pergunta mora no `placeholder`, e o `aria-label` repete o
+                    que ele diz: texto de placeholder some assim que a pessoa
+                    digita, e sem o `aria-label` o leitor de tela anunciaria um
+                    campo sem nome. */}
+                {crmExperience === CRM_JA_USADO && (
+                  <div className="ml-4">
+                    <Input
+                      id="previous-crm"
+                      type="text"
+                      aria-label="Qual CRM você usava? (opcional)"
+                      placeholder="Qual? (opcional)"
+                      value={previousCrm}
+                      onChange={(e) => setPreviousCrm(e.target.value)}
+                      // `rounded-full` e fonte menor que a dos demais (11px
+                      // contra os 13px que o Input traz): junto com o recuo, é o
+                      // que faz este campo ler como observação pendurada na
+                      // pergunta de cima, e não como mais um campo do
+                      // formulário.
+                      className={cn("h-auto rounded-full text-[11px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(previousCrm, true))}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -708,61 +806,16 @@ export default function CompanyRegisterPage() {
                       ocupava uma etapa inteira: aqui o campo divide espaço com
                       outros dois, e oito caixas empurrariam o resto para fora
                       do cartão. */}
-                  <div className={cn("relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors", bordaDePreenchido(niche))}>
-                    <select
-                      id="company-niche"
-                      value={niche}
-                      onChange={(e) => setNiche(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
-                    >
-                      {/* Opção vazia desabilitada: sem ela o campo já nasceria
-                          marcado em "E-commerce", e quem não mexesse ficaria
-                          indistinguível de quem escolheu E-commerce de verdade. */}
-                      <option value="" disabled>Selecione</option>
+                  <Select value={niche} onValueChange={setNiche}>
+                    <SelectTrigger id="company-niche" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(niche))}>
+                      <SelectValue placeholder="Selecione o segmento" />
+                    </SelectTrigger>
+                    <SelectContent>
                       {NICHES.map(({ label }) => (
-                        <option key={label} value={label}>{label}</option>
+                        <SelectItem key={label} value={label}>{label}</SelectItem>
                       ))}
-                    </select>
-                    <div className="flex items-center gap-2 px-3 py-[9px] pointer-events-none w-full">
-                      <span className={cn("text-[13px]", niche ? "text-foreground" : "text-muted-foreground")}>
-                        {niche || "Selecione o segmento"}
-                      </span>
-                      <ChevronDown size={12} className="text-muted-foreground ml-auto" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-[3px]">
-                  <Label htmlFor="company-porte" className="text-[13px] font-normal text-black">
-                    Qual o porte da sua empresa?
-                  </Label>
-                  {/* Lista suspensa como o segmento logo acima: são sete opções
-                      com frase inteira ("De 11 a 20 funcionários"), e em caixas
-                      lado a lado cada rótulo quebraria em três linhas.
-
-                      Não confundir com a pergunta da faixa verde abaixo: esta é
-                      quantas pessoas a empresa TEM, aquela é quantas vão USAR o
-                      Rezult. Vão para colunas diferentes, `company_size` e
-                      `expected_users`. */}
-                  <div className={cn("relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors", bordaDePreenchido(companySize))}>
-                    <select
-                      id="company-porte"
-                      value={companySize}
-                      onChange={(e) => setCompanySize(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
-                    >
-                      <option value="" disabled>Selecione</option>
-                      {PORTES_DE_EMPRESA.map((porte) => (
-                        <option key={porte} value={porte}>{porte}</option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-2 px-3 py-[9px] pointer-events-none w-full">
-                      <span className={cn("text-[13px] truncate", companySize ? "text-foreground" : "text-muted-foreground")}>
-                        {companySize || "Selecione o porte"}
-                      </span>
-                      <ChevronDown size={12} className="text-muted-foreground ml-auto shrink-0" />
-                    </div>
-                  </div>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Faixa verde clara em volta da pergunta inteira: rótulo,
@@ -859,11 +912,104 @@ export default function CompanyRegisterPage() {
             {/* ── Step 3 ── */}
             {step === 3 && (
               <div className="space-y-[14px]">
+                <div>
+                  <Label className="block text-[13px] font-semibold text-black">
+                    Qual seu principal ponto de contato com os leads?
+                  </Label>
+                  <p className="block text-[12px] leading-none text-muted-foreground mt-1 mb-[14px]">
+                    Marque o principal e outros que também usar
+                  </p>
+
+                  {/* Duas colunas: os rótulos são curtos, e empilhados em uma
+                      coluna só a etapa ficaria alta demais com o campo de leads
+                      logo abaixo. Mesmas caixas de marcação da etapa de
+                      objetivos, com `input type="checkbox"` de verdade por
+                      baixo. */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {CANAIS_DE_ATENDIMENTO.map((canal) => {
+                      const marcado = channels.includes(canal);
+                      return (
+                        <label
+                          key={canal}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-[12px] rounded-[5px] border cursor-pointer transition-all bg-card",
+                            "hover:border-primary/60",
+                            "focus-within:ring-2 focus-within:ring-primary/30",
+                            marcado ? "border-primary text-primary" : "border-gray-300 text-foreground"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() =>
+                              setChannels(atuais =>
+                                atuais.includes(canal)
+                                  ? atuais.filter(c => c !== canal)
+                                  : [...atuais, canal]
+                              )
+                            }
+                            className="sr-only"
+                          />
+                          <span
+                            className={cn(
+                              "w-4 h-4 rounded-[3px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
+                              marcado ? "border-primary bg-primary" : "border-gray-300"
+                            )}
+                          >
+                            {marcado && <Check size={11} className="text-white" strokeWidth={3} />}
+                          </span>
+                          <span className="text-[13px] leading-tight font-normal">{canal}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="space-y-[3px]">
-                  <Label className="text-[13px] font-semibold text-black">
+                  <Label htmlFor="monthly-leads" className="text-[13px] font-normal text-black">
+                    Quantos leads sua empresa gera por mês?
+                  </Label>
+                  {/* Vizinha do porte de propósito: as duas parecem a mesma
+                      pergunta e não são. Porte é o tamanho da empresa, esta é o
+                      tamanho da dor, e é a segunda que diz se aquele cadastro
+                      merece um telefonema no dia 2 do teste. */}
+                  <Select value={monthlyLeads} onValueChange={setMonthlyLeads}>
+                    <SelectTrigger id="monthly-leads" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(monthlyLeads))}>
+                      <SelectValue placeholder="Selecione a faixa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FAIXAS_DE_LEADS.map((faixa) => (
+                        <SelectItem key={faixa} value={faixa}>{faixa}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 4 ── */}
+            {step === 4 && (
+              <div className="space-y-[14px]">
+                {/* Sem `space-y` aqui: ele aplica a mesma distância entre todos
+                    os filhos, e as duas deste bloco são diferentes. Pior, o
+                    seletor dele (`.space-y-...>:not([hidden])~:not([hidden])`)
+                    tem especificidade maior que uma classe solta, então ele
+                    vencia o `mt-1` do parágrafo em silêncio -- mexer no `mt-1`
+                    não fazia efeito nenhum. Com as margens no próprio
+                    parágrafo, cada número é a distância que aparece. */}
+                <div>
+                  {/* `block` no rótulo: `<label>` é inline por padrão, e como
+                      inline a altura da linha dele passa a ser decidida pelo
+                      line-height do bloco em volta, não pelo `leading-none` que
+                      ele carrega. */}
+                  <Label className="block text-[13px] font-semibold text-black">
                     Quais resultados você busca alcançar com o Rezult?
                   </Label>
-                  <p className="block text-[12px] leading-none text-muted-foreground mt-1 mb-[16px]">
+                  {/* `leading-none` pelo mesmo motivo da etapa 2: sem ele o
+                      parágrafo herda line-height 1.5 e carrega 3px invisíveis
+                      acima e abaixo das letras, e a margem escrita deixa de ser
+                      a distância que aparece. Com ele, 4px é 4px e 14px é 14px. */}
+                  <p className="block text-[12px] leading-none text-muted-foreground mt-1 mb-[14px]">
                     Marque quantas opções quiser
                   </p>
 
@@ -935,128 +1081,6 @@ export default function CompanyRegisterPage() {
               </div>
             )}
 
-            {/* ── Step 4 ── */}
-            {step === 4 && (
-              <div className="space-y-[14px]">
-                {/* Linha 1: País + CEP */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-[3px]">
-                    <Label className="text-[13px] font-normal text-black">País</Label>
-                    <div className="relative flex items-center border border-input rounded-[5px] bg-white focus-within:border-primary transition-colors">
-                      <select
-                        value={country}
-                        onChange={(e) => setCountry(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full text-[13px]"
-                      >
-                        {COUNTRIES.map((c) => (
-                          <option key={c.value} value={c.value}>{c.flag} {c.label}</option>
-                        ))}
-                      </select>
-                      <div className="flex items-center gap-2 px-3 py-[9px] pointer-events-none w-full">
-                        <span className="text-[15px] leading-none">{COUNTRIES.find(c => c.value === country)?.flag}</span>
-                        <span className="text-[13px] text-foreground">{COUNTRIES.find(c => c.value === country)?.label}</span>
-                        <ChevronDown size={12} className="text-muted-foreground ml-auto" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-[3px]">
-                    <Label htmlFor="zip" className="text-[13px] font-normal text-black">CEP</Label>
-                    <div className="relative">
-                      <Input
-                        id="zip"
-                        type="text"
-                        placeholder="00000-000"
-                        value={zipCode}
-                        onChange={(e) => handleCepChange(e.target.value)}
-                        className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(zipCode))}
-                        maxLength={9}
-                      />
-                      {loadingCep && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Linha 2: Endereço + Número + Complemento */}
-                <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-                  <div className="space-y-[3px]">
-                    <Label htmlFor="address" className="text-[13px] font-normal text-black">Endereço</Label>
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Rua, Avenida..."
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(address))}
-                    />
-                  </div>
-                  <div className="space-y-[3px] w-[90px]">
-                    <Label htmlFor="number" className="text-[13px] font-normal text-black">Número</Label>
-                    <Input
-                      id="number"
-                      type="text"
-                      placeholder="123"
-                      value={number}
-                      onChange={(e) => setNumber(e.target.value)}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(number))}
-                    />
-                  </div>
-                  <div className="space-y-[3px] w-[120px]">
-                    <Label htmlFor="complement" className="text-[13px] font-normal text-black">Complemento</Label>
-                    <Input
-                      id="complement"
-                      type="text"
-                      placeholder="Apto, Sala..."
-                      value={complement}
-                      onChange={(e) => setComplement(e.target.value)}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(complement, true))}
-                    />
-                  </div>
-                </div>
-
-                {/* Linha 3: Bairro + Cidade + UF */}
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <div className="space-y-[3px]">
-                    <Label htmlFor="neighborhood" className="text-[13px] font-normal text-black">Bairro</Label>
-                    <Input
-                      id="neighborhood"
-                      type="text"
-                      placeholder="Bairro"
-                      value={neighborhood}
-                      onChange={(e) => setNeighborhood(e.target.value)}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(neighborhood))}
-                    />
-                  </div>
-                  <div className="space-y-[3px]">
-                    <Label htmlFor="city" className="text-[13px] font-normal text-black">Cidade</Label>
-                    <Input
-                      id="city"
-                      type="text"
-                      placeholder="São Paulo"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(city))}
-                    />
-                  </div>
-                  <div className="space-y-[3px] w-[70px]">
-                    <Label htmlFor="uf" className="text-[13px] font-normal text-black">UF</Label>
-                    <Input
-                      id="uf"
-                      type="text"
-                      placeholder="SP"
-                      value={uf}
-                      onChange={(e) => setUf(e.target.value.toUpperCase())}
-                      className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(uf))}
-                      maxLength={2}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Navigation */}
             <div className="flex justify-end gap-2 mt-5">
               <Button
@@ -1068,10 +1092,23 @@ export default function CompanyRegisterPage() {
               >
                 Voltar
               </Button>
+              {/* O botão da última etapa pulsa: é o que faz quem chega na
+                  etapa 4 perceber que ali acaba, sem precisar ler o contador.
+                  Nas outras ele fica parado, senão o movimento vira ruído de
+                  fundo e para de significar qualquer coisa justamente onde
+                  deveria significar.
+
+                  Reaproveita a animação que o aviso de plano grátis já usa, em
+                  vez de criar uma segunda igual: duas definições do mesmo
+                  efeito acabam divergindo, e aí o produto passa a pulsar de
+                  dois jeitos diferentes. */}
               <Button
                 type="button"
                 onClick={step === TOTAL_DE_ETAPAS ? handleSubmit : handleNext}
                 className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
+                style={step === TOTAL_DE_ETAPAS
+                  ? { animation: "banner-btn-attention 1s ease-in-out infinite" }
+                  : undefined}
               >
                 {step === TOTAL_DE_ETAPAS ? "Criar conta" : (
                   <span className="flex items-center gap-1">Próximo <ChevronRight size={15} /></span>
