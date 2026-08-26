@@ -5,8 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { PLANS, type PlanDefinition } from "@/data/plans";
 import { STRIPE_PRICES } from "@/data/stripePrices";
-import { Logo } from "@/components/Logo";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,24 +15,14 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
+import { FundoDoCrmAoVivo } from "@/components/FundoDoCrmAoVivo";
 import {
-  ChevronRight,
+  Check,
   ChevronDown,
-  UserPlus,
-  Users,
   CircleCheck,
-  Crown,
-  Trophy,
-  Filter,
-  Network,
-  Tag,
-  UserRound,
-  Rocket,
-  MessageCircle,
-  CalendarDays,
 } from "lucide-react";
 
-type Step = 1 | 2;
+type Step = 1;
 type BillingTab = "mensal" | "semestral" | "anual";
 
 type PlanKey = keyof typeof STRIPE_PRICES;
@@ -45,16 +33,149 @@ const BILLING_TAB_TO_PERIOD: Record<BillingTab, "monthly" | "semiannual" | "annu
   anual:     "annual",
 };
 
+/**
+ * Paleta do site (rezult-site/styles.css), portada para os cartões de plano.
+ *
+ * Os valores estão em constantes e não em classes do Tailwind porque não são
+ * do tema do app: o CRM é claro, e este bloco é uma ilha escura dentro dele.
+ * Usar `bg-card` ou `text-foreground` aqui traria as cores do app de volta e
+ * quebraria a semelhança com o site, que é o ponto.
+ *
+ * Verde diferente do `--primary` do CRM de propósito: no fundo escuro do site
+ * o #00E599 é o que dá o contraste, e o #128A68 do app sumiria.
+ */
+const SITE = {
+  // O preto do site é mais escuro que a superfície dos cartões, e é essa
+  // diferença que faz os três se destacarem do fundo em vez de sumirem nele.
+  fundo:       "#05080A",
+  superficie:  "#0C1115",
+  superficie2: "#131A1E",
+  verde:       "#00E599",
+  sobreVerde:  "#04140D",
+  texto:       "#F4F6F4",
+  textoSuave:  "#D1D1D1",
+  textoFraco:  "rgba(244, 246, 244, 0.38)",
+  borda:       "rgba(255, 255, 255, 0.15)",
+  // Cinza da moldura do card de planos. Mais forte que o `borda` dos cartões
+  // internos porque precisa se sustentar ao lado do gradiente que gira.
+  cinzaBorda:  "#3A4147",
+  bordaSuave:  "rgba(0, 229, 153, 0.20)",
+  bordaAtiva:  "rgba(0, 229, 153, 0.45)",
+  // 0.18 é o `--glow-soft` do site, usado no brilho das sombras, nas pílulas e
+  // também no topo do degradê do cartão em destaque. O site usa 0.06 lá, um véu
+  // quase imperceptível; aqui o verde é mais presente de propósito, porque os
+  // cartões são menores e o degradê fraco praticamente desaparecia.
+  brilhoSuave: "rgba(0, 229, 153, 0.18)",
+  // O `--red: #EF4444` do site, nos preços antigos riscados. Vermelho marca o
+  // que a pessoa NÃO vai pagar.
+  vermelho:    "#EF4444",
+  // Verde fechado do selo da oferta. Escolhido por duas razões, não por gosto:
+  //
+  // 1. Precisa ser claramente mais escuro que o #00E599 do botão "7 Dias
+  //    grátis" logo ao lado, senão os dois blocos verdes competem e nenhum
+  //    ganha. Este é dois degraus abaixo, e a diferença lê de longe.
+  //
+  // 2. O texto do selo é branco, e branco sobre o #00E599 do botão dá 1.66:1,
+  //    ilegível. Sobre este verde dá 5.48:1, acima do 4.5:1 que a WCAG pede
+  //    para texto normal. O botão passa porque o texto dele é escuro; o selo
+  //    não teria essa saída sem um verde fechado.
+  verdeFechado: "#047857",
+} as const;
+
+/**
+ * Escala do seletor de período, sendo 1 o tamanho exato do site.
+ *
+ * As nove medidas dele (largura, vãos, preenchimentos e as duas fontes) saem
+ * todas daqui. É um número só porque encolher um seletor mexendo em cada
+ * medida à mão sempre deixa alguma para trás, e o que fica desproporcional
+ * costuma ser justo o selo de desconto, pequeno demais para alguém notar antes
+ * de a tela ir ao ar.
+ *
+ * O raio fica fora da conta: em 100px o trilho já é uma pílula perfeita em
+ * qualquer largura, e escalar isso não mudaria nada.
+ *
+ * 0.9 encolhe 10%, 0.8 encolhe 20%. Abaixo de 0.75 a fonte do selo cai de 10px
+ * para menos de 8, que é onde ela deixa de ser legível.
+ */
+const ESCALA_DO_SELETOR = 0.9;
+
+/** Aplica a escala e arredonda, porque meio pixel de padding não existe. */
+const esc = (valor: number) => Math.round(valor * ESCALA_DO_SELETOR);
+
+/**
+ * Preenchimento vertical dos botões do seletor, em pixels.
+ *
+ * Fora da escala de propósito: ele é o único jeito de encolher o seletor só na
+ * altura sem estreitar os 270px de largura, e cada ponto aqui tira 2px do
+ * trilho inteiro. No site esse valor é 9, igual ao horizontal; aqui os dois se
+ * separaram porque a altura precisava ceder e a largura não.
+ */
+const PADDING_VERTICAL_DO_BOTAO = 5;
+
+/**
+ * Fonte do rótulo dos botões do seletor, em pixels.
+ *
+ * Também fora da escala, e pelo mesmo motivo do preenchimento acima: encolher
+ * a letra pela escala estreitaria o trilho junto. A escala em 0.9 daria 13px;
+ * aqui é 12, um ponto abaixo.
+ *
+ * O selo de desconto NÃO acompanha: em 9px ele já é o menor texto do card, e
+ * cair para 8 é onde ele deixa de ser lido e vira mancha.
+ */
+const FONTE_DO_BOTAO = 12;
+
+/**
+ * Desconto da oferta desta tela, como fração.
+ *
+ * ATENÇÃO: isto muda apenas o que a TELA mostra. O que a Stripe cobra vem dos
+ * ids em `STRIPE_PRICES`, que continuam apontando para os preços cheios. Com
+ * 0.5 aqui e nada lá, o cartão anuncia metade e o checkout cobra o dobro.
+ *
+ * Para a oferta valer de verdade, é preciso criar preços novos na Stripe e
+ * trocar os ids -- ou aplicar um cupom na sessão de checkout. Enquanto isso não
+ * acontecer, esta constante deveria ficar em 0.
+ */
+const DESCONTO = 0.5;
+
+/** "R$ 1.234,56" -> 1234.56 */
+const emNumero = (texto: string) =>
+  Number(texto.replace(/[^\d,]/g, "").replace(",", "."));
+
+/** 1234.56 -> "R$ 1.234,56" */
+const emReais = (valor: number) =>
+  valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/**
+ * Aplica o desconto a um preço já formatado.
+ *
+ * Recebe e devolve texto porque é assim que os preços moram em `PLANS` e em
+ * `SETUP_PLAN_TOTALS`. Converter na entrada e formatar na saída mantém um lugar
+ * só decidindo o desconto: mudar o número acima acerta cartão e diálogo de
+ * confirmação de uma vez.
+ */
+const comDesconto = (precoCheio: string) => emReais(emNumero(precoCheio) * (1 - DESCONTO));
+
+/**
+ * Desconto anunciado em cada período, no selo do seletor.
+ *
+ * Números fixos, como no site: são o desconto do PERÍODO, igual para os três
+ * planos. Não confundir com `plan.pricing.semestralSave`, que é a economia em
+ * reais daquele plano específico, nem com `DESCONTO`, que é a promoção desta
+ * tela e vale para todos os períodos.
+ */
+const DESCONTO_DO_PERIODO: Record<BillingTab, string | null> = {
+  mensal:    null,
+  semestral: "-15%",
+  anual:     "-30%",
+};
+
+// A etapa de convidar membro saiu: quem acabou de criar a conta ainda não sabe
+// o que é o produto, e convidar time antes de conhecer é pedir um favor a quem
+// não tem o que mostrar. O convite continua em Configurações > Empresa > Equipe.
 const STEP_META = [
   {
-    title: "Convide um membro",
-    subtitle: "Você pode convidar uma pessoa agora para colaborar na sua empresa. Poderá adicionar mais membros depois em Configurações > Empresa > Equipe.",
-    sideLabel: "Convidar membro",
-  },
-  {
-    title: "Selecione seu plano",
+    title: "-50% OFF Oferta Exclusiva",
     subtitle: "",
-    sideLabel: "Plano",
   },
 ];
 
@@ -65,160 +186,90 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
 };
 
 
-const SETUP_PLAN_FEATURES: Record<string, string[]> = {
+/**
+ * Recursos de cada plano, na divisão que o site usa.
+ *
+ * `forte` é o pedaço em negrito, `resto` é o que vem depois em cinza, e o
+ * primeiro item de cada plano leva o brilho verde -- é assim em
+ * rezult-site/planos.html, onde só o primeiro item ganha o `em-shine-text`.
+ * Os dois últimos itens não têm negrito nenhum, também como lá.
+ *
+ * Os textos são os do site, palavra por palavra, inclusive sem o ponto final
+ * que a versão anterior desta tela usava. Duas telas que vendem o mesmo plano
+ * não deveriam descrevê-lo com palavras diferentes.
+ */
+interface Recurso {
+  forte?: string;
+  resto?: string;
+  brilho?: boolean;
+}
+
+const SETUP_PLAN_FEATURES: Record<string, Recurso[]> = {
   silver: [
-    "4 membros na empresa.",
-    "5 mil leads com controle de tags.",
-    "8 automações para interações.",
-    "3 conexões multiatendimento.",
-    "5 pipelines com até 8 etapas.",
-    "3 integrações via Webhook.",
-    "Acesso à API e MCP.",
-    "Dashboards detalhados da operação.",
+    { forte: "4 usuários",    resto: "no sistema", brilho: true },
+    { forte: "5 mil leads",   resto: "com controle de tags" },
+    { forte: "8 automações",  resto: "para interações com leads" },
+    { forte: "3 conexões",    resto: "WhatsApp" },
+    { forte: "5 pipelines",   resto: "com até 8 etapas" },
+    { forte: "3 integrações", resto: "via Webhook" },
+    { resto: "Acesso à API e MCP" },
+    { resto: "Dashboards detalhados da operação" },
   ],
   platinum: [
-    "15 membros na empresa.",
-    "100 mil leads com tags.",
-    "20 automações para interações.",
-    "10 conexões multiatendimento.",
-    "20 pipelines com até 15 etapas.",
-    "15 integrações via Webhook.",
-    "Acesso à API e MCP.",
-    "Dashboards detalhados da operação.",
+    { forte: "15 usuários",    resto: "no sistema", brilho: true },
+    { forte: "100 mil leads",  resto: "com controle de tags" },
+    { forte: "20 automações",  resto: "para interações com leads" },
+    { forte: "10 conexões",    resto: "WhatsApp" },
+    { forte: "20 pipelines",   resto: "com até 15 etapas" },
+    { forte: "15 integrações", resto: "via Webhook" },
+    { resto: "Acesso à API e MCP" },
+    { resto: "Dashboards detalhados da operação" },
   ],
   emerald: [
-    "Membros ilimitados na empresa.",
-    "Leads ilimitados com tags.",
-    "Automações ilimitadas.",
-    "Conexões ilimitadas.",
-    "Pipelines ilimitadas.",
-    "Integrações ilimitadas.",
-    "Acesso à API e MCP.",
-    "Dashboards detalhados da operação.",
+    { forte: "Usuários ilimitados",    resto: "no sistema", brilho: true },
+    { forte: "Leads ilimitados",       resto: "com controle de tags" },
+    { forte: "Automações ilimitadas" },
+    { forte: "Conexões ilimitadas",    resto: "WhatsApp" },
+    { forte: "Pipelines ilimitadas",   resto: "com até 25 etapas" },
+    { forte: "Integrações ilimitadas", resto: "via Webhook" },
+    { resto: "Acesso à API e MCP" },
+    { resto: "Dashboards detalhados da operação" },
   ],
 };
 
-const PERMISSION_GROUPS = [
-  {
-    id: "pipelines", label: "Pipelines", icon: Filter,
-    description: "Permissões relacionadas à administração de pipelines.",
-    options: [
-      { id: "pipelines:admin",  label: "Administrador de Pipelines", description: "Permite a criação, modificação, duplicação e configuração de pipelines." },
-      { id: "pipelines:member", label: "Membro de Pipelines",        description: "Possibilita a manutenção de negócios na pipeline." },
-    ],
-  },
-  {
-    id: "automacoes", label: "Automações", icon: Network,
-    description: "Permissões relacionadas ao fluxo de automações",
-    options: [
-      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
-      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
-    ],
-  },
-  {
-    id: "cadastros", label: "Cadastros auxiliares", icon: Tag,
-    description: "Permissões relacionadas aos cadastros auxiliares",
-    options: [
-      { id: "cadastros:admin",  label: "Administrador de Cadastros Auxiliares", description: "Permite acesso a criação, edição e exclusão dos auxiliares, como: produtos, tags, listas, etc." },
-      { id: "cadastros:member", label: "Membro de Cadastros Auxiliares",        description: "Permite acesso à listagem de auxiliares, como: produtos, tags, listas etc." },
-    ],
-  },
-  {
-    id: "leads", label: "Leads", icon: UserRound,
-    description: "Permissões relacionadas à gestão de leads.",
-    options: [
-      { id: "leads:admin",      label: "Administrador de Leads",     description: "Permite acesso à listagem de leads e a todas as ações relacionadas à eles." },
-      { id: "leads:operator",   label: "Operador de Leads",          description: "Permite criação e alteração de leads (usar em conjunto com Membro de leads restrito)." },
-      { id: "leads:member",     label: "Membro de Leads",            description: "Permite acesso à listagem de leads." },
-      { id: "leads:restricted", label: "Membro de Leads (restrito)", description: "Acessa os leads o qual o usuário é responsável e os negócios que o usuário é o atendente responsável." },
-    ],
-  },
-  {
-    id: "impulsos", label: "Impulsos", icon: Rocket,
-    description: "Permite acesso ao Impulsos.",
-    options: [
-      { id: "impulsos:admin", label: "Administrador de Boosts", description: "Permite acesso ao Impulsos." },
-    ],
-  },
-  {
-    id: "multiatendimento", label: "Multiatendimento", icon: MessageCircle,
-    description: "Permissões relacionadas ao multiatendimento",
-    options: [
-      { id: "multiatendimento:admin",      label: "Administrador de multiatendimento", description: "Permite acesso completo ao multiatendimento, ao dashboard e às configurações, sem limitações." },
-      { id: "multiatendimento:supervisor", label: "Supervisor de multiatendimento",    description: "Permite acesso ao multiatendimento e ao dashboard, respeitando as permissões configuradas." },
-      { id: "multiatendimento:attendant",  label: "Atendente de multiatendimento",     description: "Permite acesso ao multiatendimento, limitado pelas configurações de permissões." },
-    ],
-  },
-  {
-    id: "atividades", label: "Atividades", icon: CalendarDays,
-    description: "Permissões relacionadas às atividades.",
-    options: [
-      { id: "atividades:admin", label: "Administrador de Atividades", description: "Permite acesso ao calendário de atividade de todos atendentes." },
-    ],
-  },
-];
-
-function PermissionsEditor({ permissions, onChange }: { permissions: string[]; onChange: (p: string[]) => void }) {
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
-    Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, false]))
-  );
-
-  const toggle = (permId: string) => {
-    const next = permissions.includes(permId)
-      ? permissions.filter(p => p !== permId)
-      : [...permissions.filter(p => !p.startsWith(permId.split(":")[0] + ":")), permId];
-    onChange(next);
-  };
-
+/**
+ * Selo da oferta, no topo do card.
+ *
+ * Duas caixas, uma dentro da outra: a de fora é o campo verde fechado, a de
+ * dentro é a linha tracejada branca. É o desenho de cupom -- o tracejado sugere
+ * recorte, e recorte sugere que aquilo é destacável e tem prazo.
+ *
+ * O tracejado precisa de DUAS caixas porque ele tem que flutuar dentro do
+ * campo, com margem dos dois lados. Uma borda tracejada aplicada direto no
+ * campo colorido ficaria na beirada dele, sem a moldura de cor em volta, e o
+ * efeito de cupom se perderia.
+ *
+ * O respiro interno é curto de propósito (3px em cima e embaixo, 10 nas
+ * laterais): o texto quase encosta no tracejado, que é o que faz o selo parecer
+ * apertado e urgente em vez de uma caixa com texto dentro.
+ */
+function SeloDaOferta({ texto }: { texto: string }) {
   return (
-    <div className="space-y-[5px]">
-      {PERMISSION_GROUPS.map(group => {
-        const Icon = group.icon;
-        const isOpen = openGroups[group.id] ?? true;
-        const groupSelected = group.options.some(o => permissions.includes(o.id));
-        return (
-          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
-            <button
-              type="button"
-              onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex-1 text-left">
-                <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
-                  <Icon size={14} className="shrink-0" />
-                  {group.label}
-                </p>
-                {isOpen && <p className="text-[12px] text-muted-foreground leading-tight mt-[5px]">{group.description}</p>}
-              </div>
-              <ChevronDown size={14} className={`text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-            {isOpen && (
-              <div>
-                {group.options.map(opt => {
-                  const selected = permissions.includes(opt.id);
-                  return (
-                    <label
-                      key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggle(opt.id)}
-                        className="mt-0.5 accent-primary w-4 h-4 shrink-0"
-                      />
-                      <div>
-                        <p className={`text-[12px] font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
-                        <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">{opt.description}</p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div className="shrink-0 rounded-[7px]" style={{ background: SITE.verdeFechado, padding: 4 }}>
+      <div
+        className="rounded-[4px]"
+        style={{
+          border: "1px dashed rgba(255, 255, 255, 0.75)",
+          padding: "3px 10px",
+        }}
+      >
+        <h1
+          className="text-[16px] font-bold whitespace-nowrap"
+          style={{ color: "#FFFFFF", letterSpacing: "0.01em" }}
+        >
+          {texto}
+        </h1>
+      </div>
     </div>
   );
 }
@@ -226,7 +277,6 @@ function PermissionsEditor({ permissions, onChange }: { permissions: string[]; o
 export default function SetupPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const initStep  = (location.state as { step?: number } | null)?.step ?? 1;
   const { company, companyLoading, isFreePlan, isTrialing } = useCompany();
   const { user } = useAuth();
 
@@ -240,31 +290,28 @@ export default function SetupPage() {
     }
   }, [companyLoading, company, isFreePlan, isTrialing, navigate]);
 
-  const [step, setStep] = useState<Step>(Math.min(initStep, 2) as Step);
+
 
   useEffect(() => {
-    if (step === 2) pixelTrack("ViewContent", { content_name: "Planos" });
-  }, [step]);
+    pixelTrack("ViewContent", { content_name: "Planos" });
+  }, []);
 
-  const [inviteOpen, setInviteOpen]       = useState(false);
-  const [inviteEmail, setInviteEmail]     = useState("");
-  const [invitePerms, setInvitePerms]     = useState<string[]>([]);
-  const [isAdminInvite, setIsAdminInvite] = useState(false);
-  const [inviting, setInviting]           = useState(false);
 
-  const [billingTab, setBillingTab]   = useState<BillingTab>("mensal");
+  /**
+   * Semestral por padrão, e não mensal.
+   *
+   * É o meio da escada: quem chega vendo o semestral tem o anual à direita como
+   * "um passo além" e o mensal à esquerda como "um passo atrás". Abrindo no
+   * mensal, os outros dois só existem para quem for procurar, e o preço que a
+   * pessoa vê primeiro é o mais alto por mês.
+   */
+  const [billingTab, setBillingTab]   = useState<BillingTab>("semestral");
   const [confirmPlan, setConfirmPlan] = useState<PlanKey | null>(null);
   const [confirming, setConfirming]   = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [planConfirmed, setPlanConfirmed] = useState(false);
-
-  const handleNext = () => {
-    if (step < 2) setStep((s) => (s + 1) as Step);
-  };
-
-  const handleBack = () => {
-    if (step > 1) setStep((s) => (s - 1) as Step);
-  };
+  /** Qual cartão está sob o mouse, para acender a borda dele. */
+  const [planoSobMouse, setPlanoSobMouse] = useState<string | null>(null);
 
 
   const handleSelectPlan = (planKey: PlanKey) => {
@@ -312,36 +359,7 @@ export default function SetupPage() {
     }
   };
 
-  const handleAddMember = async () => {
-    if (!inviteEmail.trim()) { toast.error("Informe o e-mail do usuário."); return; }
-    setInviting(true);
-    const permsToSend = isAdminInvite ? ["admin"] : invitePerms;
-    const { data, error } = await supabase.rpc("add_member_to_company", {
-      member_email: inviteEmail.trim().toLowerCase(),
-      member_permissions: permsToSend,
-    });
-    setInviting(false);
-
-    if (error) { toast.error(`Erro ao processar convite: ${error.message}`); return; }
-
-    if (data === "ok") {
-      toast.success("Membro adicionado com sucesso!");
-    } else if (data === "invited") {
-      toast.success("Convite registrado! O acesso será liberado ao criar conta com este e-mail.");
-    } else if (data === "no_company") {
-      toast.error("Sua conta ainda não está vinculada a uma empresa."); return;
-    } else {
-      toast.error("Resposta inesperada do servidor."); return;
-    }
-
-    setInviteEmail("");
-    setInvitePerms([]);
-    setIsAdminInvite(false);
-    setInviteOpen(false);
-  };
-
-  const stepProgress  = (step / 2) * 100;
-  const { title, subtitle } = STEP_META[step - 1];
+  const { title, subtitle } = STEP_META[0];
 
   const getPlanPrice = (plan: PlanDefinition) => {
     if (billingTab === "mensal")    return plan.pricing.mensal;
@@ -349,19 +367,43 @@ export default function SetupPage() {
     return plan.pricing.anual;
   };
 
+  /**
+   * Quanto a promoção tira do que se paga no ciclo escolhido.
+   *
+   * Antes esta pílula mostrava a economia do PERÍODO (quanto o anual poupa em
+   * relação a pagar mensal). Aquela conta estava certa, mas não existe no
+   * mensal: escolher mensal economiza zero em relação a mensal, e por isso o
+   * cartão ficava sem pílula naquela aba.
+   *
+   * Medindo a promoção, os três períodos têm o que mostrar e a pílula significa
+   * a mesma coisa em todos. E não duplica informação: a vantagem de escolher um
+   * período mais longo já está nos selos -15% e -30% do seletor logo acima.
+   *
+   * O valor é sempre sobre o ciclo que a pessoa vai pagar -- um mês no mensal,
+   * seis no semestral, doze no anual -- que é o mesmo ciclo do "De X por Y" na
+   * linha abaixo do preço.
+   */
   const getPlanSave = (plan: PlanDefinition) => {
-    if (billingTab === "semestral") return plan.pricing.semestralSave;
-    if (billingTab === "anual")     return plan.pricing.anualSave;
-    return null;
+    if (DESCONTO <= 0) return null;
+    const cicloCheio = billingTab === "mensal"
+      ? plan.pricing.mensal
+      : SETUP_PLAN_TOTALS[plan.key]?.[billingTab as "semestral" | "anual"];
+    if (!cicloCheio) return null;
+    return emReais(emNumero(cicloCheio) * DESCONTO);
   };
 
   return (
     <>
-      <div className="min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "#EFF5F2" }}>
-        <div className={cn(
-          "relative rounded-[7px] p-[1px] overflow-hidden w-full",
-          step === 2 ? "max-w-[1100px]" : "max-w-[1000px]"
-        )}>
+      {/* A conta já existe aqui, então o fundo é o CRM de verdade dela, e não
+          a réplica que o cadastro usa. Ver FundoDoCrmAoVivo. */}
+      <div className="relative min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10" style={{ background: "hsl(var(--background))" }}>
+        <FundoDoCrmAoVivo />
+        {/* 980 × 650. Altura FIXA, então o card não cresce com o conteúdo: cada
+            linha nova nos planos precisa caber nos 594px úteis que sobram
+            depois do respiro interno, ou some. Se um dia apertar de novo, o
+            conserto duradouro é trocar por `minHeight` e deixar o card se
+            ajustar sozinho. */}
+        <div className="relative rounded-[16px] p-[1px] overflow-hidden w-full max-w-[980px]">
           {/* Rotating border light */}
           <div
             className="absolute inset-[-100%]"
@@ -371,168 +413,299 @@ export default function SetupPage() {
             }}
           />
 
-          <div className="relative w-full bg-card rounded-[7px] overflow-hidden flex" style={{ height: 600 }}>
-            {/* ── Left sidebar ── */}
-            <div className="w-[280px] shrink-0 flex flex-col pl-[35px] pr-[20px] pt-10 pb-10">
-              <div className="flex items-center mb-5">
-                <Logo size="sm" showIcon />
-              </div>
-
-              <h2 className="text-[15px] font-semibold text-foreground mb-1">Configure sua conta</h2>
-              <p className="text-[12px] text-muted-foreground leading-snug mb-6">
-                Finalize as configurações iniciais para começar a usar o Rezult CRM.
-              </p>
-
-              {/* Step list */}
-              <div className="space-y-[14px]">
-                {STEP_META.map((meta, i) => {
-                  const num      = i + 1;
-                  const isActive = step === num;
-                  const isDone   = step > num;
-                  return (
-                    <div key={num} className="flex items-center gap-2.5">
-                      <div className={cn(
-                        "w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border-2",
-                        isActive ? "border-primary bg-primary text-white" :
-                        isDone   ? "border-primary bg-primary/10 text-primary" :
-                                   "border-muted-foreground/30 text-muted-foreground"
-                      )}>
-                        {num}
-                      </div>
-                      <span className={cn(
-                        "text-[12px] leading-tight",
-                        isActive ? "text-foreground font-medium" : "text-muted-foreground"
-                      )}>
-                        {meta.sideLabel}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px bg-border my-8 shrink-0" />
-
+          <div
+            className="relative w-full rounded-[15px] overflow-hidden flex"
+            style={{
+              height: 650,
+              background: SITE.fundo,
+              // Cinza, e não o verde do selo: com o gradiente verde girando no
+              // anel de fora, uma segunda linha verde colada nele virava uma
+              // faixa só. O cinza separa as duas e deixa o movimento aparecer.
+              //
+              // O invólucro tem 15+1 de raio para acompanhar este: raios iguais
+              // nos dois deixariam o gradiente aparecendo em excesso nos
+              // cantos, onde a curva de fora é mais fechada que a de dentro.
+              border: `2px solid ${SITE.cinzaBorda}`,
+            }}
+          >
             {/* ── Right content ── */}
-            <div className="flex-1 flex flex-col pl-[25px] pr-10 pt-8 pb-6 min-w-0">
-              {/* Title + counter */}
-              <div className="flex items-center justify-between mb-1">
-                <h1 className="text-[20px] font-semibold text-foreground">{title}</h1>
-                <span className="text-[12px] text-muted-foreground font-medium shrink-0 ml-2">{step}/2</span>
+            <div className="flex-1 flex flex-col px-10 pt-8 pb-6 min-w-0">
+              {/* Título à esquerda e a saída à direita, na mesma linha.
+                  O botão estava no rodapé, depois dos três planos, onde ele
+                  competia com os "Escolher plano" -- quatro botões seguidos, e
+                  o único que NÃO leva ao pagamento era o último. Aqui em cima
+                  ele fica claramente fora da comparação, que é o que ele é: a
+                  saída de quem prefere olhar o produto antes de decidir.
+
+                  Sem contador de etapas nem barra de progresso: com uma etapa,
+                  um diria "1/1" e a outra estaria sempre cheia. */}
+              <div className="flex items-center gap-3 mb-1">
+                <SeloDaOferta texto={title} />
+
+                {/* Ao lado do selo, e não dentro dele: o selo diz O QUE é a
+                    oferta, esta linha diz ONDE ela existe. Duas frases dentro do
+                    mesmo cupom tirariam dele a cara de etiqueta.
+
+                    Branco, e não o cinza dos textos de apoio, porque é argumento
+                    de venda e não observação de rodapé.
+
+                    `truncate` com `min-w-0`: numa janela estreita esta frase
+                    encolhe primeiro, preservando o selo e o botão, que são os
+                    dois elementos com função. */}
+                <p className="text-[12px] min-w-0 truncate" style={{ color: SITE.texto }}>
+                  Essa oferta é única.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                  className="brilho-botao-verde shrink-0 ml-auto h-auto py-[7px] px-4 rounded-[12px] text-[13px] font-semibold transition-all hover:-translate-y-[2px]"
+                  style={{ background: SITE.verde, color: SITE.sobreVerde }}
+                >
+                  {planConfirmed ? "Acessar" : "7 Dias grátis"}
+                </button>
               </div>
 
-              {/* Progress bar */}
-              <div className="h-[3px] bg-border rounded-full mb-2">
-                <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${stepProgress}%` }} />
-              </div>
 
-              {step !== 1 && (
-                <p className="text-[14px] text-foreground mt-2 mb-2" style={{ fontWeight: 600 }}>{subtitle}</p>
-              )}
-
-              {/* ── Step 1: Invite ── */}
-              {step === 1 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
-                    <Users size={26} className="text-emerald-600" />
-                  </div>
-                  <p className="text-[14px] text-gray-500 max-w-sm mb-[30px]" style={{ fontWeight: 500 }}>{subtitle}</p>
-                  <Button
-                    type="button"
-                    className="h-auto py-[10px] px-5 rounded-[5px] font-semibold gap-2"
-                    onClick={() => setInviteOpen(true)}
-                  >
-                    <UserPlus size={16} />
-                    Convidar usuário
-                  </Button>
-                </div>
-              )}
-
-              {/* ── Step 2: Plans ── */}
-              {step === 2 && (
+              {/* ── Planos ── */}
+              {(
                 <div className="mt-1">
                   {/* Billing tabs */}
-                  <div className="flex gap-[3px] p-[3px] rounded-full bg-white border border-primary w-fit mb-3 mx-auto">
-                    {(["anual", "semestral", "mensal"] as BillingTab[]).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setBillingTab(tab)}
-                        className={cn(
-                          "px-3 py-[4px] rounded-full text-[12px] font-medium capitalize transition-all",
-                          billingTab === tab
-                            ? "bg-primary text-white shadow-sm"
-                            : "text-foreground hover:text-foreground"
-                        )}
-                      >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                      </button>
-                    ))}
+                  {/* Seletor idêntico ao `.price-toggle` do site: 300px de
+                      largura, cantos de 100px, fundo #131A1E, borda verde a
+                      20%, botões de 14px em `flex: 1` e o selo de desconto em
+                      10px. A ordem também é a de lá, Mensal primeiro.
+
+                      O único desvio é o espaço abaixo: no site são 56px, que
+                      ali separam o seletor do resto da página. Dentro de um
+                      card de 630px isso custaria mais altura do que os 30px que
+                      o card acabou de ganhar, então ficou em 24px. */}
+                  <div
+                    className="flex items-center mx-auto mb-6"
+                    style={{
+                      width: esc(300),
+                      gap: esc(3),
+                      padding: esc(4),
+                      borderRadius: 100,
+                      background: SITE.superficie2,
+                      border: `1px solid ${SITE.bordaSuave}`,
+                    }}
+                  >
+                    {(["mensal", "semestral", "anual"] as BillingTab[]).map((tab) => {
+                      const ativa = billingTab === tab;
+                      const desconto = DESCONTO_DO_PERIODO[tab];
+                      return (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setBillingTab(tab)}
+                          className="flex flex-1 items-center justify-center capitalize transition-all"
+                          style={{
+                            fontSize: FONTE_DO_BOTAO,
+                            fontWeight: ativa ? 600 : 500,
+                            padding: `${PADDING_VERTICAL_DO_BOTAO}px ${esc(9)}px`,
+                            gap: esc(4),
+                            borderRadius: 100,
+                            background: ativa ? SITE.verde : undefined,
+                            color: ativa ? SITE.sobreVerde : SITE.textoSuave,
+                          }}
+                        >
+                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                          {desconto && (
+                            <span
+                              style={{
+                                fontSize: esc(10),
+                                padding: `${esc(2)}px ${esc(5)}px`,
+                                borderRadius: 100,
+                                letterSpacing: "0.02em",
+                                background: ativa ? "rgba(4,20,13,0.2)" : SITE.brilhoSuave,
+                                color: ativa ? SITE.sobreVerde : SITE.verde,
+                              }}
+                            >
+                              {desconto}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {/* Plan cards */}
-                  <div className="grid grid-cols-3 gap-3 pt-3">
+                  {/* Cartões no visual do site (rezult-site/planos.html):
+                      fundo escuro, borda clara, preço grande e lista com o
+                      visto verde. O que NÃO veio do site é o destino do clique
+                      -- lá o botão manda para /register, aqui ele abre a
+                      confirmação e o checkout da conta que já existe. Os
+                      valores continuam saindo de PLANS e SETUP_PLAN_TOTALS,
+                      que são os do app. */}
+                  <div className="grid grid-cols-3 gap-3 pt-4">
                     {PLANS.map((plan) => {
                       const save = getPlanSave(plan);
+                      const destaque = !!plan.badge;
                       return (
                         <div
                           key={plan.key}
-                          className={cn(
-                            "relative flex flex-col rounded-[7px] border bg-white p-4 transition-all",
-                            plan.badge ? "border-primary" : "border-gray-300"
-                          )}
+                          // O hover é o do site (`.pcard:hover`): sobe 4px e a
+                          // borda acende em verde. Vem por estado e não por
+                          // classe porque a borda mora no `style` -- uma classe
+                          // `hover:border-*` do Tailwind não venceria o inline.
+                          onMouseEnter={() => setPlanoSobMouse(plan.key)}
+                          onMouseLeave={() => setPlanoSobMouse(null)}
+                          className="relative flex flex-col rounded-[16px] p-5 transition-all duration-200"
+                          style={{
+                            background: destaque
+                              ? `linear-gradient(180deg, ${SITE.brilhoSuave}, ${SITE.superficie} 40%)`
+                              : SITE.superficie,
+                            border: `1px solid ${destaque || planoSobMouse === plan.key ? SITE.bordaAtiva : SITE.borda}`,
+                            boxShadow: destaque
+                              ? `0 30px 70px rgba(0,0,0,0.4), 0 0 60px ${SITE.brilhoSuave}`
+                              : undefined,
+                            transform: planoSobMouse === plan.key ? "translateY(-4px)" : undefined,
+                          }}
                         >
-                          {plan.badge && (
-                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[11px] font-semibold px-3 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1">
-                              <Trophy size={11} />
+                          {destaque && (
+                            <span
+                              className="absolute -top-[11px] left-1/2 -translate-x-1/2 text-[11px] font-semibold px-3 py-[4px] rounded-full whitespace-nowrap"
+                              style={{ background: SITE.verde, color: SITE.sobreVerde, letterSpacing: "0.04em" }}
+                            >
                               {plan.badge}
                             </span>
                           )}
 
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <h3 className="text-[16px] font-bold text-foreground shrink-0">{plan.name}</h3>
+                            <h3 className="text-[20px] font-semibold shrink-0" style={{ color: SITE.texto, letterSpacing: "-0.02em" }}>
+                              {plan.name}
+                            </h3>
                             {save && (
-                              <span className="inline-flex items-center text-[10px] font-medium text-emerald-700 bg-emerald-50 rounded-[8px] px-1.5 py-0.5 truncate">
+                              <span
+                                className="inline-flex items-center text-[10px] font-medium rounded-full px-2 py-0.5 truncate"
+                                style={{ background: SITE.brilhoSuave, color: SITE.verde }}
+                              >
                                 <span className="truncate">Economize {save}</span>
                               </span>
                             )}
                           </div>
 
-                          <div className="mt-2 mb-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <span className="text-[20px] font-bold text-primary">{getPlanPrice(plan)}</span>
-                                <span className="text-[12px] text-muted-foreground ml-1">/mês</span>
-                              </div>
-                              <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 shrink-0 capitalize">
+                          {/* 2px, e não os 12 de `mt-3` que havia aqui. O nome
+                              do plano e o preço são a mesma informação dita em
+                              duas linhas, então colam. O respiro grande fica
+                              embaixo (`mb-4`), separando o preço do botão, que
+                              é onde a divisão realmente existe. */}
+                          <div className="mt-[2px] mb-4">
+                            {/* O preço cheio, acima do promocional. Só aparece
+                                quando há desconto: com DESCONTO em 0 ele
+                                mostraria o mesmo valor duas vezes.
+
+                                Margem NEGATIVA: eram 2px de `mb-0.5`, e tirar
+                                5px daí exige puxar 3px para dentro. A folga que
+                                sobra vem da caixa de linha do texto de 16px, que
+                                carrega 4px invisíveis abaixo das letras -- é
+                                nela que a margem negativa come, sem encostar uma
+                                linha na outra. */}
+                            {DESCONTO > 0 && (
+                              <p className="text-[16px] font-medium -mb-[3px]" style={{ color: SITE.vermelho }}>
+                                de {getPlanPrice(plan)}
+                              </p>
+                            )}
+                            <div className="flex items-baseline gap-1 flex-wrap">
+                              {/* "de X" na linha de cima e "por Y" aqui: as duas
+                                  formam uma frase só, quebrada em duas linhas
+                                  para o valor novo poder ser grande. */}
+                              {DESCONTO > 0 && (
+                                <span className="text-[13px]" style={{ color: SITE.textoFraco }}>por</span>
+                              )}
+                              <span className="text-[26px] font-semibold" style={{ color: SITE.texto, letterSpacing: "-0.04em" }}>
+                                {comDesconto(getPlanPrice(plan))}
+                              </span>
+                              <span className="text-[13px]" style={{ color: SITE.textoFraco }}>/mês</span>
+                              {/* 9px e preenchimento estreito para caber na mesma
+                                  linha do preço em qualquer período: "Semestral"
+                                  ao lado de "R$ 317,50" é a combinação mais
+                                  larga do card. O `flex-wrap` do contêiner fica
+                                  como rede de segurança -- se em algum zoom não
+                                  couber, ela desce em vez de ser cortada. */}
+                              <span
+                                className="text-[9px] font-semibold px-1.5 py-[3px] rounded-full ml-auto capitalize shrink-0"
+                                style={{ background: SITE.brilhoSuave, color: SITE.verde, letterSpacing: "0.02em" }}
+                              >
                                 {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
                               </span>
                             </div>
-                            {billingTab !== "mensal" && SETUP_PLAN_TOTALS[plan.key] && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                Pagamento recorrente de {SETUP_PLAN_TOTALS[plan.key][billingTab as "semestral" | "anual"]}
-                              </p>
-                            )}
+                            {/* O preço acima é sempre por mês, inclusive no
+                                semestral e no anual. Sem esta linha, quem
+                                escolhe anual vê "R$ 166/mês" e pode entrar no
+                                checkout esperando ser cobrado de 166 em 166. */}
+                            {/* Tudo no mesmo cinza: o vermelho e o verde que
+                                havia aqui repetiam o destaque que o "de X / por
+                                Y" logo acima já faz em tamanho grande. Duas
+                                linhas gritando a mesma coisa cancelavam uma à
+                                outra. O risco fica, porque separa o valor
+                                antigo do novo sem precisar de cor. */}
+                            {(() => {
+                              const total = billingTab !== "mensal"
+                                ? SETUP_PLAN_TOTALS[plan.key]?.[billingTab as "semestral" | "anual"]
+                                : null;
+                              return (
+                                <div className="flex items-center gap-2 mt-1 min-w-0">
+                                  <p className="text-[11px] min-w-0 truncate" style={{ color: SITE.textoFraco }}>
+                                    {total
+                                      ? <>de <s>{total}</s> por {comDesconto(total)}</>
+                                      : "Cobrança mensal recorrente"}
+                                  </p>
+                                </div>
+                              );
+                            })()}
                           </div>
 
-                          <ul className="space-y-1 flex-1 mb-3">
-                            {(SETUP_PLAN_FEATURES[plan.key] ?? plan.features).map((f) => (
-                              <li key={f} className="flex items-start gap-2 text-[12px] text-foreground">
-                                <CircleCheck size={12} className="mt-0.5 shrink-0 fill-primary stroke-white" />
-                                {f}
+                          {/* Botão acima da lista, como no site: quem já decidiu
+                              não precisa varrer oito linhas para chegar nele.
+
+                              O rótulo carrega o período ("Escolher plano
+                              Anual") porque é a última coisa lida antes de o
+                              card sumir e a confirmação abrir -- é a chance de
+                              a pessoa notar que estava na aba errada. Qual
+                              plano é, o título do cartão logo acima já diz. */}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPlan(plan.key as PlanKey)}
+                            className="w-full rounded-[12px] py-[9px] text-[13px] font-semibold transition-transform hover:-translate-y-[1px]"
+                            style={destaque
+                              ? { background: SITE.verde, color: SITE.sobreVerde, boxShadow: `0 8px 30px ${SITE.brilhoSuave}` }
+                              : { background: SITE.superficie2, color: SITE.texto, border: `1px solid ${SITE.borda}` }}
+                          >
+                            Escolher plano {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
+                          </button>
+
+                          <ul className="flex flex-col gap-[9px] mt-4">
+                            {(SETUP_PLAN_FEATURES[plan.key] ?? []).map((recurso) => (
+                              // O item em destaque é um ponto maior que os
+                              // demais. Sai do mesmo `brilho` que já lhe dá a
+                              // cor animada, então tamanho e efeito não podem
+                              // se separar por engano: o item destacado é
+                              // destacado nas duas coisas ou em nenhuma.
+                              <li
+                                key={`${recurso.forte ?? ""}${recurso.resto ?? ""}`}
+                                className={cn(
+                                  "flex items-start gap-2 leading-[1.45]",
+                                  recurso.brilho ? "text-[14px]" : "text-[12px]"
+                                )}
+                                style={{ color: SITE.textoSuave }}
+                              >
+                                <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: SITE.verde }} />
+                                <span>
+                                  {recurso.forte && (
+                                    <b
+                                      className={recurso.brilho ? "texto-brilho" : undefined}
+                                      style={{ fontWeight: 600, color: recurso.brilho ? undefined : SITE.texto }}
+                                    >
+                                      {recurso.forte}
+                                    </b>
+                                  )}
+                                  {recurso.forte && recurso.resto ? " " : ""}
+                                  {recurso.resto}
+                                </span>
                               </li>
                             ))}
                           </ul>
-
-                          <Button
-                            type="button"
-                            variant="default"
-                            className="w-full h-auto py-[7px] rounded-[5px] text-[12px] font-semibold"
-                            onClick={() => handleSelectPlan(plan.key as PlanKey)}
-                          >
-                            Selecionar plano
-                          </Button>
                         </div>
                       );
                     })}
@@ -540,40 +713,6 @@ export default function SetupPage() {
                 </div>
               )}
 
-              {/* ── Navigation ── */}
-              <div className="flex justify-end gap-2 mt-auto pt-3">
-                {step > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleBack}
-                    className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
-                  >
-                    Voltar
-                  </Button>
-                )}
-
-                {step < 2 && (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
-                  >
-                    Próximo
-                    <ChevronRight size={15} className="ml-1" />
-                  </Button>
-                )}
-
-                {step === 2 && (
-                  <Button
-                    type="button"
-                    onClick={() => navigate("/dashboard")}
-                    className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
-                  >
-                    {planConfirmed ? "Acessar" : "Teste Grátis"}
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -588,8 +727,12 @@ export default function SetupPage() {
           <div className="py-2 space-y-3">
             {confirmPlan && (() => {
               const plan = PLANS.find(p => p.key === confirmPlan)!;
-              const price = getPlanPrice(plan);
-              const total = billingTab !== "mensal" ? SETUP_PLAN_TOTALS[confirmPlan]?.[billingTab as "semestral" | "anual"] : null;
+              // Com desconto, como no cartão: se o diálogo mostrasse o preço
+              // cheio, a pessoa veria um valor no card e outro maior no passo
+              // seguinte, e desistiria achando que foi enganada.
+              const price = comDesconto(getPlanPrice(plan));
+              const totalCheio = billingTab !== "mensal" ? SETUP_PLAN_TOTALS[confirmPlan]?.[billingTab as "semestral" | "anual"] : null;
+              const total = totalCheio ? comDesconto(totalCheio) : null;
               return (
                 <>
                   <div className="flex items-center justify-between py-3 border-y border-gray-100">
@@ -635,55 +778,6 @@ export default function SetupPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Invite modal ── */}
-      <Dialog open={inviteOpen} onOpenChange={v => { if (!v) { setInviteOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Adicionar membro à equipe</DialogTitle>
-          </DialogHeader>
-          <div className="py-2 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
-              <Input
-                type="email"
-                placeholder="joao@empresa.com"
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                autoFocus
-              />
-            </div>
-
-            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
-
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
-              <div className="flex-1">
-                <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={isAdminInvite}
-                onChange={e => setIsAdminInvite(e.target.checked)}
-                className="accent-[#D97706] w-4 h-4 shrink-0"
-              />
-            </label>
-
-            {!isAdminInvite && (
-              <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
-            )}
-          </div>
-          <div className="flex gap-2 w-full pt-2">
-            <Button variant="outline" onClick={() => setInviteOpen(false)} className="flex-1 border-card-border">Cancelar</Button>
-            <Button onClick={handleAddMember} disabled={inviting} className="flex-1 bg-primary hover:bg-primary/90">
-              {inviting ? "Processando..." : "Convidar"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

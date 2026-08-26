@@ -198,9 +198,60 @@
   }
 }
 
+/* Sombra do botão principal do site (`.btn-primary` em rezult-site/styles.css).
+   São duas camadas: um anel de 1px na própria cor, que fecha a borda, e um
+   brilho largo e forte (0.45 de opacidade) que faz o verde vazar para o fundo
+   escuro. É classe, e não style inline, porque o estado :hover precisa de
+   seletor -- inline não alcança. */
+.brilho-botao-verde {
+  box-shadow: 0 0 0 1px #00E599, 0 8px 30px rgba(0, 229, 153, 0.45);
+}
+.brilho-botao-verde:hover {
+  box-shadow: 0 0 0 1px #00E599, 0 12px 40px rgba(0, 229, 153, 0.45);
+}
+
+/* Brilho que percorre o texto, portado do `.em-shine-text` do site
+   (rezult-site/styles.css). Um degradê verde de 200% de largura desliza pelo
+   fundo enquanto o texto vira janela para ele, via `background-clip: text`.
+
+   Só é aplicado em trechos curtos: o texto fica transparente por definição, e
+   num parágrafo inteiro isso derruba o contraste e a legibilidade. */
+.texto-brilho {
+  background: linear-gradient(90deg, #00B87A, #5CFFC0, #00E599, #5CFFC0, #00B87A);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: em-shine 5s linear infinite;
+}
+
+@keyframes em-shine {
+  to { background-position: -200% center; }
+}
+
+/* Sem o degradê animado, o texto transparente ficaria invisível: aqui ele volta
+   a ser texto verde comum. */
+@media (prefers-reduced-motion: reduce) {
+  .texto-brilho {
+    animation: none;
+    background: none;
+    color: #00E599;
+    -webkit-text-fill-color: #00E599;
+  }
+}
+
 @keyframes banner-btn-attention {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.07); }
+}
+
+/* Elemento que pulsa sem parar é dos que mais incomodam quem tem sensibilidade
+   a movimento, e o sistema operacional já tem a preferência declarada. Aqui ela
+   é respeitada de uma vez para todos os usos desta animação, em vez de cada
+   lugar lembrar de fazer isso por conta. */
+@media (prefers-reduced-motion: reduce) {
+  [style*="banner-btn-attention"] { animation: none !important; }
 }
 
 @keyframes spin-border {
