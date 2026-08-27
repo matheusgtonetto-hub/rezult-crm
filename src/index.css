@@ -246,12 +246,22 @@
   50%      { transform: scale(1.07); }
 }
 
+/* Pulso dos botões de plano. É CLASSE, e não `style` em linha, porque o estilo
+   em linha é reescrito a cada renderização do React -- e nas ferramentas de
+   recarga a quente isso deixa botões irmãos fora de fase, um subindo enquanto o
+   outro desce. A classe é posta uma vez e ninguém mais toca nela, então os três
+   começam juntos e permanecem juntos. */
+.pulso-botao {
+  animation: banner-btn-attention 1.5s ease-in-out infinite;
+}
+
 /* Elemento que pulsa sem parar é dos que mais incomodam quem tem sensibilidade
    a movimento, e o sistema operacional já tem a preferência declarada. Aqui ela
    é respeitada de uma vez para todos os usos desta animação, em vez de cada
    lugar lembrar de fazer isso por conta. */
 @media (prefers-reduced-motion: reduce) {
-  [style*="banner-btn-attention"] { animation: none !important; }
+  [style*="banner-btn-attention"],
+  .pulso-botao { animation: none !important; }
 }
 
 @keyframes spin-border {

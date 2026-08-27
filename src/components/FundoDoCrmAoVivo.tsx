@@ -17,8 +17,12 @@ import InicioPage from "@/pages/InicioPage";
  * A `AppSidebar` é `position: fixed`, e normalmente escaparia deste contêiner
  * para cobrir a tela inteira por cima do cartão. Não escapa porque o `filter`
  * do bloco de cima transforma esse elemento em bloco de contenção para
- * descendentes fixos -- o mesmo desfoque que embaça o fundo é o que o prende
- * aqui dentro.
+ * descendentes fixos -- é o `filter` que a prende aqui dentro, e por isso ele
+ * segue declarado mesmo quando o desfoque está em 0.
+ *
+ * A contenção vale para a POSIÇÃO, não para as medidas em unidade de janela: o
+ * `height: 100vh` da barra continua lendo a janela inteira. É o que obriga este
+ * bloco a começar em `top: 0` -- ver o comentário na sangria, abaixo.
  *
  * `InicioPage` e não `PipelinePage`: as duas renderizam bem, mas a de pipeline
  * carrega contexto de arrastar-e-soltar e assinaturas de tempo real, coisas
@@ -33,20 +37,48 @@ import InicioPage from "@/pages/InicioPage";
 /** Cor e força do véu, mesmos valores do fundo usado no cadastro. */
 const VEU_COR = "var(--background)";
 const VEU_FORCA = 0.62;
+/**
+ * Desfoque do CRM atrás do cartão. Em 0 para avaliar a tela com o fundo nítido;
+ * era 3px, e voltar é trocar este número.
+ *
+ * O `filter` continua declarado mesmo em 0, e isso NÃO é sobra: é ele que
+ * prende a barra lateral aqui dentro. Ver a explicação no bloco abaixo -- com
+ * `filter: none` a barra escapa e cobre a tela por cima do cartão.
+ */
+const DESFOQUE_DO_FUNDO = 0;
 
 export function FundoDoCrmAoVivo() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* -8px com 16px a mais de tamanho: joga para fora da janela a faixa que
-          o desfoque desbota nas bordas, onde o conteúdo encontra o nada. */}
+      {/* Sangra 8px só para a DIREITA e para BAIXO, e nunca para cima ou para a
+          esquerda. A sangria existe para jogar fora da janela a faixa que o
+          desfoque desbota nas bordas, mas ela custa caro em duas das quatro.
+
+          O motivo é a barra lateral. Ela é `position: fixed` em `top: 0`,
+          `left: 0`, com 52px de largura e `height: 100vh`. O `filter` daqui faz
+          este bloco virar o bloco de contenção dela, então a POSIÇÃO dela passa
+          a contar a partir daqui -- mas as medidas em unidade de janela, como o
+          `100vh`, continuam lendo a janela. Sangrar por cima ou pela esquerda
+          empurra a barra para fora sem que ela cresça junto, e a parte que sai
+          é recortada pela janela:
+
+            top: -8  -> a barra nasce 8px acima, o topo dela some e sobra uma
+                        faixa nua de 8px no rodapé
+            left: -8 -> a barra nasce 8px à esquerda, aparece com 44px em vez de
+                        52 e fica visivelmente mais fina que a de verdade
+
+          Direita e baixo não têm nada ancorado, então ali a sangria é de graça.
+
+          O preço é o desfoque desbotar nas bordas de cima e da esquerda. É onde
+          o véu já cobre, e é bem menos visível que uma barra lateral torta. */}
       <div
         className="absolute flex"
         style={{
-          top: -8,
-          left: -8,
-          width: "calc(100% + 16px)",
-          height: "calc(100% + 16px)",
-          filter: "blur(3px)",
+          top: 0,
+          left: 0,
+          width: "calc(100% + 8px)",
+          height: "calc(100% + 8px)",
+          filter: `blur(${DESFOQUE_DO_FUNDO}px)`,
         }}
       >
         <AppSidebar />

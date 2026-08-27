@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FundoDoCrm } from "@/components/FundoDoCrm";
+import { TelaPreparandoConta } from "@/components/TelaPreparandoConta";
 import {
   Check,
   ChevronRight,
@@ -450,29 +451,9 @@ export default function CompanyRegisterPage() {
   };
 
   // ─── Loading screen ───────────────────────────────────────────────────────────
-  if (submitting) {
-    return (
-      <div className="relative min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "hsl(var(--background))" }}>
-        <FundoDoCrm />
-        {/* `relative` sobre o fundo fixo: sem posicionamento próprio o conteúdo
-            entraria embaixo dele e sumiria atrás do véu. */}
-        <div className="relative w-full max-w-[420px] text-center">
-          <div className="flex justify-center mb-8">
-            <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
-          </div>
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground mb-2">Estamos preparando sua conta...</h2>
-          <p className="text-sm text-muted-foreground mb-8">Isso vai levar apenas alguns segundos.</p>
-          <div className="w-full bg-border rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full" style={{ width: `${progressVal}%`, transition: "width 40ms linear" }} />
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">{progressVal}%</p>
-        </div>
-      </div>
-    );
-  }
+  // A mesma tela que a escolha de plano usa enquanto termina de se preparar.
+  // Ver TelaPreparandoConta: a continuidade entre as duas é o ponto.
+  if (submitting) return <TelaPreparandoConta progresso={progressVal} />;
 
   // ─── Wizard ───────────────────────────────────────────────────────────────────
   const { title, subtitle: subtituloBruto } = STEP_META[step - 1];
