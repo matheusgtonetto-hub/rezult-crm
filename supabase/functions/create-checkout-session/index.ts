@@ -22,33 +22,17 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
-// Quando a assinatura deve começar a cobrar.
+// Sem trial na assinatura: quem contrata paga na hora.
 //
-// Os dois períodos não podem somar. Quem assina no último passo do cadastro tem
-// 7 dias sem cobrança e paga no fim deles; quem deixou o teste vencer e só depois
-// contratou paga na hora, porque já usou os 7 dias.
+// A assinatura já vinha com `trial_end` na data em que o teste grátis acabaria,
+// para os dois períodos não se somarem. Isso saiu quando a oferta de 50% passou
+// a valer pelos sete dias do teste: os dias que sobram e o desconto viraram uma
+// TROCA, não duas coisas que se acumulam. Quem assina no primeiro dia abre mão
+// do que restava de teste e leva metade do preço; quem prefere usar os sete dias
+// inteiros assina depois, pelo mesmo desconto, e só então começa a pagar.
 //
-// Por isso data absoluta em vez de `trial_period_days`: o dia da cobrança é o
-// mesmo quer a assinatura saia no primeiro ou no quinto dia do teste. Com
-// trial_period_days, assinar no quinto dia daria 12 dias grátis.
-//
-// A Stripe recusa `trial_end` a menos de 48h de distância. Sobrando menos que
-// isso, devolve null e a cobrança é imediata: melhor adiantar no máximo dois
-// dias do que conceder um período novo por cima do que já foi usado.
-export function fimDoTrialDaStripe(
-  trialEndsAt: string | null | undefined,
-  agoraEmMs: number = Date.now(),
-): number | null {
-  if (!trialEndsAt) return null;
-
-  const fimEmMs = new Date(trialEndsAt).getTime();
-  if (!Number.isFinite(fimEmMs)) return null;
-
-  const MINIMO_DA_STRIPE_EM_MS = 48 * 60 * 60 * 1000;
-  if (fimEmMs - agoraEmMs < MINIMO_DA_STRIPE_EM_MS) return null;
-
-  return Math.floor(fimEmMs / 1000);
-}
+// Consequência que a tela precisa dizer: a cobrança acontece no ato e o teste
+// encerra ali. Sem isso, quem assina no dia 1 é cobrado sem esperar.
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -111,13 +95,9 @@ serve(async (req) => {
       stripeCustomerId = customer.id;
     }
 
-    const trialEnd = fimDoTrialDaStripe(co?.trial_ends_at as string | null);
-
     console.log(
       `[create-checkout-session] empresa=${companyId} fim_do_teste=${co?.trial_ends_at ?? "nenhum"}`,
-      trialEnd
-        ? `→ trial ate ${new Date(trialEnd * 1000).toISOString()}`
-        : "→ sem trial, cobranca imediata",
+      "→ sem trial na assinatura, cobranca imediata",
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -125,7 +105,6 @@ serve(async (req) => {
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        ...(trialEnd ? { trial_end: trialEnd } : {}),
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },
