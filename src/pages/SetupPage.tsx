@@ -1288,7 +1288,7 @@ export default function SetupPage() {
                     >
                       <p className="text-[13px] font-semibold text-foreground">À vista</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
-                        Uma cobrança única de {total}, no cartão ou Pix.
+                        Uma cobrança única de {total}, no cartão de crédito.
                       </p>
                     </button>
 
