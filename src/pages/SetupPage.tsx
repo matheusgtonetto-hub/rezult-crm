@@ -1238,7 +1238,7 @@ export default function SetupPage() {
                   <DialogHeader>
                     <DialogTitle className="text-[16px]">Como você prefere pagar?</DialogTitle>
                   </DialogHeader>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-[13px] text-muted-foreground">
                     {plan.name} — {periodo}, total de{" "}
                     <span className="font-semibold text-foreground">{total}</span>.
                   </p>

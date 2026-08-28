@@ -1,6 +1,17 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@14?target=deno";
+// Imports por `npm:`, e não pelo esm.sh.
+//
+// O esm.sh entrega o pacote já convertido para o navegador e, para isso, injeta
+// polyfills de Node vindos do `deno.land/std`. Esses arquivos são baixados na
+// hora de empacotar a função, e o `deno.land` vinha dando timeout: em 28/08/2026
+// o webhook ficou dias fora do ar sem conseguir subir por causa disso -- primeiro
+// pelo import direto do std, depois por dentro do SDK da Stripe
+// (esm.sh/stripe -> object-inspect -> deno.land/std/node/util.ts).
+//
+// O `npm:` é resolvido pelo próprio runtime, que já traz a compatibilidade com
+// Node embutida. Tira o `deno.land` inteiro do grafo de dependências e o deploy
+// deixa de depender de um CDN de terceiro estar respondendo.
+import { createClient } from "npm:@supabase/supabase-js@2";
+import Stripe from "npm:stripe@14";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   apiVersion: "2024-04-10",
@@ -34,7 +45,13 @@ const json = (body: unknown, status = 200) =>
 // Consequência que a tela precisa dizer: a cobrança acontece no ato e o teste
 // encerra ali. Sem isso, quem assina no dia 1 é cobrado sem esperar.
 
-serve(async (req) => {
+// `Deno.serve`, e não o `serve` do deno.land/std.
+//
+// O std é buscado pela rede na hora de empacotar a função, e essa busca dá
+// timeout com frequência -- foi o que impediu este deploy em 28/08/2026, com o
+// webhook fora do ar. O `Deno.serve` é nativo do runtime: não baixa nada, então
+// o deploy deixa de depender de um CDN externo estar respondendo.
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 

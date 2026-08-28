@@ -46,6 +46,20 @@ verify_jwt = false
 [functions.scheduled-followup-runner]
 verify_jwt = false
 
+# A Stripe chama este webhook externamente e não tem como mandar um JWT do
+# Supabase. Com verify_jwt = true o gateway devolve 401 antes de a função rodar,
+# e NENHUM evento chega: assinatura paga não vira plano ativo, e a Stripe
+# desiste do endpoint depois de alguns dias de falha.
+#
+# Não fica desprotegido: a função confere a assinatura do cabeçalho
+# `stripe-signature` contra o STRIPE_WEBHOOK_SECRET e recusa o que não bater.
+# É esse o mecanismo de autenticação de webhook da Stripe, não o JWT.
+#
+# Esta entrada existe para o valor não se perder no próximo deploy -- foi
+# exatamente isso que aconteceu em agosto de 2026.
+[functions.stripe-webhook]
+verify_jwt = false
+
 # A Meta chama este webhook externamente sem JWT (verificação por hub.verify_token).
 [functions.meta-webhook]
 verify_jwt = false
