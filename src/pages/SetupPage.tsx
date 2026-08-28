@@ -25,6 +25,7 @@ import {
   emNumero,
   emReais,
 } from "@/data/ofertaDePrimeiraContratacao";
+import { linkDoParcelado, PARCELAS_POR_PERIODO } from "@/data/tictoOfertas";
 import { TelaPreparandoConta } from "@/components/TelaPreparandoConta";
 import { BalaoDoTour } from "@/components/BalaoDoTour";
 import {
@@ -290,20 +291,6 @@ const DESFOQUE_DO_TOUR = 2;
  * e entra direto na confirmação.
  */
 type FormaDePagamento = "avista" | "parcelado";
-
-/**
- * O parcelado sai pela Ticto, que ainda não está integrada.
- *
- * Enquanto isto for `false`, a escolha do parcelado é aceita normalmente e o
- * bloqueio acontece só no "Confirmar", com um aviso de que ainda não está
- * disponível. Não é o ideal para produção: quem escolheu já se decidiu, e
- * descobrir ali que não dá queima a venda no pior momento. É aceitável agora
- * porque a Ticto entra em seguida.
- *
- * Ao integrar: virar `true` e preencher `abrirCheckoutTicto`. Nada mais no
- * fluxo precisa mudar.
- */
-const TICTO_DISPONIVEL = false;
 
 const chaveDoTour = (companyId: string) => `rz_tour_planos_${companyId}`;
 
@@ -601,14 +588,29 @@ export default function SetupPage() {
   };
 
   /**
-   * Checkout parcelado, pela Ticto. Ainda não existe.
+   * Checkout parcelado, pela Ticto.
    *
-   * Fica como função própria, e vazia, de propósito: o lugar da integração é
-   * este, e o `TICTO_DISPONIVEL` acima é o interruptor. Sem isso, a integração
-   * futura teria que caçar onde entrar no meio do fluxo do Stripe.
+   * Não há sessão a criar como na Stripe: o link já É a oferta, com o preço
+   * certo embutido. Quem decide se ele leva ao preço com desconto ou ao cheio é
+   * o `ofertaAtiva`, a mesma regra que governa o que a tela mostra -- é o que
+   * garante que o valor anunciado e o cobrado sejam o mesmo.
+   *
+   * O id da empresa vai no link para o webhook saber de quem é a venda. Sem
+   * ele, ela chega órfã e precisa de conciliação manual: por isso a checagem
+   * abaixo em vez de abrir o checkout de qualquer jeito.
    */
   const abrirCheckoutTicto = () => {
-    toast.info("Pagamento parcelado estará disponível em breve.");
+    if (!confirmPlan) return;
+    const link = linkDoParcelado(confirmPlan, billingTab, company?.id, ofertaAtiva);
+    if (!link) {
+      toast.error("Pagamento parcelado indisponível para este plano.");
+      return;
+    }
+    pixelTrack("InitiateCheckout", { content_name: confirmPlan, content_category: "subscription" });
+    window.open(link, "_blank");
+    fecharConfirmacao();
+    setPlanConfirmed(true);
+    setSuccessOpen(true);
   };
 
   const handleConfirmPlan = async () => {
@@ -1296,8 +1298,17 @@ export default function SetupPage() {
                       className="text-left rounded-[5px] border border-gray-200 px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
                     >
                       <p className="text-[13px] font-semibold text-foreground">Parcelado</p>
+                      {/* O juro é dito aqui, e não no checkout. Parcelado sai
+                          mais caro que à vista, e quem descobre isso só na tela
+                          de pagamento sente que foi levado -- ainda mais tendo
+                          acabado de ler um valor menor no cartão do plano.
+
+                          O número de parcelas aparece, o valor de cada uma não:
+                          quem calcula os juros é a Ticto, e repetir a conta aqui
+                          criaria dois números para manter em sincronia. */}
                       <p className="text-[12px] text-muted-foreground mt-0.5">
-                        Divida o valor em parcelas no cartão de crédito.
+                        Parcele em até {PARCELAS_POR_PERIODO[billingTab as "semestral" | "anual"]}x no
+                        cartão de crédito, com juros.
                       </p>
                     </button>
                   </div>
