@@ -60,6 +60,14 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# A Ticto chama este webhook externamente, sem JWT. Mesmo caso do stripe-webhook,
+# e o mesmo motivo de estar declarado aqui: sem esta entrada o deploy reaplica o
+# padrão `true` e o gateway passa a devolver 401 antes de a função rodar.
+#
+# A autenticação é o campo `token` do corpo, conferido contra TICTO_WEBHOOK_TOKEN.
+[functions.ticto-webhook]
+verify_jwt = false
+
 # A Meta chama este webhook externamente sem JWT (verificação por hub.verify_token).
 [functions.meta-webhook]
 verify_jwt = false

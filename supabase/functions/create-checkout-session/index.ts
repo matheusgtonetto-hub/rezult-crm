@@ -18,6 +18,15 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+/**
+ * Cupom de 50% da primeira contratação, criado no painel da Stripe.
+ *
+ * Vem do ambiente, e não escrito aqui, para trocar ou encerrar a promoção sem
+ * deploy. Ausente, o checkout simplesmente sai sem desconto -- a venda continua
+ * acontecendo, que é melhor do que quebrar por causa de uma variável faltando.
+ */
+const CUPOM_PRIMEIRA_COMPRA = Deno.env.get("STRIPE_COUPON_PRIMEIRA_COMPRA") ?? "";
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -112,9 +121,37 @@ Deno.serve(async (req) => {
       stripeCustomerId = customer.id;
     }
 
+    /**
+     * O desconto vale enquanto o teste grátis estiver correndo.
+     *
+     * A janela é checada AQUI, e não no `redeem_by` do cupom, porque aquele é
+     * uma data única para todo mundo. Comparando com o `trial_ends_at` da
+     * empresa, cada cliente ganha os seus próprios sete dias, contados da
+     * criação da conta dele.
+     *
+     * Serve para os dois pontos de entrada: a escolha de plano do cadastro e o
+     * /configuracoes/planos, já que os dois passam por aqui. Quem voltar no
+     * terceiro dia de teste ainda pega o desconto; quem voltar no décimo, não.
+     *
+     * A MESMA regra está escrita no frontend, em
+     * `src/data/ofertaDePrimeiraContratacao.ts` (`ofertaEstaValida`), que decide
+     * se a tela mostra os preços com desconto. São dois runtimes e o código não
+     * é compartilhável, então a regra é uma linha só de propósito -- quanto mais
+     * simples, menos chance de as duas cópias divergirem.
+     *
+     * Mudou aqui? Mude lá. Divergirem significa a tela anunciar 50% e o
+     * checkout cobrar cheio, que é o defeito mais caro que esta tela pode ter.
+     */
+    const dentroDaJanela =
+      !!co?.trial_ends_at && new Date(co.trial_ends_at as string).getTime() > Date.now();
+    const aplicaCupom = !!CUPOM_PRIMEIRA_COMPRA && dentroDaJanela;
+
     console.log(
       `[create-checkout-session] empresa=${companyId} fim_do_teste=${co?.trial_ends_at ?? "nenhum"}`,
       "→ sem trial na assinatura, cobranca imediata",
+      aplicaCupom
+        ? `| cupom ${CUPOM_PRIMEIRA_COMPRA} aplicado`
+        : `| sem cupom (${!CUPOM_PRIMEIRA_COMPRA ? "nao configurado" : "fora da janela do teste"})`,
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -125,7 +162,15 @@ Deno.serve(async (req) => {
         metadata: { companyId, userId, planName, billingPeriod },
       },
       metadata: { companyId, userId, planName, billingPeriod },
-      allow_promotion_codes: true,
+      // Um OU outro, nunca os dois: a Stripe recusa a sessão que traz
+      // `discounts` e `allow_promotion_codes` juntos.
+      //
+      // Com o cupom, ele já entra aplicado e a pessoa vê o valor com desconto no
+      // resumo, sem digitar nada. Sem o cupom, o campo de código promocional
+      // volta a aparecer, que é o comportamento de antes.
+      ...(aplicaCupom
+        ? { discounts: [{ coupon: CUPOM_PRIMEIRA_COMPRA }] }
+        : { allow_promotion_codes: true }),
       billing_address_collection: "required",
       phone_number_collection: { enabled: true },
       success_url: "https://app.rezultcrm.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",

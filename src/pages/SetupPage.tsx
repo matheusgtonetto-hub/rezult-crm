@@ -16,6 +16,15 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
 import { FundoDoCrmAoVivo } from "@/components/FundoDoCrmAoVivo";
+// A regra da oferta mora fora desta tela porque não é dela: é do produto, e
+// vale igual em qualquer lugar que mostre preço com desconto.
+import {
+  DESCONTO_DA_OFERTA as DESCONTO,
+  ofertaEstaValida,
+  comDesconto,
+  emNumero,
+  emReais,
+} from "@/data/ofertaDePrimeiraContratacao";
 import { TelaPreparandoConta } from "@/components/TelaPreparandoConta";
 import { BalaoDoTour } from "@/components/BalaoDoTour";
 import {
@@ -149,37 +158,6 @@ const FONTE_DO_BOTAO = 12;
  * são três botões mais os vãos. Abaixo de ~215px ele começa a espremer.
  */
 const LARGURA_DO_SELETOR = 230;
-
-/**
- * Desconto da oferta desta tela, como fração.
- *
- * ATENÇÃO: isto muda apenas o que a TELA mostra. O que a Stripe cobra vem dos
- * ids em `STRIPE_PRICES`, que continuam apontando para os preços cheios. Com
- * 0.5 aqui e nada lá, o cartão anuncia metade e o checkout cobra o dobro.
- *
- * Para a oferta valer de verdade, é preciso criar preços novos na Stripe e
- * trocar os ids -- ou aplicar um cupom na sessão de checkout. Enquanto isso não
- * acontecer, esta constante deveria ficar em 0.
- */
-const DESCONTO = 0.5;
-
-/** "R$ 1.234,56" -> 1234.56 */
-const emNumero = (texto: string) =>
-  Number(texto.replace(/[^\d,]/g, "").replace(",", "."));
-
-/** 1234.56 -> "R$ 1.234,56" */
-const emReais = (valor: number) =>
-  valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-/**
- * Aplica o desconto a um preço já formatado.
- *
- * Recebe e devolve texto porque é assim que os preços moram em `PLANS` e em
- * `SETUP_PLAN_TOTALS`. Converter na entrada e formatar na saída mantém um lugar
- * só decidindo o desconto: mudar o número acima acerta cartão e diálogo de
- * confirmação de uma vez.
- */
-const comDesconto = (precoCheio: string) => emReais(emNumero(precoCheio) * (1 - DESCONTO));
 
 /**
  * Os dois passos do balão de boas-vindas desta tela.
@@ -532,6 +510,31 @@ export default function SetupPage() {
     return () => window.removeEventListener("resize", medir);
   }, []);
 
+  /**
+   * A Oferta de Primeira Contratação vale para esta empresa?
+   *
+   * Antes esta tela assumia que sim, porque só era vista logo depois do
+   * cadastro. Deixou de ser verdade no momento em que a oferta ganhou prazo: um
+   * link salvo, uma aba esquecida aberta ou uma volta no décimo dia traziam a
+   * pessoa de novo para cá, e ela via 50% que o checkout não aplicaria.
+   *
+   * A mesma pergunta é feita pelo `create-checkout-session` antes de mandar o
+   * cupom. Os dois usam a regra de `ofertaEstaValida`, e é isso que impede a
+   * tela de prometer o que a cobrança não cumpre.
+   */
+  const ofertaAtiva = ofertaEstaValida(company?.trial_ends_at);
+
+  /** Preço com desconto quando a oferta vale; o cheio quando não vale. */
+  const precoDaOferta = (precoCheio: string) =>
+    ofertaAtiva ? comDesconto(precoCheio) : precoCheio;
+
+  /**
+   * Os passos do balão que fazem sentido agora. O da oferta some fora da janela:
+   * apresentar um desconto que não existe mais é pior do que não apresentar
+   * nada.
+   */
+  const passosDoTour = PASSOS_DO_TOUR.filter(p => ofertaAtiva || p.ancora !== "selo");
+
   useEffect(() => {
     // Sem a empresa não dá para decidir: a chave do `localStorage` leva o id
     // dela. Sai do efeito SEM decidir, e a tela segue esperando.
@@ -542,14 +545,17 @@ export default function SetupPage() {
     const jaViu = !!company?.id && !!localStorage.getItem(chaveDoTour(company.id));
     // Todo caminho decide alguma coisa, inclusive os de falha. Um `return` mudo
     // aqui deixaria a tela presa no carregamento para sempre.
-    setPassoDoTour(!company?.id || jaViu || PASSOS_DO_TOUR.length === 0 ? null : 0);
-  }, [companyLoading, company?.id]);
+    setPassoDoTour(!company?.id || jaViu || passosDoTour.length === 0 ? null : 0);
+    // `passosDoTour.length` entra porque a quantidade de passos depende de a
+    // oferta estar valendo, e isso muda com a empresa. Vai o número, e não a
+    // lista: a lista é recriada a cada render e reexecutaria o efeito à toa.
+  }, [companyLoading, company?.id, passosDoTour.length]);
 
   const avancarTour = () => {
     setPassoDoTour(atual => {
       if (typeof atual !== "number") return atual;
       const proximo = atual + 1;
-      if (proximo < PASSOS_DO_TOUR.length) return proximo;
+      if (proximo < passosDoTour.length) return proximo;
       if (company?.id) localStorage.setItem(chaveDoTour(company.id), "1");
       return null;
     });
@@ -563,7 +569,7 @@ export default function SetupPage() {
   const voltarTour = () =>
     setPassoDoTour(atual => (typeof atual === "number" && atual > 0 ? atual - 1 : atual));
 
-  const passoAtual = typeof passoDoTour === "number" ? PASSOS_DO_TOUR[passoDoTour] : null;
+  const passoAtual = typeof passoDoTour === "number" ? passosDoTour[passoDoTour] : null;
 
   /**
    * Desfoque de tour para um pedaço da tela, com uma exceção: o que o balão do
@@ -678,7 +684,7 @@ export default function SetupPage() {
    * linha abaixo do preço.
    */
   const getPlanSave = (plan: PlanDefinition) => {
-    if (DESCONTO <= 0) return null;
+    if (!ofertaAtiva || DESCONTO <= 0) return null;
     const cicloCheio = billingTab === "mensal"
       ? plan.pricing.mensal
       : SETUP_PLAN_TOTALS[plan.key]?.[billingTab as "semestral" | "anual"];
@@ -819,7 +825,7 @@ export default function SetupPage() {
                 <div className="pointer-events-auto" style={{ transform: "translateY(-35px)" }}>
                     <BalaoDoTour
                       passo={passoDoTour + 1}
-                      total={PASSOS_DO_TOUR.length}
+                      total={passosDoTour.length}
                       titulo={passoAtual.titulo}
                       rotulo={passoAtual.rotulo}
                       texto={passoAtual.texto}
@@ -856,12 +862,18 @@ export default function SetupPage() {
                       cliques que o véu faz. Sem isto, o destaque acabaria
                       LIBERANDO o que devia estar travado. O balão volta a
                       receber cliques por conta própria, logo abaixo. */}
-                  <div
-                    className={cn("relative", REVELACAO)}
-                    style={{ filter: desfoqueDoTour(false) }}
-                  >
-                    <SeloDaOferta texto={title} />
-                  </div>
+                  {/* Selo e frase somem juntos fora da janela da oferta. É a
+                      mesma peça: o cupom diz O QUE é, a linha ao lado diz por
+                      quanto tempo. Um sem o outro anunciaria uma promoção sem
+                      prazo, ou um prazo sem promoção. */}
+                  {ofertaAtiva && (
+                    <div
+                      className={cn("relative", REVELACAO)}
+                      style={{ filter: desfoqueDoTour(false) }}
+                    >
+                      <SeloDaOferta texto={title} />
+                    </div>
+                  )}
 
                   {/* Ao lado do selo, e não dentro dele: o selo diz O QUE é a
                       oferta, esta linha diz POR QUANTO TEMPO. Duas frases dentro
@@ -877,12 +889,14 @@ export default function SetupPage() {
                       duas frases são um bloco só de argumento, e nítida ao lado
                       de um selo borrado esta linha viraria a única coisa legível
                       da tela -- justamente a menos importante das duas. */}
-                  <p
-                    className={cn("text-[12px] min-w-0 truncate", REVELACAO)}
-                    style={{ color: SITE.texto, filter: desfoqueDoTour(false) }}
-                  >
-                    Oferta válida por somente 7 dias.
-                  </p>
+                  {ofertaAtiva && (
+                    <p
+                      className={cn("text-[12px] min-w-0 truncate", REVELACAO)}
+                      style={{ color: SITE.texto, filter: desfoqueDoTour(false) }}
+                    >
+                      Oferta válida por somente 7 dias.
+                    </p>
+                  )}
 
                   <div
                     className={cn(
@@ -923,7 +937,7 @@ export default function SetupPage() {
                       <div className="absolute right-full top-full mr-2 mt-2 pointer-events-auto">
                         <BalaoDoTour
                           passo={passoDoTour + 1}
-                          total={PASSOS_DO_TOUR.length}
+                          total={passosDoTour.length}
                           titulo={passoAtual.titulo}
                           rotulo={passoAtual.rotulo}
                           texto={passoAtual.texto}
@@ -1068,7 +1082,7 @@ export default function SetupPage() {
                                   carrega 4px invisíveis abaixo das letras -- é
                                   nela que a margem negativa come, sem encostar uma
                                   linha na outra. */}
-                              {DESCONTO > 0 && (
+                              {ofertaAtiva && DESCONTO > 0 && (
                                 <p className="text-[16px] font-medium -mb-[3px]" style={{ color: SITE.vermelho }}>
                                   de {getPlanPrice(plan)}
                                 </p>
@@ -1077,11 +1091,11 @@ export default function SetupPage() {
                                 {/* "de X" na linha de cima e "por Y" aqui: as duas
                                     formam uma frase só, quebrada em duas linhas
                                     para o valor novo poder ser grande. */}
-                                {DESCONTO > 0 && (
+                                {ofertaAtiva && DESCONTO > 0 && (
                                   <span className="text-[13px]" style={{ color: SITE.textoFraco }}>por</span>
                                 )}
                                 <span className="text-[26px] font-semibold" style={{ color: SITE.texto, letterSpacing: "-0.04em" }}>
-                                  {comDesconto(getPlanPrice(plan))}
+                                  {precoDaOferta(getPlanPrice(plan))}
                                 </span>
                                 <span className="text-[13px]" style={{ color: SITE.textoFraco }}>/mês</span>
                                 {/* 9px e preenchimento estreito para caber na mesma
@@ -1113,10 +1127,28 @@ export default function SetupPage() {
                                   : null;
                                 return (
                                   <div className="flex items-center gap-2 mt-1 min-w-0">
+                                    {/* O cupom da Stripe é de duração `once`:
+                                        desconta a PRIMEIRA fatura e só ela.
+                                        Como a fatura do semestral cobre seis
+                                        meses e a do anual cobre doze, nesses
+                                        dois o ciclo inteiro mostrado ali sai
+                                        pela metade, e a linha do total já conta
+                                        essa história certa.
+
+                                        No mensal a fatura é de um mês, então
+                                        "R$ 118,50/mês" lá em cima vale só para
+                                        a primeira. Sem esta ressalva, a segunda
+                                        cobrança chega ao dobro e a pessoa se
+                                        sente enganada -- no exato momento em
+                                        que ela decide se fica. */}
                                     <p className="text-[11px] min-w-0 truncate" style={{ color: SITE.textoFraco }}>
                                       {total
-                                        ? <>de <s>{total}</s> por {comDesconto(total)}</>
-                                        : "Cobrança mensal recorrente"}
+                                        ? (ofertaAtiva
+                                            ? <>de <s>{total}</s> por {comDesconto(total)}</>
+                                            : <>Total de {total} por ciclo</>)
+                                        : (ofertaAtiva
+                                            ? "Desconto na 1ª mensalidade. Depois, cobrança recorrente."
+                                            : "Cobrança mensal recorrente")}
                                     </p>
                                   </div>
                                 );
@@ -1224,11 +1256,11 @@ export default function SetupPage() {
             // Com desconto, como no cartão: se o diálogo mostrasse o preço
             // cheio, a pessoa veria um valor no card e outro maior no passo
             // seguinte, e desistiria achando que foi enganada.
-            const price = comDesconto(getPlanPrice(plan));
+            const price = precoDaOferta(getPlanPrice(plan));
             const totalCheio = billingTab !== "mensal"
               ? SETUP_PLAN_TOTALS[confirmPlan]?.[billingTab as "semestral" | "anual"]
               : null;
-            const total = totalCheio ? comDesconto(totalCheio) : null;
+            const total = totalCheio ? precoDaOferta(totalCheio) : null;
             const periodo = billingTab.charAt(0).toUpperCase() + billingTab.slice(1);
 
             // ── Passo 1: como pagar (só semestral e anual) ──
