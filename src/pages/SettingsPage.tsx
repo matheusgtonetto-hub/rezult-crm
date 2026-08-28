@@ -127,7 +127,7 @@ export default function SettingsPage() {
       {/* Sidebar */}
       <aside className="w-[230px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/inicio")}
           className="flex items-center gap-2 text-[14px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar

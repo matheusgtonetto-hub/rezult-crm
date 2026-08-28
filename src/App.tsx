@@ -8,7 +8,6 @@ import { CRMProvider } from "@/context/CRMContext";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { CompanyProvider, useCompany } from "@/context/CompanyContext";
 import { FloatingChatProvider } from "@/context/FloatingChatContext";
-import { usePermissions } from "@/hooks/usePermissions";
 import { FloatingChatManager } from "@/components/FloatingChatManager";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -40,14 +39,24 @@ import CheckoutSuccessPage from "./pages/CheckoutSuccess";
 
 const queryClient = new QueryClient();
 
+/**
+ * Para onde vai quem entra sem pedir uma tela específica.
+ *
+ * Sempre o Início. Antes ramificava por permissão -- dashboard para quem podia
+ * vê-lo, pipeline para os demais -- e isso fazia duas pessoas da mesma empresa
+ * terem "a primeira tela" diferente, o que atrapalha até para explicar o produto
+ * por telefone.
+ *
+ * O Início serve aos dois casos: tem a trilha de configuração para quem está
+ * começando e o resumo do dia para quem já usa. E não tem restrição de acesso,
+ * então nenhuma permissão pode deixar alguém sem destino.
+ */
 function SmartRedirect() {
   const { companyLoading, permissionsReady } = useCompany();
-  const { can, isOwner } = usePermissions();
 
   if (companyLoading || !permissionsReady) return null;
 
-  const hasDashboard = isOwner || can("admin") || can("dashboard:admin") || can("dashboard:member");
-  return <Navigate to={hasDashboard ? "/dashboard" : "/pipeline"} replace />;
+  return <Navigate to="/inicio" replace />;
 }
 
 function AppRoutes() {

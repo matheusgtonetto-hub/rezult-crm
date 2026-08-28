@@ -56,9 +56,14 @@ export default function AppLayout() {
   }
 
   // Bloqueio por cobrança não implica plano expirado (uma anual pode falhar com
-  // validade ainda no futuro), e o teste grátis é plano pago válido. Os três
-  // casos reservam o mesmo espaço no rodapé.
-  const showBanner = isFreePlan || billingBlocked || isTrialing;
+  // validade ainda no futuro), e o teste grátis é plano pago válido.
+  //
+  // Só os dois primeiros reservam espaço no rodapé. Durante o teste a tarja é um
+  // cartão FLUTUANTE no canto, como as janelas de conversa: ele passa por cima
+  // do conteúdo em vez de empurrá-lo. Reservar espaço para algo que flutua
+  // deixaria uma faixa vazia no fim de todas as telas.
+  const reservaRodape = isFreePlan || billingBlocked;
+  const showBanner = reservaRodape || isTrialing;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
@@ -71,7 +76,7 @@ export default function AppLayout() {
           overflowY: "auto",
           overflowX: "hidden",
           background: "hsl(var(--background))",
-          paddingBottom: showBanner ? BANNER_HEIGHT : 0,
+          paddingBottom: reservaRodape ? BANNER_HEIGHT : 0,
         }}
       >
         <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>

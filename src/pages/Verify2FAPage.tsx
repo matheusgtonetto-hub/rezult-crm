@@ -82,7 +82,7 @@ export default function Verify2FAPage() {
       .eq("id", userId)
       .maybeSingle();
 
-    navigate(profile?.company_name ? "/dashboard" : "/company-register");
+    navigate(profile?.company_name ? "/inicio" : "/company-register");
   };
 
   const handleResend = async () => {

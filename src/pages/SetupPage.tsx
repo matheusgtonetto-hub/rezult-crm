@@ -421,6 +421,15 @@ function SeloDaOferta({
 export default function SetupPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
+  /**
+   * Esta é a primeira visita, vinda direto do cadastro?
+   *
+   * Muda só o rótulo do botão de saída. Na primeira vez o teste está começando
+   * agora e "Começar 7 dias grátis" descreve o que acontece; quem volta pela
+   * tarja no quinto dia já está testando há tempo, e o mesmo texto soaria
+   * errado.
+   */
+  const vemDoCadastro = (location.state as { vemDoCadastro?: boolean } | null)?.vemDoCadastro === true;
   const { company, companyLoading, isFreePlan, isTrialing } = useCompany();
   const { user } = useAuth();
 
@@ -430,7 +439,7 @@ export default function SetupPage() {
     // para o dashboard sem passar pelo onboarding, que é justamente onde a
     // assinatura é oferecida. O desvio existe para quem JÁ assinou.
     if (company && !isFreePlan && !isTrialing) {
-      navigate("/dashboard", { replace: true });
+      navigate("/inicio", { replace: true });
     }
   }, [companyLoading, company, isFreePlan, isTrialing, navigate]);
 
@@ -910,7 +919,7 @@ export default function SetupPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => navigate("/dashboard")}
+                      onClick={() => navigate("/inicio")}
                       // `rounded-[7px]`: o mesmo raio do selo da oferta do outro lado da
                       // linha. Os dois são os blocos verdes do topo, e cantos
                       // diferentes faziam parecer que vieram de telas diferentes.
@@ -929,7 +938,11 @@ export default function SetupPage() {
                       )}
                       style={{ background: SITE.verde, color: SITE.sobreVerde }}
                     >
-                      {planConfirmed ? "Acessar" : "Começar 7 dias grátis"}
+                      {planConfirmed
+                        ? "Acessar"
+                        : vemDoCadastro
+                          ? "Começar 7 dias grátis"
+                          : "Finalizar"}
                     </button>
                     {/* Diagonal inferior esquerda do botão: `right-full` encosta a
                         direita do balão na esquerda do botão, `top-full` põe o topo

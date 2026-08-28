@@ -58,7 +58,7 @@ export default function RegisterPage() {
         .select("company_name")
         .eq("email", email.toLowerCase())
         .maybeSingle();
-      navigate(profile?.company_name ? "/dashboard" : "/company-register");
+      navigate(profile?.company_name ? "/inicio" : "/company-register");
       return;
     }
 

@@ -237,7 +237,7 @@ export default function CompanyRegisterPage() {
   // Membro convidado: já tem empresa, não precisa cadastrar
   useEffect(() => {
     if (!companyLoading && company) {
-      navigate("/dashboard", { replace: true });
+      navigate("/inicio", { replace: true });
     }
   }, [companyLoading, company, navigate]);
 
@@ -445,7 +445,15 @@ export default function CompanyRegisterPage() {
       setProgressVal(val);
       if (val >= 100) {
         clearInterval(interval);
-        setTimeout(() => navigate("/setup"), 200);
+        // `vemDoCadastro` diz à tela de planos que esta é a PRIMEIRA visita, e
+        // ela usa isso só para o rótulo do botão de saída: aqui cabe "Começar
+        // 7 dias grátis", porque o teste está de fato começando agora. Quem
+        // volta depois pela tarja chega sem esta marca e vê "Finalizar".
+        //
+        // Vai pelo estado da navegação, e não por data ou pelo `localStorage`:
+        // data erra quando a pessoa volta no mesmo dia, e `localStorage` erra
+        // em outro navegador. O caminho percorrido é o único sinal exato.
+        setTimeout(() => navigate("/setup", { state: { vemDoCadastro: true } }), 200);
       }
     }, 40);
   };

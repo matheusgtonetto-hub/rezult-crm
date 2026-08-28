@@ -100,7 +100,7 @@ export default function CheckoutSuccessPage() {
             <Button
               type="button"
               className="w-full h-11 rounded-xl font-semibold"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/inicio")}
             >
               Acessar o Rezult CRM
             </Button>
