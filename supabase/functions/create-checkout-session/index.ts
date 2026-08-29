@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     return json({ error: "invalid json" }, 400);
   }
 
-  const { priceId, companyId, userId, userEmail, planName, billingPeriod, customerId } = body;
+  const { priceId, companyId, userId, userEmail, planName, billingPeriod, customerId, semOferta } = body;
   if (!priceId || !companyId || !userId || !userEmail) {
     return json({ error: "missing required fields" }, 400);
   }
@@ -129,10 +129,6 @@ Deno.serve(async (req) => {
      * empresa, cada cliente ganha os seus próprios sete dias, contados da
      * criação da conta dele.
      *
-     * Serve para os dois pontos de entrada: a escolha de plano do cadastro e o
-     * /configuracoes/planos, já que os dois passam por aqui. Quem voltar no
-     * terceiro dia de teste ainda pega o desconto; quem voltar no décimo, não.
-     *
      * A MESMA regra está escrita no frontend, em
      * `src/data/ofertaDePrimeiraContratacao.ts` (`ofertaEstaValida`), que decide
      * se a tela mostra os preços com desconto. São dois runtimes e o código não
@@ -141,17 +137,37 @@ Deno.serve(async (req) => {
      *
      * Mudou aqui? Mude lá. Divergirem significa a tela anunciar 50% e o
      * checkout cobrar cheio, que é o defeito mais caro que esta tela pode ter.
+     *
+     * ── `semOferta`: estar na janela não basta ──
+     *
+     * A oferta é EXCLUSIVA de um caminho: a tarja do teste grátis, que leva ao
+     * cartão do cadastro. O diálogo de Upgrade em Configurações vende os mesmos
+     * planos a preço cheio, inclusive para quem ainda está nos sete dias -- e
+     * ele manda `semOferta: true` para dizer isso.
+     *
+     * Sem esta chave, aquele diálogo mostraria preço cheio na tela e a Stripe
+     * aplicaria o cupom mesmo assim, cobrando metade. Divergência ao contrário
+     * da de cima: não prejudica o cliente, mas entrega de graça o desconto que a
+     * tarja existe para tornar especial.
+     *
+     * Quem manda a chave é o cliente, e isso é seguro pela direção do efeito:
+     * ela só consegue TIRAR o desconto. Para dar, a empresa ainda precisa estar
+     * dentro da janela, o que é verificado aqui com dados do banco.
      */
     const dentroDaJanela =
       !!co?.trial_ends_at && new Date(co.trial_ends_at as string).getTime() > Date.now();
-    const aplicaCupom = !!CUPOM_PRIMEIRA_COMPRA && dentroDaJanela;
+    const aplicaCupom = !!CUPOM_PRIMEIRA_COMPRA && dentroDaJanela && semOferta !== true;
 
     console.log(
       `[create-checkout-session] empresa=${companyId} fim_do_teste=${co?.trial_ends_at ?? "nenhum"}`,
       "→ sem trial na assinatura, cobranca imediata",
       aplicaCupom
         ? `| cupom ${CUPOM_PRIMEIRA_COMPRA} aplicado`
-        : `| sem cupom (${!CUPOM_PRIMEIRA_COMPRA ? "nao configurado" : "fora da janela do teste"})`,
+        : `| sem cupom (${
+            !CUPOM_PRIMEIRA_COMPRA ? "nao configurado"
+            : semOferta === true    ? "pedido sem oferta (upgrade)"
+            : "fora da janela do teste"
+          })`,
     );
 
     const session = await stripe.checkout.sessions.create({

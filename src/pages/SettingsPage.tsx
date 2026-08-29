@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useNavigate, useParams } from "react-router-dom";
-import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
 import { useCRM } from "@/context/CRMContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useAuth } from "@/context/AuthContext";
@@ -40,6 +39,7 @@ import { useCompany, type WhatsAppConnection } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLANS, PLAN_LIMITS, chaveDoRecurso } from "@/data/plans";
 import { TextoDoRecurso } from "@/components/TextoDoRecurso";
+import { OfertaDeContratacao } from "@/components/OfertaDeContratacao";
 import type { CustomFieldType } from "@/data/mockData";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
@@ -1707,61 +1707,6 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
 
 // ── Dados dos planos para o dialog de upgrade ────────────────────────────────
 
-const UPGRADE_PRICES = STRIPE_PRICES;
-
-type UpgradePlanKey = StripePlanKey;
-type UpgradePeriod  = StripeBillingPeriod;
-
-/**
- * Preços e rótulos do diálogo de upgrade.
- *
- * Os BENEFÍCIOS não estão mais aqui: saem de `PLANS`, junto com os da tela da
- * oferta e os do /planos. Esta lista tinha a própria cópia e ela já divergia --
- * prometia API só a partir do Platinum enquanto a tela da oferta dava API e MCP
- * no Silver. Quem testava o produto e depois abria o upgrade via o Silver
- * encolher entre uma tela e outra.
- *
- * Os preços continuam aqui porque este diálogo os mostra em outro formato:
- * "R$ 237" sem centavos, mais o equivalente mensal e a economia por período.
- */
-const UPGRADE_PLAN_INFO = [
-  {
-    key: "silver" as UpgradePlanKey,
-    name: "Silver",
-    rawMonthly: 237,
-    prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
-    monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
-    savings: { semiannual: "R$ 213,00", annual: "R$ 855,00" },
-  },
-  {
-    key: "platinum" as UpgradePlanKey,
-    name: "Platinum",
-    badge: "Mais popular",
-    rawMonthly: 399,
-    prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
-    monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
-    savings: { semiannual: "R$ 359,00", annual: "R$ 1.436,00" },
-  },
-  {
-    key: "emerald" as UpgradePlanKey,
-    name: "Emerald",
-    rawMonthly: 747,
-    prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
-    monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
-    savings: { semiannual: "R$ 672,00", annual: "R$ 2.692,00" },
-  },
-];
-
-/** Benefícios do plano, vindos da fonte única. */
-const recursosDoPlano = (key: string) => PLANS.find(p => p.key === key)?.features ?? [];
-
-const UPGRADE_PERIOD_LABELS: Record<UpgradePeriod, string> = {
-  monthly: "Mensal", semiannual: "Semestral", annual: "Anual",
-};
-
-const UPGRADE_PERIOD_DISCOUNT: Record<UpgradePeriod, string | null> = {
-  monthly: null, semiannual: "-15%", annual: "-30%",
-};
 
 // ── PlanosSection ─────────────────────────────────────────────────────────────
 
@@ -1801,6 +1746,21 @@ function PlanosSection() {
   const connectionsCount = whatsappConnections.length;
 
   const logoInitial = (company?.name?.[0] ?? "E").toUpperCase();
+
+  /**
+   * O cartão de planos, aberto pelo botão Upgrade.
+   *
+   * No lugar da tela que existia aqui: uma segunda página dentro da seção, com
+   * três cartões brancos e uma tabela de preços própria. Ela duplicava a Oferta
+   * de Primeira Contratação do cadastro com outro desenho e outros números, e
+   * era o terceiro lugar do produto listando os mesmos planos.
+   *
+   * Agora é o MESMO cartão preto que a pessoa viu no fim do cadastro, sem o
+   * passo a passo e sem o botão de teste. Reconhecer a tela é meio caminho: quem
+   * já comparou os planos uma vez não precisa aprender uma segunda apresentação
+   * deles para decidir.
+   */
+  const [ofertaAberta, setOfertaAberta] = useState(false);
 
   // ── Gerenciar plano (Stripe Customer Portal) ──────────────────────────────
   const [portalLoading, setPortalLoading] = useState(false);
@@ -1871,224 +1831,6 @@ function PlanosSection() {
     }
   };
 
-  // ── Upgrade dialog ────────────────────────────────────────────────────────
-  const [upgradeOpen,    setUpgradeOpen]    = useState(false);
-  const [upgradePeriod,  setUpgradePeriod]  = useState<UpgradePeriod>("monthly");
-  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
-  const [confirmPlan,    setConfirmPlan]    = useState<UpgradePlanKey | null>(null);
-
-  const handleSelectPlan = async () => {
-    if (!confirmPlan) return;
-    if (!user)    { toast.error("Você precisa estar logado."); return; }
-    if (!company) { toast.error("Nenhuma empresa encontrada."); return; }
-
-    const priceId = UPGRADE_PRICES[confirmPlan][upgradePeriod];
-    setUpgradeLoading(confirmPlan);
-    setConfirmPlan(null);
-
-    const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL as string;
-    const { data: { session: authSession } } = await supabase.auth.getSession();
-    const headers = {
-      "Content-Type": "application/json",
-      ...(authSession?.access_token ? { Authorization: `Bearer ${authSession.access_token}` } : {}),
-    };
-
-    const tab = window.open("", "_blank");
-    try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          priceId,
-          companyId:     company.id,
-          userId:        user.id,
-          userEmail:     user.email ?? "",
-          planName:      confirmPlan,
-          billingPeriod: upgradePeriod,
-          ...(subscription?.stripe_customer_id
-            ? { customerId: subscription.stripe_customer_id }
-            : {}),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Erro ao criar sessão.");
-      if (tab) tab.location.href = data.url;
-      else window.location.href = data.url;
-    } catch (err) {
-      tab?.close();
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar checkout.");
-    } finally {
-      setUpgradeLoading(null);
-    }
-  };
-
-  if (upgradeOpen) {
-    return (
-      <>
-      <div className="space-y-6">
-        <div>
-          <button
-            onClick={() => setUpgradeOpen(false)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={14} /> Voltar
-          </button>
-          <div className="text-center">
-            <p className="text-xl font-bold text-foreground">Planos Rezult CRM</p>
-            <p className="text-sm text-muted-foreground mt-1">Encontre o plano que atende às suas necessidades!</p>
-          </div>
-        </div>
-        {/* Toggle de período */}
-        <div className="flex justify-center">
-          <div className="flex gap-1 p-1 rounded-xl bg-white border border-primary w-fit">
-            {(["monthly", "semiannual", "annual"] as UpgradePeriod[]).map((period) => {
-              const disc = UPGRADE_PERIOD_DISCOUNT[period];
-              return (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() => setUpgradePeriod(period)}
-                  className={cn(
-                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
-                    upgradePeriod === period
-                      ? "bg-primary text-white shadow-sm"
-                      : "bg-white text-foreground hover:text-foreground"
-                  )}
-                >
-                  {UPGRADE_PERIOD_LABELS[period]}
-                  {disc && (
-                    <span className={cn(
-                      "text-[9px] font-bold px-1 py-0.5 rounded-full",
-                      upgradePeriod === period
-                        ? "bg-white/20 text-white"
-                        : "bg-emerald-100 text-emerald-700"
-                    )}>
-                      {disc}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {/* Cards dos planos */}
-        <div className="grid grid-cols-3 gap-4 pb-8">
-          {UPGRADE_PLAN_INFO.map((plan) => {
-            const isCurrent = planKey === plan.key && (subscription?.billing_period ?? "monthly") === upgradePeriod;
-            const isLoading = upgradeLoading === plan.key;
-            return (
-              <div
-                key={plan.key}
-                className={cn(
-                  "relative flex flex-col rounded-xl p-5 transition-all bg-white",
-                  isCurrent ? "border border-primary" : plan.badge ? "border border-primary" : "border border-gray-200"
-                )}
-              >
-                {plan.badge && !isCurrent && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                    {plan.badge}
-                  </span>
-                )}
-                {isCurrent && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                    Plano atual
-                  </span>
-                )}
-                <p className="text-[20px] font-bold text-foreground">{plan.name}</p>
-                {upgradePeriod === "monthly" ? (
-                  <div className="mt-2 mb-2">
-                    <span className="text-2xl font-bold text-emerald-600">{plan.prices.monthly}</span>
-                    <span className="text-xs text-muted-foreground ml-1">/mês</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2 mt-2 mb-0">
-                      <span className="text-[12px] text-muted-foreground line-through">R$ {plan.rawMonthly},00</span>
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                        Economize {plan.savings[upgradePeriod as "semiannual" | "annual"]}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <div>
-                        <span className="text-2xl font-bold text-emerald-600">{plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}</span>
-                        <span className="text-xs text-muted-foreground ml-1">/mês</span>
-                      </div>
-                      <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
-                        {upgradePeriod === "semiannual" ? "Semestral" : "Anual"}
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-medium text-muted-foreground mb-3">
-                      Pagamento recorrente de {plan.prices[upgradePeriod]},00 a cada {upgradePeriod === "semiannual" ? "6" : "12"} meses
-                    </p>
-                  </>
-                )}
-                <ul className="space-y-1.5 flex-1 mb-4">
-                  {recursosDoPlano(plan.key).map(recurso => (
-                    <li key={chaveDoRecurso(recurso)} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-muted-foreground">
-                      <Check size={13} className={cn("mt-0.5 shrink-0", plan.badge ? "text-primary" : "text-emerald-600")} />
-                      <TextoDoRecurso recurso={recurso} negrito={false} />
-                    </li>
-                  ))}
-                </ul>
-                {isCurrent ? (
-                  <Button size="sm" variant="outline" className="w-full border-primary text-primary" disabled>Plano atual</Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    className={cn("w-full", plan.badge ? "" : "bg-primary hover:bg-primary/90")}
-                    disabled={upgradeLoading !== null}
-                    onClick={() => setConfirmPlan(plan.key)}
-                  >
-                    {isLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Atualizar plano"}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {(() => {
-        if (!confirmPlan) return null;
-        const plan = UPGRADE_PLAN_INFO.find(p => p.key === confirmPlan)!;
-        const periodLabel = upgradePeriod === "monthly" ? "Mensal" : upgradePeriod === "semiannual" ? "Semestral" : "Anual";
-        const price = upgradePeriod === "monthly"
-          ? `${plan.prices.monthly}/mês`
-          : `${plan.monthlyEquiv[upgradePeriod as "semiannual" | "annual"]}/mês`;
-        return (
-          <Dialog open onOpenChange={() => setConfirmPlan(null)}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2"><TriangleAlert size={16} />Confirmar plano</DialogTitle>
-                <p className="text-[12px] text-muted-foreground">O valor será ajustado automaticamente se houver um método de pagamento cadastrado.</p>
-              </DialogHeader>
-              <div className="py-2 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Plano</span>
-                  <span className="font-semibold">{plan.name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Frequência</span>
-                  <span className="font-semibold">{periodLabel}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Valor</span>
-                  <span className="font-semibold text-emerald-600">{price}</span>
-                </div>
-              </div>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setConfirmPlan(null)}>Cancelar</Button>
-                <Button onClick={handleSelectPlan} disabled={upgradeLoading !== null}>
-                  {upgradeLoading ? <><Loader2 size={13} className="animate-spin mr-1.5" />Aguarde...</> : "Confirmar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
-      </>
-    );
-  }
-
   return (
     <>
       {/* Cabeçalho */}
@@ -2156,7 +1898,7 @@ function PlanosSection() {
             <Button
               size="sm"
               className="bg-primary hover:bg-primary/90"
-              onClick={() => setUpgradeOpen(true)}
+              onClick={() => setOfertaAberta(true)}
             >
               Upgrade
             </Button>
@@ -2280,7 +2022,10 @@ function PlanosSection() {
         </div>
       </Card>
 
-      {/* ── Dialog de Upgrade ─────────────────────────────────────────────── */}
+      {/* O cartão de planos por cima desta tela. Fica montado o tempo todo e se
+          controla pelo `aberto`, como qualquer diálogo: montar só quando abre
+          faria o cartão nascer na hora do clique, sem a transição de entrada. */}
+      <OfertaDeContratacao aberto={ofertaAberta} aoFechar={() => setOfertaAberta(false)} />
     </>
   );
 }
