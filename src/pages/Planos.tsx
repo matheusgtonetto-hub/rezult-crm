@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Check, Zap, ArrowLeft, Loader2 } from "lucide-react";
 
 import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
+import { TextoDoRecurso } from "@/components/TextoDoRecurso";
+import { PLANS, chaveDoRecurso } from "@/data/plans";
 import { pixelTrack } from "@/lib/metaPixel";
 
 type PlanKey = StripePlanKey;
@@ -18,13 +20,23 @@ type BillingPeriod = StripeBillingPeriod;
 
 // ─── Plan display data ────────────────────────────────────────────────────────
 
+/**
+ * Preços desta tela. Os BENEFÍCIOS saem de `PLANS`, a fonte única.
+ *
+ * Esta era a quarta cópia da mesma lista de benefícios no produto -- junto com a
+ * da tela da oferta, a de `PLANS` e a do diálogo de upgrade -- e elas já não
+ * diziam a mesma coisa: a oferta prometia "Acesso à API e MCP" no Silver,
+ * enquanto esta e a do upgrade só davam API a partir do Platinum.
+ *
+ * Os preços continuam aqui pelo formato: "R$ 237" sem centavos e o equivalente
+ * mensal de cada período, que é como esta tela os mostra.
+ */
 interface PlanInfo {
   key: PlanKey;
   name: string;
   badge?: string;
   prices: { monthly: string; semiannual: string; annual: string };
   monthlyEquiv: { semiannual: string; annual: string };
-  features: string[];
 }
 
 const PLAN_INFO: PlanInfo[] = [
@@ -33,15 +45,6 @@ const PLAN_INFO: PlanInfo[] = [
     name: "Silver",
     prices:       { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
-    features: [
-      "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 5 mil leads com controle de tags.",
-      "Cadastro de 4 membros na empresa.",
-      "8 automações para otimizar interações com leads.",
-      "Multiatendimento com até 3 conexões (WhatsApp, Instagram e outros).",
-      "3 integrações com Webhooks para conectar outras ferramentas.",
-    ],
   },
   {
     key: "platinum",
@@ -49,36 +52,17 @@ const PLAN_INFO: PlanInfo[] = [
     badge: "Mais popular",
     prices:       { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
-    features: [
-      "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 100 mil leads com controle de tags.",
-      "Cadastro de 15 membros na empresa.",
-      "20 automações para otimizar interações com leads.",
-      "Multiatendimento com até 10 conexões (WhatsApp, Instagram e outros).",
-      "15 integrações com Webhooks para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
-    ],
   },
   {
     key: "emerald",
     name: "Emerald",
     prices:       { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
-    features: [
-      "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
-      "Gerenciamento ilimitado de leads com controle de tags.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Cadastro ilimitado de membros na empresa.",
-      "Automações ilimitadas para otimizar interações com leads.",
-      "Multiatendimento com conexões ilimitadas (WhatsApp, Instagram e outros).",
-      "Integrações com Webhooks ilimitadas para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
-    ],
   },
 ];
+
+/** Benefícios do plano, vindos da fonte única. */
+const recursosDoPlano = (key: string) => PLANS.find(p => p.key === key)?.features ?? [];
 
 const PERIOD_LABELS: Record<BillingPeriod, string> = {
   monthly:    "Mensal",
@@ -285,8 +269,8 @@ export default function PlanosPage() {
 
               {/* Features */}
               <ul className="space-y-2 flex-1 mb-6">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                {recursosDoPlano(plan.key).map((recurso) => (
+                  <li key={chaveDoRecurso(recurso)} className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Check
                       size={13}
                       className={cn(
@@ -294,7 +278,7 @@ export default function PlanosPage() {
                         plan.badge ? "text-primary" : "text-emerald-600"
                       )}
                     />
-                    {f}
+                    <TextoDoRecurso recurso={recurso} />
                   </li>
                 ))}
               </ul>

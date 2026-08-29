@@ -278,14 +278,29 @@ export default function LeadsPage() {
     // O respiro maior em cima separa a página da barra do navegador; nas
     // laterais o limite já é a sidebar.
     <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Leads</h1>
+      {/*
+        Mesmo cartão de boas-vindas de /inicio: fundo do cartão, borda cinza,
+        canto de 12px, elevação 1 e 20px de respiro interno. As classes são as
+        de `InicioPage.tsx`, copiadas e não importadas -- são duas telas
+        diferentes com o mesmo enquadramento, não um componente compartilhado.
+        Se isso virar um terceiro uso, vale extrair.
+
+        `items-start` como nas outras três: alinha os botões pelo topo, na mesma
+        linha do título. Alternar entre as abas com o botão em alturas
+        diferentes chama mais atenção do que qualquer ganho de equilíbrio dentro
+        de uma tela isolada.
+
+        `flex-wrap` para os botões descerem para baixo do texto em tela estreita,
+        em vez de espremerem o título.
+      */}
+      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-[23px] font-semibold text-foreground">Leads</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Consulte, crie, modifique ou remova seus leads
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button variant="outline" onClick={() => setImportOpen(true)} className="rounded-lg font-semibold bg-white">
             <Upload size={16} className="mr-1" /> Importar lista
           </Button>

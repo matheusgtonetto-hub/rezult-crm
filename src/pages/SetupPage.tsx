@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { PLANS, type PlanDefinition } from "@/data/plans";
+import { PLANS, chaveDoRecurso, type PlanDefinition } from "@/data/plans";
 import { STRIPE_PRICES } from "@/data/stripePrices";
 import { Button } from "@/components/ui/button";
 import {
@@ -312,55 +312,22 @@ const SETUP_PLAN_TOTALS: Record<string, { semestral: string; anual: string }> = 
 
 
 /**
- * Recursos de cada plano, na divisão que o site usa.
+ * Os benefícios saíram daqui para `src/data/plans.ts`.
  *
- * `forte` é o pedaço em negrito, `resto` é o que vem depois em cinza, e o
- * primeiro item de cada plano leva o brilho verde -- é assim em
- * rezult-site/planos.html, onde só o primeiro item ganha o `em-shine-text`.
- * Os dois últimos itens não têm negrito nenhum, também como lá.
+ * Esta tela tinha a própria lista, e ela já divergia das outras duas: prometia
+ * "Acesso à API e MCP" no Silver enquanto o diálogo de upgrade das configurações
+ * só dava API a partir do Platinum. Era a mesma pessoa lendo duas promessas
+ * diferentes do mesmo plano, com uma semana de diferença.
  *
- * Os textos são os do site, palavra por palavra, inclusive sem o ponto final
- * que a versão anterior desta tela usava. Duas telas que vendem o mesmo plano
- * não deveriam descrevê-lo com palavras diferentes.
+ * A redação que ficou foi a desta tela, que é a do site. O que era daqui e
+ * continua aqui é só a APRESENTAÇÃO: o brilho verde do primeiro item, o tamanho
+ * maior dele e as cores de fundo escuro, que não existem em nenhuma outra tela.
+ *
+ * O brilho era um campo `brilho: true` na lista, sempre no primeiro item de cada
+ * plano. Virou a posição em si (`indice === 0`), porque um campo que só pode ser
+ * verdadeiro no primeiro item é uma segunda maneira de dizer "primeiro" -- e as
+ * duas podem discordar no dia em que alguém reordenar a lista.
  */
-interface Recurso {
-  forte?: string;
-  resto?: string;
-  brilho?: boolean;
-}
-
-const SETUP_PLAN_FEATURES: Record<string, Recurso[]> = {
-  silver: [
-    { forte: "4 usuários",    resto: "no sistema", brilho: true },
-    { forte: "5 mil leads",   resto: "com controle de tags" },
-    { forte: "8 automações",  resto: "para interações com leads" },
-    { forte: "3 conexões",    resto: "WhatsApp" },
-    { forte: "5 pipelines",   resto: "com até 8 etapas" },
-    { forte: "3 integrações", resto: "via Webhook" },
-    { resto: "Acesso à API e MCP" },
-    { resto: "Dashboards detalhados da operação" },
-  ],
-  platinum: [
-    { forte: "15 usuários",    resto: "no sistema", brilho: true },
-    { forte: "100 mil leads",  resto: "com controle de tags" },
-    { forte: "20 automações",  resto: "para interações com leads" },
-    { forte: "10 conexões",    resto: "WhatsApp" },
-    { forte: "20 pipelines",   resto: "com até 15 etapas" },
-    { forte: "15 integrações", resto: "via Webhook" },
-    { resto: "Acesso à API e MCP" },
-    { resto: "Dashboards detalhados da operação" },
-  ],
-  emerald: [
-    { forte: "Usuários ilimitados",    resto: "no sistema", brilho: true },
-    { forte: "Leads ilimitados",       resto: "com controle de tags" },
-    { forte: "Automações ilimitadas" },
-    { forte: "Conexões ilimitadas",    resto: "WhatsApp" },
-    { forte: "Pipelines ilimitadas",   resto: "com até 25 etapas" },
-    { forte: "Integrações ilimitadas", resto: "via Webhook" },
-    { resto: "Acesso à API e MCP" },
-    { resto: "Dashboards detalhados da operação" },
-  ],
-};
 
 /**
  * Selo da oferta, no topo do card.
@@ -1142,28 +1109,12 @@ export default function SetupPage() {
                                   : null;
                                 return (
                                   <div className="flex items-center gap-2 mt-1 min-w-0">
-                                    {/* O cupom da Stripe é de duração `once`:
-                                        desconta a PRIMEIRA fatura e só ela.
-                                        Como a fatura do semestral cobre seis
-                                        meses e a do anual cobre doze, nesses
-                                        dois o ciclo inteiro mostrado ali sai
-                                        pela metade, e a linha do total já conta
-                                        essa história certa.
-
-                                        No mensal a fatura é de um mês, então
-                                        "R$ 118,50/mês" lá em cima vale só para
-                                        a primeira. Sem esta ressalva, a segunda
-                                        cobrança chega ao dobro e a pessoa se
-                                        sente enganada -- no exato momento em
-                                        que ela decide se fica. */}
                                     <p className="text-[11px] min-w-0 truncate" style={{ color: SITE.textoFraco }}>
                                       {total
                                         ? (ofertaAtiva
                                             ? <>de <s>{total}</s> por {comDesconto(total)}</>
                                             : <>Total de {total} por ciclo</>)
-                                        : (ofertaAtiva
-                                            ? "Desconto na 1ª mensalidade. Depois, cobrança recorrente."
-                                            : "Cobrança mensal recorrente")}
+                                        : "Cobrança mensal recorrente"}
                                     </p>
                                   </div>
                                 );
@@ -1215,35 +1166,37 @@ export default function SetupPage() {
                             </button>
 
                             <ul className="flex flex-col gap-[9px] mt-4">
-                              {(SETUP_PLAN_FEATURES[plan.key] ?? []).map((recurso) => (
-                                // O item em destaque é um ponto maior que os
-                                // demais. Sai do mesmo `brilho` que já lhe dá a
-                                // cor animada, então tamanho e efeito não podem
-                                // se separar por engano: o item destacado é
-                                // destacado nas duas coisas ou em nenhuma.
-                                <li
-                                  key={`${recurso.forte ?? ""}${recurso.resto ?? ""}`}
-                                  className={cn(
-                                    "flex items-start gap-2 leading-[1.45]",
-                                    recurso.brilho ? "text-[15px]" : "text-[12px]"
-                                  )}
-                                  style={{ color: SITE.textoSuave }}
-                                >
-                                  <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: SITE.verde }} />
-                                  <span>
-                                    {recurso.forte && (
-                                      <b
-                                        className={recurso.brilho ? "texto-brilho" : undefined}
-                                        style={{ fontWeight: 600, color: recurso.brilho ? undefined : SITE.texto }}
-                                      >
-                                        {recurso.forte}
-                                      </b>
+                              {plan.features.map((recurso, indice) => {
+                                // O primeiro item é o destaque do plano: ponto
+                                // maior e cor verde animada. As duas coisas
+                                // saem da MESMA condição, então não há como uma
+                                // valer sem a outra.
+                                const destaque = indice === 0;
+                                return (
+                                  <li
+                                    key={chaveDoRecurso(recurso)}
+                                    className={cn(
+                                      "flex items-start gap-2 leading-[1.45]",
+                                      destaque ? "text-[15px]" : "text-[12px]"
                                     )}
-                                    {recurso.forte && recurso.resto ? " " : ""}
-                                    {recurso.resto}
-                                  </span>
-                                </li>
-                              ))}
+                                    style={{ color: SITE.textoSuave }}
+                                  >
+                                    <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: SITE.verde }} />
+                                    <span>
+                                      {recurso.forte && (
+                                        <b
+                                          className={destaque ? "texto-brilho" : undefined}
+                                          style={{ fontWeight: 600, color: destaque ? undefined : SITE.texto }}
+                                        >
+                                          {recurso.forte}
+                                        </b>
+                                      )}
+                                      {recurso.forte && recurso.resto ? " " : ""}
+                                      {recurso.resto}
+                                    </span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         );

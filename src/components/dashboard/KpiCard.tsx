@@ -113,10 +113,26 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
   // comparar cartões de alturas diferentes.
   const temSparkline = Array.isArray(serie) && serie.length >= 2;
 
+  /*
+    O ícone, com ou sem o quadrado tingido atrás.
+
+    Nos cartões de negócio (`destaqueNoSub`) ele fica solto, só o traço colorido.
+    Nos demais o quadrado continua, porque ali o ícone é a única cor do cartão e
+    sem o fundo ele se perde na área branca.
+
+    A caixa de 36px permanece nos dois casos, e é ela que segura o layout: o
+    respiro da primeira linha e o centro vertical do rótulo saem dessa altura.
+    Tirar a caixa junto com o fundo encolheria o cartão inteiro em uns 15px, o
+    que não é remover um fundo, é mudar o cartão.
+
+    A condição está presa a `destaqueNoSub` porque hoje ele marca exatamente um
+    caso -- os quatro cartões do topo de Negócios. Se um dia uma terceira
+    variante precisar decidir isso por conta própria, vira prop.
+  */
   const chipDoIcone = Icone && (
     <div
-      className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
-      style={{ background: `${cor}1A` }}  /* 1A = 10% de opacidade em hex */
+      className={`w-9 h-9 flex items-center justify-center shrink-0 ${destaqueNoSub ? "" : "rounded-[10px]"}`}
+      style={destaqueNoSub ? undefined : { background: `${cor}1A` }}  /* 1A = 10% de opacidade em hex */
     >
       <Icone size={17} style={{ color: cor }} />
     </div>

@@ -24,19 +24,22 @@ import {
   AlertDialogFooter, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import {
   ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2, GripVertical, Type, DollarSign, Hash,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
   Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown, ChevronRight, ChevronsRight,
-  Search, ExternalLink, Settings, Settings2, Rocket, CalendarDays, Loader2,
-  Filter, Network, UserRound, MessageCircle, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
-  Sparkles, LayoutDashboard, Megaphone,
+  Search, ExternalLink, Settings, Settings2, CalendarDays, Loader2,
+  Filter, Network, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
+  Sparkles, Megaphone, BotMessageSquare,
+  ChartColumnDecreasing, ContactRound, Workflow,
 } from "lucide-react";
 import { useCompany, type WhatsAppConnection } from "@/context/CompanyContext";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLANS, PLAN_LIMITS } from "@/data/plans";
+import { PLANS, PLAN_LIMITS, chaveDoRecurso } from "@/data/plans";
+import { TextoDoRecurso } from "@/components/TextoDoRecurso";
 import type { CustomFieldType } from "@/data/mockData";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
@@ -139,20 +142,23 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setActive(s.id)}
-                className={`flex items-center gap-[5px] px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
+                // `justify-between` empurra a seta para a direita: o rótulo
+                // fica encostado na margem esquerda, alinhado com os das outras
+                // seções, e a seta marca o fim da linha em vez do começo.
+                className={`flex items-center justify-between gap-[5px] px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
                   isActive
                     ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
                     : "w-full border-transparent"
                 }`}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
               >
+                {s.label}
                 {/* Seta dupla na seção aberta, simples nas outras: o realce
                     verde já diz qual é a ativa, e a segunda ponta reforça o
                     "você está aqui" sem depender só da cor. */}
                 {isActive
-                  ? <ChevronsRight size={14} className="text-primary" />
-                  : <ChevronRight size={14} />}
-                {s.label}
+                  ? <ChevronsRight size={14} className="text-primary shrink-0" />
+                  : <ChevronRight size={14} className="shrink-0" />}
               </button>
             );
           })}
@@ -378,22 +384,43 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
 
         <hr className="border-card-border my-[30px]" />
 
-        {/* Imagem de perfil */}
-        <SectionTitle title="Imagem de perfil" subtitle="Faça o upload da sua imagem de perfil aqui" />
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
-              : initials(name || "?")}
+        {/*
+          Imagem de perfil numa linha só: título e subtítulo à esquerda, foto e
+          botão à direita. É pouca coisa para ocupar a largura inteira do card,
+          e a área de upload em bloco empurrava o botão Salvar para longe.
+
+          O `flex-wrap` é o que salva a tela estreita: abaixo de ~640px os dois
+          lados quebram um sobre o outro em vez de espremer o botão.
+        */}
+        <div className="flex items-center gap-6 flex-wrap">
+          {/*
+            `flex-1` nos dois lados (flex: 1 1 0%) é o que divide o card ao meio:
+            ambos partem de largura zero e crescem igual, então nem o texto nem o
+            upload manda na divisão. O `min-w` é o gatilho da quebra no celular.
+          */}
+          <div className="flex-1 min-w-[240px]">
+            <h2 className="text-base font-semibold text-foreground">Imagem de perfil</h2>
+            <p className="text-[14px] text-muted-foreground mt-0.5">Faça o upload da sua imagem de perfil aqui</p>
           </div>
-          <div
-            className="flex-1 border-[1.5px] border-dashed border-card-border rounded-lg p-6 text-center hover:border-primary cursor-pointer transition-colors"
-            onClick={() => fileRef.current?.click()}
-          >
+
+          <div className="flex-1 min-w-[240px] flex items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
+                : initials(name || "?")}
+            </div>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-            <Upload size={20} className="text-muted-foreground mx-auto mb-1" />
-            <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
-            <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF · max 2MB</p>
+            {/* `self-stretch` casa a altura da caixa com a da foto, sem repetir medida. */}
+            <div
+              className="flex-1 self-stretch flex items-center justify-center gap-2.5 border-[1.5px] border-dashed border-card-border rounded-lg px-4 hover:border-primary cursor-pointer transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload size={18} className="text-muted-foreground shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[14px] text-muted-foreground">{uploading ? "Enviando..." : "Escolher arquivo"}</p>
+                <p className="text-xs text-muted-foreground">JPG, PNG, GIF · max 2MB</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -905,9 +932,29 @@ interface PendingInvite {
   created_at: string;
 }
 
+/**
+ * Os grupos de permissão do convite, espelhando as abas da barra lateral.
+ *
+ * Ícone e nome iguais aos de lá, de propósito: quem convida está decidindo o
+ * que a pessoa vai VER, e a lista precisa parecer o menu que ela terá. Ícones
+ * diferentes obrigam a traduzir mentalmente "Network" para "Automações" antes
+ * de marcar a caixa.
+ *
+ * Três grupos não têm aba correspondente -- Impulsos, Atividades e Cadastros
+ * auxiliares -- e continuam com ícones próprios. Eles governam acesso a partes
+ * que vivem dentro de outras telas.
+ */
+/**
+ * A ORDEM aqui é a ordem da barra lateral, e não é detalhe: quem convida está
+ * decidindo o que a pessoa vai ver, e percorrer a lista na mesma sequência do
+ * menu dela evita procurar item por item.
+ *
+ * Se a barra lateral for reordenada, esta lista precisa acompanhar. As duas
+ * ficam em `src/components/AppSidebar.tsx` e aqui.
+ */
 const PERMISSION_GROUPS = [
   {
-    id: "dashboard", label: "Dashboard", icon: LayoutDashboard,
+    id: "dashboard", label: "Dashboard", icon: ChartColumnDecreasing,
     description: "Permissões de acesso ao dashboard da empresa.",
     options: [
       { id: "dashboard:admin",  label: "Administrador do Dashboard", description: "Acessa todos os dados do dashboard, incluindo métricas de todos os atendentes." },
@@ -923,7 +970,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "leads", label: "Leads", icon: UserRound,
+    id: "leads", label: "Leads", icon: ContactRound,
     description: "Permissões relacionadas à gestão de leads.",
     options: [
       { id: "leads:admin",      label: "Administrador de Leads",     description: "Permite acesso à listagem de leads e a todas as ações relacionadas à eles." },
@@ -933,22 +980,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "automacoes", label: "Automações", icon: Network,
-    description: "Permissões relacionadas ao fluxo de automações",
-    options: [
-      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
-      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
-    ],
-  },
-  {
-    id: "impulsos", label: "Impulsos", icon: Rocket,
-    description: "Permite acesso ao Impulsos.",
-    options: [
-      { id: "impulsos:admin", label: "Administrador de Boosts", description: "Permite acesso ao Impulsos." },
-    ],
-  },
-  {
-    id: "multiatendimento", label: "Multiatendimento", icon: MessageCircle,
+    id: "multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon,
     description: "Permissões relacionadas ao multiatendimento",
     options: [
       { id: "multiatendimento:admin",      label: "Administrador de multiatendimento", description: "Permite acesso completo ao multiatendimento, ao dashboard e às configurações, sem limitações." },
@@ -957,26 +989,51 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: "atividades", label: "Atividades", icon: CalendarDays,
-    description: "Permissões relacionadas às atividades.",
+    // O id continua "impulsos" porque é o que está gravado nas permissões de
+    // quem já foi convidado. Trocá-lo obrigaria a migrar esses registros, e
+    // qualquer falha ali tiraria acesso de gente que trabalha. Nome e ícone
+    // acompanham a aba; o id é histórico e fica onde está.
+    id: "impulsos", label: "Disparos", icon: Zap,
+    description: "Permissões relacionadas aos disparos em massa.",
     options: [
-      { id: "atividades:admin", label: "Administrador de Atividades", description: "Permite acesso ao calendário de atividade de todos atendentes." },
+      { id: "impulsos:admin", label: "Administrador de Disparos", description: "Permite criar, agendar e acompanhar disparos." },
     ],
   },
   {
-    id: "cadastros", label: "Cadastros auxiliares", icon: Tag,
-    description: "Permissões relacionadas aos cadastros auxiliares",
+    id: "automacoes", label: "Automações", icon: Workflow,
+    description: "Permissões relacionadas ao fluxo de automações.",
     options: [
-      { id: "cadastros:admin",  label: "Administrador de Cadastros Auxiliares", description: "Permite acesso a criação, edição e exclusão dos auxiliares, como: produtos, tags, listas, etc." },
-      { id: "cadastros:member", label: "Membro de Cadastros Auxiliares",        description: "Permite acesso à listagem de auxiliares, como: produtos, tags, listas etc." },
+      { id: "automacoes:admin",  label: "Administrador das Automações", description: "Permite acesso à visualização das automações e a todas as ações relacionadas à elas." },
+      { id: "automacoes:member", label: "Membro das Automações",        description: "Permite acesso à visualização das automações" },
+    ],
+  },
+  {
+    // Vem logo depois de Automações porque é o vizinho conceitual: as duas
+    // agem sozinhas sobre os leads, e quem configura uma costuma configurar a
+    // outra.
+    id: "agentes", label: "Agentes", icon: BotMessageSquare,
+    description: "Permissões relacionadas aos agentes de IA.",
+    options: [
+      { id: "agentes:admin",  label: "Administrador de Agentes", description: "Permite criar, editar, ativar e desativar agentes, e alterar as chaves e integrações deles." },
+      { id: "agentes:member", label: "Membro de Agentes",        description: "Permite acompanhar os agentes e as conversas que eles conduzem, sem alterar a configuração." },
     ],
   },
 ];
 
+// Atividades e Cadastros auxiliares saíram da lista: são de acesso livre.
+//
+// As duas nunca foram checadas em lugar nenhum do produto -- apareciam no
+// convite, davam trabalho de decidir e não liberavam nem bloqueavam nada.
+// Permissão que promete controle sem exercê-lo é pior que a ausência dela: quem
+// convida acredita ter restringido algo.
+//
+// Quem já foi convidado pode ter "atividades:admin" ou "cadastros:*" gravado.
+// Ficam lá, inertes, e somem sozinhos na próxima vez que as permissões daquele
+// membro forem salvas.
+
 const PERM_MODULE_LABELS: Record<string, string> = {
   dashboard: "Dashboard", pipelines: "Pipelines", leads: "Leads",
-  automacoes: "Automações", impulsos: "Impulsos", multiatendimento: "Multi",
-  atividades: "Atividades", cadastros: "Cadastros",
+  multiatendimento: "Multi", impulsos: "Disparos", automacoes: "Automações", agentes: "Agentes",
 };
 
 function permSummary(permissions: string[]): string {
@@ -985,8 +1042,24 @@ function permSummary(permissions: string[]): string {
 }
 
 function PermissionsEditor({
-  permissions, onChange,
-}: { permissions: string[]; onChange: (p: string[]) => void }) {
+  permissions, onChange, emGrade = false,
+}: {
+  permissions: string[];
+  onChange: (p: string[]) => void;
+  /**
+   * Distribui os grupos em duas colunas.
+   *
+   * São nove grupos. Empilhados, o último fica a uma rolagem inteira do
+   * primeiro, e quem convida precisa lembrar o que marcou lá em cima. Em duas
+   * colunas cabem quase todos de uma vez, e a decisão vira comparação em vez de
+   * memória.
+   *
+   * Fica atrás de uma prop porque só o diálogo largo tem espaço: em 512px, duas
+   * colunas dariam cartões de 240px e o nome dos grupos quebraria em duas
+   * linhas.
+   */
+  emGrade?: boolean;
+}) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     Object.fromEntries(PERMISSION_GROUPS.map(g => [g.id, false]))
   );
@@ -999,7 +1072,7 @@ function PermissionsEditor({
   };
 
   return (
-    <div className="space-y-[5px]">
+    <div className={emGrade ? "grid grid-cols-2 gap-[6px] items-start" : "space-y-[5px]"}>
       {PERMISSION_GROUPS.map(group => {
         const Icon = group.icon;
         const isOpen = openGroups[group.id] ?? true;
@@ -1061,6 +1134,14 @@ function EquipeSection() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePerms, setInvitePerms] = useState<string[]>([]);
   const [isAdminInvite, setIsAdminInvite] = useState(false);
+  /**
+   * Qual grupo de permissões está aberto no painel da direita.
+   *
+   * Começa em "admin", que é a primeira linha da lista: o painel nunca nasce
+   * vazio, e a primeira coisa que a pessoa lê é a decisão que dispensa todas as
+   * outras. Quem vai convidar um sócio resolve ali e fecha.
+   */
+  const [grupoAberto, setGrupoAberto] = useState<string>("admin");
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<Member | null>(null);
@@ -1361,50 +1442,186 @@ function EquipeSection() {
 
       {/* Dialog: Adicionar membro */}
       <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
-        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        {/**
+          * Duas colunas em vez de uma pilha.
+          *
+          * São duas decisões de naturezas diferentes: QUEM entra, que é uma
+          * linha, e O QUE ele enxerga, que são nove grupos. Empilhadas, a
+          * primeira some assim que a pessoa começa a rolar a segunda, e ela
+          * perde de vista para quem está dando acesso.
+          *
+          * Lado a lado, o e-mail e o interruptor de administrador ficam sempre
+          * visíveis enquanto as permissões são marcadas. Só a coluna da direita
+          * rola, então o rodapé com os botões também nunca sai da tela.
+          */}
+        <DialogContent className="max-w-4xl bg-white max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
-          <div className="py-2 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
-              <Input
-                type="email"
-                placeholder="joao@empresa.com"
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                autoFocus
-              />
+
+          <div className="flex-1 flex min-h-0">
+            {/* Coluna da esquerda: quem entra e o que ele pode acessar, em
+                lista. Largura fixa -- é sempre o mesmo conteúdo, e deixá-la
+                crescer roubaria espaço de quem precisa. */}
+            <div className="w-[300px] shrink-0 border-r border-gray-100 flex flex-col min-h-0">
+              <div className="p-6 pb-4 shrink-0 space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
+                <Input
+                  type="email"
+                  placeholder="joao@empresa.com"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  autoFocus
+                />
+              </div>
+
+              {/* A lista de acessos. Só ela rola, para o e-mail continuar à
+                  vista enquanto a pessoa percorre as permissões. */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-4">
+                <p className="text-xs font-semibold text-muted-foreground px-3 pb-2">Acessos</p>
+
+                {/* Administrador é a PRIMEIRA linha, e não um bloco à parte.
+                    Ele é uma escolha da mesma família das outras -- o que a
+                    pessoa vai enxergar -- e ficar fora da lista o fazia parecer
+                    uma configuração de outra natureza.
+                    
+                    Continua no topo porque dispensa todas as demais: quem clica
+                    ali resolve o convite numa decisão só. */}
+                <button
+                  type="button"
+                  onClick={() => setGrupoAberto("admin")}
+                  className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
+                    grupoAberto === "admin" ? "bg-[#FFFBEB]" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <Crown size={14} className={`shrink-0 ${grupoAberto === "admin" || isAdminInvite ? "text-[#D97706]" : "text-muted-foreground"}`} />
+                  <span className={`flex-1 text-[13px] truncate ${grupoAberto === "admin" || isAdminInvite ? "text-[#D97706] font-semibold" : "text-foreground"}`}>
+                    Administrador
+                  </span>
+                  {isAdminInvite && <span className="w-[6px] h-[6px] rounded-full bg-[#D97706] shrink-0" />}
+                </button>
+
+                {PERMISSION_GROUPS.map(grupo => {
+                  const Icon = grupo.icon;
+                  const ativo = grupoAberto === grupo.id;
+                  const temEscolha = grupo.options.some(o => invitePerms.includes(o.id));
+                  return (
+                    <button
+                      key={grupo.id}
+                      type="button"
+                      // Desligados enquanto for administrador: marcar acesso
+                      // individual para quem já tem tudo não muda nada, e deixar
+                      // clicável convidaria a um trabalho sem efeito.
+                      disabled={isAdminInvite}
+                      onClick={() => setGrupoAberto(grupo.id)}
+                      className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
+                        ativo ? "bg-primary/10" : "enabled:hover:bg-gray-50"
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    >
+                      <Icon size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`flex-1 text-[13px] truncate ${ativo || temEscolha ? "text-primary font-semibold" : "text-foreground"}`}>
+                        {grupo.label}
+                      </span>
+                      {/* Ponto verde no que já foi marcado: sem ele, saber onde
+                          há escolha exigiria abrir grupo por grupo. */}
+                      {temEscolha && <span className="w-[6px] h-[6px] rounded-full bg-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
+            {/* Coluna da direita: o detalhe do que estiver aberto na esquerda. */}
+            <div className="flex-1 min-w-0 overflow-y-auto p-6">
+              {grupoAberto === "admin" ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Crown size={16} className="text-[#D97706] shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-foreground">Administrador</h3>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                    Acesso completo à conta, sem depender das permissões individuais.
+                  </p>
 
-            {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
-              <div className="flex-1">
-                <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
-                  <Crown size={12} className="inline mr-1" />
-                  Administrador (acesso total)
-                </p>
-                <p className="text-[12px] text-muted-foreground">Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={isAdminInvite}
-                onChange={e => setIsAdminInvite(e.target.checked)}
-                className="accent-[#D97706] w-4 h-4 shrink-0"
-              />
-            </label>
+                  <label className={`flex items-start gap-3 px-4 py-3 mt-4 rounded-[8px] border cursor-pointer transition-colors ${
+                    isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-gray-50"
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={isAdminInvite}
+                      onChange={e => setIsAdminInvite(e.target.checked)}
+                      className="mt-0.5 accent-[#D97706] w-4 h-4 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
+                        Administrador (acesso total)
+                      </p>
+                      <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">
+                        Concede acesso completo, incluindo visualização, edição, assinatura e gestão de membros.
+                      </p>
+                    </div>
+                  </label>
 
-            {/* Grupos de permissão — ocultos se admin */}
-            {!isAdminInvite && (
-              <PermissionsEditor permissions={invitePerms} onChange={setInvitePerms} />
-            )}
+                  {isAdminInvite && (
+                    <p className="text-[12px] text-muted-foreground mt-3 leading-snug">
+                      Com isto marcado, os acessos da lista ao lado ficam desligados: administradores
+                      enxergam todas as abas, então não há o que escolher.
+                    </p>
+                  )}
+                </>
+              ) : (() => {
+                const grupo = PERMISSION_GROUPS.find(g => g.id === grupoAberto) ?? PERMISSION_GROUPS[0];
+                const Icon = grupo.icon;
+                const marcar = (permId: string) => {
+                  // Uma opção por grupo: marcar troca em vez de somar. Duas
+                  // permissões do mesmo módulo se contradiriam -- não faz
+                  // sentido ser administrador e membro restrito de Leads.
+                  setInvitePerms(atual => atual.includes(permId)
+                    ? atual.filter(x => x !== permId)
+                    : [...atual.filter(x => !x.startsWith(permId.split(":")[0] + ":")), permId]);
+                };
+                return (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Icon size={16} className="text-foreground shrink-0" />
+                      <h3 className="text-[14px] font-semibold text-foreground">{grupo.label}</h3>
+                    </div>
+                    <p className="text-[12px] text-muted-foreground mt-1 leading-snug">{grupo.description}</p>
+
+                    <div className="mt-4 space-y-[6px]">
+                      {grupo.options.map(opt => {
+                        const marcada = invitePerms.includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-start gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
+                              marcada ? "border-primary bg-primary/10" : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={marcada}
+                              onChange={() => marcar(opt.id)}
+                              className="mt-0.5 accent-primary w-4 h-4 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className={`text-[12px] font-semibold ${marcada ? "text-primary" : "text-foreground"}`}>{opt.label}</p>
+                              <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">{opt.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
-          <div className="flex gap-2 w-full pt-2">
-            <Button variant="outline" onClick={() => setAddOpen(false)} className="flex-1 border-card-border">Cancelar</Button>
-            <Button onClick={handleAddMember} disabled={inviting} className="flex-1 bg-primary hover:bg-primary/90">
+
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setAddOpen(false)} className="border-card-border min-w-[110px]">Cancelar</Button>
+            <Button onClick={handleAddMember} disabled={inviting} className="bg-primary hover:bg-primary/90 min-w-[110px]">
               {inviting ? "Processando..." : "Convidar"}
             </Button>
           </div>
@@ -1495,6 +1712,18 @@ const UPGRADE_PRICES = STRIPE_PRICES;
 type UpgradePlanKey = StripePlanKey;
 type UpgradePeriod  = StripeBillingPeriod;
 
+/**
+ * Preços e rótulos do diálogo de upgrade.
+ *
+ * Os BENEFÍCIOS não estão mais aqui: saem de `PLANS`, junto com os da tela da
+ * oferta e os do /planos. Esta lista tinha a própria cópia e ela já divergia --
+ * prometia API só a partir do Platinum enquanto a tela da oferta dava API e MCP
+ * no Silver. Quem testava o produto e depois abria o upgrade via o Silver
+ * encolher entre uma tela e outra.
+ *
+ * Os preços continuam aqui porque este diálogo os mostra em outro formato:
+ * "R$ 237" sem centavos, mais o equivalente mensal e a economia por período.
+ */
 const UPGRADE_PLAN_INFO = [
   {
     key: "silver" as UpgradePlanKey,
@@ -1503,15 +1732,6 @@ const UPGRADE_PLAN_INFO = [
     prices: { monthly: "R$ 237", semiannual: "R$ 1.209", annual: "R$ 1.989" },
     monthlyEquiv: { semiannual: "R$ 201", annual: "R$ 166" },
     savings: { semiannual: "R$ 213,00", annual: "R$ 855,00" },
-    features: [
-      "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 5 mil leads com controle de tags.",
-      "Cadastro de 4 membros na empresa.",
-      "8 automações para otimizar interações com leads.",
-      "Multiatendimento com até 3 conexões (WhatsApp, Instagram e outros).",
-      "3 integrações com Webhooks para conectar outras ferramentas.",
-    ],
   },
   {
     key: "platinum" as UpgradePlanKey,
@@ -1521,17 +1741,6 @@ const UPGRADE_PLAN_INFO = [
     prices: { monthly: "R$ 399", semiannual: "R$ 2.035", annual: "R$ 3.352" },
     monthlyEquiv: { semiannual: "R$ 339", annual: "R$ 279" },
     savings: { semiannual: "R$ 359,00", annual: "R$ 1.436,00" },
-    features: [
-      "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 100 mil leads com controle de tags.",
-      "Cadastro de 15 membros na empresa.",
-      "20 automações para otimizar interações com leads.",
-      "Multiatendimento com até 10 conexões (WhatsApp, Instagram e outros).",
-      "15 integrações com Webhooks para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
-    ],
   },
   {
     key: "emerald" as UpgradePlanKey,
@@ -1540,19 +1749,11 @@ const UPGRADE_PLAN_INFO = [
     prices: { monthly: "R$ 747", semiannual: "R$ 3.810", annual: "R$ 6.272" },
     monthlyEquiv: { semiannual: "R$ 635", annual: "R$ 523" },
     savings: { semiannual: "R$ 672,00", annual: "R$ 2.692,00" },
-    features: [
-      "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
-      "Gerenciamento ilimitado de leads com controle de tags.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Cadastro ilimitado de membros na empresa.",
-      "Automações ilimitadas para otimizar interações com leads.",
-      "Multiatendimento com conexões ilimitadas (WhatsApp, Instagram e outros).",
-      "Integrações com Webhooks ilimitadas para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
-    ],
   },
 ];
+
+/** Benefícios do plano, vindos da fonte única. */
+const recursosDoPlano = (key: string) => PLANS.find(p => p.key === key)?.features ?? [];
 
 const UPGRADE_PERIOD_LABELS: Record<UpgradePeriod, string> = {
   monthly: "Mensal", semiannual: "Semestral", annual: "Anual",
@@ -1822,10 +2023,10 @@ function PlanosSection() {
                   </>
                 )}
                 <ul className="space-y-1.5 flex-1 mb-4">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-foreground">
+                  {recursosDoPlano(plan.key).map(recurso => (
+                    <li key={chaveDoRecurso(recurso)} className="flex items-start gap-1.5 text-[12px] leading-[1.4] text-muted-foreground">
                       <Check size={13} className={cn("mt-0.5 shrink-0", plan.badge ? "text-primary" : "text-emerald-600")} />
-                      {f}
+                      <TextoDoRecurso recurso={recurso} negrito={false} />
                     </li>
                   ))}
                 </ul>
@@ -1892,9 +2093,15 @@ function PlanosSection() {
     <>
       {/* Cabeçalho */}
       <Card className="!p-0 overflow-hidden">
-        <div className="flex items-stretch">
+        {/*
+          As duas metades viram uma sobre a outra abaixo de 768px. Em coluna, o
+          traço que as separa precisa ser HORIZONTAL: o vertical de 1px, deitado
+          numa pilha, viraria um risquinho solto entre os dois blocos. Por isso
+          são dois divisores, cada um aparecendo na sua direção.
+        */}
+        <div className="flex flex-col md:flex-row md:items-stretch">
           {/* Lado esquerdo */}
-          <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+          <div className="flex flex-col justify-center w-full md:w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
@@ -1904,12 +2111,13 @@ function PlanosSection() {
             <p className="text-sm text-muted-foreground mt-1">Controle seus planos, pagamentos e uso do Rezult CRM</p>
           </div>
 
-          {/* Divisor vertical */}
-          <div className="w-px bg-border self-stretch my-4" />
+          {/* Divisor: vertical lado a lado, horizontal empilhado */}
+          <div className="hidden md:block w-px bg-border self-stretch my-4" />
+          <div className="md:hidden h-px bg-border mx-5" />
 
           {/* Lado direito */}
           {company && (
-            <div className="flex flex-col justify-center w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <div className="flex flex-col justify-center w-full md:w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
               <p className="text-[10px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
@@ -1934,7 +2142,15 @@ function PlanosSection() {
         {/* Plano atual */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <p className="text-2xl font-bold text-primary">{PLAN_LABELS[planKey] ?? planKey}</p>
+            {/*
+              Quem está em teste tem plano "silver" no banco -- é assim que ganha
+              os limites do Silver sem cartão -- mas chamar aquilo de Silver aqui
+              faz a pessoa pensar que já contratou. O nome do estado é o que ela
+              precisa ler; o plano por trás continua sendo o Silver.
+            */}
+            <p className="text-2xl font-bold text-primary">
+              {isTrialing ? "Teste Grátis" : (PLAN_LABELS[planKey] ?? planKey)}
+            </p>
           </div>
           <div className="flex gap-2 shrink-0">
             <Button
@@ -1958,35 +2174,60 @@ function PlanosSection() {
           </div>
         </div>
 
-        <div className="flex items-stretch gap-0 border border-card-border rounded-xl overflow-hidden mb-6">
-          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[12px] text-muted-foreground mb-1">Renova em</p>
+        {/*
+          Os quatro campos abaixo descrevem uma ASSINATURA, e no teste grátis não
+          existe nenhuma: nada renova, nada é cobrado, não há cartão. Trocar só o
+          título para "Teste Grátis" deixaria a linha afirmando que um teste
+          grátis custa R$ 237,00 por mês no cartão -- pior do que dizer Silver.
+          Por isso cada campo tem a sua versão de teste.
+        */}
+        {/*
+          Quatro colunas em tela larga, duas em tela estreita.
+
+          As linhas de separação deixaram de ser elementos: agora são o `gap-px`
+          da grade deixando o fundo da cor da borda aparecer, com cada célula
+          pintada por cima. Em quatro colunas o resultado é igual ao de antes --
+          três traços verticais nos mesmos lugares -- e em duas as linhas
+          horizontais surgem sozinhas. Com divisores escritos à mão seria preciso
+          decidir a cada quebra quais deles ainda fazem sentido.
+
+          Abaixo de 768px as quatro colunas ficavam com uns 80px cada, estreitas
+          demais para "Método de pagamento" e para uma data por extenso.
+        */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-card-border rounded-xl overflow-hidden mb-6">
+          <div className="bg-card px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <p className="text-[12px] text-muted-foreground mb-1">{isTrialing ? "Termina em" : "Renova em"}</p>
             <p className="text-[14px] font-semibold text-foreground">
               {planKey === "free" ? "Free" : company?.plan_expires_at ? fmtDate(company.plan_expires_at) : "—"}
             </p>
           </div>
-          <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+          <div className="bg-card px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Valor</p>
             <p className="text-[14px] font-semibold text-foreground">
-              {planDef?.pricing.mensal ?? (planKey === "free" ? "Free" : "—")}
+              {isTrialing ? "Grátis" : planDef?.pricing.mensal ?? (planKey === "free" ? "Free" : "—")}
             </p>
           </div>
-          <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
-            <p className="text-[12px] text-muted-foreground mb-1">Frequência</p>
+          <div className="bg-card px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            {/*
+              "Frequência" não quer dizer nada num prazo que acontece uma vez só.
+              O que a pessoa quer saber nesse ponto da tela é quanto tempo sobra.
+            */}
+            <p className="text-[12px] text-muted-foreground mb-1">{isTrialing ? "Dias restantes" : "Frequência"}</p>
             <p className="text-[14px] font-semibold text-foreground">
-              {subscription?.billing_period === "semiannual" ? "Semestral"
-               : subscription?.billing_period === "annual" ? "Anual"
-               : "Mensal"}
+              {isTrialing
+                ? `${planDaysLeft ?? 0} ${(planDaysLeft ?? 0) === 1 ? "dia" : "dias"}`
+                : subscription?.billing_period === "semiannual" ? "Semestral"
+                : subscription?.billing_period === "annual" ? "Anual"
+                : "Mensal"}
             </p>
           </div>
-          <div className="w-px bg-border self-stretch" />
-          <div className="flex-1 px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
+          <div className="bg-card px-4" style={{ paddingTop: 25, paddingBottom: 25 }}>
             <p className="text-[12px] text-muted-foreground mb-1">Método de pagamento</p>
             <div className="flex items-center gap-1.5">
-              <CreditCard size={13} className="text-muted-foreground shrink-0" />
-              <p className="text-[14px] font-semibold text-foreground">Cartão de crédito</p>
+              {!isTrialing && <CreditCard size={13} className="text-muted-foreground shrink-0" />}
+              <p className="text-[14px] font-semibold text-foreground">
+                {isTrialing ? "Nenhum" : "Cartão de crédito"}
+              </p>
             </div>
           </div>
         </div>
@@ -1996,11 +2237,24 @@ function PlanosSection() {
           <>
             <div className="border-t border-card-border pt-5 mb-5">
               <p className="text-sm font-semibold text-foreground mb-4">Benefícios do plano</p>
-              <div className="flex flex-col" style={{ gap: 5 }}>
-                {planDef.features.map(f => (
-                  <div key={f} className="flex items-center gap-2">
+              {/*
+                Duas colunas a partir de 640px. São oito itens curtos, nenhum
+                passando de metade da largura do cartão: em coluna única a lista
+                ocupava oito linhas e deixava metade do cartão vazia à direita,
+                empurrando o uso do plano para fora da tela.
+
+                `rowGap` continua em 5px, o mesmo de antes -- a mudança é o
+                número de colunas, não o ritmo vertical. As colunas ficam a 32px
+                uma da outra para o olho não confundir o fim de um item com o
+                começo do da direita.
+              */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8" style={{ rowGap: 5 }}>
+                {planDef.features.map(recurso => (
+                  <div key={chaveDoRecurso(recurso)} className="flex items-center gap-2">
                     <Check size={14} className="text-primary shrink-0" strokeWidth={2.5} />
-                    <p className="text-[14px] leading-[1.4] text-foreground">{f}</p>
+                    <p className="text-[14px] leading-[1.4] text-muted-foreground">
+                      <TextoDoRecurso recurso={recurso} negrito={false} />
+                    </p>
                   </div>
                 ))}
               </div>
@@ -2010,7 +2264,12 @@ function PlanosSection() {
 
         {/* Uso do plano */}
         <div className="border-t border-card-border pt-5">
-          <div className="grid grid-cols-3 gap-3">
+          {/*
+            Três colunas eram fixas: abaixo de 768px cada cartão ficava com uns
+            90px, e "Integrações" quebrava em duas linhas em cima da barra. Em
+            duas colunas eles voltam a caber inteiros.
+          */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <UsageCard label="Leads"       current={leadsCount}        limit={limits.leads}       icon={<Users size={14} className="text-primary" />} />
             <UsageCard label="Membros"     current={membersCount}      limit={limits.members}     icon={<Users size={14} className="text-primary" />} />
             <UsageCard label="Pipelines"   current={pipelinesCount}    limit={limits.pipelines}   icon={<Zap   size={14} className="text-primary" />} />

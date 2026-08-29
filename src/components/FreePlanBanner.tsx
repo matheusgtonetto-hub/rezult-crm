@@ -8,7 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PLANS } from "@/data/plans";
+import { PLANS, chaveDoRecurso } from "@/data/plans";
+import { TextoDoRecurso } from "@/components/TextoDoRecurso";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Check, Zap, TriangleAlert, ChevronLeft, ChevronRight } from "lucide-react";
@@ -408,8 +409,8 @@ export function FreePlanBanner() {
                   )}
 
                   <ul className="space-y-2 flex-1 mb-6">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    {plan.features.map((recurso) => (
+                      <li key={chaveDoRecurso(recurso)} className="flex items-start gap-2 text-xs text-muted-foreground">
                         <Check
                           size={13}
                           className={cn(
@@ -417,7 +418,7 @@ export function FreePlanBanner() {
                             plan.badge ? "text-primary" : "text-emerald-600"
                           )}
                         />
-                        {f}
+                        <TextoDoRecurso recurso={recurso} />
                       </li>
                     ))}
                   </ul>

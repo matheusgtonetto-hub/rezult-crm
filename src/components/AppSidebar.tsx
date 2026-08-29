@@ -146,11 +146,20 @@ export function AppSidebar() {
       ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
-    ...(canAny("automacoes:admin", "automacoes:member")
+    // Disparos é governado por `impulsos`, não por `automacoes`: são duas abas
+    // diferentes, e antes as duas liam a mesma permissão. Quem recebia acesso a
+    // Automações ganhava Disparos junto, sem ninguém ter marcado isso.
+    ...(canAny("impulsos:admin")
       ? [{ to: "/disparos", label: "Disparos", icon: Zap }] : []),
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
-    { to: "/agentes", label: "Agentes", icon: BotMessageSquare },
+    // Passa a respeitar a permissão, como os itens vizinhos. Antes aparecia
+    // para todo mundo, e a permissão criada no convite não teria efeito nenhum.
+    //
+    // Dono e admin continuam vendo: o `can` devolve verdadeiro para os dois
+    // antes de olhar a lista, então ninguém perde acesso ao que já tinha.
+    ...(canAny("agentes:admin", "agentes:member")
+      ? [{ to: "/agentes", label: "Agentes", icon: BotMessageSquare }] : []),
   ];
 
   /**

@@ -45,17 +45,28 @@ export default function DisparosPage() {
     // padronizadas em valores fixos, um degrau só aqui faria o conteúdo saltar
     // de lugar ao navegar entre elas na mesma janela.
     <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Disparos</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+      {/*
+        Mesmo cartão de boas-vindas de /inicio, também usado em /leads e
+        /agentes: fundo do cartão, borda cinza, canto de 12px, elevação 1 e 20px
+        de respiro interno.
+
+        As classes são copiadas, e não importadas de um componente. São quatro
+        telas com o mesmo enquadramento de cabeçalho, mas conteúdos diferentes
+        (logo, um botão, dois botões), e um componente que aceitasse todos os
+        casos teria mais parâmetros do que as quatro cópias têm linhas. Se o
+        cabeçalho ganhar comportamento -- e não só aparência --, aí vale extrair.
+      */}
+      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 flex items-start justify-between gap-6 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-[23px] font-semibold text-foreground">Disparos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
             Gerencie seus disparos de automação, acompanhe o progresso dos leads em tempo real e controle execuções.{" "}
             <a href="https://help.rezultcrm.com" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">
               Entenda como os disparos funcionam clicando aqui.
             </a>
           </p>
         </div>
-        <Button onClick={() => setWizardOpen(true)} className="gap-2">
+        <Button onClick={() => setWizardOpen(true)} className="gap-2 shrink-0">
           <Plus size={16} /> Criar disparo
         </Button>
       </div>

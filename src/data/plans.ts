@@ -6,11 +6,42 @@ export interface PlanPricing {
   anualSave: string;
 }
 
+/**
+ * Um item da lista de benefícios do plano.
+ *
+ * Vem partido em dois porque a leitura é assim: `forte` é o número, que é o que
+ * a pessoa compara entre os planos, e `resto` é o que aquele número mede. Em
+ * "**5 mil leads** com controle de tags", quem decide entre Silver e Platinum lê
+ * o negrito e pula o resto.
+ *
+ * Os dois são opcionais porque os últimos itens de cada plano não têm número
+ * nenhum ("Acesso à API e MCP"), e aí só o `resto` é preenchido.
+ *
+ * A redação é a de rezult-site/planos.html, palavra por palavra, inclusive sem
+ * ponto final. Três telas que vendem o mesmo plano não podem descrevê-lo com
+ * palavras diferentes.
+ */
+export interface Recurso {
+  forte?: string;
+  resto?: string;
+}
+
+/** Chave estável para listas. O par forte+resto é único dentro de um plano. */
+export const chaveDoRecurso = (r: Recurso) => `${r.forte ?? ""}|${r.resto ?? ""}`;
+
 export interface PlanDefinition {
   key: string;
   name: string;
   badge?: string;
-  features: string[];
+  /**
+   * Fonte única dos benefícios. Antes existiam TRÊS listas do mesmo plano --
+   * esta, a `SETUP_PLAN_FEATURES` do /setup e a `UPGRADE_PLAN_INFO` das
+   * configurações -- e elas já tinham divergido: o /setup prometia "Acesso à
+   * API e MCP" no Silver enquanto as outras duas só davam API a partir do
+   * Platinum. Quem compara a tela da oferta com a de upgrade vê promessas
+   * diferentes do mesmo produto.
+   */
+  features: Recurso[];
   pricing: PlanPricing;
 }
 
@@ -56,13 +87,14 @@ export const PLANS: PlanDefinition[] = [
     key: "silver",
     name: "Silver",
     features: [
-      "Criação e gerenciamento de até 5 pipelines com até 8 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 5 mil leads com controle de tags.",
-      "Cadastro de 4 membros na empresa.",
-      "8 automações para otimizar interações com leads.",
-      "Multiatendimento com até 3 conexões (WhatsApp, Instagram e outros).",
-      "3 integrações com Webhooks para conectar outras ferramentas.",
+      { forte: "4 usuários",    resto: "no sistema" },
+      { forte: "5 mil leads",   resto: "com controle de tags" },
+      { forte: "8 automações",  resto: "para interações com leads" },
+      { forte: "3 conexões",    resto: "WhatsApp" },
+      { forte: "5 pipelines",   resto: "com até 8 etapas" },
+      { forte: "3 integrações", resto: "via Webhook" },
+      { resto: "Acesso à API e MCP" },
+      { resto: "Dashboards detalhados da operação" },
     ],
     pricing: {
       mensal:        "R$ 237,00",
@@ -77,15 +109,14 @@ export const PLANS: PlanDefinition[] = [
     name: "Platinum",
     badge: "Recomendado",
     features: [
-      "Criação e gerenciamento de até 20 pipelines com até 15 etapas.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Gerenciamento de até 100 mil leads com controle de tags.",
-      "Cadastro de 15 membros na empresa.",
-      "20 automações para otimizar interações com leads.",
-      "Multiatendimento com até 10 conexões (WhatsApp, Instagram e outros).",
-      "15 integrações com Webhooks para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
+      { forte: "15 usuários",    resto: "no sistema" },
+      { forte: "100 mil leads",  resto: "com controle de tags" },
+      { forte: "20 automações",  resto: "para interações com leads" },
+      { forte: "10 conexões",    resto: "WhatsApp" },
+      { forte: "20 pipelines",   resto: "com até 15 etapas" },
+      { forte: "15 integrações", resto: "via Webhook" },
+      { resto: "Acesso à API e MCP" },
+      { resto: "Dashboards detalhados da operação" },
     ],
     pricing: {
       mensal:        "R$ 399,00",
@@ -99,15 +130,14 @@ export const PLANS: PlanDefinition[] = [
     key: "emerald",
     name: "Emerald",
     features: [
-      "Criação e gerenciamento de pipelines ilimitadas com até 25 etapas.",
-      "Gerenciamento ilimitado de leads com controle de tags.",
-      "Criação e gerenciamento de negócios e produtos.",
-      "Cadastro ilimitado de membros na empresa.",
-      "Automações ilimitadas para otimizar interações com leads.",
-      "Multiatendimento com conexões ilimitadas (WhatsApp, Instagram e outros).",
-      "Integrações com Webhooks ilimitadas para conectar outras ferramentas.",
-      "Dashboards de negócios das pipelines.",
-      "Acesso à API para integração com outras ferramentas.",
+      { forte: "Usuários ilimitados",    resto: "no sistema" },
+      { forte: "Leads ilimitados",       resto: "com controle de tags" },
+      { forte: "Automações ilimitadas" },
+      { forte: "Conexões ilimitadas",    resto: "WhatsApp" },
+      { forte: "Pipelines ilimitadas",   resto: "com até 25 etapas" },
+      { forte: "Integrações ilimitadas", resto: "via Webhook" },
+      { resto: "Acesso à API e MCP" },
+      { resto: "Dashboards detalhados da operação" },
     ],
     pricing: {
       mensal:        "R$ 747,00",

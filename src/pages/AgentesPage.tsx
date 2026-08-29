@@ -1587,17 +1587,29 @@ export default function AgentesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto h-full flex flex-col">
+    // Mesmo respiro das outras abas (Dashboard, Leads, Disparos): 40 no topo,
+    // 30 nas laterais e embaixo. Estava em `p-6`, 24 dos quatro lados, e o
+    // título nascia 16px mais alto que o das vizinhas -- diferença pequena que
+    // aparece na hora de alternar entre as abas.
+    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto h-full flex flex-col">
       {view === "grid" ? (
         <>
-          <div className="flex items-start justify-between mb-6 gap-4 shrink-0">
-            <div>
-              <h1 className="text-[20px] font-bold text-[#111111] leading-tight">Agentes</h1>
-              <p className="text-[13px] text-[#767676] mt-1">
+          {/*
+            Mesmo cartão de boas-vindas de /inicio, também usado em /leads e
+            /disparos: fundo do cartão, borda cinza, canto de 12px, elevação 1 e
+            20px de respiro interno.
+
+            O `shrink-0` continua: esta página é uma coluna flex de altura cheia,
+            e sem ele o cabeçalho encolheria para dar espaço à grade rolável.
+          */}
+          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap shrink-0">
+            <div className="min-w-0">
+              <h1 className="text-[23px] font-semibold text-foreground">Agentes</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
                 Agentes de IA que atuam sobre seus leads — qualificam, respondem e agendam sozinhos
               </p>
             </div>
-            <Button onClick={() => setOpenDialog(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+            <Button onClick={() => setOpenDialog(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white shrink-0">
               <Plus size={16} /> Novo agente
             </Button>
           </div>
