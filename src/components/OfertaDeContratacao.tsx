@@ -422,9 +422,12 @@ export function OfertaDeContratacao({
       */}
       <DialogPrimitive.Root open={aberto} onOpenChange={v => { if (!v) aoFechar(); }}>
         <DialogPrimitive.Portal>
+          {/* Só véu, sem desfoque -- como no cartão do cadastro, onde o
+              `FundoDoCrmAoVivo` mantém o desfoque do fundo em 0 e escurece a
+              tela com um véu de 62%. */}
           <DialogPrimitive.Overlay
-            className="fixed inset-0 z-50 backdrop-blur-[4px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-            style={{ background: "rgba(0, 0, 0, 0.40)" }}
+            className="fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            style={{ background: "rgba(0, 0, 0, 0.62)" }}
           />
           <DialogPrimitive.Content
             // Sem respiro, sem fundo e sem borda: o cartão preto lá dentro é a
@@ -480,34 +483,33 @@ export function OfertaDeContratacao({
                         Aqui é o X: quem abriu o Upgrade tem uma tela por trás
                         para voltar, e precisa de um jeito óbvio de fazer isso
                         sem escolher plano nenhum. */}
-                    <div className="flex items-center gap-3">
-                      {/* "Rezult" com o degradê verde animado, como no site.
+                    {/* `items-start`, e não `items-center`: com o subtítulo em
+                        duas linhas o bloco da esquerda ficou alto, e centrar
+                        deixaria o X flutuando no meio dele em vez de no canto. */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {/* "Rezult" com o degradê verde animado, como no site.
 
-                          A classe `.texto-brilho` do `index.css` é o
-                          `em-shine-text` de rezult-site/styles.css portado: mesmo
-                          degradê, mesma varredura de 5s. O que ela tem a mais é
-                          um recuo para `prefers-reduced-motion` -- sem ele, quem
-                          desliga animações veria texto transparente, porque o
-                          efeito pinta a letra com o fundo recortado.
+                            A classe `.texto-brilho` do `index.css` é o
+                            `em-shine-text` de rezult-site/styles.css portado:
+                            mesmo degradê, mesma varredura de 5s. O que ela tem a
+                            mais é um recuo para `prefers-reduced-motion` -- sem
+                            ele, quem desliga animações veria texto transparente,
+                            porque o efeito pinta a letra com o fundo recortado. */}
+                        <h2
+                          className="text-[25px] font-semibold leading-tight"
+                          style={{ color: SITE.texto, letterSpacing: "-0.02em" }}
+                        >
+                          <span className="texto-brilho">Rezult</span> Planos
+                        </h2>
 
-                          `shrink-0` porque o título é a identidade do cartão: em
-                          tela estreita quem cede espaço é o subtítulo ao lado. */}
-                      <h2
-                        className="text-[20px] font-semibold shrink-0"
-                        style={{ color: SITE.texto, letterSpacing: "-0.02em" }}
-                      >
-                        <span className="texto-brilho">Rezult</span> Planos
-                      </h2>
-
-                      <p className="text-[12px] min-w-0 truncate" style={{ color: SITE.textoSuave }}>
-                        Selecione o plano que melhor se adequa ao momento do seu negócio.
-                      </p>
+                      </div>
 
                       <button
                         type="button"
                         onClick={aoFechar}
                         aria-label="Fechar"
-                        className="ml-auto shrink-0 rounded-[7px] p-2 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2"
+                        className="shrink-0 rounded-[7px] p-2 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2"
                         style={{ color: SITE.textoSuave }}
                       >
                         <X size={18} />
@@ -515,18 +517,38 @@ export function OfertaDeContratacao({
                     </div>
 
                     <div className="mt-2">
-                      {/* Seletor de período, idêntico ao `.price-toggle` do site. */}
-                      <div
-                        className="flex items-center mx-auto mb-6"
-                        style={{
-                          width: LARGURA_DO_SELETOR,
-                          gap: esc(3),
-                          padding: esc(4),
-                          borderRadius: 100,
-                          background: SITE.superficie2,
-                          border: `1px solid ${SITE.bordaSuave}`,
-                        }}
-                      >
+                      {/* Subtítulo à esquerda, seletor de período no centro.
+
+                          Grade de três colunas com a do meio do tamanho do
+                          conteúdo e as das pontas iguais (`1fr`), e não um
+                          `justify-between`: assim o seletor fica centrado no
+                          CARTÃO, e não no espaço que sobra do subtítulo. Com
+                          duas colunas, cada palavra a mais no texto empurraria
+                          o seletor um pouco para a direita.
+
+                          A terceira coluna fica vazia. É ela que equilibra a
+                          primeira -- sem esse contrapeso não há centro. */}
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 mb-6">
+                        {/* A quebra é a do site, e não do acaso da largura: lá a
+                            frase também vira depois de "se adequa". Como aqui
+                            sobra largura, sem o `<br>` ela sairia numa linha só
+                            e ficaria mais comprida que o próprio seletor. */}
+                        <p className="text-[13px] leading-[1.4]" style={{ color: SITE.textoSuave }}>
+                          Selecione o plano que melhor se adequa<br />ao momento do seu negócio.
+                        </p>
+
+                        {/* Seletor de período, idêntico ao `.price-toggle` do site. */}
+                        <div
+                          className="flex items-center"
+                          style={{
+                            width: LARGURA_DO_SELETOR,
+                            gap: esc(3),
+                            padding: esc(4),
+                            borderRadius: 100,
+                            background: SITE.superficie2,
+                            border: `1px solid ${SITE.bordaSuave}`,
+                          }}
+                        >
                         {(["mensal", "semestral", "anual"] as BillingTab[]).map((tab) => {
                           const ativa = billingTab === tab;
                           return (
@@ -563,6 +585,12 @@ export function OfertaDeContratacao({
                             </button>
                           );
                         })}
+                        </div>
+
+                        {/* Contrapeso da coluna do subtítulo. Vazia de
+                            propósito: é a existência dela que põe o seletor no
+                            centro do cartão. */}
+                        <span aria-hidden />
                       </div>
 
                       <div className="grid grid-cols-3 gap-3 pt-4">
