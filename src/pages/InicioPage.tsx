@@ -190,9 +190,26 @@ function AnelDeProgresso({ valor }: { valor: number }) {
   );
 }
 
-/** Visual único dos botões de ação da trilha, usado pelos dois tipos. */
-const CLASSE_DO_BOTAO =
-  "inline-flex items-center gap-1.5 mt-3 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60";
+/**
+ * Visual dos botões de ação da trilha, usado pelos dois tipos.
+ *
+ * Dois estados, porque o botão continua na tela depois do passo cumprido: um
+ * segundo pipeline, mais uma tag ou outro lead ainda são coisas que se faz.
+ * Cheio ele seria um chamado para agir com a mesma força do passo que ainda
+ * falta, e uma trilha terminada viraria uma coluna de botões verdes berrando
+ * por atenção que não é mais devida. Contornado, ele fica disponível sem
+ * insistir -- e a diferença ainda dá, de relance, o mesmo recado do check.
+ *
+ * `border` nos dois: no estado cheio ela é transparente, e existe só para as
+ * duas versões terem exatamente a mesma caixa. Sem isso o botão contornado
+ * ficaria 2px mais alto e mais largo que o vizinho, e a coluna desalinharia
+ * conforme os passos fossem sendo cumpridos.
+ */
+const classeDoBotao = (feita: boolean) =>
+  "inline-flex items-center gap-1.5 mt-3 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 " +
+  (feita
+    ? "border-primary bg-transparent text-primary hover:bg-primary/10"
+    : "border-transparent bg-primary text-primary-foreground hover:bg-primary/90");
 
 /**
  * Botão que abre o seletor de arquivos e envia na hora, sem sair da trilha.
@@ -210,7 +227,7 @@ const CLASSE_DO_BOTAO =
  * importado: são dois envios independentes, e o valor está escrito por extenso
  * na mensagem que a pessoa lê nos dois lugares.
  */
-function BotaoDeArquivo({ tipo, rotulo }: { tipo: "logo" | "foto"; rotulo: string }) {
+function BotaoDeArquivo({ tipo, rotulo, feita }: { tipo: "logo" | "foto"; rotulo: string; feita: boolean }) {
   const { uploadLogo } = useCompany();
   const { uploadAvatar } = useProfile();
   const entrada = useRef<HTMLInputElement>(null);
@@ -238,7 +255,7 @@ function BotaoDeArquivo({ tipo, rotulo }: { tipo: "logo" | "foto"; rotulo: strin
   return (
     <>
       <input ref={entrada} type="file" accept="image/*" className="hidden" onChange={aoEscolher} />
-      <button type="button" onClick={() => entrada.current?.click()} disabled={enviando} className={CLASSE_DO_BOTAO}>
+      <button type="button" onClick={() => entrada.current?.click()} disabled={enviando} className={classeDoBotao(feita)}>
         {enviando ? "Enviando..." : rotulo}
       </button>
     </>
@@ -756,12 +773,12 @@ export default function InicioPage() {
                     obrigaria a procurar o caminho longo justamente quem já
                     entendeu para que ele serve. */}
                 {m.acao?.para && (
-                  <Link to={m.acao.para} className={CLASSE_DO_BOTAO}>
+                  <Link to={m.acao.para} className={classeDoBotao(m.feita)}>
                     {m.acao.rotulo}
                   </Link>
                 )}
                 {m.acao?.arquivo && (
-                  <BotaoDeArquivo tipo={m.acao.arquivo} rotulo={m.acao.rotulo} />
+                  <BotaoDeArquivo tipo={m.acao.arquivo} rotulo={m.acao.rotulo} feita={m.feita} />
                 )}
               </span>
             </div>
