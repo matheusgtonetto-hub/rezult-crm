@@ -33,6 +33,24 @@ export function PipelineSidebar() {
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [showNew, setShowNew] = useState(false);
+
+  /**
+   * Abre o diálogo de nova pipeline quando a URL pede.
+   *
+   * `/pipeline?abrir=nova-pipeline` cai aqui. Serve à trilha de `/inicio`, cujo
+   * botão manda para cá já com o diálogo aberto. Mesmo mecanismo das outras
+   * ações da trilha.
+   *
+   * O parâmetro é consumido na hora: sem o `replace`, um F5 reabriria o diálogo
+   * que a pessoa acabou de fechar, e ela não teria como sair.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("abrir") !== "nova-pipeline") return;
+    setShowNew(true);
+    window.history.replaceState({}, "", window.location.pathname);
+    // Uma vez, ao montar.
+  }, []);
+
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newCategory, setNewCategory] = useState("");

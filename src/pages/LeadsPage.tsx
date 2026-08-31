@@ -167,6 +167,26 @@ export default function LeadsPage() {
   };
 
   const openCreate = () => { setEditingLead(null); setEditingContact(null); setModalOpen(true); };
+
+  /**
+   * Abre o cadastro de lead quando a URL pede.
+   *
+   * `/leads?abrir=novo-lead` cai aqui. Serve à trilha de `/inicio`, cujo botão
+   * "Novo lead" manda para cá já com a janela aberta.
+   *
+   * Usa o mesmo `searchParams` do `?lead=` logo acima, e não `window.location`:
+   * é o router que manda na URL desta página, e ler por fora funcionaria hoje e
+   * quebraria no dia em que a navegação passasse a acontecer sem recarregar.
+   *
+   * O parâmetro é apagado ao ser usado. Sem isso, um F5 reabriria a janela que a
+   * pessoa acabou de fechar, e ela não teria como sair.
+   */
+  useEffect(() => {
+    if (searchParams.get("abrir") !== "novo-lead") return;
+    openCreate();
+    searchParams.delete("abrir");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams]);
   const openEdit = (lead: Lead) => { setEditingContact(null); setEditingLead(lead); setModalOpen(true); };
   const openEditContact = (contact: Contact) => { setEditingLead(null); setEditingContact(contact); setModalOpen(true); };
 
