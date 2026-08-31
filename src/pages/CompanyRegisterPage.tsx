@@ -415,13 +415,18 @@ export default function CompanyRegisterPage() {
       return;
     }
 
-    // Tag padrão criada em toda empresa nova — usada pelo chip "Follow-up" do
-    // Multiatendimento e aplicada automaticamente ao agendar um follow up.
-    if (newCompany) {
-      await supabase.from("tags").insert({
-        owner_id: user.id, company_id: newCompany.id, name: "Follow-up", color: "#A32D2D",
-      });
-    }
+    // A "Follow-up" era criada aqui, com um `insert` solto. Passou para o
+    // gatilho `criar_tags_padrao` no banco, junto com as outras três tags que
+    // toda conta nova recebe.
+    //
+    // Não é só arrumação: aqui a criação dependia de a tela chegar até esta
+    // linha. Um erro de rede no meio do cadastro, ou uma empresa criada por
+    // outro caminho, nascia sem a tag -- e o chip "Follow-up" do
+    // Multiatendimento conta com ela. No banco, ou a tag existe junto com a
+    // empresa, ou não existe empresa.
+    //
+    // Se voltar a criar aqui, a conta nasce com DUAS "Follow-up": não há
+    // restrição de unicidade em (company_id, name).
 
     // As respostas de "Sobre você" moram no perfil, não na empresa: são da
     // pessoa, e numa empresa com cinco gente cada uma tem a sua.

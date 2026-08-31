@@ -1152,6 +1152,22 @@ function EquipeSection() {
 
   const isAdmin = company?.owner_id === user?.id || userPermissions.includes("admin");
 
+  /**
+   * Abre o convite quando a URL pede.
+   *
+   * `/configuracoes/equipe?abrir=convite` cai aqui. Serve à trilha de `/inicio`:
+   * o botão "Convidar membros" de lá manda para cá já com o diálogo aberto.
+   * Mesmo mecanismo do assistente de conexão em `ConexoesSection`.
+   *
+   * O parâmetro é consumido na hora: sem o `replace`, um F5 reabriria o diálogo
+   * que a pessoa acabou de fechar, e ela não teria como sair.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("abrir") !== "convite") return;
+    setAddOpen(true);
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
   const initials = (n: string) =>
     n.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
@@ -2058,6 +2074,23 @@ function TagsSection() {
     setModalOpen(true);
   };
 
+  /**
+   * Abre o diálogo de nova tag quando a URL pede.
+   *
+   * `/configuracoes/tags?abrir=nova-tag` cai aqui. Serve à trilha de `/inicio`, cujo
+   * botão manda para cá já com o diálogo aberto. Mesmo mecanismo das outras
+   * ações da trilha.
+   *
+   * O parâmetro é consumido na hora: sem o `replace`, um F5 reabriria o diálogo
+   * que a pessoa acabou de fechar, e ela não teria como sair.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("abrir") !== "nova-tag") return;
+    openNew();
+    window.history.replaceState({}, "", window.location.pathname);
+    // Uma vez, ao montar.
+  }, []);
+
   const openEdit = (t: { id: string; name: string; description: string; color: string }) => {
     setEditing(t);
     setName(t.name); setDescription(t.description); setColor(t.color);
@@ -2707,8 +2740,20 @@ function CamposSection() {
   const TYPE_LABEL: Record<string, string> = { text: "Texto", date: "Data", boolean: "Sim/Não" };
 
   // Expanded groups
+  /**
+   * Grupos abertos, por id. Ausente significa ABERTO.
+   *
+   * O mapa guarda só quem a pessoa mexeu, e a leitura passa por `aberto()`, que
+   * assume `true` quando não há registro. É o que faz a tela nascer com tudo à
+   * mostra sem precisar preencher o mapa com todos os grupos assim que eles
+   * carregam -- lista que chega depois entraria aberta do mesmo jeito.
+   *
+   * Antes o padrão era fechado, e quem abria a seção via só os nomes dos grupos:
+   * para saber quais campos existem era preciso abrir um por um.
+   */
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
+  const aberto = (id: string) => expanded[id] ?? true;
+  const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !aberto(id) }));
 
   // Group modal
   const [groupModal, setGroupModal] = useState(false);
@@ -2799,7 +2844,7 @@ function CamposSection() {
                 <ChevronDown
                   size={14}
                   className="text-muted-foreground ml-auto transition-transform"
-                  style={{ transform: expanded[g.id] ? "rotate(180deg)" : "rotate(0deg)" }}
+                  style={{ transform: aberto(g.id) ? "rotate(180deg)" : "rotate(0deg)" }}
                 />
               </button>
               <button onClick={() => openEditGroup(g.id, g.name)} className="text-muted-foreground/50 hover:text-muted-foreground p-1 transition-colors">
@@ -2813,7 +2858,7 @@ function CamposSection() {
             </div>
 
             {/* Perguntas */}
-            {expanded[g.id] && (
+            {aberto(g.id) && (
               <div className="border-t border-card-border">
                 {g.items.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">Nenhuma pergunta ainda.</p>
@@ -3800,6 +3845,31 @@ function ConexoesSection() {
     setPollN(0);
     setOpen(true);
   }
+
+  /**
+   * Abre o assistente de nova conexão quando a URL pede.
+   *
+   * `/configuracoes/conexoes?abrir=nova-conexao` cai aqui. Serve à trilha de
+   * `/inicio`: o botão "Conectar WhatsApp" de lá manda para cá já com o
+   * assistente aberto, poupando a pessoa de achar o botão nesta tela.
+   *
+   * Link com parâmetro, e não o assistente extraído para um componente que a
+   * trilha montaria por conta própria. O assistente são TRÊS diálogos
+   * encadeados sobre ~25 estados (passo, tutorial, QR, polling, três
+   * provedores), no meio das 1600 linhas que controlam a conexão de WhatsApp de
+   * cliente pagante. Movê-lo para ganhar um atalho de onboarding troca um risco
+   * grande por uma conveniência pequena.
+   *
+   * O parâmetro é consumido na hora: sem o `replace`, um F5 reabriria o
+   * assistente que a pessoa acabou de fechar, e ela não teria como sair.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("abrir") !== "nova-conexao") return;
+    openNewDialog();
+    window.history.replaceState({}, "", window.location.pathname);
+    // Uma vez, ao montar. A lista vazia é intencional: `openNewDialog` é
+    // recriada a cada render, e segui-la reabriria o diálogo sem parar.
+  }, []);
 
   function closeDialog() {
     stopPoll();
