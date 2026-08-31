@@ -54,12 +54,16 @@ export function RankingPanel({
       <h3 className="text-sm font-semibold text-foreground">{titulo}</h3>
       <p className="text-xs text-muted-foreground mt-0.5 mb-4">{subtitulo}</p>
 
-      {linhas.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{vazio}</p>
-      ) : (
-        // `overflow-x-auto` no próprio container da tabela: com dinheiro em três
-        // colunas, uma tela estreita faria a tabela empurrar a página inteira
-        // para o lado. Aqui a rolagem fica presa ao painel.
+      {/* A tabela é montada mesmo sem uma linha para listar, e o "não há nada"
+          desce para dentro dela. Antes o painel trocava a tabela inteira por uma
+          frase solta, e o cartão encolhia até virar um retângulo com um texto no
+          canto -- ao lado de vizinhos que no mesmo vazio continuam desenhando
+          eixo e cabeçalho, isso lê como painel quebrado, não como período sem
+          movimento. Com os cabeçalhos de pé, o vazio ainda informa: dá para ver
+          QUE colunas o painel traz assim que houver venda. */}
+      {/* `overflow-x-auto` no próprio container da tabela: com dinheiro em três
+          colunas, uma tela estreita faria a tabela empurrar a página inteira
+          para o lado. Aqui a rolagem fica presa ao painel. */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -71,6 +75,13 @@ export function RankingPanel({
               </tr>
             </thead>
             <tbody className="divide-y divide-card-border">
+              {linhas.length === 0 && (
+                <tr>
+                  <td colSpan={colunas.length + 1} className="py-6 text-xs text-muted-foreground text-center">
+                    {vazio}
+                  </td>
+                </tr>
+              )}
               {linhas.map(l => (
                 <tr key={l.chave} className="hover:bg-muted/30 transition-colors">
                   <td className="py-2.5 font-medium text-foreground">
@@ -114,7 +125,6 @@ export function RankingPanel({
             </tbody>
           </table>
         </div>
-      )}
     </div>
   );
 }

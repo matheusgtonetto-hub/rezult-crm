@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useCRM } from "@/context/CRMContext";
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  TrendingUp, Users, Clock, Trophy, ArrowDown, AlertTriangle, ShoppingCart,
-  Activity as ActivityIcon, ChevronDown, ChevronRight, Briefcase, XCircle,
+  Users, ArrowDown, AlertTriangle, ShoppingCart,
+  Activity as ActivityIcon, ChevronDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { DashboardSidebar, ROTULO_DA_VISAO, type VisaoDoDashboard } from "@/components/dashboard/DashboardSidebar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
@@ -22,7 +25,6 @@ import { ResultadoResponsavelPanel } from "@/components/dashboard/ResultadoRespo
 import { HorariosPanel } from "@/components/dashboard/HorariosPanel";
 import { TooltipSeries } from "@/components/dashboard/CaixaTooltip";
 import { RankingPanel } from "@/components/dashboard/RankingPanel";
-import { StageVelocityPanel } from "@/components/dashboard/StageVelocityPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
 import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA } from "@/components/dashboard/useDashboardHelpers";
 
@@ -60,15 +62,139 @@ const fmtCurto = (v: number) =>
   : v >= 1_000   ? `R$ ${Math.round(v / 1_000)}k`
   : `R$ ${v}`;
 
+/**
+ * Os dias da semana na ordem em que a semana de trabalho acontece.
+ *
+ * O índice do array é a posição no eixo, não o número que o JavaScript usa:
+ * `getDay()` devolve 0 para domingo, e essa é a ordem do calendário de parede,
+ * não a de quem vende. Numa distribuição de negócios, sábado e domingo são os
+ * dois extremos do gráfico -- juntos numa ponta se lê "o fim de semana é
+ * fraco", e com o domingo na outra ponta a mesma informação fica partida.
+ *
+ * A conversão de um para o outro é `(getDay() + 6) % 7`.
+ */
+const DIAS_DA_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+/**
+ * O ciclo inteiro zerado, para o painel "Resultados por horário/dia" manter
+ * eixo e grade quando o período não tem nenhum movimento.
+ *
+ * O "Resultado no período" nunca fica vazio de verdade: ele monta os doze meses
+ * antes de contar qualquer coisa, então no pior caso desenha os eixos e uma
+ * linha rente ao zero. A distribuição por ciclo é o contrário -- só cria o
+ * compartimento quando algo cai nele --, e sem nada o gráfico sumia inteiro,
+ * dando lugar a uma frase centralizada. Lado a lado, os dois painéis tratavam o
+ * mesmo "não há nada" de duas formas diferentes.
+ *
+ * Aqui os rótulos são reais, e não faixas em branco: 0h–23h e Seg–Dom existem
+ * independentemente de ter havido negócio neles. O que o esqueleto afirma é a
+ * escala, não o dado.
+ */
+const CICLO_VAZIO = {
+  horas: Array.from({ length: 24 }, (_, h) => ({
+    key: String(h).padStart(2, "0"), mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0,
+  })),
+  dias: DIAS_DA_SEMANA.map((dia, i) => ({
+    key: String(i).padStart(2, "0"), mes: dia, novos: 0, ganhos: 0, perdidos: 0,
+  })),
+};
+
 export default function DashboardPage() {
   const {
     leads, pipelines, products, teamMembers, memberColors, memberAvatars, memberEmails, tasks, lossReasons, crmTags,
   } = useCRM();
 
+  /**
+   * Qual visão está no ar.
+   *
+   * Subiu para um estado da página porque quem escolhe agora é a barra lateral,
+   * fora da árvore do `Tabs`. Antes o próprio `Tabs` guardava isso por dentro,
+   * com `defaultValue`, e a lista de abas ficava logo ali do lado.
+   */
+  const [visao, setVisao] = useState<VisaoDoDashboard>("negocios");
+
+  /**
+   * Barra aberta ou recolhida, com a escolha guardada no navegador.
+   *
+   * Chave própria (`dashboard-sidebar-open`), separada da de `/pipeline`: são
+   * duas barras diferentes, e quem recolhe uma para ver o board largo não está
+   * pedindo a mesma coisa aqui.
+   *
+   * Nasce fechada abaixo de 768px, onde 240px seriam um terço da tela.
+   *
+   * `try/catch` porque `localStorage` levanta exceção em janela anônima de
+   * alguns navegadores, e uma preferência de layout não pode derrubar a tela.
+   */
+  const LARGURA_DA_BARRA = 240;
+  const [barraAberta, setBarraAberta] = useState(() => {
+    if (window.innerWidth < 768) return false;
+    try {
+      const salvo = localStorage.getItem("dashboard-sidebar-open");
+      return salvo === null ? true : salvo === "true";
+    } catch { return true; }
+  });
+
+  const alternarBarra = useCallback(() => {
+    setBarraAberta(atual => {
+      const proxima = !atual;
+      try { localStorage.setItem("dashboard-sidebar-open", String(proxima)); } catch { /* ignora */ }
+      return proxima;
+    });
+  }, []);
+
+  // Atalho "[", o mesmo de `/pipeline`. Ignorado dentro de campo de texto, onde
+  // o colchete é o caractere que a pessoa quis digitar.
+  useEffect(() => {
+    const aoTeclar = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === "[" && tag !== "INPUT" && tag !== "TEXTAREA") alternarBarra();
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [alternarBarra]);
+
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
     from: new Date(new Date().getFullYear(), 0, 1),
     to: new Date(),
   }));
+
+  /**
+   * O período filtrado, escrito para ser lido: "Seg, 15 jan".
+   *
+   * Dia da semana e mês cortados em três letras, com o ano em dois dígitos:
+   * "Qui, 1 Jan 26".
+   *
+   * O corte é feito aqui, e não pelo formato do `date-fns`. O `EEE` do pt-BR
+   * devolve o nome inteiro ("Quinta"), e o `EEEEEE` devolve duas letras --
+   * nenhum dos dois dá as três que o desenho pede. Cortando, o resultado
+   * independe de qual abreviação a biblioteca resolve usar na próxima versão.
+   *
+   * O `replace(".", "")` tira o ponto que algumas formas trazem, que no meio da
+   * frase vira sujeira ("qui., 1 jan.").
+   *
+   * O ano aparece nos dois lados, e não só no fim: um período que atravessa a
+   * virada ("Sex, 25 Dez 26 · Ter, 5 Jan 27") precisa dizer de que ano é cada
+   * ponta, senão parece que o filtro anda para trás.
+   *
+   * Um dia só quando início e fim caem na mesma data -- repetir a data inteira
+   * dos dois lados do ponto seria dizer a mesma coisa duas vezes.
+   */
+  const periodoPorExtenso = useMemo(() => {
+    const tresLetras = (s: string) => {
+      const corte = s.replace(".", "").slice(0, 3);
+      return corte.charAt(0).toUpperCase() + corte.slice(1);
+    };
+    const trecho = (d: Date) =>
+      `${tresLetras(format(d, "EEEE", { locale: ptBR }))}, ${format(d, "d")} ` +
+      `${tresLetras(format(d, "MMMM", { locale: ptBR }))} ${format(d, "yy")}`;
+
+    const de = trecho(dateRange.from);
+    const ate = trecho(dateRange.to);
+    // Ponto centralizado (·), e não travessão: ele separa sem sugerir
+    // intervalo contínuo, e ocupa menos espaço numa linha que já é longa.
+    return de === ate ? de : `${de} · ${ate}`;
+  }, [dateRange]);
+
   const [donutMode, setDonutMode] = useState<"value" | "count">("value");
   const [funnelPipelineId, setFunnelPipelineId] = useState<string>("");
   const [funnelResponsible, setFunnelResponsible] = useState<string>("all");
@@ -272,57 +398,85 @@ export default function DashboardPage() {
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [allLeads, dateRange]);
 
-  const hourlyData = useMemo(() => {
-    type HBucket = { key: string; mes: string; novos: number; ganhos: number; perdidos: number };
-    const map = new Map<number, HBucket>();
+  /**
+   * O período repartido nos dois ciclos que se repetem: as horas do dia e os
+   * dias da semana.
+   *
+   * As duas contagens saem da MESMA varredura, e não de dois `useMemo` com o
+   * laço escrito duas vezes. É a mesma pergunta ("quando isso acontece?") com
+   * dois relógios diferentes, e um negócio criado às 14h de uma terça entra nos
+   * dois de uma vez -- separar as varreduras significaria manter duas cópias
+   * das mesmas regras de filtro e de tipo de atividade, que podem divergir.
+   *
+   * Só entram compartimentos com movimento. Um dia sem nada não vira coluna
+   * zerada: numa conta que só opera de segunda a sexta, sábado e domingo
+   * fixariam duas cavas no gráfico que não dizem nada além de "não trabalhamos".
+   */
+  const distribuicaoDoCiclo = useMemo(() => {
+    type Bucket = { key: string; mes: string; novos: number; ganhos: number; perdidos: number };
+    const porHora = new Map<number, Bucket>();
+    const porDia = new Map<number, Bucket>();
+
+    const compartimento = (mapa: Map<number, Bucket>, indice: number, rotulo: string) => {
+      const atual = mapa.get(indice) || { key: String(indice).padStart(2, "0"), mes: rotulo, novos: 0, ganhos: 0, perdidos: 0 };
+      mapa.set(indice, atual);
+      return atual;
+    };
+
+    const contar = (d: Date, serie: "novos" | "ganhos" | "perdidos") => {
+      compartimento(porHora, d.getHours(), `${d.getHours()}h`)[serie]++;
+      // `+6 % 7` desloca a semana do domingo para a segunda. Ver DIAS_DA_SEMANA.
+      const dia = (d.getDay() + 6) % 7;
+      compartimento(porDia, dia, DIAS_DA_SEMANA[dia])[serie]++;
+    };
 
     allLeads.forEach(lead => {
       const e = lead.created_at ? new Date(lead.created_at) : parseEntryDate(lead.entryDate);
-      if (e && e >= periodCutoff && e <= periodTo) {
-        const h = e.getHours();
-        const cur = map.get(h) || { key: String(h).padStart(2, "0"), mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
-        cur.novos++;
-        map.set(h, cur);
-      }
+      if (e && e >= periodCutoff && e <= periodTo) contar(e, "novos");
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
-        const h = d.getHours();
-        const cur = map.get(h) || { key: String(h).padStart(2, "0"), mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0 };
-        if (act.type === "won") cur.ganhos++;
-        if (act.type === "lost") cur.perdidos++;
-        map.set(h, cur);
+        if (act.type === "won") contar(d, "ganhos");
+        if (act.type === "lost") contar(d, "perdidos");
       });
     });
 
-    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+    // Ordena pelo índice numérico do compartimento, que é a ordem do ciclo:
+    // 0h→23h e Seg→Dom. Ordenar pelo rótulo colocaria "10h" antes de "9h" e a
+    // semana em ordem alfabética.
+    const emOrdem = (mapa: Map<number, Bucket>) =>
+      [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([, b]) => b);
+
+    return { horas: emOrdem(porHora), dias: emOrdem(porDia) };
   }, [allLeads, dateRange]);
 
   /**
-   * As horas do período com o que aconteceu em cada uma, para o ranking em
-   * barras ao lado da curva.
+   * Os dois ciclos renomeados para o vocabulário do ranking em barras.
    *
-   * Sai do MESMO `hourlyData` que desenha a curva. A curva responde "como o dia
-   * se comporta" e o ranking responde "em que horas o negócio entra, ou fecha"
-   * -- perguntas diferentes sobre o mesmo dado. Recalcular por fora abriria
-   * espaço para as duas discordarem sobre a mesma hora, lado a lado na mesma
-   * linha.
+   * Saem da MESMA `distribuicaoDoCiclo` que desenha a curva ao lado. A curva
+   * responde "como o dia (ou a semana) se comporta" e o ranking responde "onde
+   * o negócio entra" -- perguntas diferentes sobre o mesmo dado. Recalcular por
+   * fora abriria espaço para as duas discordarem sobre a mesma hora, lado a
+   * lado na mesma linha.
    *
-   * Vai inteiro, sem ordenar nem cortar: quem faz isso é o painel, que tem o
-   * botão Negócios/Ganhos. As dez horas em que mais entra negócio não são as
-   * mesmas em que mais se ganha, então cortar aqui decidiria o ranking antes de
-   * saber qual pergunta está sendo feita.
+   * Os dois vão inteiros, sem ordenar nem cortar: quem faz isso é o painel, que
+   * tem o botão Dias/Horas. Cortar aqui decidiria o ranking antes de saber qual
+   * dos dois está apertado.
+   *
+   * A renomeação existe porque os dois consumidores nomeiam as mesmas colunas de
+   * formas diferentes: a curva chama de `mes`/`novos` (herança do gráfico
+   * mensal, onde o eixo era mês), e o ranking chama de `rotulo`/`negocios`.
    */
-  const horariosDoDia = useMemo(
-    () =>
-      hourlyData.map(h => ({
-        hora: h.mes,
-        negocios: h.novos,
-        ganhos: h.ganhos,
-        perdidos: h.perdidos,
-      })),
-    [hourlyData],
-  );
+  const rankingDoCiclo = useMemo(() => {
+    const renomear = (faixas: typeof distribuicaoDoCiclo.horas) =>
+      faixas.map(f => ({
+        rotulo: f.mes,
+        negocios: f.novos,
+        ganhos: f.ganhos,
+        perdidos: f.perdidos,
+      }));
+    return { horas: renomear(distribuicaoDoCiclo.horas), dias: renomear(distribuicaoDoCiclo.dias) };
+  }, [distribuicaoDoCiclo]);
 
   /**
    * Perdas repartidas por origem, com os motivos de cada origem por dentro.
@@ -631,17 +785,20 @@ export default function DashboardPage() {
     ? AREAS_NEGOCIOS.filter(a => a.chave === "ganhos")
     : AREAS_NEGOCIOS;
 
-  /** Séries ligadas no gráfico por horário. Começa com as três. */
-  const [seriesHorario, setSeriesHorario] = useState<string[]>(() => AREAS_NEGOCIOS.map(a => a.chave));
-  const alternarSerieHorario = (chave: string) =>
-    setSeriesHorario(atual =>
-      atual.includes(chave)
-        // A última ligada não desliga: gráfico sem nenhuma série é uma grade
-        // vazia, um beco sem saída visual. Sempre sobra pelo menos uma curva.
-        ? (atual.length === 1 ? atual : atual.filter(c => c !== chave))
-        : [...atual, chave]
-    );
-  const areasHorario = AREAS_NEGOCIOS.filter(a => seriesHorario.includes(a.chave));
+  /**
+   * Em que relógio o painel "Resultados por horário/dia" lê o período.
+   *
+   * Nasce em dias, que é a leitura mais grossa das duas. São sete colunas contra
+   * vinte e quatro, então a forma da semana se lê de relance, enquanto a curva
+   * das horas pede atenção para dizer alguma coisa. E o ranking ao lado já
+   * responde por hora: abrir os dois na mesma unidade gastaria metade da linha
+   * repetindo o recorte.
+   */
+  const [cicloDoHorario, setCicloDoHorario] = useState<"horas" | "dias">("dias");
+  const cicloEscolhido = cicloDoHorario === "horas" ? distribuicaoDoCiclo.horas : distribuicaoDoCiclo.dias;
+  // Sem movimento nenhum, entra o ciclo completo zerado para os eixos ficarem
+  // de pé. Ver CICLO_VAZIO.
+  const dadosDoCiclo = cicloEscolhido.length > 0 ? cicloEscolhido : CICLO_VAZIO[cicloDoHorario];
 
   return (
     // Valores arbitrários porque nenhum dos dois existe na escala do Tailwind,
@@ -662,8 +819,60 @@ export default function DashboardPage() {
     // depois do padding, e é dela que saem as larguras dos painéis: os quatro
     // cartões do topo ficam com ~296px cada e as duas rosquinhas de Origem com
     // ~594px por coluna.
-    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
-      <Tabs defaultValue="negocios" className="space-y-6">
+    // Barra lateral e conteúdo lado a lado.
+    //
+    // A barra é `sticky` em vez de ter rolagem própria: quem rola é o `<main>`
+    // do AppLayout, e dar uma segunda área rolável aqui criaria duas barras de
+    // rolagem na mesma tela. Assim ela fica parada enquanto o painel passa.
+    //
+    // O `max-w-7xl` saiu daqui e foi para a coluna do conteúdo: no contêiner de
+    // fora ele limitaria a barra e o painel juntos, e o painel perderia 240px de
+    // largura -- justo ele, que é onde os gráficos moram.
+    // `font-inter` numa raiz só, e não painel a painel: font-family é herdada,
+    // então uma declaração aqui alcança título, rótulo, tabela e também o texto
+    // dos gráficos, que é SVG e herda a fonte do CSS como qualquer outro nó.
+    //
+    // O resto do app segue na Geist (`font-sans`, no <body>). A troca alcança
+    // tudo aqui dentro porque nenhum descendente redeclara a família: quem fazia
+    // isso era o `font-mono` dos parâmetros de UTM, e ele saiu de lá -- herança
+    // não vence uma declaração explícita, e aquele trecho ficaria em Geist Mono
+    // no meio da página inteira em Inter.
+    <div className="flex font-inter">
+      {/* A faixa que encolhe é a de FORA; a barra dentro dela mantém os 240px e
+          desliza para fora do recorte. Animar a largura da própria barra
+          espremeria os rótulos durante a transição. */}
+      <div
+        className="sticky top-0 h-screen shrink-0 overflow-hidden"
+        style={{ width: barraAberta ? LARGURA_DA_BARRA : 0, transition: "width 300ms ease" }}
+      >
+        <div style={{ width: LARGURA_DA_BARRA, height: "100%" }}>
+          <DashboardSidebar ativa={visao} aoEscolher={setVisao} />
+        </div>
+      </div>
+
+      {/* Puxador colado na borda da barra, que anda junto com ela.
+
+          `sticky` com `top-[30px]`, e não `absolute`: a página inteira rola
+          dentro do `<main>`, e no `absolute` ele subiria junto com o conteúdo e
+          sumiria da tela na primeira rolagem.
+
+          `h-0` no invólucro para ele não ocupar linha nenhuma no flex -- o botão
+          é desenhado para fora, por cima da divisa entre a barra e o painel. */}
+      <div className="sticky top-[30px] h-0 z-20 shrink-0">
+        <button
+          type="button"
+          onClick={alternarBarra}
+          title={barraAberta ? "Fechar a barra ( [ )" : "Mostrar as visões ( [ )"}
+          aria-label={barraAberta ? "Fechar a barra de visões" : "Mostrar a barra de visões"}
+          aria-expanded={barraAberta}
+          className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors"
+        >
+          {barraAberta ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
+        </button>
+      </div>
+
+      <div className="flex-1 min-w-0 pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
+      <Tabs value={visao} onValueChange={v => setVisao(v as VisaoDoDashboard)} className="space-y-6">
       {/* Header */}
       {/* items-start, e não items-center: com o subtítulo, o bloco de título
           ficou mais alto que as abas, e centralizar deixaria as abas flutuando
@@ -672,21 +881,26 @@ export default function DashboardPage() {
         <div>
           {/* 23px é valor arbitrário: a escala do Tailwind pula de 20 (text-xl)
               para 24 (text-2xl). */}
-          <h1 className="text-[23px] font-semibold text-foreground">Dashboard</h1>
-          {/* 14px, e não os 12px dos subtítulos de painel: este acompanha o
-              título da página inteira, que é maior, e no corpo menor ficaria
-              desproporcional embaixo dos 23px do "Dashboard". */}
-          <p className="text-sm text-muted-foreground mt-0.5">Desempenho geral do seu negócio</p>
+          {/* O título é o rótulo da visão escolhida na barra, e nada além dele.
+              Fixo, as outras três visões exibiriam um título que não é o delas.
+
+              Saiu o "dashboard" que vinha no fim: com rótulos de uma palavra ele
+              completava a frase, mas os nomes cresceram e "Resultado por
+              pipeline dashboard" empilha três substantivos sem dizer nada a mais
+              -- a pessoa já sabe que está no dashboard, chegou por ele. */}
+          <h1 className="text-[23px] font-semibold text-foreground">{ROTULO_DA_VISAO[visao]}</h1>
+          {/* No lugar do subtítulo fixo ("Desempenho geral do seu negócio"),
+              o período que está filtrando. Aquela frase valia para qualquer
+              conta em qualquer dia; esta responde a pergunta que a pessoa
+              realmente traz ao olhar um número: "de quando é isso?".
+
+              14px, e não os 12px dos subtítulos de painel: acompanha o título da
+              página, que é maior. */}
+          <p className="text-sm text-muted-foreground mt-0.5">{periodoPorExtenso}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <TabsList className="bg-card border border-gray-200 rounded-lg">
-            <TabsTrigger value="negocios" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Negócios</TabsTrigger>
-            <TabsTrigger value="multiatendimento" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Multiatendimento</TabsTrigger>
-            <TabsTrigger value="funil" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Funis</TabsTrigger>
-            <TabsTrigger value="times" className="rounded-md data-[state=active]:bg-primary data-[state=active]:text-white">Time</TabsTrigger>
-          </TabsList>
-          <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
-        </div>
+        {/* Sem a fileira de abas, que virou a barra lateral. Sobra o seletor de
+            período, que vale para as quatro visões. */}
+        <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
       </div>
 
         {/* ──────────── NEGÓCIOS ──────────── */}
@@ -735,53 +949,34 @@ export default function DashboardPage() {
                 return null;
               };
 
-              // Séries dos sparklines. Saem do monthlyData, que é o mesmo dado do
-              // gráfico grande logo abaixo -- assim o mini gráfico do cartão e a
-              // curva do painel nunca contam histórias diferentes.
-              //
-              // "Em aberto" não tem série própria: é o que entrou menos o que
-              // fechou, e por isso é calculado aqui em vez de inventar um campo.
-              const serieNovos    = monthlyData.map(m => m.novos);
-              const serieGanhos   = monthlyData.map(m => m.ganhos);
-              const seriePerdidos = monthlyData.map(m => m.perdidos);
-              const serieAbertos  = monthlyData.map(m => Math.max(0, m.novos - m.ganhos - m.perdidos));
-
               return [
                 {
                   label: "Total de negócios",
                   value: periodLeads.length,
                   sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
                   delta: compara(periodLeads, priorPeriodLeads, porEntrada),
-                  icone: Briefcase,
                   tom: "primary" as const,
-                  serie: serieNovos,
                 },
                 {
                   label: "Total em vendas",
                   value: wonInPeriod.length,
                   sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(wonInPeriod, wonPrior, porFechamento("won")),
-                  icone: Trophy,
                   tom: "success" as const,
-                  serie: serieGanhos,
                 },
                 {
                   label: "Total perdidos",
                   value: lostInPeriod.length,
                   sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(lostInPeriod, lostPrior, porFechamento("lost")),
-                  icone: XCircle,
                   tom: "danger" as const,
-                  serie: seriePerdidos,
                 },
                 {
                   label: "Total em aberto",
                   value: openInPeriod.length,
                   sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(openInPeriod, openPrior, porEntrada),
-                  icone: Clock,
                   tom: "amber" as const,
-                  serie: serieAbertos,
                 },
               ];
             })().map(c => (
@@ -791,16 +986,21 @@ export default function DashboardPage() {
                 value={c.value}
                 sub={c.sub}
                 variacao={c.delta}
-                icone={c.icone}
                 tom={c.tom}
-                serie={c.serie}
-                // Nos cartões de negócio o dinheiro é a resposta e a contagem é
-                // o detalhe, então o valor sobe para o destaque e o número desce.
+                // O dinheiro segue em `sub` e a contagem em `value`, como
+                // sempre foram. Quem inverteu a ORDEM na tela foi o `KpiCard`,
+                // trocando de lugar as duas linhas que desenha -- os dados aqui
+                // não mudaram.
+                //
+                // Sem `icone` e sem `serie`: os quatro cartões desta fileira
+                // ficam só com o rótulo, os dois números e a variação. O ícone
+                // era decorativo -- o rótulo já diz o que é a métrica. O mini
+                // gráfico do rodapé saía do mesmo `monthlyData` da curva grande
+                // logo abaixo, então repetia em 44px de altura uma história que
+                // o painel inteiro conta em seguida.
                 destaqueNoSub
-                // Com o dinheiro em destaque, o número embaixo precisa dizer de
-                // que ele é contagem. Os quatro cartões contam negócios: os
-                // ganhos, os perdidos e os abertos são todos negócios, em
-                // situações diferentes.
+                // O número de negócios precisa dizer de que ele é contagem: os
+                // quatro cartões contam negócios, em situações diferentes.
                 sufixo={c.value === 1 ? "negócio" : "negócios"}
               />
             ))}
@@ -943,71 +1143,62 @@ export default function DashboardPage() {
               4/6 para a curva e 2/6 para o ranking, as mesmas proporções da
               linha de cima, para as duas se lerem como um par. */}
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
-          <HorariosPanel dados={horariosDoDia} className="lg:col-span-2" />
+          <HorariosPanel horas={rankingDoCiclo.horas} dias={rankingDoCiclo.dias} className="lg:col-span-2" />
 
           {/* Hourly results */}
           <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
-            <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Resultados por horário</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Como os negócios se distribuem ao longo do dia</p>
+                <h3 className="text-sm font-semibold text-foreground">Resultados por horário/dia</h3>
+                {/* O subtítulo acompanha o seletor. Ele explica o eixo, e com o
+                    texto fixo em "ao longo do dia" o painel diria uma coisa e o
+                    gráfico mostraria outra assim que alguém trocasse para Dias. */}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {cicloDoHorario === "horas"
+                    ? "Como os negócios se distribuem ao longo do dia"
+                    : "Como os negócios se distribuem ao longo da semana"}
+                </p>
               </div>
-              {/* Legenda que também filtra: clicar liga e desliga a série no
-                  gráfico. Desligada, a bolinha fica oca e o texto esmaece, então
-                  dá para ver de relance o que está fora sem abrir nada. */}
-              <div className="flex items-center gap-1">
-                {AREAS_NEGOCIOS.map(a => {
-                  const ativa = seriesHorario.includes(a.chave);
-                  const ultima = ativa && seriesHorario.length === 1;
-                  return (
-                    <button
-                      key={a.chave}
-                      onClick={() => alternarSerieHorario(a.chave)}
-                      aria-pressed={ativa}
-                      title={ultima ? "Pelo menos uma série precisa ficar visível" : ativa ? `Ocultar ${a.nome}` : `Mostrar ${a.nome}`}
-                      className={`flex items-center gap-1.5 text-xs rounded-md px-2 py-1 transition-colors ${
-                        ativa ? "text-foreground" : "text-muted-foreground/50"
-                      } ${ultima ? "cursor-default" : "cursor-pointer hover:bg-muted/60"}`}
-                    >
-                      {/* Mesma caixa de seleção do "Visualizando como" da
-                          pipeline: quadrado com marca de confirmação, pintado na
-                          cor da série. Reaproveitar o padrão que já existe no
-                          app evita duas gramáticas de seleção convivendo.
+              {/* Horas x Dias, no mesmo par de botões do "Quantidade/Receita" do
+                  painel de cima. São duas opções, e um dropdown esconderia
+                  metade da escolha atrás de um clique; aqui as duas ficam
+                  visíveis e o estado atual se lê sem abrir nada.
 
-                          A cor fica na caixa, e não numa bolinha separada, então
-                          um único elemento diz as duas coisas: qual série é e se
-                          ela está no gráfico. */}
-                      <span
-                        className="flex items-center justify-center rounded shrink-0"
-                        style={{
-                          width: 14,
-                          height: 14,
-                          border: ativa ? `2px solid ${a.cor}` : "1.5px solid #CCCCCC",
-                          background: ativa ? a.cor : "transparent",
-                        }}
-                      >
-                        {ativa && (
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </span>
-                      {a.nome}
-                    </button>
-                  );
-                })}
+                  É o único controle do cabeçalho. A legenda que ligava e
+                  desligava Negócios/Ganhos/Perdidos saiu daqui: as três séries
+                  continuam nomeadas no tooltip, com cor e valor no ponto olhado,
+                  que é onde a identificação faz falta -- e o painel de cima já
+                  desenha as mesmas três curvas sem legenda nenhuma. */}
+              <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+                {([
+                  { id: "dias",  rotulo: "Dias" },
+                  { id: "horas", rotulo: "Horas" },
+                ] as const).map(op => (
+                  <button
+                    key={op.id}
+                    onClick={() => setCicloDoHorario(op.id)}
+                    aria-pressed={cicloDoHorario === op.id}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      cicloDoHorario === op.id
+                        ? "bg-card text-foreground shadow-elev-1"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {op.rotulo}
+                  </button>
+                ))}
               </div>
             </div>
-            {hourlyData.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-8 text-center">Nenhum dado no período selecionado.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
+            {/* Sem ramo de vazio: o gráfico é desenhado sempre, porque no
+                período sem movimento entra o ciclo zerado e os eixos ficam de
+                pé, como no "Resultado no período". */}
+            <ResponsiveContainer width="100%" height={260}>
                 {/* Mesmo tratamento do gráfico mensal. Os gradientes têm ids
                     próprios (sufixo -h): dois <linearGradient> com o mesmo id na
                     página fazem o segundo herdar o primeiro. */}
-                <AreaChart data={hourlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <AreaChart data={dadosDoCiclo} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <defs>
-                    {areasHorario.map(a => (
+                    {AREAS_NEGOCIOS.map(a => (
                       <linearGradient key={a.id} id={`${a.id}-h`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
                         <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
@@ -1018,7 +1209,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                   <Tooltip content={<TooltipSeries cores={COR_DA_SERIE} />} />
-                  {areasHorario.map(a => (
+                  {AREAS_NEGOCIOS.map(a => (
                     <Area
                       key={a.chave}
                       type="monotone"
@@ -1034,8 +1225,7 @@ export default function DashboardPage() {
                     />
                   ))}
                 </AreaChart>
-              </ResponsiveContainer>
-            )}
+            </ResponsiveContainer>
           </div>
           </div>
 
@@ -1208,12 +1398,16 @@ export default function DashboardPage() {
               // "atendentes ativos" ou de "conversão do time" para desenhar, e
               // inventar uma seria decorar o cartão com um dado que não existe.
               return [
-                { label: "Atendentes ativos",   value: String(totalAgents), icone: Users,      tom: "primary" as const },
-                { label: "Vendas no período",   value: String(totalWon),    icone: Trophy,     tom: "success" as const },
-                { label: "Perdidos no período", value: String(totalLost),   icone: XCircle,    tom: "danger" as const },
-                { label: "Conversão do time",   value: closed > 0 ? `${(totalWon / closed * 100).toFixed(1)}%` : "—", icone: TrendingUp, tom: "amber" as const },
+                { label: "Atendentes ativos",   value: String(totalAgents), tom: "primary" as const },
+                { label: "Vendas no período",   value: String(totalWon),    tom: "success" as const },
+                { label: "Perdidos no período", value: String(totalLost),   tom: "danger" as const },
+                { label: "Conversão do time",   value: closed > 0 ? `${(totalWon / closed * 100).toFixed(1)}%` : "—", tom: "amber" as const },
               ].map(k => (
-                <KpiCard key={k.label} label={k.label} value={k.value} icone={k.icone} tom={k.tom} />
+                // Mesma escala dos cartões do topo da Performance geral, e sem
+                // ícone como lá. O conteúdo fica como estava: são métricas de um
+                // número só, sem dinheiro para destacar nem contagem para descer
+                // à linha de apoio.
+                <KpiCard key={k.label} label={k.label} value={k.value} tom={k.tom} />
               ));
             })()}
           </div>
@@ -1226,20 +1420,36 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-semibold text-foreground">Top SDR</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Agendamentos e conversão por usuário</p>
               </div>
-              {activityStats.topSchedulers.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma reunião agendada no período.</p>
-              ) : (
+              {/* A tabela é montada mesmo sem ninguém a listar, e o "não há
+                  nada" desce para uma linha dentro dela -- o mesmo tratamento
+                  dos rankings e do UTM. Trocar a tabela por uma frase solta
+                  encolhia o cartão ao lado de um vizinho de altura cheia, e a
+                  linha ficava com um painel inteiro de desnível. */}
                 <div className="border border-card-border rounded-lg overflow-hidden">
                   <table className="w-full text-xs border-collapse">
+                    {/* Faixa verde do "Performance por UTM": --primary chapado,
+                        texto branco, e as réguas entre colunas em branco a 20%.
+
+                        Sem `border-b`: a troca de cor entre a faixa e o corpo
+                        branco já é a divisa, e o traço cinza que estava aqui
+                        sujava a banda por baixo. Os cantos são recortados pelo
+                        `overflow-hidden` da moldura, que já existia. */}
                     <thead>
-                      <tr className="bg-muted/40 border-b border-card-border">
-                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Usuário</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Agendamentos</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Reuniões ocorridas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground">Conversão</th>
+                      <tr className="bg-primary [&>th]:border-r [&>th]:border-white/20 [&>th:last-child]:border-r-0">
+                        <th className="text-left px-3 py-2 font-semibold text-white">Usuário</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Agendamentos</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Reuniões ocorridas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Conversão</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-card-border">
+                      {activityStats.topSchedulers.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                            Nenhuma reunião agendada no período.
+                          </td>
+                        </tr>
+                      )}
                       {activityStats.topSchedulers.map((u, i) => {
                         const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
                         return (
@@ -1263,7 +1473,6 @@ export default function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
             </div>
 
             {/* Top Closer */}
@@ -1272,20 +1481,28 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-semibold text-foreground">Top Closer</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Reuniões realizadas e conversão em vendas</p>
               </div>
-              {activityStats.topCompleters.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma venda registrada no período.</p>
-              ) : (
+              {/* Mesmo tratamento do Top SDR ao lado. Ver o comentário lá. */}
                 <div className="border border-card-border rounded-lg overflow-hidden">
                   <table className="w-full text-xs border-collapse">
+                    {/* Mesma faixa verde do Top SDR ao lado. Ver o comentário
+                        lá: os dois ficam lado a lado na mesma linha, e qualquer
+                        diferença de tratamento entre eles lê como desalinho. */}
                     <thead>
-                      <tr className="bg-muted/40 border-b border-card-border">
-                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Usuário</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Reuniões Realizadas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Vendas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground">Conversão</th>
+                      <tr className="bg-primary [&>th]:border-r [&>th]:border-white/20 [&>th:last-child]:border-r-0">
+                        <th className="text-left px-3 py-2 font-semibold text-white">Usuário</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Reuniões Realizadas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Vendas</th>
+                        <th className="text-center px-3 py-2 font-semibold text-white">Conversão</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-card-border">
+                      {activityStats.topCompleters.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                            Nenhuma venda registrada no período.
+                          </td>
+                        </tr>
+                      )}
                       {activityStats.topCompleters.map((u, i) => {
                         const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
                         return (
@@ -1309,11 +1526,8 @@ export default function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
             </div>
           </div>
-
-          <StageVelocityPanel periodLeads={periodLeads} pipelines={pipelines} />
 
           <Dialog open={drillDialog.open} onOpenChange={o => setDrillDialog(d => ({ ...d, open: o }))}>
             <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
@@ -1365,19 +1579,25 @@ export default function DashboardPage() {
 
             return (
               <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Reuniões no período</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Desempenho e conversão das reuniões agendadas</p>
-                  </div>
-                  {meetings === 0 && (
-                    <span className="text-xs text-muted-foreground">Nenhuma reunião no período</span>
-                  )}
+                {/* Header. Era um `justify-between` com o aviso de vazio no
+                    canto direito; sem ele sobrou um lado só, e a divisão em duas
+                    caixas deixou de ter o que dividir. */}
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold text-foreground">Resultado acumulado no período</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Desempenho e conversão das reuniões agendadas</p>
                 </div>
 
-                {meetings > 0 && (
-                  <>
+                {/* O corpo é montado sempre, e não só quando há reunião.
+                    Antes, no período vazio, o painel virava título mais o aviso
+                    "Nenhuma reunião no período" no canto -- os três números, a
+                    barra e a tabela sumiam de uma vez, e o cartão encolhia a uma
+                    tira de duas linhas no meio de vizinhos de altura cheia.
+
+                    Zerado ele ainda informa: os KPIs mostram os zeros que são a
+                    resposta certa para o período, e a tabela mantém as colunas
+                    de pé, dizendo o que vai aparecer ali assim que houver
+                    agendamento. O aviso do cabeçalho saiu porque a linha dentro
+                    da tabela já diz a mesma coisa, e no lugar certo. */}
                     {/* KPIs */}
                     <div className="grid grid-cols-3 gap-3 mb-5">
                       {[
@@ -1413,7 +1633,6 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Tabela por atendente */}
-                    {userRows.length > 0 && (
                       <div className="border border-card-border rounded-lg overflow-hidden">
                         <table className="w-full text-xs border-collapse">
                           <thead>
@@ -1426,6 +1645,13 @@ export default function DashboardPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-card-border">
+                            {userRows.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                                  Nenhuma reunião agendada no período.
+                                </td>
+                              </tr>
+                            )}
                             {userRows.map(u => (
                               <tr key={u.name} className="hover:bg-muted/30 transition-colors">
                                 <td className="px-3 py-2.5 font-medium text-foreground truncate max-w-[140px] border-r border-card-border">{u.name}</td>
@@ -1442,56 +1668,9 @@ export default function DashboardPage() {
                           </tbody>
                         </table>
                       </div>
-                    )}
-                  </>
-                )}
               </div>
             );
           })()}
-
-          {/* Tabela de desempenho */}
-          <div>
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Desempenho dos vendedores</h3>
-              {agentPerformance.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sem atendentes cadastrados.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-card-border text-xs text-muted-foreground">
-                        <th className="text-left pb-2 font-medium">Atendente</th>
-                        <th className="text-right pb-2 font-medium">Total</th>
-                        <th className="text-right pb-2 font-medium">Ganhos</th>
-                        <th className="text-right pb-2 font-medium">Perdidos</th>
-                        <th className="text-right pb-2 font-medium">Conversão</th>
-                        <th className="text-right pb-2 font-medium">Ticket médio</th>
-                        <th className="text-right pb-2 font-medium">Receita</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-card-border">
-                      {agentPerformance.map(a => (
-                        <tr key={a.name} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-2.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0" style={{ backgroundColor: a.color }}>{a.name[0]}</div>
-                              <span className="text-foreground font-medium truncate max-w-[120px]">{a.name}</span>
-                            </div>
-                          </td>
-                          <td className="text-right py-2.5 text-muted-foreground">{a.total}</td>
-                          <td className="text-right py-2.5 text-success font-medium">{a.won}</td>
-                          <td className="text-right py-2.5 text-destructive">{a.lost}</td>
-                          <td className="text-right py-2.5 font-medium text-foreground">{a.convRate}{a.convRate !== "—" ? "%" : ""}</td>
-                          <td className="text-right py-2.5 text-foreground">{fmt(a.avgTicket)}</td>
-                          <td className="text-right py-2.5 font-semibold text-foreground">{fmt(a.totalValue)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
 
         </TabsContent>
 
@@ -1548,24 +1727,28 @@ export default function DashboardPage() {
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  {/* Mesmos cartões da aba Negócios, agora pelo componente e não
-                      escritos à mão: eram cinco blocos duplicados que já tinham
-                      divergido no visual (ícone solto contra ícone em quadrado
-                      tingido) e na escolha de cor.
+                  {/* Mesma hierarquia dos quatro cartões do topo da Performance
+                      geral: o dinheiro no centro, em destaque, e a contagem de
+                      negócios logo abaixo. Os rótulos são os mesmos nas duas
+                      abas, e com as hierarquias trocadas o mesmo "Total em
+                      vendas" respondia "quanto entrou" numa e "quantos negócios"
+                      na outra.
 
-                      A hierarquia de cada aba fica como estava: aqui a contagem é
-                      o número grande e o dinheiro é o detalhe, o inverso de
-                      Negócios. Isso é decisão de conteúdo, não de estilo, então
-                      não mexo nela junto com o acerto visual. */}
-                  <KpiCard label="Total de negócios" value={pLeads.length} sub={fmt(pLeads.reduce((s, l) => s + l.value, 0))} icone={Briefcase} tom="primary" />
-                  <KpiCard label="Total em vendas"   value={pWon.length}   sub={fmt(pWon.reduce((s, l) => s + l.value, 0))}   icone={Trophy}    tom="success" />
-                  <KpiCard label="Total perdidos"    value={pLost.length}  sub={fmt(pLost.reduce((s, l) => s + l.value, 0))}  icone={XCircle}   tom="danger" />
-                  <KpiCard label="Total em aberto"   value={pOpen.length}  sub={fmt(pOpen.reduce((s, l) => s + l.value, 0))}  icone={Clock}     tom="amber" />
+                      `sufixo` porque o número de baixo precisa dizer de que ele
+                      é contagem: os quatro contam negócios, em situações
+                      diferentes. */}
+                  <KpiCard label="Total de negócios" value={pLeads.length} sub={fmt(pLeads.reduce((s, l) => s + l.value, 0))} tom="primary" destaqueNoSub sufixo={pLeads.length === 1 ? "negócio" : "negócios"} />
+                  <KpiCard label="Total em vendas"   value={pWon.length}   sub={fmt(pWon.reduce((s, l) => s + l.value, 0))}   tom="success" destaqueNoSub sufixo={pWon.length === 1 ? "negócio" : "negócios"} />
+                  <KpiCard label="Total perdidos"    value={pLost.length}  sub={fmt(pLost.reduce((s, l) => s + l.value, 0))}  tom="danger"  destaqueNoSub sufixo={pLost.length === 1 ? "negócio" : "negócios"} />
+                  <KpiCard label="Total em aberto"   value={pOpen.length}  sub={fmt(pOpen.reduce((s, l) => s + l.value, 0))}  tom="amber"   destaqueNoSub sufixo={pOpen.length === 1 ? "negócio" : "negócios"} />
+                  {/* O quinto fica na hierarquia inversa, e é o certo para ele:
+                      não tem dinheiro para destacar, e a taxa é a resposta. Com
+                      a escala unificada isso não abre diferença visual na
+                      fileira -- muda o que ocupa o centro, não o tamanho. */}
                   <KpiCard
                     label="Conversão do funil"
                     value={firstCount > 0 ? `${((pWon.length / firstCount) * 100).toFixed(1)}%` : "—"}
-                    sub={`${pWon.length} ganhos de ${firstCount} MQL`}
-                    icone={TrendingUp}
+                    sub={`${pWon.length} ganhos de ${firstCount} ${firstCount === 1 ? "negócio" : "negócios"}`}
                     tom="success"
                   />
                 </div>
@@ -1767,12 +1950,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <StageVelocityPanel funnelPipeline={funnelPipeline} allLeads={allLeads} funnelResponsible={funnelResponsible} />
               </div>
             );
           })()}
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

@@ -144,9 +144,20 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
       ? Math.round(withUtm.length / periodLeads.length * 100)
       : 0;
 
-    const activeFields = UTM_FIELDS.filter(f =>
+    // As colunas de UTM que algum lead do período preencheu. Um parâmetro que
+    // ninguém usa não vira coluna: seriam trinta linhas de travessão ocupando
+    // um quarto da largura da tabela.
+    const preenchidos = UTM_FIELDS.filter(f =>
       withUtm.some(l => (l[f.key] as string | undefined)?.trim())
     );
+
+    // Sem nenhum lead rastreado não há o que filtrar, e a regra acima deixaria
+    // a tabela sem uma única coluna de UTM -- restariam a medalha e os quatro
+    // números, e o painel viraria uma moldura vazia que não diz nem do que ele
+    // trata. No vazio entram os quatro parâmetros: eles existem no produto
+    // independentemente de terem sido usados no período, então a tabela mostra
+    // a estrutura que ela terá assim que o rastreio começar a chegar.
+    const activeFields = preenchidos.length > 0 ? preenchidos : [...UTM_FIELDS];
 
     const map = new Map<string, {
       utmValues: Record<string, string>;
@@ -313,10 +324,12 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
         )}
       </div>
 
-      {withUtm.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhum lead com dados UTM no período.</p>
-      ) : (
-        <>
+        {/* Sem ramo de vazio: a tabela é montada sempre, com cabeçalho, colunas
+            e rodapé de pé, e o "não há nada" desce para uma linha dentro dela.
+            Antes o painel inteiro sumia e dava lugar a uma frase solta, do lado
+            de painéis que no mesmo vazio continuam desenhando a estrutura --
+            três cartões vizinhos tratando o mesmo caso de três formas leem como
+            se um deles tivesse quebrado. */}
         {/* Escape dos filtros. Aparece só com algum ativo, e é uma linha de
             estado, não uma barra de filtros: os filtros moram nos cabeçalhos.
             Existe porque limpar quatro colunas uma a uma é trabalho, e porque a
@@ -437,7 +450,11 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                           </DropdownMenuRadioGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <span className="block font-normal text-white/60 text-[10px] leading-tight font-mono truncate">
+                      {/* Sem `font-mono`: a página inteira roda em Inter, e a
+                          Geist Mono aqui era a única família estranha no meio
+                          dela. O nome do parâmetro continua se distinguindo do
+                          título acima pelo corpo (10px) e pela cor. */}
+                      <span className="block font-normal text-white/60 text-[10px] leading-tight truncate">
                         {f.param}
                       </span>
 
@@ -540,16 +557,25 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                   <td className="text-center py-2.5 pl-3 font-semibold whitespace-nowrap tabular-nums text-xs text-success">{fmt(r.revenue)}</td>
                 </tr>
               ))}
-              {/* Filtro sem resultado. As opções vêm de todas as linhas, então
-                  é possível montar uma combinação que não existe; o caminho de
-                  volta tem que estar aqui, e não só lá em cima. */}
+              {/* Duas razões diferentes para a tabela estar vazia, e por isso
+                  duas frases. Sem nenhum lead rastreado não há filtro a limpar,
+                  e oferecer o botão mandaria a pessoa desfazer algo que ela não
+                  fez. Com filtro, o caminho de volta tem que estar aqui, e não
+                  só lá em cima: as opções vêm de todas as linhas, então é
+                  possível montar uma combinação que não existe. */}
               {filtradas.length === 0 && (
                 <tr>
                   <td colSpan={activeFields.length + 5} className="py-6 text-xs text-muted-foreground text-center">
-                    Nenhuma combinação com esses filtros.{" "}
-                    <button onClick={() => setFiltros({})} className="underline underline-offset-2 hover:text-foreground">
-                      Limpar
-                    </button>
+                    {withUtm.length === 0 ? (
+                      "Nenhum lead com dados UTM no período."
+                    ) : (
+                      <>
+                        Nenhuma combinação com esses filtros.{" "}
+                        <button onClick={() => setFiltros({})} className="underline underline-offset-2 hover:text-foreground">
+                          Limpar
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               )}
@@ -598,8 +624,6 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
             {noUtmCount} lead{noUtmCount > 1 ? "s" : ""} sem UTM {noUtmCount > 1 ? "não são exibidos" : "não é exibido"} — <span className="underline underline-offset-2">ver todos</span>
           </button>
         )}
-        </>
-      )}
 
       <Dialog open={noUtmOpen} onOpenChange={setNoUtmOpen}>
         <DialogContent className="max-w-lg max-h-[70vh] flex flex-col">

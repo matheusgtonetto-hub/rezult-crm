@@ -18,6 +18,15 @@ export default {
         sans: ["Geist Sans", "sans-serif"],
         heading: ["Geist Sans", "sans-serif"],
         mono: ["Geist Mono", "monospace"],
+        // A Inter já estava declarada em `index.css` e os arquivos vivem em
+        // `public/fonts`, mas nada no app a pedia por classe -- só a barra
+        // lateral, por `style` inline. Nomeada aqui, ela vira `font-inter`,
+        // que é o que o dashboard usa.
+        //
+        // Variável de 100 a 900, então todos os pesos saem do mesmo arquivo:
+        // `font-medium`, `font-semibold` e `font-bold` não puxam requisição
+        // nova nem caem em peso sintético.
+        inter: ["Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

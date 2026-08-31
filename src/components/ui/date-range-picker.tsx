@@ -128,11 +128,16 @@ export function DateRangePicker({ value, onChange, className, dataFrom, dataTo }
     setOpen(next);
   };
 
-  const displayText = value.from && value.to
-    ? value.from.toDateString() === value.to.toDateString()
-      ? format(value.from, "dd/MM/yyyy")
-      : `${format(value.from, "dd/MM/yyyy")} - ${format(value.to, "dd/MM/yyyy")}`
-    : "Selecionar período";
+  /**
+   * O botão diz o que ELE faz, e não qual período está escolhido.
+   *
+   * As datas saíram daqui porque passaram a ser mostradas por extenso logo
+   * abaixo do título do painel, onde há espaço para escrevê-las de forma legível
+   * ("Seg, 15 jan"). Repetir "15/01/2026 - 21/01/2026" dentro do botão diria a
+   * mesma coisa duas vezes, em formato pior, e ainda fazia o botão mudar de
+   * largura a cada troca de período -- empurrando o resto da linha de lugar.
+   */
+  const displayText = "Selecione o período";
 
   const activeClass = "bg-success/15 text-success font-medium";
   const idleClass   = "text-foreground hover:bg-muted";

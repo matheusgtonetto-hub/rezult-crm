@@ -155,19 +155,31 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       : "Comparado com o período anterior";
 
   /**
-   * Escala da linha de apoio (seta, variação e texto secundário).
+   * A escala tipográfica do cartão: rótulo, número, e a linha de apoio (seta,
+   * variação e texto secundário).
    *
-   * Muda com o modo porque a vizinhança muda. No modo padrão o badge fica
-   * colado no número grande e cresceria disputando com ele; no `destaqueNoSub`
-   * ele desce para uma linha própria, onde pode acompanhar a contagem.
+   * Uma só para as duas variantes. Antes eram duas escalas -- a do
+   * `destaqueNoSub` maior e com o rótulo em preto, a padrão menor e com o
+   * rótulo em cinza --, e as fileiras de topo de cada aba do dashboard saíam
+   * com corpos diferentes para a mesma função. Lado a lado nunca dava para
+   * comparar, mas trocar de aba trocava o tamanho do texto sob o mesmo rótulo
+   * ("Total de negócios"), o que lê como duas telas de produtos diferentes.
    *
-   * Os três num objeto só, e não em constantes soltas, porque são lidos juntos
-   * na mesma linha: é a relação entre eles que decide se a linha fica
-   * equilibrada, e separá-los deixaria isso invisível na hora de editar.
+   * O que continua distinguindo as variantes é só a HIERARQUIA -- qual campo
+   * ocupa o lugar de destaque --, que é decisão de conteúdo. Tamanho e respiro
+   * não são.
+   *
+   * Tudo num objeto só, e não em constantes soltas, porque são lidos juntos:
+   * é a relação entre eles que decide se o cartão fica equilibrado, e
+   * separá-los deixaria isso invisível na hora de editar.
    */
-  const ESCALA = destaqueNoSub
-    ? { badge: "text-[12px]", apoio: "text-[14px]", seta: 16 }
-    : { badge: "text-[11px]", apoio: "text-[12px]", seta: 15 };
+  const ESCALA = {
+    rotulo: "text-[14px] text-foreground font-normal",
+    numero: "text-[22px]",
+    badge: "text-[12px]",
+    apoio: "text-[14px]",
+    seta: 16,
+  };
 
   // Sem pastilha de fundo: só o texto colorido. A cor já diz alta ou queda, e o
   // fundo somava uma segunda camada de sinal para a mesma informação, num cartão
@@ -212,7 +224,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
           {/* Rótulo em preto. A hierarquia contra o número logo abaixo fica por
               conta do corpo (14 contra 22) e do peso (400 contra 700), sem
               precisar rebaixar a cor também. */}
-          <span className="text-[14px] text-foreground font-normal">{label}</span>
+          <span className={ESCALA.rotulo}>{label}</span>
           {chipDoIcone}
         </div>
         {/* O dinheiro no lugar de destaque. `tabular-nums` porque são valores
@@ -223,7 +235,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
             valor divide a atenção com o título de 14px e a linha de apoio, e o
             corpo menor deixa o cartão mais respirado sem perder a hierarquia,
             que continua garantida pelo peso 700 e pela cor. */}
-        <p className="text-[22px] leading-none font-bold tabular-nums text-foreground">
+        <p className={`${ESCALA.numero} leading-none font-bold tabular-nums text-foreground`}>
           {sub ?? "—"}
         </p>
         {/* Variação e contagem na mesma linha, com a seta colada no percentual
@@ -246,12 +258,15 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
 
   return (
     <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
+      {/* `items-center` como na outra variante: com o rótulo em 14px as duas
+          fileiras passaram a ter a mesma altura de linha, e alinhar pelo topo
+          aqui deixaria o texto acima do centro do ícone. */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className={ESCALA.rotulo}>{label}</span>
         {chipDoIcone}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-2xl leading-none font-bold text-foreground">{value}</p>
+        <p className={`${ESCALA.numero} leading-none font-bold tabular-nums text-foreground`}>{value}</p>
         {badge}
       </div>
       {/* O `sub` aparece mesmo sem `deltaPct`. Antes ele estava dentro da
