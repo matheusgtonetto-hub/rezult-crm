@@ -34,7 +34,16 @@ import {
   ChevronUp,
   CalendarDays,
   Link2,
+  MoreVertical,
+  Copy,
+  Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -963,6 +972,84 @@ export default function AgentesPage() {
     toast.success("Rascunho descartado");
   }
 
+  /**
+   * Duplica um agente a partir do card na grade.
+   *
+   * Copia a CONFIGURAÇÃO -- objetivos, comportamento, ferramentas, modelo,
+   * contexto, avatar --, que é o trabalho de verdade e o motivo de alguém
+   * querer duplicar: partir de um agente afinado para fazer uma variação dele.
+   *
+   * Três campos NÃO vêm junto, e cada um por um motivo diferente:
+   *
+   * `activation_tag` fica nula porque o banco não permitiria outra coisa: há um
+   * índice único em (company_id, activation_tag), e a cópia com a mesma tag
+   * seria rejeitada. Isso é a regra certa -- duas tags iguais deixariam a
+   * escolha de quem responde indeterminada. O card já mostra o seletor "Definir
+   * tag", que é exatamente o próximo passo.
+   *
+   * `active` nasce falso, consequência do anterior: sem tag o agente nunca
+   * seria acionado, e um switch ligado prometeria um atendimento que não
+   * aconteceria.
+   *
+   * Os VÍNCULOS (closers, conexões de WhatsApp/Meta/webhook e bases de
+   * conhecimento) também ficam de fora. Eles moram em tabelas próprias e
+   * copiá-los em silêncio ligaria a cópia às mesmas linhas e documentos do
+   * original -- o oposto de "uma variação para testar". O toast diz o que
+   * precisa ser refeito, em vez de deixar a pessoa descobrir na conversa.
+   */
+  async function duplicarAgente(a: Agent) {
+    if (!companyId || !user?.id) return;
+    const { data, error } = await supabase
+      .from("agents")
+      .insert({
+        company_id: companyId,
+        owner_id: user.id,
+        type: a.type,
+        name: `${a.name} (cópia)`,
+        description: a.description,
+        avatar: a.avatar,
+        model: a.model,
+        custom_context: a.custom_context,
+        objectives: a.objectives,
+        enabled_tools: a.enabled_tools,
+        behavior_config: a.behavior_config,
+        activation_tag: null,
+        active: false,
+        // `draft: false` para a cópia já nascer na grade. Como rascunho ela
+        // exigiria refazer o wizard inteiro para chegar num agente que já está
+        // configurado -- o que falta é uma tag, e o card resolve isso ali mesmo.
+        draft: false,
+      })
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft")
+      .single();
+    if (error || !data) { toast.error("Erro ao duplicar o agente"); return; }
+    setAgents((prev) => [...prev, data]);
+    toast.success("Agente duplicado. Defina a tag de ativação e revise conexões e base de conhecimento.");
+  }
+
+  /**
+   * Exclui um agente publicado, a partir do card na grade.
+   *
+   * Irreversível, e por isso pede confirmação nomeando o agente: na grade os
+   * cards são parecidos, e um menu aberto no card errado é fácil.
+   *
+   * A cascata das migrações (`on delete cascade`) já cuida de agent_closers,
+   * agent_whatsapp_connections, agent_knowledge_bases, agent_usage_log e
+   * companhia, então não há limpeza manual a fazer aqui.
+   *
+   * Se o agente excluído for o que está selecionado, a seleção é solta: ela
+   * apontaria para uma linha que não existe mais.
+   */
+  async function excluirAgente(a: Agent) {
+    if (!companyId) return;
+    if (!window.confirm(`Excluir o agente "${a.name}"? Esta ação não pode ser desfeita, e o histórico de uso dele será removido junto.`)) return;
+    const { error } = await supabase.from("agents").delete().eq("id", a.id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao excluir o agente"); return; }
+    setAgents((prev) => prev.filter((x) => x.id !== a.id));
+    setSelectedId((atual) => (atual === a.id ? null : atual));
+    toast.success("Agente excluído");
+  }
+
   async function abandonDraftAgent() {
     if (!selected || !companyId) return;
     if (!window.confirm("Sair sem salvar? O agente criado até aqui será descartado.")) return;
@@ -1652,6 +1739,40 @@ export default function AgentesPage() {
                         <>
                           <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
                           <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+
+                          {/* Duplicar e excluir num menu, e não como dois botões
+                              soltos: são ações raras e uma delas é destrutiva,
+                              então ficam a um clique de distância em vez de
+                              disputar a linha com o estado do agente. O rodapé
+                              do card continua com o que se usa todo dia --
+                              Editar e o switch de ligar.
+
+                              Só nos agentes publicados. O rascunho já tem
+                              "Descartar" no rodapé, que faz a mesma coisa que
+                              excluir, e duplicar um agente pela metade copiaria
+                              uma configuração que ainda não existe. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`Ações do agente ${a.name}`}
+                                className="p-0.5 -mr-1 rounded text-[#767676] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors outline-none"
+                              >
+                                <MoreVertical size={15} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => void duplicarAgente(a)} className="text-[13px] cursor-pointer">
+                                <Copy size={14} className="mr-2" /> Duplicar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => void excluirAgente(a)}
+                                className="text-[13px] cursor-pointer text-[#DC2626] focus:text-[#DC2626]"
+                              >
+                                <Trash2 size={14} className="mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </>
                       )}
                     </div>
