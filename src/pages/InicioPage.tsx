@@ -245,11 +245,19 @@ function BotaoDeArquivo({ tipo, rotulo }: { tipo: "logo" | "foto"; rotulo: strin
   );
 }
 
+/**
+ * O cumprimento da hora, com o ícone que acompanha cada faixa.
+ *
+ * Texto e ícone saem juntos, do mesmo lugar. Separados em duas funções, ou o
+ * ícone escolhido no JSX por um segundo `if` da hora, as duas leituras do
+ * relógio poderiam cair em faixas diferentes na virada do horário -- e a tela
+ * diria "Boa tarde" ao lado de um sol.
+ */
 const saudacao = () => {
   const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
+  if (h < 12) return { texto: "Bom dia", icone: "☀️" };
+  if (h < 18) return { texto: "Boa tarde", icone: "☕️" };
+  return { texto: "Boa noite", icone: "🌃" };
 };
 
 /**
@@ -331,6 +339,10 @@ export default function InicioPage() {
   const { profile } = useProfile();
 
   const primeiroNome = (profile?.full_name ?? "").trim().split(" ")[0];
+  // Uma leitura só do relógio por render. Chamada duas vezes no JSX (uma para o
+  // texto, outra para o ícone), a virada da hora entre as duas faria a linha
+  // sair com o cumprimento de uma faixa e o ícone da outra.
+  const cumprimento = saudacao();
 
   /**
    * Aba do painel de baixo.
@@ -499,11 +511,11 @@ export default function InicioPage() {
 
           Abaixo de 768px vira uma coluna só, com o texto em cima.
 
-          `py-[50px]` depois do `p-6`: o respiro lateral continua em 24px e só o
-          vertical sobe para 50. Vem depois na classe porque o Tailwind resolve
+          `py-[40px]` depois do `p-6`: o respiro lateral continua em 24px e só o
+          vertical sobe para 40. Vem depois na classe porque o Tailwind resolve
           empate de especificidade pela ordem em que as regras entram no CSS, e
           `py` é mais específico que `p` nesta folha. */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 py-[50px] grid grid-cols-1 md:grid-cols-2 items-center gap-6">
+      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 py-[40px] grid grid-cols-1 md:grid-cols-2 items-center gap-6">
         {/*
           Título e texto mudam com o estado da conta, porque a pergunta que a
           pessoa traz muda.
@@ -517,21 +529,46 @@ export default function InicioPage() {
           todo dia; uma promessa de venda aqui é anúncio para quem já comprou.
         */}
         <div className="min-w-0">
+          {/* O nome vem primeiro e a hora depois: quem lê reconhece a própria
+              linha pelo nome, e a saudação passa a ser o complemento. Sem nome
+              cadastrado, sobra "Olá! Boa noite", que ainda fecha como frase --
+              por isso a exclamação acompanha o nome em vez de ficar solta. */}
+          {/* O ícone entra no lugar da mão, que era a mesma em qualquer hora. Um
+              por faixa faz a linha dizer algo que o texto já diz, mas de relance
+              -- e é o que muda a tela entre a manhã e a noite. */}
           <p className="text-[16px] text-muted-foreground">
-            {saudacao()}{primeiroNome ? `, ${primeiroNome}` : ""}
+            Olá{primeiroNome ? `, ${primeiroNome}` : ""}! {cumprimento.texto} {cumprimento.icone}
           </p>
-          <h1 className="text-[30px] font-semibold text-foreground mt-0.5 leading-tight">
-            {trilhaCompleta ? "Seu CRM está pronto" : "O Rezult CRM está quase pronto..."}
+          {/* 8px acima e 2px abaixo, o inverso do que era. Agora o título se
+              descola do cumprimento e cola na descrição: as duas frases que
+              falam do produto leem como um bloco, e a linha que cumprimenta a
+              pessoa fica por fora dele. */}
+          <h1 className="text-[30px] font-semibold text-foreground mt-2 leading-tight">
+            {trilhaCompleta ? "Seu CRM está pronto" : "O Rezult está quase pronto..."}
           </h1>
           {/*
             O texto do segundo estado descreve o que ESTÁ na tela: tutoriais e
             suporte. Não promete um resumo do dia, que ainda não existe -- seria
             trocar uma frase envelhecida por uma frase falsa.
           */}
-          <p className="text-[15px] text-muted-foreground mt-2 leading-relaxed">
+          {/* 15px de respiro até o título, e a margem é só uma parte disso.
+              Cada bloco carrega metade da própria entrelinha: o título de 30px
+              em `leading-tight` (1.25) deixa ~3,75px abaixo da caixa da letra, e
+              este de 16px em `leading-[1.4]` deixa 3,2px acima. Sobram os
+              8,05px daqui.
+
+              A margem anda junto com a entrelinha. Fechar o `leading` encolhe
+              também a folga que este bloco carrega acima de si, e sem
+              compensar aqui o respiro cairia sozinho -- o alvo é o espaço
+              VISTO, não o número da propriedade.
+
+              Escrito como valor arbitrário pelo mesmo motivo, e o comentário
+              guarda a conta: mexer no `leading` de qualquer um dos dois a
+              refaz. */}
+          <p className="text-[16px] text-muted-foreground mt-[8.05px] leading-[1.4]">
             {trilhaCompleta
               ? "Configuração concluída. Aqui ficam os tutoriais e o suporte, sempre que precisar."
-              : "Siga a trilha abaixo e finalize a configuração da sua conta para extrair o melhor da ferramenta."}
+              : 'Siga a trilha "Primeiros passos" abaixo para finalizar a configuração da sua conta e extrair o melhor da ferramenta.'}
           </p>
         </div>
 
@@ -554,16 +591,28 @@ export default function InicioPage() {
           texto, que é o que separa visualmente as duas metades.
         */}
         {company?.logo_url ? (
+          /* `rounded-[10px]`, o mesmo raio do resto da tela. Vale para o
+             arquivo que vier com fundo próprio -- uma imagem quadrada e opaca
+             encostava as quatro quinas no cartão arredondado ao redor. Logo em
+             PNG transparente não muda nada, porque não há fundo para recortar.
+
+             `overflow-hidden` junto: o raio na tag <img> recorta a caixa, mas
+             sem ele um `object-contain` que sobrasse dos limites passaria por
+             cima da curva. */
           <img
             src={company.logo_url}
             alt={company.name ?? "Logo"}
-            className="max-h-[140px] w-auto max-w-full object-contain ml-auto"
+            className="max-h-[140px] w-auto max-w-full object-contain ml-auto rounded-[10px] overflow-hidden"
           />
         ) : (
           /* A inicial cresceu junto com a caixa: os 64px de antes eram o certo
              ao lado de um bloco de texto estreito, mas numa metade de cartão
-             ficariam perdidos no vazio. */
-          <div className="w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center ml-auto shrink-0">
+             ficariam perdidos no vazio.
+
+             Mesmo raio de 10px do logo ao lado: os dois ocupam o mesmo lugar e
+             se alternam conforme a conta tem ou não arquivo, e cantos diferentes
+             fariam a caixa mudar de forma sem motivo aparente. */
+          <div className="w-24 h-24 rounded-[10px] bg-primary/10 flex items-center justify-center ml-auto shrink-0">
             <span className="text-4xl font-bold text-primary">
               {(company?.name ?? "R")[0].toUpperCase()}
             </span>
