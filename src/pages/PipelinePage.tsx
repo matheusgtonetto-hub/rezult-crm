@@ -527,6 +527,7 @@ export default function PipelinePage() {
   );
   const [executandoAutomacao, setExecutandoAutomacao] = useState(false);
   const [novoLeadOpen, setNovoLeadOpen] = useState(false);
+
   const [dealContactTarget, setDealContactTarget] = useState<Contact | null>(null);
 
   // ── Avatar dos cards (foto real do WhatsApp, mesmo padrão de
@@ -898,8 +899,32 @@ export default function PipelinePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Pesquisar por nome, empresa, telefone ou #"
-              className="pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              // `pr-7` só quando há texto: sem o botão, o respiro extra à
+              // direita deixaria o placeholder cortado antes da hora.
+              className={`pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary ${search ? "pr-7" : ""}`}
             />
+            {/* Limpar a busca em um clique. Sem isso, sair de uma pesquisa de
+                "pesquisar por nome, empresa, telefone ou #" exigia segurar o
+                backspace até o campo esvaziar -- e enquanto isso a pipeline
+                refiltrava a cada letra apagada.
+
+                Só aparece com texto no campo: um X permanente sobre um campo
+                vazio é um botão que não faz nada, e ainda ocupa o lugar onde o
+                placeholder termina.
+
+                `type="button"` porque o campo pode acabar dentro de um <form>
+                um dia, e o padrão de um <button> ali é submeter. */}
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Limpar pesquisa"
+                title="Limpar pesquisa"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
           {/* Ordenação, Status, Data e Filtros logo à direita da busca.
