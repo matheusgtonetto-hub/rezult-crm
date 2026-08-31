@@ -110,6 +110,8 @@ interface CompanyContextType {
   updateCompany: (data: CompanyUpdateData) => Promise<void>;
   uploadLogo: (file: File) => Promise<void>;
   whatsappConnections: WhatsAppConnection[];
+  /** Se a busca das conexões já terminou. Ver o estado no provider. */
+  whatsappConnectionsLoaded: boolean;
   addWhatsAppConnection: (data: Omit<WhatsAppConnection, "id" | "createdAt">) => Promise<WhatsAppConnection>;
   updateWhatsAppConnection: (id: string, data: Partial<Omit<WhatsAppConnection, "id" | "createdAt">>) => Promise<void>;
   removeWhatsAppConnection: (id: string) => Promise<void>;
@@ -134,6 +136,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   );
   const [companyLoading, setLoading] = useState(true);
   const [whatsappConnections, setWhatsappConnections] = useState<WhatsAppConnection[]>([]);
+  /**
+   * Se a busca das conexões já terminou.
+   *
+   * Existe porque uma lista vazia tem dois significados opostos -- "esta empresa
+   * não tem WhatsApp" e "ainda não perguntei ao banco" --, e quem só olha
+   * `whatsappConnections.length` trata os dois como o mesmo. O Multiatendimento
+   * usa isso para não afirmar "conecte seu WhatsApp" no primeiro quadro de uma
+   * conta que tem número conectado.
+   */
+  const [whatsappConnectionsLoaded, setWhatsappConnectionsLoaded] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [permissionsReady, setPermissionsReady] = useState(false);
 
@@ -163,13 +175,23 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
    * de quem cadastrou, e não serve para filtrar.
    */
   const loadConnections = useCallback(async () => {
-    if (!user || !selectedCompany) { setWhatsappConnections([]); return; }
+    // Volta a "não sei" a cada troca de usuário ou de empresa, que é quando esta
+    // função roda. Sem o reset, quem entra numa segunda empresa veria a lista da
+    // primeira já marcada como carregada até a nova consulta voltar. As
+    // alterações de conexão (adicionar, editar, remover) não passam por aqui --
+    // elas mexem no estado direto --, então isto não pisca à toa.
+    setWhatsappConnectionsLoaded(false);
+    if (!user || !selectedCompany) { setWhatsappConnections([]); setWhatsappConnectionsLoaded(true); return; }
     const { data, error } = await supabase
       .from("whatsapp_connections")
       .select("*")
       .eq("company_id", selectedCompany.id)
       .order("created_at", { ascending: true });
     if (!error && data) setWhatsappConnections((data as Record<string, unknown>[]).map(mapConn));
+    // Marca no fim, e mesmo em caso de erro: quem consome precisa saber que a
+    // busca ACABOU, não que ela deu certo. Sem isso a tela ficaria presa no
+    // estado de carregando para sempre quando a consulta falha.
+    setWhatsappConnectionsLoaded(true);
   }, [user?.id, selectedCompany?.id]);
 
   useEffect(() => { loadConnections(); }, [loadConnections]);
@@ -410,6 +432,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         updateCompany,
         uploadLogo,
         whatsappConnections,
+        whatsappConnectionsLoaded,
         addWhatsAppConnection,
         updateWhatsAppConnection,
         removeWhatsAppConnection,

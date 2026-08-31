@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
+import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
@@ -492,7 +493,7 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
 /* ── main page ─────────────────────────────────────────────────────────── */
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
-  const { company, whatsappConnections, billingBlocked } = useCompany();
+  const { company, whatsappConnections, whatsappConnectionsLoaded, billingBlocked } = useCompany();
   const { profile } = useProfile();
   const nomeAtendente = useNomeAtendente();
   // Escopo multi-tenant: todas as conversas/mensagens são da EMPRESA selecionada
@@ -3450,10 +3451,53 @@ export default function MultiatendimentoPage() {
           {filteredConversations.length === 0 && (
             <div style={{ padding: "40px 16px", textAlign: "center" }}>
               {visibleConvList.length === 0 ? (
-                <>
-                  <MessageSquare size={32} color="#1A1A1A" style={{ margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Sem conversas iniciadas</p>
-                </>
+                /*
+                  Sem linha conectada, "Sem conversas iniciadas" é verdade e
+                  inútil ao mesmo tempo: descreve o sintoma e esconde a causa. A
+                  tela inteira depende do WhatsApp, e quem chega aqui antes de
+                  conectar fica olhando uma lista vazia sem nada indicando que
+                  falta um passo -- e ele nem sequer mora nesta página.
+
+                  O botão leva ao mesmo lugar que o passo da trilha em /inicio,
+                  com o `?abrir=nova-conexao` que Configurações lê para já subir
+                  com o diálogo aberto. Um caminho só para a mesma tarefa: mudar
+                  o fluxo de conexão continua sendo mexer num lugar.
+
+                  `whatsappConnectionsLoaded` decide qual das duas mensagens
+                  aparece. A lista de conexões chega por consulta, e no primeiro
+                  quadro ela é vazia até para quem tem número ligado -- sem essa
+                  checagem, uma conta conectada leria "Conecte seu WhatsApp" por
+                  um instante a cada recarga desta tela.
+                */
+                whatsappConnectionsLoaded && instances.length === 0 ? (
+                  <>
+                    {/* O ícone do WhatsApp no lugar do balão genérico: o que
+                        falta aqui é a conexão, não a conversa. Ele pinta por
+                        `currentColor`, então a cor vem do contêiner. */}
+                    <div style={{ color: "#1A1A1A", width: 32, margin: "0 auto 8px" }}>
+                      <CrmWhatsAppIcon size={32} />
+                    </div>
+                    <p style={{ fontSize: 14, fontWeight: 500, fontFamily: "Inter", color: "#1A1A1A" }}>
+                      Conecte seu WhatsApp para utilizar o multiatendimento
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/configuracoes/conexoes?abrir=nova-conexao")}
+                      style={{
+                        marginTop: 12, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        background: "#128A68", color: "#FFF", border: "none", borderRadius: 8,
+                        padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Conectar WhatsApp
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare size={32} color="#1A1A1A" style={{ margin: "0 auto 8px" }} />
+                    <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Sem conversas iniciadas</p>
+                  </>
+                )
               ) : (
                 <>
                   <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
