@@ -51,7 +51,7 @@ interface CRMContextType {
   transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => void;
   markLeadWon: (leadId: string, productName?: string, value?: number) => void;
   markLeadLost: (leadId: string, reason?: string) => void;
-  markLeadOpen: (leadId: string) => void;
+  markLeadOpen: (leadId: string) => Promise<void>;
   nextDealNumber: () => number;
 
   tasks: Task[];
@@ -290,6 +290,31 @@ async function syncResponsibleToConversations(personId: string | undefined, resp
 // (esquema legado auto-referencial usado pelo "Novo negócio" do
 // LeadDrawer/Pipeline — contact_id de um negócio aponta pro id do lead
 // original) e telefone normalizado como último fallback.
+/**
+ * Aviso de "este contato já tem negócio aberto", com atalho para ele.
+ *
+ * Um só para os dois caminhos que chegam nesta situação: a checagem local, que
+ * roda antes de gravar, e a recusa do banco, que é a que vale. Escrito duas
+ * vezes, o texto divergiria -- e é justamente o texto que a pessoa lê para
+ * entender o que fazer.
+ *
+ * O botão leva ao negócio que está travando. Sem ele o recado manda "marque como
+ * ganho ou perdido" sem dizer ONDE, e num board com centenas de cartões achar o
+ * negócio certo é o trabalho todo.
+ */
+function avisarNegocioAberto(leadId: string | null, numero?: number) {
+  toast.error(
+    numero ? `Este contato já tem o negócio #${numero} aberto.` : "Este contato já tem um negócio aberto.",
+    {
+      description: "Marque o negócio atual como ganho ou perdido antes de abrir outro.",
+      duration: 8000,
+      ...(leadId
+        ? { action: { label: "Ver negócio", onClick: () => { window.location.href = `/pipeline/lead/${leadId}`; } } }
+        : {}),
+    },
+  );
+}
+
 function findOpenNegocioConflict(
   allLeads: Record<string, Lead>,
   candidate: { personId?: string; contactId?: string; whatsapp?: string },
@@ -302,6 +327,47 @@ function findOpenNegocioConflict(
     if (candidate.contactId && (l.id === candidate.contactId || l.contactId === candidate.contactId)) return true;
     return telefonesIguais(l.whatsapp, candidate.whatsapp);
   });
+}
+
+/**
+ * Mesma pergunta da função acima, mas feita ao banco.
+ *
+ * A versão em memória enxerga só o que a aba carregou, e isso nunca foi o
+ * conjunto completo: um negócio criado em outra aba, por outro usuário ou por
+ * automação não está lá. Quando a empresa passou de 1000 leads o buraco virou
+ * regra, porque a resposta vinha truncada.
+ *
+ * O gatilho `trg_single_open_negocio` continua sendo a trava real -- este
+ * `select` existe para a pessoa ver o aviso ANTES de preencher o formulário
+ * inteiro, e para o aviso poder oferecer o atalho "Ver negócio".
+ *
+ * Devolve `undefined` também quando a consulta falha: bloquear a criação por
+ * causa de uma consulta de conveniência seria pior que deixar o gatilho recusar.
+ */
+async function buscarNegocioAbertoNoBanco(
+  companyId: string,
+  candidate: { personId?: string; contactId?: string; whatsapp?: string },
+  excludeLeadId?: string,
+): Promise<{ id: string; dealNumber: number } | undefined> {
+  const alvos: string[] = [];
+  if (candidate.personId) alvos.push(`person_id.eq.${candidate.personId}`);
+  if (candidate.contactId) alvos.push(`id.eq.${candidate.contactId}`, `contact_id.eq.${candidate.contactId}`);
+  if (alvos.length === 0) return undefined;
+
+  let q = supabase
+    .from("leads")
+    .select("id, deal_number")
+    .eq("company_id", companyId)
+    .eq("status", "open")
+    .not("pipeline_id", "is", null)
+    .or(alvos.join(","))
+    .limit(1);
+  if (excludeLeadId) q = q.neq("id", excludeLeadId);
+
+  const { data, error } = await q;
+  if (error) { console.error("buscarNegocioAbertoNoBanco erro:", error.message); return undefined; }
+  const linha = (data ?? [])[0] as { id: string; deal_number: number } | undefined;
+  return linha ? { id: linha.id, dealNumber: linha.deal_number } : undefined;
 }
 
 // ─── Provider ───────────────────────────────────────────────────────────────
@@ -434,32 +500,61 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const ownerId = company.owner_id;
     const companyId = company.id;
 
-    async function fetchAllActivities(cId: string): Promise<Record<string, unknown>[]> {
-      const PAGE = 1000;
-      const all: Record<string, unknown>[] = [];
-      let from = 0;
+    /*
+      Busca a tabela inteira em páginas.
+
+      O PostgREST do Supabase corta a resposta em 1000 linhas e NÃO avisa: vem
+      HTTP 200 com um array truncado. Uma empresa com 1451 leads carregava 1000
+      e perdia 451 em silêncio -- os cards sumiam do funil, contatos com negócio
+      apareciam como "Sem negócio", e a checagem de negócio aberto passava por
+      cima de conflitos que existiam no banco mas não na memória.
+
+      A ordenação precisa ser determinística. `position` tinha só 3 valores
+      distintos entre 1451 linhas, e linhas empatadas voltam em ordem arbitrária:
+      sem um desempate estável, a página 2 podia repetir ou pular registros que a
+      página 1 já trouxe. Por isso todo chamador passa `id` como último critério.
+    */
+    const PAGINA = 1000;
+
+    async function buscarTudo(
+      tabela: string,
+      colunas: string,
+      ordem: { coluna: string; ascendente?: boolean }[],
+    ): Promise<Record<string, unknown>[]> {
+      const todas: Record<string, unknown>[] = [];
+      let inicio = 0;
+      let totalNoBanco: number | null = null;
       while (true) {
-        const { data, error } = await supabase
-          .from("activities")
-          .select("*")
-          .eq("company_id", cId)
-          .order("date", { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error) { console.error("fetchAllActivities error:", error.message); break; }
-        if (data) all.push(...(data as Record<string, unknown>[]));
-        if (!data || data.length < PAGE) break;
-        from += PAGE;
+        let q = supabase
+          .from(tabela)
+          // count exact é a guarda: sem ele, um truncamento futuro volta a ser
+          // invisível. Com ele dá para comparar o recebido com o que existe.
+          .select(colunas, { count: "exact" })
+          .eq("company_id", companyId);
+        for (const o of ordem) q = q.order(o.coluna, { ascending: o.ascendente ?? true });
+        const { data, error, count } = await q.range(inicio, inicio + PAGINA - 1);
+        if (error) { console.error(`buscarTudo(${tabela}) erro:`, error.message); break; }
+        if (count != null) totalNoBanco = count;
+        if (data) todas.push(...(data as unknown as Record<string, unknown>[]));
+        if (!data || data.length < PAGINA) break;
+        inicio += PAGINA;
       }
-      return all;
+      if (totalNoBanco != null && todas.length !== totalNoBanco) {
+        console.error(
+          `[carregamento] ${tabela}: recebidas ${todas.length} de ${totalNoBanco} linhas. ` +
+          `A tela vai mostrar dados incompletos.`,
+        );
+      }
+      return todas;
     }
 
     async function loadAll() {
 
-      const [pipelineRes, columnRes, leadRes, contactRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes] = await Promise.all([
+      // leads e contacts saem do Promise.all porque paginam: as duas já passaram
+      // de 1000 linhas em produção e vinham truncadas em silêncio.
+      const [pipelineRes, columnRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes, dbLeads, dbContacts] = await Promise.all([
         supabase.from("pipelines").select("*").eq("company_id", companyId).order("position"),
         supabase.from("pipeline_columns").select("*").eq("company_id", companyId).order("position"),
-        supabase.from("leads").select("*").eq("company_id", companyId).order("position"),
-        supabase.from("contacts").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("tasks").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("tags").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("pipeline_groups").select("*").eq("company_id", companyId).order("created_at"),
@@ -469,6 +564,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
         supabase.from("lists").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("list_leads").select("list_id, lead_id"),
+        buscarTudo("leads", "*", [{ coluna: "position" }, { coluna: "id" }]),
+        buscarTudo("contacts", "*", [{ coluna: "created_at" }, { coluna: "id" }]),
       ]);
 
       const myProfileData = myProfileRes.data as { full_name?: string } | null;
@@ -492,12 +589,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setMemberAvatars(avatarMap);
       setMemberUserIds(userIdMap);
 
-      const dbActivities = await fetchAllActivities(companyId);
+      const dbActivities = await buscarTudo("activities", "*", [{ coluna: "date", ascendente: false }, { coluna: "id" }]);
 
       const dbPipelines = (pipelineRes.data ?? []) as Record<string, unknown>[];
       const dbColumns = (columnRes.data ?? []) as Record<string, unknown>[];
-      const dbLeads = (leadRes.data ?? []) as Record<string, unknown>[];
-      const dbContacts = (contactRes.data ?? []) as Record<string, unknown>[];
       const dbTasks = (taskRes.data ?? []) as Record<string, unknown>[];
       const dbTagsList = (tagRes.data ?? []) as Record<string, unknown>[];
       const dbGroupsList = (groupRes.data ?? []) as Record<string, unknown>[];
@@ -942,9 +1037,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     // outro já aberto pro mesmo contato precisa primeiro ganhar/perder o
     // existente. Lead solto (sem pipelineId) não entra nessa regra.
     if (lead.pipelineId) {
-      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp });
+      const alvo = { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp };
+      // Memória primeiro (instantâneo), banco depois (correto). A da memória
+      // pega o caso comum sem ida ao servidor; a do banco pega o que esta aba
+      // não carregou, que é a maioria quando a empresa passa de 1000 leads.
+      const conflict = findOpenNegocioConflict(leads, alvo)
+        ?? await buscarNegocioAbertoNoBanco(company.id, alvo);
       if (conflict) {
-        toast.error(`Esse contato já tem um negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de criar outro.`);
+        avisarNegocioAberto(conflict.id, "dealNumber" in conflict ? conflict.dealNumber : undefined);
         return false;
       }
     }
@@ -1001,7 +1101,26 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
     if (error || !data) {
       console.error("addLead error:", error?.message, error?.details, error?.hint);
-      toast.error("Erro ao criar lead.");
+      /*
+        A recusa do gatilho `check_single_open_negocio` chegava aqui e virava
+        "Erro ao criar lead." -- um texto que não diz nada sobre a causa nem
+        sobre a saída, num formulário que a pessoa preencheu certo.
+
+        A checagem local logo acima costuma pegar esse caso antes, mas ela olha
+        os leads que a aba CARREGOU: um negócio criado depois, em outra aba ou
+        por automação, não está lá. Quem sempre sabe é o banco, e a mensagem
+        dele traz até o id do negócio que trava -- é dele que sai o atalho.
+
+        `errcode = 23505` é o que o gatilho levanta. Uma violação de unicidade
+        de verdade usa o mesmo código, por isso o texto também é conferido.
+      */
+      const ehNegocioAberto = error?.code === "23505" && /neg[óo]cio aberto/i.test(error?.message ?? "");
+      if (ehNegocioAberto) {
+        const idNoTexto = error?.message?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0] ?? null;
+        avisarNegocioAberto(idNoTexto);
+      } else {
+        toast.error("Erro ao criar lead.");
+      }
       return false;
     }
 
@@ -1310,22 +1429,44 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       .then(({ error }) => { if (error) console.error("markLeadLost activity error:", error.message); });
   }, [user, company, currentUserName]);
 
-  const markLeadOpen = useCallback((leadId: string) => {
+  /*
+    Reabrir era otimista e sem volta: a tela marcava "aberto" e o erro do banco
+    ia só para o console. Quando o gatilho `trg_single_open_negocio` recusava
+    (o contato já tinha outro negócio aberto, quase sempre um que esta aba nem
+    tinha carregado), o card aparecia recuperado, e no F5 sumia de novo -- foi o
+    "como se tivessem sido apagados" relatado em produção.
+
+    Agora a checagem consulta o banco antes, e a gravação é aguardada: se falhar,
+    o estado local volta ao que era e a pessoa vê o motivo.
+  */
+  const markLeadOpen = useCallback(async (leadId: string) => {
     if (!user || !company) return;
     const lead = leads[leadId];
     if (lead?.pipelineId) {
-      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp }, leadId);
+      const alvo = { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp };
+      const conflict = findOpenNegocioConflict(leads, alvo, leadId)
+        ?? await buscarNegocioAbertoNoBanco(company.id, alvo, leadId);
       if (conflict) {
         toast.error(`Esse contato já tem outro negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de reabrir este.`);
         return;
       }
     }
+    const anterior = leads[leadId]?.dealStatus;
     setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open" } }));
-    supabase.from("leads").update({ status: "open" }).eq("id", leadId)
-      .then(({ error }) => { if (error) console.error("markLeadOpen error:", error.message); });
+    const { error } = await supabase.from("leads").update({ status: "open" }).eq("id", leadId);
+    if (error) {
+      console.error("markLeadOpen error:", error.message);
+      setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: anterior ?? "lost" } }));
+      const ehNegocioAberto = error.code === "23505" && /neg[óo]cio aberto/i.test(error.message ?? "");
+      toast.error(
+        ehNegocioAberto ? "Este contato já tem outro negócio aberto." : "Não foi possível reabrir o negócio.",
+        { description: ehNegocioAberto ? "Marque o negócio atual como ganho ou perdido antes de reabrir este." : "Tente de novo. Se continuar, avise o suporte." },
+      );
+      return;
+    }
     const date = new Date().toISOString();
     supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "stage_change", description: "Negócio reaberto.", date, user_name: currentUserName ?? null })
-      .then(({ error }) => { if (error) console.error("markLeadOpen activity error:", error.message); });
+      .then(({ error: err }) => { if (err) console.error("markLeadOpen activity error:", err.message); });
   }, [user, company, currentUserName, leads]);
 
   // ── Loss Reasons ───────────────────────────────────────────────────────────
