@@ -144,7 +144,14 @@ function dbToColumn(row: Record<string, unknown>, leadIds: string[]): PipelineCo
   };
 }
 
-function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
+/**
+ * Converte uma linha de `leads` no objeto Lead da aplicação.
+ *
+ * Exportado para os hooks de paginação usarem o MESMO mapeamento do
+ * carregamento em massa. Duas conversões diferentes para a mesma linha é como
+ * o card do funil e o card da lista passam a mostrar coisas diferentes.
+ */
+export function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
   return {
     id: row.id as string,
     dealNumber: (row.deal_number as number) ?? 0,

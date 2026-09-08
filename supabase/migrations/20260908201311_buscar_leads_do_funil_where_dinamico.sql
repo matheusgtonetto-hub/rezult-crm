@@ -1,0 +1,18 @@
+-- Passo intermediário, superado na mesma sessão.
+--
+-- Cada uma destas migrações trocou a definição de buscar_leads_do_funil
+-- perseguindo um problema de plano de consulta. A ordem foi:
+--
+--   ordem_literal        trocou `order by case when ...` por ORDER BY montado
+--                        por format(), porque com CASE as chaves viram
+--                        expressões e nenhum índice se aplica
+--   sem_materializar     tirou o CTE, porque um CTE referenciado duas vezes
+--                        materializa e o `limit` deixa de valer
+--   where_dinamico       passou a montar o WHERE só com os critérios presentes;
+--                        esta versão tinha um bug (`text[] || 'literal'` é
+--                        ambíguo e falha com "malformed array literal")
+--
+-- A versão que vale é a de 20260908201419, que contém a definição completa.
+-- O arquivo existe para o histórico bater com schema_migrations. Reconstruir o
+-- banco aplicando as migrações em ordem chega ao mesmo estado final sem este
+-- corpo, porque a função é recriada por completo adiante.
