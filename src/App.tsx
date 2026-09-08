@@ -37,7 +37,39 @@ import GoogleOAuthCallback from "./pages/configuracoes/GoogleOAuthCallback";
 import PlanosPage from "./pages/Planos";
 import CheckoutSuccessPage from "./pages/CheckoutSuccess";
 
-const queryClient = new QueryClient();
+/*
+  Padrões do cache de consulta.
+
+  `new QueryClient()` sem argumento usa staleTime 0: todo dado nasce velho e
+  qualquer remontagem de componente refaz a consulta. Enquanto o CRM carregava
+  tudo no login isso não aparecia, porque quase nada usava react-query. A partir
+  do momento em que as telas passam a buscar sob demanda, esse padrão faz cada
+  troca de aba virar ida ao servidor, e o app fica MAIS lento carregando menos.
+
+  Os valores abaixo são o meio-termo para um CRM usado por várias pessoas ao
+  mesmo tempo: fresco o bastante para não mostrar dado velho de outro vendedor,
+  parado o bastante para navegar sem pagar rede a cada clique.
+*/
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Voltar para uma tela em menos de 30s reaproveita o cache sem pedir nada.
+      // Acima disso a consulta refaz em segundo plano, com a tela já pintada.
+      staleTime: 30_000,
+      // Quanto tempo o dado sobra na memória depois que ninguém mais o usa.
+      // Cobre o ir-e-voltar entre telas sem segurar a base inteira para sempre.
+      gcTime: 10 * 60_000,
+      // Mantido ligado de propósito: num CRM compartilhado, voltar para a aba é
+      // o momento em que se espera ver o que os outros mexeram. O staleTime
+      // acima é que evita o exagero, porque só refaz o que já passou dos 30s.
+      refetchOnWindowFocus: true,
+      // O padrão são 3 tentativas com espera crescente, o que faz um erro real
+      // levar mais de 10s para aparecer na tela. Uma tentativa cobre a falha de
+      // rede passageira sem esconder o problema de quem está esperando.
+      retry: 1,
+    },
+  },
+});
 
 /**
  * Para onde vai quem entra sem pedir uma tela específica.
