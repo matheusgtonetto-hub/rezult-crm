@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck, BotMessageSquare, Network } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, CalendarClock, Tag as TagIcon, Settings, Users, GitBranch, ChevronLeft, ChevronRight, GripVertical, Trophy, XCircle, ChevronDown, AlertTriangle, CheckCircle, X, ShieldCheck, BotMessageSquare } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -735,7 +735,11 @@ export default function PipelinePage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Page header */}
         <div className="px-6 pb-3 flex items-center gap-4" style={{ paddingTop: 15 }}>
-          <div className="min-w-0 flex-1">
+          {/* Sem `flex-1`: quem ocupa a sobra agora são os espaçadores abaixo.
+              Com ele, a caixa do título esticaria até o meio da tela e os botões
+              seriam centralizados em relação a uma caixa vazia, não ao texto.
+              `min-w-0` fica, e é o que permite o nome longo truncar. */}
+          <div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground truncate">
               {activePipeline.name}
             </h1>
@@ -743,6 +747,54 @@ export default function PipelinePage() {
               {activePipeline.category} ·{" "}
               {activePipeline.columns.reduce((s, c) => s + c.leadIds.length, 0)} negócios
             </p>
+          </div>
+
+          {/* Um espaçador só, antes dos botões: como ele é o único a crescer,
+              empurra o par até encostar no "Visualizando como", à direita.
+              Com um segundo espaçador depois deles, os botões ficariam no meio
+              do vão. `aria-hidden` porque é caixa de layout, sem conteúdo. */}
+          <div className="flex-1" aria-hidden />
+          {/* Automação e Novo Lead — mesmos popups de /leads, agora entre o
+              título da pipeline e o seletor "Visualizando como". */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Sem nenhum ajuste de cor: o `variant` padrão do Button já é o
+                verde da marca com texto branco, sem borda, e é exatamente o que
+                o "Novo Lead" ao lado usa. Escrever as cores à mão aqui só criaria
+                uma segunda fonte para a mesma aparência, que passaria a divergir
+                do vizinho no dia em que o tema mudasse.
+
+                Os dois ficam visualmente idênticos; o que os distingue é o ícone
+                e o rótulo.
+
+                `gap-1` (4px) para bater com os botões do multiatendimento, e o
+                `mr-1.5` do ícone saiu junto: o Button já traz `gap-2` na base,
+                então os dois se SOMAVAM e o respiro real era de 14px. Com um só
+                responsável pelo espaço, o número escrito aqui é o número que
+                aparece na tela.
+
+                `h-auto` para o padding vertical mandar de verdade. Tirar o
+                `h-[30px]` sozinho não bastava: o tamanho padrão do Button traz
+                `h-10` (40px), e sem nada sobrescrevendo ele o botão CRESCIA em
+                vez de encolher. Com `h-auto` a altura passa a ser a conta do
+                conteúdo: 16px de linha (`leading-4`) mais 6 em cima e 6 embaixo,
+                28px.
+
+                `leading-4` explícito porque `text-[11px]` define só o tamanho da
+                fonte. O `text-sm` que ele substitui trazia a entrelinha junto, e
+                sem repô-la a altura da linha cairia para a herdada do body,
+                mudando a altura do botão por tabela. */}
+            <Button
+              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
+              onClick={() => setAutomacaoAberta(true)}
+            >
+              <Plus size={14} /> Enviar Automação
+            </Button>
+            <Button
+              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
+              onClick={() => setNovoLeadOpen(true)}
+            >
+              <Plus size={14} /> Novo Lead
+            </Button>
           </div>
 
           {/* Seletor "Visualizando como:" — apenas admins */}
@@ -828,24 +880,6 @@ export default function PipelinePage() {
               )}
             </div>
           )}
-
-          {/* Automação e Novo Lead — mesmos popups de /leads, entre o
-              seletor "Visualizando como" e o menu "..." de opções. */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              className="rounded-lg font-semibold bg-white h-[30px] px-3 text-xs border border-primary text-primary hover:text-primary"
-              onClick={() => setAutomacaoAberta(true)}
-            >
-              <Network size={14} className="mr-1.5 text-primary" /> Automação
-            </Button>
-            <Button
-              className="rounded-lg font-semibold h-[30px] px-3 text-xs"
-              onClick={() => setNovoLeadOpen(true)}
-            >
-              <Plus size={14} className="mr-1.5" /> Novo Lead
-            </Button>
-          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1596,7 +1630,15 @@ export default function PipelinePage() {
             <AlertDialog open onOpenChange={(open) => !open && handleCancelAdvance()}>
               <AlertDialogContent className="max-w-[380px] p-0 overflow-hidden gap-0">
                 {/* Header */}
-                <div className="px-5 pt-5 pb-3">
+                                {/* `min-w-0` nos três blocos: o `AlertDialogContent` é um GRID, e
+                    item de grid não encolhe abaixo do próprio conteúdo mínimo.
+                    Com uma etapa de nome longo, o passo a passo abaixo empurrava
+                    a coluna para além dos 380px da caixa -- o `overflow-hidden`
+                    cortava o excedente, e como o rodapé alinha os botões à
+                    DIREITA daquela coluna maior, o "Confirmar" ficava fora da
+                    área visível. Com min-width zero, a coluna respeita a caixa e
+                    quem cede é o nome da etapa, que já trunca. */}
+                <div className="px-5 pt-5 pb-3 min-w-0">
                   <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
                     <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                     Confirmar avanço de etapa
@@ -1619,16 +1661,16 @@ export default function PipelinePage() {
                 </div>
 
                 {/* Stepper compacto — de → para */}
-                <div className="px-5 pb-4">
-                  <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0">
+                <div className="px-5 pb-4 min-w-0">
+                  <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0 overflow-hidden">
                     {/* Etapa atual */}
-                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                       <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
                     </div>
                     <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
                     {/* Próxima etapa */}
-                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                       <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-primary" />
                     </div>
@@ -1636,7 +1678,7 @@ export default function PipelinePage() {
                     {stepsLeft > 1 && (
                       <>
                         <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
-                        <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[100px]">
+                        <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                           <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
                           <span className="block h-[2px] w-full rounded-full bg-transparent" />
                         </div>
@@ -1652,7 +1694,7 @@ export default function PipelinePage() {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20">
+                <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20 min-w-0">
                   <AlertDialogCancel onClick={handleCancelAdvance} className="h-8 px-3 text-xs">Cancelar</AlertDialogCancel>
                   <Button onClick={handleConfirmAdvance} size="sm" className="h-8 px-4 text-xs gap-1.5">
                     Confirmar <ChevronRight className="h-3 w-3" />
