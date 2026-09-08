@@ -48,7 +48,7 @@ interface CRMContextType {
   updateContact: (id: string, data: Partial<Contact>) => Promise<void>;
   deleteContact: (id: string) => void;
   moveLead: (leadId: string, fromCol: string, toCol: string, toIndex: number) => void;
-  transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => void;
+  transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => Promise<void>;
   markLeadWon: (leadId: string, productName?: string, value?: number) => void;
   markLeadLost: (leadId: string, reason?: string) => void;
   markLeadOpen: (leadId: string) => Promise<void>;
@@ -1349,7 +1349,18 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     });
   }, [leads, pipelines, currentUserName]);
 
-  const transferLead = useCallback((leadId: string, toPipelineId: string, toColumnId: string) => {
+  /*
+    Mesmo problema que o markLeadOpen tinha, e por um caminho mais usado: o
+    update mexe em `status` E `pipeline_id`, as duas colunas que acionam o
+    gatilho `trg_single_open_negocio`. Arrastar um card para fora da coluna
+    "Perdido" é como se recupera um negócio no kanban, e é justamente o gesto
+    que o gatilho pode recusar.
+
+    Antes, a recusa ia só para o console: o card se movia na tela e voltava no
+    F5. Agora a checagem consulta o banco, a gravação é aguardada, e uma falha
+    devolve pipelines e leads ao estado anterior com o motivo na tela.
+  */
+  const transferLead = useCallback(async (leadId: string, toPipelineId: string, toColumnId: string) => {
     const lead = leads[leadId];
     if (!lead) return;
     // Só bloqueia quando isso promoveria um Lead solto (ou moveria um negócio
@@ -1357,7 +1368,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     // aberto -- mover de coluna dentro do MESMO negócio nunca conflita
     // consigo mesmo (excludeLeadId).
     if (toPipelineId !== lead.pipelineId) {
-      const conflict = findOpenNegocioConflict(leads, { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp }, leadId);
+      const alvo = { personId: lead.personId, contactId: lead.contactId, whatsapp: lead.whatsapp };
+      const conflict = findOpenNegocioConflict(leads, alvo, leadId)
+        ?? (company ? await buscarNegocioAbertoNoBanco(company.id, alvo, leadId) : undefined);
       if (conflict) {
         toast.error(`Esse contato já tem um negócio aberto (#${conflict.dealNumber}). Marque como ganho ou perdido antes de mover este pra outro pipeline.`);
         return;
@@ -1365,6 +1378,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     }
     const fromCol = lead.stage;
     const newResponsible = !lead.responsible && currentUserName ? currentUserName : lead.responsible;
+    // Guardados para o desfazer, antes de a tela mudar.
+    const pipelinesAntes = pipelines;
+    const leadAntes = lead;
     setPipelines(prev => prev.map(p => {
       const hasFromCol = p.columns.some(c => c.id === fromCol);
       const isTarget = p.id === toPipelineId;
@@ -1390,9 +1406,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       update.responsibles = newResps2;
       syncResponsibleToConversations(lead.personId, newResp2);
     }
-    supabase.from("leads").update(update).eq("id", leadId)
-      .then(({ error }) => { if (error) console.error("transferLead error:", error.message); });
-  }, [leads, currentUserName]);
+    const { error } = await supabase.from("leads").update(update).eq("id", leadId);
+    if (error) {
+      console.error("transferLead error:", error.message);
+      // Desfaz os dois estados otimistas. O snapshot é tirado antes de qualquer
+      // setState acima: restaurar a partir do estado atual devolveria o card
+      // para o lugar errado.
+      setPipelines(pipelinesAntes);
+      setLeads(prev => ({ ...prev, [leadId]: leadAntes }));
+      const ehNegocioAberto = error.code === "23505" && /neg[óo]cio aberto/i.test(error.message ?? "");
+      toast.error(
+        ehNegocioAberto ? "Este contato já tem outro negócio aberto." : "Não foi possível mover o negócio.",
+        { description: ehNegocioAberto ? "Marque o negócio atual como ganho ou perdido antes de mover este." : "Tente de novo. Se continuar, avise o suporte." },
+      );
+    }
+  }, [leads, pipelines, company, currentUserName]);
 
   const findWonLostCol = useCallback((pipelineId: string, kind: "won" | "lost"): string | null => {
     const p = pipelines.find(x => x.id === pipelineId);
