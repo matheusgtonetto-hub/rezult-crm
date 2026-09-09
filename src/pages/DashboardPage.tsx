@@ -1104,18 +1104,165 @@ export default function DashboardPage() {
           <ResultadoResponsavelPanel dados={resultadoPorResponsavel} className="lg:col-span-2" />
           </div>
 
+          {/* Os dois rankings de venda na mesma linha: o que se vendeu e quem
+              vendeu. São as duas metades da mesma pergunta, e lado a lado dá
+              para ver se a receita vem de um produto forte ou de uma pessoa
+              forte. Meio a meio porque nenhum dos dois manda no outro. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <RankingPanel
+              titulo="Produtos mais vendidos"
+              subtitulo="Os produtos mais vendidos na sua empresa"
+              colunaNome="Produto"
+              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
+              vazio="Nenhum produto cadastrado."
+              linhas={topProducts.map(p => ({
+                chave: p.name,
+                /* Mesmo quadrado do cadastro em Configurações > Produtos: 32px,
+                   canto arredondado, fundo no verde a 10% e o carrinho no verde
+                   cheio. Repetir o desenho faz a linha daqui ser reconhecida
+                   como o mesmo produto que se cadastrou lá.
+
+                   Ícone, e não foto: produto não tem imagem no cadastro, então
+                   este é o retrato que existe. */
+                marca: (
+                  <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <ShoppingCart size={14} className="text-primary" />
+                  </span>
+                ),
+                nome: p.name,
+                sub: p.sku ? `SKU: ${p.sku}` : undefined,
+                valores: [
+                  String(p.count),
+                  /* Ticket médio POR VENDA deste produto: a receita dele
+                     dividida pelas vendas dele. Não é o ticket médio por pessoa
+                     que a lista de leads mostra -- lá a média é do cliente, que
+                     pode ter comprado três produtos, e aqui é do produto, que
+                     foi vendido para três clientes. */
+                  p.count > 0 ? fmt(p.value / p.count) : "—",
+                  p.value > 0 ? fmt(p.value) : "—",
+                ],
+              }))}
+            />
+
+            <RankingPanel
+              titulo="Responsáveis com mais vendas"
+              subtitulo="Quem mais vendeu na sua empresa"
+              colunaNome="Responsável"
+              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
+              vazio="Nenhuma venda no período."
+              linhas={agentPerformance
+                .filter(a => a.won > 0)
+                .map(a => ({
+                  chave: a.name,
+                  /* Foto quando existe, senão a inicial no círculo da cor do
+                     membro -- o mesmo par que a lista de leads e o calendário
+                     usam. A cor não é decoração: é a mesma que identifica a
+                     pessoa nos outros painéis do dashboard. */
+                  marca: memberAvatars[a.name] ? (
+                    <img
+                      src={memberAvatars[a.name]}
+                      alt={a.name}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
+                      style={{ background: a.color }}
+                    >
+                      {a.name[0]?.toUpperCase() ?? "?"}
+                    </span>
+                  ),
+                  nome: a.name,
+                  sub: memberEmails[a.name] || undefined,
+                  valores: [
+                    String(a.won),
+                    /* `avgTicket` já vem do `agentPerformance`: é receita
+                       dividida por ganhos, e o memo é a mesma fonte que a aba
+                       Time lê. */
+                    a.avgTicket > 0 ? fmt(a.avgTicket) : "—",
+                    a.totalValue > 0 ? fmt(a.totalValue) : "—",
+                  ],
+                }))}
+            />
+          </div>
+
+          {/* Três leituras de repartição na mesma linha: de onde vêm os leads,
+              de onde vem a receita, e por que os negócios se perdem. Juntas
+              porque respondem à mesma pergunta em momentos diferentes do funil,
+              e comparar as três de relance é o que dá sentido a cada uma.
+
+              Os dois de origem ocupam 3/5 da linha e o de perdas, 2/5. Perdas
+              precisa de mais largura porque a tabela dele tem dois níveis: além
+              da origem, os motivos recuados por baixo de cada uma.
+
+              A grade tem 10 colunas, e não 5, para os 3/5 do par dividirem ao
+              meio: 3 + 3 + 4. Em 5 colunas, um dos gêmeos ficaria com o dobro do
+              outro, sugerindo uma importância que eles não têm um sobre o outro.
+
+              OriginPanel devolve os dois cards num Fragment, então os três aqui
+              são itens diretos da mesma grade e esticam juntos até a altura da
+              linha. */}
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+            <OriginPanel periodLeads={periodLeads} className="lg:col-span-3" />
+
+            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+              <h3 className="text-sm font-semibold text-foreground">Motivo de perda por origem</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-4">Onde você perde, e por quê</p>
+              {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
+                  zero no centro, que é a resposta. Escondê-lo fazia o painel sumir
+                  e a página inteira pular de altura ao trocar o filtro de data.
+
+                  `total` explícito mesmo com as fatias somando o total: os
+                  motivos são cortados no top 3 por origem, e deixar o centro
+                  somar sozinho o deixaria à mercê de qualquer corte futuro.
+
+                  Mesmas cores por origem das duas rosquinhas ao lado, via
+                  ORIGIN_COLORS. É o que permite seguir um canal com o olho pelos
+                  três painéis da linha.
+
+                  Anel menor que os 190px padrão: aqui a tabela tem dois níveis e
+                  fica bem mais alta que as vizinhas. Com o anel no tamanho cheio,
+                  o painel passava do dobro da altura dos outros dois da linha.
+
+                  `empilhado` como nos dois vizinhos: anel em cima, tabela
+                  embaixo. Lado a lado, o anel deixava uns 100px para a coluna de
+                  nome, e os motivos, ainda recuados sob a origem, ficavam com
+                  uns 84px -- "Cliente sem orçamento" virava reticências.
+                  Embaixo, a tabela recebe a largura inteira do painel.
+
+                  Dois anéis: as MESMAS perdas repartidas por origem e por
+                  motivo. Somam o mesmo total de propósito, e é a divergência
+                  entre os dois recortes que interessa. Clicar numa origem faz o
+                  segundo mostrar os motivos daquela origem. */}
+              <DonutDistribuicao
+                dados={lossByOriginData.porOrigem}
+                rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
+                total={lostInPeriod.length}
+                altura={150}
+                colunas={{ valor: "Perdas", extras: ["% do total"] }}
+                rodape="Por origem"
+                anelSecundario={{ dados: lossByOriginData.porMotivo, rodape: "Por motivo" }}
+                empilhado
+              />
+            </div>
+          </div>
+
+          <UtmAttributionPanel periodLeads={periodLeads} />
+
           {/* A curva do dia e o ranking das horas que fecham negócio. Lado a
               lado porque a curva mostra o formato do dia e o ranking diz onde
               agir nele; separados, cruzar os dois exigiria rolar a página.
 
-              O ranking à esquerda, ao contrário do anel da linha de cima, que
-              fica à direita. O zigue-zague é de propósito: dois blocos com o
-              mesmo arranjo um sobre o outro leem como repetição, e alternar o
-              lado faz o olho reparar que a pergunta mudou (de QUEM para
-              QUANDO).
+              O ranking à esquerda e a curva à direita, invertido em relação à
+              primeira linha do painel: dois blocos com o mesmo arranjo leem como
+              repetição, e alternar o lado faz o olho reparar que a pergunta
+              mudou (de QUEM para QUANDO).
 
               4/6 para a curva e 2/6 para o ranking, as mesmas proporções da
-              linha de cima, para as duas se lerem como um par. */}
+              primeira linha. Aqui embaixo do "Performance por UTM", que ocupa a
+              largura inteira, a proporção não tem vizinha imediata para casar --
+              ela se mantém porque é a leitura certa para um par curva/ranking, e
+              porque repeti-la amarra as duas linhas de gráfico da aba. */}
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
           <HorariosPanel horas={rankingDoCiclo.horas} dias={rankingDoCiclo.dias} className="lg:col-span-2" />
 
@@ -1201,152 +1348,6 @@ export default function DashboardPage() {
                 </AreaChart>
             </ResponsiveContainer>
           </div>
-          </div>
-
-          {/* Três leituras de repartição na mesma linha: de onde vêm os leads,
-              de onde vem a receita, e por que os negócios se perdem. Juntas
-              porque respondem à mesma pergunta em momentos diferentes do funil,
-              e comparar as três de relance é o que dá sentido a cada uma.
-
-              Os dois de origem ocupam 3/5 da linha e o de perdas, 2/5. Perdas
-              precisa de mais largura porque a tabela dele tem dois níveis: além
-              da origem, os motivos recuados por baixo de cada uma.
-
-              A grade tem 10 colunas, e não 5, para os 3/5 do par dividirem ao
-              meio: 3 + 3 + 4. Em 5 colunas, um dos gêmeos ficaria com o dobro do
-              outro, sugerindo uma importância que eles não têm um sobre o outro.
-
-              OriginPanel devolve os dois cards num Fragment, então os três aqui
-              são itens diretos da mesma grade e esticam juntos até a altura da
-              linha. */}
-          <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
-            <OriginPanel periodLeads={periodLeads} className="lg:col-span-3" />
-
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
-              <h3 className="text-sm font-semibold text-foreground">Motivo de perda por origem</h3>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-4">Onde você perde, e por quê</p>
-              {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
-                  zero no centro, que é a resposta. Escondê-lo fazia o painel sumir
-                  e a página inteira pular de altura ao trocar o filtro de data.
-
-                  `total` explícito mesmo com as fatias somando o total: os
-                  motivos são cortados no top 3 por origem, e deixar o centro
-                  somar sozinho o deixaria à mercê de qualquer corte futuro.
-
-                  Mesmas cores por origem das duas rosquinhas ao lado, via
-                  ORIGIN_COLORS. É o que permite seguir um canal com o olho pelos
-                  três painéis da linha.
-
-                  Anel menor que os 190px padrão: aqui a tabela tem dois níveis e
-                  fica bem mais alta que as vizinhas. Com o anel no tamanho cheio,
-                  o painel passava do dobro da altura dos outros dois da linha.
-
-                  `empilhado` como nos dois vizinhos: anel em cima, tabela
-                  embaixo. Lado a lado, o anel deixava uns 100px para a coluna de
-                  nome, e os motivos, ainda recuados sob a origem, ficavam com
-                  uns 84px -- "Cliente sem orçamento" virava reticências.
-                  Embaixo, a tabela recebe a largura inteira do painel.
-
-                  Dois anéis: as MESMAS perdas repartidas por origem e por
-                  motivo. Somam o mesmo total de propósito, e é a divergência
-                  entre os dois recortes que interessa. Clicar numa origem faz o
-                  segundo mostrar os motivos daquela origem. */}
-              <DonutDistribuicao
-                dados={lossByOriginData.porOrigem}
-                rotuloCentro={lostInPeriod.length === 1 ? "perdido" : "perdidos"}
-                total={lostInPeriod.length}
-                altura={150}
-                colunas={{ valor: "Perdas", extras: ["% do total"] }}
-                rodape="Por origem"
-                anelSecundario={{ dados: lossByOriginData.porMotivo, rodape: "Por motivo" }}
-                empilhado
-              />
-            </div>
-          </div>
-
-          <UtmAttributionPanel periodLeads={periodLeads} />
-
-
-          {/* Os dois rankings de venda na mesma linha: o que se vendeu e quem
-              vendeu. São as duas metades da mesma pergunta, e lado a lado dá
-              para ver se a receita vem de um produto forte ou de uma pessoa
-              forte. Meio a meio porque nenhum dos dois manda no outro. */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <RankingPanel
-              titulo="Produtos mais vendidos"
-              subtitulo="Os produtos mais vendidos na sua empresa"
-              colunaNome="Produto"
-              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
-              vazio="Nenhum produto cadastrado."
-              linhas={topProducts.map(p => ({
-                chave: p.name,
-                /* Mesmo quadrado do cadastro em Configurações > Produtos: 32px,
-                   canto arredondado, fundo no verde a 10% e o carrinho no verde
-                   cheio. Repetir o desenho faz a linha daqui ser reconhecida
-                   como o mesmo produto que se cadastrou lá.
-
-                   Ícone, e não foto: produto não tem imagem no cadastro, então
-                   este é o retrato que existe. */
-                marca: (
-                  <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <ShoppingCart size={14} className="text-primary" />
-                  </span>
-                ),
-                nome: p.name,
-                sub: p.sku ? `SKU: ${p.sku}` : undefined,
-                valores: [
-                  String(p.count),
-                  /* Ticket médio POR VENDA deste produto: a receita dele
-                     dividida pelas vendas dele. Não é o ticket médio por pessoa
-                     que a lista de leads mostra -- lá a média é do cliente, que
-                     pode ter comprado três produtos, e aqui é do produto, que
-                     foi vendido para três clientes. */
-                  p.count > 0 ? fmt(p.value / p.count) : "—",
-                  p.value > 0 ? fmt(p.value) : "—",
-                ],
-              }))}
-            />
-
-            <RankingPanel
-              titulo="Responsáveis com mais vendas"
-              subtitulo="Quem mais vendeu na sua empresa"
-              colunaNome="Responsável"
-              colunas={["Número de vendas", "Ticket médio", "Receita gerada"]}
-              vazio="Nenhuma venda no período."
-              linhas={agentPerformance
-                .filter(a => a.won > 0)
-                .map(a => ({
-                  chave: a.name,
-                  /* Foto quando existe, senão a inicial no círculo da cor do
-                     membro -- o mesmo par que a lista de leads e o calendário
-                     usam. A cor não é decoração: é a mesma que identifica a
-                     pessoa nos outros painéis do dashboard. */
-                  marca: memberAvatars[a.name] ? (
-                    <img
-                      src={memberAvatars[a.name]}
-                      alt={a.name}
-                      className="w-8 h-8 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <span
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-                      style={{ background: a.color }}
-                    >
-                      {a.name[0]?.toUpperCase() ?? "?"}
-                    </span>
-                  ),
-                  nome: a.name,
-                  sub: memberEmails[a.name] || undefined,
-                  valores: [
-                    String(a.won),
-                    /* `avgTicket` já vem do `agentPerformance`: é receita
-                       dividida por ganhos, e o memo é a mesma fonte que a aba
-                       Time lê. */
-                    a.avgTicket > 0 ? fmt(a.avgTicket) : "—",
-                    a.totalValue > 0 ? fmt(a.totalValue) : "—",
-                  ],
-                }))}
-            />
           </div>
 
           <TagPerformancePanel periodLeads={periodLeads} crmTags={crmTags} />
