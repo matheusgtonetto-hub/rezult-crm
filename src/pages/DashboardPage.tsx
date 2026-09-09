@@ -4,11 +4,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCRM } from "@/context/CRMContext";
 import {
-  BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 import {
-  Users, ArrowDown, AlertTriangle, ShoppingCart,
+  ArrowDown, AlertTriangle, ShoppingCart,
   Activity as ActivityIcon,
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -21,6 +21,7 @@ import { DonutDistribuicao } from "@/components/dashboard/DonutDistribuicao";
 import { OriginPanel } from "@/components/dashboard/OriginPanel";
 import { UtmAttributionPanel } from "@/components/dashboard/UtmAttributionPanel";
 import { TagPerformancePanel } from "@/components/dashboard/TagPerformancePanel";
+import { FunnelChart } from "@/components/ui/funnel-chart";
 import { ResultadoResponsavelPanel } from "@/components/dashboard/ResultadoResponsavelPanel";
 import { HorariosPanel } from "@/components/dashboard/HorariosPanel";
 import { TooltipSeries } from "@/components/dashboard/CaixaTooltip";
@@ -721,19 +722,13 @@ export default function DashboardPage() {
           if (m && m[1] === stage.title) entered.add(lead.id);
         });
       });
-      const leadDetails = [...entered].map(id => ({
-        id,
-        name: leads[id]?.name ?? "Lead removido",
-        responsible: leads[id]?.responsible ?? "",
-      }));
       const wonCount = [...entered].filter(id => leads[id]?.dealStatus === "won").length;
-      return { stage, count: entered.size, wonCount, leadDetails };
+      return { stage, count: entered.size, wonCount };
     });
   }, [funnelPipeline, allLeads, leads, dateRange, funnelResponsible]);
 
   const periodLabel = `${dateRange.from.toLocaleDateString("pt-BR")} – ${dateRange.to.toLocaleDateString("pt-BR")}`;
 
-  const [expandedStage, setExpandedStage] = useState<string | null>(null);
   /** O que o gráfico "Resultado no período" mede: quantos negócios ou quanto dinheiro. */
   const [metricaPeriodo, setMetricaPeriodo] = useState<"quantidade" | "receita">("quantidade");
 
@@ -1730,7 +1725,7 @@ export default function DashboardPage() {
 
                 <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
-                  <p className="text-xs text-muted-foreground mb-4">Clique em uma barra para ver os leads</p>
+                  <p className="text-xs text-muted-foreground mb-4">Quantos negócios passaram por cada etapa</p>
                   {(() => {
                     const chartData = [
                       ...funnelData.map((row) => ({
@@ -1749,109 +1744,32 @@ export default function DashboardPage() {
                       },
                     ];
 
-                    // x e y sao `number | string` desde o Recharts 3. Vao direto
-                    // para o translate() do SVG, que aceita os dois.
-                    const renderTick = (props: { x: number | string; y: number | string; payload?: { value?: unknown }; index: number }) => {
-                      const { x, y, payload, index } = props;
-                      const entry = chartData[index];
-                      const countLabel = entry?.isGanhos ? pWon.length : (funnelData[index]?.count ?? 0);
-                      const isGanhos = entry?.isGanhos;
-                      return (
-                        <g transform={`translate(${x},${y})`}>
-                          <text x={0} y={0} dy={14} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--muted-foreground))"} fontSize={11} fontWeight={isGanhos ? "600" : "400"}>
-                            {String(payload?.value ?? "")}
-                          </text>
-                          <text x={0} y={0} dy={30} textAnchor="middle" fill={isGanhos ? "#10B981" : "hsl(var(--foreground))"} fontSize={13} fontWeight="bold">
-                            {countLabel}
-                          </text>
-                        </g>
-                      );
-                    };
-
-                    const renderConvLabel = (props: { x: number; y: number; width: number; height: number; value: number }) => {
-                      const { x, y, width, height, value } = props;
-                      if (!value || Number(height) < 26) return null;
-                      return (
-                        <text
-                          x={Number(x) + Number(width) / 2}
-                          y={Number(y) + Number(height) / 2}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fill="white"
-                          fontSize={11}
-                          fontWeight="600"
-                        >
-                          {value}
-                        </text>
-                      );
-                    };
-
                     return (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart
-                          data={chartData}
-                          margin={{ bottom: 20 }}
-                          onClick={e => {
-                            // O Recharts 3 tirou activePayload do tipo do evento e
-                            // expoe activeIndex. Sai melhor: em vez de cavar
-                            // payload[0].payload, le direto a barra clicada em
-                            // chartData, que e a mesma fonte que alimenta o grafico.
-                            const i = Number(e?.activeIndex);
-                            const id = Number.isInteger(i) ? chartData[i]?.stageId : undefined;
-                            if (id) setExpandedStage(prev => prev === id ? null : id);
-                          }}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
-                          <XAxis dataKey="name" tick={renderTick} axisLine={false} tickLine={false} height={48} />
-                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
-                          <Tooltip
-                            contentStyle={tooltip}
-                            cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
-                            formatter={(v: number) => [`${v} lead${v !== 1 ? "s" : ""}`, "Leads"]}
-                          />
-                          <Bar dataKey="leads" radius={[6, 6, 0, 0]} maxBarSize={56}>
-                            {chartData.map((entry, i) => (
-                              <Cell
-                                key={i}
-                                fill={entry.color}
-                                opacity={expandedStage && expandedStage !== entry.stageId ? 0.35 : 1}
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    );
-                  })()}
+                      /* Funil no lugar das barras. As barras respondiam "quanto
+                         tem em cada etapa"; o funil responde a mesma coisa E
+                         mostra o estreitamento entre elas, que é a leitura que
+                         interessa num pipeline.
 
-                  {/* Lead list for selected stage */}
-                  {expandedStage && (() => {
-                    const selected = funnelData.find(r => r.stage.id === expandedStage);
-                    if (!selected) return null;
-                    return (
-                      <div className="mt-4 border-t border-card-border pt-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selected.stage.color || "hsl(var(--primary))" }} />
-                          <span className="text-sm font-semibold text-foreground">{selected.stage.title}</span>
-                          <span className="text-xs text-muted-foreground">— {selected.count} lead{selected.count !== 1 ? "s" : ""}</span>
-                          <button onClick={() => setExpandedStage(null)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">fechar</button>
-                        </div>
-                        {selected.leadDetails.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Nenhum lead encontrado.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {selected.leadDetails.map(l => (
-                              <div key={l.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/40">
-                                <Users size={12} className="text-muted-foreground shrink-0" />
-                                <span className="text-xs text-foreground font-medium truncate">{l.name}</span>
-                                {l.responsible && (
-                                  <span className="text-xs text-muted-foreground ml-auto shrink-0">{l.responsible}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                         `orientation="horizontal"` é o que corre da esquerda
+                         para a direita: no componente o nome descreve o EIXO em
+                         que as etapas se enfileiram, não o formato de cada uma.
+
+                         Altura fixa de 300px, a mesma do gráfico anterior, para
+                         a troca não mexer na altura do painel. Ela também anula
+                         o `aspectRatio` que o componente aplica sozinho, que num
+                         painel largo deixaria o funil desproporcional. */
+                      <FunnelChart
+                        data={chartData.map(d => ({
+                          label: d.name,
+                          value: d.leads,
+                          displayValue: String(d.leads),
+                          color: d.color,
+                        }))}
+                        orientation="horizontal"
+                        edges="curved"
+                        layers={3}
+                        style={{ height: 300, aspectRatio: "auto" }}
+                      />
                     );
                   })()}
                 </div>

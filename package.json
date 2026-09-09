@@ -58,6 +58,7 @@
     "geist": "^1.7.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
+    "motion": "^13.2.0",
     "next-themes": "^0.3.0",
     "opus-recorder": "^8.0.5",
     "react": "^18.3.1",
