@@ -50,7 +50,7 @@ import DepartmentsManager from "@/components/DepartmentsManager";
 import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
-  | "perfil" | "empresa" | "equipe" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
+  | "perfil" | "empresa" | "usuarios" | "planos" | "tags" | "produtos" | "motivos" | "listas" | "campos"
   | "departamentos" | "horarios" | "integracoes"
   | "conexoes" | "api" | "mcp" | "armazenamento";
 
@@ -61,7 +61,7 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "perfil",  label: "Meu perfil" },
   { id: "planos",  label: "Planos e pagamentos" },
   { id: "empresa", label: "Empresa" },
-  { id: "equipe",  label: "Equipe" },
+  { id: "usuarios", label: "Usuários e acessos" },
   { id: "tags",    label: "Tags" },
   { id: "produtos", label: "Produtos" },
   { id: "motivos", label: "Motivos de perda" },
@@ -90,7 +90,7 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string })
 // Seções exclusivas do DONO da empresa
 const OWNER_ONLY_SECTIONS: SectionId[] = [];
 // Seções visíveis ao dono E a membros "Administrador (acesso total)"
-const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "equipe", "planos"];
+const FULL_ADMIN_SECTIONS: SectionId[] = ["empresa", "usuarios", "planos"];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -170,7 +170,7 @@ export default function SettingsPage() {
         <div className="max-w-5xl mx-auto p-8">
           {active === "perfil"  && <PerfilSection setPwOpen={setPwOpen} />}
           {active === "empresa" && <EmpresaSection />}
-          {active === "equipe"  && <EquipeSection />}
+          {active === "usuarios" && <EquipeSection />}
           {active === "planos"  && <PlanosSection />}
           {active === "tags" && <TagsSection />}
           {active === "produtos" && <ProdutosSection />}
@@ -924,6 +924,17 @@ interface Member {
   avatar_url: string | null;
   permissions: string[];
   is_owner: boolean;
+  /**
+   * Último momento em que a pessoa esteve ativa.
+   *
+   * NÃO é o `last_sign_in_at` puro: aquele campo só se mexe quando alguém
+   * autentica de novo, e uma sessão viva se renova por token sem tocar nele --
+   * quem usa o CRM diariamente sem deslogar aparecia com o login de semanas
+   * atrás. O RPC devolve o mais recente entre o sign-in e a renovação da sessão.
+   *
+   * Nulo em quem foi convidado e ainda não entrou uma vez sequer.
+   */
+  last_active_at: string | null;
 }
 
 interface PendingInvite {
@@ -1035,6 +1046,32 @@ const PERM_MODULE_LABELS: Record<string, string> = {
   dashboard: "Dashboard", pipelines: "Pipelines", leads: "Leads",
   multiatendimento: "Multi", impulsos: "Disparos", automacoes: "Automações", agentes: "Agentes",
 };
+
+/**
+ * Quando a pessoa entrou pela última vez, escrito do jeito que se lê rápido.
+ *
+ * Relativo nos primeiros dias ("há 3 h", "há 2 dias") e absoluto depois. A
+ * pergunta que um administrador faz nesta tela muda com a distância: no começo
+ * ele quer saber se a pessoa está ativa AGORA, e "29/08/2026" o obriga a fazer
+ * a conta de cabeça; passada uma semana, o que importa é a data em si, e "há 23
+ * dias" é que vira conta.
+ *
+ * Nulo é "Nunca acessou", e não um travessão: aqui o vazio tem significado --
+ * é o convite que ninguém abriu -- e um traço leria como dado faltando.
+ */
+function ultimoAcesso(iso: string | null): string {
+  if (!iso) return "Nunca acessou";
+  const d = new Date(iso);
+  const minutos = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (minutos < 1) return "Agora";
+  if (minutos < 60) return `há ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  if (dias === 1) return "Ontem";
+  if (dias < 7) return `há ${dias} dias`;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 function permSummary(permissions: string[]): string {
   const modules = [...new Set(permissions.map(p => p.split(":")[0]))];
@@ -1155,7 +1192,7 @@ function EquipeSection() {
   /**
    * Abre o convite quando a URL pede.
    *
-   * `/configuracoes/equipe?abrir=convite` cai aqui. Serve à trilha de `/inicio`:
+   * `/configuracoes/usuarios?abrir=convite` cai aqui. Serve à trilha de `/inicio`:
    * o botão "Convidar membros" de lá manda para cá já com o diálogo aberto.
    * Mesmo mecanismo do assistente de conexão em `ConexoesSection`.
    *
@@ -1177,8 +1214,8 @@ function EquipeSection() {
     const { data, error } = await supabase.rpc("get_company_members", { p_company_id: company.id });
     if (error) console.error("[EquipeSection] loadMembers error:", error);
     setMembers(
-      ((data ?? []) as { id: string; full_name: string; email: string; avatar_url: string | null; permissions: string[]; is_owner: boolean }[])
-        .map(r => ({ id: r.id, full_name: r.full_name, email: r.email, avatar_url: r.avatar_url, permissions: r.permissions ?? [], is_owner: r.is_owner }))
+      ((data ?? []) as { id: string; full_name: string; email: string; avatar_url: string | null; permissions: string[]; is_owner: boolean; last_active_at: string | null }[])
+        .map(r => ({ id: r.id, full_name: r.full_name, email: r.email, avatar_url: r.avatar_url, permissions: r.permissions ?? [], is_owner: r.is_owner, last_active_at: r.last_active_at ?? null }))
     );
     setLoading(false);
   }, [company?.id]);
@@ -1294,21 +1331,42 @@ function EquipeSection() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Equipe</h1>
-          <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
-        </div>
-        {isAdmin && (
-          <Button onClick={() => setAddOpen(true)} className="bg-primary hover:bg-primary/90">
-            <UserPlus size={14} className="mr-1.5" /> Adicionar membro
-          </Button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-foreground">Usuários e acessos</h1>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie os membros vinculados à sua empresa</p>
       </div>
 
-      {/* Membros ativos */}
+      {/* Membros ativos
+          Tabela, e não a lista de cartões que estava aqui.
+
+          Na lista, cada membro virava um bloco com nome, pílula de permissão e
+          e-mail empilhados, e comparar duas pessoas exigia ler dois blocos
+          inteiros. Em colunas a leitura é vertical: quem é admin, quem nunca
+          entrou e quem sumiu há um mês aparecem varrendo UMA coluna, que é a
+          pergunta que esta tela existe para responder.
+
+          `overflow-x-auto` porque são quatro colunas mais as ações: em tela
+          estreita a tabela rola dentro do cartão, em vez de empurrar a página. */}
       <Card>
-        <SectionTitle title="Membros ativos" />
+        {/* Título e ação na mesma linha, e não o botão lá no topo da página:
+            ele age sobre ESTA tabela.
+
+            O `<h2>` vai escrito aqui, com as mesmas classes do `SectionTitle`,
+            em vez do componente. O `SectionTitle` guarda o `mb-4` DENTRO dele, e
+            numa linha flex essa margem entra na altura do próprio bloco: como o
+            botão tem justamente a altura do título mais a margem, ele esticava a
+            linha até o ponto em que a folga deixava de existir e a tabela
+            encostava nele. Com a margem na LINHA, ela separa os dois de verdade.
+
+            `items-center` porque agora o título é uma linha só. */}
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <h2 className="text-base font-semibold text-foreground">Membros ativos</h2>
+          {isAdmin && (
+            <Button onClick={() => setAddOpen(true)} className="bg-primary hover:bg-primary/90 shrink-0">
+              <UserPlus size={14} className="mr-1.5" /> Adicionar membro
+            </Button>
+          )}
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -1316,81 +1374,100 @@ function EquipeSection() {
         ) : members.length === 0 ? (
           <div className="text-center py-8">
             <Users size={28} className="text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhum membro na equipe ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhum usuário na empresa ainda.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {members.map(m => {
-              const isSelf = m.id === user?.id;
-              const summary = m.is_owner ? null : permSummary(m.permissions);
-              return (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-3 px-3 py-2.5 border border-card-border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold shrink-0 overflow-hidden">
-                    {m.avatar_url
-                      ? <img src={m.avatar_url} alt={m.full_name} className="w-full h-full object-cover" />
-                      : initials(m.full_name || m.email)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[14px] font-medium text-foreground truncate">
-                        {m.full_name || "—"}
-                        {isSelf && <span className="text-muted-foreground font-normal ml-1">(você)</span>}
-                      </p>
-                      {m.is_owner && (
-                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
-                          <Crown size={9} /> Admin
-                        </span>
-                      )}
-                      {!m.is_owner && m.permissions.includes("admin") && (
-                        <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0">
-                          <Crown size={9} /> Admin
-                        </span>
-                      )}
-                      {!m.is_owner && !m.permissions.includes("admin") && summary && (
-                        <span className="text-[10px] text-primary bg-primary/10 rounded-full px-2 py-0.5 shrink-0">
-                          {summary}
-                        </span>
-                      )}
-                      {!m.is_owner && !m.permissions.includes("admin") && !summary && (
-                        <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5 shrink-0">
-                          Sem permissões
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">{m.email}</p>
-                  </div>
-                  {isAdmin && !m.is_owner && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => openEditPermissions(m)}
-                        className="text-[11px] text-primary hover:underline px-2 py-1"
-                        title="Editar permissões"
-                      >
-                        Editar permissões
-                      </button>
-                      <button
-                        onClick={() => setConfirmRemove(m)}
-                        disabled={removing === m.id}
-                        className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors disabled:opacity-50"
-                        title="Remover da equipe"
-                      >
-                        {removing === m.id
-                          ? <div className="w-4 h-4 rounded-full border-2 border-destructive border-t-transparent animate-spin" />
-                          : <UserMinus size={15} />}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="border border-card-border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-card-border text-xs text-muted-foreground">
+                    <th className="text-left font-medium px-4 py-2.5">Nome</th>
+                    <th className="text-left font-medium px-4 py-2.5">Email</th>
+                    <th className="text-left font-medium px-4 py-2.5">Acesso</th>
+                    <th className="text-left font-medium px-4 py-2.5 whitespace-nowrap">Último acesso</th>
+                    {/* Coluna das ações sem título: o cabeçalho nomeia o dado da
+                        coluna, e aqui não há dado nenhum. */}
+                    <th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {members.map(m => {
+                    const isSelf = m.id === user?.id;
+                    // Dono e membro com a permissão "admin" leem igual na tela:
+                    // os dois mandam em tudo. A diferença entre eles importa no
+                    // que PODE SER MEXIDO (o dono não é removível), e isso já
+                    // está no menu de ações.
+                    const ehAdmin = m.is_owner || m.permissions.includes("admin");
+                    return (
+                      <tr key={m.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold shrink-0 overflow-hidden">
+                              {m.avatar_url
+                                ? <img src={m.avatar_url} alt={m.full_name} className="w-full h-full object-cover" />
+                                : initials(m.full_name || m.email)}
+                            </div>
+                            <span className="font-medium text-foreground truncate">
+                              {m.full_name || "—"}
+                              {isSelf && <span className="text-muted-foreground font-normal ml-1">(você)</span>}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          <span className="block truncate max-w-[260px]">{m.email}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {ehAdmin ? (
+                            <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
+                              <Crown size={10} /> Administrador
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
+                              Membro
+                            </span>
+                          )}
+                        </td>
+                        {/* `tabular-nums` porque a coluna alterna datas e frases
+                            curtas; com dígitos de larguras diferentes, as datas
+                            de linhas vizinhas não alinhavam entre si. */}
+                        <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">
+                          {ultimoAcesso(m.last_active_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isAdmin && !m.is_owner && (
+                            <div className="flex items-center gap-1 justify-end">
+                              <button
+                                onClick={() => openEditPermissions(m)}
+                                className="text-[12px] text-primary hover:underline px-2 py-1 whitespace-nowrap"
+                                title="Editar permissões"
+                              >
+                                Editar permissões
+                              </button>
+                              <button
+                                onClick={() => setConfirmRemove(m)}
+                                disabled={removing === m.id}
+                                className="text-muted-foreground/50 hover:text-destructive p-1 transition-colors disabled:opacity-50"
+                                title="Remover da empresa"
+                              >
+                                {removing === m.id
+                                  ? <div className="w-4 h-4 rounded-full border-2 border-destructive border-t-transparent animate-spin" />
+                                  : <UserMinus size={15} />}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
         {!loading && members.length > 0 && (
           <p className="text-xs text-muted-foreground mt-3 text-right">
-            {members.length} {members.length === 1 ? "membro" : "membros"}
+            {members.length} {members.length === 1 ? "usuário" : "usuários"}
           </p>
         )}
       </Card>
@@ -3834,11 +3911,19 @@ function ConexoesSection() {
     setOpen(true);
   }
 
-  function openNewDialog() {
+  /**
+   * Abre o assistente de nova conexão.
+   *
+   * `categoria` decide em qual aba ele nasce. O padrão é WhatsApp, que é o
+   * caminho de quase todo mundo; quem chega pedindo agenda (o vazio da etapa
+   * Integrações do agente, por exemplo) passa "agenda" e cai direto no cartão do
+   * Google Calendar, sem ter que descobrir a aba.
+   */
+  function openNewDialog(categoria: string = "whatsapp") {
     setEditingConnId(null);
     setConnName("");
     setStep("select");
-    setSelectedCategory("whatsapp");
+    setSelectedCategory(categoria);
     setTutStep(0);
     setForm({ instanceId: "", token: "", clientToken: "" });
     setQrSrc("");
@@ -3864,8 +3949,11 @@ function ConexoesSection() {
    * assistente que a pessoa acabou de fechar, e ela não teria como sair.
    */
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("abrir") !== "nova-conexao") return;
-    openNewDialog();
+    const abrir = new URLSearchParams(window.location.search).get("abrir");
+    // Dois destinos, um assistente. `nova-agenda` abre a mesma janela já na aba
+    // Agenda -- quem vem do vazio de Calendar não precisa achar a categoria.
+    if (abrir !== "nova-conexao" && abrir !== "nova-agenda") return;
+    openNewDialog(abrir === "nova-agenda" ? "agenda" : "whatsapp");
     window.history.replaceState({}, "", window.location.pathname);
     // Uma vez, ao montar. A lista vazia é intencional: `openNewDialog` é
     // recriada a cada render, e segui-la reabriria o diálogo sem parar.
@@ -3927,7 +4015,7 @@ function ConexoesSection() {
           <h1 className="text-xl font-bold text-foreground">Conexões</h1>
           <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
+        <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={() => openNewDialog()}>
           Criar
         </Button>
       </div>
@@ -3994,7 +4082,7 @@ function ConexoesSection() {
           </div>
           <p className="text-sm font-semibold text-foreground mb-1">Nenhuma conexão ativa</p>
           <p className="text-xs text-muted-foreground mb-5">Conecte um serviço para começar a sincronizar dados com o CRM.</p>
-          <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={openNewDialog}>
+          <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={() => openNewDialog()}>
             Criar conexão
           </Button>
         </div>

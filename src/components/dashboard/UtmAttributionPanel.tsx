@@ -450,11 +450,10 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                           </DropdownMenuRadioGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      {/* Sem `font-mono`: a página inteira roda em Inter, e a
-                          Geist Mono aqui era a única família estranha no meio
-                          dela. O nome do parâmetro continua se distinguindo do
-                          título acima pelo corpo (10px) e pela cor. */}
-                      <span className="block font-normal text-white/60 text-[10px] leading-tight truncate">
+                      {/* `font-mono` no nome do parâmetro: ele é um token de
+                          URL (`utm_campaign`), e a monoespaçada o separa do
+                          título acima, que é texto comum. */}
+                      <span className="block font-normal text-white/60 text-[10px] leading-tight font-mono truncate">
                         {f.param}
                       </span>
 

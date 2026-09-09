@@ -13,6 +13,7 @@ import { TextoDoRecurso } from "@/components/TextoDoRecurso";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Check, Zap, TriangleAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { emitAbrirOferta } from "@/lib/abrirOfertaEvent";
 
 type BillingTab = "mensal" | "semestral" | "anual";
 
@@ -143,6 +144,26 @@ export function FreePlanBanner() {
   // fica vermelho quando está de fato acabando.
   const corDaTarja = (billingBlocked || !isTrialing || acabando) ? "#EF4444" : "#128A68";
 
+  /**
+   * Teste acabado: o mesmo cartão flutuante da oferta, e não a faixa vermelha do
+   * rodapé.
+   *
+   * A faixa fazia sentido enquanto ela era a única forma de dizer "a conta está
+   * travada": ocupa espaço, atravessa a tela, não deixa esquecer. Só que o CRM
+   * já diz isso em cada tentativa de escrita, com aviso e cartão de planos --
+   * a faixa passou a repetir em tempo integral um recado que a ação já entrega
+   * na hora certa, cobrando 50px do rodapé de todas as telas.
+   *
+   * No cartão a pessoa reencontra a peça que já viu duas vezes (no fim do
+   * cadastro e durante o teste). É a mesma oferta, no mesmo canto, com o mesmo
+   * visual -- muda o texto, porque agora o prazo acabou.
+   *
+   * `cobranca` continua na faixa: quem teve a cobrança recusada JÁ é cliente
+   * pagante, e o recado dele não é uma oferta -- é um aviso de que a mensalidade
+   * não passou.
+   */
+  const testeEncerrado = motivoDoBloqueio === "teste";
+
   const getPrice = (plan: typeof PLANS[0]) => {
     if (billingTab === "semestral") return plan.pricing.semestral;
     if (billingTab === "anual")     return plan.pricing.anual;
@@ -177,7 +198,7 @@ export function FreePlanBanner() {
         * minimizada aberta, as duas se sobrepõem e a conversa fica por cima.
         * Se isso incomodar, o conserto é subir o `bottom` deste cartão.
         */}
-      {restante ? (
+      {(restante || testeEncerrado) ? (
         <div
           className="fixed rounded-[12px] overflow-hidden"
           style={{
@@ -230,13 +251,15 @@ export function FreePlanBanner() {
                   className="inline-block rounded-[6px] px-2 py-[3px] text-[11px] font-bold tracking-wide whitespace-nowrap"
                   style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                 >
-                  50% OFF - Oferta Exclusiva
+                  {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
                 </span>
                 <p
                   className="text-[12px] font-[500] mt-[6px] whitespace-nowrap"
                   style={{ color: OFERTA.textoSuave }}
                 >
-                  Válida durante o seu teste grátis
+                  {testeEncerrado
+                    ? "Escolha um dos planos para voltar a usar o Rezult."
+                    : "Válida durante o seu teste grátis"}
                 </p>
               </div>
             ) : (
@@ -251,24 +274,31 @@ export function FreePlanBanner() {
                     className="inline-block rounded-[6px] px-2 py-[3px] text-[11px] font-bold tracking-wide whitespace-nowrap"
                     style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                   >
-                    50% OFF - Oferta Exclusiva
+                    {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
                   </span>
                   <p
                     className="text-[12px] font-[500] mt-[6px] whitespace-nowrap"
                     style={{ color: OFERTA.textoSuave }}
                   >
-                    Válida durante o seu teste grátis
+                    {testeEncerrado
+                      ? "Escolha um dos planos para voltar a usar o Rezult."
+                      : "Válida durante o seu teste grátis"}
                   </p>
                 </div>
 
                 {/* Filete no lugar de moldura: separa o recado do contador sem
                     desenhar mais uma caixa dentro de uma que já é. */}
-                <span className="w-px h-9 shrink-0" style={{ background: "rgba(255,255,255,0.12)" }} />
+                {restante && <span className="w-px h-9 shrink-0" style={{ background: "rgba(255,255,255,0.12)" }} />}
 
                 {/* Número grande com a unidade embaixo, e não "06 dias" corrido:
                     o olho pega o algarismo primeiro e confirma a unidade só se
                     precisar. `tabular-nums` trava a largura, senão o cartão
-                    inteiro muda de tamanho a cada minuto que passa. */}
+                    inteiro muda de tamanho a cada minuto que passa.
+
+                    Só com prazo correndo: acabado o teste não há contagem
+                    regressiva, e um "00:00:00" seria um relógio parado ocupando
+                    um terço do cartão. */}
+                {restante && (
                 <div className="flex items-center gap-2 shrink-0">
                   {[
                     { valor: restante.dias,    rotulo: "dias" },
@@ -296,10 +326,18 @@ export function FreePlanBanner() {
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* Verde chapado com texto quase preto, igual ao "Começar 7 dias
                     grátis" da tela de planos: é o mesmo botão levando ao mesmo
-                    lugar. */}
+                    lugar.
+
+                    Os dois destinos são diferentes de propósito. Durante o teste
+                    o botão leva ao `/setup`, que é onde a oferta de 50% vive e
+                    onde o desconto é aplicado. Encerrado o teste o desconto não
+                    vale mais, e o botão abre o cartão de planos por evento --
+                    assim ele sobe por cima da tela em que a pessoa estiver, sem
+                    tirá-la do lugar. */}
                 <Button
                   size="sm"
                   className="h-8 text-xs font-semibold rounded-[7px] shrink-0"
@@ -308,12 +346,12 @@ export function FreePlanBanner() {
                     color: OFERTA.sobreVerde,
                     animation: "banner-btn-attention 1.2s ease-in-out infinite",
                   }}
-                  onClick={() => navigate("/setup")}
+                  onClick={() => (testeEncerrado ? emitAbrirOferta() : navigate("/setup"))}
                 >
                   {/* Texto próprio, e não o `rotuloBotao` das outras situações:
-                      lá ele descreve uma obrigação ("Regularizar", "Escolher um
-                      plano"), e aqui o clique é para aproveitar uma vantagem. */}
-                  Garantir 50% OFF
+                      lá ele descreve uma obrigação ("Regularizar"), e durante o
+                      teste o clique é para aproveitar uma vantagem. */}
+                  {testeEncerrado ? "Escolher um plano" : "Garantir 50% OFF"}
                 </Button>
               </>
             )}

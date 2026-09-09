@@ -470,6 +470,10 @@ type Agent = {
   // finalizado ("Criar" no último passo) -- fica invisível na grade de
   // /agentes até virar false. Ver finalizeAgent()/abandonDraftAgent().
   draft: boolean;
+  // Em que etapa o rascunho parou, para o "Continuar" da grade devolver a pessoa
+  // onde ela estava em vez de recomeçar do passo 1. Só tem sentido com
+  // `draft = true`.
+  wizard_step: number;
 };
 
 type AutomationOption = { id: string; name: string };
@@ -583,6 +587,14 @@ export default function AgentesPage() {
   const [customContext, setCustomContext] = useState("");
   const [uploading, setUploading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  /**
+   * Diálogo de saída da criação.
+   *
+   * Existe porque a pergunta tem DUAS respostas boas, e o `window.confirm` só
+   * oferecia uma: ele perguntava "descartar?" e tratava guardar o rascunho como
+   * a ausência de resposta. Quem só queria sair um minuto perdia o agente.
+   */
+  const [sairAberto, setSairAberto] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftAvatar, setDraftAvatar] = useState(DEFAULT_AVATAR);
   const [freeTab, setFreeTab] = useState("perfil");
@@ -645,7 +657,7 @@ export default function AgentesPage() {
     setLoading(true);
     const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
-        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft").eq("company_id", companyId).order("created_at"),
+        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step").eq("company_id", companyId).order("created_at"),
         // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
         // da chave não pode vazar pros membros), então um membro lia zero
         // linhas e a tela dizia "cadastre sua chave" com a chave cadastrada.
@@ -711,20 +723,17 @@ export default function AgentesPage() {
     }
   }, [urlId, agents]);
 
-  // Rede de segurança pra quando o usuário sai sem clicar em "Cancelar"
-  // (navega pra outra página do app, fecha a aba) -- refs porque o cleanup
-  // só deve rodar no unmount de verdade, não em toda mudança de view/agent.
-  const viewRef = useRef(view);
-  const selectedRef = useRef(selected);
-  useEffect(() => { viewRef.current = view; selectedRef.current = selected; }, [view, selected]);
-  useEffect(() => {
-    return () => {
-      const s = selectedRef.current;
-      if (viewRef.current === "detail" && s?.draft) {
-        void supabase.from("agents").delete().eq("id", s.id);
-      }
-    };
-  }, []);
+  // Saiu daqui a "rede de segurança" que apagava o rascunho ao desmontar a tela.
+  //
+  // Ela nunca chegou a rodar: era `void supabase...delete()`, e a consulta do
+  // supabase-js só dispara quando alguém chama o `then` dela -- montada e
+  // descartada, nunca virou requisição. Por isso os rascunhos sempre
+  // sobreviveram, e é justamente por isso que a grade tem "Rascunho" com
+  // Continuar e Descartar.
+  //
+  // Fazê-la funcionar agora seria pior: o rascunho virou material de RETOMADA,
+  // com a etapa gravada, e apagá-lo ao navegar destruiria o que a pessoa acabou
+  // de guardar. Quem quer descartar tem o Descartar na grade e o X na tela.
 
   useEffect(() => {
     if (!selectedId || !companyId) return;
@@ -902,7 +911,7 @@ export default function AgentesPage() {
         // conversa, a menos que ele por acaso mexesse em algum toggle.
         behavior_config: BEHAVIOR_DEFAULTS,
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
       .single();
     if (error || !data) {
       // 23505 = unique_violation do índice (company_id, activation_tag).
@@ -945,6 +954,32 @@ export default function AgentesPage() {
   // no banco: invisível na grade (draft = true) e ainda segurando a tag de
   // ativação, que aparecia como "em uso" por um agente que o usuário não
   // conseguia mais encontrar. Todo ponto que navega para fora usa esta função.
+  /**
+   * Sai da tela GUARDANDO o rascunho, para ir resolver algo em outro lugar.
+   *
+   * Diferente de `sairDoWizard`, que descarta: aqui a saída é parte do fluxo --
+   * a pessoa foi conectar o WhatsApp que esta etapa exige, e vai voltar. Perguntar
+   * "quer descartar?" no meio disso é oferecer o oposto do que ela pediu.
+   *
+   * Não precisa apagar nada porque o rascunho já é feito para sobreviver:
+   * `draft = true` o mantém invisível na grade... exceto que ele APARECE, com a
+   * etiqueta "Rascunho" e o botão "Continuar". Com `wizard_step` gravado, o
+   * Continuar devolve a pessoa exatamente onde ela estava.
+   *
+   * A etapa é gravada aqui de novo, e não só nos Avançar/Voltar, porque dá para
+   * chegar nesta tela sem ter clicado em nenhum dos dois (o Continuar já abre
+   * numa etapa) -- e sem isto aquele valor não seria reconfirmado.
+   */
+  async function guardarRascunhoESair(destino: string) {
+    if (wizardMode) {
+      // `await` antes de navegar: sair da tela não cancela uma requisição já em
+      // voo, mas esperar torna a garantia explícita em vez de depender disso.
+      await gravarEtapa(wizardStepIndex);
+      toast.success("Rascunho salvo. Você retoma de onde parou em Agentes.");
+    }
+    navigate(destino);
+  }
+
   async function sairDoWizard(destino: string) {
     if (!wizardMode || !selected || !companyId) { navigate(destino); return; }
     if (!window.confirm("Sair agora descarta o agente que você está criando, incluindo a tag reservada para ele. Continuar?")) return;
@@ -1020,7 +1055,7 @@ export default function AgentesPage() {
         // configurado -- o que falta é uma tag, e o card resolve isso ali mesmo.
         draft: false,
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
       .single();
     if (error || !data) { toast.error("Erro ao duplicar o agente"); return; }
     setAgents((prev) => [...prev, data]);
@@ -1050,9 +1085,16 @@ export default function AgentesPage() {
     toast.success("Agente excluído");
   }
 
+  /**
+   * Apaga o rascunho e volta para a grade.
+   *
+   * Sem `window.confirm` aqui dentro: quem pergunta é o diálogo de saída, que
+   * oferece as DUAS respostas (guardar ou descartar). Com a pergunta também
+   * neste ponto, quem escolhesse "Descartar" no diálogo levaria uma segunda
+   * confirmação para a mesma decisão que acabou de tomar.
+   */
   async function abandonDraftAgent() {
     if (!selected || !companyId) return;
-    if (!window.confirm("Sair sem salvar? O agente criado até aqui será descartado.")) return;
     const { error } = await supabase.from("agents").delete().eq("id", selected.id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao descartar"); return; }
     setAgents((prev) => prev.filter((a) => a.id !== selected.id));
@@ -1180,12 +1222,37 @@ export default function AgentesPage() {
   // Avança o wizard e "destrava" o próximo número no stepper -- é essa
   // função (não um setWizardStepIndex direto) que marca um passo como
   // finalizado, tanto ao clicar Avançar quanto Pular.
+  /**
+   * Grava em que etapa o rascunho está.
+   *
+   * Chamada a cada passo, e não só na saída: fechar a aba, perder a conexão ou
+   * o navegador morrer não passam por handler nenhum, e é justamente aí que
+   * recomeçar do zero dói mais. Gravado a cada Avançar/Voltar, o pior caso é
+   * voltar uma etapa.
+   *
+   * `async` com `await`, e não `void supabase...`: a consulta do supabase-js só
+   * DISPARA quando alguém chama o `then` dela. Escrita com `void`, ela era
+   * montada e descartada sem nunca virar requisição -- o `wizard_step` ficava
+   * em 0 para sempre e o "Continuar" voltava ao passo 1.
+   *
+   * Sem toast e sem tratar erro: é posição de wizard, não conteúdo. Se falhar, a
+   * retomada cai no passo anterior, e isso não vale interromper quem está no
+   * meio da criação.
+   */
+  async function gravarEtapa(indice: number) {
+    if (!selectedId || !companyId) return;
+    await supabase.from("agents").update({ wizard_step: indice }).eq("id", selectedId).eq("company_id", companyId);
+    setAgents((prev) => prev.map((x) => (x.id === selectedId ? { ...x, wizard_step: indice } : x)));
+  }
+
   function advanceWizard(stepsLength: number) {
-    setWizardStepIndex((i) => {
-      const next = Math.min(i + 1, stepsLength - 1);
-      setWizardMaxStepReached((m) => Math.max(m, next));
-      return next;
-    });
+    // Fora do updater de `setWizardStepIndex`: função de atualização de estado
+    // precisa ser pura, e o React a executa duas vezes em desenvolvimento --
+    // a gravação sairia em dobro.
+    const next = Math.min(wizardStepIndex + 1, stepsLength - 1);
+    setWizardStepIndex(next);
+    setWizardMaxStepReached((m) => Math.max(m, next));
+    void gravarEtapa(next);
   }
 
   async function commitModel(next: string) {
@@ -1813,7 +1880,18 @@ export default function AgentesPage() {
                     {a.draft ? (
                       <>
                         <button
-                          onClick={() => { setSelectedId(a.id); setWizardMode(true); setWizardStepIndex(0); setWizardMaxStepReached(0); setView("detail"); }}
+                          // Retoma na etapa gravada, e não no passo 1. O mesmo
+                          // índice serve de teto (`maxStepReached`): quem parou
+                          // na etapa 5 já passou pelas quatro anteriores, então
+                          // todas continuam destravadas.
+                          onClick={() => {
+                            const etapa = a.wizard_step ?? 0;
+                            setSelectedId(a.id);
+                            setWizardMode(true);
+                            setWizardStepIndex(etapa);
+                            setWizardMaxStepReached(etapa);
+                            setView("detail");
+                          }}
                           className="flex items-center gap-1.5 text-[13px] font-medium text-[#128A68] hover:text-[#0F7357] transition-colors cursor-pointer"
                         >
                           <ArrowRight size={14} /> Continuar
@@ -1853,10 +1931,68 @@ export default function AgentesPage() {
             ) : (() => {
               const effectiveWizardSteps = WIZARD_STEPS.filter((s) => s.v !== "closers" || objectivesDraft.includes("agendar"));
               const activeTabValue = wizardMode ? (effectiveWizardSteps[wizardStepIndex]?.v ?? "kb") : freeTab;
+              // Passo a passo de verdade: só libera avançar quando a etapa atual
+              // tem o mínimo preenchido. As demais (Comportamento, Configurações,
+              // Ferramentas, Modelo, KB, Instruções) já vêm com valor padrão
+              // válido, então não têm nada obrigatório pra travar.
+              //
+              // Integrações exige pelo menos uma linha de WhatsApp: é por ela que
+              // o agente recebe e responde mensagem, e sem nenhuma ele seria
+              // criado sem lugar nenhum onde atuar -- ativo, configurado e mudo.
+              // A agenda NÃO entra na conta: ela serve para marcar reunião, e um
+              // agente que só qualifica não precisa dela.
+              //
+              // Calculado aqui, e não dentro do rodapé: os botões que ele governa
+              // moraram nos dois lados da tela em momentos diferentes, e a conta
+              // presa a um deles teria que ser copiada ao mudar de lugar.
+              const currentStepValue = effectiveWizardSteps[wizardStepIndex]?.v;
+              const canAdvance =
+                currentStepValue === "perfil" ? (
+                  objectivesDraft.length > 0 &&
+                  (!objectivesDraft.includes("qualificar") || (behaviorDraft.campos_qualificacao ?? []).length > 0)
+                ) :
+                currentStepValue === "closers" ? closerIds.length > 0 :
+                currentStepValue === "integracoes" ? agentWhatsappIds.length > 0 :
+                true;
               return (
-              <Tabs value={activeTabValue} onValueChange={(v) => { if (!wizardMode) setFreeTab(v); }} className="w-full h-full min-h-0 flex overflow-hidden">
+              <Tabs value={activeTabValue} onValueChange={(v) => { if (!wizardMode) setFreeTab(v); }} className="w-full h-full min-h-0 flex overflow-hidden relative">
+                {/* Sair da tela, no canto superior direito, no lugar do botão
+                    "Cancelar" que ficava no rodapé.
+
+                    Ele não é par dos botões do rodapé: aqueles fazem a criação
+                    ANDAR (voltar, avançar, gravar), e este ABANDONA a tela. Com
+                    os três lado a lado, sair parecia mais um passo do fluxo. No
+                    canto, é o mesmo gesto de fechar de qualquer janela.
+
+                    Posicionado por cima do conteúdo, e não numa faixa própria:
+                    uma barra inteira para um ícone custaria ~72px de altura em
+                    todas as etapas. `bg-white` para o X não se misturar ao texto
+                    quando a etapa rolar por baixo dele.
+
+                    O que ele faz muda com o modo, e a diferença é séria: no
+                    wizard o agente é um rascunho e sair o DESCARTA, com a
+                    confirmação de `abandonDraftAgent`; na edição o agente já
+                    existe, e sair só perde as alterações pendentes. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (wizardMode) { setSairAberto(true); return; }
+                    if (isAgentDirty && !window.confirm("Sair sem salvar? As alterações pendentes serão descartadas.")) return;
+                    setView("grid");
+                    setSelectedId(null);
+                  }}
+                  title={wizardMode ? "Descartar o agente em criação" : "Fechar"}
+                  aria-label={wizardMode ? "Descartar o agente em criação" : "Fechar"}
+                  className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md bg-white text-[#767676] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors"
+                >
+                  <X size={17} />
+                </button>
                 {/* Sidebar esquerda -- avatar/nome no topo, etapas embaixo (numeradas no wizard, abas no modo livre) */}
-                <div className="w-[260px] shrink-0 border-r border-[#EEEEEE] overflow-y-auto flex flex-col">
+                {/* `overflow-y-auto` saiu da COLUNA e desceu para a lista de etapas. Com
+                    ele aqui, o botão do rodapé rolava junto e sumia de vista em
+                    telas baixas; agora ele fica preso no pé enquanto só as etapas
+                    passam. */}
+                <div className="w-[260px] shrink-0 border-r border-[#EEEEEE] flex flex-col min-h-0">
                   <div className="px-4 py-4 border-b border-[#EEEEEE] flex items-center gap-3 shrink-0">
                     <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={selected.avatar} size={20} />
@@ -1869,7 +2005,7 @@ export default function AgentesPage() {
                     </div>
                   </div>
                   {wizardMode ? (
-                    <div className="flex flex-col gap-1 px-3 py-4">
+                    <div className="flex flex-col gap-1 px-3 py-4 flex-1 overflow-y-auto">
                       {effectiveWizardSteps.map((s, idx) => {
                         const locked = idx > wizardMaxStepReached;
                         return (
@@ -1877,7 +2013,7 @@ export default function AgentesPage() {
                             key={s.v}
                             type="button"
                             disabled={locked}
-                            onClick={() => { if (!locked) setWizardStepIndex(idx); }}
+                            onClick={() => { if (!locked) { setWizardStepIndex(idx); void gravarEtapa(idx); } }}
                             className={`flex items-center gap-2 px-2 py-2 rounded-md text-left ${locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[#F5F5F5]"}`}
                           >
                             <span
@@ -1903,7 +2039,7 @@ export default function AgentesPage() {
                       })}
                     </div>
                   ) : (
-                    <TabsList className="flex flex-col items-stretch bg-transparent p-0 px-3 py-4 gap-1 h-auto">
+                    <TabsList className="flex flex-col items-stretch bg-transparent p-0 px-3 py-4 gap-1 h-auto flex-1 overflow-y-auto justify-start">
                       {[
                         { v: "perfil", l: "Perfil", icon: User },
                         { v: "configuracoes", l: "Configurações", icon: Settings },
@@ -1920,38 +2056,98 @@ export default function AgentesPage() {
                         <TabsTrigger
                           key={t.v}
                           value={t.v}
-                          className="justify-start text-[#767676] data-[state=active]:bg-[#E1F5EE] data-[state=active]:text-[#111111] data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
+                          /* Verde cheio da barra lateral (#128A68) com texto
+                             branco -- a mesma combinação de todo elemento ativo
+                             do produto, e a que fecha o contraste: branco sobre
+                             este verde dá 4,9:1, contra os 3,4:1 do #111111 que
+                             estava aqui. */
+                          className="justify-start text-[#767676] data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
                         >
-                          <t.icon size={16} className="shrink-0" color={activeTabValue === t.v ? "#111111" : "#767676"} />
+                          {/* Ícone e seta acompanham o texto. A seta era #128A68,
+                              a MESMA cor que o fundo virou: ficaria invisível, e
+                              a etapa no ar perderia a marca que a aponta. */}
+                          <t.icon size={16} className="shrink-0" color={activeTabValue === t.v ? "#FFFFFF" : "#767676"} />
                           <span className="flex-1 text-left">{t.l}</span>
-                          {activeTabValue === t.v && <ArrowRight size={14} className="shrink-0" color="#128A68" />}
+                          {activeTabValue === t.v && <ArrowRight size={14} className="shrink-0" color="#FFFFFF" />}
                         </TabsTrigger>
                       ))}
                     </TabsList>
                   )}
+
+                  {/* Rodapé da barra de etapas: a ação que faz a lista ANDAR, nos
+                      dois modos.
+
+                      No wizard são Voltar e Avançar, que movem a seleção logo
+                      acima; no modo edição é o "Atualizar agente", que grava o
+                      agente INTEIRO e não a etapa aberta. Nos dois casos a ação
+                      fala da lista, não do conteúdo à direita -- no rodapé de lá
+                      ela ficava colada ao conteúdo de UMA etapa e lia como
+                      "salvar/avançar isto aqui".
+
+                      `mt-auto` para grudar embaixo mesmo quando as etapas não
+                      enchem a coluna, e `border-t` para separá-lo da lista. */}
+                  <div className="mt-auto shrink-0 px-3 py-3 border-t border-[#EEEEEE]">
+                    {wizardMode ? (
+                      // `flex-1` nos dois para dividirem a largura em partes
+                      // iguais: numa coluna de 260px, botões do tamanho do texto
+                      // deixariam "Voltar" bem menor que "Avançar" e a linha
+                      // sairia torta.
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            const anterior = Math.max(0, wizardStepIndex - 1);
+                            setWizardStepIndex(anterior);
+                            void gravarEtapa(anterior);
+                          }}
+                          disabled={wizardStepIndex === 0}
+                          className="flex-1"
+                        >
+                          Voltar
+                        </Button>
+                        {wizardStepIndex < effectiveWizardSteps.length - 1 ? (
+                          <Button
+                            onClick={() => advanceWizard(effectiveWizardSteps.length)}
+                            disabled={!canAdvance}
+                            className="flex-1 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                          >
+                            Avançar
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={finalizeAgent}
+                            disabled={!canAdvance}
+                            className="flex-1 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                          >
+                            Criar
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={updateAgent}
+                        disabled={savingKey === "agente" || !isAgentDirty}
+                        className="w-full bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                      >
+                        {savingKey === "agente" && <Loader2 size={14} className="animate-spin" />} Atualizar agente
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Coluna direita -- conteúdo da etapa + rodapé (Cancelar/Voltar/Avançar no wizard, Voltar-pra-grade/Atualizar no modo livre) */}
+                {/* Coluna direita -- conteúdo da etapa. */}
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
                 {/* PERFIL */}
                 <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
-                  {(!hasAnthropicKey || !hasOpenaiKey) && (
-                    <div className="flex items-start gap-2.5 p-4 bg-[#FEE2E2] rounded-lg">
-                      <AlertTriangle size={16} className="text-[#991B1B] mt-0.5 shrink-0" />
-                      <div className="flex-1 text-[13px] text-[#991B1B]">
-                        {!hasAnthropicKey && !hasOpenaiKey
-                          ? "Sem chave da Anthropic e da OpenAI cadastradas — o agente não pode ser ativado até você cadastrar as duas em Configurações (OpenAI também é necessária pra upload de documentos na Base de Conhecimento)."
-                          : !hasAnthropicKey
-                          ? "Sem chave da Anthropic cadastrada — o agente não pode ser ativado até você cadastrar uma em Configurações."
-                          : "Sem chave da OpenAI cadastrada — o agente não pode ser ativado até você cadastrar uma em Configurações (também necessária pra upload de documentos na Base de Conhecimento)."}
-                      </div>
-                      <Button variant="outline" onClick={() => void sairDoWizard("/configuracoes/api")} className="h-7 text-[11px] shrink-0 border-[#991B1B] text-[#991B1B] hover:bg-[#FEE2E2]">
-                        Ir pra Configurações
-                      </Button>
-                    </div>
-                  )}
-
+                  {/* Sem o aviso de chave de API que abria esta etapa.
+                      Ele falava de ATIVAÇÃO no primeiro passo da CRIAÇÃO -- um
+                      problema que só existe lá na frente, anunciado antes de a
+                      pessoa ter escrito qualquer coisa, e em vermelho de erro
+                      sobre algo que ela ainda nem tentou. O aviso volta como
+                      popup na hora de ativar, que é quando ele decide algo.
+                      `hasAnthropicKey`/`hasOpenaiKey` seguem carregados, e a aba
+                      Modelo continua usando os dois. */}
                   <div>
                     <h3 className="text-[14px] font-semibold text-[#111111]">Objetivo do agente</h3>
                     <p className="text-[12px] text-[#767676]">
@@ -2708,24 +2904,26 @@ export default function AgentesPage() {
                       // ainda não lê. O carregamento das conexões Meta e o
                       // toggleAgentMeta continuam de pé, então voltar é
                       // devolver este bloco e a categoria na lista de chips.
-                      // Calendar só aparece pra quem agenda: pra um agente que
-                      // não marca reunião, a agenda dos vendedores não muda nada.
-                      ...(objectivesDraft.includes("agendar")
-                        ? members
-                            .filter((m) => memberCalendarConnected[m.user_id])
-                            .map((m) => ({
-                              chave: `cal-${m.user_id}`,
-                              categoria: "Calendar",
-                              rodape: "Consultar esta agenda",
-                              titulo: memberCalendarEmail[m.user_id] || m.full_name || m.email || m.user_id,
-                              subtitulo: "Google Calendar",
-                              conectado: true,
-                              usa: agentCalendarEnabled[m.user_id] ?? true,
-                              alternar: (v: boolean) => toggleAgentCalendar(m.user_id, v),
-                              icone: <CalendarDays size={18} color="#FFF" />,
-                              cor: "#4285F4",
-                            }))
-                        : []),
+                      // As agendas dos vendedores que já ligaram o Google
+                      // Calendar. Sem depender do objetivo "Agendar": o objetivo
+                      // é marcado no primeiro passo e pode ser marcado DEPOIS, e
+                      // enquanto ele estivesse desmarcado o canal inteiro sumia
+                      // daqui -- inclusive o chip, que é o único lugar que conta
+                      // que o agente sabe consultar agenda.
+                      ...members
+                        .filter((m) => memberCalendarConnected[m.user_id])
+                        .map((m) => ({
+                          chave: `cal-${m.user_id}`,
+                          categoria: "Calendar",
+                          rodape: "Consultar esta agenda",
+                          titulo: memberCalendarEmail[m.user_id] || m.full_name || m.email || m.user_id,
+                          subtitulo: "Google Calendar",
+                          conectado: true,
+                          usa: agentCalendarEnabled[m.user_id] ?? true,
+                          alternar: (v: boolean) => toggleAgentCalendar(m.user_id, v),
+                          icone: <CalendarDays size={18} color="#FFF" />,
+                          cor: "#4285F4",
+                        })),
                       // Webhooks ficam de fora enquanto a configuração deles
                       // não amadurece. O roteamento já funciona ponta a ponta:
                       // api/webhook/[token].ts lê agent_webhook_integrations e
@@ -2735,22 +2933,45 @@ export default function AgentesPage() {
                       // lista de chips.
                     ];
 
-                    // Todo canal suportado aparece como chip, mesmo zerado. Um
-                    // chip que só nasce depois de existir conexão esconde o que
-                    // o agente é capaz de fazer: quem nunca ligou um WhatsApp
-                    // não descobre que podia. Zerado, o chip leva ao lugar onde
-                    // se conecta. Calendar é a exceção e some quando o objetivo
-                    // "Agendar" está desmarcado, porque aí a agenda dos
-                    // vendedores não influencia nada.
-                    const categorias = ["WhatsApp", ...(objectivesDraft.includes("agendar") ? ["Calendar"] : [])];
-                    const vazios: Record<string, string> = {
-                      "WhatsApp": "Nenhum WhatsApp conectado. Conecte em Configurações → Conexões.",
-                      "Calendar": "Nenhum usuário com Google Calendar conectado. Conecte em Configurações → Conexões.",
-                      "Todos": "Conecte um WhatsApp em Configurações → Conexões para escolher onde este agente atua.",
+                    // Todo canal suportado aparece como chip, mesmo zerado, e
+                    // sem exceção. Um chip que só nasce depois de existir conexão
+                    // esconde o que o agente é capaz de fazer: quem nunca ligou
+                    // um WhatsApp não descobre que podia. Zerado, o chip leva ao
+                    // lugar onde se conecta -- é o texto de `vazios` abaixo.
+                    const categorias = ["WhatsApp", "Calendar"];
+                    // Cada vazio leva ao lugar onde se resolve, no molde da
+                    // trilha de `/inicio`: título, uma frase que explica por que
+                    // aquilo importa, e um botão que abre o assistente certo já
+                    // na categoria certa. A frase sozinha ("Conecte em
+                    // Configurações → Conexões") mandava a pessoa procurar um
+                    // botão em outra tela.
+                    //
+                    // "Todos" aponta para o WhatsApp porque é ele que o agente
+                    // precisa para existir -- a agenda é complemento.
+                    const vazios: Record<string, { titulo: string; texto: string; rotulo: string; destino: string }> = {
+                      "WhatsApp": {
+                        titulo: "Conecte um WhatsApp",
+                        texto: "É por uma linha de WhatsApp que este agente recebe e responde as mensagens. Sem nenhuma, ele não tem onde atuar.",
+                        rotulo: "Conectar WhatsApp",
+                        destino: "/configuracoes/conexoes?abrir=nova-conexao",
+                      },
+                      "Calendar": {
+                        titulo: "Conecte uma agenda",
+                        texto: "Com o Google Calendar de um vendedor conectado, o agente consulta os horários livres dele e marca a reunião direto na conversa.",
+                        rotulo: "Conectar agenda",
+                        destino: "/configuracoes/conexoes?abrir=nova-agenda",
+                      },
+                      "Todos": {
+                        titulo: "Nada conectado aqui ainda",
+                        texto: "Conecte um WhatsApp para escolher em qual linha este agente atende. A agenda é opcional, e serve para ele marcar reuniões.",
+                        rotulo: "Conectar WhatsApp",
+                        destino: "/configuracoes/conexoes?abrir=nova-conexao",
+                      },
                     };
-                    // Categoria que deixou de existir (Calendar depois de
-                    // desmarcar "Agendar") não pode deixar a grade em branco sem
-                    // explicação: volta pra "Todos".
+                    // Categoria que deixe de existir não pode largar a grade em
+                    // branco sem explicação: volta pra "Todos". Hoje as duas são
+                    // fixas, então isto é rede de segurança para quando uma
+                    // categoria voltar a ser condicional.
                     const catAtiva = catIntegracao !== "Todos" && !categorias.includes(catIntegracao) ? "Todos" : catIntegracao;
                     const visiveis = catAtiva === "Todos" ? cards : cards.filter((c) => c.categoria === catAtiva);
                     const emUso = cards.filter((c) => c.usa).length;
@@ -2791,15 +3012,27 @@ export default function AgentesPage() {
                           })}
                         </div>
 
-                        {visiveis.length === 0 ? (
+                        {visiveis.length === 0 ? (() => {
+                          const v = vazios[catAtiva] ?? vazios["Todos"];
+                          return (
                           <div className="flex flex-col items-center justify-center py-16 text-center">
                             <div className="w-12 h-12 rounded-xl bg-white border border-[#EEEEEE] flex items-center justify-center mb-4">
                               <Link2 size={22} className="text-[#767676]" />
                             </div>
-                            <p className="text-[13px] font-semibold text-[#111111] mb-1">Nada conectado aqui ainda</p>
-                            <p className="text-[12px] text-[#767676] max-w-[380px]">{vazios[catAtiva] ?? vazios["Todos"]}</p>
+                            <p className="text-[13px] font-semibold text-[#111111] mb-1">{v.titulo}</p>
+                            <p className="text-[12px] text-[#767676] max-w-[380px]">{v.texto}</p>
+                            {/* Guarda o rascunho em vez de descartar: quem clica
+                                aqui está indo resolver o que ESTA etapa pede, e
+                                volta. Ver `guardarRascunhoESair`. */}
+                            <Button
+                              onClick={() => void guardarRascunhoESair(v.destino)}
+                              className="mt-4 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                            >
+                              {v.rotulo}
+                            </Button>
                           </div>
-                        ) : (
+                          );
+                        })() : (
                           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {visiveis.map((c) => (
                               <div key={c.chave} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
@@ -3320,74 +3553,59 @@ export default function AgentesPage() {
                   </div>
                 </TabsContent>
 
-                {wizardMode && (() => {
-                  // Passo a passo de verdade: só libera avançar quando a
-                  // etapa atual tem o mínimo preenchido. As demais etapas
-                  // (Comportamento, Configurações, Ferramentas, Modelo,
-                  // Integrações, KB, Instruções) já vêm com valor padrão
-                  // válido, então não têm nada "obrigatório" pra travar.
-                  const currentStepValue = effectiveWizardSteps[wizardStepIndex]?.v;
-                  const canAdvance =
-                    currentStepValue === "perfil" ? (
-                      objectivesDraft.length > 0 &&
-                      (!objectivesDraft.includes("qualificar") || (behaviorDraft.campos_qualificacao ?? []).length > 0)
-                    ) :
-                    currentStepValue === "closers" ? closerIds.length > 0 :
-                    true;
-                  return (
-                  <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
-                    <Button
-                      variant="outline"
-                      onClick={abandonDraftAgent}
-                      className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626] active:bg-[#991B1B] active:border-[#991B1B]"
-                    >
-                      Cancelar
-                    </Button>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setWizardStepIndex((i) => Math.max(0, i - 1))}
-                        disabled={wizardStepIndex === 0}
-                      >
-                        Voltar
-                      </Button>
-                      {wizardStepIndex < effectiveWizardSteps.length - 1 ? (
-                        <Button onClick={() => advanceWizard(effectiveWizardSteps.length)} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                          Avançar
-                        </Button>
-                      ) : (
-                        <Button onClick={finalizeAgent} disabled={!canAdvance} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                          Criar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })()}
-                {!wizardMode && (
-                  <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-[#EEEEEE] shrink-0">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (isAgentDirty && !window.confirm("Sair sem salvar? As alterações pendentes serão descartadas.")) return;
-                        setView("grid");
-                        setSelectedId(null);
-                      }}
-                      className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626] active:bg-[#991B1B] active:border-[#991B1B]"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button onClick={updateAgent} disabled={savingKey === "agente" || !isAgentDirty} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
-                      {savingKey === "agente" && <Loader2 size={14} className="animate-spin" />} Atualizar agente
-                    </Button>
-                  </div>
-                )}
                 </div>
               </Tabs>
               );
             })()}
           </div>
       )}
+
+      {/* Saída da criação do agente.
+          
+          Três caminhos, e não os dois do `window.confirm`: guardar o rascunho,
+          descartar, ou desistir de sair. O nativo só sabia perguntar "descartar?"
+          -- guardar era a ausência de resposta, e quem só queria sair um minuto
+          perdia o agente sem entender por quê.
+
+          "Salvar rascunho" é a ação principal, em verde e à direita: é o que a
+          pessoa quer na maioria das vezes. "Descartar" fica ao lado em contorno
+          vermelho, disponível sem ser o caminho fácil. Fechar o diálogo (X,
+          Esc ou clique fora) é o "não quero sair", e por isso não há um terceiro
+          botão de Cancelar competindo por atenção. */}
+      <Dialog open={sairAberto} onOpenChange={setSairAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sair da criação do agente</DialogTitle>
+            <DialogDescription>
+              Você está na etapa {wizardStepIndex + 1}. Salvando como rascunho, o agente
+              aparece em Agentes e você retoma exatamente daqui. Descartando, tudo o que
+              foi preenchido é perdido, e a tag de ativação fica livre de novo.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => { setSairAberto(false); await abandonDraftAgent(); }}
+              className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]"
+            >
+              Descartar agente
+            </Button>
+            <Button
+              onClick={async () => {
+                setSairAberto(false);
+                await gravarEtapa(wizardStepIndex);
+                setWizardMode(false);
+                setView("grid");
+                setSelectedId(null);
+                toast.success("Rascunho salvo. Você retoma de onde parou.");
+              }}
+              className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+            >
+              Salvar rascunho
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-[420px]">

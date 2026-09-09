@@ -2650,7 +2650,15 @@ export default function LeadDetailPage() {
         <AlertDialog open onOpenChange={open => { if (!open) setPendingStageAdvance(null); }}>
           <AlertDialogContent className="max-w-[380px] p-0 overflow-hidden gap-0">
             {/* Header */}
-            <div className="px-5 pt-5 pb-3">
+                            {/* `min-w-0` nos três blocos: o `AlertDialogContent` é um GRID, e
+                    item de grid não encolhe abaixo do próprio conteúdo mínimo.
+                    Com uma etapa de nome longo, o passo a passo abaixo empurrava
+                    a coluna para além dos 380px da caixa -- o `overflow-hidden`
+                    cortava o excedente, e como o rodapé alinha os botões à
+                    DIREITA daquela coluna maior, o "Confirmar" ficava fora da
+                    área visível. Com min-width zero, a coluna respeita a caixa e
+                    quem cede é o nome da etapa, que já trunca. */}
+                <div className="px-5 pt-5 pb-3 min-w-0">
               <AlertDialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
                 <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                 Confirmar avanço de etapa
@@ -2673,21 +2681,21 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Stepper compacto — de → para */}
-            <div className="px-5 pb-4">
-              <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0">
-                <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+            <div className="px-5 pb-4 min-w-0">
+              <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0 overflow-hidden">
+                <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                   <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
                   <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
                 </div>
                 <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
-                <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[120px]">
+                <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                   <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
                   <span className="block h-[2px] w-full rounded-full bg-primary" />
                 </div>
                 {stepsLeft > 1 && (
                   <>
                     <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
-                    <div className="flex flex-col items-center gap-1 min-w-0 shrink-0 max-w-[100px]">
+                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
                       <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-transparent" />
                     </div>
@@ -2702,7 +2710,7 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20">
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3 bg-muted/20 min-w-0">
               <AlertDialogCancel onClick={() => setPendingStageAdvance(null)} className="h-8 px-3 text-xs">Cancelar</AlertDialogCancel>
               <Button onClick={handleConfirmStageAdvance} size="sm" className="h-8 px-4 text-xs gap-1.5">
                 Confirmar <ChevronRight className="h-3 w-3" />

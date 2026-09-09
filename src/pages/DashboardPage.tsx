@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -9,10 +9,10 @@ import {
 } from "recharts";
 import {
   Users, ArrowDown, AlertTriangle, ShoppingCart,
-  Activity as ActivityIcon, ChevronDown, ChevronLeft, ChevronRight,
+  Activity as ActivityIcon,
 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { DashboardSidebar, ROTULO_DA_VISAO, type VisaoDoDashboard } from "@/components/dashboard/DashboardSidebar";
+import { ROTULO_DA_VISAO, VISOES_DO_DASHBOARD, type VisaoDoDashboard } from "@/components/dashboard/visoesDoDashboard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
@@ -107,51 +107,11 @@ export default function DashboardPage() {
   /**
    * Qual visão está no ar.
    *
-   * Subiu para um estado da página porque quem escolhe agora é a barra lateral,
-   * fora da árvore do `Tabs`. Antes o próprio `Tabs` guardava isso por dentro,
-   * com `defaultValue`, e a lista de abas ficava logo ali do lado.
+   * Estado da página, e não do `Tabs`: quem escolhe é o seletor do cabeçalho,
+   * que fica fora da árvore de abas. Com `defaultValue` por dentro, o `Tabs`
+   * guardaria a escolha num lugar que o cabeçalho não alcança.
    */
   const [visao, setVisao] = useState<VisaoDoDashboard>("negocios");
-
-  /**
-   * Barra aberta ou recolhida, com a escolha guardada no navegador.
-   *
-   * Chave própria (`dashboard-sidebar-open`), separada da de `/pipeline`: são
-   * duas barras diferentes, e quem recolhe uma para ver o board largo não está
-   * pedindo a mesma coisa aqui.
-   *
-   * Nasce fechada abaixo de 768px, onde 240px seriam um terço da tela.
-   *
-   * `try/catch` porque `localStorage` levanta exceção em janela anônima de
-   * alguns navegadores, e uma preferência de layout não pode derrubar a tela.
-   */
-  const LARGURA_DA_BARRA = 240;
-  const [barraAberta, setBarraAberta] = useState(() => {
-    if (window.innerWidth < 768) return false;
-    try {
-      const salvo = localStorage.getItem("dashboard-sidebar-open");
-      return salvo === null ? true : salvo === "true";
-    } catch { return true; }
-  });
-
-  const alternarBarra = useCallback(() => {
-    setBarraAberta(atual => {
-      const proxima = !atual;
-      try { localStorage.setItem("dashboard-sidebar-open", String(proxima)); } catch { /* ignora */ }
-      return proxima;
-    });
-  }, []);
-
-  // Atalho "[", o mesmo de `/pipeline`. Ignorado dentro de campo de texto, onde
-  // o colchete é o caractere que a pessoa quis digitar.
-  useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (e.key === "[" && tag !== "INPUT" && tag !== "TEXTAREA") alternarBarra();
-    };
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [alternarBarra]);
 
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
     from: new Date(new Date().getFullYear(), 0, 1),
@@ -801,94 +761,53 @@ export default function DashboardPage() {
   const dadosDoCiclo = cicloEscolhido.length > 0 ? cicloEscolhido : CICLO_VAZIO[cicloDoHorario];
 
   return (
-    // Valores arbitrários porque nenhum dos dois existe na escala do Tailwind,
-    // que pula de 24 (p-6) para 32 (p-8) e de 36 (p-9) para 40... o 40 até
-    // existe (p-10), mas fica escrito assim para os dois lados da assimetria
-    // serem lidos na mesma unidade.
+    // Contêiner único: a barra lateral que ficava aqui saiu, e com ela o
+    // invólucro `flex` que a punha ao lado do painel. A escolha da visão desceu
+    // para um seletor no cabeçalho.
     //
     // O topo tem 40px e os outros três lados, 30px. A assimetria é de propósito:
-    // acima do "Dashboard" não há nada, e o respiro maior separa a página da
-    // barra do navegador. Nas laterais e embaixo, 30px já bastam porque ali o
-    // limite é a sidebar ou o fim do conteúdo.
+    // acima do título não há nada, e o respiro maior separa a página da barra do
+    // navegador. Nas laterais e embaixo, 30px já bastam porque ali o limite é a
+    // sidebar do app ou o fim do conteúdo. Valores arbitrários porque nenhum dos
+    // dois existe na escala do Tailwind, que pula de 24 (p-6) para 32 (p-8).
     //
-    // Escrito lado a lado, e não como `p-[30px] pt-[50px]`: naquela forma quem
+    // Escritos lado a lado, e não como `p-[30px] pt-[40px]`: naquela forma quem
     // vence depende da ordem em que o Tailwind emite as regras, que é detalhe
     // interno dele e não algo para o layout depender.
     //
-    // max-w-7xl é 1280px, o teto padrão do Tailwind. Deixa 1220px de área útil
+    // `max-w-7xl` é 1280px, o teto padrão do Tailwind. Deixa 1220px de área útil
     // depois do padding, e é dela que saem as larguras dos painéis: os quatro
     // cartões do topo ficam com ~296px cada e as duas rosquinhas de Origem com
-    // ~594px por coluna.
-    // Barra lateral e conteúdo lado a lado.
-    //
-    // A barra é `sticky` em vez de ter rolagem própria: quem rola é o `<main>`
-    // do AppLayout, e dar uma segunda área rolável aqui criaria duas barras de
-    // rolagem na mesma tela. Assim ela fica parada enquanto o painel passa.
-    //
-    // O `max-w-7xl` saiu daqui e foi para a coluna do conteúdo: no contêiner de
-    // fora ele limitaria a barra e o painel juntos, e o painel perderia 240px de
-    // largura -- justo ele, que é onde os gráficos moram.
-    // `font-inter` numa raiz só, e não painel a painel: font-family é herdada,
-    // então uma declaração aqui alcança título, rótulo, tabela e também o texto
-    // dos gráficos, que é SVG e herda a fonte do CSS como qualquer outro nó.
-    //
-    // O resto do app segue na Geist (`font-sans`, no <body>). A troca alcança
-    // tudo aqui dentro porque nenhum descendente redeclara a família: quem fazia
-    // isso era o `font-mono` dos parâmetros de UTM, e ele saiu de lá -- herança
-    // não vence uma declaração explícita, e aquele trecho ficaria em Geist Mono
-    // no meio da página inteira em Inter.
-    <div className="flex font-inter">
-      {/* A faixa que encolhe é a de FORA; a barra dentro dela mantém os 240px e
-          desliza para fora do recorte. Animar a largura da própria barra
-          espremeria os rótulos durante a transição. */}
-      <div
-        className="sticky top-0 h-screen shrink-0 overflow-hidden"
-        style={{ width: barraAberta ? LARGURA_DA_BARRA : 0, transition: "width 300ms ease" }}
-      >
-        <div style={{ width: LARGURA_DA_BARRA, height: "100%" }}>
-          <DashboardSidebar ativa={visao} aoEscolher={setVisao} />
-        </div>
-      </div>
-
-      {/* Puxador colado na borda da barra, que anda junto com ela.
-
-          `sticky` com `top-[30px]`, e não `absolute`: a página inteira rola
-          dentro do `<main>`, e no `absolute` ele subiria junto com o conteúdo e
-          sumiria da tela na primeira rolagem.
-
-          `h-0` no invólucro para ele não ocupar linha nenhuma no flex -- o botão
-          é desenhado para fora, por cima da divisa entre a barra e o painel. */}
-      <div className="sticky top-[30px] h-0 z-20 shrink-0">
-        <button
-          type="button"
-          onClick={alternarBarra}
-          title={barraAberta ? "Fechar a barra ( [ )" : "Mostrar as visões ( [ )"}
-          aria-label={barraAberta ? "Fechar a barra de visões" : "Mostrar a barra de visões"}
-          aria-expanded={barraAberta}
-          className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors"
-        >
-          {barraAberta ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
-        </button>
-      </div>
-
-      <div className="flex-1 min-w-0 pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
+    // ~594px por coluna. Com a barra fora, esses 1220px voltam inteiros para os
+    // gráficos.
+    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
       <Tabs value={visao} onValueChange={v => setVisao(v as VisaoDoDashboard)} className="space-y-6">
-      {/* Header */}
-      {/* items-start, e não items-center: com o subtítulo, o bloco de título
-          ficou mais alto que as abas, e centralizar deixaria as abas flutuando
-          na altura do meio em vez de alinhadas ao "Dashboard". */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      {/* Header em três colunas, e não num `justify-between` de dois lados.
+
+          `1fr auto 1fr` põe o seletor no centro do CABEÇALHO, não no meio do vão
+          que sobra entre o título e o período -- e esses dois têm larguras bem
+          diferentes ("Performance geral" contra "Multiatendimento", uma data
+          curta contra um intervalo). Num `justify-between` com três filhos, o do
+          meio andaria para os lados a cada troca de visão.
+
+          As colunas laterais têm a mesma proporção, então o centro é o centro de
+          verdade. Abaixo de `md` a grade vira uma coluna só: em tela estreita as
+          três peças lado a lado não cabem, e a do meio ficaria espremida.
+
+          `items-start` no desktop porque o bloco do título tem duas linhas
+          (nome da visão e período por extenso), e alinhar pelo centro deixaria o
+          seletor flutuando na altura do meio em vez de na linha do título. */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-start gap-3">
         <div>
           {/* 23px é valor arbitrário: a escala do Tailwind pula de 20 (text-xl)
               para 24 (text-2xl). */}
-          {/* O título é o rótulo da visão escolhida na barra, e nada além dele.
-              Fixo, as outras três visões exibiriam um título que não é o delas.
+          {/* Título fixo, e não o rótulo da visão escolhida.
 
-              Saiu o "dashboard" que vinha no fim: com rótulos de uma palavra ele
-              completava a frase, mas os nomes cresceram e "Resultado por
-              pipeline dashboard" empilha três substantivos sem dizer nada a mais
-              -- a pessoa já sabe que está no dashboard, chegou por ele. */}
-          <h1 className="text-[23px] font-semibold text-foreground">{ROTULO_DA_VISAO[visao]}</h1>
+              Ele acompanhava a seleção, e com as abas logo ao lado isso virava
+              eco: trocar para "Equipe" trocava o título para "Equipe" também, e
+              a mesma palavra aparecia duas vezes na mesma linha. O título passa a
+              nomear a TELA, que é o que não muda, e as abas dizem o recorte. */}
+          <h1 className="text-[23px] font-semibold text-foreground">Dashboards</h1>
           {/* No lugar do subtítulo fixo ("Desempenho geral do seu negócio"),
               o período que está filtrando. Aquela frase valia para qualquer
               conta em qualquer dia; esta responde a pergunta que a pessoa
@@ -898,9 +817,64 @@ export default function DashboardPage() {
               página, que é maior. */}
           <p className="text-sm text-muted-foreground mt-0.5">{periodoPorExtenso}</p>
         </div>
-        {/* Sem a fileira de abas, que virou a barra lateral. Sobra o seletor de
-            período, que vale para as quatro visões. */}
-        <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
+        {/* Seletor de visão: as três abas lado a lado, no centro do cabeçalho.
+
+            A escolhida leva o verde CHEIO da barra lateral do app (`bg-primary`,
+            que é o mesmo `--primary` do `SIDEBAR_BG`) com texto branco. É o
+            verde que o produto usa para "você está aqui", e aqui ele responde
+            exatamente isso.
+
+            As não escolhidas seguem sobre o cinza da moldura (`bg-muted/40`), o
+            mesmo dos outros pares de botões do dashboard.
+
+            A distinção não é só de matiz -- verde escuro contra branco separa
+            também por claro e escuro, então continua legível para quem não
+            distingue verde de cinza.
+
+            Voltaram a ser abas, e não o menu suspenso: são três, cabem na linha,
+            e assim as outras duas ficam à vista. No menu, saber o que existe
+            exigia abrir.
+
+            `role="tablist"` com `aria-selected`: para quem ouve a tela, isto
+            continua sendo um seletor de abas -- sem os papéis seriam três botões
+            soltos, sem indicação de qual está no ar. */}
+        <div
+          className="flex md:justify-center"
+          role="tablist"
+          aria-label="Visões do dashboard"
+        >
+          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+            {VISOES_DO_DASHBOARD.map(({ id, Icone }) => {
+              const ativa = id === visao;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={ativa}
+                  onClick={() => setVisao(id)}
+                  className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                    ativa
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {/* O ícone acompanha o texto na mesma cor: com ele sempre
+                      verde, as abas inativas ficariam com metade acesa. */}
+                  <Icone size={14} className="shrink-0" />
+                  {ROTULO_DA_VISAO[id]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* O seletor de período vale para as quatro visões, e por isso fica
+            fora do menu. `md:justify-self-end` porque a coluna da direita tem
+            `1fr`: sem isso ele encostaria no centro em vez da borda. */}
+        <div className="md:justify-self-end">
+          <DateRangePicker value={dateRange} onChange={setDateRange} dataFrom={dataFrom} dataTo={dataTo} />
+        </div>
       </div>
 
         {/* ──────────── NEGÓCIOS ──────────── */}
@@ -1955,7 +1929,6 @@ export default function DashboardPage() {
           })()}
         </TabsContent>
       </Tabs>
-      </div>
     </div>
   );
 }

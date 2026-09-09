@@ -3,6 +3,7 @@ import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { Lead } from "@/data/mockData";
 import { upsertContact, type Contact } from "@/lib/contacts";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -26,7 +27,7 @@ interface Props {
 
 export function CreateDealDialog({ lead, contact, onClose }: Props) {
   const { pipelines, addLead, nextDealNumber, teamMembers } = useCRM();
-  const { company } = useCompany();
+  const { company, billingBlocked } = useCompany();
   const [dealPipeline, setDealPipeline] = useState("");
   const [dealStage, setDealStage] = useState("");
   const [dealResponsibles, setDealResponsibles] = useState<string[]>([]);
@@ -50,6 +51,12 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
 
   const confirmDeal = async () => {
     if (!source || !dealPipeline || !dealStage || !company) return;
+    // O caminho de gravação deste diálogo passa por `upsertContact`, que fala
+    // com o Supabase DIRETO -- ele não atravessa o `CRMContext`, onde as funções
+    // de escrita já viram um aviso quando a conta está bloqueada. Sem esta
+    // checagem, a conta travada recebia só "não foi possível criar", porque
+    // quem barrava era o RLS, lá no banco, sem nada na tela dizendo o motivo.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     setCreating(true);
 
     // Resolve o contato (pessoa) antes de criar o negócio -- reaproveita

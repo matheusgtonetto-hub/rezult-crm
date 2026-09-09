@@ -3,6 +3,7 @@ import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { Lead } from "@/data/mockData";
 import { upsertContact, type Contact } from "@/lib/contacts";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -81,7 +82,7 @@ interface Props {
 
 export function LeadModal({ open, onClose, editLead, editContact, prefill, onCreated }: Props) {
   const { updateLead, updateContact, pipelines, crmTags, teamMembers } = useCRM();
-  const { company } = useCompany();
+  const { company, billingBlocked } = useCompany();
   const [tab, setTab] = useState("contato");
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
@@ -187,6 +188,12 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
   };
 
   const handleSave = async () => {
+    // O caminho de gravação deste diálogo passa por `upsertContact`, que fala
+    // com o Supabase DIRETO -- ele não atravessa o `CRMContext`, onde as funções
+    // de escrita já viram um aviso quando a conta está bloqueada. Sem esta
+    // checagem, a conta travada recebia só "não foi possível criar", porque
+    // quem barrava era o RLS, lá no banco, sem nada na tela dizendo o motivo.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     if (!form.name.trim()) {
       toast.error("Nome é obrigatório.");
       return;

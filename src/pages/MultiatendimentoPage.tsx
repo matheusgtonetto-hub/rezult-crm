@@ -111,20 +111,6 @@ async function inserirMensagemVinculada(
   return await supabase.from("whatsapp_messages").insert(payload);
 }
 
-const TAG_STYLES: Record<string, { bg: string; fg: string }> = {
-  Rafael:      { bg: "#E1F5EE", fg: "#128A68" },
-  Mariana:     { bg: "#EDE9FE", fg: "#534AB7" },
-  Carlos:      { bg: "#FEF3C7", fg: "#854F0B" },
-  SDR:         { bg: "#F5F5F5", fg: "#535353" },
-  "Follow-up": { bg: "#FEE2E2", fg: "#A32D2D" },
-  Agente:      { bg: "#EDE9FE", fg: "#6D28D9" },
-  Proposta:    { bg: "#DBEAFE", fg: "#185FA5" },
-  Negociação:  { bg: "#F3E8FF", fg: "#6D28D9" },
-  Reunião:     { bg: "#FEF3C7", fg: "#854F0B" },
-  Fechado:     { bg: "#E1F5EE", fg: "#128A68" },
-};
-const tagStyle = (label: string) => TAG_STYLES[label] || { bg: "#F5F5F5", fg: "#535353" };
-
 /* ── types ────────────────────────────────────────────────────────────── */
 type Channel = "whatsapp" | "instagram";
 
@@ -549,6 +535,24 @@ export default function MultiatendimentoPage() {
   // LeadDetailPage.tsx, sem o @mention -- fora do escopo aqui).
   const notesDivRef = useRef<HTMLDivElement>(null);
   const [notesActive, setNotesActive] = useState(false);
+  /**
+   * Se há texto escrito na anotação. Governa o "Salvar".
+   *
+   * Estado, e não uma leitura direta do `notesDivRef` na hora de desenhar: o
+   * campo é `contentEditable`, então digitar não avisa o React de nada, e o
+   * botão só mudaria de aparência quando algo ALHEIO provocasse um render.
+   *
+   * O conteúdo continua saindo do ref na hora de salvar. Isto aqui não guarda o
+   * texto, só responde "tem alguma coisa?" -- duplicar o conteúdo em estado a
+   * cada tecla abriria espaço para as duas versões divergirem.
+   */
+  const [notesTemTexto, setNotesTemTexto] = useState(false);
+  /**
+   * Um campo `contentEditable` vazio raramente está de fato vazio: o navegador
+   * deixa um `<br>` para o cursor ter onde ficar, e listas ou formatação podem
+   * deixar marcação sem uma letra sequer. Quem decide é o TEXTO, não o HTML.
+   */
+  const notesConfereTexto = () => setNotesTemTexto(!!notesDivRef.current?.innerText.trim());
   const [notesActiveFormats, setNotesActiveFormats] = useState<Set<string>>(new Set());
   const checkNoteFormats = () => {
     const cmds = ["bold", "italic", "underline", "insertUnorderedList", "insertOrderedList"];
@@ -558,6 +562,9 @@ export default function MultiatendimentoPage() {
   const applyNoteFormat = (cmd: string) => {
     document.execCommand(cmd, false);
     checkNoteFormats();
+    // Inserir lista muda o HTML sem passar por tecla nenhuma: sem esta linha o
+    // "Salvar" ficaria parado no estado anterior.
+    notesConfereTexto();
   };
 
   const activeNavTenantRef = useRef(tenantId);
@@ -1206,6 +1213,7 @@ export default function MultiatendimentoPage() {
     });
     if (notesDivRef.current) notesDivRef.current.innerHTML = "";
     setNotesActive(false);
+    setNotesTemTexto(false);
     toast.success("Anotação adicionada ao negócio.");
   };
 
@@ -3537,12 +3545,15 @@ export default function MultiatendimentoPage() {
                     </div>
                   </div>
                   <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
+                  {/* Sem as tags do lead aqui. Elas apareciam cortadas nas duas
+                      primeiras, com um "+N" para o resto, e a barra lateral
+                      direita já mostra a lista inteira -- e lá elas são
+                      clicáveis, o que aqui nunca foram.
+
+                      Sobram nesta linha os dois estados da CONVERSA, que não
+                      existem em lugar nenhum além dela: se o atendimento foi
+                      encerrado e se a linha que a recebeu está fora do ar. */}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {c.tags.slice(0, 2).map((t, i) => {
-                      const s = tagStyle(t);
-                      return <span key={i} style={{ fontSize: 10, fontWeight: 600, background: s.bg, color: s.fg, padding: "2px 6px", borderRadius: 4 }}>{t}</span>;
-                    })}
-                    {c.tags.length > 2 && <span style={{ fontSize: 10, color: "#AAA" }}>+{c.tags.length - 2}</span>}
                     {cState?.finished && <span style={{ fontSize: 10, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "2px 6px", borderRadius: 4 }}>✓ Finalizada</span>}
                     {!isConvInstanceConnected(c) && <span style={{ fontSize: 10, fontWeight: 600, background: "#F5F5F5", color: "#888", padding: "2px 6px", borderRadius: 4 }}>Desconectada</span>}
                   </div>
@@ -4353,7 +4364,20 @@ export default function MultiatendimentoPage() {
                         <span
                           key={tagName}
                           onClick={() => toggleConvTag(tagName)}
-                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "#666", border: `1px solid ${tag?.color || "#E5E5E5"}`, borderRadius: 100, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                          /* Mesma medida das tags da lista de conversas, à
+                             esquerda: 2px por 6px, raio 4 e corpo 10. As duas
+                             mostram a mesma coisa em pontos diferentes da tela,
+                             e com formas distintas a segunda não era reconhecida
+                             como a mesma etiqueta.
+
+                             O que NÃO veio de lá é a cor. A da lista sai de uma
+                             tabela fixa por nome, que só conhecia alguns
+                             rótulos e jogava o resto no cinza; aqui a cor é a
+                             que a pessoa escolheu na tag. Aquela lista de cores
+                             saiu do arquivo junto com as tags de lá, e este é
+                             agora o único lugar que mostra tag no
+                             multiatendimento. */
+                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "#666", border: `1px solid ${tag?.color || "#E5E5E5"}`, borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {tagName}
                         </span>
@@ -4457,17 +4481,29 @@ export default function MultiatendimentoPage() {
                   onMouseEnter={e => { if (!hasNegocio) e.currentTarget.style.background = "#E1F5EE"; }}
                   onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = "#F5F5F5"; }}
                 ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
+                {/* Verde cheio da marca com texto branco, o mesmo do "Criar
+                    atividade" mais abaixo e dos botões do cabeçalho da pipeline.
+
+                    O contorno verde saiu. Sobre o fundo cheio ele seria invisível
+                    e ainda somaria 2px à caixa -- que é o que já deixava estes
+                    dois mais altos que o "Lead/Negócio" ao lado, que nunca teve
+                    borda. Sem ele os três voltam a ter a mesma altura.
+
+                    O hover é o #128A68 a 90% sobre branco, equivalente ao
+                    `bg-primary/90` do componente Button; vai em hexadecimal
+                    porque esta árvore é pintada por `style` inline, onde não há
+                    pseudo-classe. */}
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
-                  style={{ flex: 1, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
+                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "6px 10px", color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
                 ><Zap size={12} /> Automação</button>
                 <button
                   onClick={() => setShowFollowupDialog(true)}
-                  style={{ flex: 1, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#E1F5EE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
+                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "6px 10px", color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
                 ><CalendarDays size={12} /> Follow up</button>
               </div>
 
@@ -4626,11 +4662,24 @@ export default function MultiatendimentoPage() {
                   ) : (
                     <>
                       <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
+                      {/* Verde cheio da marca, o mesmo dos botões do cabeçalho
+                          da pipeline (`--primary`, #128A68).
+
+                          O texto foi para branco junto, e não por gosto: ele era
+                          #128A68 sobre o verde claro, e mantê-lo deixaria a
+                          letra da mesma cor do fundo -- botão invisível. Branco
+                          sobre este verde é a combinação padrão de todo botão
+                          principal do produto.
+
+                          O hover é o #128A68 a 90% sobre branco, que é o mesmo
+                          `bg-primary/90` que o Button aplica; aqui vai resolvido
+                          em hexadecimal porque esta árvore é pintada por `style`
+                          inline, onde não há pseudo-classe. */}
                       <button
                         onClick={() => setShowScheduleDialog(true)}
-                        style={{ width: "100%", background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
+                        style={{ width: "100%", background: "#128A68", border: "none", color: "#FFFFFF", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
                       ><Plus size={12} /> Criar atividade</button>
                     </>
                   )}
@@ -4648,7 +4697,21 @@ export default function MultiatendimentoPage() {
                   <button
                     key={k}
                     onClick={() => setMuDetailsTab(k)}
-                    style={{ background: muDetailsTab === k ? "#F0F0F0" : "none", border: "none", borderRadius: 4, cursor: "pointer", padding: "6px 10px", fontSize: 12, fontWeight: 600, color: "#111" }}
+                    /* Aba escolhida no verde claro da marca (#E1F5EE), o mesmo
+                       da pastilha de tipo de atividade e do hover dos botões
+                       daqui, com o texto no verde fechado.
+
+                       O cinza que estava aqui dizia "selecionado" com a mesma
+                       cor que o app usa para superfície neutra e para campo
+                       desabilitado -- lido rápido, parecia a aba INATIVA. O
+                       verde não tem esse duplo sentido em lugar nenhum do
+                       produto: onde ele aparece, é escolha.
+
+                       O texto acompanha o fundo. Preto sobre verde claro
+                       funcionaria de contraste, mas deixaria as três abas com a
+                       mesma cor de letra, e aí só o retângulo diferenciaria a
+                       ativa. */
+                    style={{ background: muDetailsTab === k ? "#E1F5EE" : "none", border: "none", borderRadius: 4, cursor: "pointer", padding: "6px 10px", fontSize: 12, fontWeight: 600, color: muDetailsTab === k ? "#128A68" : "#111" }}
                   >{{ perfil: "Perfil", endereco: "Endereço", campos: "Campos" }[k]}</button>
                 ))}
               </div>
@@ -4713,11 +4776,32 @@ export default function MultiatendimentoPage() {
                   onFocus={() => effectiveLead && setNotesActive(true)}
                   onKeyUp={checkNoteFormats}
                   onMouseUp={checkNoteFormats}
+                  // `onInput` em vez de só `onKeyUp`: ele também dispara em
+                  // colar, cortar e desfazer, que mudam o texto sem tecla solta.
+                  onInput={notesConfereTexto}
                   data-placeholder="Adicionar anotação..."
                   className="empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
-                  style={{ fontSize: 13, color: "#111", minHeight: notesActive ? 70 : 34, outline: "none", wordBreak: "break-word" }}
+                  /* Altura de escrita já no repouso, e não só depois do clique.
+                     Fechado, o campo era uma tira de 34px com um texto cinza,
+                     indistinguível de um rótulo -- quem não clicasse por acaso
+                     não descobria que dava para escrever ali. */
+                  style={{ fontSize: 13, color: "#111", minHeight: effectiveLead ? 70 : 34, outline: "none", wordBreak: "break-word" }}
                 />
-                {notesActive && (
+                {/*
+                  A barra de formatação e os botões aparecem sempre que há
+                  negócio vinculado, e não só com o campo em foco: são eles que
+                  dizem, de relance, que aquilo é um editor.
+
+                  A condição é `effectiveLead`, e não `notesActive`, porque sem
+                  negócio o "Salvar" não teria o que salvar -- ele cairia no
+                  toast de erro do `addNote`, e um botão que só sabe falhar é
+                  pior que botão nenhum. Nesse caso o aviso logo abaixo explica o
+                  que falta.
+
+                  `notesActive` continua existindo, agora só como marca de foco:
+                  é ele que acende a borda verde em volta da caixa.
+                */}
+                {effectiveLead && (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, paddingTop: 8, marginTop: 8, borderTop: "1px solid #E5E5E5" }}>
                     <div style={{ display: "flex", gap: 2 }}>
                       {[
@@ -4740,12 +4824,22 @@ export default function MultiatendimentoPage() {
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
-                        onClick={() => { if (notesDivRef.current) notesDivRef.current.innerHTML = ""; setNotesActive(false); }}
+                        onClick={() => { if (notesDivRef.current) notesDivRef.current.innerHTML = ""; setNotesActive(false); setNotesTemTexto(false); }}
                         style={{ fontSize: 11, fontWeight: 600, color: "#666", background: "none", border: "1px solid #E5E5E5", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
                       >Cancelar</button>
+                      {/* Desligado enquanto não há texto. Aberto por padrão, o
+                          editor passa a maior parte do tempo vazio, e um
+                          "Salvar" sempre aceso ali convidaria para um clique que
+                          só produz o toast de "anotação vazia".
+
+                          `disabled` de verdade, e não só cor mais clara: assim o
+                          teclado pula o botão e o leitor de tela o anuncia como
+                          indisponível, em vez de anunciá-lo como um botão comum
+                          que não faz nada. */}
                       <button
                         onClick={addNote}
-                        style={{ fontSize: 11, fontWeight: 600, color: "#FFF", background: "#128A68", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+                        disabled={!notesTemTexto}
+                        style={{ fontSize: 11, fontWeight: 600, color: "#FFF", background: notesTemTexto ? "#128A68" : "#BDBDBD", border: "none", borderRadius: 6, padding: "4px 10px", cursor: notesTemTexto ? "pointer" : "not-allowed", transition: "background 0.15s" }}
                       >Salvar</button>
                     </div>
                   </div>

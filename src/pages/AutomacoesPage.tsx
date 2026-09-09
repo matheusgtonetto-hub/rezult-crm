@@ -3649,6 +3649,25 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
   // whatsapp_connections: é ele que chega no evento (whatsapp_messages.
   // instance_id) e é contra ele que o runner compara. Verificado que bate tanto
   // na D-API quanto na Cloud API, onde o instanceId é o Phone Number ID.
+  /**
+   * Os blocos abaixo (InstanceRow, KeywordsBlock, SourceBadge, MetricWarning)
+   * são CHAMADOS como função -- `{KeywordsBlock()}` --, e nunca escritos como
+   * `<KeywordsBlock />`.
+   *
+   * A diferença não é de estilo. Declarados aqui dentro, eles ganham identidade
+   * nova a cada render do painel; usados como elemento JSX, o React lê isso como
+   * "outro tipo de componente" e desmonta a árvore antiga para montar uma nova.
+   * O `<textarea>` das palavras-chave era destruído e recriado a cada tecla:
+   * perdia o foco, e só entrava uma letra por vez.
+   *
+   * Chamados como função, o que eles devolvem é costurado direto na árvore do
+   * painel -- não há componente novo, não há remontagem, e o campo mantém o
+   * foco.
+   *
+   * A alternativa seria movê-los para fora e passar tudo por props; eles leem
+   * `cfg`, `updateConfig`, `whatsappConnections` e mais, e a chamada direta
+   * resolve o mesmo problema sem essa fiação.
+   */
   const InstanceRow = ({ label }: { label: string }) => (
     <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5, marginBottom: 8 }}>{label}</div>
@@ -3874,7 +3893,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
               <input type="number" min={0} value={(cfg[key] as number) ?? 0}
                 onChange={e => updateConfig(key, Number(e.target.value))} style={tcpInputStyle} />
             </div>
-            <MetricWarning />
+            {MetricWarning()}
           </div>
         );
       }
@@ -3888,8 +3907,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         const instanceLabel = "Qual a instância que irá ouvir as mensagens e iniciar a automação?";
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <InstanceRow label={instanceLabel} />
-            {isMsg && <KeywordsBlock />}
+            {InstanceRow({ label: instanceLabel })}
+            {isMsg && KeywordsBlock()}
             {isMsg && (
               <>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -3920,8 +3939,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
       case "fb_live":
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <InstanceRow label="Qual a instância que irá ouvir os comentários e iniciar a automação?" />
-            <KeywordsBlock />
+            {InstanceRow({ label: "Qual a instância que irá ouvir os comentários e iniciar a automação?" })}
+            {KeywordsBlock()}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do comentário</span>
               <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
@@ -3939,7 +3958,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
                 {departamentos.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
-            <InstanceRow label="Qual a instância que irá ouvir as mensagens e iniciar a automação?" />
+            {InstanceRow({ label: "Qual a instância que irá ouvir as mensagens e iniciar a automação?" })}
           </div>
         );
 
@@ -4141,7 +4160,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
               </div>
             </div>
             {tcpWarning("O webhook possui um limite de 60 requisições por minuto. Caso precisar aumentar o limite entre em contato com o suporte.")}
-            <SourceBadge />
+            {SourceBadge()}
           </div>
         );
       }
@@ -7838,6 +7857,12 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
     <div style={{ marginBottom: 14 }}>{children}</div>
   );
 
+  /**
+   * Chamado como função, e não como `<PipelineStageSelect />`. Mesmo motivo dos
+   * blocos do painel de gatilho: componente declarado dentro de outro é um tipo
+   * novo a cada render, e o React remonta a árvore inteira -- os campos perdiam
+   * o foco a cada tecla.
+   */
   const PipelineStageSelect = ({ verbAction, required = false }: { verbAction: string; required?: boolean }) => {
     const selPipeline = pipelines.find(p => p.id === (cfg.pipeline as string));
     const stageOpts = selPipeline
@@ -7867,10 +7892,10 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
       // Diferente de mover_etapa/duplicar_negocio: "criar negócio" sempre resulta
       // num negócio de verdade, então pipeline+etapa são obrigatórios (validado
       // também no automation-runner, que recusa executar sem os dois).
-      return <PipelineStageSelect verbAction="criado" required />;
+      return PipelineStageSelect({ verbAction: "criado", required: true });
 
     case "mover_etapa":
-      return <PipelineStageSelect verbAction="movido" />;
+      return PipelineStageSelect({ verbAction: "movido" });
 
     case "ganhar_negocio":
     case "restaurar_negocio":
@@ -7906,7 +7931,7 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
       );
 
     case "duplicar_negocio":
-      return <PipelineStageSelect verbAction="duplicado" />;
+      return PipelineStageSelect({ verbAction: "duplicado" });
 
     case "remover_atend_neg":
       return grp(

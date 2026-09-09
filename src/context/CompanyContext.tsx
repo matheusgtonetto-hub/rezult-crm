@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { PLAN_LIMITS, PAID_PLANS, planoEmVigor } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
+import { definirBloqueioDeEscrita } from "@/lib/bloqueioDeEscrita";
 
 export interface Company {
   id: string;
@@ -348,6 +349,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [company]);
 
   const billingBlocked = motivoDoBloqueio !== null;
+
+  /**
+   * Espelha o bloqueio no cliente do Supabase.
+   *
+   * Ele é um singleton de módulo, criado antes de qualquer componente -- não tem
+   * como ler um contexto. Empurrar o valor daqui é o que faz toda escrita do
+   * app, inclusive as que falam com o banco direto, virar aviso na tela em vez
+   * de um erro genérico do RLS.
+   *
+   * Em efeito, e não no corpo do render: escrever num módulo durante a
+   * renderização é efeito colateral, e o React executa o corpo mais de uma vez.
+   */
+  useEffect(() => { definirBloqueioDeEscrita(billingBlocked); }, [billingBlocked]);
 
   // Empresa em teste grátis: ganhou plano pago no cadastro, sem cartão, e ainda
   // está dentro do prazo. Some sozinho quando a data passa, e o webhook zera o

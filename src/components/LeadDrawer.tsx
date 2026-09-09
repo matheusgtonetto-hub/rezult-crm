@@ -4,6 +4,7 @@ import { useCRM } from "@/context/CRMContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { upsertContact } from "@/lib/contacts";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { supabase } from "@/lib/supabase";
 import { telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
@@ -145,7 +146,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     addLead, nextDealNumber, deleteLead, deleteLeadAndContact, products,
   } = useCRM();
   const { user } = useAuth();
-  const { company } = useCompany();
+  const { company, billingBlocked } = useCompany();
   /**
    * De quem são os dados desta tela: o dono da empresa ABERTA.
    *
@@ -276,6 +277,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
   const createDeal = async () => {
     if (!newDealPipeline || !newDealStage) return;
+    // `upsertContact` fala com o Supabase DIRETO, sem passar pelo `CRMContext`,
+    // onde as escritas já viram aviso com a conta bloqueada. Sem esta checagem,
+    // quem barra é o RLS lá no banco -- e a tela mostra um erro genérico sem
+    // dizer que o problema é o plano.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     setNewDealCreating(true);
     let personId = lead!.personId;
     if (!personId && company) {

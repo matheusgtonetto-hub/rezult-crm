@@ -6,7 +6,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   ContactRound,
-  ChartColumnDecreasing,
+  ChartPie,
   House,
   Cog,
   LogOut,
@@ -139,7 +139,7 @@ export function AppSidebar() {
     // quem acabou de chegar.
     { to: "/inicio", label: "Início", icon: House },
     ...(canAny("dashboard:admin", "dashboard:member")
-      ? [{ to: "/dashboard", label: "Dashboard", icon: ChartColumnDecreasing }] : []),
+      ? [{ to: "/dashboard", label: "Dashboard", icon: ChartPie }] : []),
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")

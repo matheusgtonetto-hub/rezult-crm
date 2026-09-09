@@ -431,13 +431,13 @@ export default function InicioPage() {
         id: "equipe",
         titulo: "Convide membros do seu time",
         descricao: "Chame quem atende com você e defina o que cada pessoa enxerga e pode fazer.",
-        para: "/configuracoes/equipe",
+        para: "/configuracoes/usuarios",
         pontos: 15,
         // `> 1` porque o dono já conta como membro: com `> 0` a missão nasceria
         // concluída e ninguém convidaria ninguém.
         feita: teamMembers.length > 1,
         Icone: Users,
-        acao: { rotulo: "Convidar membros", para: "/configuracoes/equipe?abrir=convite" },
+        acao: { rotulo: "Convidar membros", para: "/configuracoes/usuarios?abrir=convite" },
       },
       {
         id: "pipeline",
@@ -560,7 +560,7 @@ export default function InicioPage() {
               descola do cumprimento e cola na descrição: as duas frases que
               falam do produto leem como um bloco, e a linha que cumprimenta a
               pessoa fica por fora dele. */}
-          <h1 className="text-[29px] font-semibold text-foreground mt-2 leading-tight">
+          <h1 className="text-[28px] font-semibold text-foreground mt-2 leading-tight">
             {trilhaCompleta ? "Seu CRM está pronto" : "O Rezult está quase pronto..."}
           </h1>
           {/*
@@ -569,10 +569,10 @@ export default function InicioPage() {
             trocar uma frase envelhecida por uma frase falsa.
           */}
           {/* 15px de respiro até o título, e a margem é só uma parte disso.
-              Cada bloco carrega metade da própria entrelinha: o título de 29px
-              em `leading-tight` (1.25) deixa ~3,625px abaixo da caixa da letra,
-              e este de 16px em `leading-[1.4]` deixa 3,2px acima. Sobram os
-              8,175px daqui.
+              Cada bloco carrega metade da própria entrelinha: o título de 28px
+              em `leading-tight` (1.25) deixa 3,5px abaixo da caixa da letra, e
+              este de 15px em `leading-[1.4]` deixa 3px acima. Sobram os 8,5px
+              daqui.
 
               A margem anda junto com a entrelinha. Fechar o `leading` encolhe
               também a folga que este bloco carrega acima de si, e sem
@@ -582,7 +582,7 @@ export default function InicioPage() {
               Escrito como valor arbitrário pelo mesmo motivo, e o comentário
               guarda a conta: mexer no `leading` de qualquer um dos dois a
               refaz. */}
-          <p className="text-[16px] text-muted-foreground mt-[8.175px] leading-[1.4]">
+          <p className="text-[15px] text-muted-foreground mt-[8.5px] leading-[1.4]">
             {trilhaCompleta
               ? "Configuração concluída. Aqui ficam os tutoriais e o suporte, sempre que precisar."
               : 'Siga a trilha "Primeiros passos" abaixo para finalizar a configuração da sua conta e extrair o melhor da ferramenta.'}

@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { upsertContact } from "@/lib/contacts";
+import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,7 +56,7 @@ function toPhoneString(val: unknown): string {
 
 export function ImportLeadsModal({ open, onClose }: Props) {
   const { pipelines, crmTags, addLead, leads: existingLeads, teamMembers, memberColors, memberAvatars } = useCRM();
-  const { company } = useCompany();
+  const { company, billingBlocked } = useCompany();
 
   const [file, setFile]           = useState<File | null>(null);
   const [headers, setHeaders]     = useState<string[]>([]);
@@ -136,6 +137,11 @@ export function ImportLeadsModal({ open, onClose }: Props) {
 
   const handleImport = async () => {
     if (!rows.length) return;
+    // `upsertContact` fala com o Supabase DIRETO, sem passar pelo `CRMContext`,
+    // onde as escritas já viram aviso com a conta bloqueada. Sem esta checagem,
+    // quem barra é o RLS lá no banco -- e a tela mostra um erro genérico sem
+    // dizer que o problema é o plano.
+    if (billingBlocked) { emitBillingBlocked(); return; }
     if (!pipelineId || !stageId) { toast.error("Selecione um pipeline e uma etapa."); return; }
     if (nameCol === NONE && phoneCol === NONE) {
       toast.error("Mapeie ao menos a coluna de Nome ou Telefone.");

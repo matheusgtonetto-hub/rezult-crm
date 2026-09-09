@@ -19,6 +19,8 @@ export default function AppLayout() {
   const { pathname }                                                      = useLocation();
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
   const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
+  /** Cartão de planos aberto a pedido da tarja, sem ação barrada por trás. */
+  const [ofertaAberta, setOfertaAberta] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -63,6 +65,20 @@ export default function AppLayout() {
     return () => window.removeEventListener("billing-blocked", handler);
   }, [motivoDoBloqueio]);
 
+  /**
+   * Pedido explícito para ver os planos, vindo da tarja flutuante.
+   *
+   * Separado do `billing-blocked` por causa do aviso: lá ele explica por que uma
+   * janela abriu sozinha depois de um clique em "Novo lead". Aqui a pessoa
+   * clicou num botão que diz "Escolher um plano", e repetir o aviso seria
+   * responder uma pergunta que ela não fez.
+   */
+  useEffect(() => {
+    const handler = () => setOfertaAberta(true);
+    window.addEventListener("abrir-oferta", handler);
+    return () => window.removeEventListener("abrir-oferta", handler);
+  }, []);
+
   // Only redirect to company-register if:
   // 1. Company data has finished loading
   // 2. No company record exists
@@ -88,12 +104,20 @@ export default function AppLayout() {
   // Bloqueio por cobrança não implica plano expirado (uma anual pode falhar com
   // validade ainda no futuro), e o teste grátis é plano pago válido.
   //
-  // Só os dois primeiros reservam espaço no rodapé. Durante o teste a tarja é um
-  // cartão FLUTUANTE no canto, como as janelas de conversa: ele passa por cima
-  // do conteúdo em vez de empurrá-lo. Reservar espaço para algo que flutua
-  // deixaria uma faixa vazia no fim de todas as telas.
-  const reservaRodape = isFreePlan || billingBlocked;
-  const showBanner = reservaRodape || isTrialing;
+  // Reserva de espaço só para quem ainda usa a FAIXA de rodapé. Durante o teste
+  // -- e agora também depois dele -- a tarja é um cartão FLUTUANTE no canto,
+  // como as janelas de conversa: ele passa por cima do conteúdo em vez de
+  // empurrá-lo. Reservar espaço para algo que flutua deixaria uma faixa vazia no
+  // fim de todas as telas.
+  //
+  // `motivoDoBloqueio === "teste"` sai da conta pelo mesmo motivo: aquele caso
+  // virou cartão. Sobram o plano free e a cobrança recusada, que seguem em
+  // faixa.
+  const reservaRodape = (isFreePlan || billingBlocked) && motivoDoBloqueio !== "teste";
+  // Quem APARECE e quem RESERVA espaço deixaram de ser a mesma conta: o teste
+  // encerrado mostra tarja (flutuante) sem reservar nada. Derivar um do outro,
+  // como era antes, faria a tarja sumir junto com a reserva.
+  const showBanner = isFreePlan || billingBlocked || isTrialing;
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
@@ -134,9 +158,12 @@ export default function AppLayout() {
       {billingBlockedOpen && motivoDoBloqueio !== "teste" && (
         <BillingBlockedModal motivo={motivoDoBloqueio} onClose={() => setBillingBlockedOpen(false)} />
       )}
+      {/* Um cartão só para os dois caminhos: a ação barrada (que o abre com o
+          aviso) e o botão da tarja (que o abre direto). Duas instâncias
+          montadas dariam dois diálogos concorrendo pelo mesmo espaço. */}
       <OfertaDeContratacao
-        aberto={billingBlockedOpen && motivoDoBloqueio === "teste"}
-        aoFechar={() => setBillingBlockedOpen(false)}
+        aberto={(billingBlockedOpen && motivoDoBloqueio === "teste") || ofertaAberta}
+        aoFechar={() => { setBillingBlockedOpen(false); setOfertaAberta(false); }}
       />
     </div>
   );
