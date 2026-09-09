@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { dbToLead } from "@/context/CRMContext";
 import { chaves } from "@/lib/chavesDeConsulta";
@@ -35,6 +35,19 @@ import type { LeadFilter } from "@/data/disparos";
  * de forma simples. Num kanban raramente se passa da terceira página, então o
  * desperdício é rebuscar 150 linhas em vez de 50, e em troca o código não
  * precisa gerenciar acumulação nem invalidação de páginas soltas.
+ *
+ * ── Por que arrastar mexe no cache em vez de re-buscar ──
+ *
+ * Com o board lendo do servidor, um card arrastado só mudaria de coluna depois
+ * que a gravação terminasse E a busca voltasse. Nesse meio tempo o react-query
+ * segue servindo o que tem em cache, ou seja, o card na coluna ANTIGA: ele
+ * voltaria sozinho e pularia para a nova um instante depois, a cada arrasto.
+ *
+ * `moverCard` escreve o resultado no cache na hora. Não dispara invalidação de
+ * propósito: quem grava no banco é o `moveLead` do CRMContext, e mandar buscar
+ * de novo aqui criaria uma corrida com essa gravação -- a busca pode chegar
+ * antes e devolver o estado anterior, que é justamente o pulo que se quer
+ * evitar. O servidor volta a mandar no próximo refetch natural.
  */
 
 const POR_PAGINA = 50;
@@ -75,6 +88,8 @@ export function useColunasDoKanban({
   empresaId, pipelineId, colunaIds,
   filtro = {}, busca = "", ordem = "recent", ativo = true,
 }: Parametros) {
+  const cliente = useQueryClient();
+
   /** Quantas páginas cada coluna já pediu. Ausente significa uma. */
   const [paginas, setPaginas] = useState<Record<string, number>>({});
 
@@ -88,6 +103,11 @@ export function useColunasDoKanban({
       return {
         queryKey: [...chaves.leads.colunaDoKanban(empresaId, colunaId), recorte, limite],
         enabled: ativo && Boolean(empresaId && pipelineId && colunaId),
+        // O limite faz parte da chave, então "carregar mais" é uma consulta
+        // NOVA, sem dados: sem isto a coluna esvaziaria e mostraria "Carregando"
+        // no lugar dos 50 cards que já estavam ali. Vale igual para trocar
+        // filtro ou digitar na busca, onde o board pisca a cada tecla.
+        placeholderData: keepPreviousData,
         queryFn: async (): Promise<DadosDaColuna> => {
           const { data, error } = await supabase.rpc("buscar_leads_do_funil", {
             p_company_id:  empresaId,
@@ -127,7 +147,12 @@ export function useColunasDoKanban({
     const mapa: Record<string, DadosDaColuna> = {};
     colunaIds.forEach((colunaId, i) => {
       const c = consultas[i];
-      mapa[colunaId] = c?.data ?? { ...VAZIA, carregando: c?.isLoading ?? true };
+      // `carregando` sai do isFetching, e não do isLoading: com dados anteriores
+      // na tela o isLoading já é falso, e o botão "carregar mais" precisa saber
+      // que ainda tem busca em voo para não ser clicado duas vezes.
+      mapa[colunaId] = c?.data
+        ? { ...c.data, carregando: c.isFetching }
+        : { ...VAZIA, carregando: c?.isLoading ?? true };
     });
     return mapa;
   }, [colunaIds, consultas]);
@@ -136,9 +161,58 @@ export function useColunasDoKanban({
     setPaginas(prev => ({ ...prev, [colunaId]: (prev[colunaId] ?? 1) + 1 }));
   }, []);
 
+  /**
+   * Reflete no cache um card que acabou de ser arrastado.
+   *
+   * O lead vem pronto de quem chama, e não é procurado no cache, porque a coluna
+   * de origem pode nem estar carregada -- e sem o objeto não dá para inserir no
+   * destino. Quem arrasta tem o lead em mãos de qualquer forma.
+   *
+   * Escreve por PREFIXO de chave: cada coluna tem uma entrada por combinação de
+   * recorte e limite, e todas são vistas da mesma coluna. Deixar as outras com o
+   * card antigo faria ele reaparecer ao mudar de filtro ou ao carregar mais.
+   */
+  const moverCard = useCallback((
+    lead: Lead, deColunaId: string, paraColunaId: string, indice: number,
+  ) => {
+    const valor = lead.value || 0;
+    const mesmaColuna = deColunaId === paraColunaId;
+
+    const atualiza = (colunaId: string, fn: (d: DadosDaColuna) => DadosDaColuna) => {
+      cliente.setQueriesData<DadosDaColuna>(
+        { queryKey: chaves.leads.colunaDoKanban(empresaId, colunaId) },
+        antigo => (antigo ? fn(antigo) : antigo),
+      );
+    };
+
+    atualiza(deColunaId, d => ({
+      ...d,
+      leads: d.leads.filter(l => l.id !== lead.id),
+      // Numa reordenação dentro da mesma coluna nada entra nem sai: os totais
+      // são da coluna inteira, não da página.
+      total:      mesmaColuna ? d.total      : Math.max(0, d.total - 1),
+      valorTotal: mesmaColuna ? d.valorTotal : d.valorTotal - valor,
+    }));
+
+    atualiza(paraColunaId, d => {
+      const semEle = d.leads.filter(l => l.id !== lead.id);
+      const destino = [...semEle];
+      // O índice vem da posição visual no destino. Um clamp evita que um índice
+      // além do que a página carregou empurre o card para fora do array.
+      destino.splice(Math.min(Math.max(indice, 0), destino.length), 0, lead);
+      return {
+        ...d,
+        leads: destino,
+        total:      mesmaColuna ? d.total      : d.total + 1,
+        valorTotal: mesmaColuna ? d.valorTotal : d.valorTotal + valor,
+      };
+    });
+  }, [cliente, empresaId]);
+
   return {
     porColuna,
     carregarMais,
+    moverCard,
     carregando: consultas.some(c => c.isLoading),
     erro: (consultas.find(c => c.error)?.error ?? null) as Error | null,
   };

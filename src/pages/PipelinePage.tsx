@@ -7,6 +7,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
+import { useColunasDoKanban } from "@/hooks/useColunasDoKanban";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { PipelineFilterPanel, type StatusFilter } from "@/components/PipelineFilterPanel";
@@ -369,7 +370,7 @@ export default function PipelinePage() {
         const steps = cols.slice(fromIdx, toIdx + 1).map(c => ({ colId: c.id, colTitle: c.title }));
         setPendingAdvance({
           leadId: draggableId,
-          leadName: leads[draggableId]?.name ?? "",
+          leadName: pegarLead(draggableId)?.name ?? "",
           toIndex: destination.index,
           steps,
           currentStep: 0,
@@ -384,7 +385,21 @@ export default function PipelinePage() {
       });
     }
     moveLead(draggableId, source.droppableId, destination.droppableId, destination.index);
+    aplicarMovimentoNoBoard(draggableId, source.droppableId, destination.droppableId, destination.index);
   };
+
+  /**
+   * Reflete o movimento no que o board está mostrando.
+   *
+   * O `moveLead` acima grava no banco e atualiza o CRMContext, mas as colunas
+   * agora vêm de consulta: sem isto o card voltaria para a coluna de origem até
+   * a próxima busca. Anda em par com `moveLead` -- os dois pontos que movem card
+   * chamam os dois.
+   */
+  function aplicarMovimentoNoBoard(leadId: string, deColuna: string, paraColuna: string, indice: number) {
+    const lead = pegarLead(leadId);
+    if (lead) moverCard(lead, deColuna, paraColuna, indice);
+  }
 
   const handleConfirmAdvance = () => {
     if (!pendingAdvance) return;
@@ -392,6 +407,7 @@ export default function PipelinePage() {
     const from = steps[currentStep];
     const to = steps[currentStep + 1];
     moveLead(leadId, from.colId, to.colId, toIndex);
+    aplicarMovimentoNoBoard(leadId, from.colId, to.colId, toIndex);
     addActivity(leadId, {
       date: new Date().toISOString(),
       type: "stage_change",
@@ -466,31 +482,100 @@ export default function PipelinePage() {
     return podeVer(l);
   }, [search, podeVer]);
 
-  const filteredColumns = useMemo(() => {
-    if (!activePipeline) return [];
-    return [...activePipeline.columns]
-      .sort((a, b) => a.position - b.position)
-      .map(col => {
-        const ids = col.leadIds.filter(id => leads[id] && passaCriterios(leads[id], status, advFilter));
+  /**
+   * `podeVer` traduzido para uma lista de nomes, para o banco poder aplicá-lo.
+   *
+   * Com o board paginado, permissão não pode mais ser conferida depois da
+   * busca: filtrar a página de 50 já recebida daria uma página de tamanho
+   * imprevisível, e o total do cabeçalho -- que sai da contagem no banco --
+   * ficaria maior do que o que a pessoa pode ver. Todo critério que decide o
+   * que aparece tem que estar na mesma consulta que conta.
+   *
+   * `null` significa "sem recorte", e não "lista vazia": são coisas diferentes,
+   * e é a diferença entre ver tudo e não ver nada.
+   */
+  const escopoResponsaveis = useMemo<string[] | null>(() => {
+    if (myPerms.viewOwnDealsOnly) return [myName];
+    if (isAdmin && viewAsUser.length > 0) return viewAsUser;
+    return null;
+  }, [myPerms.viewOwnDealsOnly, myName, isAdmin, viewAsUser]);
 
-        ids.sort((a, b) => {
-          const la = leads[a];
-          const lb = leads[b];
-          if (sortKey === "value") return lb.value - la.value;
-          if (sortKey === "name") return la.name.localeCompare(lb.name);
-          if (sortKey === "oldest") return la.entryDate.localeCompare(lb.entryDate);
-          return lb.entryDate.localeCompare(la.entryDate);
-        });
-        return { ...col, filteredIds: ids };
-      });
-  }, [activePipeline?.columns, leads, status, sortKey, advFilter, passaCriterios]);
+  /**
+   * O que vai para `buscar_leads_do_funil`: o painel, mais o status da barra,
+   * mais o escopo de permissão.
+   *
+   * Escopo e filtro do painel usam a MESMA chave `responsibles`, e o banco só
+   * entende uma condição por chave. Por isso a interseção é feita aqui: os dois
+   * têm que valer juntos, e mandar só um deles ou abriria o que a permissão
+   * fecha, ou ignoraria o que a pessoa pediu.
+   */
+  const filtroDoServidor = useMemo<LeadFilter>(() => {
+    const f: LeadFilter = { ...advFilter };
+    // "all" não é um valor de status no banco: é a ausência do critério.
+    if (status !== "all") f.dealStatus = [status];
+    if (escopoResponsaveis) {
+      f.responsibles = advFilter.responsibles?.length
+        ? escopoResponsaveis.filter(r => advFilter.responsibles!.includes(r))
+        : escopoResponsaveis;
+    }
+    return f;
+  }, [advFilter, status, escopoResponsaveis]);
 
-  // Universo para "Executar automação" a partir do topo da pipeline: os
-  // negócios do board como ele está agora (mesmos filtros aplicados), igual
-  // ao menu do topo em /leads usar `filtered` em vez da base inteira.
-  const leadsVisiveisNaPipeline = useMemo(
-    () => filteredColumns.flatMap(col => col.filteredIds.map(id => leads[id]).filter(Boolean)),
-    [filteredColumns, leads],
+  // Interseção vazia = nenhum negócio passa. Precisa ser tratado aqui porque um
+  // `responsibles: []` chegando no banco seria lido como "sem filtro de
+  // responsável", ou seja, o oposto exato: mostraria tudo.
+  const escopoVazio = escopoResponsaveis !== null && filtroDoServidor.responsibles?.length === 0;
+
+  const colunasOrdenadas = useMemo(
+    () => [...(activePipeline?.columns ?? [])].sort((a, b) => a.position - b.position),
+    [activePipeline?.columns],
+  );
+  const colunaIds = useMemo(() => colunasOrdenadas.map(c => c.id), [colunasOrdenadas]);
+
+  const { porColuna, carregarMais, moverCard, erro: erroDoKanban } = useColunasDoKanban({
+    empresaId: company?.id ?? "",
+    pipelineId: activePipeline?.id ?? "",
+    colunaIds,
+    filtro: filtroDoServidor,
+    busca: search,
+    ordem: sortKey,
+    ativo: !escopoVazio,
+  });
+
+  useEffect(() => {
+    if (erroDoKanban) toast.error("Não foi possível carregar os negócios do funil.");
+  }, [erroDoKanban]);
+
+  const filteredColumns = useMemo(
+    () => colunasOrdenadas.map(col => {
+      const dados = porColuna[col.id];
+      return { ...col, filteredIds: (dados?.leads ?? []).map(l => l.id), dados };
+    }),
+    [colunasOrdenadas, porColuna],
+  );
+
+  /**
+   * Os leads da página, por id.
+   *
+   * Serve de segunda fonte para o card: o `leads` do CRMContext vem primeiro
+   * porque reflete edição otimista na hora (trocar responsável, tag), enquanto
+   * este só muda quando a consulta volta. O contrário deixaria uma edição
+   * parecer que não pegou.
+   *
+   * Hoje o CRMContext ainda carrega a base inteira e este mapa quase nunca é
+   * usado. Ele existe para o negócio que o servidor conhece e a memória não --
+   * criado por outra pessoa depois desta aba abrir, e, quando a carga inicial
+   * encolher, para todos.
+   */
+  const leadsDaPagina = useMemo(() => {
+    const mapa: Record<string, Lead> = {};
+    Object.values(porColuna).forEach(d => d.leads.forEach(l => { mapa[l.id] = l; }));
+    return mapa;
+  }, [porColuna]);
+
+  const pegarLead = useCallback(
+    (id: string): Lead | undefined => leads[id] ?? leadsDaPagina[id],
+    [leads, leadsDaPagina],
   );
 
   const [automacaoAberta, setAutomacaoAberta] = useState(false);
@@ -511,13 +596,19 @@ export default function PipelinePage() {
   /**
    * Universo do popup: os negócios DESTE funil, sem o recorte da barra.
    *
-   * Não usa `leadsVisiveisNaPipeline` de propósito -- aquele já vem cortado por
+   * Não usa o que o board está mostrando, de propósito: aquilo vem cortado por
    * status, busca e filtro avançado, e herdar isso faria a automação mudar de
    * alcance conforme o que estava digitado atrás do popup. Mesma decisão do
    * /leads.
    *
    * A permissão continua valendo: `podeVer` não é filtro, é quem a pessoa tem
    * direito de enxergar.
+   *
+   * Continua lendo a memória, e não o servidor, porque precisa do funil INTEIRO
+   * -- as páginas carregadas dariam à automação um alcance menor do que a lista
+   * promete, e em silêncio. Isso depende do CRMContext ainda carregar todos os
+   * negócios; quando a carga inicial encolher, este universo passa a precisar
+   * da sua própria consulta.
    */
   const leadsDoFunil = useMemo(
     () => (activePipeline?.columns ?? [])
@@ -554,7 +645,7 @@ export default function PipelinePage() {
   useEffect(() => {
     if (!whatsappConnections.some(c => c.connected && c.active)) return;
     filteredColumns.forEach(col => {
-      col.filteredIds.slice(0, 40).forEach(id => fetchCardAvatar(leads[id]?.whatsapp));
+      col.filteredIds.slice(0, 40).forEach(id => fetchCardAvatar(pegarLead(id)?.whatsapp));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredColumns, whatsappConnections.length]);
@@ -1065,10 +1156,12 @@ export default function PipelinePage() {
                 className="flex gap-3 overflow-x-auto flex-1 px-4 pb-4 pt-[7px] bg-background"
               >
                 {filteredColumns.map((col, colIndex) => {
-                  const totalValue = col.filteredIds.reduce(
-                    (s, id) => s + (leads[id]?.value || 0),
-                    0
-                  );
+                  // Total e soma da COLUNA INTEIRA, vindos da contagem no banco.
+                  // Somar os cards carregados diria "R$ 12.400 · 50 negócios"
+                  // numa coluna de 121, e o número mudaria ao carregar mais.
+                  const totalValue   = col.dados?.valorTotal ?? 0;
+                  const totalNaEtapa = col.dados?.total ?? 0;
+                  const carregandoColuna = col.dados?.carregando ?? true;
                   return (
                     <Draggable draggableId={`col-${col.id}`} index={colIndex} key={col.id}>
                       {(colDrag) => (
@@ -1133,8 +1226,8 @@ export default function PipelinePage() {
                                         {col.title}
                                       </h3>
                                       <p className="mt-0.5 whitespace-nowrap" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                                        {formatCurrency(totalValue)} · {col.filteredIds.length}{" "}
-                                        {col.filteredIds.length === 1 ? "negócio" : "negócios"}
+                                        {formatCurrency(totalValue)} · {totalNaEtapa}{" "}
+                                        {totalNaEtapa === 1 ? "negócio" : "negócios"}
                                       </p>
                                     </div>
                                   </div>
@@ -1172,7 +1265,7 @@ export default function PipelinePage() {
 
                                 <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto min-h-0">
                                   {col.filteredIds.map((leadId, index) => {
-                                    const lead = leads[leadId];
+                                    const lead = pegarLead(leadId);
                                     if (!lead) return null;
                                     const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
                                     const respColor = memberColors[lead.responsible] || "#888888";
@@ -1521,8 +1614,23 @@ export default function PipelinePage() {
                                   {provided.placeholder}
                                   {col.filteredIds.length === 0 && (
                                     <div className="text-center py-8 text-muted-foreground text-xs">
-                                      Nenhum negócio nesta etapa
+                                      {carregandoColuna ? "Carregando…" : "Nenhum negócio nesta etapa"}
                                     </div>
+                                  )}
+                                  {/* Diz quanto falta antes de pedir, porque o
+                                      cabeçalho mostra o total da etapa e sem
+                                      isto a coluna pareceria estar escondendo
+                                      cards sem motivo. */}
+                                  {col.dados?.temMais && (
+                                    <button
+                                      onClick={() => carregarMais(col.id)}
+                                      disabled={carregandoColuna}
+                                      className="w-full rounded-lg border border-dashed border-card-border py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
+                                    >
+                                      {carregandoColuna
+                                        ? "Carregando…"
+                                        : `Carregar mais (${totalNaEtapa - col.filteredIds.length} restantes)`}
+                                    </button>
                                   )}
                                 </div>
                               </div>
