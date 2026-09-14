@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
 import { RodapeLegal } from "@/components/RodapeLegal";
 import { useIdioma } from "@/context/IdiomaContext";
 import { pixelTrack } from "@/lib/metaPixel";
+import { capturarAtribuicao } from "@/lib/atribuicao";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -24,6 +25,13 @@ export default function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Guarda UTM e fbclid que o site repassou no link do CTA. A empresa só nasce
+  // duas telas depois, em /company-register; sem guardar aqui, a origem se perde
+  // no caminho. Ver lib/atribuicao.ts.
+  useEffect(() => {
+    capturarAtribuicao();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

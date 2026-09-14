@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { registrarInicioDeTeste } from "@/lib/atribuicao";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -413,6 +414,17 @@ export default function CompanyRegisterPage() {
       toast.error(`Erro ao criar empresa: ${error.message}`);
       setSubmitting(false);
       return;
+    }
+
+    // É aqui que o teste começa de fato (`trial_ends_at` acabou de ser gravado),
+    // então é aqui o evento que a campanha otimiza. Não espera resposta: a Meta
+    // nunca pode atrasar a entrada no produto. Ver lib/atribuicao.ts.
+    if (newCompany?.id) {
+      registrarInicioDeTeste({
+        companyId: newCompany.id,
+        nome: fullName.trim(),
+        telefone: `${ddiPessoal} ${personalPhone}`.trim(),
+      });
     }
 
     // A "Follow-up" era criada aqui, com um `insert` solto. Passou para o
