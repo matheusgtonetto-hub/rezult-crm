@@ -22,7 +22,26 @@ export type ToolCtx = {
   companyId: string;
   ownerId: string;
   leadId: string;
+  /** Nome que assina anotações e mudanças de etapa no histórico do lead. */
+  autor?: string;
 };
+
+// Histórico do lead = tabela `activities`. É de lá que a aba Anotações e a
+// linha do tempo de etapas leem ("Movido de X para Y"). Falha aqui não desfaz
+// a ação principal: o registro é complemento, não a ação em si.
+async function registrarAtividade(ctx: ToolCtx, leadId: string, ownerId: string, type: "note" | "stage_change", description: string) {
+  const { error } = await ctx.db.from("activities").insert({
+    owner_id: ownerId,
+    company_id: ctx.companyId,
+    lead_id: leadId,
+    type,
+    description,
+    date: new Date().toISOString(),
+    user_name: ctx.autor ?? "Agente de IA",
+  });
+  if (error) console.error(`[agent-tools] falha ao registrar atividade ${type}:`, error.message);
+  return error;
+}
 
 export type ToolResult = { ok: boolean; data?: unknown; error?: string };
 
@@ -169,22 +188,18 @@ async function atualizarLeadContatos(ctx: ToolCtx, input: Record<string, unknown
   return { ok: true };
 }
 
-// ACRESCENTA à nota, nunca sobrescreve. A versão anterior gravava
-// `notes: input.notes` direto: bastava o agente anotar uma frase pra apagar
-// tudo que o vendedor tinha escrito no card, sem aviso e sem como recuperar.
-// A anotação do agente entra datada e separada, pra quem lê depois saber
-// quem escreveu o quê.
+// A anotação vira uma atividade do tipo "note", a mesma que o time cria na aba
+// Anotações do negócio. Antes ia para a coluna `leads.notes`, que nenhuma tela
+// mostra: o agente dizia "anotei" e o card continuava sem nada. Cada anotação é
+// uma linha própria, datada e assinada, então nada do que o time escreveu é
+// sobrescrito.
 async function atualizarLeadNotas(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
   const texto = String(input.notes ?? "").trim();
   if (!texto) return { ok: false, error: "notes é obrigatório" };
-  const { data: lead } = await ctx.db.from("leads").select("notes").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
-  const atual = String(lead?.notes ?? "").trim();
-  const carimbo = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const nova = `[${carimbo} · agente] ${texto}`;
-  const { error } = await ctx.db.from("leads")
-    .update({ notes: atual ? `${atual}\n\n${nova}` : nova })
-    .eq("id", id).eq("company_id", ctx.companyId);
+  const { data: lead } = await ctx.db.from("leads").select("owner_id").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
+  if (!lead) return { ok: false, error: "lead não encontrado" };
+  const error = await registrarAtividade(ctx, id, (lead.owner_id as string) || ctx.ownerId, "note", texto);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -395,10 +410,24 @@ async function moverNegocioEstagio(ctx: ToolCtx, input: Record<string, unknown>)
   const etapa = await resolverEtapa(ctx, pipelineId, input.column_id ?? input.etapa);
   if ("erro" in etapa) return { ok: false, error: `etapa: ${etapa.erro}` };
 
+  const { data: atual } = await ctx.db.from("leads").select("column_id, owner_id").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
+  if (atual?.column_id === etapa.id) return { ok: true, data: { etapa: etapa.nome, observacao: "o negócio já estava nesta etapa" } };
+
+  // stage_entered_at e a linha "Movido de X para Y" são o que a tela usa para o
+  // tempo na etapa e para o histórico. Sem eles, o card mudava de etapa mas
+  // continuava contando os dias da etapa anterior, sem rastro de quem moveu.
   const { error } = await ctx.db.from("leads")
-    .update({ column_id: etapa.id, pipeline_id: pipelineId })
+    .update({ column_id: etapa.id, pipeline_id: pipelineId, stage_entered_at: new Date().toISOString() })
     .eq("id", id).eq("company_id", ctx.companyId);
   if (error) return { ok: false, error: error.message };
+
+  const { data: origem } = atual?.column_id
+    ? await ctx.db.from("pipeline_columns").select("title").eq("id", atual.column_id).maybeSingle()
+    : { data: null };
+  await registrarAtividade(
+    ctx, id, (atual?.owner_id as string) || ctx.ownerId, "stage_change",
+    origem?.title ? `Movido de "${origem.title}" para "${etapa.nome}".` : `Movido para "${etapa.nome}".`,
+  );
   return { ok: true, data: { etapa: etapa.nome } };
 }
 

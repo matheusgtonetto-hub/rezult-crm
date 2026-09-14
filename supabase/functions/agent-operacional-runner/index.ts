@@ -84,11 +84,11 @@ Você recebe a conversa com o contato. As mensagens marcadas [NOVA] ainda não f
 
 O que fazer, quando a conversa trouxer o fato:
 1. Anotação: com atualizar_lead_notas, registre um resumo curto do que foi novo e relevante para a venda (interesse, necessidade, objeção, o que foi combinado, próximo passo com data se houver). No máximo uma anotação por vez, em até 3 frases. Não repita o que já está nas notas atuais. Saudação, "ok", figurinha ou conversa sem conteúdo não geram anotação.
-2. Dados do contato: nome, e-mail, empresa e endereço quando o próprio contato informar (atualizar_lead_info, atualizar_lead_contatos, atualizar_lead_endereco).
+2. Dados do contato: nome, e-mail, empresa e endereço quando o próprio contato informar (atualizar_lead_info, atualizar_lead_contatos, atualizar_lead_endereco). O nome do lead é o nome da pessoa, e a empresa vai no campo empresa. Atualize o nome quando o contato disser como se chama e o nome atual estiver vazio, for um número de telefone, for igual ao nome da empresa ou for genérico (como "Novo contato"). Nunca troque um nome mais completo por um mais curto.
 3. Campos adicionais: preencha os campos da lista cuja resposta apareceu com clareza (definir_campo_adicional_lead). Não troque um valor já preenchido por um menos específico.
 4. Etapa do funil: mova (mover_negocio_estagio) só quando a conversa mostrar avanço claro que corresponda ao nome de uma etapa. Não volte etapa sem motivo explícito. Nunca marque ganho ou perdido: isso é decidido pelo pagamento confirmado ou pelo time.
 5. Tags: aplique ou remova só tags da lista, quando o nome da tag descrever claramente algo dito na conversa.
-6. Produto e valor: associe produto ou atualize o valor só quando forem citados explicitamente.
+6. Produto e valor: associe o produto só quando ele for citado na conversa. Ao associar, pode usar como valor do negócio o preço do produto na lista de produtos. Fora isso, atualize o valor só quando um valor for citado explicitamente.
 7. Lead inexistente: se ainda não existe lead e a conversa tem interesse comercial, crie com criar_lead_da_conversa e depois registre o resto. Conversa pessoal, fornecedor, spam ou suporte de quem já é cliente não vira lead.
 
 Regras:
@@ -130,6 +130,28 @@ type Dispatch = (nome: string, input: Record<string, unknown>) => Promise<ToolRe
 type Uso = { entrada: number; saida: number };
 
 const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+const NOMES_GENERICOS = ["novo contato", "novo lead", "novo negocio", "sem nome", "contato", "lead", "cliente"];
+
+/**
+ * Se o nome do lead pode ser trocado pelo nome que a pessoa informou.
+ *
+ * O nome do lead é o nome da PESSOA; a empresa tem campo próprio, que o card
+ * mostra logo abaixo. Então vale corrigir quando o nome atual não é um nome de
+ * pessoa: vazio, telefone, igual à empresa (caso real: "Grupo MGT" no lugar de
+ * "Matheus") ou genérico. E vale completar ("Matheus" para "Matheus Tonetto").
+ * O que nunca acontece é encurtar ou trocar um nome de pessoa por outro.
+ */
+function podeTrocarNome(atual: string, novo: string, empresa: string): boolean {
+  const a = norm(atual);
+  const n = norm(novo);
+  if (!n || a === n) return false;
+  if (!a) return true;
+  if (!/[a-z]/.test(a) && somenteDigitos(atual).length >= 8) return true;
+  if (norm(empresa) && a === norm(empresa)) return true;
+  if (NOMES_GENERICOS.some((g) => a === g || a.startsWith(`${g} `) || a.startsWith(`${g}(`))) return true;
+  return n.length > a.length && n.startsWith(a);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -264,7 +286,19 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
     if ((nome === "adicionar_tag_lead" || nome === "remover_tag_lead") && ehProtegida(input.tag)) {
       return { ok: false, error: "essa tag é controlada pelas automações e pelo time; não mexa nela" };
     }
-    return executeRegistryTool({ db, companyId: fila.company_id, ownerId, leadId }, nome, input);
+    // Nome: só troca nos casos de podeTrocarNome. Fora deles o nome sai do
+    // pedido e o resto da atualização segue.
+    if (nome === "atualizar_lead_info" && input.name !== undefined) {
+      const empresaDoLead = String(input.company ?? lead?.company ?? "");
+      if (!podeTrocarNome(String(lead?.name ?? ""), String(input.name ?? ""), empresaDoLead)) {
+        delete input.name;
+        const sobrou = ["email", "whatsapp", "company", "value", "priority", "origin"].some((k) => input[k] !== undefined);
+        if (!sobrou) {
+          return { ok: false, error: "o nome atual do lead fica como está: só muda quando está vazio, é telefone, é igual à empresa, é genérico ou quando o novo nome completa o atual" };
+        }
+      }
+    }
+    return executeRegistryTool({ db, companyId: fila.company_id, ownerId, leadId, autor: "Agente Operacional" }, nome, input);
   };
 
   const ferramentas = [
