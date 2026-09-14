@@ -275,10 +275,12 @@ async function retrieveKbContext(
   // custa uma chamada de embedding paga na OpenAI, por mensagem, por lead:
   // sem esta checagem a maioria dos agentes pagaria por uma busca que só pode
   // voltar vazia. A consulta abaixo é indexada e local.
+  // Documentos do agente OU da empresa: agent_id nulo é a base da empresa, que
+  // vale para todos os agentes.
   const { data: temDocumento } = await db
     .from("agent_knowledge_documents")
     .select("id")
-    .eq("agent_id", agentId)
+    .or(`agent_id.eq.${agentId},agent_id.is.null`)
     .eq("company_id", companyId)
     .eq("enabled", true)
     .eq("status", "ready")
@@ -313,8 +315,8 @@ async function retrieveKbContext(
     }
     const embData = await embRes.json();
     const queryEmbedding = embData.data[0].embedding;
-    const { data: chunks, error } = await db.rpc("match_agent_knowledge_chunks", {
-      query_embedding: queryEmbedding, match_agent_id: agentId, match_count: 5,
+    const { data: chunks, error } = await db.rpc("match_knowledge_chunks", {
+      query_embedding: queryEmbedding, p_agent_id: agentId, p_company_id: companyId, match_count: 5,
     });
     if (error || !chunks?.length) return "";
     // Agrupa por KB e prefixa com nome+descrição uma vez só -- a descrição
@@ -1544,6 +1546,51 @@ async function linhasDoAgente(
 // aprovaria um agente na tela e receberia outro em produção -- o mesmo risco
 // que já se evita no follow-up e no lembrete de reunião, que também só
 // acrescentam contexto a este bloco.
+// ─── Base da empresa ────────────────────────────────────────────────────────
+// Preenchida uma vez pela empresa (topo de /agentes) e lida por todos os agentes
+// que conversam. Os campos são curtos e entram inteiros no prompt; os arquivos
+// da empresa entram pela busca, em retrieveKbContext.
+const CAMPOS_DA_BASE: { chave: string; titulo: string }[] = [
+  { chave: "sobre_empresa",        titulo: "Sobre a empresa" },
+  { chave: "publico",              titulo: "Para quem a empresa vende" },
+  { chave: "oferta",               titulo: "O que a empresa vende" },
+  { chave: "condicoes",            titulo: "Preço, pagamento e condições" },
+  { chave: "objecoes",             titulo: "Objeções comuns e como responder" },
+  { chave: "perguntas_frequentes", titulo: "Perguntas frequentes" },
+  { chave: "horario_contato",      titulo: "Horário e canais de atendimento" },
+  { chave: "links",                titulo: "Links úteis" },
+];
+
+async function carregarBaseDaEmpresa(db: ReturnType<typeof createClient>, companyId: string): Promise<string> {
+  const [{ data: base }, { data: produtos }] = await Promise.all([
+    db.from("company_knowledge_base").select("*").eq("company_id", companyId).maybeSingle(),
+    // Produtos com descrição e preço. `listar_produtos` sozinho só devolve nome e
+    // valor, e só para agente com a ferramenta marcada.
+    db.from("products").select("name, default_value, descricao").eq("company_id", companyId).order("name").limit(40),
+  ]);
+
+  const blocos: string[] = [];
+  for (const campo of CAMPOS_DA_BASE) {
+    // deno-lint-ignore no-explicit-any
+    const texto = String((base as any)?.[campo.chave] ?? "").trim();
+    if (texto) blocos.push(`## ${campo.titulo}\n${texto}`);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const itens = ((produtos ?? []) as any[]).map((p) => {
+    const valor = Number(p.default_value);
+    const preco = valor > 0 ? ` (R$ ${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})` : "";
+    const descricao = String(p.descricao ?? "").trim();
+    return `- ${p.name}${preco}${descricao ? `: ${descricao}` : ""}`;
+  });
+  if (itens.length) blocos.push(`## Produtos e serviços cadastrados\n${itens.join("\n")}`);
+
+  if (!blocos.length) return "";
+  // "INSTRUÇÕES DA EMPRESA" de propósito: é o nome que o DYNAMIC_BASE_INTRO e a
+  // SDS_METHODOLOGY já usam para dizer de onde o agente pode tirar fatos.
+  return `INSTRUÇÕES DA EMPRESA (base da empresa, preenchida pela própria empresa e válida para todos os agentes. Se as instruções específicas deste agente disserem algo diferente, siga as deste agente):\n\n${blocos.join("\n\n")}`;
+}
+
 async function montarExecucaoDoAgente(
   db: ReturnType<typeof createClient>,
   p: {
@@ -1612,6 +1659,10 @@ async function montarExecucaoDoAgente(
     if (estadoQualificacao) system = `${system}\n\n${estadoQualificacao}`;
     tools = buildDynamicTools(objectives, enabledTools, qualFields);
   }
+
+  // Base da empresa vale para TODO agente (legado e dinâmico).
+  const baseDaEmpresa = await carregarBaseDaEmpresa(db, companyId);
+  if (baseDaEmpresa) system = `${system}\n\n${baseDaEmpresa}`;
 
   // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
   // o modelo agenda em datas inventadas. Fica antes do resto do prompt pra

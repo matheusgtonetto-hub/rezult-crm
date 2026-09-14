@@ -2306,10 +2306,14 @@ function TagsSection() {
 function ProdutosSection() {
   const { products, addProduct, updateProduct, deleteProduct } = useCRM();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; name: string; sku: string; defaultValue: number } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; sku: string; defaultValue: number; descricao?: string; linkVenda?: string } | null>(null);
   const [name, setName]   = useState("");
   const [sku, setSku]     = useState("");
   const [price, setPrice] = useState("");
+  // Descrição e link de venda são lidos pelos agentes de IA: a descrição para
+  // explicar o produto ao lead, o link para o Closer enviar o link cadastrado.
+  const [descricao, setDescricao] = useState("");
+  const [linkVenda, setLinkVenda] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
@@ -2318,15 +2322,17 @@ function ProdutosSection() {
 
   function openNew() {
     setEditing(null);
-    setName(""); setSku(""); setPrice("");
+    setName(""); setSku(""); setPrice(""); setDescricao(""); setLinkVenda("");
     setModalOpen(true);
   }
 
-  function openEdit(p: { id: string; name: string; sku: string; defaultValue: number }) {
+  function openEdit(p: { id: string; name: string; sku: string; defaultValue: number; descricao?: string; linkVenda?: string }) {
     setEditing(p);
     setName(p.name);
     setSku(p.sku);
     setPrice(p.defaultValue > 0 ? formatCurrency(p.defaultValue) : "");
+    setDescricao(p.descricao ?? "");
+    setLinkVenda(p.linkVenda ?? "");
     setModalOpen(true);
   }
 
@@ -2355,11 +2361,14 @@ function ProdutosSection() {
     if (!sku.trim())   { toast.error("Identificador (SKU) é obrigatório."); return; }
     const defaultValue = parsePriceToNumber(price);
     setSaving(true);
+    const link = linkVenda.trim();
+    if (link && !/^https?:\/\//i.test(link)) { setSaving(false); toast.error("O link de venda precisa começar com http:// ou https://"); return; }
+    const extras = { descricao: descricao.trim(), linkVenda: link };
     if (editing) {
-      await updateProduct(editing.id, { name: name.trim(), sku: sku.trim(), defaultValue });
+      await updateProduct(editing.id, { name: name.trim(), sku: sku.trim(), defaultValue, ...extras });
       toast.success("Produto atualizado!");
     } else {
-      await addProduct({ name: name.trim(), sku: sku.trim(), defaultValue });
+      await addProduct({ name: name.trim(), sku: sku.trim(), defaultValue, ...extras });
       toast.success("Produto criado!");
     }
     setSaving(false);
@@ -2468,6 +2477,28 @@ function ProdutosSection() {
                 inputMode="numeric"
                 className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Descrição</label>
+              <textarea
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                placeholder="Ex: Acompanhamento mensal com uma reunião por semana e suporte pelo WhatsApp."
+                rows={3}
+                className="w-full rounded-md border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Os agentes de IA usam para explicar o produto ao lead.</p>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Link de venda</label>
+              <Input
+                value={linkVenda}
+                onChange={e => setLinkVenda(e.target.value)}
+                placeholder="https://"
+                inputMode="url"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Página de pagamento ou checkout. O agente envia exatamente este link.</p>
             </div>
           </div>
           <DialogFooter className="gap-2">

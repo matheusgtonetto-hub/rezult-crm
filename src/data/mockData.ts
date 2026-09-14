@@ -172,6 +172,10 @@ export interface Product {
   name: string;
   sku: string;
   defaultValue: number;
+  /** O que é o produto, em uma ou duas frases. Os agentes usam para explicar ao lead. */
+  descricao?: string;
+  /** Link de venda cadastrado. O agente Closer envia este link, nunca um escrito por ele. */
+  linkVenda?: string;
   created_at?: string;
 }
 

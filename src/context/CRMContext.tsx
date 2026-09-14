@@ -756,6 +756,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         name: p.name as string,
         sku: (p.sku as string) ?? "",
         defaultValue: Number(p.default_value ?? 0),
+        descricao: (p.descricao as string) ?? "",
+        linkVenda: (p.link_venda as string) ?? "",
         created_at: p.created_at as string | undefined,
       })));
       setLossReasons(dbLossReasons.map(r => ({
@@ -1714,7 +1716,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (!user || !company) return;
     const { data: row, error } = await supabase
       .from("products")
-      .insert({ owner_id: company.owner_id, company_id: company.id, name: data.name, sku: data.sku, default_value: data.defaultValue })
+      .insert({
+        owner_id: company.owner_id, company_id: company.id, name: data.name, sku: data.sku, default_value: data.defaultValue,
+        descricao: data.descricao ?? "", link_venda: data.linkVenda ?? "",
+      })
       .select()
       .single();
     if (error || !row) { toast.error("Erro ao criar produto."); return; }
@@ -1724,6 +1729,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       name: data.name,
       sku: data.sku,
       defaultValue: data.defaultValue,
+      descricao: data.descricao ?? "",
+      linkVenda: data.linkVenda ?? "",
       created_at: r.created_at as string | undefined,
     }]);
   }, [user, company]);
@@ -1733,6 +1740,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (data.name !== undefined) dbData.name = data.name;
     if (data.sku !== undefined) dbData.sku = data.sku;
     if (data.defaultValue !== undefined) dbData.default_value = data.defaultValue;
+    if (data.descricao !== undefined) dbData.descricao = data.descricao;
+    if (data.linkVenda !== undefined) dbData.link_venda = data.linkVenda;
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
     const { error } = await supabase.from("products").update(dbData).eq("id", id);
     if (error) console.error("updateProduct error:", error.message);
