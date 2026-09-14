@@ -236,6 +236,49 @@ const DEFAULT_AVATAR = "bot";
 const TIPO_OPERACIONAL = "OPERACIONAL";
 const TAG_IGNORAR_OPERACIONAL = "Operacional: ignorar";
 
+/**
+ * Modelos prontos do "Novo agente".
+ *
+ * Nascem configurados: objetivo, ferramentas, comportamento e modelo de IA. A
+ * pessoa só escolhe nome e tag (e, no SDR, os vendedores). O papel de cada um é
+ * metodologia fixa no agent-sds-qualify, ligada por `behavior_config.modelo`; o
+ * que é da empresa vem da Base da empresa.
+ *
+ * A passagem do Atendente para o SDR é uma automação, criada quando os dois
+ * existem (garantirPassagemAtendenteSdr): o Atendente marca "Interesse
+ * comercial" e a automação troca a tag dele pela do SDR.
+ */
+type ModeloDeAgente = "atendente" | "sdr" | "personalizado";
+const TAG_INTERESSE_COMERCIAL = "Interesse comercial";
+const NOME_AUTOMACAO_PASSAGEM = "Passagem do Atendente para o SDR";
+const MODELOS_DE_AGENTE: Record<"atendente" | "sdr", {
+  nome: string; resumo: string; descricao: string; avatar: string; tagSugerida: string;
+  objetivos: string[]; ferramentas: string[]; comportamento: Partial<BehaviorConfig>;
+}> = {
+  atendente: {
+    nome: "Atendente",
+    resumo: "Responde quem chega e tira dúvidas",
+    descricao: "Responde quem chega, tira dúvidas com a base da empresa e identifica interesse de compra.",
+    avatar: "headphones",
+    tagSugerida: "Agente: Atendente",
+    objetivos: ["atendimento"],
+    ferramentas: ["adicionar_tag_lead"],
+    // 24h: o primeiro contato não pode esperar o horário comercial.
+    comportamento: { horario_atendimento_ativo: false, saudacao_automatica: true },
+  },
+  sdr: {
+    nome: "SDR",
+    resumo: "Qualifica e agenda a reunião",
+    descricao: "Qualifica quem demonstrou interesse e agenda a reunião com o seu time.",
+    avatar: "target",
+    tagSugerida: "Agente: SDR",
+    objetivos: ["qualificar", "agendar"],
+    ferramentas: [],
+    // Lembrete ligado: em agendamento o prejuízo está no não comparecimento.
+    comportamento: { lembrete_reuniao_ativo: true },
+  },
+};
+
 function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
   return (
     <div className="bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow border border-[#128A68]/40">
@@ -603,7 +646,7 @@ const STATUS_BADGE: Record<KnowledgeDoc["status"], { bg: string; fg: string; lab
 export default function AgentesPage() {
   const { company } = useCompany();
   const { user } = useAuth();
-  const { customFieldGroups } = useCRM();
+  const { customFieldGroups, addTag: criarTagNoCrm } = useCRM();
   const navigate = useNavigate();
   const { id: urlId } = useParams<{ id: string }>();
   const companyId = company?.id;
@@ -656,6 +699,27 @@ export default function AgentesPage() {
   const [sairAberto, setSairAberto] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftAvatar, setDraftAvatar] = useState(DEFAULT_AVATAR);
+  const [draftModelo, setDraftModelo] = useState<ModeloDeAgente>("atendente");
+
+  // Escolher um modelo preenche nome, ícone e uma tag sugerida. A tag sugerida
+  // só entra se nenhum agente já a usa: cada tag ativa um único agente.
+  function escolherModelo(modelo: ModeloDeAgente) {
+    setDraftModelo(modelo);
+    if (modelo === "personalizado") {
+      setDraftName(""); setDraftAvatar(DEFAULT_AVATAR); setDraftActivationTag(null);
+      return;
+    }
+    const m = MODELOS_DE_AGENTE[modelo];
+    setDraftName(m.nome);
+    setDraftAvatar(m.avatar);
+    setDraftActivationTag(tagsOcupadasPorAgente[m.tagSugerida] ? null : m.tagSugerida);
+  }
+
+  useEffect(() => {
+    if (openDialog) escolherModelo(draftModelo);
+    // Só na abertura do diálogo: reagir a draftModelo desfaria o que a pessoa editou.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDialog]);
   const [freeTab, setFreeTab] = useState("perfil");
   const [wizardMode, setWizardMode] = useState(false);
   const [wizardStepIndex, setWizardStepIndex] = useState(0);
@@ -951,8 +1015,123 @@ export default function AgentesPage() {
     return () => { cancelado = true; };
   }, [selectedId, companyId, members]);
 
+  /** Garante que a tag existe no banco e devolve o id. Automação trabalha com id. */
+  async function garantirTag(nome: string, descricao: string, cor: string): Promise<string | null> {
+    if (!companyId) return null;
+    const buscar = () => supabase.from("tags").select("id").eq("company_id", companyId).eq("name", nome).limit(1);
+    const { data: existente } = await buscar();
+    if (existente?.[0]?.id) return existente[0].id as string;
+    await criarTagNoCrm(nome, descricao, cor);
+    const { data: criada } = await buscar();
+    return (criada?.[0]?.id as string | undefined) ?? null;
+  }
+
+  /**
+   * Automação que passa a conversa do Atendente para o SDR.
+   *
+   * Criada uma vez, quando os dois modelos existem. Gatilho: a tag "Interesse
+   * comercial" entra no lead. Ações: tira a tag do Atendente e a de interesse, e
+   * põe a do SDR. Fica ativa e editável em Automações, como qualquer outra.
+   */
+  async function garantirPassagemAtendenteSdr(lista: Agent[]) {
+    if (!companyId || !company) return;
+    const modeloDe = (a: Agent) => (a.behavior_config as unknown as { modelo?: string } | null)?.modelo;
+    const atendente = lista.find((a) => modeloDe(a) === "atendente" && a.activation_tag);
+    const sdr = lista.find((a) => modeloDe(a) === "sdr" && a.activation_tag);
+    if (!atendente || !sdr) return;
+
+    const { data: jaExiste } = await supabase.from("automations").select("id").eq("company_id", companyId).eq("name", NOME_AUTOMACAO_PASSAGEM).limit(1);
+    if (jaExiste?.length) return;
+
+    const interesseId = await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", "#D97706");
+    const { data: tagsDosAgentes } = await supabase.from("tags").select("id, name").eq("company_id", companyId)
+      .in("name", [atendente.activation_tag as string, sdr.activation_tag as string]);
+    const idDe = (nome: string) => ((tagsDosAgentes ?? []) as { id: string; name: string }[]).find((t) => t.name === nome)?.id;
+    const atendenteTagId = idDe(atendente.activation_tag as string);
+    const sdrTagId = idDe(sdr.activation_tag as string);
+    if (!interesseId || !atendenteTagId || !sdrTagId) {
+      toast.error("Não foi possível criar a passagem do Atendente para o SDR: falta alguma das tags.");
+      return;
+    }
+
+    const gatilho = { label: "Tag adicionada ao lead", triggerId: "tag_adicionada", categoryId: "leads", configData: { tags: interesseId }, description: "Quando uma tag é adicionada ao lead" };
+    const flow = {
+      trigger: gatilho,
+      nodes: [
+        { id: "n1", type: "start", label: "Início", x: 20, y: 250, trigger: gatilho, parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+        {
+          id: "passagem", type: "acoes", label: "Ações", x: 360, y: 250, parentIds: ["n1"], errorParentIds: [], timeoutParentIds: [],
+          actionItems: [
+            { id: "remover", label: "Remover tags", actionId: "remover_tags", categoryId: "leads", description: "Remova uma ou mais tags ao lead", config: { tags: `${atendenteTagId},${interesseId}` } },
+            { id: "adicionar", label: "Adicionar tags", actionId: "adicionar_tags", categoryId: "leads", description: "Adicione uma ou mais tags ao lead", config: { tags: sdrTagId } },
+          ],
+        },
+      ],
+    };
+    const { error } = await supabase.from("automations").insert({
+      owner_id: company.owner_id, company_id: companyId, name: NOME_AUTOMACAO_PASSAGEM,
+      description: `Quando o ${atendente.name} marca "${TAG_INTERESSE_COMERCIAL}", o negócio passa para o ${sdr.name}.`,
+      group_name: "Agentes de IA", active: true, flow,
+    });
+    if (error) { toast.error(`Erro ao criar a automação de passagem: ${error.message}`); return; }
+    toast.success("Automação de passagem do Atendente para o SDR criada e ativa.");
+  }
+
+  async function criarAgenteDoModelo(chave: "atendente" | "sdr") {
+    if (!companyId || !user?.id) return;
+    const m = MODELOS_DE_AGENTE[chave];
+    if (!draftActivationTag) { toast.error("Escolha a tag que vai ativar este agente"); return; }
+    // A tag de ativação precisa existir no banco: a automação de passagem usa o id.
+    await garantirTag(draftActivationTag, "Ativa o agente neste negócio. Remover a tag devolve a conversa para atendimento humano.", "#6D28D9");
+    if (chave === "atendente") {
+      await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", "#D97706");
+    }
+
+    const { data, error } = await supabase
+      .from("agents")
+      .insert({
+        company_id: companyId,
+        owner_id: user.id,
+        type: "SDS",
+        name: draftName.trim() || m.nome,
+        description: m.descricao,
+        avatar: draftAvatar,
+        activation_tag: draftActivationTag,
+        active: false,
+        draft: false,
+        model: "gpt-5.6-terra",
+        objectives: m.objetivos,
+        enabled_tools: m.ferramentas,
+        behavior_config: { ...BEHAVIOR_DEFAULTS, ...m.comportamento, modelo: chave },
+      })
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
+      .single();
+    if (error || !data) {
+      toast.error(error?.code === "23505"
+        ? `A tag "${draftActivationTag}" já ativa outro agente. Escolha outra.`
+        : "Erro ao criar agente");
+      return;
+    }
+    const lista = [...agents, data as Agent];
+    setAgents(lista);
+    setOpenDialog(false);
+    await garantirPassagemAtendenteSdr(lista);
+
+    if (chave === "sdr") {
+      // O SDR agenda com vendedores de verdade: sem eles não há com quem marcar.
+      setSelectedId(data.id);
+      setWizardMode(false);
+      setFreeTab("closers");
+      setView("detail");
+      toast.success("SDR criado. Escolha os vendedores que recebem as reuniões.");
+    } else {
+      toast.success("Atendente criado. Ligue quando a base da empresa estiver preenchida.");
+    }
+  }
+
   async function createAgent() {
     if (!companyId || !user?.id) return;
+    if (draftModelo !== "personalizado") { await criarAgenteDoModelo(draftModelo); return; }
     if (!draftName.trim()) { toast.error("Informe o nome do agente"); return; }
     if (!draftActivationTag) { toast.error("Escolha a tag que vai ativar este agente"); return; }
     // Tipo não é mais escolhido na criação — só "SDS" existe hoje, e a troca
@@ -3692,9 +3871,34 @@ export default function AgentesPage() {
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Novo agente</DialogTitle>
-            <DialogDescription>Crie um novo agente para organizar seus itens.</DialogDescription>
+            <DialogDescription>
+              {draftModelo === "personalizado"
+                ? "Monte um agente do zero, passo a passo."
+                : "Já vem configurado. Ele usa a base da empresa, então preencha a base antes de ligar."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Modelo do agente">
+              {([
+                { chave: "atendente" as const, titulo: "Atendente", resumo: MODELOS_DE_AGENTE.atendente.resumo },
+                { chave: "sdr" as const, titulo: "SDR", resumo: MODELOS_DE_AGENTE.sdr.resumo },
+                { chave: "personalizado" as const, titulo: "Personalizado", resumo: "Configure tudo você mesmo" },
+              ]).map((op) => (
+                <button
+                  key={op.chave}
+                  type="button"
+                  role="radio"
+                  aria-checked={draftModelo === op.chave}
+                  onClick={() => escolherModelo(op.chave)}
+                  className={`text-left rounded-lg border p-2.5 transition-colors cursor-pointer ${
+                    draftModelo === op.chave ? "border-[#128A68] bg-[#E1F5EE]" : "border-[#EEEEEE] hover:bg-[#F5F5F5]"
+                  }`}
+                >
+                  <span className="block text-[13px] font-semibold text-[#111111]">{op.titulo}</span>
+                  <span className="block text-[11px] text-[#767676] leading-snug mt-0.5">{op.resumo}</span>
+                </button>
+              ))}
+            </div>
             <div>
               <Label className="text-[12px]">Nome do agente</Label>
               <Input
@@ -3741,7 +3945,9 @@ export default function AgentesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={createAgent} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Criar e continuar</Button>
+            <Button onClick={createAgent} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+              {draftModelo === "personalizado" ? "Criar e continuar" : "Criar agente"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

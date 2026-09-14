@@ -5,6 +5,7 @@ import {
   BookOpen, Bot,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { respostasPreenchidas } from "@/components/BaseDaEmpresa";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -407,6 +408,28 @@ export default function InicioPage() {
   }, [company?.id]);
 
   /**
+   * Quantas perguntas da Base da empresa têm resposta.
+   *
+   * A missão conta como feita a partir de metade (4 de 8): é o bastante para os
+   * agentes que conversam saberem o que a empresa faz, vende e cobra. Exigir as
+   * oito deixaria a missão pendurada por causa de "links" ou "objeções".
+   */
+  const [respostasDaBase, setRespostasDaBase] = useState(0);
+  useEffect(() => {
+    if (!company?.id) return;
+    let cancelado = false;
+    supabase
+      .from("company_knowledge_base")
+      .select("*")
+      .eq("company_id", company.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelado) setRespostasDaBase(respostasPreenchidas(data as Record<string, string> | null));
+      });
+    return () => { cancelado = true; };
+  }, [company?.id]);
+
+  /**
    * A trilha, na ordem em que os passos fazem sentido.
    *
    * A ORDEM é conteúdo: o número que aparece em cada cartão sai da posição no
@@ -423,7 +446,8 @@ export default function InicioPage() {
    *
    * Os pesos somam 100 de propósito. Como o progresso é mostrado em porcentagem,
    * cada peso passa a ser diretamente quanto aquele passo adianta o anel -- o
-   * WhatsApp e o agente valem 25% cada, a foto de perfil vale 5%. Se um passo
+   * WhatsApp e o Operacional valem 20% cada, a base da empresa 15%, a foto de
+   * perfil 5%. Se um passo
    * entrar ou sair, os pesos precisam ser redistribuídos para continuar
    * fechando em 100.
    */
@@ -435,7 +459,7 @@ export default function InicioPage() {
         titulo: "Conecte seu WhatsApp",
         descricao: "É por onde as conversas chegam. Sem a linha ligada, o Multiatendimento fica vazio.",
         para: "/configuracoes/conexoes",
-        pontos: 25,
+        pontos: 20,
         feita: whatsappConnections.some(c => c.connected),
         Icone: MessageCircle,
         acao: { rotulo: "Conectar WhatsApp", para: "/configuracoes/conexoes?abrir=nova-conexao" },
@@ -445,10 +469,22 @@ export default function InicioPage() {
         titulo: "Ligue o Agente Operacional",
         descricao: "Ele já vem pronto. Cadastre a chave da OpenAI e ligue: a partir daí ele anota, preenche campos e move os negócios sozinho, a partir das conversas.",
         para: "/agentes",
-        pontos: 25,
+        pontos: 20,
         feita: agenteLigado,
         Icone: Bot,
         acao: { rotulo: "Ligar agente", para: "/agentes" },
+      },
+      {
+        // Depois do Operacional: é o que os agentes que conversam (Atendente,
+        // SDR, Closer) precisam para responder sobre o negócio.
+        id: "base-da-empresa",
+        titulo: "Preencha a base da empresa",
+        descricao: "Conte o que a empresa faz, vende e cobra. É com isso que o Atendente e o SDR respondem os leads.",
+        para: "/agentes",
+        pontos: 15,
+        feita: respostasDaBase >= 4,
+        Icone: BookOpen,
+        acao: { rotulo: "Preencher base", para: "/agentes" },
       },
       {
         id: "pipeline",
@@ -492,7 +528,7 @@ export default function InicioPage() {
         titulo: "Adicione o logo da sua empresa",
         descricao: "Ele aparece aqui no painel e é o que deixa o CRM com a cara do seu negócio.",
         para: "/configuracoes/empresa",
-        pontos: 10,
+        pontos: 5,
         feita: !!company?.logo_url,
         Icone: Building2,
         acao: { rotulo: "Adicionar logo", arquivo: "logo" },
@@ -518,7 +554,7 @@ export default function InicioPage() {
         acao: { rotulo: "Nova tag", para: "/configuracoes/tags?abrir=nova-tag" },
       },
     ];
-  }, [leads, pipelines, teamMembers, crmTags, company, whatsappConnections, profile, agenteLigado]);
+  }, [leads, pipelines, teamMembers, crmTags, company, whatsappConnections, profile, agenteLigado, respostasDaBase]);
 
   const feitas = missoes.filter(m => m.feita);
   const pontos = feitas.reduce((s, m) => s + m.pontos, 0);

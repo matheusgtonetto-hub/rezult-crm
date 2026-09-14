@@ -386,6 +386,9 @@ type BehaviorConfig = {
   // Aba Perfil -- instruções específicas por objetivo (chave = id do
   // objetivo), somam ao prompt fixo daquele objetivo.
   objective_instructions?: Record<string, string>;
+  // Agente criado a partir de um modelo pronto (Novo agente > Atendente ou SDR).
+  // Liga a metodologia fixa do papel, em montarExecucaoDoAgente.
+  modelo?: "atendente" | "sdr";
   // Aba Closers -- configurações globais de agendamento do agente (não por
   // closer individual, ao contrário de agent_closer_availability).
   fuso_horario?: string; // IANA, ex. "America/Sao_Paulo" -- default se vazio
@@ -1550,6 +1553,31 @@ async function linhasDoAgente(
 // Preenchida uma vez pela empresa (topo de /agentes) e lida por todos os agentes
 // que conversam. Os campos são curtos e entram inteiros no prompt; os arquivos
 // da empresa entram pela busca, em retrieveKbContext.
+// ─── Papéis dos modelos prontos ─────────────────────────────────────────────
+// Metodologia do Rezult para os agentes criados a partir dos modelos, somada ao
+// prompt dos objetivos. Não é editável pela empresa: o que é da empresa vai na
+// base da empresa e nas instruções do agente.
+//
+// A passagem do Atendente para o SDR é feita por automação (decisão do dono:
+// tag é trabalho das automações). O Atendente só marca a intenção com a tag
+// abaixo; a automação "Passagem do Atendente para o SDR", criada junto com os
+// modelos, troca a tag do Atendente pela do SDR.
+const TAG_INTERESSE_COMERCIAL = "Interesse comercial";
+
+const METODOLOGIA_ATENDENTE = `
+SEU PAPEL NESTA EMPRESA: ATENDENTE.
+Você é o primeiro contato. Responde quem chega, tira dúvidas usando as instruções da empresa e entende o que a pessoa procura.
+- Você não faz qualificação, não agenda reunião e não negocia preço, desconto ou condição especial.
+- Quando a pessoa mostrar interesse claro em comprar ou contratar (pergunta como fechar, pede proposta para fechar, quer falar com o comercial, pergunta como pagar para comprar), chame adicionar_tag_lead com a tag "${TAG_INTERESSE_COMERCIAL}" na MESMA resposta em que responde a mensagem dela. Depois, siga a conversa normalmente, perguntando o que ela precisa.
+- Curiosidade ou dúvida geral sobre preço, sem intenção de compra, não recebe essa tag.
+- Cliente atual pedindo suporte, ou assunto que não é venda: responda o que souber pelas instruções da empresa e use escalar_humano quando não souber.
+`.trim();
+
+const METODOLOGIA_SDR = `
+SEU PAPEL NESTA EMPRESA: SDR.
+Os contatos que chegam até você já demonstraram interesse de compra. Não recomece a apresentação da empresa nem repita o que já foi respondido na conversa: continue de onde ela parou, colete o que falta dos campos de qualificação e ofereça o horário da reunião.
+`.trim();
+
 const CAMPOS_DA_BASE: { chave: string; titulo: string }[] = [
   { chave: "sobre_empresa",        titulo: "Sobre a empresa" },
   { chave: "publico",              titulo: "Para quem a empresa vende" },
@@ -1663,6 +1691,19 @@ async function montarExecucaoDoAgente(
   // Base da empresa vale para TODO agente (legado e dinâmico).
   const baseDaEmpresa = await carregarBaseDaEmpresa(db, companyId);
   if (baseDaEmpresa) system = `${system}\n\n${baseDaEmpresa}`;
+
+  // Papel fixo dos modelos prontos. O Atendente precisa de adicionar_tag_lead
+  // para marcar a intenção de compra; entra mesmo que alguém a desmarque na aba
+  // Ferramentas, porque sem ela a passagem para o SDR nunca acontece.
+  if (!legacy && behaviorConfig.modelo === "atendente") {
+    system = `${system}\n\n${METODOLOGIA_ATENDENTE}`;
+    if (!tools.some((t) => t.name === "adicionar_tag_lead")) {
+      const schema = TOOL_SCHEMAS.find((s) => s.id === "adicionar_tag_lead");
+      if (schema) tools.push({ name: schema.name, description: schema.description, input_schema: schema.input_schema });
+    }
+  } else if (!legacy && behaviorConfig.modelo === "sdr") {
+    system = `${system}\n\n${METODOLOGIA_SDR}`;
+  }
 
   // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
   // o modelo agenda em datas inventadas. Fica antes do resto do prompt pra
