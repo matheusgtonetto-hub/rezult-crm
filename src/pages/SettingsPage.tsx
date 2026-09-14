@@ -5044,12 +5044,12 @@ interface AiProviderKey {
 // Provedores de IA suportados (modelo BYOK — o cliente usa a chave da própria conta).
 const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string; agentUsage: string }[] = [
   {
-    id: "openai", name: "OpenAI (ChatGPT)", placeholder: "sk-...", help: "platform.openai.com/api-keys",
-    agentUsage: "Nos Agentes de IA: gera os embeddings da Base de Conhecimento — no upload de documentos e em toda busca semântica durante as conversas. Chamada de embedding é bem mais barata que uma resposta de LLM, então o gasto tende a ser baixo (cresce com o volume de ingest e de conversas que consultam a Base). Exceção: se você escolher um modelo GPT na aba \"Modelo\" de algum agente, essa chave passa a responder as conversas também — aí o gasto sobe.",
+    id: "openai", name: "OpenAI (ChatGPT) · recomendada", placeholder: "sk-...", help: "platform.openai.com/api-keys",
+    agentUsage: "A única chave de que você precisa. Nos Agentes de IA ela responde as conversas (o modelo padrão é GPT) e lê os materiais da Base de Conhecimento. Também atende a sugestão de resposta do Multiatendimento e o Bloco de IA das Automações. O gasto cresce com o volume de conversas atendidas.",
   },
   {
-    id: "anthropic", name: "Anthropic (Claude)", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys",
-    agentUsage: "Nos Agentes de IA: é a chave de atuação — responde as conversas de verdade (modelo padrão dos agentes é Claude). Tende a gastar bem mais que a OpenAI, escalando direto com o volume de atendimento.",
+    id: "anthropic", name: "Anthropic (Claude) · opcional", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys",
+    agentUsage: "Opcional. Só é usada se você escolher um modelo Claude na aba \"Modelo\" de algum agente, ou se não tiver a chave da OpenAI cadastrada. Mesmo com Claude, a Base de Conhecimento continua precisando da chave da OpenAI.",
   },
   {
     id: "google", name: "Google (Gemini)", placeholder: "AIza...", help: "aistudio.google.com/app/apikey",

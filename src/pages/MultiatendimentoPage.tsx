@@ -2233,7 +2233,7 @@ export default function MultiatendimentoPage() {
       const result = (data ?? {}) as { suggestion?: string; error?: string };
       if (error || result.error) {
         if (result.error === "not_configured") {
-          toast.error("Cadastre a chave da Anthropic em Configurações → Chaves de API para usar a sugestão com IA.");
+          toast.error("Cadastre a chave da OpenAI em Configurações → Chaves de API para usar a sugestão com IA.");
         } else {
           toast.error("Não foi possível gerar a sugestão. Tente novamente.");
         }

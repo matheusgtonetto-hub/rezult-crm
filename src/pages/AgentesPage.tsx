@@ -221,6 +221,60 @@ function DescricaoAgenteBadge() {
 }
 
 const DEFAULT_AVATAR = "bot";
+
+/**
+ * O agente que já nasce pronto em toda empresa.
+ *
+ * Não conversa com ninguém: lê as conversas e mantém o CRM fiel ao que
+ * aconteceu nelas (anotação, campos, etapa, tags). Por isso não tem objetivo,
+ * tag de ativação, base de conhecimento nem passo a passo -- a metodologia é
+ * fixa, no agent-operacional-runner, e a pessoa só liga. Ele é criado pelo
+ * banco (`criar_agente_operacional`), um por empresa, e não se duplica nem se
+ * exclui pela tela.
+ */
+const TIPO_OPERACIONAL = "OPERACIONAL";
+const TAG_IGNORAR_OPERACIONAL = "Operacional: ignorar";
+
+function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
+  return (
+    <div className="bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow border border-[#128A68]/40">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
+          <Zap size={18} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p title={agente.name} className="text-[14px] font-bold text-[#111111] truncate">{agente.name}</p>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#128A68]">
+            <Check size={11} /> Pronto para usar
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Circle size={8} fill={agente.active ? "#128A68" : "#CCCCCC"} color={agente.active ? "#128A68" : "#CCCCCC"} />
+          <span className={`text-[11px] font-semibold ${agente.active ? "text-[#128A68]" : "text-[#767676]"}`}>{agente.active ? "Ativo" : "Inativo"}</span>
+        </div>
+      </div>
+
+      <p className="text-[12px] text-[#444444] leading-relaxed mb-3">
+        Lê todas as conversas e mantém o CRM atualizado sozinho: anota o que foi combinado, preenche campos, move a etapa
+        e aplica tags. Não conversa com seus leads.
+      </p>
+      <p className="text-[11px] text-[#767676] leading-relaxed mb-3">
+        Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.
+      </p>
+
+      {!temChave && !agente.active && (
+        <p className="text-[11px] text-[#991B1B] bg-[#FEE2E2] rounded-md px-2.5 py-1.5 mb-3">
+          Cadastre a chave da OpenAI em Configurações → Chaves de API para ligar.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
+        <span className="text-[12px] text-[#767676]">{agente.active ? "Trabalhando nas conversas" : "Desligado"}</span>
+        <Switch checked={agente.active} onCheckedChange={onToggle} />
+      </div>
+    </div>
+  );
+}
 function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: number }) {
   const Icon = AGENT_AVATARS[avatar ?? ""] ?? Bot;
   return <Icon size={size} />;
@@ -423,22 +477,26 @@ function computeComplexityFactors(s: ComplexitySignals): ComplexityFactor[] {
   return factors;
 }
 
+// Recomenda sempre GPT. O cliente precisa de UMA chave só, a da OpenAI: ela
+// responde as conversas e também gera os embeddings da Base de Conhecimento,
+// que a Anthropic não oferece. Recomendar Claude aqui empurrava a pessoa para
+// uma segunda chave sem necessidade. Claude continua na lista para quem quiser.
 function recommendModel(signals: ComplexitySignals): { modelId: string; reason: string } {
   const factors = computeComplexityFactors(signals);
   const score = factors.reduce((sum, f) => sum + f.weight, 0);
 
   if (factors.length === 0) {
-    return { modelId: "claude-haiku-4-5-20251001", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
+    return { modelId: "gpt-5.6-luna", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
   }
 
   const top = [...factors].sort((a, b) => b.weight - a.weight).slice(0, 2).map((f) => f.label).join("; ");
   if (score >= 5) {
-    return { modelId: "claude-opus-5", reason: `Configuração com bastante complexidade (${top}) -- vale a capacidade extra do Opus.` };
+    return { modelId: "gpt-5.6-sol", reason: `Configuração com bastante complexidade (${top}) -- vale a capacidade extra do Sol.` };
   }
   if (score <= 1) {
-    return { modelId: "claude-haiku-4-5-20251001", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
+    return { modelId: "gpt-5.6-luna", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
   }
-  return { modelId: "claude-sonnet-5", reason: `Equilíbrio entre inteligência e custo, considerando ${top}.` };
+  return { modelId: "gpt-5.6-terra", reason: `Equilíbrio entre inteligência e custo, considerando ${top}.` };
 }
 
 function findModelLabel(modelId: string): string {
@@ -651,6 +709,12 @@ export default function AgentesPage() {
   const [agentCalendarEnabledSaved, setAgentCalendarEnabledSaved] = useState<Record<string, boolean>>({});
 
   const selected = agents.find((a) => a.id === selectedId) ?? null;
+
+  // O Operacional não tem tela de edição (metodologia fixa, só liga e desliga).
+  // Um endereço /agentes/:id apontando para ele volta para a grade.
+  useEffect(() => {
+    if (view === "detail" && selected?.type === TIPO_OPERACIONAL) setView("grid");
+  }, [view, selected]);
 
   const loadAgents = useCallback(async () => {
     if (!companyId) return;
@@ -1312,13 +1376,16 @@ export default function AgentesPage() {
         );
         return;
       }
-      if (agent.objectives.length === 0) {
+      // O Operacional não conversa: não tem objetivo nem tag de ativação, e lê
+      // todas as conversas. Só a chave do provedor (checada acima) é exigida.
+      const operacional = agent.type === TIPO_OPERACIONAL;
+      if (!operacional && agent.objectives.length === 0) {
         toast.error("Marque pelo menos 1 objetivo na aba Perfil antes de ativar o agente.");
         return;
       }
       // Sem tag de ativação o agente nunca é acionado por negócio nenhum:
       // ficaria ligado na tela e mudo na prática, sem nada explicando.
-      if (!agent.activation_tag) {
+      if (!operacional && !agent.activation_tag) {
         toast.error("Defina a tag de ativação deste agente antes de ativar.");
         return;
       }
@@ -1784,7 +1851,15 @@ export default function AgentesPage() {
             </div>
           ) : (
             <div className="grid gap-4 overflow-y-auto" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-              {agents.map((a) => (
+              {/* O Operacional vem primeiro: é o que já está pronto para ligar. */}
+              {[...agents].sort((x, y) => Number(y.type === TIPO_OPERACIONAL) - Number(x.type === TIPO_OPERACIONAL)).map((a) => a.type === TIPO_OPERACIONAL ? (
+                <CardAgenteOperacional
+                  key={a.id}
+                  agente={a}
+                  temChave={(a.model ?? "").startsWith("gpt-") ? hasOpenaiKey : hasAnthropicKey}
+                  onToggle={(v) => void toggleActive(a, v)}
+                />
+              ) : (
                 <div key={a.id} className={`bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow ${a.draft ? "border border-dashed border-[#CCCCCC]" : "border border-[#EEEEEE]"}`}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
@@ -3316,9 +3391,10 @@ export default function AgentesPage() {
                         <Select value={modelDraft} onValueChange={changeAgentModel}>
                           <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                           <SelectContent>
+                            {/* OpenAI primeiro: é a chave única recomendada (ver recommendModel). */}
                             <SelectGroup>
-                              <SelectLabel>Anthropic (Claude)</SelectLabel>
-                              {IA_MODELS.anthropic.map((m) => (
+                              <SelectLabel>OpenAI (ChatGPT)</SelectLabel>
+                              {IA_MODELS.openai.map((m) => (
                                 <SelectItem key={m.id} value={m.id}>
                                   <span className="flex items-center gap-2">
                                     <span>{m.label}</span>
@@ -3346,8 +3422,8 @@ export default function AgentesPage() {
                               ))}
                             </SelectGroup>
                             <SelectGroup>
-                              <SelectLabel>OpenAI (ChatGPT)</SelectLabel>
-                              {IA_MODELS.openai.map((m) => (
+                              <SelectLabel>Anthropic (Claude)</SelectLabel>
+                              {IA_MODELS.anthropic.map((m) => (
                                 <SelectItem key={m.id} value={m.id}>
                                   <span className="flex items-center gap-2">
                                     <span>{m.label}</span>

@@ -99,6 +99,10 @@ verify_jwt = false
 [functions.agent-business-hours-runner]
 verify_jwt = false
 
+# Chamado pelo cron com o segredo interno (automation_secret), sem JWT.
+[functions.agent-operacional-runner]
+verify_jwt = false
+
 # Chamada por DOIS caminhos: o app (JWT do usuário) e o agent-sds-qualify
 # (server-to-server, só com x-internal-secret). A própria função aceita os
 # dois e valida cada um -- ver isInternalCall em index.ts. Com verify_jwt =

@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Building2, MessageCircle, CircleUserRound, Users, Tag, Trophy, Filter, Check, ArrowRight, Sparkles, Play,
-  BookOpen,
+  BookOpen, Bot,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -378,6 +379,34 @@ export default function InicioPage() {
   const [aba, setAba] = useState<"passos" | "tutoriais" | null>(null);
 
   /**
+   * Se o Agente Operacional desta empresa já foi ligado.
+   *
+   * É ele, e não um agente qualquer, porque é o único que nasce pronto: basta a
+   * chave da OpenAI e ligar, sem material nenhum da empresa. Os agentes que
+   * conversam dependem de a pessoa alimentá-los, e isso vem depois.
+   *
+   * Agentes não vivem em nenhum contexto global (só a tela de Agentes os
+   * carrega), por isso a consulta mora aqui. Conta como feito quem está ligado
+   * agora OU já acumulou tempo ligado: `activated_at` volta a nulo quando o
+   * agente é desligado, e a missão não deve desmarcar só porque a pessoa pausou.
+   */
+  const [agenteLigado, setAgenteLigado] = useState(false);
+  useEffect(() => {
+    if (!company?.id) return;
+    let cancelado = false;
+    supabase
+      .from("agents")
+      .select("active, active_seconds_total")
+      .eq("company_id", company.id)
+      .eq("type", "OPERACIONAL")
+      .then(({ data }) => {
+        if (cancelado) return;
+        setAgenteLigado((data ?? []).some(a => a.active || (a.active_seconds_total ?? 0) > 0));
+      });
+    return () => { cancelado = true; };
+  }, [company?.id]);
+
+  /**
    * A trilha, na ordem em que os passos fazem sentido.
    *
    * A ORDEM é conteúdo: o número que aparece em cada cartão sai da posição no
@@ -386,17 +415,78 @@ export default function InicioPage() {
    * ajustar o resto.
    *
    * A sequência vai do que traz cliente para o que arruma a casa: primeiro o
-   * canal por onde eles falam, depois quem atende, depois onde os negócios
-   * andam, e só no fim os ajustes de identidade.
+   * canal por onde eles falam, depois o agente que atende nesse canal, depois
+   * onde os negócios andam, depois o time, e só no fim os ajustes de
+   * identidade. WhatsApp e agente vêm antes de tudo porque são a promessa do
+   * anúncio: o Rezult atende sozinho. Logo e foto no começo faziam o "Próximo
+   * passo" apontar para o passo de menor valor.
    *
    * Os pesos somam 100 de propósito. Como o progresso é mostrado em porcentagem,
    * cada peso passa a ser diretamente quanto aquele passo adianta o anel -- o
-   * WhatsApp vale 25%, a foto de perfil vale 10%. Se um passo entrar ou sair, os
-   * pesos precisam ser redistribuídos para continuar fechando em 100.
+   * WhatsApp e o agente valem 25% cada, a foto de perfil vale 5%. Se um passo
+   * entrar ou sair, os pesos precisam ser redistribuídos para continuar
+   * fechando em 100.
    */
   const missoes = useMemo<Missao[]>(() => {
     const listaLeads = Object.values(leads);
     return [
+      {
+        id: "whatsapp",
+        titulo: "Conecte seu WhatsApp",
+        descricao: "É por onde as conversas chegam. Sem a linha ligada, o Multiatendimento fica vazio.",
+        para: "/configuracoes/conexoes",
+        pontos: 25,
+        feita: whatsappConnections.some(c => c.connected),
+        Icone: MessageCircle,
+        acao: { rotulo: "Conectar WhatsApp", para: "/configuracoes/conexoes?abrir=nova-conexao" },
+      },
+      {
+        id: "agente-operacional",
+        titulo: "Ligue o Agente Operacional",
+        descricao: "Ele já vem pronto. Cadastre a chave da OpenAI e ligue: a partir daí ele anota, preenche campos e move os negócios sozinho, a partir das conversas.",
+        para: "/agentes",
+        pontos: 25,
+        feita: agenteLigado,
+        Icone: Bot,
+        acao: { rotulo: "Ligar agente", para: "/agentes" },
+      },
+      {
+        id: "pipeline",
+        titulo: "Adicione um novo pipeline",
+        descricao: "Monte as etapas que refletem o seu processo de vendas, do primeiro contato ao fechamento.",
+        para: "/pipeline",
+        pontos: 10,
+        feita: pipelines.some(p => p.name.trim() !== PIPELINE_PADRAO),
+        Icone: Filter,
+        acao: { rotulo: "Nova pipeline", para: "/pipeline?abrir=nova-pipeline" },
+      },
+      {
+        id: "negocio",
+        titulo: "Crie seu primeiro Lead/Negócio",
+        descricao: "Cadastre um contato, abra o negócio dele e acompanhe a passagem por cada etapa.",
+        para: "/pipeline",
+        pontos: 10,
+        // Lead COM pipeline, e não lead qualquer: o passo é sobre o negócio
+        // entrar no funil, que é onde ele passa a ser acompanhado.
+        feita: listaLeads.some(l => !!l.pipelineId),
+        Icone: Sparkles,
+        // Abre o cadastro do contato; ao salvar, ele mesmo encadeia o "Criar
+        // negócio". É por isso que o passo fala em Lead E Negócio: são duas
+        // janelas em sequência, não duas tarefas.
+        acao: { rotulo: "Novo lead", para: "/leads?abrir=novo-lead" },
+      },
+      {
+        id: "equipe",
+        titulo: "Convide membros do seu time",
+        descricao: "Chame quem atende com você e defina o que cada pessoa enxerga e pode fazer.",
+        para: "/configuracoes/usuarios",
+        pontos: 10,
+        // `> 1` porque o dono já conta como membro: com `> 0` a missão nasceria
+        // concluída e ninguém convidaria ninguém.
+        feita: teamMembers.length > 1,
+        Icone: Users,
+        acao: { rotulo: "Convidar membros", para: "/configuracoes/usuarios?abrir=convite" },
+      },
       {
         id: "logo-empresa",
         titulo: "Adicione o logo da sua empresa",
@@ -412,70 +502,23 @@ export default function InicioPage() {
         titulo: "Adicione sua imagem de perfil",
         descricao: "Sua foto identifica quem respondeu cada conversa e quem cuida de cada negócio.",
         para: "/configuracoes/perfil",
-        pontos: 10,
+        pontos: 5,
         feita: !!profile?.avatar_url,
         Icone: CircleUserRound,
         acao: { rotulo: "Adicionar foto", arquivo: "foto" },
-      },
-      {
-        id: "whatsapp",
-        titulo: "Conecte seu WhatsApp",
-        descricao: "É por onde as conversas chegam. Sem a linha ligada, o Multiatendimento fica vazio.",
-        para: "/configuracoes/conexoes",
-        pontos: 25,
-        feita: whatsappConnections.some(c => c.connected),
-        Icone: MessageCircle,
-        acao: { rotulo: "Conectar WhatsApp", para: "/configuracoes/conexoes?abrir=nova-conexao" },
-      },
-      {
-        id: "equipe",
-        titulo: "Convide membros do seu time",
-        descricao: "Chame quem atende com você e defina o que cada pessoa enxerga e pode fazer.",
-        para: "/configuracoes/usuarios",
-        pontos: 15,
-        // `> 1` porque o dono já conta como membro: com `> 0` a missão nasceria
-        // concluída e ninguém convidaria ninguém.
-        feita: teamMembers.length > 1,
-        Icone: Users,
-        acao: { rotulo: "Convidar membros", para: "/configuracoes/usuarios?abrir=convite" },
-      },
-      {
-        id: "pipeline",
-        titulo: "Adicione um novo pipeline",
-        descricao: "Monte as etapas que refletem o seu processo de vendas, do primeiro contato ao fechamento.",
-        para: "/pipeline",
-        pontos: 15,
-        feita: pipelines.some(p => p.name.trim() !== PIPELINE_PADRAO),
-        Icone: Filter,
-        acao: { rotulo: "Nova pipeline", para: "/pipeline?abrir=nova-pipeline" },
-      },
-      {
-        id: "negocio",
-        titulo: "Crie seu primeiro Lead/Negócio",
-        descricao: "Cadastre um contato, abra o negócio dele e acompanhe a passagem por cada etapa.",
-        para: "/pipeline",
-        pontos: 15,
-        // Lead COM pipeline, e não lead qualquer: o passo é sobre o negócio
-        // entrar no funil, que é onde ele passa a ser acompanhado.
-        feita: listaLeads.some(l => !!l.pipelineId),
-        Icone: Sparkles,
-        // Abre o cadastro do contato; ao salvar, ele mesmo encadeia o "Criar
-        // negócio". É por isso que o passo fala em Lead E Negócio: são duas
-        // janelas em sequência, não duas tarefas.
-        acao: { rotulo: "Novo lead", para: "/leads?abrir=novo-lead" },
       },
       {
         id: "tags",
         titulo: "Adicione uma Tag",
         descricao: "Marque leads por origem, interesse ou situação para achar cada grupo depois.",
         para: "/configuracoes/tags",
-        pontos: 10,
+        pontos: 5,
         feita: crmTags.some(t => !TAGS_DO_SISTEMA.includes(t.name.trim())),
         Icone: Tag,
         acao: { rotulo: "Nova tag", para: "/configuracoes/tags?abrir=nova-tag" },
       },
     ];
-  }, [leads, pipelines, teamMembers, crmTags, company, whatsappConnections, profile]);
+  }, [leads, pipelines, teamMembers, crmTags, company, whatsappConnections, profile, agenteLigado]);
 
   const feitas = missoes.filter(m => m.feita);
   const pontos = feitas.reduce((s, m) => s + m.pontos, 0);

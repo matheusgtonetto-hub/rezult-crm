@@ -3,8 +3,13 @@ import { empresaBloqueada } from "../_shared/cobranca.ts";
 
 // Sugestão de resposta com IA para o Multiatendimento.
 // Lê o histórico recente da conversa + contexto do lead e gera a próxima
-// mensagem do atendente via Claude (Anthropic). A chave fica no servidor.
+// mensagem do atendente. A chave fica no servidor.
 // Autenticada pelo JWT do usuário logado (verify_jwt = false; validado aqui).
+//
+// OpenAI primeiro, Anthropic como alternativa. O cliente deve precisar de UMA
+// chave só, e a da OpenAI é a única que cobre o produto inteiro (agentes e
+// embeddings da Base de Conhecimento). Quem só cadastrou a Anthropic continua
+// funcionando como antes.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +24,9 @@ const json = (body: unknown, status = 200) =>
   });
 
 type InMsg = { from?: string; text?: string };
+
+const MODELO_OPENAI = "gpt-5.6-terra";
+const MODELO_ANTHROPIC = "claude-sonnet-5";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -43,24 +51,32 @@ Deno.serve(async (req) => {
     return json({ error: "billing_blocked" }, 402);
   }
 
-  // Chave da EMPRESA (BYOK), o mesmo padrão do agente. Antes esta função
-  // exigia um ANTHROPIC_API_KEY global do projeto, que nenhum cliente tem: o
-  // botão de sugestão nascia morto para todo mundo, respondendo "not_configured"
-  // com status 200. A variável de ambiente fica como último recurso, para
-  // ambiente de desenvolvimento.
-  let apiKey = "";
+  // Chave da EMPRESA (BYOK), o mesmo padrão do agente. As variáveis de ambiente
+  // ficam como último recurso, para ambiente de desenvolvimento.
+  const chaves: Record<string, string> = {};
   if (body.companyId) {
-    const { data: chave } = await db
+    const { data } = await db
       .from("ai_provider_keys")
-      .select("api_key")
+      .select("provider, api_key")
       .eq("company_id", body.companyId)
-      .eq("provider", "anthropic")
-      .eq("active", true)
-      .maybeSingle();
-    apiKey = (chave?.api_key as string) ?? "";
+      .in("provider", ["openai", "anthropic"])
+      .eq("active", true);
+    for (const row of (data ?? []) as { provider: string; api_key: string }[]) {
+      if (row.api_key) chaves[row.provider] = row.api_key;
+    }
   }
-  if (!apiKey) apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-  if (!apiKey) return json({ error: "not_configured" }, 200);
+  const openaiKey = chaves.openai || Deno.env.get("OPENAI_API_KEY") || "";
+  const anthropicKey = chaves.anthropic || Deno.env.get("ANTHROPIC_API_KEY") || "";
+  // A chave da própria empresa ganha da variável de ambiente, qualquer que seja
+  // o provedor: sem isso, um OPENAI_API_KEY de desenvolvimento passaria na frente
+  // da Anthropic que o cliente cadastrou.
+  const provedor: "openai" | "anthropic" | null =
+    chaves.openai ? "openai"
+    : chaves.anthropic ? "anthropic"
+    : openaiKey ? "openai"
+    : anthropicKey ? "anthropic"
+    : null;
+  if (!provedor) return json({ error: "not_configured" }, 200);
 
   const msgs = (body.messages ?? []).filter(m => (m.text ?? "").trim()).slice(-30);
   if (msgs.length === 0) return json({ error: "empty_conversation" }, 400);
@@ -81,7 +97,7 @@ Deno.serve(async (req) => {
     "Com base no histórico da conversa, escreva a PRÓXIMA mensagem do atendente: " +
     "natural, cordial, objetiva, em português brasileiro, adequada ao contexto e à etapa do funil. " +
     "Seja conciso (1 a 3 frases). Não invente informações que você não tem. " +
-    "Responda APENAS com o texto da mensagem a ser enviada — sem aspas, sem rótulos, sem comentários ou explicações.";
+    "Responda APENAS com o texto da mensagem a ser enviada, sem aspas, sem rótulos, sem comentários ou explicações.";
 
   const userContent =
     (contextLines ? `Contexto:\n${contextLines}\n\n` : "") +
@@ -89,33 +105,60 @@ Deno.serve(async (req) => {
     "Escreva a próxima mensagem do atendente.";
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 1024,
-        system,
-        messages: [{ role: "user", content: userContent }],
-      }),
-    });
+    let suggestion = "";
 
-    if (!res.ok) {
-      const detail = await res.text();
-      console.error("[ai-suggest-reply] Anthropic error:", res.status, detail);
-      return json({ error: "ai_request_failed", status: res.status }, 502);
+    if (provedor === "openai") {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+        // GPT-5.x é modelo de raciocínio: recusa temperature e usa
+        // max_completion_tokens. Raciocínio desligado, como no agente
+        // (agent-sds-qualify), porque aqui é uma frase curta e o tempo de
+        // resposta pesa mais que a deliberação.
+        body: JSON.stringify({
+          model: MODELO_OPENAI,
+          reasoning_effort: "none",
+          max_completion_tokens: 1024,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: userContent },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        console.error("[ai-suggest-reply] OpenAI error:", res.status, detail);
+        return json({ error: "ai_request_failed", status: res.status }, 502);
+      }
+      const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+      suggestion = (data.choices?.[0]?.message?.content ?? "").trim();
+    } else {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: MODELO_ANTHROPIC,
+          max_tokens: 1024,
+          system,
+          messages: [{ role: "user", content: userContent }],
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        console.error("[ai-suggest-reply] Anthropic error:", res.status, detail);
+        return json({ error: "ai_request_failed", status: res.status }, 502);
+      }
+      const data = await res.json() as { content?: { type: string; text?: string }[] };
+      suggestion = (data.content ?? [])
+        .filter(b => b.type === "text")
+        .map(b => b.text ?? "")
+        .join("")
+        .trim();
     }
-
-    const data = await res.json() as { content?: { type: string; text?: string }[] };
-    const suggestion = (data.content ?? [])
-      .filter(b => b.type === "text")
-      .map(b => b.text ?? "")
-      .join("")
-      .trim();
 
     if (!suggestion) return json({ error: "empty_suggestion" }, 502);
     return json({ suggestion }, 200);
