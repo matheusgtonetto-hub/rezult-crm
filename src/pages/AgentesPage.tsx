@@ -248,10 +248,11 @@ const TAG_IGNORAR_OPERACIONAL = "Operacional: ignorar";
  * existem (garantirPassagemAtendenteSdr): o Atendente marca "Interesse
  * comercial" e a automação troca a tag dele pela do SDR.
  */
-type ModeloDeAgente = "atendente" | "sdr" | "personalizado";
+type ModeloDeAgente = "atendente" | "sdr" | "closer" | "personalizado";
 const TAG_INTERESSE_COMERCIAL = "Interesse comercial";
 const NOME_AUTOMACAO_PASSAGEM = "Passagem do Atendente para o SDR";
-const MODELOS_DE_AGENTE: Record<"atendente" | "sdr", {
+const NOME_AUTOMACAO_VENDA = "Venda confirmada";
+const MODELOS_DE_AGENTE: Record<"atendente" | "sdr" | "closer", {
   nome: string; resumo: string; descricao: string; avatar: string; tagSugerida: string;
   objetivos: string[]; ferramentas: string[]; comportamento: Partial<BehaviorConfig>;
 }> = {
@@ -276,6 +277,25 @@ const MODELOS_DE_AGENTE: Record<"atendente" | "sdr", {
     ferramentas: [],
     // Lembrete ligado: em agendamento o prejuízo está no não comparecimento.
     comportamento: { lembrete_reuniao_ativo: true },
+  },
+  closer: {
+    nome: "Closer",
+    resumo: "Negocia e envia o link de pagamento",
+    descricao: "Conduz a negociação pelo WhatsApp, trata objeções e envia o link de venda cadastrado.",
+    avatar: "rocket",
+    tagSugerida: "Agente: Closer",
+    // Atendimento para ele responder dúvidas da negociação com a base da
+    // empresa. O envio do link é ferramenta fixa da metodologia, no
+    // agent-sds-qualify, e não depende desta lista.
+    objetivos: ["atendimento"],
+    ferramentas: ["mover_negocio_estagio", "adicionar_produto_negocio", "atualizar_total_negocio", "atualizar_lead_notas"],
+    // Follow-up ligado: proposta enviada e ninguém responde é o buraco clássico
+    // do fechamento. 12 horas, três tentativas.
+    comportamento: {
+      horario_atendimento_ativo: false,
+      followup_ativo: true, followup_max_tentativas: 3,
+      followup_intervalo_valor: 12, followup_intervalo_unidade: "horas",
+    },
   },
 };
 
@@ -1077,7 +1097,45 @@ export default function AgentesPage() {
     toast.success("Automação de passagem do Atendente para o SDR criada e ativa.");
   }
 
-  async function criarAgenteDoModelo(chave: "atendente" | "sdr") {
+  /**
+   * Automação "Venda confirmada", criada junto com o Closer.
+   *
+   * O Closer nunca dá o negócio como ganho pela conversa: quem confirma é o
+   * pagamento. Esta automação recebe o webhook da plataforma de pagamento,
+   * acha o lead por e-mail ou telefone, marca o negócio como ganho e tira a
+   * tag do Closer. O usuário só cola a URL na plataforma.
+   */
+  async function garantirAutomacaoDeVenda(closer: Agent) {
+    if (!companyId || !company || !closer.activation_tag) return;
+    const { data: jaExiste } = await supabase.from("automations").select("id").eq("company_id", companyId).eq("name", NOME_AUTOMACAO_VENDA).limit(1);
+    if (jaExiste?.length) return;
+
+    const { data: tagRows } = await supabase.from("tags").select("id").eq("company_id", companyId).eq("name", closer.activation_tag).limit(1);
+    const closerTagId = tagRows?.[0]?.id as string | undefined;
+    const gatilho = { label: "Requisição HTTP (Webhook)", triggerId: "http_webhook", categoryId: "http", configData: {}, description: "Quando uma requisição HTTP é recebida" };
+    const acoes: Record<string, unknown>[] = [
+      { id: "ganhar", label: "Ganhar negócio", actionId: "ganhar_negocio", categoryId: "negocios", description: "Marca o negócio como ganho" },
+    ];
+    if (closerTagId) {
+      acoes.push({ id: "tirar-closer", label: "Remover tags", actionId: "remover_tags", categoryId: "leads", description: "Remova uma ou mais tags ao lead", config: { tags: closerTagId } });
+    }
+    const flow = {
+      trigger: gatilho,
+      nodes: [
+        { id: "n1", type: "start", label: "Início", x: 20, y: 250, trigger: gatilho, parentIds: [], errorParentIds: [], timeoutParentIds: [] },
+        { id: "venda", type: "acoes", label: "Ações", x: 360, y: 250, parentIds: ["n1"], errorParentIds: [], timeoutParentIds: [], actionItems: acoes },
+      ],
+    };
+    const { data: criada, error } = await supabase.from("automations").insert({
+      owner_id: company.owner_id, company_id: companyId, name: NOME_AUTOMACAO_VENDA,
+      description: "Recebe a confirmação de pagamento da sua plataforma e marca o negócio como ganho.",
+      group_name: "Agentes de IA", active: true, flow,
+    }).select("id").single();
+    if (error || !criada) { toast.error(`Erro ao criar a automação de venda confirmada: ${error?.message ?? ""}`); return; }
+    toast.success(`Automação "${NOME_AUTOMACAO_VENDA}" criada. Em Automações, copie a URL do webhook e cole na sua plataforma de pagamento.`);
+  }
+
+  async function criarAgenteDoModelo(chave: "atendente" | "sdr" | "closer") {
     if (!companyId || !user?.id) return;
     const m = MODELOS_DE_AGENTE[chave];
     if (!draftActivationTag) { toast.error("Escolha a tag que vai ativar este agente"); return; }
@@ -1116,8 +1174,11 @@ export default function AgentesPage() {
     setAgents(lista);
     setOpenDialog(false);
     await garantirPassagemAtendenteSdr(lista);
+    if (chave === "closer") await garantirAutomacaoDeVenda(data as Agent);
 
-    if (chave === "sdr") {
+    if (chave === "closer") {
+      toast.success("Closer criado. Cadastre o link de venda dos produtos em Configurações > Produtos.");
+    } else if (chave === "sdr") {
       // O SDR agenda com vendedores de verdade: sem eles não há com quem marcar.
       setSelectedId(data.id);
       setWizardMode(false);
@@ -3878,10 +3939,11 @@ export default function AgentesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Modelo do agente">
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Modelo do agente">
               {([
                 { chave: "atendente" as const, titulo: "Atendente", resumo: MODELOS_DE_AGENTE.atendente.resumo },
                 { chave: "sdr" as const, titulo: "SDR", resumo: MODELOS_DE_AGENTE.sdr.resumo },
+                { chave: "closer" as const, titulo: "Closer", resumo: MODELOS_DE_AGENTE.closer.resumo },
                 { chave: "personalizado" as const, titulo: "Personalizado", resumo: "Configure tudo você mesmo" },
               ]).map((op) => (
                 <button

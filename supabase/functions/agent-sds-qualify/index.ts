@@ -388,7 +388,7 @@ type BehaviorConfig = {
   objective_instructions?: Record<string, string>;
   // Agente criado a partir de um modelo pronto (Novo agente > Atendente ou SDR).
   // Liga a metodologia fixa do papel, em montarExecucaoDoAgente.
-  modelo?: "atendente" | "sdr";
+  modelo?: "atendente" | "sdr" | "closer";
   // Aba Closers -- configurações globais de agendamento do agente (não por
   // closer individual, ao contrário de agent_closer_availability).
   fuso_horario?: string; // IANA, ex. "America/Sao_Paulo" -- default se vazio
@@ -1578,6 +1578,34 @@ SEU PAPEL NESTA EMPRESA: SDR.
 Os contatos que chegam até você já demonstraram interesse de compra. Não recomece a apresentação da empresa nem repita o que já foi respondido na conversa: continue de onde ela parou, colete o que falta dos campos de qualificação e ofereça o horário da reunião.
 `.trim();
 
+const METODOLOGIA_CLOSER = `
+SEU PAPEL NESTA EMPRESA: CLOSER.
+Você conduz a negociação até o fechamento, pelo WhatsApp. O contato já sabe o que a empresa faz: fale de decisão, não de apresentação.
+- Trate objeção com o que está nas instruções da empresa. Não invente desconto, prazo, garantia ou condição que não esteja escrita lá.
+- Para enviar o link de pagamento, use SEMPRE a ferramenta enviar_link_venda com o nome do produto. Ela envia o link cadastrado no catálogo. NUNCA escreva um link você mesmo, nem repita de memória um link de outra conversa.
+- Produto sem link cadastrado: não improvise. Diga que vai confirmar a forma de pagamento e use escalar_humano.
+- NUNCA dê o negócio como ganho pela conversa. "Já paguei", "acabei de fazer o pix" ou um comprovante enviado NÃO fecham a venda aqui: quem confirma é o pagamento na plataforma. Responda que assim que o pagamento cair a confirmação chega, e siga.
+- Desconto ou exceção fora da política da empresa: use escalar_humano em vez de negociar por conta própria.
+- Depois de enviar o link, acompanhe: se a pessoa sumir, retome uma vez com algo concreto da conversa, sem cobrar.
+`.trim();
+
+// Envia o link do produto cadastrado (products.link_venda). Existe como
+// ferramenta própria, e não como texto no prompt, por um motivo só: link
+// escrito pelo modelo é link inventado, e no fechamento isso vira dinheiro
+// perdido ou cobrança errada.
+const ENVIAR_LINK_VENDA_TOOL: AnthropicToolDef = {
+  name: "enviar_link_venda",
+  description: "Envia ao lead, pelo WhatsApp, o link de venda cadastrado de um produto do catálogo. Use isto para mandar link de pagamento: nunca escreva o link na mensagem.",
+  input_schema: {
+    type: "object",
+    properties: {
+      produto: { type: "string", description: "Nome do produto no catálogo. Pode ser o nome exato; se errar, a resposta traz as opções válidas." },
+      mensagem: { type: "string", description: "Uma frase curta que acompanha o link. Opcional." },
+    },
+    required: ["produto"],
+  },
+};
+
 const CAMPOS_DA_BASE: { chave: string; titulo: string }[] = [
   { chave: "sobre_empresa",        titulo: "Sobre a empresa" },
   { chave: "publico",              titulo: "Para quem a empresa vende" },
@@ -1703,6 +1731,9 @@ async function montarExecucaoDoAgente(
     }
   } else if (!legacy && behaviorConfig.modelo === "sdr") {
     system = `${system}\n\n${METODOLOGIA_SDR}`;
+  } else if (!legacy && behaviorConfig.modelo === "closer") {
+    system = `${system}\n\n${METODOLOGIA_CLOSER}`;
+    if (!tools.some((t) => t.name === ENVIAR_LINK_VENDA_TOOL.name)) tools.push(ENVIAR_LINK_VENDA_TOOL);
   }
 
   // Data/hora de agora entra em TODO agente (legado e dinâmico) -- sem isso
@@ -2753,6 +2784,37 @@ async function executeAgentTool(
     case "mover_pipeline": {
       await db.from("leads").update({ column_id: input.coluna_id }).eq("id", ctx.leadId).eq("company_id", ctx.companyId);
       return { ok: true };
+    }
+
+    // O link vem do catálogo, nunca do modelo. Resolve o produto pelo nome,
+    // exige link cadastrado e delega o envio ao enviar_mensagem, para a
+    // mensagem sair com o mesmo tom, divisão e assinatura das outras.
+    case "enviar_link_venda": {
+      const { data: produtos } = await db
+        .from("products")
+        .select("name, link_venda")
+        .eq("company_id", ctx.companyId);
+      const lista = ((produtos ?? []) as { name: string; link_venda: string | null }[]);
+      if (!lista.length) return { ok: false, error: "não há produto cadastrado no catálogo" };
+
+      const alvo = String(input.produto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+      const comparar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+      const produto = lista.find((p) => comparar(p.name) === alvo)
+        ?? lista.find((p) => comparar(p.name).includes(alvo) && alvo.length >= 3)
+        ?? (lista.length === 1 ? lista[0] : null);
+      if (!produto) {
+        return { ok: false, error: `produto "${input.produto}" não existe no catálogo. Opções: ${lista.map((p) => p.name).join(", ")}` };
+      }
+      const link = String(produto.link_venda ?? "").trim();
+      if (!link) {
+        return { ok: false, error: `o produto "${produto.name}" não tem link de venda cadastrado. Não invente um link: confirme a forma de pagamento com uma pessoa (escalar_humano).` };
+      }
+
+      const frase = String(input.mensagem ?? "").trim();
+      const texto = frase ? `${frase}\n${link}` : `Segue o link para concluir a contratação de ${produto.name}:\n${link}`;
+      const envio = await executeAgentTool(db, { name: "enviar_mensagem", input: { texto } }, ctx);
+      if (!envio.ok) return envio;
+      return { ok: true, data: { produto: produto.name, link } };
     }
 
     case "enviar_mensagem": {
