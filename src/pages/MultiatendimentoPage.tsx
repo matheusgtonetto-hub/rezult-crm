@@ -909,8 +909,6 @@ export default function MultiatendimentoPage() {
   const [cfgHorario, setCfgHorario]         = useState("");
   const [cfgTranscricao, setCfgTranscricao] = useState("desativado");
   const [cfgAssinatura, setCfgAssinatura]   = useState(false);
-  const [cfgMantAtend, setCfgMantAtend]     = useState(false);
-  const [cfgMantDept, setCfgMantDept]       = useState(false);
   // A cor vem junto do nome: é ela que pinta a etiqueta no card e o ponto do
   // seletor. Sem a cor, todo departamento vira a mesma etiqueta cinza e a
   // pessoa tem que LER cada uma para saber de quem é a conversa.
@@ -948,8 +946,6 @@ export default function MultiatendimentoPage() {
         setCfgHorario((st.work_schedule_id as string) ?? "");
         setCfgTranscricao((st.audio_transcription as string) ?? "desativado");
         setCfgAssinatura(!!st.signature_required);
-        setCfgMantAtend(!!st.keep_attendant);
-        setCfgMantDept(!!st.keep_department);
       }
     })();
     // `company?.id` entrou junto: a consulta de departamentos passou a filtrar
@@ -5746,26 +5742,27 @@ export default function MultiatendimentoPage() {
 
                       {/* Informações ao finalizar */}
                       <div style={{ background: "var(--neutral-50)", borderRadius: 12, padding: 14 }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CheckCircle2 size={15} color="#4285F4" /></div>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>Informações ao finalizar</div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                          {[
-                            { icon: <UserCheck size={13} color="var(--text-subtle)" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
-                            { icon: <Folder size={13} color="var(--text-subtle)" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
-                          ].map((row, i) => (
-                            <div key={i}>
-                              {i > 0 && <div style={{ height: 1, background: "var(--neutral-100)", margin: "8px 0" }} />}
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
-                                <MuToggle checked={row.val} onChange={() => { const nv = !row.val; row.set(nv); persistMuSettings({ [row.col]: nv }); }} />
-                              </div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>Ao reabrir uma conversa</div>
+                            {/*
+                              Aqui havia duas chaves, "Manter atendente na
+                              conversa" e "Manter departamento na conversa", que
+                              gravavam em `multiatendimento_settings` e NADA as
+                              lia -- ligar ou desligar não mudava coisa alguma.
+
+                              Viraram esta frase porque o comportamento passou a
+                              ser regra do produto, decidida pelo dono em
+                              22/09/2026: quem volta a falar volta para quem já
+                              o atendia. Uma chave que a pessoa liga e nada
+                              acontece é pior do que não ter a chave.
+                            */}
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.45 }}>
+                              Quando o cliente volta a falar depois de finalizada, a conversa reabre no
+                              mesmo departamento e com o mesmo responsável que tinha.
                             </div>
-                          ))}
+                          </div>
                         </div>
                       </div>
                     </div>

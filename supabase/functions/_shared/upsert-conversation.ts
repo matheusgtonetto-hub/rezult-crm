@@ -63,8 +63,28 @@ export async function upsertConversationForMessage(supabase: any, params: {
     .maybeSingle();
 
   if (existing?.id) {
+    /*
+     * Mensagem do CLIENTE reabre a conversa finalizada.
+     *
+     * Até aqui `finished` ficava como estava: o cliente voltava a falar, a
+     * conversa continuava marcada como finalizada e não aparecia em "Não
+     * lidas" nem em "Em aberto" -- só dentro de "Finalizadas", que ninguém
+     * abre procurando trabalho novo. A mensagem chegava e sumia da fila.
+     *
+     * Reabre ONDE PAROU (regra do dono, 22/09/2026): `department_id` e
+     * `assigned_to` não são tocados, então ela volta para o mesmo time e a
+     * mesma pessoa que a atendiam quando foi encerrada. Quem já falava com a
+     * Ana do Suporte volta a falar com a Ana do Suporte.
+     *
+     * Só vale para mensagem RECEBIDA. Nós mesmos mandando (uma automação de
+     * pós-venda, por exemplo) não reabre um atendimento que foi encerrado de
+     * propósito.
+     */
+    const patch: Record<string, unknown> = { preview, last_msg_at: nowIso, read };
+    if (!fromMe) patch.finished = false;
+
     await supabase.from("whatsapp_conversations")
-      .update({ preview, last_msg_at: nowIso, read })
+      .update(patch)
       .eq("id", existing.id);
     return existing.id as string;
   }
