@@ -12,6 +12,7 @@ import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
+import { ItensDoNegocio } from "@/components/ItensDoNegocio";
 import { useProfile } from "@/context/ProfileContext";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import { corDoNome } from "@/lib/nomeColorido";
@@ -474,7 +475,7 @@ export default function MultiatendimentoPage() {
   const tenantId = company?.owner_id ?? null;
   const navigate = useNavigate();
   const location = useLocation();
-  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products, customFieldGroups } = useCRM();
+  const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products, customFieldGroups, recalcularValorDoNegocio } = useCRM();
   const { can, isOwner: isCompanyOwner } = usePermissions();
   const isMuAdmin = isCompanyOwner || can("multiatendimento:admin");
   const { openedLeadIds } = useFloatingChat();
@@ -5287,28 +5288,29 @@ export default function MultiatendimentoPage() {
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: 8 }}>
-                    <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Produto</label>
-                    <Select
-                      value={effectiveLead?.productId || "none"}
-                      onValueChange={v => {
-                        if (!effectiveLead) return;
-                        const pid = v === "none" ? undefined : v;
-                        const prod = products.find(p => p.id === pid);
-                        updateLead(effectiveLead.id, { productId: pid, value: prod?.defaultValue ?? 0 });
-                      }}
-                    >
-                      <SelectTrigger className="h-8 rounded-md text-xs focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                        <SelectValue placeholder="Sem produto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem produto</SelectItem>
-                        {products.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/*
+                    Os produtos do negócio, pelo MESMO componente do card.
+                    ──────────────────────────────────────────────────────────
+                    Aqui havia um seletor próprio, de um produto só, com dois
+                    defeitos que corrigimos no card e que seguiam vivos nesta
+                    tela:
+
+                    1. escolher um produto gravava
+                       `value: prod.defaultValue ?? 0` -- ou seja, sobrescrevia
+                       o valor NEGOCIADO com o preço de tabela, e "Sem produto"
+                       zerava o negócio. É o defeito que o Geomar reportou.
+                    2. gravava só `product_id`, o campo espelho, sem criar item
+                       em `lead_products`: o produto escolhido aqui não entrava
+                       na lista do negócio nem na soma do valor.
+
+                    Com o componente compartilhado não há duas versões para
+                    manter alinhadas, que foi o pedido do dono.
+                  */}
+                  {effectiveLead && (
+                    <div style={{ marginBottom: 8 }}>
+                      <ItensDoNegocio leadId={effectiveLead.id} itens={effectiveLead.itens ?? []} />
+                    </div>
+                  )}
 
                   <div style={{ marginBottom: 8 }}>
                     <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Valor</label>
@@ -5316,6 +5318,22 @@ export default function MultiatendimentoPage() {
                       value={effectiveLead?.value ?? 0}
                       onSave={v => effectiveLead && updateLead(effectiveLead.id, { value: v })}
                     />
+                    {/* O mesmo aviso do card. Digitar um valor trava o total
+                        (o `updateLead` marca `value_is_manual`), e sem dizer
+                        isso a pessoa adicionaria um produto esperando a soma
+                        mudar -- e ela não muda. */}
+                    {effectiveLead?.valorManual && (
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                        Valor ajustado à mão ·{" "}
+                        <button
+                          type="button"
+                          onClick={() => recalcularValorDoNegocio(effectiveLead.id)}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--accent-800)", fontWeight: 600, fontSize: 12 }}
+                        >
+                          Voltar a somar os produtos
+                        </button>
+                      </p>
+                    )}
                   </div>
 
                   <div
