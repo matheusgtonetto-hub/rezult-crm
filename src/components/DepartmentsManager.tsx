@@ -41,19 +41,32 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
   const [editing, setEditing] = useState<Department | null>(null);
   const [deleting, setDeleting] = useState<Department | null>(null);
 
+  /*
+   * A lista é da EMPRESA aberta, e não do dono.
+   *
+   * O filtro era `owner_id`, e o insert logo abaixo sempre gravou os dois
+   * campos -- então quem tem duas empresas via as duas listas somadas, e
+   * poderia vincular um número ao departamento da outra empresa. Há um caso
+   * desses na base. Os horários de trabalho seguem por dono porque é assim que
+   * a tabela deles é escrita; trocar isso é outra conversa, com migração de
+   * dado junto.
+   */
   const load = useCallback(async () => {
     if (!ownerId) return;
     setLoading(true);
     const [d, s] = await Promise.all([
-      supabase.from("departments").select("*").eq("owner_id", ownerId)
-        .order("position", { ascending: true }).order("created_at", { ascending: true }),
+      company?.id
+        ? supabase.from("departments").select("*").eq("company_id", company.id)
+            .order("position", { ascending: true }).order("created_at", { ascending: true })
+        : supabase.from("departments").select("*").eq("owner_id", ownerId)
+            .order("position", { ascending: true }).order("created_at", { ascending: true }),
       supabase.from("work_schedules").select("id, name").eq("owner_id", ownerId)
         .order("created_at", { ascending: true }),
     ]);
     if (!d.error && d.data) setDepts(d.data as Department[]);
     if (!s.error && s.data) setSchedules(s.data as ScheduleLite[]);
     setLoading(false);
-  }, [ownerId]);
+  }, [ownerId, company?.id]);
 
   useEffect(() => { load(); }, [load]);
 

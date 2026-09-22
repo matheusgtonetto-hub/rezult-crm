@@ -3364,6 +3364,33 @@ function ConexoesSection() {
   const { profile } = useProfile();
   const { company, whatsappConnections, addWhatsAppConnection, updateWhatsAppConnection, removeWhatsAppConnection } = useCompany();
 
+  /*
+   * Os departamentos da empresa, para o seletor de cada cartão de conexão.
+   *
+   * A busca é por `company_id`, e não por `owner_id`: um dono com duas
+   * empresas veria no cartão de uma os departamentos da outra, e poderia
+   * vincular o número à divisão errada. Há um caso desses na base.
+   */
+  const [departamentos, setDepartamentos] = useState<{ id: string; name: string; color: string | null }[]>([]);
+  useEffect(() => {
+    if (!company?.id) { setDepartamentos([]); return; }
+    supabase.from("departments").select("id, name, color").eq("company_id", company.id).order("position", { ascending: true })
+      .then(({ data }) => setDepartamentos((data ?? []) as { id: string; name: string; color: string | null }[]));
+  }, [company?.id]);
+
+  /** Vincula (ou desvincula) o número a um departamento. */
+  const vincularDepartamento = async (connId: string, deptId: string) => {
+    try {
+      await updateWhatsAppConnection(connId, { departmentId: deptId === "nenhum" ? null : deptId });
+      const nome = departamentos.find(d => d.id === deptId)?.name;
+      toast.success(nome
+        ? `As próximas conversas deste número entram em ${nome}.`
+        : "Número sem departamento: as conversas entram no departamento padrão.");
+    } catch {
+      toast.error("Não foi possível salvar o departamento.");
+    }
+  };
+
   // Google OAuth state
   const [googleConn, setGoogleConn]           = useState<{ id: string; email: string | null } | null>(null);
   const [googleLoading, setGoogleLoading]     = useState(true);
@@ -4116,6 +4143,40 @@ function ConexoesSection() {
                 <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
               <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
+              {/*
+                O departamento deste número.
+                ──────────────────────────────────────────────────────────────
+                As conversas que entrarem por aqui nascem nele. Quem faz o
+                roteamento é um gatilho no banco, então vale para mensagem que
+                chega por webhook, por automação ou pelo agente -- não só pelo
+                que a tela cria.
+
+                Muda só o que vem DEPOIS: as conversas que já existem ficam
+                onde estão. Transferir o que já entrou é na própria conversa,
+                no Multiatendimento, ou em massa pela lista.
+
+                "Nenhum" não é falta de destino: sem departamento no número, a
+                conversa cai no departamento padrão da empresa.
+              */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Departamento</label>
+                <Select value={conn.departmentId ?? "nenhum"} onValueChange={v => vincularDepartamento(conn.id, v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Nenhum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Nenhum (usa o padrão da empresa)</SelectItem>
+                    {departamentos.map(d => (
+                      <SelectItem key={d.id} value={d.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                          {d.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
@@ -4181,6 +4242,40 @@ function ConexoesSection() {
                 <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
               <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
+              {/*
+                O departamento deste número.
+                ──────────────────────────────────────────────────────────────
+                As conversas que entrarem por aqui nascem nele. Quem faz o
+                roteamento é um gatilho no banco, então vale para mensagem que
+                chega por webhook, por automação ou pelo agente -- não só pelo
+                que a tela cria.
+
+                Muda só o que vem DEPOIS: as conversas que já existem ficam
+                onde estão. Transferir o que já entrou é na própria conversa,
+                no Multiatendimento, ou em massa pela lista.
+
+                "Nenhum" não é falta de destino: sem departamento no número, a
+                conversa cai no departamento padrão da empresa.
+              */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Departamento</label>
+                <Select value={conn.departmentId ?? "nenhum"} onValueChange={v => vincularDepartamento(conn.id, v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Nenhum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhum">Nenhum (usa o padrão da empresa)</SelectItem>
+                    {departamentos.map(d => (
+                      <SelectItem key={d.id} value={d.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                          {d.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar

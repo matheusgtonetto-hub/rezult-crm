@@ -71,6 +71,14 @@ export interface WhatsAppConnection {
   phone?: string | null;
   connected: boolean;
   active: boolean;
+  /**
+   * Departamento dono deste número.
+   *
+   * As conversas que entram por ele nascem nele -- quem faz isso é o gatilho
+   * `rotear_departamento_da_conversa`, no banco, e não o app: conversa é criada
+   * por seis caminhos diferentes (três webhooks, automação, agente e a tela).
+   */
+  departmentId?: string | null;
   createdAt: string;
 }
 
@@ -88,6 +96,7 @@ function mapConn(r: Record<string, unknown>): WhatsAppConnection {
     phone:         r.phone as string | null,
     connected:     r.connected as boolean,
     active:        r.active as boolean,
+    departmentId:  r.department_id as string | null,
     createdAt:     r.created_at as string,
   };
 }
@@ -225,6 +234,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         phone:           data.phone ?? null,
         connected:       data.connected,
         active:          data.active,
+        department_id:   data.departmentId ?? null,
       })
       .select()
       .single();
@@ -247,6 +257,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (data.phone         !== undefined) payload.phone           = data.phone;
     if (data.connected     !== undefined) payload.connected       = data.connected;
     if (data.active        !== undefined) payload.active          = data.active;
+    if (data.departmentId  !== undefined) payload.department_id   = data.departmentId;
     const { error } = await supabase.from("whatsapp_connections").update(payload).eq("id", id);
     if (error) throw error;
     setWhatsappConnections(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));

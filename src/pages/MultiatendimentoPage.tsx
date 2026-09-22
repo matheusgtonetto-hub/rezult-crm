@@ -921,7 +921,10 @@ export default function MultiatendimentoPage() {
     if (!oid) return;
     (async () => {
       const [d, w, s] = await Promise.all([
-        supabase.from("departments").select("id, name, color").eq("owner_id", oid).order("position", { ascending: true }),
+        // Por empresa, e não por dono: quem tem duas empresas via as duas
+        // listas somadas no seletor, com nomes repetidos e sem como
+        // distinguir de qual era cada um.
+        supabase.from("departments").select("id, name, color").eq("company_id", company?.id ?? "").order("position", { ascending: true }),
         supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
         supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
       ]);
@@ -937,7 +940,9 @@ export default function MultiatendimentoPage() {
         setCfgMantDept(!!st.keep_department);
       }
     })();
-  }, [company?.owner_id]);
+    // `company?.id` entrou junto: a consulta de departamentos passou a filtrar
+    // por empresa, e sem ele trocar de empresa manteria a lista da anterior.
+  }, [company?.owner_id, company?.id]);
 
   const persistMuSettings = async (patch: Record<string, unknown>) => {
     const oid = company?.owner_id;
