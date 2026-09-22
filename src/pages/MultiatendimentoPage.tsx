@@ -3267,6 +3267,22 @@ export default function MultiatendimentoPage() {
     else if (deptFilter)           list = list.filter(c => convStates[c.id]?.departmentId === deptFilter);
 
     switch (activeFilter) {
+      /*
+       * "Todos" NÃO inclui as finalizadas (dono, 22/09/2026).
+       *
+       * Ele mostrava tudo, e o arquivo de conversas encerradas ia junto: numa
+       * base com muito histórico, a caixa de trabalho vai sendo empurrada para
+       * baixo por conversas que ninguém precisa mais ver. "Todos" passou a
+       * significar "tudo que ainda está em aberto", e o encerrado tem o chip
+       * próprio.
+       *
+       * Ao contrário dos outros dois, este NÃO filtra por instância conectada:
+       * conversa de número fora do ar continua sendo trabalho de alguém, e
+       * escondê-la de "Todos" a deixaria sem nenhuma caixa onde aparecer -- ela
+       * não entra em "Não lidas" nem em "Aguardando". No card ela vem com a
+       * etiqueta "Desconectada".
+       */
+      case "":        list = list.filter(c => !convStates[c.id]?.finished); break;
       case "unread":  list = list.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
       case "pending": list = list.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
       case "done":    list = list.filter(c => convStates[c.id]?.finished); break;
@@ -3563,7 +3579,8 @@ export default function MultiatendimentoPage() {
    *
    * Agora a pergunta é uma só: tem mensagem esperando ou não.
    *
-   *   Todos        tudo, como já era quando nenhum chip estava aceso
+   *   Todos        tudo que ainda está em aberto -- o encerrado fica só no
+   *                chip próprio (dono, 22/09/2026)
    *   Não lidas    tem mensagem do cliente sem leitura -- a fila de trabalho
    *   Aguardando   lida, ainda não encerrada (era "Em aberto", renomeado a
    *                pedido do dono em 22/09/2026 -- ver nota de colisão abaixo)
@@ -3601,13 +3618,22 @@ export default function MultiatendimentoPage() {
       : visibleConvList;
 
   const filters = [
-    { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
+    { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.filter(c => !convStates[c.id]?.finished).length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
     { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
     { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
-  const activeFilterTitle = activeFilterMeta?.label === "Todos" ? "Todas as conversas" : (activeFilterMeta?.label ?? "Todas as conversas");
+  /*
+   * "Todas as conversas" virou "Conversas em aberto".
+   *
+   * O chip continua "Todos", que é curto o bastante para a fileira, mas o
+   * título acima da lista precisa dizer a verdade: desde 22/09/2026 as
+   * finalizadas ficam fora dele. Com o texto antigo, a contagem ao lado
+   * ("199") passaria a não bater com o total da empresa, e ninguém teria como
+   * descobrir por quê.
+   */
+  const activeFilterTitle = activeFilterMeta?.label === "Todos" ? "Conversas em aberto" : (activeFilterMeta?.label ?? "Conversas em aberto");
   const activeFilterCount = activeFilterMeta?.count ?? convsDoDepartamento.length;
 
   // ── grouped messages ────────────────────────────────────────────────
