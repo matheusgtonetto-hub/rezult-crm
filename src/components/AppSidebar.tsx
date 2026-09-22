@@ -9,6 +9,7 @@ import {
   Zap,
   Filter,
   BotMessageSquare,
+  CalendarDays,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
@@ -117,8 +118,10 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
-    ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
+    // Agenda voltou da barra superior para cá (dono, 22/09/2026). Sem
+    // permissão própria: é assim que ela sempre foi, lá e aqui, porque o
+    // calendário mostra os compromissos de quem está olhando.
+    { to: "/calendario", label: "Agenda", icon: CalendarDays },
     // Disparos é governado por `impulsos`, não por `automacoes`: são duas abas
     // diferentes, e antes as duas liam a mesma permissão. Quem recebia acesso a
     // Automações ganhava Disparos junto, sem ninguém ter marcado isso.
@@ -131,6 +134,8 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
     // lista, então ninguém perde acesso ao que já tinha.
     ...(canAny("agentes:admin", "agentes:member")
       ? [{ to: "/agentes", label: "Agentes", icon: BotMessageSquare }] : []),
+    ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
   ];
 
   /** A dica com o nome de uma tela, só com a barra recolhida. */

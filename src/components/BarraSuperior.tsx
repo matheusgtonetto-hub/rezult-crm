@@ -19,9 +19,13 @@ import {
  * A barra superior, no desenho do `Topbar.jsx` do design system.
  *
  * Decisão do dono em 19/09/2026, revendo a D7 da matriz ("sem topbar global").
- * Aqui moram as ferramentas do dia (Agenda, Tutoriais, Notificações,
- * Configurações) e o menu da pessoa, que saíram da barra lateral: nos dois
- * lugares seria duplicar, e a lateral passa a ser só a navegação entre telas.
+ * Aqui moram as ferramentas do dia (Tutoriais, Notificações, Configurações) e o
+ * menu da pessoa, que saíram da barra lateral: nos dois lugares seria duplicar,
+ * e a lateral passa a ser só a navegação entre telas.
+ *
+ * A Agenda ESTEVE aqui e voltou para a lateral em 22/09/2026, a pedido do dono:
+ * ela é uma tela onde se trabalha o dia, como Pipelines ou Leads, e não uma
+ * ferramenta de apoio como as três que ficaram.
  *
  * Do material, fica de fora a BUSCA do centro. O CRM não tem busca global, e um
  * campo que não busca nada seria inventar funcionalidade.
@@ -161,11 +165,9 @@ export function BarraSuperior() {
         <div className="flex-1" />
 
         {/* ── Ferramentas ──────────────────────────────────────────────────── */}
-        {/* 10px entre os botões (dono, 21/09/2026). Eram 6px, e com quatro
+        {/* 10px entre os botões (dono, 21/09/2026). Eram 6px, e com os
             círculos de 30px lado a lado eles liam como um bloco só. */}
         <div className="flex items-center gap-[10px] shrink-0">
-          {link("/calendario", "Agenda", CalendarDays)}
-
           <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
             {comDica(
               "Tutoriais",
