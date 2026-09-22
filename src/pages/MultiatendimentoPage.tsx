@@ -379,28 +379,33 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
 /**
  * Um chip de filtro da lista de conversas.
  *
- * O nome aparece DENTRO do chip aceso, e só nele (dono, 22/09/2026). Antes o
- * rótulo vivia apenas na dica ao passar o mouse: a fileira era quatro ícones
- * com números, e descobrir em qual caixa se estava exigia passar o mouse em
- * cada um. Os quatro nomes juntos não cabem nos 350px da coluna -- o aceso é o
- * único que a pessoa precisa ler.
+ * Nome à esquerda, número à direita, sem ícone (dono, 22/09/2026). A fileira
+ * era quatro ícones com números, e o nome vivia só na dica ao passar o mouse:
+ * saber em que caixa se estava exigia passar o mouse em cada um. Tirar o ícone
+ * é o que abre espaço para os três nomes caberem nos 350px da coluna.
  *
- * `iconOnly` deixa o chip no tamanho mínimo, com ícone e número e sem esticar:
- * é o caso de "Finalizadas", que o dono quer compacto mesmo quando aceso.
- * Ele não é fila de trabalho, é arquivo.
+ * `iconOnly` é a exceção, e vale para "Finalizadas": tamanho mínimo, só ícone e
+ * número, mesmo aceso. Não é fila de trabalho, é arquivo -- e o espaço que ele
+ * economiza é justamente o que os outros três usam para escrever o nome.
  */
 function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, borderColor, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; borderColor: string; iconOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
   const border = isActive ? `1px solid ${borderColor}` : "1px solid var(--border-default)";
-  // O aceso mostra o nome, então precisa do dobro do espaço dos outros.
-  const mostrarRotulo = isActive && !iconOnly && !!label;
+  const mostrarRotulo = !iconOnly && !!label;
   return (
-    <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : (mostrarRotulo ? 2 : 1), minWidth: 0 }}
+    /*
+     * `1 1 auto`: a sobra é dividida por igual, mas cada chip parte da largura
+     * do próprio conteúdo. Com `flex: 1` puro, "Todos" e "Não lidas" ficariam
+     * do mesmo tamanho, e o nome mais longo truncaria enquanto o curto sobrava
+     * espaço.
+     */
+    <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : "1 1 auto", minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* A dica some quando o nome já está no chip: repetir a mesma palavra
-          logo acima do lugar onde ela está escrita é ruído. */}
+      {/* A dica ficou só para o compacto, que não tem nome para ler. Nos
+          outros, repetir a mesma palavra logo acima de onde ela já está
+          escrita seria ruído. */}
       {hovered && label && !mostrarRotulo && (
         <div style={{
           position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
@@ -415,16 +420,30 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: 5, background: "var(--surface-card)", border, borderRadius: 6, padding: iconOnly ? "4px 8px 4px 4px" : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
-        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 6, background: colorBg, flexShrink: 0 }}>
-          <Icon size={11} color={color} />
-        </span>
-        {count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300, flexShrink: 0 }}>{count}</span>}
+      <button
+        onClick={onClick}
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          justifyContent: iconOnly ? "flex-start" : "space-between",
+          width: iconOnly ? undefined : "100%",
+          background: "var(--surface-card)", border, borderRadius: 6,
+          padding: iconOnly ? "4px 8px 4px 4px" : "4px 8px",
+          fontSize: 12, cursor: "pointer", minWidth: 0,
+        }}
+      >
+        {/* O ícone sobrou só no compacto: é o que identifica o chip quando não
+            há nome para ler. */}
+        {iconOnly && (
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 6, background: colorBg, flexShrink: 0 }}>
+            <Icon size={11} color={color} />
+          </span>
+        )}
         {mostrarRotulo && (
-          <span style={{ color: "var(--text-heading)", fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ color: "var(--text-heading)", fontWeight: isActive ? 600 : 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {label}
           </span>
         )}
+        {count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300, flexShrink: 0 }}>{count}</span>}
       </button>
     </div>
   );
