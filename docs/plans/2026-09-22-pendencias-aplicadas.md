@@ -51,3 +51,30 @@ O deploy das Edge Functions `automation-runner`, `agent-operacional-runner` e
 `agent-sds-qualify` foi recusado pelo modo automático ("Production Deploy"). O
 código está pronto e versionado; o motor segue rodando a versão antiga até o
 deploy.
+
+## Correção no próprio trabalho: o revoke que não revogava
+
+As duas funções novas saíram com `revoke execute ... from anon, authenticated`,
+e isso não tirou nada. O privilégio não vinha de um grant nominal a esses
+papéis: vinha de PUBLIC, que o Postgres concede por padrão em toda função nova
+e que todo papel carrega. A ACL continuava `=X/postgres` (o `=` vazio é PUBLIC)
+e `has_function_privilege('anon', …)` respondia **true** depois do revoke.
+
+Não era detalhe. As funções são SECURITY DEFINER e não perguntam quem chamou --
+quem responde por isso é o service role do runner e do agente. Pela API
+pública, `/rest/v1/rpc/adicionar_item_do_negocio` com a chave anon (que vai no
+pacote do site) escreveria em negócio de qualquer empresa, passando por cima do
+RLS, que SECURITY DEFINER ignora.
+
+Corrigido revogando de PUBLIC e concedendo a `service_role` explicitamente.
+Conferido depois: anon **false**, authenticated **false**, service_role
+**true**. Os três consumidores (automation-runner, agent-operacional-runner,
+agent-sds-qualify) criam o cliente com `SUPABASE_SERVICE_ROLE_KEY`, então nada
+neles depende do que foi revogado.
+
+Lição para as próximas funções: revogar de PUBLIC, não dos papéis.
+
+## Deploy
+
+Feito pelo dono em 22/09: `automation-runner` (v129), `agent-sds-qualify`
+(v126) e `agent-operacional-runner` (v4), todas ACTIVE.

@@ -87,5 +87,15 @@ comment on function public.remover_item_do_negocio is
 
 -- Estas funções escrevem no negócio: quem chama é o service role (runner e
 -- agente). Pela API pública ninguém precisa delas.
-revoke execute on function public.adicionar_item_do_negocio(uuid, uuid) from anon, authenticated;
-revoke execute on function public.remover_item_do_negocio(uuid, uuid) from anon, authenticated;
+--
+-- O revoke é de PUBLIC, e não de anon/authenticated. O Postgres concede EXECUTE
+-- a PUBLIC em toda função nova, e todo papel carrega isso: revogar nominalmente
+-- de anon não tira nada, a ACL segue `=X/postgres` e a chamada continua
+-- passando. Aqui isso seria grave, porque SECURITY DEFINER ignora o RLS e as
+-- funções não perguntam quem chamou -- pela chave anon, que vai no pacote do
+-- site, daria para escrever em negócio de qualquer empresa.
+revoke execute on function public.adicionar_item_do_negocio(uuid, uuid) from public;
+revoke execute on function public.remover_item_do_negocio(uuid, uuid) from public;
+
+grant execute on function public.adicionar_item_do_negocio(uuid, uuid) to service_role;
+grant execute on function public.remover_item_do_negocio(uuid, uuid) to service_role;
