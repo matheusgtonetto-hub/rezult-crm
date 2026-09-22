@@ -680,14 +680,48 @@ export default function DashboardPage() {
     }).filter(d => d.value > 0);
   }, [periodLeads, teamMembers, memberColors, donutMode]);
 
+  /*
+   * Produtos mais vendidos, com a receita RATEADA entre os itens do negócio.
+   *
+   * Enquanto era um produto por negócio, somar a receita inteira em cada
+   * produto dava certo por acidente. Com dois, isso contaria a mesma venda duas
+   * vezes -- o mesmo erro que o gráfico do período tinha.
+   *
+   * O rateio é pelo peso de cada item, e não pela soma crua: o valor do negócio
+   * pode ter sido ajustado à mão (é onde mora o desconto no total), e aí a soma
+   * dos itens não bate com o que entrou de fato. Item de R$ 1.000 num negócio
+   * fechado a R$ 900 leva R$ 900; se os dois itens valem 1.000 e 500, levam 600
+   * e 300.
+   *
+   * Itens todos zerados (produto cadastrado sem preço) dividem por igual: sem
+   * peso nenhum, a alternativa seria jogar a receita toda fora.
+   */
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; sku: string; count: number; value: number }>();
     products.forEach(p => map.set(p.id, { name: p.name, sku: p.sku, count: 0, value: 0 }));
+
     wonInPeriod.forEach(l => {
-      if (!l.productId || !map.has(l.productId)) return;
-      const cur = map.get(l.productId)!;
-      cur.count++; cur.value += receitaDoGanho(l);
+      const receita = receitaDoGanho(l);
+      const itens = (l.itens ?? []).filter(i => map.has(i.productId));
+
+      // Negócio sem item, mas com o produto no campo espelho: é o que sobrou de
+      // antes da tabela de itens existir, e continua contando como uma venda.
+      if (itens.length === 0) {
+        if (!l.productId || !map.has(l.productId)) return;
+        const cur = map.get(l.productId)!;
+        cur.count++; cur.value += receita;
+        return;
+      }
+
+      const pesos = itens.map(i => i.quantidade * i.valorUnitario);
+      const total = pesos.reduce((s, v) => s + v, 0);
+      itens.forEach((item, i) => {
+        const cur = map.get(item.productId)!;
+        cur.count++;
+        cur.value += total > 0 ? receita * (pesos[i] / total) : receita / itens.length;
+      });
     });
+
     return [...map.values()].sort((a, b) => b.value - a.value || b.count - a.count);
   }, [wonInPeriod, products]);
 

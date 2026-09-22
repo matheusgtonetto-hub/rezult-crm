@@ -2440,7 +2440,27 @@ async function checkCondition(
       case "pos_produto": {
         const prodId = cfg.produto_id as string;
         const sku = cfg.sku as string;
-        if (prodId) return lead.product_id === prodId;
+
+        /*
+         * "Tem o produto X" passou a significar "ALGUM item é X".
+         *
+         * leads.product_id só guarda o primeiro item, então comparar por ele
+         * fazia a condição ficar falsa justo para quem tem dois produtos --
+         * exatamente o cliente que pediu a funcionalidade.
+         */
+        const itensDoNegocio = async (): Promise<string[]> => {
+          const { data, error } = await supabase
+            .from("lead_products").select("product_id").eq("lead_id", lead.id as string);
+          if (error) {
+            console.error("[automacao] condição pos_produto: itens falharam:", error.message);
+            // Sem os itens, o campo espelho ainda responde pelo primeiro
+            // produto: melhor a resposta antiga do que um falso silencioso.
+            return lead.product_id ? [lead.product_id as string] : [];
+          }
+          return (data ?? []).map((r) => (r as Record<string, unknown>).product_id as string);
+        };
+
+        if (prodId) return (await itensDoNegocio()).includes(prodId);
         if (sku) {
           // SKU repetido dentro da mesma empresa existe em produção. Com
           // maybeSingle() isso ERRAVA, e o erro era descartado: a condição caía
@@ -2453,9 +2473,11 @@ async function checkCondition(
             console.error("[automacao] condição pos_produto: busca por SKU falhou:", error.message);
             return false;
           }
-          return (prods ?? []).some((p) => lead.product_id === (p as Record<string, unknown>).id);
+          const itens = await itensDoNegocio();
+          return (prods ?? []).some((p) => itens.includes((p as Record<string, unknown>).id as string));
         }
-        return !!lead.product_id;
+        // Sem produto nem SKU: a condição vira "tem algum produto".
+        return (await itensDoNegocio()).length > 0;
       }
       case "com_id_externo": {
         const extId = cfg.id_externo as string;
@@ -2838,12 +2860,34 @@ async function executeAction(
     case "add_produto_neg": {
       const productId = cfg.produto as string;
       if (!productId) return;
-      await supabase.from("leads").update({ product_id: productId }).eq("id", lead_id);
+      /*
+       * A ação se chama "adicionar" e por muito tempo fez um update em
+       * leads.product_id, ou seja, TROCAVA: duas dessas em sequência deixavam
+       * só a última, sem aviso. Desde que o negócio aceita vários produtos, ela
+       * acrescenta de verdade.
+       *
+       * Quem insere é a função do banco, a mesma que o agente de IA chama: é
+       * ela que sabe qual preço gravar, em que posição, e que leads.product_id
+       * acompanha o primeiro item. O valor do negócio é recalculado pelo
+       * gatilho de lead_products, não aqui.
+       */
+      const { error } = await supabase.rpc("adicionar_item_do_negocio", {
+        p_lead: lead_id,
+        p_produto: productId,
+      });
+      if (error) console.error("[automacao] add_produto_neg:", error.message);
       break;
     }
 
     case "rem_produto_neg": {
-      await supabase.from("leads").update({ product_id: null }).eq("id", lead_id);
+      // Sem produto escolhido, remove todos -- é o que esta ação sempre fez ao
+      // zerar leads.product_id, e o que as automações já montadas esperam.
+      const productId = (cfg.produto as string) || null;
+      const { error } = await supabase.rpc("remover_item_do_negocio", {
+        p_lead: lead_id,
+        p_produto: productId,
+      });
+      if (error) console.error("[automacao] rem_produto_neg:", error.message);
       break;
     }
 

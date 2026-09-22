@@ -454,16 +454,46 @@ async function perderNegocio(ctx: ToolCtx, input: Record<string, unknown>): Prom
   return { ok: true };
 }
 
+/**
+ * Produtos do negócio, pelo agente.
+ *
+ * Antes isto era um update em `leads.product_id`: "adicionar" trocava o produto
+ * anterior, e "remover" apagava o vínculo. Desde que o negócio aceita vários
+ * produtos, quem faz a escrita é a função do banco -- a mesma que o
+ * automation-runner chama --, porque é lá que vivem o preço a gravar, a posição
+ * e o espelho de `leads.product_id`.
+ *
+ * Em `remover`, o produto é OPCIONAL: sem ele o agente limpa o negócio inteiro,
+ * que é o comportamento que a ferramenta sempre teve.
+ */
 async function atualizarProdutoNegocio(ctx: ToolCtx, input: Record<string, unknown>, remove: boolean): Promise<ToolResult> {
   const id = resolveLeadId(ctx, input);
+
   let productId: string | null = null;
-  if (!remove) {
-    const produto = await resolverPorNome(ctx, "products", "name", input.product_id ?? input.produto);
+  const pedido = input.product_id ?? input.produto;
+  if (!remove || pedido !== undefined) {
+    const produto = await resolverPorNome(ctx, "products", "name", pedido);
     if ("erro" in produto) return { ok: false, error: `produto: ${produto.erro}` };
     productId = produto.id;
   }
-  const { error } = await ctx.db.from("leads").update({ product_id: productId }).eq("id", id).eq("company_id", ctx.companyId);
+
+  // O negócio precisa ser da empresa da conversa: a função do banco roda como
+  // dona e não tem de onde saber quem está pedindo.
+  const { data: negocio } = await ctx.db
+    .from("leads").select("id").eq("id", id).eq("company_id", ctx.companyId).maybeSingle();
+  if (!negocio) return { ok: false, error: "negócio não encontrado nesta empresa" };
+
+  if (remove) {
+    const { error } = await ctx.db.rpc("remover_item_do_negocio", { p_lead: id, p_produto: productId });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
+  const { data: item, error } = await ctx.db.rpc("adicionar_item_do_negocio", { p_lead: id, p_produto: productId });
   if (error) return { ok: false, error: error.message };
+  // Nulo quer dizer produto de outra empresa (ou inexistente): a função recusa
+  // em silêncio, e dizer "ok" aqui faria o agente anunciar algo que não houve.
+  if (!item) return { ok: false, error: "produto não pertence a esta empresa" };
   return { ok: true };
 }
 
@@ -566,8 +596,8 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
   { id: "ganhar_negocio", name: "ganhar_negocio", description: "Marca um negócio como ganho (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
   { id: "perder_negocio", name: "perder_negocio", description: "Marca um negócio como perdido (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, motivo: nomeOuId("Motivo da perda, opcional") } } },
   { id: "atualizar_atendente_negocio", name: "atualizar_atendente_negocio", description: "Troca o atendente responsável de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, atendente: nomeOuId("Atendente que passa a ser responsável") }, required: ["atendente"] } },
-  { id: "adicionar_produto_negocio", name: "adicionar_produto_negocio", description: "Associa um produto a um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, produto: nomeOuId("Produto a associar") }, required: ["produto"] } },
-  { id: "remover_produto_negocio", name: "remover_produto_negocio", description: "Remove o produto de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str } } },
+  { id: "adicionar_produto_negocio", name: "adicionar_produto_negocio", description: "Acrescenta um produto ao negócio, sem tirar os que já estão lá (padrão: o lead da conversa atual). Chame uma vez por produto quando forem vários.", input_schema: { type: "object", properties: { lead_id: str, produto: nomeOuId("Produto a acrescentar") }, required: ["produto"] } },
+  { id: "remover_produto_negocio", name: "remover_produto_negocio", description: "Remove um produto do negócio (padrão: o lead da conversa atual). Sem informar o produto, remove todos.", input_schema: { type: "object", properties: { lead_id: str, produto: nomeOuId("Produto a remover, opcional") } } },
   { id: "atualizar_total_negocio", name: "atualizar_total_negocio", description: "Atualiza o valor total de um negócio (padrão: o lead da conversa atual)", input_schema: { type: "object", properties: { lead_id: str, value: num }, required: ["value"] } },
 
   { id: "listar_conversas", name: "listar_conversas", description: "Lista conversas recentes da empresa", input_schema: { type: "object", properties: { limit: num } } },

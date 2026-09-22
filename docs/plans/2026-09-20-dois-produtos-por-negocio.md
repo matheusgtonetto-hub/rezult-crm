@@ -178,3 +178,80 @@ preço por item o elimina.
 banco); MÉDIA quanto ao esforço, que depende das quatro decisões acima --
 **missing evidence:** quantos clientes pedem quantidade e desconto, e não apenas
 "dois produtos".
+
+## Executado em 22/09/2026 (Entrega 2)
+
+Fases 3 e 4: relatório, automação, condição, agente e filtro de disparos
+deixaram de enxergar só o primeiro produto.
+
+### O lugar comum: duas funções no banco
+
+| Função | O que faz |
+|---|---|
+| `adicionar_item_do_negocio(lead, produto)` | Insere o item com o preço do cadastro, na próxima posição, e espelha `leads.product_id` no primeiro. Idempotente. Recusa produto de outra empresa |
+| `remover_item_do_negocio(lead, produto)` | Remove aquele item, ou todos quando o produto é nulo, e reespelha `leads.product_id` |
+
+Migration: `20260922000002_itens_do_negocio_funcoes.sql`.
+
+A tela escreve direto em `lead_products` (está no navegador, com RLS). Automação
+e agente rodam com service role, fora dele, e chamam estas funções: sem um lugar
+comum, "qual preço gravar", "qual posição" e "espelhar o product_id" virariam
+três cópias da mesma regra.
+
+### Os quatro consumidores
+
+**Ranking "Produtos mais vendidos".** Passou a ratear a receita do ganho entre
+os itens, pelo peso de cada um. Somar a receita inteira em cada produto contaria
+a mesma venda duas vezes. O rateio usa peso, e não a soma crua, porque o valor
+pode ter sido ajustado à mão: um negócio de R$ 900 com itens de 1.000 e 500
+distribui 600 e 300. Itens todos zerados dividem por igual.
+
+**`add_produto_neg`.** A ação se chamava "adicionar" e fazia um `update` em
+`leads.product_id`: duas em sequência deixavam só a última. Agora acrescenta.
+
+**`rem_produto_neg`.** Passou a usar o produto que a tela já pedia e nunca era
+lido; sem produto escolhido, remove todos, que é o que a ação sempre fez.
+
+**Condição "tem o produto X".** Virou "algum item é X". Comparar por
+`leads.product_id` deixava a condição falsa justo para quem tem dois produtos.
+Se a leitura dos itens falhar, o campo espelho ainda responde pelo primeiro:
+melhor a resposta antiga do que um falso em silêncio.
+
+**Agente de IA.** `adicionar_produto_negocio` acrescenta em vez de trocar, e
+`remover_produto_negocio` passou a aceitar qual produto (sem ele, remove todos).
+As descrições dizem isso ao modelo, que é de onde ele tira o comportamento.
+
+**Filtro de disparos.** Casa com qualquer item do negócio.
+
+### Limpeza na tela de automações
+
+As ações de produto ofereciam SKU, Quantidade e Preço. O motor nunca leu nenhum
+dos três: quem preenchia "Preço: 500" via a automação gravar o preço de tabela e
+não tinha como descobrir por quê. Ficou só o produto, com uma linha dizendo o
+que acontece.
+
+### Verificação
+
+Ensaio das funções num negócio criado para isto e apagado em seguida:
+
+| Caso | Resultado |
+|---|---|
+| Adicionar um produto | item criado, valor R$ 1.000, espelho aponta para ele |
+| Adicionar o mesmo de novo | segue com 1 item |
+| Segundo produto | 2 itens, valor R$ 1.747 = soma dos cadastros |
+| Produto de outra empresa | recusado, itens intactos |
+| Remover um | valor R$ 747, espelho virou o que sobrou |
+| Remover todos | valor 0, espelho nulo |
+| Desfazer | negócio removido, nenhum item órfão |
+
+| Porta | Resultado |
+|---|---|
+| `npm run typecheck` | limpo |
+| `npm test` | 31 passam |
+
+### O que falta para valer em produção
+
+O deploy das Edge Functions `automation-runner`, `agent-operacional-runner` e
+`agent-sds-qualify`. Até lá o motor roda o código antigo: a automação volta a
+TROCAR o produto, e o produto que ela grava não aparece na lista de itens do
+negócio, porque só mexe no campo espelho.

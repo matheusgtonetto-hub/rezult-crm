@@ -156,7 +156,16 @@ export function leadMatchesFilter(lead: Lead, f: LeadFilter, ctx: { lists: CrmLi
   if (f.dealStatus && f.dealStatus.length > 0 && !f.dealStatus.includes(lead.dealStatus ?? "open")) return false;
   if (typeof f.valueMin === "number" && lead.value < f.valueMin) return false;
   if (typeof f.valueMax === "number" && lead.value > f.valueMax) return false;
-  if (f.products && f.products.length > 0 && !(lead.productId && f.products.includes(lead.productId))) return false;
+  // Filtrar por produto quer dizer "tem esse produto", e não "esse é o primeiro
+  // produto": `lead.productId` guarda só o primeiro item, então comparar por
+  // ele deixava de fora justamente o negócio com dois produtos. Os itens vêm
+  // primeiro; o campo espelho continua atendendo o que foi fechado antes da
+  // tabela de itens existir.
+  if (f.products && f.products.length > 0) {
+    const doNegocio = (lead.itens ?? []).map(i => i.productId);
+    if (doNegocio.length === 0 && lead.productId) doNegocio.push(lead.productId);
+    if (!doNegocio.some(id => f.products!.includes(id))) return false;
+  }
   if (f.lists && f.lists.length > 0) {
     const inList = f.lists.some(listId => ctx.lists.find(l => l.id === listId)?.leadIds.includes(lead.id));
     if (!inList) return false;

@@ -338,8 +338,8 @@ const ACTION_CATEGORIES: { id: string; label: string; icon: React.ElementType; d
       { id: "transf_atend_neg",  label: "Transferir um atendente ao negócio",                       description: "Transfere um atendente ao negócio (substitui o atual caso existir)",                        icon: UserPlus },
       { id: "duplicar_negocio",  label: "Duplicar o negócio",                                       description: "Cria um novo negócio com as mesmas informações do negócio atual",                           icon: Copy },
       { id: "remover_atend_neg", label: "Remover o atendente do negócio",                           description: "Remove o atendente do negócio",                                                              icon: UserMinus },
-      { id: "add_produto_neg",   label: "Adicionar um produto ao negócio",                          description: "Adiciona um produto ao negócio",                                                             icon: Package },
-      { id: "rem_produto_neg",   label: "Remover um produto do negócio",                            description: "Remove um produto do negócio ou reduz sua quantidade",                                       icon: Package },
+      { id: "add_produto_neg",   label: "Adicionar um produto ao negócio",                          description: "Acrescenta um produto aos que o negócio já tem",                                             icon: Package },
+      { id: "rem_produto_neg",   label: "Remover um produto do negócio",                            description: "Remove um produto do negócio, ou todos se nenhum for escolhido",                             icon: Package },
       { id: "descontos_neg",     label: "Adicionar descontos, acréscimo, frete e cupom do negócio", description: "Adicionar informações como desconto, acréscimo, frete e cupom ao negócio.",               icon: DollarSign },
       { id: "remover_negocio",   label: "Remover negócio",                                          description: "Remove o negócio",                                                                           icon: Trash2, warning: true },
     ],
@@ -7942,6 +7942,14 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
         </div>
       );
 
+    /*
+     * Só o produto.
+     *
+     * Esta tela oferecia também SKU, Quantidade e Preço, e o motor nunca leu
+     * nenhum dos três: quem preenchia "Preço: 500" via a automação gravar o
+     * preço de tabela e não tinha como descobrir por quê. O preço vem do
+     * cadastro do produto, e o total do negócio se ajusta no próprio negócio.
+     */
     case "add_produto_neg":
       return (
         <>
@@ -7950,9 +7958,9 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
               options={products.map(p => ({ value: p.id, label: p.name }))}
             />
           </>)}
-          {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
-          {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
-          {grp(<>{lbl("Preço")}<AcoesFieldInput value={(cfg.preco as string) ?? ""} onChange={v => set("preco", v)} placeholder="Preço..." /></>)}
+          <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: -4 }}>
+            O produto é acrescentado aos que o negócio já tem, com o preço do cadastro.
+          </p>
         </>
       );
 
@@ -7960,12 +7968,13 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
       return (
         <>
           {grp(<>{lbl("Selecione o produto")}
-            <AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Selecione o produto..."
+            <AcoesSelect value={(cfg.produto as string) ?? ""} onChange={v => set("produto", v)} placeholder="Todos os produtos"
               options={products.map(p => ({ value: p.id, label: p.name }))}
             />
           </>)}
-          {grp(<>{lbl("SKU")}<AcoesFieldInput value={(cfg.sku as string) ?? ""} onChange={v => set("sku", v)} placeholder="SKU do produto..." /></>)}
-          {grp(<>{lbl("Quantidade")}<AcoesFieldInput value={(cfg.quantidade as string) ?? ""} onChange={v => set("quantidade", v)} placeholder="Quantidade..." /></>)}
+          <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: -4 }}>
+            Sem escolher um produto, remove todos os do negócio.
+          </p>
         </>
       );
 
