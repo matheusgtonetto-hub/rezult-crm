@@ -143,17 +143,17 @@ export default function AppLayout() {
     >
       <AppSidebar recolhida={barraRecolhida} aoAlternar={alternarBarra} />
       {/*
-        As duas barras como UMA peça em L.
+        As barras SEPARADAS, com a linha atravessando a tela.
 
-        O `<main>` é BRANCO, igual às barras, e quem desenha o cinza é o bloco
-        de dentro -- que ainda arredonda o próprio canto superior esquerdo. O
-        branco que aparece nessa curva é o do `<main>`, e é ele que emenda a
-        barra superior na lateral: o olho lê um L contínuo, e não duas faixas
-        que se encontram num canto reto.
+        Foi peça em L, com o canto arredondado e uma régua única contornando a
+        curva, entre 21/09 e 22/09/2026. O dono desfez: quer a linha de baixo da
+        barra superior seguindo até a borda esquerda da tela, sem curva, para as
+        duas barras ficarem bem divididas.
 
-        Por isso nenhuma das duas tem mais régua no encontro. Quem separa as
-        barras do conteúdo é a diferença de cor (branco contra canvas), que não
-        precisa de linha para ser vista.
+        Agora cada uma carrega a sua borda -- a superior a de baixo, a lateral a
+        da direita --, e a linha horizontal atravessa também o cabeçalho da
+        lateral, onde mora a marca. O que o olho lê é uma faixa de 48px no topo
+        da tela inteira, e abaixo dela o menu à esquerda e o conteúdo à direita.
       */}
       <main
         style={{
@@ -177,19 +177,14 @@ export default function AppLayout() {
             overflowY: "auto",
             overflowX: "hidden",
             background: "hsl(var(--background))",
-            borderTopLeftRadius: "var(--junta-barras)",
             /*
-             * A régua das duas barras, numa linha só.
+             * Sem borda e sem canto arredondado.
              *
-             * Ela é a BORDA deste bloco, e não uma borda em cada barra: como o
-             * canto aqui é arredondado, a linha sobe pela esquerda (encostada
-             * na lateral), faz a curva e segue para a direita (sob a barra
-             * superior). Uma linha contínua em L, que é o que o dono pediu --
-             * duas bordas separadas se encontrariam num canto reto, cada uma
-             * parando onde a outra começa.
+             * As duas linhas que cercavam este bloco eram a régua em L da
+             * junção; agora elas pertencem às barras (a de baixo na superior, a
+             * da direita na lateral), e repeti-las aqui desenharia a mesma
+             * linha duas vezes, com 1px de desencontro.
              */
-            borderTop: "1px solid var(--border-default)",
-            borderLeft: "1px solid var(--border-default)",
             paddingBottom: reservaRodape ? BANNER_HEIGHT : 0,
           }}
         >

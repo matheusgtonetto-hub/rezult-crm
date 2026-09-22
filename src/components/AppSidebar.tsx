@@ -257,42 +257,26 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           zIndex: 30,
           overflow: "hidden",
           background: "var(--surface-card)",
-          /* Sem a régua da D6 desde 21/09/2026: com a barra superior de volta,
-             ela e esta lateral são lidas como uma peça em L, e uma linha
-             vertical subindo até o topo cortaria o L ao meio. Quem separa as
-             barras do conteúdo é a diferença de cor, com o canto arredondado da
-             junta (ver `AppLayout`). */
+          /* A régua da direita voltou em 22/09/2026, a pedido do dono: as duas
+             barras deixaram de ser uma peça em L com canto arredondado e
+             passaram a ser separadas, cada uma com a sua borda. Esta divide a
+             barra do conteúdo; a de baixo do cabeçalho da marca emenda na
+             régua da barra superior. */
+          borderRight: "1px solid var(--border-default)",
           transition: "width var(--dur-normal) var(--ease-out)",
         }}
       >
-        {/* ── Marca, e o botão de recolher/expandir ───────────────────────────
-            A seta fica À DIREITA da marca nos DOIS estados (pedido do dono em
-            21/09/2026). Recolhida, ela já esteve empilhada acima da marca,
-            porque com o recuo de 12px de cada lado os dois não caberiam nos
-            72px da barra: 30 da marca + 4 de vão + 16 da seta = 50, contra 48
-            úteis.
+        {/* ── A marca, na faixa do topo ───────────────────────────────────────
+            Altura EXATA da barra superior, com a mesma borda embaixo: é assim
+            que a linha horizontal atravessa a tela de ponta a ponta, sem
+            emenda. O dono pediu essa divisão em 22/09/2026, no lugar do canto
+            arredondado que unia as duas barras.
 
-            Recolhida, os dois não cabem lado a lado num fluxo normal: 30 da
-            marca + 16 da seta + vão passam dos 72px da barra. Então a MARCA
-            fica centrada na barra (é ela que o olho usa como referência) e a
-            seta sai do fluxo, ancorada na borda direita. Apertar o recuo para
-            os dois caberem em linha foi tentado e descartado: empurrava a marca
-            para a esquerda, e o dono quer a marca centrada.
-
-            A régua que separa a marca do menu vem logo abaixo, com o botão de
-            recolher centrado sobre ela. */}
+            Isso substituiu o respiro declarado de 21px acima e abaixo da marca:
+            a altura agora é a da faixa, e a marca fica centrada nela. */}
         <div
-          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4"}`}
-          /*
-           * `paddingTop` explícito no lugar de uma altura fixa.
-           *
-           * Antes o cabeçalho tinha 72px de altura mínima, e o espaço até a
-           * régua era o que SOBRAVA depois de centrar a marca: 7px recolhida,
-           * 21px expandida. O dono pediu 21px nos dois, e sobra não se
-           * controla -- então o respiro passou a ser declarado, e a altura do
-           * cabeçalho é a soma do que há dentro dele.
-           */
-          style={{ paddingTop: "var(--respiro-marca)" }}
+          className={`flex shrink-0 items-center border-b border-[color:var(--border-default)] ${recolhida ? "justify-center" : "px-4"}`}
+          style={{ height: "var(--topbar-h)" }}
         >
           <span className="flex items-center gap-2.5 min-w-0">
             {/* O MESMO arquivo do favicon, servido de public/: são a mesma
@@ -313,28 +297,27 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
 
         {/* A régua entre a marca e o menu. Voltou a pedido do dono em
             21/09/2026: sem ela, a marca e o primeiro item do menu leem como um
-            bloco só, e o ícone de Início parecia fazer parte da assinatura.
-            Recuo de 12px nas laterais, como a lista de itens. */}
         {/*
-          A régua que separa a marca do menu, com a seta de recolher SOBRE ela,
-          centrada na barra.
+          A seta de recolher, pousada SOBRE a linha do topo.
 
-          A seta já esteve ao lado da marca, e ali disputava os 72px da barra
-          recolhida -- empurrava a marca para fora do centro. Sobre a linha o
-          lugar é o mesmo nos dois estados, porque o centro dela não se mexe ao
-          abrir ou fechar.
+          Ela tinha uma régua só dela, logo abaixo da marca. Essa régua deixou
+          de existir quando o cabeçalho passou a ter a altura da barra superior
+          e a borda embaixo: manter as duas desenharia dois traços paralelos a
+          poucos pixels um do outro.
 
-          O botão tem fundo de cartão e borda: assim ele INTERROMPE a linha, em
-          vez de pousar em cima dela.
+          Agora o botão é ABSOLUTO em relação à barra, centrado na linha
+          (`--topbar-h` menos metade da altura dele). Assim ele fica no mesmo
+          lugar com a barra aberta ou fechada -- o centro da linha não se mexe
+          --, e o fundo de cartão com borda faz com que ele INTERROMPA o traço
+          em vez de pousar por cima.
+
+          `z-10` porque o menu vem depois no fluxo: sem isso, o primeiro item da
+          lista roubaria o clique da metade de baixo do botão.
         */}
         <div
-          className="relative shrink-0 flex items-center justify-center"
-          style={{ height: 20, marginTop: "var(--respiro-marca)", marginBottom: "var(--respiro-marca)" }}
+          className="absolute left-0 right-0 flex justify-center z-10 pointer-events-none"
+          style={{ top: "calc(var(--topbar-h) - 10px)" }}
         >
-          {/* `pointer-events-none`: a linha é decorativa e, sendo absoluta,
-              é pintada DEPOIS do botão -- ela interceptava o clique e a barra
-              não abria nem fechava. Pego ao testar o clique, não ao olhar. */}
-          <div className={`${REGUA_BASE} ${recolhida ? "mx-1" : "mx-3"} absolute inset-x-0 top-1/2 pointer-events-none`} />
           {dica(
             recolhida ? "Expandir menu" : "Recolher menu",
             <button
@@ -342,7 +325,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
               onClick={aoAlternar}
               aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
               aria-expanded={!recolhida}
-              className="relative flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
+              className="pointer-events-auto flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
               style={{ width: 20, height: 20 }}
             >
               {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
@@ -359,7 +342,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             barra, os 12px antigos deixavam 24px para o item, e o retângulo do
             item ativo virava uma faixa vertical mais alta que larga. Com 4px o
             item fica 40x40, quadrado, do tamanho da própria linha. */}
-        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-3 ${recolhida ? "px-1" : "px-3"}`}>
+        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-3 pb-3 ${recolhida ? "px-1" : "px-3"}`}>
           {/* Tinta --text-muted, e não o --text-subtle do material, pela regra 4
               da seção 3.1 (3,44:1 abaixo de 16px). */}
           {!recolhida && <span className={OVERLINE}>Menu</span>}

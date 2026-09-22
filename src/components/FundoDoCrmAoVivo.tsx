@@ -91,9 +91,12 @@ export function FundoDoCrmAoVivo() {
         {/* Réplica decorativa: o botão de recolher não faz nada aqui. */}
         <AppSidebar recolhida={barraRecolhida} aoAlternar={() => {}} />
         {/* A mesma pilha do `AppLayout`: barra superior no topo, conteúdo
-            embaixo com o canto da junta arredondado. Sem isso a réplica
-            mostraria um CRM que não existe -- a pessoa vê as duas barras em
-            todas as telas depois daqui. */}
+            embaixo. Sem isso a réplica mostraria um CRM que não existe -- a
+            pessoa vê as duas barras em todas as telas depois daqui.
+
+            O canto arredondado da junta saiu junto com o do app, em
+            22/09/2026: as barras passaram a ser separadas, cada uma com a sua
+            borda. */}
         <main
           className="flex-1 min-w-0 overflow-hidden flex flex-col"
           style={{ marginLeft: "var(--barra-largura)", background: "var(--surface-card)" }}
@@ -101,7 +104,7 @@ export function FundoDoCrmAoVivo() {
           <BarraSuperior />
           <div
             className="flex-1 min-h-0 overflow-hidden"
-            style={{ background: "hsl(var(--background))", borderTopLeftRadius: "var(--junta-barras)" }}
+            style={{ background: "hsl(var(--background))" }}
           >
             <InicioPage />
           </div>

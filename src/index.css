@@ -163,9 +163,13 @@
        Recolhida, a nossa usa 48px, e não os 72px do material: o dono pediu em
        22/09/2026 que ela tivesse a MESMA espessura da barra superior, para as
        duas lerem como uma peça em L de calibre único. É por isso que este
-       token repete o valor de `--topbar-h` -- se um mudar, o outro muda
-       junto. */
-    --rail-w: 48px;
+       token nasceu igual a `--topbar-h`.
+
+       Os 3px a mais vieram logo em seguida, no mesmo dia: com a linha do topo
+       atravessando a tela, a coluna de ícones ficou apertada contra a borda
+       direita, e o dono pediu a folga. É por isso que este valor não é mais
+       exatamente o da barra superior. */
+    --rail-w: 51px;
     --sidebar-w-expanded: 248px;
     /* O respiro em volta da régua que separa a marca do menu, na barra
        lateral: acima dela e abaixo dela, igual nos dois estados da barra.
@@ -177,9 +181,11 @@
        texto, só os botões de ferramenta e o menu da pessoa -- não precisa da
        altura de um cabeçalho, e assim não compete com a lateral. */
     --topbar-h: 48px;
-    /* O raio que arredonda o canto onde as duas barras se encontram. É o mesmo
-       raio de painel: o conteúdo é o maior cartão da tela. */
-    --junta-barras: var(--radius-card);
+    /* Sem raio na junção desde 22/09/2026: as duas barras deixaram de ser uma
+       peça em L e voltaram a ser separadas, cada uma com a sua borda, com a
+       linha do topo atravessando a tela inteira (pedido do dono). O token some
+       junto -- um valor que ninguém lê vira armadilha para quem o encontra
+       depois e acha que ele governa alguma coisa. */
     /* A altura que sobra da janela para a tela, descontada a barra superior.
        As telas de altura cheia medem por ela, e nunca por 100vh: com 100vh
        passariam da janela pela altura da barra, e a última linha sairia por

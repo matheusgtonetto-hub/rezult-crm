@@ -150,13 +150,16 @@ export function BarraSuperior() {
   return (
     <TooltipProvider delayDuration={300}>
       {/*
-        Sem `border-b`: a régua sumiu em 21/09/2026, quando esta barra e a
-        lateral passaram a ser lidas como UMA peça em L. Quem separa o branco
-        das barras do conteúdo agora é o canvas cinza, que começa logo abaixo
-        com o canto arredondado -- ver `AppLayout`.
+        A régua de baixo voltou em 22/09/2026, a pedido do dono.
+        ────────────────────────────────────────────────────────────────────────
+        Ela sumiu em 21/09, quando esta barra e a lateral viraram uma peça em L
+        com o canto arredondado. Agora as duas são separadas de novo, e esta
+        linha continua na lateral: o cabeçalho da marca tem a MESMA altura desta
+        barra e a mesma borda embaixo, então o traço atravessa a tela de ponta a
+        ponta, sem emenda visível.
       */}
       <header
-        className="flex items-center shrink-0 pl-4 pr-3 bg-[color:var(--surface-card)]"
+        className="flex items-center shrink-0 pl-4 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
         style={{ height: "var(--topbar-h)" }}
       >
         {/* Nada à esquerda: a barra não carrega texto (decisão do dono em
