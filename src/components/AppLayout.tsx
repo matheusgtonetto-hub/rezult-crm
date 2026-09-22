@@ -131,7 +131,12 @@ export default function AppLayout() {
   return (
     <div
       style={{
+        /* COLUNA, e não linha: a barra superior é o primeiro filho e precisa
+           ocupar a largura inteira da tela. Em linha -- como era enquanto a
+           superior morava dentro do `main` -- ela virava uma coluna estreita à
+           esquerda, do tamanho do próprio conteúdo. */
         display: "flex",
+        flexDirection: "column",
         height: "100vh",
         width: "100vw",
         overflow: "hidden",
