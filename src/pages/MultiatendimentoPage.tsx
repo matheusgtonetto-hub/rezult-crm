@@ -522,6 +522,7 @@ export default function MultiatendimentoPage() {
   });
   const [deptMenuOpen, setDeptMenuOpen] = useState(false);
   const [deptAssignOpen, setDeptAssignOpen] = useState(false);
+  const [respMenuOpen, setRespMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   // Rascunho por conversa — cada conversa é uma janela própria (igual WhatsApp
   // Web/celular), então o texto não digitado ainda não pode vazar de uma
@@ -902,7 +903,7 @@ export default function MultiatendimentoPage() {
   // A cor vem junto do nome: é ela que pinta a etiqueta no card e o ponto do
   // seletor. Sem a cor, todo departamento vira a mesma etiqueta cinza e a
   // pessoa tem que LER cada uma para saber de quem é a conversa.
-  const [muDepts, setMuDepts]               = useState<{ id: string; name: string; color?: string | null }[]>([]);
+  const [muDepts, setMuDepts]               = useState<{ id: string; name: string; color?: string | null; attendants?: string[] | null }[]>([]);
   // Departamento apagado (ou de outra empresa, depois de trocar de empresa):
   // volta para "todos". Só roda com a lista já carregada, senão o primeiro
   // render -- quando muDepts ainda está vazio -- apagaria a escolha salva.
@@ -924,11 +925,11 @@ export default function MultiatendimentoPage() {
         // Por empresa, e não por dono: quem tem duas empresas via as duas
         // listas somadas no seletor, com nomes repetidos e sem como
         // distinguir de qual era cada um.
-        supabase.from("departments").select("id, name, color").eq("company_id", company?.id ?? "").order("position", { ascending: true }),
+        supabase.from("departments").select("id, name, color, attendants").eq("company_id", company?.id ?? "").order("position", { ascending: true }),
         supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
         supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
       ]);
-      if (d.data) setMuDepts(d.data as { id: string; name: string; color?: string | null }[]);
+      if (d.data) setMuDepts(d.data as { id: string; name: string; color?: string | null; attendants?: string[] | null }[]);
       if (w.data) setMuSchedules(w.data as { id: string; name: string }[]);
       const st = s.data as Record<string, unknown> | null;
       if (st) {
@@ -3290,6 +3291,38 @@ export default function MultiatendimentoPage() {
     toast.success(nome ? `Conversa transferida para ${nome}.` : "Conversa tirada do departamento.");
   };
 
+  /**
+   * Quem está no departamento da conversa aberta.
+   *
+   * `departments.attendants` guarda NOMES, e o responsável também é gravado
+   * por nome -- então os dois casam direto. A comparação normaliza caixa e
+   * espaços: "Ana Paula" e "ana paula " são a mesma pessoa para quem digitou.
+   */
+  const doDepartamentoDaConversa = (nome: string) => {
+    const dept = muDepts.find(d => d.id === cs?.departmentId);
+    const lista = dept?.attendants ?? [];
+    const alvo = nome.trim().toLowerCase();
+    return lista.some(n => String(n).trim().toLowerCase() === alvo);
+  };
+
+  /**
+   * Troca o responsável pela conversa aberta, pelo seletor do cabeçalho.
+   *
+   * Reaproveita `handleTransfer`, que é quem sabe o trabalho todo: o
+   * responsável é do NEGÓCIO, então ele grava no lead, espelha em todas as
+   * conversas daquele negócio (uma por número), registra o evento de sistema no
+   * histórico e a atividade no lead. Fazer um atalho que gravasse só
+   * `assigned_to` aqui deixaria o negócio com um responsável e a conversa com
+   * outro.
+   *
+   * Um nome só: é o caso comum. Quem precisa de vários continua no diálogo,
+   * pela última linha do menu.
+   */
+  const transferirResponsavel = (nome: string | null) => {
+    setRespMenuOpen(false);
+    handleTransfer(nome ? [nome] : []);
+  };
+
   const bulkAssignDept = (deptId: string) => {
     const deptName = muDepts.find(d => d.id === deptId)?.name ?? "departamento";
     bulkApply({ departmentId: deptId }, { department_id: deptId }, `Conversas transferidas para ${deptName}.`);
@@ -3428,7 +3461,7 @@ export default function MultiatendimentoPage() {
   return (
     <div
       style={{ display: "flex", height: "var(--altura-util)", width: "100%", background: "hsl(var(--background))" }}
-      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); if (deptMenuOpen) setDeptMenuOpen(false); if (deptAssignOpen) setDeptAssignOpen(false); }}
+      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); if (deptMenuOpen) setDeptMenuOpen(false); if (deptAssignOpen) setDeptAssignOpen(false); if (respMenuOpen) setRespMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
       <aside style={{ width: 350, minWidth: 350, maxWidth: 350, height: "var(--altura-util)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden" }}>
@@ -3872,6 +3905,118 @@ export default function MultiatendimentoPage() {
                               >
                                 Tirar do departamento
                               </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/*
+                    O responsável pela conversa, ao lado do departamento.
+                    ────────────────────────────────────────────────────────
+                    Estava no painel da direita, atrás de um botão "Transferir"
+                    que abria um diálogo. Departamento e responsável respondem a
+                    mesma pergunta -- quem cuida disto -- e o dono pediu os dois
+                    juntos: transferir de time e trocar de pessoa passam a ser
+                    dois cliques vizinhos.
+
+                    Quem é do departamento aparece PRIMEIRO, separado dos
+                    demais. Não escondo os outros: o negócio pode ter um dono de
+                    fora do time que está atendendo, e sumir com ele faria a
+                    lista mentir.
+
+                    Trocar de departamento NÃO mexe no responsável, e a razão
+                    está no modelo: o responsável é do NEGÓCIO, não da conversa.
+                    Limpar na transferência apagaria o dono da venda no funil e
+                    no painel por responsável. Quando o atual não é do
+                    departamento novo, o botão avisa em vez de decidir sozinho.
+                  */}
+                  {(() => {
+                    const atuais = effectiveLead?.responsibles ?? [];
+                    const principal = atuais[0] ?? "";
+                    const foraDoDept = !!principal && !!cs?.departmentId && muDepts.length > 1 && !doDepartamentoDaConversa(principal);
+                    const doDept = teamMembers.filter(m => doDepartamentoDaConversa(m));
+                    const fora = teamMembers.filter(m => !doDepartamentoDaConversa(m));
+                    const temDivisao = muDepts.length > 1 && doDept.length > 0;
+
+                    const linha = (m: string) => (
+                      <button
+                        key={m}
+                        onClick={() => transferirResponsavel(m)}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: atuais.includes(m) ? "var(--accent-50)" : "transparent", border: "none", borderRadius: 7, padding: "7px 8px", cursor: "pointer", fontSize: 12.5, fontWeight: atuais.includes(m) ? 600 : 500, color: "var(--text-heading)" }}
+                      >
+                        {memberAvatars[m]
+                          ? <img src={memberAvatars[m]} alt={m} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                          : <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: memberColors[m] ?? corDoTexto(m), color: tintaSobre(memberColors[m] ?? corDoTexto(m)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{iniciais(m)}</span>}
+                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</span>
+                        {atuais.includes(m) && <Check size={13} color="var(--accent-700)" style={{ flexShrink: 0 }} />}
+                      </button>
+                    );
+
+                    return (
+                      <div style={{ position: "relative" }}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setRespMenuOpen(o => !o); }}
+                          title={foraDoDept ? `${principal} não está neste departamento` : "Trocar o responsável"}
+                          style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
+                        >
+                          {principal
+                            ? (memberAvatars[principal]
+                                ? <img src={memberAvatars[principal]} alt={principal} style={{ width: 14, height: 14, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                                : <span style={{ width: 14, height: 14, borderRadius: "50%", flexShrink: 0, background: memberColors[principal] ?? corDoTexto(principal), color: tintaSobre(memberColors[principal] ?? corDoTexto(principal)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{iniciais(principal)}</span>)
+                            : <UserPlus size={11} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: principal ? "var(--text-heading)" : "var(--text-muted)" }}>
+                            {atuais.length > 1 ? `${principal} +${atuais.length - 1}` : (principal || "Sem responsável")}
+                          </span>
+                          {/* O aviso de que o responsável não é do departamento.
+                              Um ponto, não um alerta: é informação para quem
+                              transferiu, não um erro a corrigir agora. */}
+                          {foraDoDept && <span title="Não está neste departamento" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning-fg)", flexShrink: 0 }} />}
+                          <ChevronDown size={10} color="var(--text-muted)" />
+                        </button>
+                        {respMenuOpen && (
+                          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 240, zIndex: 50, overflow: "hidden", padding: 4, maxHeight: 320, overflowY: "auto" }}>
+                            {!hasNegocio && (
+                              /* O responsável é do negócio: sem negócio não há
+                                 onde gravar. A frase vem ANTES da lista para a
+                                 pessoa não escolher um nome e levar um toast de
+                                 erro em troca. */
+                              <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.45 }}>
+                                Crie um negócio para esta conversa antes de atribuir um responsável.
+                              </div>
+                            )}
+                            {hasNegocio && (
+                              <>
+                                {temDivisao && <div style={{ padding: "6px 8px 4px", fontSize: 12, color: "var(--text-muted)", fontWeight: 700, letterSpacing: 0.5 }}>NESTE DEPARTAMENTO</div>}
+                                {(temDivisao ? doDept : teamMembers).map(linha)}
+                                {temDivisao && fora.length > 0 && (
+                                  <>
+                                    <div style={{ padding: "8px 8px 4px", fontSize: 12, color: "var(--text-muted)", fontWeight: 700, letterSpacing: 0.5, borderTop: "1px solid var(--border-default)", marginTop: 4 }}>OUTROS</div>
+                                    {fora.map(linha)}
+                                  </>
+                                )}
+                                {teamMembers.length === 0 && (
+                                  <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)" }}>Nenhum atendente cadastrado.</div>
+                                )}
+                                {atuais.length > 0 && (
+                                  <button
+                                    onClick={() => transferirResponsavel(null)}
+                                    style={{ display: "flex", alignItems: "center", width: "100%", textAlign: "left", background: "transparent", border: "none", borderTop: "1px solid var(--border-default)", marginTop: 4, padding: "8px", cursor: "pointer", fontSize: 12.5, color: "var(--text-muted)" }}
+                                  >
+                                    Deixar sem responsável
+                                  </button>
+                                )}
+                                {/* O diálogo continua sendo o caminho de mais
+                                    de um responsável: o menu resolve o caso
+                                    comum sem tirar o que já existia. */}
+                                <button
+                                  onClick={() => { setRespMenuOpen(false); setShowTransferDialog(true); }}
+                                  style={{ display: "flex", alignItems: "center", width: "100%", textAlign: "left", background: "transparent", border: "none", borderTop: "1px solid var(--border-default)", marginTop: 4, padding: "8px", cursor: "pointer", fontSize: 12.5, color: "var(--accent-800)", fontWeight: 600 }}
+                                >
+                                  Atribuir a mais de um…
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -4791,15 +4936,12 @@ export default function MultiatendimentoPage() {
                     ) : (
                       <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}>Sem responsável</span>
                     )}
-                    {/* Ao lado de quem está atribuído, não mais numa linha
-                        própria abaixo -- a ação de trocar fica junto de quem
-                        ela troca. */}
-                    <button
-                      onClick={() => setShowTransferDialog(true)}
-                      style={{ flexShrink: 0, background: "var(--accent-50)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "var(--accent-800)", cursor: "pointer", whiteSpace: "nowrap" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-100)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-50)")}
-                    >Transferir</button>
+                    {/* O botão "Transferir" saiu daqui em 22/09/2026: trocar o
+                        responsável passou a ser o seletor do CABEÇALHO, ao lado
+                        do departamento, a pedido do dono. Aqui fica só quem é
+                        responsável hoje -- este painel informa, não comanda, e
+                        dois caminhos para a mesma troca em telas diferentes é o
+                        tipo de coisa que faz a pessoa procurar no lugar errado. */}
                   </>
                 )}
               </div>
