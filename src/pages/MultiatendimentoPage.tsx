@@ -376,15 +376,32 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
   );
 }
 
+/**
+ * Um chip de filtro da lista de conversas.
+ *
+ * O nome aparece DENTRO do chip aceso, e só nele (dono, 22/09/2026). Antes o
+ * rótulo vivia apenas na dica ao passar o mouse: a fileira era quatro ícones
+ * com números, e descobrir em qual caixa se estava exigia passar o mouse em
+ * cada um. Os quatro nomes juntos não cabem nos 350px da coluna -- o aceso é o
+ * único que a pessoa precisa ler.
+ *
+ * `iconOnly` deixa o chip no tamanho mínimo, com ícone e número e sem esticar:
+ * é o caso de "Finalizadas", que o dono quer compacto mesmo quando aceso.
+ * Ele não é fila de trabalho, é arquivo.
+ */
 function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, borderColor, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; borderColor: string; iconOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
   const border = isActive ? `1px solid ${borderColor}` : "1px solid var(--border-default)";
+  // O aceso mostra o nome, então precisa do dobro do espaço dos outros.
+  const mostrarRotulo = isActive && !iconOnly && !!label;
   return (
-    <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : 1, minWidth: 0 }}
+    <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : (mostrarRotulo ? 2 : 1), minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {hovered && label && (
+      {/* A dica some quando o nome já está no chip: repetir a mesma palavra
+          logo acima do lugar onde ela está escrita é ruído. */}
+      {hovered && label && !mostrarRotulo && (
         <div style={{
           position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
           background: "var(--text-heading)", color: "#FFF", fontSize: 12, fontWeight: 500,
@@ -398,11 +415,16 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "var(--surface-card)", border, borderRadius: 6, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: 5, background: "var(--surface-card)", border, borderRadius: 6, padding: iconOnly ? "4px 8px 4px 4px" : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 6, background: colorBg, flexShrink: 0 }}>
           <Icon size={11} color={color} />
         </span>
-        {!iconOnly && count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300 }}>{count}</span>}
+        {count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300, flexShrink: 0 }}>{count}</span>}
+        {mostrarRotulo && (
+          <span style={{ color: "var(--text-heading)", fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {label}
+          </span>
+        )}
       </button>
     </div>
   );
@@ -3737,7 +3759,7 @@ export default function MultiatendimentoPage() {
                * dizia por quê. Com "Todos" visível, sair do filtro é clicar
                * nele, que é o que qualquer pessoa tenta primeiro.
                */
-              <FilterChip key={f.id || "todos"} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} isActive={activeFilter === f.id} onClick={() => setActiveFilter(f.id)} />
+              <FilterChip key={f.id || "todos"} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(f.id)} />
             ))}
           </div>
         </div>
