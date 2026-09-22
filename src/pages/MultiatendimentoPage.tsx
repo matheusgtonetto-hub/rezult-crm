@@ -1175,13 +1175,52 @@ export default function MultiatendimentoPage() {
   // (conversa sem negócio ainda) bater com meu nome -- sempre visível. Se for
   // de outro atendente, depende de allowSeeOthers; sem ninguém atribuído,
   // depende de hideUnassigned (default: continua visível).
+  /**
+   * Os departamentos que EU alcanço.
+   *
+   * Um departamento sem ninguém definido é de todos: array vazio quer dizer
+   * "ninguém montou o time ainda", e não "ninguém entra". Hoje 39 dos 40
+   * departamentos da base estão assim, então tratar vazio como proibição
+   * deixaria quase todo atendente sem ver conversa nenhuma no dia da mudança.
+   *
+   * A comparação é por id de perfil, com o nome como reserva -- é o vínculo que
+   * sobrevive a alguém se renomear em Meu Perfil.
+   */
+  const meusDepartamentos = useMemo(() => {
+    const meuId = user?.id;
+    const meuNome = currentUserName.trim().toLowerCase();
+    return muDepts
+      .filter(d => {
+        const ids = d.attendant_ids ?? [];
+        const nomes = d.attendants ?? [];
+        if (!ids.length && !nomes.length) return true;
+        if (meuId && ids.length) return ids.includes(meuId);
+        return nomes.some(n => String(n).trim().toLowerCase() === meuNome);
+      })
+      .map(d => d.id);
+  }, [muDepts, user?.id, currentUserName]);
+
   const isConvVisibleToMe = (c: Conversation): boolean => {
     if (isMuAdmin) return true;
+
     const negocio = resolveLeadForConv(c);
     const assignedTo = convStates[c.id]?.assignedTo;
     const mine = (!!negocio?.pipelineId && (negocio.responsibles ?? []).includes(currentUserName))
       || (!!assignedTo && assignedTo === currentUserName);
+    // Conversa MINHA eu vejo sempre, mesmo que ela esteja num departamento que
+    // não é meu: foi a mim que a atribuíram, e sumir com ela deixaria um
+    // trabalho meu invisível para mim.
     if (mine) return true;
+
+    /*
+     * O departamento filtra ANTES do resto (decisão do dono, 22/09/2026).
+     *
+     * Só aperta quando a empresa tem mais de um departamento: com um só, este
+     * filtro não separa nada e ainda arriscaria esconder tudo de alguém.
+     */
+    const dept = convStates[c.id]?.departmentId;
+    if (muDepts.length > 1 && dept && !meusDepartamentos.includes(dept)) return false;
+
     const mySettings = user ? attendantSettings[user.id] : undefined;
     if (assignedTo) return !!mySettings?.allowSeeOthers;
     return !mySettings?.hideUnassigned;
@@ -3636,7 +3675,15 @@ export default function MultiatendimentoPage() {
             Fica acima dos chips porque responde outra pergunta: os chips dizem
             em que ESTADO a conversa está, este diz de QUEM ela é.
           */}
-          {muDepts.length > 1 && (
+          {/* Os departamentos que EU alcanço. Admin vê todos; o atendente vê
+              os seus, porque um departamento que ele não abre seria uma caixa
+              que abre vazia e não explica por quê.
+
+              Transferir é diferente e continua mostrando TODOS: passar adiante
+              para um time que não é o meu é justamente o ponto. */}
+          {(() => {
+            const deptsVisiveis = isMuAdmin ? muDepts : muDepts.filter(d => meusDepartamentos.includes(d.id));
+            return deptsVisiveis.length > 1 && (
             <div style={{ position: "relative", marginTop: 10 }}>
               <button
                 type="button"
@@ -3660,7 +3707,7 @@ export default function MultiatendimentoPage() {
                 >
                   {[
                     { v: "", l: "Todos os departamentos", cor: null as string | null },
-                    ...muDepts.map(d => ({ v: d.id, l: d.name, cor: d.color ?? null })),
+                    ...deptsVisiveis.map(d => ({ v: d.id, l: d.name, cor: d.color ?? null })),
                     // "Sem departamento" por último e sempre presente: é onde
                     // fica tudo o que entrou antes de a empresa se dividir, e
                     // sem esta linha essas conversas sumiriam da tela de quem
@@ -3681,7 +3728,8 @@ export default function MultiatendimentoPage() {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
             {filters.map(f => (
