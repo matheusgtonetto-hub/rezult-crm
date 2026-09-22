@@ -163,6 +163,28 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
   /** Layout da linha nos dois estados: aberta alinha à esquerda, recolhida centra. */
   const disposicao = recolhida ? "justify-center" : "gap-3 px-3 justify-start";
 
+  /**
+   * O botão que abre e fecha a barra.
+   *
+   * Definido UMA vez porque aparece em dois lugares, conforme o estado: no fim
+   * da linha da marca com a barra aberta, e no bloco abaixo dela com a barra
+   * fechada. Duas cópias do mesmo botão divergiriam no primeiro ajuste de
+   * tamanho ou de cor.
+   */
+  const botaoDeRecolher = dica(
+    recolhida ? "Expandir menu" : "Recolher menu",
+    <button
+      type="button"
+      onClick={aoAlternar}
+      aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+      aria-expanded={!recolhida}
+      className="shrink-0 flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
+      style={{ width: 20, height: 20 }}
+    >
+      {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
+    </button>,
+  );
+
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
     const Icon = item.icon;
@@ -282,12 +304,14 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             a régua da barra superior, que já passa rente ao topo daqui --
             somar outra a 48px dela desenharia dois traços paralelos.
 
-            A seta de recolher fica ABAIXO da marca, sobre uma régua própria --
-            o arranjo que o dono pediu em 21/09 e confirmou em 22/09. Ao lado do
-            logo ela empurraria a marca para fora do centro nos 51px da barra
-            recolhida; embaixo, o lugar é o mesmo nos dois estados. */}
+            A seta de recolher muda de lugar conforme o estado (dono,
+            22/09/2026): ABERTA, ela fica no fim desta linha, depois de "Rezult
+            CRM"; RECOLHIDA, desce para o bloco abaixo. Ao lado do logo nos 51px
+            da barra fechada ela empurraria a marca para fora do centro, que foi
+            a reclamação do dono em 21/09 -- e é por isso que o lugar não é o
+            mesmo nos dois estados. */}
         <div
-          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4"}`}
+          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4 justify-between gap-2"}`}
           style={{ height: "var(--topbar-h)" }}
         >
           <span className="flex items-center gap-2.5 min-w-0">
@@ -305,42 +329,26 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
               </span>
             )}
           </span>
+          {!recolhida && botaoDeRecolher}
         </div>
 
         {/*
-          A seta de recolher, abaixo da marca. SEM régua (dono, 22/09/2026).
+          O lugar da seta quando a barra está RECOLHIDA.
 
-          A linha que ficava aqui foi tirada e devolvida algumas vezes ao longo
-          da semana; agora fica só o botão. A separação entre a assinatura e a
-          navegação passa a ser o espaço, e não um traço -- e a barra já tem
-          duas linhas por perto, a da superior rente ao topo e a da direita.
+          O bloco existe nos dois estados, com a mesma altura, mesmo aberto --
+          quando a seta sobe para o cabeçalho, aqui fica o vão (pedido do dono
+          em 22/09/2026). Sem isso o menu inteiro subiria 32px ao abrir a barra
+          e desceria ao fechar, e os ícones dançariam a cada clique.
+
+          Sem régua: a linha que já ficou aqui saiu, e a separação entre a
+          assinatura e a navegação passou a ser o espaço. A barra já tem duas
+          linhas por perto, a da superior rente ao topo e a da direita.
         */}
         <div
-          /*
-           * Expandida, a seta fica sob o LOGO, e não no meio da barra (dono,
-           * 22/09/2026). Centrada nos 248px ela flutuava longe da marca, sem
-           * nada por perto a que pertencer.
-           *
-           * O recuo de 21px é o do cabeçalho (16px) mais metade da diferença
-           * entre o logo (30px) e o botão (20px): assim os dois ficam no mesmo
-           * eixo vertical. Recolhida, quem centraliza é a barra, como o logo.
-           */
-          className={`shrink-0 flex items-center ${recolhida ? "justify-center" : "justify-start"}`}
-          style={{ height: 20, marginBottom: 12, paddingLeft: recolhida ? 0 : 21 }}
+          className="shrink-0 flex items-center justify-center"
+          style={{ height: 20, marginBottom: 12 }}
         >
-          {dica(
-            recolhida ? "Expandir menu" : "Recolher menu",
-            <button
-              type="button"
-              onClick={aoAlternar}
-              aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
-              aria-expanded={!recolhida}
-              className="flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
-              style={{ width: 20, height: 20 }}
-            >
-              {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
-            </button>,
-          )}
+          {recolhida && botaoDeRecolher}
         </div>
 
         {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
